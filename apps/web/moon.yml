@@ -17,6 +17,7 @@ tasks:
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
+      - '/packages/sdk-ts/src/contracts.generated.ts'
     outputs:
       - 'dist'
 
@@ -25,6 +26,21 @@ tasks:
     inputs:
       - 'src/**/*'
       - 'tsconfig.json'
+      - '/packages/sdk-ts/src/contracts.generated.ts'
+
+  contracts-check:
+    command: 'bun run contracts:check'
+    inputs:
+      - 'src/editor/generate-contracts.mjs'
+      - 'src/lib/editor-contracts.generated.ts'
+      - 'package.json'
+      - '/Cargo.toml'
+      - '/Cargo.lock'
+      - '/crates/**/*'
+      - '/apps/cli/**/*'
+      - '/packages/sdk-ts/scripts/**/*'
+      - '/packages/sdk-ts/src/contracts.generated.ts'
+      - '/packages/contract-fixtures/**/*'
 
   deploy:
     command: 'bun run deploy'

@@ -1,12 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
+import { EditorWorkspace } from "../editor/editor-workspace";
 
-export const Route = createFileRoute('/editor')({ component: Editor })
+export const Route = createFileRoute("/editor")({ component: Editor });
 
 function Editor() {
-  return (
-    <main>
-      <h1>Editor</h1>
-      <p>Coming soon.</p>
-    </main>
-  )
+  return <EditorWorkspace />;
 }

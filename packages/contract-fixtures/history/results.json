@@ -1,0 +1,238 @@
+{
+  "fixture_version": 1,
+  "provenance": "Known legacy-compatible result shapes; omitted optional locking and export text-layout fields are intentional. The eight kinds were introduced at different times; this is a compatibility cross product, not a historical release chronology.",
+  "cases": {
+    "media.probe": {
+      "input": "/historical/not-present/media.mp4",
+      "format_name": "mov,mp4",
+      "duration": {
+        "ticks": "1",
+        "timebase": 1
+      },
+      "bit_rate": 1000,
+      "streams": []
+    },
+    "artifact.verify": {
+      "passed": true,
+      "checks": [],
+      "metadata": {
+        "input": "/historical/not-present/media.mp4",
+        "format_name": "mov,mp4",
+        "duration": {
+          "ticks": "1",
+          "timebase": 1
+        },
+        "bit_rate": 1000,
+        "streams": []
+      },
+      "decoded_samples": []
+    },
+    "preview.frame": {
+      "media": {
+        "input": "/historical/not-present/media.mp4",
+        "output": "/historical/not-present/media.mp4",
+        "requested_time": {
+          "ticks": "0",
+          "timebase": 1
+        },
+        "actual_time": {
+          "ticks": "0",
+          "timebase": 1
+        },
+        "source_pts": 0,
+        "source_time_base": {
+          "numerator": 1,
+          "denominator": 10
+        },
+        "alignment": "exact",
+        "exact": true,
+        "quality": "accurate_source_frame"
+      },
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "render.export": {
+      "media": {
+        "output": "/historical/not-present/media.mp4",
+        "metadata": {
+          "input": "/historical/not-present/media.mp4",
+          "format_name": "mov,mp4",
+          "duration": {
+            "ticks": "1",
+            "timebase": 1
+          },
+          "bit_rate": 1000,
+          "streams": []
+        },
+        "verification": {
+          "passed": true,
+          "checks": [],
+          "metadata": {
+            "input": "/historical/not-present/media.mp4",
+            "format_name": "mov,mp4",
+            "duration": {
+              "ticks": "1",
+              "timebase": 1
+            },
+            "bit_rate": 1000,
+            "streams": []
+          },
+          "decoded_samples": []
+        }
+      },
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "render.project": {
+      "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212",
+      "media": {
+        "output": "/historical/not-present/media.mp4",
+        "metadata": {
+          "input": "/historical/not-present/media.mp4",
+          "format_name": "mov,mp4",
+          "duration": {
+            "ticks": "1",
+            "timebase": 1
+          },
+          "bit_rate": 1000,
+          "streams": []
+        },
+        "verification": {
+          "passed": true,
+          "checks": [],
+          "metadata": {
+            "input": "/historical/not-present/media.mp4",
+            "format_name": "mov,mp4",
+            "duration": {
+              "ticks": "1",
+              "timebase": 1
+            },
+            "bit_rate": 1000,
+            "streams": []
+          },
+          "decoded_samples": []
+        }
+      },
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "preview.project_frame": {
+      "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212",
+      "sequence_id": "main",
+      "requested_time": {
+        "ticks": "0",
+        "timebase": 1
+      },
+      "actual_sequence_time": {
+        "ticks": "0",
+        "timebase": 1
+      },
+      "alignment": "exact",
+      "quality": "encoded_project_frame",
+      "width": 160,
+      "height": 90,
+      "text_layouts": [],
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "preview.composited_frame": {
+      "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212",
+      "sequence_id": "main",
+      "requested_time": {
+        "ticks": "0",
+        "timebase": 1
+      },
+      "actual_sequence_time": {
+        "ticks": "0",
+        "timebase": 1
+      },
+      "alignment": "exact",
+      "quality": "composited_project_frame",
+      "width": 160,
+      "height": 90,
+      "text_layouts": [],
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "preview.project_range": {
+      "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212",
+      "sequence_id": "main",
+      "requested_range": {
+        "start": {
+          "ticks": "0",
+          "timebase": 1
+        },
+        "duration": {
+          "ticks": "1",
+          "timebase": 1
+        }
+      },
+      "actual_sequence_range": {
+        "start": {
+          "ticks": "0",
+          "timebase": 1
+        },
+        "duration": {
+          "ticks": "1",
+          "timebase": 1
+        }
+      },
+      "alignment": "exact",
+      "quality": "encoded_project_range",
+      "media": {
+        "output": "/historical/not-present/media.mp4",
+        "metadata": {
+          "input": "/historical/not-present/media.mp4",
+          "format_name": "mov,mp4",
+          "duration": {
+            "ticks": "1",
+            "timebase": 1
+          },
+          "bit_rate": 1000,
+          "streams": []
+        },
+        "verification": {
+          "passed": true,
+          "checks": [],
+          "metadata": {
+            "input": "/historical/not-present/media.mp4",
+            "format_name": "mov,mp4",
+            "duration": {
+              "ticks": "1",
+              "timebase": 1
+            },
+            "bit_rate": 1000,
+            "streams": []
+          },
+          "decoded_samples": []
+        }
+      },
+      "artifact": {
+        "path": "/historical/not-present/media.mp4",
+        "mime_type": "video/mp4",
+        "size": 123,
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  }
+}

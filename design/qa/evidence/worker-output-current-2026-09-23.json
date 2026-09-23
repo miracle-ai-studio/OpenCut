@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "binary_sha256": "cccee081dc81b714be5e24f6bea4718941e432798b987036014a3233aca5d6ee",
+  "checks": [
+    "Output ceiling is explicit, old configure input preserves it, zero is rejected atomically, capped real FFmpeg fails without artifact and fresh task succeeds with decoded red pixels",
+    "Direct/composited frame, range and project export use the same admission port; actual caption intermediates clean on failure/success and final images decode correctly",
+    "Actual Worker SIGKILL retains orphan FFmpeg output and attempt locks; natural lease expiry starts attempt 2 without deleting live attempt 1, cancellation stops only attempt 2, and later orphan exit permits cleanup",
+    "Worker reports aliased-root cleanup refusal and fails output admission without touching outside files or deriving another budget authority"
+  ],
+  "orphan_output_bytes": [
+    262144
+  ],
+  "orphan_output_ceiling": 262144,
+  "evidence": "/private/tmp/opencut-worker-admission-current-20260924"
+}

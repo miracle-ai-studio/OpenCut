@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "binary_sha256": "cccee081dc81b714be5e24f6bea4718941e432798b987036014a3233aca5d6ee",
+  "checks": [
+    "Actual independent 64 MiB filesystem filled to ENOSPC: edit and cancellation report precise capacity failure, all SQL rows and project head remain unchanged, queued job is not falsely cancelled",
+    "After releasing only fixture filler, original edit key commits and replays exactly once; explicit cancellation succeeds once and actual SQLite integrity_check passes",
+    "Real pinned reader blocks passive/truncate completion without being killed; bounded lock waiting reports blocked honestly; release then explicit truncate reclaims WAL without changing any SQL row"
+  ],
+  "volume_capacity_bytes": 67067904,
+  "filler_bytes": 65126400,
+  "available_at_failure_bytes": 0,
+  "wal_before_checkpoint_bytes": "1186592",
+  "blocked_wait_seconds": 0.06623747083358467,
+  "evidence": "/private/tmp/opencut-database-recovery-final-20260924"
+}

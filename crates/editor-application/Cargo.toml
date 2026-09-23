@@ -1,0 +1,19 @@
+[package]
+name = "opencut-editor-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+semver = "1"
+opencut-job-execution = { path = "../job-execution" }
+opencut-job-contracts = { path = "../job-contracts" }
+opencut-media-contracts = { path = "../media-contracts" }
+opencut-api-contracts = { path = "../api-contracts" }
+opencut-contracts = { path = "../contracts" }
+opencut-editor-core = { path = "../editor-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "1"
+sha2 = "0.10.9"
+uuid = { version = "1.24.0", features = ["v4"] }

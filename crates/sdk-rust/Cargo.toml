@@ -1,0 +1,16 @@
+[package]
+name = "opencut-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-api-contracts = { path = "../api-contracts" }
+opencut-contracts = { path = "../contracts" }
+opencut-job-contracts = { path = "../job-contracts" }
+opencut-media-contracts = { path = "../media-contracts" }
+serde = "1"
+serde_json = "1"
+sha2 = "0.10"
+ureq = { version = "=3.2.0", default-features = false, features = ["rustls", "json"] }
+url = "2"

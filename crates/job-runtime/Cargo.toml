@@ -1,0 +1,24 @@
+[package]
+name = "opencut-job-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-storage-budget = { path = "../storage-budget" }
+opencut-sqlite-store = { path = "../sqlite-store" }
+opencut-job-execution = { path = "../job-execution" }
+opencut-asset-store = { path = "../asset-store" }
+opencut-job-contracts = { path = "../job-contracts" }
+opencut-contracts = { path = "../contracts" }
+opencut-editor-application = { path = "../editor-application" }
+opencut-media = { path = "../media" }
+opencut-project-render = { path = "../project-render" }
+opencut-time = { path = "../time" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,196 @@
+//! Shared policy: trusted identity claims are host values, not request DTOs.
+pub use opencut_api_contracts::access::*;
+use opencut_contracts::{EditorError, Operation, TransactionRequest};
+use std::collections::HashSet;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Caller {
+    LocalOwner,
+    Credential(VerifiedCredential),
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedCredential {
+    principal_id: String,
+    credential_id: String,
+}
+impl VerifiedCredential {
+    /// Native authentication adapters call this only after matching a secret's
+    /// digest against an enabled principal and nonrevoked credential.
+    pub fn from_verified(principal_id: String, credential_id: String) -> Self {
+        Self {
+            principal_id,
+            credential_id,
+        }
+    }
+    pub fn principal_id(&self) -> &str {
+        &self.principal_id
+    }
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
+}
+impl Caller {
+    pub fn principal_id(&self) -> &str {
+        match self {
+            Self::LocalOwner => "local-owner",
+            Self::Credential(c) => c.principal_id(),
+        }
+    }
+    pub fn is_owner(&self) -> bool {
+        matches!(self, Self::LocalOwner)
+    }
+}
+pub fn denied() -> EditorError {
+    EditorError::new(
+        "NOT_AUTHORIZED",
+        "The current credential is not authorized for this resource or action",
+    )
+}
+
+/// Restricted hosts use an explicit allow-list. New tools remain owner-only
+/// until their data and native I/O boundaries have been reviewed.
+pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
+    if caller.is_owner()
+        || matches!(
+            name,
+            "opencut_capabilities"
+                | "opencut_access_inspect"
+                | "opencut_project_list"
+                | "opencut_project_inspect"
+                | "opencut_project_history"
+                | "opencut_revision_inspect"
+                | "opencut_revision_restore"
+                | "opencut_edit_plan"
+                | "opencut_edit_apply"
+                | "opencut_job_view"
+                | "opencut_job_query"
+                | "opencut_job_changes"
+                | "opencut_job_submit"
+                | "opencut_job_request_cancel"
+                | "opencut_event_changes"
+                | "opencut_events_read"
+                | "opencut_audit_query"
+                | "opencut_resource_read"
+                | "opencut_render_preflight"
+                | "opencut_upload_create"
+                | "opencut_upload_inspect"
+                | "opencut_upload_abort"
+                | "opencut_upload_seal"
+                | "opencut_upload_retention"
+                | "opencut_upload_release"
+                | "opencut_upload_quota"
+                | "opencut_upload_query"
+                | "opencut_project_media_inspect"
+                | "opencut_project_media_query"
+                | "opencut_project_plugin_list"
+                | "opencut_project_plugin_inspect"
+                | "opencut_project_plugin_plan"
+        )
+    {
+        Ok(())
+    } else {
+        Err(denied())
+    }
+}
+pub fn validate_policy(policy: &PrincipalPolicy) -> Result<(), EditorError> {
+    let valid_id =
+        |id: &str| !id.is_empty() && id.len() <= 1024 && !id.chars().any(char::is_control);
+    let revision = policy
+        .expected_revision
+        .parse::<i64>()
+        .ok()
+        .filter(|r| *r >= 0 && r.to_string() == policy.expected_revision);
+    if !valid_id(&policy.principal_id)
+        || policy.principal_id.starts_with("local-")
+        || policy.grants.len() > 1000
+        || revision.is_none_or(|r| r == i64::MAX)
+    {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Invalid principal policy",
+        ));
+    }
+    let mut projects = HashSet::new();
+    for grant in &policy.grants {
+        let mask = grant.actions.iter().fold(0, |mask, a| mask | a.mask());
+        if !valid_id(&grant.project_id)
+            || !projects.insert(&grant.project_id)
+            || mask & ProjectAction::Read.mask() == 0
+            || grant.actions.len() > 7
+            || mask.count_ones() as usize != grant.actions.len()
+        {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "Project grants require unique actions including read",
+            ));
+        }
+    }
+    Ok(())
+}
+/// A restricted caller may bind only an authoritative resource of this project.
+/// The lookup runs inside the caller's current authorization/transaction boundary.
+pub fn restricted_edit(
+    request: &TransactionRequest,
+    lookup: &impl Fn(&str) -> Result<Option<opencut_contracts::Asset>, EditorError>,
+) -> Result<(), EditorError> {
+    for op in &request.operations {
+        if let Operation::BindAsset { asset } | Operation::ReplaceAsset { asset } = op {
+            let id = asset
+                .uri
+                .strip_prefix("opencut-media://")
+                .ok_or_else(denied)?;
+            crate::uploads::validate_media_id(id).map_err(|_| denied())?;
+            let mut authoritative = lookup(id)?.ok_or_else(denied)?;
+            // Logical timeline identity and display name are editor-owned.
+            authoritative.id = asset.id.clone();
+            authoritative.name = asset.name.clone();
+            if &authoritative != asset {
+                return Err(denied());
+            }
+        }
+    }
+    Ok(())
+}
+
+pub trait AuthorizationRead {
+    fn current_grants(&self, caller: &Caller) -> Result<Vec<ProjectGrant>, EditorError>;
+}
+pub fn require(
+    store: &impl AuthorizationRead,
+    caller: &Caller,
+    project: &str,
+    action: ProjectAction,
+) -> Result<(), EditorError> {
+    if caller.is_owner() {
+        return Ok(());
+    }
+    if store
+        .current_grants(caller)?
+        .iter()
+        .any(|g| g.project_id == project && g.actions.contains(&action))
+    {
+        Ok(())
+    } else {
+        Err(denied())
+    }
+}
+
+/// Trusted native execution policy derived from the host-bound identity, never JSON.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceAccess {
+    OwnerPaths,
+    ProjectContent,
+}
+pub struct ExecutionSnapshot {
+    pub snapshot: opencut_contracts::ProjectSnapshot,
+    pub sources: SourceAccess,
+}
+/// Obtain run_jobs authorization and the requested immutable project revision
+/// under one consistent read boundary. No storage lock survives this call.
+pub trait ProjectExecutionRead {
+    fn execution_snapshot(
+        &self,
+        project_id: &str,
+        revision: &str,
+    ) -> Result<ExecutionSnapshot, EditorError>;
+}

@@ -1,0 +1,6 @@
+package opencut:planner@1.0.0;
+
+world planner {
+  /// Returns a JSON array of OpenCut Operation values. The host validates it.
+  export plan: func(snapshot-json: string, parameters-json: string) -> string;
+}

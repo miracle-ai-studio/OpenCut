@@ -1,0 +1,20 @@
+[package]
+name = "opencut-storage-budget"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-contracts = { path = "../contracts" }
+opencut-editor-application = { path = "../editor-application" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+fs2 = "0.4"
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+rustix = { version = "1.1", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3"

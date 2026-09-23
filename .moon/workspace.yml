@@ -4,5 +4,6 @@ projects:
   globs:
     - 'apps/*'
     - 'crates/*'
+    - 'packages/*'
   sources:
     root: '.'

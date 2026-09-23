@@ -1,0 +1,22 @@
+[package]
+name = "opencut-asset-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-storage-budget = { path = "../storage-budget" }
+opencut-contracts = { path = "../contracts" }
+opencut-editor-application = { path = "../editor-application" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+fs2 = "0.4"
+schemars = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

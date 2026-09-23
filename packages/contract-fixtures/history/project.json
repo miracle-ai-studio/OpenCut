@@ -1,0 +1,101 @@
+{
+  "fixture_version": 1,
+  "provenance": "Reconstructed from supported historical format definitions, not an archived release binary. Revision IDs are opaque synthetic fixture IDs.",
+  "create": {
+    "project": {
+      "id": "history",
+      "name": "Historical workspace",
+      "sequence_id": "main",
+      "width": 160,
+      "height": 90,
+      "fps": {
+        "numerator": 10,
+        "denominator": 1
+      }
+    },
+    "idempotency_key": "historical-create"
+  },
+  "base": {
+    "project": {
+      "id": "history",
+      "name": "Historical workspace",
+      "schema_version": 1,
+      "default_sequence_id": "main",
+      "sequences": [
+        {
+          "id": "main",
+          "name": "Main",
+          "width": 160,
+          "height": 90,
+          "fps": {
+            "numerator": 10,
+            "denominator": 1
+          },
+          "tracks": [],
+          "caption_cues": []
+        }
+      ],
+      "assets": []
+    },
+    "revision": "rev_ccea83f7cd7f1a1d92ac2fd0396a6916882a506234ab468a92d09621f6e95b87"
+  },
+  "head": {
+    "project": {
+      "id": "history",
+      "name": "Historical workspace",
+      "schema_version": 1,
+      "default_sequence_id": "main",
+      "sequences": [
+        {
+          "id": "main",
+          "name": "Historical edit",
+          "width": 160,
+          "height": 90,
+          "fps": {
+            "numerator": 10,
+            "denominator": 1
+          },
+          "tracks": [],
+          "caption_cues": []
+        }
+      ],
+      "assets": []
+    },
+    "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212"
+  },
+  "request": {
+    "expected_revision": "rev_ccea83f7cd7f1a1d92ac2fd0396a6916882a506234ab468a92d09621f6e95b87",
+    "idempotency_key": "historical-edit",
+    "label": "Historical rename",
+    "operations": [
+      {
+        "type": "sequence.update_settings",
+        "sequence_id": "main",
+        "name": "Historical edit",
+        "width": null,
+        "height": null,
+        "fps": null
+      }
+    ]
+  },
+  "result": {
+    "transaction_id": "txn_11111111111111111111111111111111",
+    "base_revision": "rev_ccea83f7cd7f1a1d92ac2fd0396a6916882a506234ab468a92d09621f6e95b87",
+    "revision": "rev_44b10946f9fa45411a09d4bf6ee854c27330697f152ca9271109560cc811e212",
+    "created_ids": [],
+    "changed_ids": [
+      "main"
+    ],
+    "deleted_ids": []
+  },
+  "identities": {
+    "legacy": {
+      "create": "41f6c5194aa8354ba48a567d116ff61f9ea2997dab30901e276d1574a60d4828",
+      "apply": "99bfd30bbb835e81b57993ab2251d5e5a2161cd7bc29a5f84e4c42a641801b17"
+    },
+    "v2": {
+      "create": "v2:5b6f07c675426179b36e59bb4baa944241c42284e7aa12d2175bdd5190550ed1",
+      "apply": "v2:9b3d0ee2512d7294b66aeb5fe2c10b114af4b7482089ed9c401694c8139c44ec"
+    }
+  }
+}

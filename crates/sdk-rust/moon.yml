@@ -1,0 +1,18 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+language: 'rust'
+layer: 'library'
+tasks:
+  test:
+    command: 'cargo test -p opencut-sdk'
+    inputs: ['src/**/*', 'Cargo.toml', '/Cargo.lock', '/crates/api-contracts/**/*', '/crates/job-contracts/**/*', '/crates/media-contracts/**/*', '/crates/contracts/**/*']
+  contracts-check:
+    command: 'python3 ../../scripts/check-contract-boundaries.py'
+    inputs: ['/scripts/check-contract-boundaries.py', '/Cargo.toml', '/Cargo.lock', '/crates/**/*', '/apps/cli/Cargo.toml', '/apps/desktop/Cargo.toml']
+  acceptance:
+    command: 'python3 ../../scripts/verify-rust-sdk.py'
+    options:
+      cache: false
+      runInCI: false
+  wire-compatibility:
+    command: 'python3 ../../scripts/check-wire-compatibility.py'
+    inputs: ['/scripts/check-wire-compatibility.py', '/packages/contract-fixtures/legacy-v1-tools.json', '/Cargo.toml', '/Cargo.lock', '/crates/**/*', '/apps/cli/**/*']

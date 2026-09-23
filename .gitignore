@@ -1,10 +1,14 @@
 node_modules/
+.DS_Store
 dist/
+/tmp/
 target/
 .env
 .env.*
 !.env.example
 docs/
+.opencut/
+__pycache__/
 
 # moon runtime cache
 .moon/cache/

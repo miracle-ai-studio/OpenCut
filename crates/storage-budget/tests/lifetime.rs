@@ -1,0 +1,272 @@
+#![cfg(unix)]
+use opencut_editor_application::{
+    audit::{CallSource, ExecutionContext},
+    budget::{BudgetNative, Configure},
+};
+use opencut_storage_budget::Budget;
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
+fn configure(root: &Path, bytes: u64) {
+    Budget::new(root)
+        .configure(
+            Configure {
+                media_output_limit_bytes: None,
+                expected_revision: 0,
+                idempotency_key: "policy".into(),
+                payload_limit_bytes: bytes.to_string(),
+                minimum_available_bytes: "0".into(),
+            },
+            &ExecutionContext::local(CallSource::Cli),
+        )
+        .unwrap();
+}
+fn wait(path: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "missing {}", path.display());
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+#[test]
+#[ignore = "child process launched by lifecycle tests"]
+fn writer() {
+    let Some(root) = std::env::var_os("OPENCUT_BUDGET_TEST_ROOT") else {
+        return;
+    };
+    let root = Path::new(&root);
+    let id = std::env::var("OPENCUT_BUDGET_TEST_ID").unwrap();
+    let budget = Budget::new(root);
+    let result = budget.reserve("cas_capture", 150);
+    match result {
+        Ok(_reservation) => {
+            if std::env::var_os("OPENCUT_BUDGET_TEST_BYTES").is_some() {
+                fs::write(root.join("asset-store/partial"), [0; 64]).unwrap();
+            }
+            fs::write(root.join(format!("{id}.ready")), "held").unwrap();
+            loop {
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
+        Err(e) => {
+            fs::write(root.join(format!("{id}.ready")), e.code).unwrap();
+        }
+    }
+}
+struct ChildGuard(std::process::Child);
+impl std::ops::Deref for ChildGuard {
+    type Target = std::process::Child;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for ChildGuard {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        if self.0.try_wait().ok().flatten().is_none() {
+            let _ = self.0.kill();
+        }
+        let _ = self.0.wait();
+    }
+}
+fn child(root: &Path, id: &str, bytes: bool) -> ChildGuard {
+    let mut c = Command::new(std::env::current_exe().unwrap());
+    c.args(["--ignored", "--exact", "writer", "--nocapture"])
+        .env("OPENCUT_BUDGET_TEST_ROOT", root)
+        .env("OPENCUT_BUDGET_TEST_ID", id)
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit());
+    if bytes {
+        c.env("OPENCUT_BUDGET_TEST_BYTES", "yes");
+    }
+    ChildGuard(c.spawn().unwrap())
+}
+#[test]
+fn simultaneous_processes_cannot_double_admit_and_sigkill_keeps_actual_usage() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    fs::create_dir(root.join("asset-store")).unwrap();
+    configure(root, 256);
+    let mut a = child(root, "a", true);
+    let mut b = child(root, "b", true);
+    wait(&root.join("a.ready"));
+    wait(&root.join("b.ready"));
+    let statuses = [
+        fs::read_to_string(root.join("a.ready")).unwrap(),
+        fs::read_to_string(root.join("b.ready")).unwrap(),
+    ];
+    assert_eq!(statuses.iter().filter(|s| s.as_str() == "held").count(), 1);
+    assert_eq!(
+        statuses
+            .iter()
+            .filter(|s| s.as_str() == "STORAGE_BUDGET_EXCEEDED")
+            .count(),
+        1
+    );
+    let budget = Budget::new(root);
+    let live = budget.inspect(true).unwrap();
+    assert_eq!(live.reserved_bytes, "150");
+    assert_eq!(live.recovered_reservations, 0);
+    for c in [&mut a, &mut b] {
+        if c.try_wait().unwrap().is_none() {
+            c.kill().unwrap();
+        }
+        c.wait().unwrap();
+    }
+    let pending = budget.inspect(false).unwrap();
+    assert_eq!(pending.reserved_bytes, "150");
+    assert_eq!(pending.observed_payload_bytes, "64");
+    let recovered = budget.inspect(true).unwrap();
+    assert_eq!(recovered.recovered_reservations, 1);
+    assert_eq!(recovered.reserved_bytes, "0");
+    assert_eq!(recovered.observed_payload_bytes, "64");
+    assert!(root.join("asset-store/partial").exists());
+    assert_eq!(
+        budget.reserve("cas_capture", 193).err().unwrap().code,
+        "STORAGE_BUDGET_EXCEEDED"
+    );
+    let guard = budget.reserve("cas_capture", 192).unwrap();
+    drop(guard);
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}
+#[test]
+fn observation_does_not_create_state_and_policy_replay_is_exact() {
+    let d = tempfile::tempdir().unwrap();
+    let budget = Budget::new(d.path());
+    let initial = budget.inspect(false).unwrap();
+    assert_eq!(initial.policy.revision, 0);
+    assert_eq!(fs::read_dir(d.path()).unwrap().count(), 0);
+    let context = ExecutionContext::local(CallSource::Cli);
+    let input = Configure {
+        media_output_limit_bytes: None,
+        expected_revision: 0,
+        idempotency_key: "first".into(),
+        payload_limit_bytes: "128".into(),
+        minimum_available_bytes: "0".into(),
+    };
+    let policy = budget.configure(input.clone(), &context).unwrap();
+    assert_eq!(budget.configure(input.clone(), &context).unwrap(), policy);
+    let mut conflict = input.clone();
+    conflict.idempotency_key = "second".into();
+    assert_eq!(
+        budget.configure(conflict, &context).unwrap_err().code,
+        "STORAGE_POLICY_CONFLICT"
+    );
+    let mut changed = input;
+    changed.payload_limit_bytes = "256".into();
+    assert_eq!(
+        budget.configure(changed, &context).unwrap_err().code,
+        "IDEMPOTENCY_KEY_REUSED"
+    );
+    let mut held = budget.reserve("cas_capture", 64).unwrap();
+    held.ensure(128).unwrap();
+    assert_eq!(
+        held.ensure(129).unwrap_err().code,
+        "STORAGE_BUDGET_EXCEEDED"
+    );
+    drop(held);
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}
+#[test]
+fn ambiguous_namespace_and_corrupt_journal_fail_closed() {
+    use std::os::unix::fs::symlink;
+    let d = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let budget = Budget::new(d.path());
+    symlink(outside.path(), d.path().join("asset-store")).unwrap();
+    assert_eq!(
+        budget.reserve("cas_capture", 1).err().unwrap().code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+    fs::remove_file(d.path().join("asset-store")).unwrap();
+    configure(d.path(), 128);
+    let ledger = d.path().join(".storage-budget/ledger.json");
+    fs::write(&ledger, b"{").unwrap();
+    assert_eq!(
+        budget.reserve("cas_capture", 1).err().unwrap().code,
+        "STORAGE_BUDGET_ERROR"
+    );
+}
+
+#[test]
+fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers() {
+    use opencut_editor_application::budget::Writer;
+    let root = tempfile::tempdir().unwrap();
+    let budget = Budget::new(root.path());
+    let context = ExecutionContext::local(CallSource::Cli);
+    budget
+        .configure(
+            Configure {
+                expected_revision: 0,
+                idempotency_key: "media".into(),
+                payload_limit_bytes: "100".into(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: Some("80".into()),
+            },
+            &context,
+        )
+        .unwrap();
+    let writer = Writer {
+        job_id: "job_00000000000000000000000000000001".into(),
+        attempt: 1,
+    };
+    let first = budget.reserve_output(writer.clone()).unwrap();
+    assert_eq!(first.reserved_bytes(), 80);
+    let second = budget
+        .reserve_output(Writer {
+            attempt: 2,
+            ..writer.clone()
+        })
+        .unwrap();
+    assert_eq!(second.reserved_bytes(), 20);
+    assert_eq!(
+        budget.reserve_output(writer.clone()).err().unwrap().code,
+        "STORAGE_BUDGET_EXCEEDED"
+    );
+    assert_eq!(
+        budget
+            .reserve_caption(1, writer.clone())
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_EXCEEDED"
+    );
+    budget
+        .configure(
+            Configure {
+                expected_revision: 1,
+                idempotency_key: "smaller".into(),
+                payload_limit_bytes: "100".into(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: Some("10".into()),
+            },
+            &context,
+        )
+        .unwrap();
+    assert_eq!(first.reserved_bytes(), 80);
+    assert_eq!(budget.inspect(true).unwrap().reserved_bytes, "100");
+    drop(second);
+    let replacement = budget.reserve_output(writer.clone()).unwrap();
+    assert_eq!(replacement.reserved_bytes(), 10);
+    let caption = budget.reserve_caption(10, writer.clone()).unwrap();
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "100");
+    assert!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .reservations
+            .iter()
+            .all(|r| r.writer.as_ref() == Some(&writer))
+    );
+    drop((first, replacement, caption));
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}

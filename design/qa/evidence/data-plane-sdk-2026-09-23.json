@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "checks": [
+    "npm tarball installs in an external consumer with no runtime dependencies",
+    "installed declaration files accept valid calls and reject invalid tool inputs",
+    "OpenAPI legacy/domain path registry matches binary and every embedded local ref resolves",
+    "installed package calls authenticated discovery and retains response identity",
+    "authentication failure is structured",
+    "installed SDK domain action and envelope match the legacy project read",
+    "shared fixture creates idempotently and planning is read-only by independent CLI readback",
+    "commit followed by real connection loss has no automatic retry; exact manual replay returns original transaction",
+    "stale revision and reused key reject without revision refresh or unintended edits",
+    "committed event cursor and CLI agree, duplicate submissions produce one commit",
+    "local wait timeout and caller abort do not cancel a real job; independent CLI confirms successful probe",
+    "installed SDK waits through the public job projection on a real worker result",
+    "failed and explicitly cancelled jobs retain terminal record and distinct error codes"
+  ],
+  "project_id": "sdk-acceptance",
+  "revision": "rev_de2ba5a6cd1469c95fb7ac48dc3a2d52a87a847c33b79767d8f05b988acf9c04",
+  "transaction": {
+    "base_revision": "rev_abeca7276023b0b34adb7a0da7c2b8dfc41a497e5856525ea5183df23464bb45",
+    "changed_ids": [
+      "main"
+    ],
+    "created_ids": [],
+    "deleted_ids": [],
+    "revision": "rev_de2ba5a6cd1469c95fb7ac48dc3a2d52a87a847c33b79767d8f05b988acf9c04",
+    "transaction_id": "txn_fa07c04932a34c25a2a555219c26af5f"
+  },
+  "jobs": [
+    "job_d182f137f00d4d3281e19249a9b7af43",
+    "job_0f1ebe9c79364dda83451572cb507f2c",
+    "job_4568d80c2b8442bfa3f81a7353aa4d12"
+  ],
+  "traces": [
+    {
+      "tool": "opencut_edit_apply",
+      "input": {
+        "project_id": "sdk-acceptance",
+        "request": {
+          "idempotency_key": "sdk-edit-v1",
+          "label": "Shared SDK conformance fixture",
+          "expected_revision": "rev_abeca7276023b0b34adb7a0da7c2b8dfc41a497e5856525ea5183df23464bb45",
+          "operations": [
+            {
+              "type": "sequence.update_settings",
+              "sequence_id": "main",
+              "name": "Edited through independent SDK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tool": "opencut_edit_apply",
+      "input": {
+        "project_id": "sdk-acceptance",
+        "request": {
+          "idempotency_key": "sdk-edit-v1",
+          "label": "Shared SDK conformance fixture",
+          "expected_revision": "rev_abeca7276023b0b34adb7a0da7c2b8dfc41a497e5856525ea5183df23464bb45",
+          "operations": [
+            {
+              "type": "sequence.update_settings",
+              "sequence_id": "main",
+              "name": "Edited through independent SDK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tool": "opencut_job_get",
+      "input": {
+        "job_id": "job_d182f137f00d4d3281e19249a9b7af43"
+      }
+    },
+    {
+      "tool": "opencut_job_get",
+      "input": {
+        "job_id": "job_d182f137f00d4d3281e19249a9b7af43"
+      }
+    }
+  ],
+  "package": {
+    "name": "@opencut/sdk",
+    "version": "0.1.0",
+    "sha256": "3d88e1604ad284ef229664228cdaa739f6b8bdc32a85e186c01a7c4fd7b557b5"
+  },
+  "binary_sha256": "cccee081dc81b714be5e24f6bea4718941e432798b987036014a3233aca5d6ee",
+  "node": "v24.19.0",
+  "platform": "darwin/x64",
+  "openapi": {
+    "endpoints": 75,
+    "checked_local_references": 1373,
+    "sha256": "c97911fa5a136fad6910eecf87a0aef534015d81434c08b1e520a769671d97d1"
+  }
+}

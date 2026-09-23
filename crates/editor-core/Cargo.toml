@@ -1,0 +1,10 @@
+[package]
+name = "opencut-editor-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-contracts = { path = "../contracts" }
+opencut-time = { path = "../time" }
+serde_json = "1"

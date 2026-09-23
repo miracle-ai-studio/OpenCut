@@ -1,0 +1,140 @@
+{
+  "status": "passed",
+  "archive": "/private/tmp/opencut-packages-openapi-20260924/opencut-0.1.0-dev-1d39087e4d76-x86_64-apple-darwin.tar.gz",
+  "archive_sha256": "6eaea6f2f97f274b20339a749b2fbc33509e2adf553db05e4f6163434d26c52f",
+  "binary_sha256": "cccee081dc81b714be5e24f6bea4718941e432798b987036014a3233aca5d6ee",
+  "target": "x86_64-apple-darwin",
+  "checks": [
+    "Delivered Streamable HTTP lifecycle, authenticated sessions and bounded replay",
+    "Official MCP SDK independently discovers calls subscribes resumes and terminates the delivered host session",
+    "archive digest and every delivered file verified outside repository",
+    "diagnostic reports a tampered contract file and accepts restored bytes",
+    "delivered manifest matches executable database version, domain registry and OpenAPI routes",
+    "npm tarball installs independently and plans commits retries through delivered HTTP host",
+    "installed TS SDK submits and observes a real FFprobe Worker task",
+    "Rust SDK source archive builds outside repo with portable dependencies only",
+    "Rust SDK replays the TS transaction then commits a new revision",
+    "delivered CLI independently reads the exact Rust SDK snapshot",
+    "delivered binary passes 30-cell frozen historical format matrix",
+    "delivered binary passes actor and Worker artifact provenance with atomic audit rollback",
+    "delivered binary passes owner administration history across CLI HTTP and both MCP transports",
+    "delivered binary passes bounded workspace observation and scoped refusal under directory replacement",
+    "delivered binary passes real write admission, failed import recovery and SIGKILL reservation recovery",
+    "delivered binary passes actual disk-full SQL rollback and pinned-reader WAL checkpoint recovery",
+    "delivered scoped HTTP/MCP enforces SSE resume, verified artifact bytes and live stream revocation",
+    "delivered project import passes scoped CLI/HTTP/MCP byte transfer, publication, binding and independent media decode",
+    "delivered import Worker survives SIGKILL, natural lease recovery and abandoned input cleanup",
+    "delivered binary passes real upload preview export repair and decoded RGB/PCM journey",
+    "service stop and standalone delivered CLI reopen preserve final project"
+  ],
+  "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-qmbo_ac5",
+  "doctor": {
+    "status": "passed",
+    "target": "x86_64-apple-darwin",
+    "checks": [
+      {
+        "check": "bundle_file",
+        "path": "LICENSE",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "README.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "bin/opencut",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "cas-gc-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/edit-journey.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/event-stream.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/openapi.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/tools.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "denial-audit-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "dependency-inventory.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "doctor.py",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "native-child-write-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "project-plugin-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "sdk/opencut-rust-sdk-0.1.0.tar.gz",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "sdk/opencut-sdk-0.1.0.tgz",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "storage-admission-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "storage-governance-contract.md",
+        "passed": true
+      },
+      {
+        "check": "external_tool",
+        "tool": "ffmpeg",
+        "passed": true,
+        "version": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+      },
+      {
+        "check": "external_tool",
+        "tool": "ffprobe",
+        "passed": true,
+        "version": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers"
+      },
+      {
+        "check": "binary_executes",
+        "passed": true,
+        "version": "opencut 0.1.0"
+      }
+    ]
+  },
+  "scope": "local development package acceptance on current host; not full R0-R7 or cross-platform release"
+}

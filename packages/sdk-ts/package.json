@@ -1,0 +1,24 @@
+{
+  "name": "@opencut/sdk",
+  "version": "0.1.0",
+  "description": "Typed client for the OpenCut v1 automation API",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "README.md"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./contracts": { "types": "./dist/contracts.generated.d.ts", "import": "./dist/contracts.generated.js" }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "contracts:generate": "node scripts/generate.mjs",
+    "contracts:check": "node scripts/generate.mjs --check",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "15.0.4",
+    "typescript": "6.0.2"
+  }
+}

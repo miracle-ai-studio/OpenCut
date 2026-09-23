@@ -1,0 +1,356 @@
+{
+  "$defs": {
+    "EditorError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "EventData": {
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/ProjectEvent"
+            },
+            "type": {
+              "const": "project",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/JobChange"
+            },
+            "type": {
+              "const": "job",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EventScope": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "projects",
+              "type": "string"
+            },
+            "project_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "jobs",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "JobChange": {
+      "properties": {
+        "created_at": {
+          "type": "string"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "event_type": {
+          "$ref": "#/$defs/JobChangeKind"
+        },
+        "job_id": {
+          "type": "string"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgressView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/JobState"
+        }
+      },
+      "required": [
+        "event_id",
+        "job_id",
+        "event_type",
+        "state",
+        "created_at"
+      ],
+      "type": "object"
+    },
+    "JobChangeKind": {
+      "enum": [
+        "queued",
+        "started",
+        "progress",
+        "succeeded",
+        "failed",
+        "cancel_requested",
+        "cancelled",
+        "recovered",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "JobState": {
+      "enum": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "ProgressView": {
+      "properties": {
+        "fraction": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "media_time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stage": {
+          "$ref": "#/$defs/PublicJobStage"
+        }
+      },
+      "required": [
+        "stage"
+      ],
+      "type": "object"
+    },
+    "ProjectEvent": {
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "payload": true,
+        "project_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "project_id",
+        "revision",
+        "event_type",
+        "payload"
+      ],
+      "type": "object"
+    },
+    "PublicJobStage": {
+      "enum": [
+        "resolving_assets",
+        "probing",
+        "selecting_frame",
+        "decoding",
+        "encoding",
+        "verifying",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "StreamEnd": {
+      "enum": [
+        "caught_up",
+        "limit_reached"
+      ],
+      "type": "string"
+    },
+    "StreamFormat": {
+      "enum": [
+        "opencut.events.v1"
+      ],
+      "type": "string"
+    },
+    "Time": {
+      "additionalProperties": false,
+      "properties": {
+        "ticks": {
+          "type": "string"
+        },
+        "timebase": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ticks",
+        "timebase"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "properties": {
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/EventScope"
+        },
+        "type": {
+          "const": "ready",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "scope"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "cursor": {
+          "type": "string"
+        },
+        "event": {
+          "$ref": "#/$defs/EventData"
+        },
+        "type": {
+          "const": "event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "cursor",
+        "event"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/StreamEnd"
+        },
+        "type": {
+          "const": "end",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reason"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "$ref": "#/$defs/EditorError"
+        },
+        "type": {
+          "const": "error",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "error"
+      ],
+      "type": "object"
+    }
+  ],
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/StreamFormat"
+    }
+  },
+  "required": [
+    "format"
+  ],
+  "title": "StreamRecord",
+  "type": "object"
+}

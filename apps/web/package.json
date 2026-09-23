@@ -6,6 +6,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
+    "contracts:generate": "node src/editor/generate-contracts.mjs",
+    "contracts:check": "node src/editor/generate-contracts.mjs --check",
     "dev": "vite dev --port 5173",
     "build": "vite build",
     "preview": "vite preview",

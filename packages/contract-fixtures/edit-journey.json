@@ -1,0 +1,22 @@
+{
+  "fixture_version": 1,
+  "create": {
+    "project": {
+      "id": "sdk-acceptance",
+      "name": "SDK independent consumer",
+      "sequence_id": "main",
+      "width": 640,
+      "height": 360,
+      "fps": { "numerator": 24, "denominator": 1 }
+    },
+    "idempotency_key": "sdk-create-v1"
+  },
+  "operations": [
+    { "type": "sequence.update_settings", "sequence_id": "main", "name": "Edited through independent SDK" }
+  ],
+  "conflicting_operations": [
+    { "type": "sequence.update_settings", "sequence_id": "main", "name": "Stale edit must not land" }
+  ],
+  "request": { "idempotency_key": "sdk-edit-v1", "label": "Shared SDK conformance fixture" },
+  "expected_conflict": { "code": "REVISION_CONFLICT", "http_status": 409, "cli_exit_code": 5 }
+}

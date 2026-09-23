@@ -1,0 +1,290 @@
+export * from "./contracts.generated.js";
+import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap } from "./contracts.generated.js";
+
+export type ToolName = keyof ToolMap;
+export type ToolInput<N extends ToolName> = ToolMap[N]["input"];
+export type ToolOutput<N extends ToolName> = ToolMap[N]["output"];
+export type DomainName = keyof DomainMap & string;
+export type DomainAction<D extends DomainName> = keyof DomainMap[D] & string;
+export type DomainInput<D extends DomainName, A extends DomainAction<D>> =
+  DomainMap[D][A] extends { input: infer I } ? I : never;
+export type DomainOutput<D extends DomainName, A extends DomainAction<D>> =
+  DomainMap[D][A] extends { output: infer O } ? O : never;
+export type Job = ToolOutput<"opencut_job_get">;
+export type PublicJob = ToolOutput<"opencut_job_view">;
+export type HostCapabilities = Extract<ToolOutput<"opencut_resource_read">["payload"], {kind: "capabilities"}>["data"];
+export type ArtifactReference = PublicJob["artifacts"][number];
+export type PublicJobResult = NonNullable<PublicJob["result"]>;
+type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
+export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap, "media.import">;
+export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
+  if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {
+    if (job.result?.kind === kind && !job.extended_result) return job.result.data as PublicResultMap[K];
+    const result = job.extended_result;
+    if (kind === "media.import" && !job.result && result?.kind === kind &&
+      result.schema_version === 1 && object(result.data)) return result.data as PublicResultMap[K];
+  }
+  throw new TypeError(`Expected an available successful ${kind} result.`);
+}
+/** Narrow a successful job result by its registered kind; rejects a wrong kind or unfinished job. */
+export function jobResult<K extends keyof JobResultMap>(job: Job, kind: K): JobResultMap[K] {
+  if (job.state !== "succeeded" || job.kind !== kind || job.result === null || job.result === undefined) {
+    throw new TypeError(`Expected a successful ${kind} job.`);
+  }
+  return job.result as JobResultMap[K];
+}
+export interface Envelope<T> {
+  api_version: "1";
+  request_id: string;
+  data: T;
+  error: null;
+  warnings: string[];
+}
+
+/** The server rejected the request; details and request ID are preserved. */
+export class OpenCutApiError extends Error {
+  readonly name = "OpenCutApiError";
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly details: unknown,
+    readonly status: number,
+    readonly requestId: string,
+    readonly warnings: readonly string[],
+  ) { super(message); }
+}
+
+/** A transport failure does not establish whether a mutation committed. */
+export class OpenCutTransportError extends Error {
+  readonly name = "OpenCutTransportError";
+  readonly outcome = "unknown";
+  constructor(cause: unknown) {
+    super("OpenCut request could not be completed; inspect state or retry the identical idempotent request.", { cause });
+  }
+}
+
+export class OpenCutProtocolError extends Error {
+  readonly name = "OpenCutProtocolError";
+  readonly outcome = "unknown";
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
+export class JobWaitTimeoutError extends Error {
+  readonly name = "JobWaitTimeoutError";
+  readonly code = "JOB_WAIT_TIMEOUT";
+  constructor(readonly jobId: string) { super(`Stopped waiting for ${jobId}; the job has not been cancelled.`); }
+}
+
+export class JobCompletionError<J extends Job | PublicJob = Job> extends Error {
+  readonly name = "JobCompletionError";
+  readonly code: "JOB_FAILED" | "JOB_CANCELLED";
+  constructor(readonly job: J) {
+    super(`Job ${job.job_id} ended with state ${job.state}.`);
+    this.code = job.state === "cancelled" ? "JOB_CANCELLED" : "JOB_FAILED";
+  }
+}
+
+export interface ClientOptions {
+  baseUrl: string;
+  token: string;
+  /** Standard fetch by default; injectable for a host's network policy. */
+  fetch?: typeof globalThis.fetch;
+}
+export interface CallOptions { signal?: AbortSignal }
+export interface WaitOptions extends CallOptions {
+  /** Local deadline, including network time. Does not cancel the durable job. */
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+function object(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const abort = () => { clearTimeout(timer); reject(signal.reason); };
+    const timer = setTimeout(() => { signal.removeEventListener("abort", abort); resolve(); }, ms);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+/** No automatic retries, revision refreshes, implicit job cancellation or UI state. */
+function auditWarnings(response: Response, warnings: string[]): string[] {
+  const warning = "DENIAL_AUDIT_UNAVAILABLE";
+  return response.headers.get("x-opencut-audit-warning") === warning && !warnings.includes(warning)
+    ? [...warnings, warning] : warnings;
+}
+
+export class OpenCutClient {
+  readonly baseUrl: string;
+  #token: string;
+  #fetch: typeof globalThis.fetch;
+
+  constructor(options: ClientOptions) {
+    const url = new URL(options.baseUrl);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new TypeError("baseUrl must be an HTTP(S) URL without credentials, query or fragment.");
+    }
+    this.baseUrl = url.href.replace(/\/$/, "");
+    this.#token = options.token;
+    this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  }
+
+  async call<N extends ToolName>(name: N, input: ToolInput<N>, options: CallOptions = {}): Promise<ToolOutput<N>> {
+    return (await this.callEnvelope(name, input, options)).data;
+  }
+
+  /** Call one typed action through the compact domain surface. */
+  async callDomain<D extends DomainName, A extends DomainAction<D>>(
+    domain: D, action: A, input: DomainInput<D, A>, options: CallOptions = {},
+  ): Promise<DomainOutput<D, A>> {
+    return (await this.callDomainEnvelope(domain, action, input, options)).data;
+  }
+
+  async callDomainEnvelope<D extends DomainName, A extends DomainAction<D>>(
+    domain: D, action: A, input: DomainInput<D, A>, options: CallOptions = {},
+  ): Promise<Envelope<DomainOutput<D, A>>> {
+    if (!(domainNames as readonly string[]).includes(domain) ||
+      !((domainActions as Record<string, readonly string[]>)[domain] ?? []).includes(action)) {
+      throw new TypeError(`Unknown OpenCut domain action: ${domain}.${action}`);
+    }
+    const body = JSON.stringify({ action, input });
+    return this.#request<DomainOutput<D, A>>(`/v1/tools/opencut_${domain}`, "POST", body, "application/json", options);
+  }
+
+  /** Typed additive discovery; the original v1 capabilities tool schema stays frozen. */
+  async hostCapabilities(options: CallOptions = {}): Promise<HostCapabilities> {
+    const resource = await this.call("opencut_resource_read", { uri: "opencut://system/capabilities" }, options);
+    if (resource.payload.kind !== "capabilities") throw new OpenCutProtocolError("Expected the host capabilities resource.", 200);
+    return resource.payload.data;
+  }
+
+  async callEnvelope<N extends ToolName>(name: N, input: ToolInput<N>, options: CallOptions = {}): Promise<Envelope<ToolOutput<N>>> {
+    if (!(toolNames as readonly string[]).includes(name)) throw new TypeError(`Unknown OpenCut tool: ${name}`);
+    options.signal?.throwIfAborted();
+    // Serialize once before awaiting. Caller mutations cannot change an in-flight write.
+    const body = JSON.stringify(input);
+    return this.#request<ToolOutput<N>>(`/v1/tools/${name}`, "POST", body, "application/json", options);
+  }
+
+  /** Send one raw chunk. On an unknown outcome, inspect the confirmed offset before retrying. */
+  async uploadChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_inspect">> {
+    options.signal?.throwIfAborted();
+    if (!/^upload_[a-f0-9]{32}$/.test(uploadId) || !/^(0|[1-9][0-9]{0,9})$/.test(offset) ||
+      bytes.byteLength < 1 || bytes.byteLength > 4194304 ||
+      BigInt(offset) + BigInt(bytes.byteLength) > 1073741824n) throw new TypeError("Invalid upload identity or chunk range.");
+    const body = new Uint8Array(bytes);
+    const hash = Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", body)),
+      b => b.toString(16).padStart(2, "0")).join("");
+    const query = new URLSearchParams({ size_bytes: String(body.byteLength), content_hash: hash });
+    return (await this.#request<ToolOutput<"opencut_upload_inspect">>(
+      `/v1/uploads/${uploadId}/chunks/${offset}?${query}`, "PUT", body, "application/octet-stream", options,
+    )).data;
+  }
+
+  async #request<T>(path: string, method: string, body: BodyInit, contentType: string,
+    options: CallOptions): Promise<Envelope<T>> {
+    options.signal?.throwIfAborted();
+    let response: Response;
+    let value: unknown;
+    try {
+      response = await this.#fetch(`${this.baseUrl}${path}`, {
+        method, redirect: "error", signal: options.signal,
+        headers: { Authorization: `Bearer ${this.#token}`, "Content-Type": contentType, Accept: "application/json" },
+        body,
+      });
+      const raw = await response.text();
+      try { value = JSON.parse(raw); }
+      catch { throw new OpenCutProtocolError("OpenCut returned a non-JSON response.", response.status); }
+    } catch (cause) {
+      if (options.signal?.aborted) throw options.signal.reason;
+      if (cause instanceof OpenCutProtocolError) throw cause;
+      throw new OpenCutTransportError(cause);
+    }
+    if (!object(value) || value.api_version !== "1" || typeof value.request_id !== "string"
+      || !Array.isArray(value.warnings) || !value.warnings.every(w => typeof w === "string")) {
+      throw new OpenCutProtocolError("Invalid or incompatible OpenCut response envelope.", response.status);
+    }
+    if (object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string") {
+      throw new OpenCutApiError(value.error.code, value.error.message, value.error.details,
+        response.status, value.request_id, auditWarnings(response, value.warnings));
+    }
+    if (!response.ok || value.error !== null || value.data === null || value.data === undefined) {
+      throw new OpenCutProtocolError("Inconsistent OpenCut response status or payload.", response.status);
+    }
+    return value as unknown as Envelope<T>;
+  }
+
+  /** Explicit durable cancellation; terminal state may still require waiting. */
+  cancelJob(jobId: string, options: CallOptions = {}): Promise<Job> {
+    return this.call("opencut_job_cancel", { job_id: jobId }, options);
+  }
+
+  /** Preferred task submission returns the public projection, with no execution inputs. */
+  submitJob(input: ToolInput<"opencut_job_submit">, options: CallOptions = {}): Promise<PublicJob> {
+    return this.call("opencut_job_submit", input, options);
+  }
+  cancelPublicJob(jobId: string, options: CallOptions = {}): Promise<PublicJob> {
+    return this.call("opencut_job_request_cancel", { job_id: jobId }, options);
+  }
+  waitForPublicJob(jobId: string, options: WaitOptions = {}): Promise<PublicJob> {
+    return this.wait(jobId, signal => this.call("opencut_job_view", { job_id: jobId }, { signal }), options);
+  }
+  waitForJob(jobId: string, options: WaitOptions = {}): Promise<Job> {
+    return this.wait(jobId, signal => this.call("opencut_job_get", { job_id: jobId }, { signal }), options);
+  }
+  artifactUrl(reference: ArtifactReference): string {
+    const id = `artifact:${reference.job_id}:${reference.content_hash}`;
+    if (reference.artifact_id !== id || !/^artifact:job_[a-f0-9]{32}:[a-f0-9]{64}$/.test(id)) throw new TypeError("Invalid artifact reference");
+    return `${this.baseUrl}/v1/artifacts/${encodeURIComponent(id)}`;
+  }
+  /** Return a streaming response. The server verifies the published hash before serving bytes. */
+  async downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
+    const url = this.artifactUrl(reference);
+    options.signal?.throwIfAborted();
+    let response: Response;
+    try {
+      response = await this.#fetch(url, { redirect: "error", signal: options.signal, headers: { Authorization: `Bearer ${this.#token}` } });
+    } catch (cause) {
+      if (options.signal?.aborted) throw options.signal.reason;
+      throw new OpenCutTransportError(cause);
+    }
+    if (!response.ok) {
+      let value: unknown;
+      try { value = await response.json(); }
+      catch (cause) {
+        if (options.signal?.aborted) throw options.signal.reason;
+        if (!(cause instanceof SyntaxError)) throw new OpenCutTransportError(cause);
+        throw new OpenCutProtocolError("Invalid artifact error response.", response.status);
+      }
+      if (object(value) && value.api_version === "1" && typeof value.request_id === "string" && object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string" && Array.isArray(value.warnings) && value.warnings.every(w => typeof w === "string")) {
+        throw new OpenCutApiError(value.error.code, value.error.message, value.error.details, response.status, value.request_id, value.warnings);
+      }
+      throw new OpenCutProtocolError("Invalid artifact response.", response.status);
+    }
+    return response;
+  }
+  private async wait<J extends Job | PublicJob>(jobId: string, read: (signal: AbortSignal) => Promise<J>, options: WaitOptions): Promise<J> {
+    const timeout = options.timeoutMs ?? 30_000;
+    const interval = options.pollIntervalMs ?? 200;
+    if (!Number.isFinite(timeout) || timeout < 0 || timeout > 2_147_483_647
+      || !Number.isFinite(interval) || interval < 1 || interval > 2_147_483_647) {
+      throw new RangeError("Invalid job wait timeout or polling interval.");
+    }
+    options.signal?.throwIfAborted();
+    if (timeout === 0) throw new JobWaitTimeoutError(jobId);
+    const local = new AbortController();
+    const signal = options.signal ? AbortSignal.any([options.signal, local.signal]) : local.signal;
+    const timer = setTimeout(() => local.abort(new JobWaitTimeoutError(jobId)), timeout);
+    try {
+      for (;;) {
+        const job = await read(signal);
+        if (job.state === "succeeded") return job;
+        if (job.state === "failed" || job.state === "cancelled") throw new JobCompletionError(job);
+        await pause(interval, signal);
+      }
+    } finally { clearTimeout(timer); }
+  }
+}

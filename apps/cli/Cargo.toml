@@ -1,0 +1,33 @@
+[package]
+name = "opencut-cli"
+description = "OpenCut headless editing and automation client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "opencut"
+path = "src/main.rs"
+
+[dependencies]
+opencut-native-services = { path = "../../crates/native-services" }
+opencut-sqlite-store = { path = "../../crates/sqlite-store" }
+clap = { version = "4.6", features = ["derive"] }
+axum = "0.8.9"
+async-trait = "0.1"
+opencut-automation = { path = "../../crates/automation" }
+opencut-contracts = { path = "../../crates/contracts" }
+opencut-editor-application = { path = "../../crates/editor-application" }
+opencut-media = { path = "../../crates/media" }
+opencut-job-runtime = { path = "../../crates/job-runtime" }
+futures-util = "0.3"
+sha2 = "0.10"
+tokio-util = { version = "0.7", features = ["io"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rmcp = { version = "3.4", features = ["server", "transport-io", "transport-streamable-http-server"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "fs", "signal", "net", "time"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
