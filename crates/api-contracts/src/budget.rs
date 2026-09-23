@@ -48,6 +48,44 @@ pub struct PolicyChange {
     pub request_id: String,
     pub actor: crate::audit::Actor,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairAction {
+    Enter,
+    Exit,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RepairState {
+    Ready,
+    Active,
+    Degraded,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RepairRequest {
+    pub expected_revision: u64,
+    pub idempotency_key: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RepairChange {
+    pub action: RepairAction,
+    pub input: RepairRequest,
+    pub revision: u64,
+    pub state: RepairState,
+    pub request_id: String,
+    pub actor: crate::audit::Actor,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RepairReport {
+    pub revision: u64,
+    pub state: RepairState,
+    pub target_bytes: String,
+    pub allocated_file_bytes: String,
+    pub allocated_blocks_bytes: String,
+    pub last_change: Option<RepairChange>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Reservation {
     pub reservation_id: String,
@@ -67,6 +105,8 @@ pub struct ControlReport {
     pub reservations: Vec<Reservation>,
     /// True only once all managed SQLite writes use the guarded VFS.
     pub write_interception_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repair: Option<RepairReport>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Report {

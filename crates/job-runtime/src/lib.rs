@@ -51,14 +51,28 @@ pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), Edi
         if stop.load(Ordering::SeqCst) {
             return Ok(());
         }
-        let recovered = app.live_jobs().recover()?;
+        let recovered = match app.live_jobs().recover() {
+            Ok(recovered) => recovered,
+            Err(error) if error.code == "DATABASE_BUSY" => {
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         if initial_cleanup || recovered > 0 {
             if let Err(error) = clean_abandoned_inputs(&app, &output_root) {
                 eprintln!("Could not clean abandoned private inputs: {error}");
             }
             initial_cleanup = false;
         }
-        let claimed = app.live_jobs().claim(&worker, LEASE_MS)?;
+        let claimed = match app.live_jobs().claim(&worker, LEASE_MS) {
+            Ok(claimed) => claimed,
+            Err(error) if error.code == "DATABASE_BUSY" => {
+                std::thread::sleep(Duration::from_millis(100));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         if let Some(job) = claimed {
             let result = execute_monitored(database, &output_root, &worker, &job, stop.clone());
             let state = app.get_job(&job.job_id)?;
@@ -124,6 +138,7 @@ fn execute_monitored(
         let monitor_done = done.clone();
         scope.spawn(move || {
             let mut app = monitor_app;
+            let mut last_heartbeat = Instant::now();
             while !monitor_done.load(Ordering::SeqCst) {
                 if stop.load(Ordering::SeqCst) {
                     monitor_cancel.cancel();
@@ -137,6 +152,15 @@ fn execute_monitored(
                         monitor_cancel.cancel();
                         break;
                     }
+                    Ok(_) => last_heartbeat = Instant::now(),
+                    Err(error)
+                        if error.code == "DATABASE_BUSY"
+                            && last_heartbeat.elapsed()
+                                < Duration::from_millis(LEASE_MS as u64 / 2) =>
+                    {
+                        std::thread::sleep(Duration::from_millis(100));
+                        continue;
+                    }
                     Err(error) => {
                         eprintln!(
                             "Job {} attempt {} heartbeat failed: {error}",
@@ -145,7 +169,6 @@ fn execute_monitored(
                         monitor_cancel.cancel();
                         break;
                     }
-                    _ => {}
                 }
                 for _ in 0..5 {
                     if monitor_done.load(Ordering::SeqCst) {
@@ -244,6 +267,10 @@ impl<'a> ProgressReporter<'a> {
                 if state.cancel_requested {
                     self.cancel.cancel();
                 }
+            }
+            Err(error) if error.code == "DATABASE_BUSY" => {
+                // Progress is advisory. The monitor will retry the heartbeat;
+                // final publication still checks the current lease in SQLite.
             }
             Err(error) => {
                 // Do not keep rendering or publish a successful result after losing

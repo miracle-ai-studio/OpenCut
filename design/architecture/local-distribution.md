@@ -23,7 +23,7 @@ python3 doctor.py
 
 `serve` 同时运行持久化 Worker。直接 CLI/MCP 接入时，可另开 `./bin/opencut --database /your/workspace/workspace.sqlite worker run`。CLI `--json` 输出一个结构化 envelope；stderr 留给诊断。MCP 入口是 `./bin/opencut --database /your/workspace/workspace.sqlite mcp serve`。新版入口协商 2025-11-25，支持 tools、resources/templates、prompts 与每连接最多 32 个资源订阅；资源通知用于重新读取，不是持久化日志。不要把 HTTP token 写进源码或 MCP 参数。
 
-若预算门槛设置过高导致 SQLite 的 WAL／SHM 无法重建，本机 workspace owner 可运行 `./bin/opencut --database /your/workspace/workspace.sqlite --json storage recovery inspect`，再用 `storage recovery configure --input policy.json` 按当前 expected revision 和稳定幂等键恢复策略。此路径直接读取原生账本，不打开数据库；带 `--credential-file` 的调用被拒绝。策略变更有账本回执，但数据库不可用时没有 SQLite 审计记录。此命令没有预分配修复容量，不能保证实际盘满时仍可取消任务或释放上传。
+若预算门槛设置过高导致 SQLite 的 WAL／SHM 无法重建，本机 workspace owner 可运行 `./bin/opencut --database /your/workspace/workspace.sqlite --json storage recovery inspect`，再用 `storage recovery configure --input policy.json` 按当前 expected revision 和稳定幂等键恢复策略。此路径直接读取原生账本，不打开数据库；带 `--credential-file` 的调用被拒绝。策略变更有账本回执，但数据库不可用时没有 SQLite 审计记录。若卷真的填满，应先停掉所有管理型 Host／Worker，检查 `inspect.control.repair` 为 ready，再用 `storage recovery enter --input enter.json` 释放实际分配的 8 MiB 预留；此时只可用 `storage recovery cancel <job_id>` 和 `storage recovery release <upload_id>` 执行有界修复。外部容量恢复后用 `storage recovery exit --input exit.json` 补足预留，才能恢复普通写入。`enter.json`／`exit.json` 都携带当前 repair revision 的 `expected_revision` 和稳定 `idempotency_key`，重复执行沿用原键。进入／退出要求没有打开的管理型数据库连接；完整条件见包内 `database-control-admission.md`。
 
 HTTP 公共事件流为 `POST /v1/changes/stream`，body 使用 EventChangesInput；SSE data 与 CLI 使用同一 StreamRecord。每条 event 的 id 可作为 Last-Event-ID 重连，优先于 body cursor；不要混用 MCP 回放 ID。
 
@@ -112,11 +112,11 @@ Owner 通过 cas_gc_query 发现未完成计划，通过 cas_gc_plan 创建可�
 
 ## 持久写入准入
 
-本版同时提供 `opencut_storage_budget_inspect/configure/recover`。默认 64 GiB payload 逻辑准入和 64 MiB 卷观察余量，当前覆盖 12 类受控写入；SQLite/WAL、控制元数据和完整保留／回收仍未接入，`enforces_all_workspace_writes=false`。配置使用策略 revision 和稳定幂等键，返回可信 request_id/actor 回执。恢复只释放已失去 OS 存活锁的预留，不删除实际文件。详见包内 `storage-admission-contract.md`。
+本版同时提供 `opencut_storage_budget_inspect/configure/recover`。默认 64 GiB payload 逻辑准入和 64 MiB 卷观察余量，当前覆盖 12 类受控写入；完整保留／回收和全工作区物理强制仍未接入，`enforces_all_workspace_writes=false`。配置使用策略 revision 和稳定幂等键，返回可信 request_id/actor 回执。普通 `recover` 只释放已失去 OS 存活锁的预留，不删除实际文件，也不等同于上述 owner repair 状态机。详见包内 `storage-admission-contract.md`。
 
-2026-09-24 控制额度增量：`opencut_storage_budget_configure` 可选 `control_limit_bytes`，默认 4 GiB，旧请求省略时保留现值；`inspect.control` 单独报告控制限额、已观察字节、活动预留及实际拦截状态。控制账本和原生预留已实施，但 SQLite 事务尚未接入写前拦截，`write_interception_enabled=false`；配置控制限额**不会**限制当前数据库写入。详见包内 `database-control-admission.md`。
+2026-09-24 控制额度增量：`opencut_storage_budget_configure` 可选 `control_limit_bytes`，默认 4 GiB，旧请求省略时保留现值；`inspect.control` 单独报告控制限额、已观察字节、活动预留及实际拦截状态。最初仅实现分账；当前管理型 SQLite 的主库、WAL、主 journal 和 SHM 已接入写前 VFS 准入，但临时文件与全部物理写入尚未覆盖，因此 `write_interception_enabled=false`。详见包内 `database-control-admission.md`。
 
-2026-09-24 后续增量：管理型 SQLite 连接已接入具名 VFS，数据库检查增加 `managed_vfs_enabled`；开发包验收加入固定 WAL 读者下的真实控制额度拒绝、原键重试和完整性检查。上一段描述的是账本阶段的旧开发包，新的 VFS 开发包以本轮独立验收收据为准。全工作区强制与 repair 预留仍未完成。
+2026-09-24 后续增量：管理型 SQLite 连接已接入具名 VFS，数据库检查增加 `managed_vfs_enabled`；开发包验收加入固定 WAL 读者下的真实控制额度拒绝、原键重试和完整性检查。另在 64 MiB 真盘满卷上验证实际 repair 预留、有界取消／暂存释放及补足。全工作区强制、最坏事务容量定标、运行中任务恢复与跨平台验收仍未完成。
 
 升级必须停掉旧 Host/Worker，旧进程不遵守新预留协议。备份/恢复必须包含 `.storage-budget` 和其他工作区内容；其账本版本独立于 SQLite schema，当前宿主 schema 由包清单给出。不要手工删除活动预留的锁文件或仅复制策略文件。新请求可能明确被准入额度拒绝；已有文件/任务历史保留，检查错误后调整策略或显式清理再重试。
 

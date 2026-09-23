@@ -2,7 +2,9 @@
 use opencut_contracts::EditorError;
 use opencut_editor_application::{
     audit::ExecutionContext,
-    budget::{BudgetNative, Configure, PolicyChange, Report},
+    budget::{
+        BudgetNative, Configure, PolicyChange, RepairAction, RepairChange, RepairRequest, Report,
+    },
 };
 use std::{
     fs::{File, OpenOptions},
@@ -36,6 +38,19 @@ impl BudgetNative for NativeBudget<'_> {
         context: &ExecutionContext,
     ) -> Result<PolicyChange, EditorError> {
         self.native()?.configure(input, context)
+    }
+    fn repair_transition(
+        &self,
+        action: RepairAction,
+        input: RepairRequest,
+        context: &ExecutionContext,
+    ) -> Result<RepairChange, EditorError> {
+        opencut_editor_application::budget::BudgetNative::repair_transition(
+            &self.native()?,
+            action,
+            input,
+            context,
+        )
     }
 }
 

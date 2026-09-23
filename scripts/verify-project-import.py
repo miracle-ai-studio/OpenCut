@@ -55,6 +55,12 @@ def verify(binary,root,sdk):
    try:
     with socket.create_connection(('127.0.0.1',port),timeout=.2):break
    except OSError:assert time.monotonic()<deadline;time.sleep(.03)
+  with sqlite3.connect(db,timeout=5) as lock:
+   lock.execute('BEGIN IMMEDIATE')
+   time.sleep(7)
+   lock.rollback()
+  assert host.poll() is None
+  checks.append('The HTTP host survives a real seven-second SQLite writer lock while its idle Worker retries temporary database busy')
   cap=http('opencut_capabilities',{},runner);assert cap['uploads']['chunk_method']=='PUT';assert any(j['name']=='media.import' for j in cap['job_kinds'])
   upload=call('opencut_upload_create',descriptor(data,'main'),runner)
   assert http('opencut_upload_create',descriptor(data,'main'),runner)==upload

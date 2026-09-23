@@ -148,7 +148,7 @@ def verify(binary: Path, root: Path) -> dict:
 
         report = {"status": "passed", "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
                   "checks": checks, "small_volume": small_volume,
-                  "scope": "local OS-owner policy recovery and 64 MiB bootstrap; no preallocated repair reserve or disk-full repair transaction"}
+                  "scope": "local OS-owner policy recovery and 64 MiB bootstrap; the separate repair-reserve journey tests allocated space and disk-full bounded repair"}
         (root / "report.json").write_text(json.dumps(report, indent=2) + "\n")
         return report
     finally:

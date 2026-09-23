@@ -94,7 +94,9 @@ export namespace OpencutStorageBudgetInspectInput {
 }
 
 export namespace OpencutStorageBudgetInspectOutput {
+  export type RepairAction = 'enter' | 'exit';
   export type CallSource = 'cli' | 'http' | 'mcp_stdio' | 'mcp_http' | 'embedded' | 'worker';
+  export type RepairState = 'ready' | 'active' | 'degraded';
 
   export interface Response {
   api_version: string;
@@ -127,6 +129,7 @@ export namespace OpencutStorageBudgetInspectOutput {
   control_limit_bytes: string;
   database_name?: string | null;
   observed_control_bytes: string;
+  repair?: RepairReport | null;
   reservations: Reservation[];
   reserved_control_bytes: string;
   /**
@@ -134,6 +137,33 @@ export namespace OpencutStorageBudgetInspectOutput {
    */
   write_interception_enabled: boolean;
   [k: string]: any;
+}
+  export interface RepairReport {
+  allocated_blocks_bytes: string;
+  allocated_file_bytes: string;
+  last_change?: RepairChange | null;
+  revision: number;
+  state: RepairState;
+  target_bytes: string;
+  [k: string]: any;
+}
+  export interface RepairChange {
+  action: RepairAction;
+  actor: Actor;
+  input: RepairRequest;
+  request_id: string;
+  revision: number;
+  state: RepairState;
+}
+  export interface Actor {
+  principal_id: string;
+  source: CallSource;
+  worker_id?: string | null;
+  [k: string]: any;
+}
+  export interface RepairRequest {
+  expected_revision: number;
+  idempotency_key: string;
 }
   export interface Reservation {
   category: string;
@@ -152,12 +182,6 @@ export namespace OpencutStorageBudgetInspectOutput {
   media_output_limit_bytes?: string | null;
   policy: Policy;
   request_id: string;
-  [k: string]: any;
-}
-  export interface Actor {
-  principal_id: string;
-  source: CallSource;
-  worker_id?: string | null;
   [k: string]: any;
 }
   export interface Policy {
@@ -235,7 +259,9 @@ export namespace OpencutStorageBudgetRecoverInput {
 }
 
 export namespace OpencutStorageBudgetRecoverOutput {
+  export type RepairAction = 'enter' | 'exit';
   export type CallSource = 'cli' | 'http' | 'mcp_stdio' | 'mcp_http' | 'embedded' | 'worker';
+  export type RepairState = 'ready' | 'active' | 'degraded';
 
   export interface Response {
   api_version: string;
@@ -268,6 +294,7 @@ export namespace OpencutStorageBudgetRecoverOutput {
   control_limit_bytes: string;
   database_name?: string | null;
   observed_control_bytes: string;
+  repair?: RepairReport | null;
   reservations: Reservation[];
   reserved_control_bytes: string;
   /**
@@ -275,6 +302,33 @@ export namespace OpencutStorageBudgetRecoverOutput {
    */
   write_interception_enabled: boolean;
   [k: string]: any;
+}
+  export interface RepairReport {
+  allocated_blocks_bytes: string;
+  allocated_file_bytes: string;
+  last_change?: RepairChange | null;
+  revision: number;
+  state: RepairState;
+  target_bytes: string;
+  [k: string]: any;
+}
+  export interface RepairChange {
+  action: RepairAction;
+  actor: Actor;
+  input: RepairRequest;
+  request_id: string;
+  revision: number;
+  state: RepairState;
+}
+  export interface Actor {
+  principal_id: string;
+  source: CallSource;
+  worker_id?: string | null;
+  [k: string]: any;
+}
+  export interface RepairRequest {
+  expected_revision: number;
+  idempotency_key: string;
 }
   export interface Reservation {
   category: string;
@@ -293,12 +347,6 @@ export namespace OpencutStorageBudgetRecoverOutput {
   media_output_limit_bytes?: string | null;
   policy: Policy;
   request_id: string;
-  [k: string]: any;
-}
-  export interface Actor {
-  principal_id: string;
-  source: CallSource;
-  worker_id?: string | null;
   [k: string]: any;
 }
   export interface Policy {

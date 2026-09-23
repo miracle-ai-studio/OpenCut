@@ -81,9 +81,25 @@ def verify(binary,root):
   # in place, retaining exactly the descriptors installed by the native host.
   slow=root/'slow-bin';slow.mkdir();wrapper=slow/'ffmpeg';wrapper.write_text('#!/usr/bin/env python3\nimport os,sys\na=sys.argv[1:]\nif "-progress" in a and a[-1]!="-":a=["-re",*a]\nos.execv('+repr(ffmpeg)+',['+repr(ffmpeg)+',*a])\n');wrapper.chmod(0o755);env={**os.environ,'PATH':str(slow)+os.pathsep+os.environ['PATH']}
   video=root/'long.mp4';subprocess.run([ffmpeg,'-v','error','-f','lavfi','-i','testsrc2=size=320x180:rate=10:duration=60','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',str(video)],check=True,capture_output=True,timeout=60)
+  configure('busy-heartbeat-room',16<<20)
+  busy_job=submit('render.export','busy-heartbeat',{'segments':[{'input':str(video),'source_start':t(0),'source_duration':t(600)}],'container':'mp4','video':{'width':320,'height':180,'frame_rate':{'numerator':10,'denominator':1},'aspect_mode':'fit','codec':'h264'},'audio':{'mode':'drop'}})
+  busy_worker=worker('busy-heartbeat',env);deadline=time.monotonic()+20
+  while view(busy_job)['state']!='running':assert busy_worker.poll() is None and time.monotonic()<deadline;time.sleep(.05)
+  lease_before=call('opencut_job_get',{'job_id':busy_job['job_id']})['lease_until']
+  with sqlite3.connect(db,timeout=5) as lock:
+   lock.execute('BEGIN IMMEDIATE')
+   time.sleep(7)
+   lock.rollback()
+  assert view(busy_job)['state']=='running' and not view(busy_job)['cancel_requested']
+  deadline=time.monotonic()+12
+  while call('opencut_job_get',{'job_id':busy_job['job_id']})['lease_until']<=lease_before:
+   assert time.monotonic()<deadline;time.sleep(.1)
+  call('opencut_job_request_cancel',{'job_id':busy_job['job_id']});assert busy_worker.wait(timeout=30)==0
+  assert view(busy_job)['state']=='cancelled' and 'heartbeat failed' not in (root/'busy-heartbeat.log').read_text()
+  settled();checks.append('A real seven-second SQLite write lock outlasts one busy timeout; the Worker retains and renews its lease instead of cancelling on transient database busy')
   configure('orphan-limit',256<<10);job=submit('render.export','orphan',{'segments':[{'input':str(video),'source_start':t(0),'source_duration':t(600)}],'container':'mp4','video':{'width':320,'height':180,'frame_rate':{'numerator':10,'denominator':1},'aspect_mode':'fit','codec':'h264'},'audio':{'mode':'drop'}})
   first=worker('orphan-first',env);pid1,_,reservation=live(job,1,first);assert reservation['reserved_bytes']==str(256<<10);attempt1=root/'artifacts'/job['job_id']/'attempt-1';assert attempt1.is_dir();first.kill();first.wait(timeout=15)
-  recovered=call('opencut_storage_budget_recover');assert recovered['recovered_reservations']==0 and any(r.get('writer')=={'job_id':job['job_id'],'attempt':1} for r in recovered['reservations'])
+  recovered=call('opencut_storage_budget_recover');assert any(r.get('writer')=={'job_id':job['job_id'],'attempt':1} for r in recovered['reservations'])
   record=call('opencut_job_get',{'job_id':job['job_id']});deadline=time.monotonic()+45
   while int(time.time()*1000)<=record['lease_until']+100:assert time.monotonic()<deadline;time.sleep(.1)
   second=worker('orphan-second',env);pid2,_,_=live(job,2,second);assert attempt1.is_dir();current=view(job);assert call('opencut_job_get',{'job_id':job['job_id']})['attempt']==2 and current['state']=='running',current

@@ -14,15 +14,25 @@ use std::{
 };
 
 use opencut_contracts::EditorError;
-use opencut_storage_budget::{Budget, Reservation};
+use opencut_storage_budget::{Budget, ConnectionLease, Reservation};
 use rusqlite::{Connection, OpenFlags, ffi};
 
 const NAME: &str = "opencut-control-v1";
 const NAME_C: &[u8] = b"opencut-control-v1\0";
+const REPAIR_NAME: &str = "opencut-repair-v1";
+const REPAIR_NAME_C: &[u8] = b"opencut-repair-v1\0";
 static ORIGINAL: AtomicPtr<ffi::sqlite3_vfs> = AtomicPtr::new(ptr::null_mut());
 static REGISTERED: OnceLock<Result<(), &'static str>> = OnceLock::new();
 
 pub(super) fn open(path: &Path) -> Result<Connection, EditorError> {
+    open_with_mode(path, false)
+}
+
+pub(super) fn open_repair(path: &Path) -> Result<Connection, EditorError> {
+    open_with_mode(path, true)
+}
+
+fn open_with_mode(path: &Path, repair: bool) -> Result<Connection, EditorError> {
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -33,10 +43,14 @@ pub(super) fn open(path: &Path) -> Result<Connection, EditorError> {
         .ok_or_else(|| EditorError::new("STORAGE_BUDGET_ERROR", "Invalid database file name"))?;
     Budget::new(parent).check_database_control_name(name)?;
     register()?;
-    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
-        | OpenFlags::SQLITE_OPEN_CREATE
-        | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    Connection::open_with_flags_and_vfs(path, flags, NAME).map_err(super::storage_error)
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let flags = if repair {
+        flags
+    } else {
+        flags | OpenFlags::SQLITE_OPEN_CREATE
+    };
+    Connection::open_with_flags_and_vfs(path, flags, if repair { REPAIR_NAME } else { NAME })
+        .map_err(super::storage_error)
 }
 
 fn register() -> Result<(), EditorError> {
@@ -52,15 +66,17 @@ fn register() -> Result<(), EditorError> {
                 if original.is_null() || (*original).xOpen.is_none() {
                     return Err("SQLite default VFS unavailable");
                 }
-                let mut shim = *original;
-                shim.zName = NAME_C.as_ptr().cast();
-                shim.pNext = ptr::null_mut();
-                shim.szOsFile = std::mem::size_of::<GuardedFile>() as c_int;
-                shim.xOpen = Some(shim_open);
                 ORIGINAL.store(original, Ordering::Release);
-                let shim = Box::into_raw(Box::new(shim));
-                if ffi::sqlite3_vfs_register(shim, 0) != ffi::SQLITE_OK {
-                    return Err("SQLite control VFS registration failed");
+                for name in [NAME_C, REPAIR_NAME_C] {
+                    let mut shim = *original;
+                    shim.zName = name.as_ptr().cast();
+                    shim.pNext = ptr::null_mut();
+                    shim.szOsFile = std::mem::size_of::<GuardedFile>() as c_int;
+                    shim.xOpen = Some(shim_open);
+                    let shim = Box::into_raw(Box::new(shim));
+                    if ffi::sqlite3_vfs_register(shim, 0) != ffi::SQLITE_OK {
+                        return Err("SQLite control VFS registration failed");
+                    }
                 }
                 Ok(())
             }
@@ -74,6 +90,7 @@ struct Identity {
     budget: Budget,
     database_name: String,
     database_path: PathBuf,
+    repair: bool,
 }
 
 /// The first field is the sqlite3_file ABI header. SQLite allocates `szOsFile`
@@ -86,6 +103,7 @@ struct GuardedFile {
     inner_methods: *const ffi::sqlite3_io_methods,
     methods: Box<ffi::sqlite3_io_methods>,
     identity: Option<Identity>,
+    _connection_lease: Option<ConnectionLease>,
     reservation: Option<Reservation>,
     file_floor: u64,
     shm_floor: u64,
@@ -107,11 +125,15 @@ impl GuardedFile {
         if let Some(reservation) = &mut self.reservation {
             reservation.ensure(required)
         } else {
-            self.reservation = Some(
+            self.reservation = Some(if identity.repair {
                 identity
                     .budget
-                    .reserve_database_control(&identity.database_name, required)?,
-            );
+                    .reserve_database_control_repair(&identity.database_name, required)?
+            } else {
+                identity
+                    .budget
+                    .reserve_database_control(&identity.database_name, required)?
+            });
             Ok(())
         }
     }
@@ -125,6 +147,16 @@ impl GuardedFile {
             return Err(());
         }
         Ok(size as u64)
+    }
+
+    fn with_write_gate(&self, write: impl FnOnce() -> c_int) -> Result<c_int, EditorError> {
+        if let Some(identity) = &self.identity {
+            identity
+                .budget
+                .with_database_write(&identity.database_name, identity.repair, write)
+        } else {
+            Ok(write())
+        }
     }
 
     fn reserve_file_end(&mut self, end: u64) -> Result<(), EditorError> {
@@ -167,6 +199,19 @@ fn admission_sqlite_code(error: &EditorError, other: c_int) -> c_int {
     }
 }
 
+fn native_capacity_code(result: c_int, identity: Option<&Identity>) -> c_int {
+    if matches!(result & 0xff, ffi::SQLITE_CANTOPEN | ffi::SQLITE_IOERR)
+        && identity.is_some_and(|identity| {
+            identity.budget.volume_available_bytes().ok() == Some(0)
+                && identity.database_path.is_file()
+        })
+    {
+        ffi::SQLITE_FULL
+    } else {
+        result
+    }
+}
+
 fn shm_bytes(database: &Path) -> Result<u64, ()> {
     let mut path = database.as_os_str().to_os_string();
     path.push("-shm");
@@ -178,7 +223,11 @@ fn shm_bytes(database: &Path) -> Result<u64, ()> {
     }
 }
 
-unsafe fn identity(z_name: *const std::ffi::c_char, flags: c_int) -> Option<Identity> {
+unsafe fn identity(
+    z_name: *const std::ffi::c_char,
+    flags: c_int,
+    repair: bool,
+) -> Option<Identity> {
     if z_name.is_null() {
         return None;
     }
@@ -204,11 +253,12 @@ unsafe fn identity(z_name: *const std::ffi::c_char, flags: c_int) -> Option<Iden
         budget: Budget::new(parent),
         database_name,
         database_path,
+        repair,
     })
 }
 
 unsafe extern "C" fn shim_open(
-    _vfs: *mut ffi::sqlite3_vfs,
+    vfs: *mut ffi::sqlite3_vfs,
     z_name: *const std::ffi::c_char,
     file: *mut ffi::sqlite3_file,
     flags: c_int,
@@ -217,7 +267,10 @@ unsafe extern "C" fn shim_open(
     // A failed xOpen must leave pMethods null: SQLite may otherwise xClose it.
     unsafe { (*file).pMethods = ptr::null() };
     catch_unwind(AssertUnwindSafe(|| unsafe {
-        open_inner(z_name, file, flags, out_flags)
+        let repair = !vfs.is_null()
+            && !(*vfs).zName.is_null()
+            && CStr::from_ptr((*vfs).zName).to_bytes() == REPAIR_NAME.as_bytes();
+        open_inner(z_name, file, flags, out_flags, repair)
     }))
     .unwrap_or(ffi::SQLITE_IOERR)
 }
@@ -227,6 +280,7 @@ unsafe fn open_inner(
     file: *mut ffi::sqlite3_file,
     flags: c_int,
     out_flags: *mut c_int,
+    repair: bool,
 ) -> c_int {
     // SAFETY: SQLite owns `file` and `z_name` for the entire xOpen call; the
     // default VFS pointer and callback tables remain registered for process life.
@@ -246,6 +300,25 @@ unsafe fn open_inner(
             dealloc(inner.cast(), layout);
             return ffi::SQLITE_IOERR;
         };
+        let identity = identity(z_name, flags, repair);
+        if repair && identity.is_none() {
+            dealloc(inner.cast(), layout);
+            return ffi::SQLITE_FULL;
+        }
+        let connection_lease = if let Some(identity) = &identity {
+            let result = identity
+                .budget
+                .database_connection_lease(&identity.database_name, repair);
+            match result {
+                Ok(lease) => Some(lease),
+                Err(error) => {
+                    dealloc(inner.cast(), layout);
+                    return admission_sqlite_code(&error, ffi::SQLITE_IOERR);
+                }
+            }
+        } else {
+            None
+        };
         let result = callback(original, z_name, inner, flags, out_flags);
         if result != ffi::SQLITE_OK || (*inner).pMethods.is_null() {
             if !(*inner).pMethods.is_null()
@@ -257,11 +330,10 @@ unsafe fn open_inner(
             return if result == ffi::SQLITE_OK {
                 ffi::SQLITE_IOERR
             } else {
-                result
+                native_capacity_code(result, identity.as_ref())
             };
         }
         let inner_methods = (*inner).pMethods;
-        let identity = identity(z_name, flags);
         let mut size = 0_i64;
         let size_result = (*inner_methods)
             .xFileSize
@@ -291,6 +363,7 @@ unsafe fn open_inner(
                 inner_methods,
                 methods,
                 identity,
+                _connection_lease: connection_lease,
                 reservation: None,
                 file_floor: size as u64,
                 shm_floor: shm_floor.unwrap_or(0),
@@ -383,10 +456,15 @@ unsafe extern "C" fn io_write(
         if let Err(error) = guarded.reserve_file_end(end) {
             return admission_sqlite_code(&error, ffi::SQLITE_IOERR_WRITE);
         }
-        (*guarded.inner_methods)
-            .xWrite
-            .map(|callback| callback(guarded.inner, buffer, amount, offset))
-            .unwrap_or(ffi::SQLITE_IOERR_WRITE)
+        guarded
+            .with_write_gate(|| {
+                let result = (*guarded.inner_methods)
+                    .xWrite
+                    .map(|callback| callback(guarded.inner, buffer, amount, offset))
+                    .unwrap_or(ffi::SQLITE_IOERR_WRITE);
+                native_capacity_code(result, guarded.identity.as_ref())
+            })
+            .unwrap_or_else(|error| admission_sqlite_code(&error, ffi::SQLITE_IOERR_WRITE))
     }))
     .unwrap_or(ffi::SQLITE_IOERR_WRITE)
 }
@@ -400,10 +478,15 @@ unsafe extern "C" fn io_truncate(file: *mut ffi::sqlite3_file, size: i64) -> c_i
         if let Err(error) = guarded.reserve_file_end(size) {
             return admission_sqlite_code(&error, ffi::SQLITE_IOERR_TRUNCATE);
         }
-        let result = (*guarded.inner_methods)
-            .xTruncate
-            .map(|callback| callback(guarded.inner, size as i64))
-            .unwrap_or(ffi::SQLITE_IOERR_TRUNCATE);
+        let result = guarded
+            .with_write_gate(|| {
+                let result = (*guarded.inner_methods)
+                    .xTruncate
+                    .map(|callback| callback(guarded.inner, size as i64))
+                    .unwrap_or(ffi::SQLITE_IOERR_TRUNCATE);
+                native_capacity_code(result, guarded.identity.as_ref())
+            })
+            .unwrap_or_else(|error| admission_sqlite_code(&error, ffi::SQLITE_IOERR_TRUNCATE));
         if result == ffi::SQLITE_OK {
             guarded.file_floor = guarded.file_floor.min(size);
         }
@@ -436,10 +519,15 @@ unsafe extern "C" fn io_file_control(
                 return ffi::SQLITE_FULL;
             }
         }
-        (*guarded.inner_methods)
-            .xFileControl
-            .map(|callback| callback(guarded.inner, operation, argument))
-            .unwrap_or(ffi::SQLITE_NOTFOUND)
+        guarded
+            .with_write_gate(|| {
+                let result = (*guarded.inner_methods)
+                    .xFileControl
+                    .map(|callback| callback(guarded.inner, operation, argument))
+                    .unwrap_or(ffi::SQLITE_NOTFOUND);
+                native_capacity_code(result, guarded.identity.as_ref())
+            })
+            .unwrap_or_else(|error| admission_sqlite_code(&error, ffi::SQLITE_IOERR))
     }))
     .unwrap_or(ffi::SQLITE_IOERR)
 }
@@ -466,10 +554,20 @@ unsafe extern "C" fn io_shm_map(
                 return admission_sqlite_code(&error, ffi::SQLITE_IOERR_SHMMAP);
             }
         }
-        (*guarded.inner_methods)
-            .xShmMap
-            .map(|callback| callback(guarded.inner, page, page_size, extend, output))
-            .unwrap_or(ffi::SQLITE_IOERR_SHMMAP)
+        let mapping = || {
+            let result = (*guarded.inner_methods)
+                .xShmMap
+                .map(|callback| callback(guarded.inner, page, page_size, extend, output))
+                .unwrap_or(ffi::SQLITE_IOERR_SHMMAP);
+            native_capacity_code(result, guarded.identity.as_ref())
+        };
+        if extend != 0 {
+            guarded
+                .with_write_gate(mapping)
+                .unwrap_or_else(|error| admission_sqlite_code(&error, ffi::SQLITE_IOERR_SHMMAP))
+        } else {
+            mapping()
+        }
     }))
     .unwrap_or(ffi::SQLITE_IOERR_SHMMAP)
 }
@@ -516,8 +614,75 @@ mod tests {
     use super::*;
     use opencut_editor_application::{
         audit::{CallSource, ExecutionContext},
-        budget::{BudgetNative, Configure},
+        budget::{BudgetNative, Configure, RepairAction, RepairRequest},
     };
+
+    #[test]
+    fn repair_waits_for_open_connection_and_only_repair_vfs_can_write() {
+        let workspace = tempfile::tempdir().unwrap();
+        let database = workspace.path().join("workspace.sqlite");
+        let connection = open(&database).unwrap();
+        connection
+            .execute_batch(
+                "PRAGMA journal_mode=WAL; CREATE TABLE items(value INTEGER); INSERT INTO items VALUES (1);",
+            )
+            .unwrap();
+        let budget = Budget::new(workspace.path());
+        let context = ExecutionContext::local(CallSource::Cli);
+        let enter = RepairRequest {
+            expected_revision: 0,
+            idempotency_key: "enter".into(),
+        };
+        assert_eq!(
+            budget
+                .repair_transition(RepairAction::Enter, enter.clone(), &context)
+                .unwrap_err()
+                .code,
+            "STORAGE_BUDGET_BUSY"
+        );
+        drop(connection);
+        budget
+            .repair_transition(RepairAction::Enter, enter, &context)
+            .unwrap();
+        assert_eq!(
+            open(&database).err().unwrap().code,
+            "DATABASE_CAPACITY_EXHAUSTED"
+        );
+        let repair = open_repair(&database).unwrap();
+        repair.execute("UPDATE items SET value = 2", []).unwrap();
+        assert_eq!(
+            budget
+                .repair_transition(
+                    RepairAction::Exit,
+                    RepairRequest {
+                        expected_revision: 1,
+                        idempotency_key: "exit".into(),
+                    },
+                    &context,
+                )
+                .unwrap_err()
+                .code,
+            "STORAGE_BUDGET_BUSY"
+        );
+        drop(repair);
+        budget
+            .repair_transition(
+                RepairAction::Exit,
+                RepairRequest {
+                    expected_revision: 1,
+                    idempotency_key: "exit".into(),
+                },
+                &context,
+            )
+            .unwrap();
+        let reopened = open(&database).unwrap();
+        assert_eq!(
+            reopened
+                .query_row("SELECT value FROM items", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+    }
 
     #[test]
     fn wal_growth_is_rejected_before_commit_and_recovers_after_policy_change() {

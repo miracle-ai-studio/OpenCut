@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "binary_sha256": "bc5e5221d0eac151cba7c9310858dd1e70d241f11f66d6e3bb71c4f1dbe9fac6",
+  "checks": [
+    "The managed 64 MiB workspace physically writes, fsyncs and reports an allocated 8 MiB reserve before failure",
+    "At zero external free bytes, an ordinary edit is rejected before changing the project head",
+    "The owner releases the reserve on an actually full volume, cancels one queued job and releases one retained upload through the repair VFS, while normal edits and premature replenishment remain blocked",
+    "After external capacity returns, reserve replenishment, normal editing with exact-key replay, reopen and independent SQLite integrity all pass"
+  ],
+  "volume_capacity_bytes": 67067904,
+  "available_at_failure_bytes": 0,
+  "released_available_bytes": 8388608,
+  "filler_bytes": 56758272,
+  "repair_target_bytes": 8388608,
+  "scope": "macOS HFS+ 64 MiB bounded queued-job cancellation and retained-upload release; temporary SQLite files, external writers and full workspace physical enforcement remain outside this result"
+}

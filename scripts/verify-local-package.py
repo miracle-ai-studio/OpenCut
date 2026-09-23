@@ -477,6 +477,10 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
                 ('opencut_database_checkpoint', 'verify-database-recovery.py',
                  'actual disk-full SQL rollback and pinned-reader WAL checkpoint recovery')
             )
+            independent_journeys.append(
+                ('opencut_storage_budget_inspect', 'verify-repair-reserve.py',
+                 'physically allocated repair reserve and bounded cancel/release on a full 64 MiB volume')
+            )
         for tool_name, script_name, description in independent_journeys:
             if tool_name not in available_tools:
                 continue

@@ -39,16 +39,20 @@ pub fn validate(input: &Configure) -> Result<(), EditorError> {
             "Database control limit must be positive",
         ));
     }
-    if input.idempotency_key.trim().is_empty()
-        || input.idempotency_key.len() > 1024
-        || input.idempotency_key.chars().any(char::is_control)
-    {
+    validate_key(&input.idempotency_key)?;
+    Ok(())
+}
+fn validate_key(key: &str) -> Result<(), EditorError> {
+    if key.trim().is_empty() || key.len() > 1024 || key.chars().any(char::is_control) {
         return Err(EditorError::new(
             "INVALID_ARGUMENT",
-            "Invalid budget policy idempotency key",
+            "Invalid storage idempotency key",
         ));
     }
     Ok(())
+}
+pub fn validate_repair(input: &RepairRequest) -> Result<(), EditorError> {
+    validate_key(&input.idempotency_key)
 }
 pub fn admit(
     policy: &Policy,
@@ -122,6 +126,31 @@ pub fn admit_control(
     }
     Ok(())
 }
+/// Released repair bytes are a separate, bounded emergency pool. The caller
+/// supplies control growth since entering repair, including live reservations.
+pub fn admit_repair(
+    target: u64,
+    observed_growth: u64,
+    held_control: u64,
+    additional: u64,
+    available: u64,
+) -> Result<(), EditorError> {
+    const METADATA_MARGIN: u64 = 512 * 1024;
+    let required = observed_growth
+        .checked_add(held_control)
+        .and_then(|n| n.checked_add(additional))
+        .and_then(|n| n.checked_add(METADATA_MARGIN));
+    let physical = held_control
+        .checked_add(additional)
+        .and_then(|n| n.checked_add(METADATA_MARGIN));
+    if required.is_none_or(|n| n > target) || physical.is_none_or(|n| n > available) {
+        return Err(EditorError::new(
+            "DATABASE_CAPACITY_EXHAUSTED",
+            "Released repair capacity is insufficient for the bounded database write",
+        ));
+    }
+    Ok(())
+}
 
 pub trait BudgetNative {
     fn inspect(&self, recover: bool) -> Result<Report, EditorError>;
@@ -130,6 +159,12 @@ pub trait BudgetNative {
         input: Configure,
         context: &ExecutionContext,
     ) -> Result<PolicyChange, EditorError>;
+    fn repair_transition(
+        &self,
+        action: RepairAction,
+        input: RepairRequest,
+        context: &ExecutionContext,
+    ) -> Result<RepairChange, EditorError>;
 }
 pub fn inspect(
     caller: &Caller,
@@ -151,6 +186,18 @@ pub fn configure(
     }
     validate(&input)?;
     native.configure(input, context)
+}
+pub fn repair_transition(
+    context: &ExecutionContext,
+    native: &impl BudgetNative,
+    action: RepairAction,
+    input: RepairRequest,
+) -> Result<RepairChange, EditorError> {
+    if !context.caller().is_owner() {
+        return Err(denied());
+    }
+    validate_repair(&input)?;
+    native.repair_transition(action, input, context)
 }
 
 #[cfg(test)]

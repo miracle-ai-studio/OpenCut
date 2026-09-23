@@ -25,6 +25,20 @@ pub enum RecoveryCommand {
         #[arg(long)]
         input: PathBuf,
     },
+    /// Release the preallocated repair file after all normal hosts stop.
+    Enter {
+        #[arg(long)]
+        input: PathBuf,
+    },
+    /// Cancel one existing job while the bounded repair gate is active.
+    Cancel { job_id: String },
+    /// Release eligible upload staging while the bounded repair gate is active.
+    Release { upload_id: String },
+    /// Reallocate and sync the repair file before resuming normal writes.
+    Exit {
+        #[arg(long)]
+        input: PathBuf,
+    },
 }
 
 pub fn execute(database: &Path, credential: Option<&Path>, command: &Command) -> Response {
@@ -61,6 +75,57 @@ pub fn execute(database: &Path, credential: Option<&Path>, command: &Command) ->
                         EditorError::new("INVALID_ARGUMENT", "Invalid storage policy request")
                     })?;
                 Ok(json!(budget::configure(&context, &native, input)?))
+            }
+            Command::Recovery {
+                command: RecoveryCommand::Enter { input },
+            }
+            | Command::Recovery {
+                command: RecoveryCommand::Exit { input },
+            } => {
+                let action = if matches!(
+                    command,
+                    Command::Recovery {
+                        command: RecoveryCommand::Enter { .. }
+                    }
+                ) {
+                    budget::RepairAction::Enter
+                } else {
+                    budget::RepairAction::Exit
+                };
+                let input: budget::RepairRequest = serde_json::from_value(super::read_json(input)?)
+                    .map_err(|_| {
+                        EditorError::new("INVALID_ARGUMENT", "Invalid repair transition request")
+                    })?;
+                Ok(json!(budget::repair_transition(
+                    &context, &native, action, input
+                )?))
+            }
+            Command::Recovery {
+                command: RecoveryCommand::Cancel { job_id },
+            } => {
+                let mut app =
+                    opencut_sqlite_store::EditorApplication::open_managed_repair(database)?;
+                app.set_execution_context(context.clone());
+                Ok(json!(app.cancel_job(job_id)?))
+            }
+            Command::Recovery {
+                command: RecoveryCommand::Release { upload_id },
+            } => {
+                let mut app =
+                    opencut_sqlite_store::EditorApplication::open_managed_repair(database)?;
+                app.set_execution_context(context.clone());
+                let uploads_root = app
+                    .asset_store_root()
+                    .parent()
+                    .ok_or_else(|| EditorError::new("STORAGE_ERROR", "Invalid asset root"))?
+                    .join("uploads");
+                Ok(json!(opencut_native_services::uploads::release(
+                    &uploads_root,
+                    &mut app,
+                    opencut_editor_application::uploads::UploadInput {
+                        upload_id: upload_id.clone(),
+                    },
+                )?))
             }
         }
     })();

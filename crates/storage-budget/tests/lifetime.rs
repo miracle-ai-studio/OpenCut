@@ -1,11 +1,12 @@
 #![cfg(unix)]
 use opencut_editor_application::{
     audit::{CallSource, ExecutionContext},
-    budget::{BudgetNative, Configure},
+    budget::{BudgetNative, Configure, RepairAction, RepairRequest, RepairState},
 };
 use opencut_storage_budget::Budget;
 use std::{
     fs,
+    io::Read,
     path::Path,
     process::{Command, Stdio},
     thread,
@@ -28,10 +29,216 @@ fn configure(root: &Path, bytes: u64) {
 }
 fn wait(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(10);
-    while !path.exists() {
+    while !fs::read(path).is_ok_and(|contents| !contents.is_empty()) {
         assert!(Instant::now() < deadline, "missing {}", path.display());
         thread::sleep(Duration::from_millis(10));
     }
+}
+#[test]
+fn physical_repair_reserve_fences_normal_writes_and_replays_transitions() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    configure(root, 1024);
+    let budget = Budget::new(root);
+    drop(
+        budget
+            .reserve_database_control("workspace.sqlite", 0)
+            .unwrap(),
+    );
+    let ready = budget
+        .inspect(false)
+        .unwrap()
+        .control
+        .unwrap()
+        .repair
+        .unwrap();
+    assert_eq!(ready.state, RepairState::Ready);
+    assert_eq!(ready.allocated_file_bytes, ready.target_bytes);
+    assert!(
+        ready.allocated_blocks_bytes.parse::<u64>().unwrap()
+            >= ready.target_bytes.parse::<u64>().unwrap()
+    );
+    let context = ExecutionContext::local(CallSource::Cli);
+    let enter = RepairRequest {
+        expected_revision: 0,
+        idempotency_key: "enter-repair".into(),
+    };
+    let entered = budget
+        .repair_transition(RepairAction::Enter, enter.clone(), &context)
+        .unwrap();
+    assert_eq!(entered.state, RepairState::Active);
+    assert_eq!(
+        fs::metadata(root.join(".storage-budget/repair.reserve"))
+            .unwrap()
+            .len(),
+        0
+    );
+    assert_eq!(
+        budget.reserve("cas_capture", 1).err().unwrap().code,
+        "STORAGE_CAPACITY_LOW"
+    );
+    assert_eq!(
+        budget
+            .reserve_database_control("workspace.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "DATABASE_CAPACITY_EXHAUSTED"
+    );
+    let repair = budget
+        .reserve_database_control_repair("workspace.sqlite", 1024)
+        .unwrap();
+    let exit = RepairRequest {
+        expected_revision: 1,
+        idempotency_key: "exit-repair".into(),
+    };
+    assert_eq!(
+        budget
+            .repair_transition(RepairAction::Exit, exit.clone(), &context)
+            .unwrap_err()
+            .code,
+        "STORAGE_BUDGET_BUSY"
+    );
+    drop(repair);
+    let exited = budget
+        .repair_transition(RepairAction::Exit, exit, &context)
+        .unwrap();
+    assert_eq!(exited.state, RepairState::Ready);
+    assert_eq!(
+        budget
+            .repair_transition(RepairAction::Enter, enter, &context)
+            .unwrap(),
+        entered
+    );
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .repair
+            .unwrap()
+            .state,
+        RepairState::Ready
+    );
+    drop(budget.reserve("cas_capture", 1).unwrap());
+    fs::OpenOptions::new()
+        .write(true)
+        .open(root.join(".storage-budget/repair.reserve"))
+        .unwrap()
+        .set_len(0)
+        .unwrap();
+    assert_eq!(
+        budget.reserve("cas_capture", 1).err().unwrap().code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .repair
+            .unwrap()
+            .state,
+        RepairState::Degraded
+    );
+    // A crash after truncating the file but before committing the transition
+    // leaves a ready ledger with a short file. Normal writes fail closed; the
+    // owner can finish the intended transition with the next exact revision.
+    budget
+        .repair_transition(
+            RepairAction::Enter,
+            RepairRequest {
+                expected_revision: 2,
+                idempotency_key: "resume-enter".into(),
+            },
+            &context,
+        )
+        .unwrap();
+    // A crash after refilling the file but before recording exit leaves an
+    // active ledger. Repair writes pause and exit can finish idempotently.
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .open(root.join(".storage-budget/repair.reserve"))
+        .unwrap();
+    let random = fs::File::open("/dev/urandom").unwrap();
+    assert_eq!(
+        std::io::copy(&mut random.take(8 * 1024 * 1024), &mut file).unwrap(),
+        8 * 1024 * 1024
+    );
+    file.sync_all().unwrap();
+    drop(file);
+    assert_eq!(
+        budget
+            .reserve_database_control_repair("workspace.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    budget
+        .repair_transition(
+            RepairAction::Exit,
+            RepairRequest {
+                expected_revision: 3,
+                idempotency_key: "resume-exit".into(),
+            },
+            &context,
+        )
+        .unwrap();
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .repair
+            .unwrap()
+            .state,
+        RepairState::Ready
+    );
+    fs::remove_file(root.join(".storage-budget/connections.lock")).unwrap();
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .repair
+            .unwrap()
+            .state,
+        RepairState::Degraded
+    );
+    assert_eq!(
+        budget.reserve("cas_capture", 1).err().unwrap().code,
+        "STORAGE_BUDGET_ERROR"
+    );
+}
+
+#[test]
+fn missing_ledger_with_allocated_repair_file_never_resets_policy() {
+    let directory = tempfile::tempdir().unwrap();
+    let budget = Budget::new(directory.path());
+    configure(directory.path(), 1024);
+    drop(
+        budget
+            .reserve_database_control("workspace.sqlite", 0)
+            .unwrap(),
+    );
+    fs::remove_file(directory.path().join(".storage-budget/ledger.json")).unwrap();
+    assert_eq!(
+        budget
+            .reserve_database_control("workspace.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    assert_eq!(
+        budget.inspect(false).unwrap_err().code,
+        "STORAGE_BUDGET_ERROR"
+    );
 }
 #[test]
 #[ignore = "child process launched by lifecycle tests"]
@@ -343,7 +550,13 @@ fn control_ledger_is_independent_of_payload_and_recovers_a_killed_writer() {
     let ledger: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join(".storage-budget/ledger.json")).unwrap())
             .unwrap();
-    assert_eq!(ledger["version"], 2);
+    assert_eq!(ledger["version"], 3);
+    assert_eq!(ledger["repair"]["state"], "ready");
+    assert_eq!(ledger["repair"]["target_bytes"], "8388608");
+    let allocated = fs::metadata(root.join(".storage-budget/repair.reserve")).unwrap();
+    assert_eq!(allocated.len(), 8 * 1024 * 1024);
+    use std::os::unix::fs::MetadataExt;
+    assert!(allocated.blocks() * 512 >= allocated.len());
     assert_eq!(ledger["policy"]["payload_limit_bytes"], "20");
     assert_eq!(ledger["changes"][0]["input"]["idempotency_key"], "policy");
     assert_eq!(ledger["control_database_name"], "workspace.sqlite");

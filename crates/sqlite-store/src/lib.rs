@@ -64,16 +64,28 @@ pub use opencut_api_contracts::{
 
 impl EditorApplication {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, EditorError> {
-        Self::open_inner(path.as_ref(), false)
+        Self::open_inner(path.as_ref(), false, false)
     }
 
     /// Open a Host/Worker workspace through the control-admitted native VFS.
     /// Embedders using `open` retain the unmanaged compatibility path.
     pub fn open_managed(path: impl AsRef<Path>) -> Result<Self, EditorError> {
-        Self::open_inner(path.as_ref(), true)
+        Self::open_inner(path.as_ref(), true, false)
     }
 
-    fn open_inner(path: &Path, managed: bool) -> Result<Self, EditorError> {
+    /// Open an existing, current-schema workspace for a whitelisted local
+    /// repair operation. This path never initializes or migrates a database.
+    pub fn open_managed_repair(path: impl AsRef<Path>) -> Result<Self, EditorError> {
+        Self::open_inner(path.as_ref(), true, true)
+    }
+
+    fn open_inner(path: &Path, managed: bool, repair: bool) -> Result<Self, EditorError> {
+        if repair && (path == Path::new(":memory:") || !cfg!(unix)) {
+            return Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                "Database repair requires a Unix file-backed workspace",
+            ));
+        }
         let managed_vfs = managed && path != Path::new(":memory:") && cfg!(unix);
         if path != Path::new(":memory:")
             && let Some(parent) = path.parent()
@@ -89,6 +101,8 @@ impl EditorApplication {
         #[cfg(unix)]
         let mut connection = if !managed || path == Path::new(":memory:") {
             Connection::open(path).map_err(storage_error)?
+        } else if repair {
+            control_vfs::open_repair(path)?
         } else {
             control_vfs::open(path)?
         };
@@ -106,7 +120,19 @@ impl EditorApplication {
 
         match inspect_database(&connection)? {
             DatabaseState::Version(DATABASE_SCHEMA_VERSION) => {
-                ensure_wal_for_file_database(&connection)?;
+                if repair {
+                    let mode: String = connection
+                        .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+                        .map_err(storage_error)?;
+                    if !mode.eq_ignore_ascii_case("wal") {
+                        return Err(EditorError::new(
+                            "CAPABILITY_UNAVAILABLE",
+                            "Repair requires an existing WAL database",
+                        ));
+                    }
+                } else {
+                    ensure_wal_for_file_database(&connection)?;
+                }
                 return Self::finish_open(connection, path, managed_vfs);
             }
             DatabaseState::Version(version) if !(1..DATABASE_SCHEMA_VERSION).contains(&version) => {
@@ -119,6 +145,12 @@ impl EditorApplication {
                 ));
             }
             DatabaseState::Empty | DatabaseState::Version(_) => {}
+        }
+        if repair {
+            return Err(EditorError::new(
+                "UNSUPPORTED_DATABASE_VERSION",
+                "Repair cannot initialize or migrate an OpenCut database",
+            ));
         }
 
         let tx = connection
@@ -1068,6 +1100,15 @@ fn storage_error(error: rusqlite::Error) -> EditorError {
             message: "SQLite could not allocate database or journal space. Restore capacity, inspect durable state, then explicitly retry the original request with its original idempotency key; do not assume cancellation or completion was recorded.".into(),
             details: json!({"recovery_action":"restore_capacity_inspect_and_replay_original_request"}),
         };
+    }
+    if matches!(
+        error.sqlite_error_code(),
+        Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+    ) {
+        return EditorError::new(
+            "DATABASE_BUSY",
+            "SQLite is temporarily locked; inspect the current result and retry with the original request identity",
+        );
     }
     EditorError::new("STORAGE_ERROR", format!("SQLite operation failed: {error}"))
 }

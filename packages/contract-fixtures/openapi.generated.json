@@ -4656,6 +4656,16 @@
               "observed_control_bytes": {
                 "type": "string"
               },
+              "repair": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairReport"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "reservations": {
                 "items": {
                   "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/Reservation"
@@ -4749,6 +4759,112 @@
               "actor"
             ],
             "type": "object"
+          },
+          "RepairAction": {
+            "enum": [
+              "enter",
+              "exit"
+            ],
+            "type": "string"
+          },
+          "RepairChange": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairAction"
+              },
+              "actor": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/Actor"
+              },
+              "input": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairRequest"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairState"
+              }
+            },
+            "required": [
+              "action",
+              "input",
+              "revision",
+              "state",
+              "request_id",
+              "actor"
+            ],
+            "type": "object"
+          },
+          "RepairReport": {
+            "properties": {
+              "allocated_blocks_bytes": {
+                "type": "string"
+              },
+              "allocated_file_bytes": {
+                "type": "string"
+              },
+              "last_change": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairChange"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/RepairState"
+              },
+              "target_bytes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "revision",
+              "state",
+              "target_bytes",
+              "allocated_file_bytes",
+              "allocated_blocks_bytes"
+            ],
+            "type": "object"
+          },
+          "RepairRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "idempotency_key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "idempotency_key"
+            ],
+            "type": "object"
+          },
+          "RepairState": {
+            "enum": [
+              "ready",
+              "active",
+              "degraded"
+            ],
+            "type": "string"
           },
           "Report": {
             "properties": {
@@ -5170,6 +5286,16 @@
               "observed_control_bytes": {
                 "type": "string"
               },
+              "repair": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairReport"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "reservations": {
                 "items": {
                   "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/Reservation"
@@ -5263,6 +5389,112 @@
               "actor"
             ],
             "type": "object"
+          },
+          "RepairAction": {
+            "enum": [
+              "enter",
+              "exit"
+            ],
+            "type": "string"
+          },
+          "RepairChange": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairAction"
+              },
+              "actor": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/Actor"
+              },
+              "input": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairRequest"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairState"
+              }
+            },
+            "required": [
+              "action",
+              "input",
+              "revision",
+              "state",
+              "request_id",
+              "actor"
+            ],
+            "type": "object"
+          },
+          "RepairReport": {
+            "properties": {
+              "allocated_blocks_bytes": {
+                "type": "string"
+              },
+              "allocated_file_bytes": {
+                "type": "string"
+              },
+              "last_change": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairChange"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutStorageBudgetRecoverOutput/$defs/RepairState"
+              },
+              "target_bytes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "revision",
+              "state",
+              "target_bytes",
+              "allocated_file_bytes",
+              "allocated_blocks_bytes"
+            ],
+            "type": "object"
+          },
+          "RepairRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "idempotency_key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "idempotency_key"
+            ],
+            "type": "object"
+          },
+          "RepairState": {
+            "enum": [
+              "ready",
+              "active",
+              "degraded"
+            ],
+            "type": "string"
           },
           "Report": {
             "properties": {
