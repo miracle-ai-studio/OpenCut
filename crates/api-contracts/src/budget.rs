@@ -28,6 +28,9 @@ pub struct Configure {
     /// Omission preserves the current ceiling, including for older consumers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media_output_limit_bytes: Option<String>,
+    /// Omission preserves the current database-control ceiling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_limit_bytes: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -40,6 +43,8 @@ pub struct PolicyChange {
     pub policy: Policy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media_output_limit_bytes: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_limit_bytes: Option<String>,
     pub request_id: String,
     pub actor: crate::audit::Actor,
 }
@@ -52,6 +57,18 @@ pub struct Reservation {
     pub writer: Option<Writer>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ControlReport {
+    pub database_name: Option<String>,
+    pub control_limit_bytes: String,
+    pub observed_control_bytes: String,
+    pub reserved_control_bytes: String,
+    /// Absent until the workspace database file name has been bound.
+    pub admission_headroom_bytes: Option<String>,
+    pub reservations: Vec<Reservation>,
+    /// True only once all managed SQLite writes use the guarded VFS.
+    pub write_interception_enabled: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Report {
     pub policy: Policy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -62,6 +79,8 @@ pub struct Report {
     pub admission_headroom_bytes: String,
     pub volume_available_bytes: String,
     pub reservations: Vec<Reservation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control: Option<ControlReport>,
     pub recovered_reservations: usize,
     pub coverage: Vec<String>,
     pub enforces_all_workspace_writes: bool,

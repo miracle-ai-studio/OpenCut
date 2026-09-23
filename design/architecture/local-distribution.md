@@ -112,6 +112,8 @@ Owner 通过 cas_gc_query 发现未完成计划，通过 cas_gc_plan 创建可�
 
 本版同时提供 `opencut_storage_budget_inspect/configure/recover`。默认 64 GiB payload 逻辑准入和 64 MiB 卷观察余量，当前覆盖 12 类受控写入；SQLite/WAL、控制元数据和完整保留／回收仍未接入，`enforces_all_workspace_writes=false`。配置使用策略 revision 和稳定幂等键，返回可信 request_id/actor 回执。恢复只释放已失去 OS 存活锁的预留，不删除实际文件。详见包内 `storage-admission-contract.md`。
 
+2026-09-24 控制额度增量：`opencut_storage_budget_configure` 可选 `control_limit_bytes`，默认 4 GiB，旧请求省略时保留现值；`inspect.control` 单独报告控制限额、已观察字节、活动预留及实际拦截状态。控制账本和原生预留已实施，但 SQLite 事务尚未接入写前拦截，`write_interception_enabled=false`；配置控制限额**不会**限制当前数据库写入。详见包内 `database-control-admission.md`。
+
 升级必须停掉旧 Host/Worker，旧进程不遵守新预留协议。备份/恢复必须包含 `.storage-budget` 和其他工作区内容；其账本版本独立于 SQLite schema，当前宿主 schema 由包清单给出。不要手工删除活动预留的锁文件或仅复制策略文件。新请求可能明确被准入额度拒绝；已有文件/任务历史保留，检查错误后调整策略或显式清理再重试。
 
 全局媒体上传/修复、插件包/授权与产物下载验证副本已纳入准入。匿名下载副本的额度会保留到响应流结束或断开；取消响应等待不代表后台 IO 已停止，只有文件关闭后才释放。详细生命周期与剩余未覆盖写入见 storage-admission-contract.md。

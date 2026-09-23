@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "scope": "Public CLI policy and report; SQLite write interception is not implemented",
+  "binary_sha256": "565e3b1244fd49b635ebe24a15d8186a3eb58fa9a6de16bb55d58bebc3843c20",
+  "checks": [
+    "Read-only inspection does not create the budget ledger",
+    "Owner control policy persists with exact idempotency replay",
+    "Old-style reconfiguration preserves the independent control limit",
+    "A real SQLite project commit still succeeds beyond that limit; write interception remains the next gate",
+    "Report explicitly leaves write interception and whole-workspace enforcement disabled"
+  ],
+  "ledger_version": 2,
+  "database_bytes_after_project_commit": 339968,
+  "policy_revision": 2,
+  "control": {
+    "admission_headroom_bytes": null,
+    "control_limit_bytes": "4096",
+    "database_name": null,
+    "observed_control_bytes": "1019",
+    "reservations": [],
+    "reserved_control_bytes": "0",
+    "write_interception_enabled": false
+  },
+  "enforces_all_workspace_writes": false
+}

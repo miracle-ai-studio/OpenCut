@@ -12,6 +12,8 @@
 
 2026-09-24 R2 控制写入核查：在 payload 准入余量为零且读者固定 WAL 的真实多进程动线中，四次编辑仍提交，WAL 增至 4,021,152 字节；64 MiB 独立卷盘满时编辑／取消会准确回滚，但没有修复预留保证。见[缺口实测](r2-database-control-gap-2026-09-24.md)与[控制写入契约](../architecture/database-control-admission.md)。R2 仍为部分完成。
 
+2026-09-24 R2 后续：独立控制额度账本、owner 配置和持久控制预留已经[单独验收](r2-database-control-ledger-2026-09-24.md)，同一新 debug 开发包在仓库外 36 项复验通过。真实 CLI 仍能在 4096 字节控制限额下提交 339,968 字节数据库，证明 SQLite 写前拦截尚未接入；R2 状态不变。
+
 ## Agent 的实际执行路径
 
 ```mermaid

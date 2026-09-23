@@ -38,6 +38,8 @@
 
 `enforces_all_workspace_writes=false` 保持明确：SQLite/WAL、系统控制元数据增长及完整保留/回收策略尚未接入。观察这些目录不能替代写入拦截。此增量不抵扣完整物理配额、完整 R2 或 R3–R7。
 
+2026-09-24 增量：owner 可单独配置 `control_limit_bytes`，持久账本 v2 分别记录控制与 payload 预留，控制报告单独呈现；两类活动预留共同参与卷余量判断。SQLite 本身仍通过原生连接直接写入，`control.write_interception_enabled=false`，参见[控制账本验收](../qa/r2-database-control-ledger-2026-09-24.md)。配置控制额度尚不限制实际数据库事务，不可把该字段解释成已生效的硬数据库配额。
+
 ## 准入与保守计费
 
 在同一个工作区目录锁内读取策略与全部活动预留、确认可恢复的旧预留，再观察当前文件与 statvfs 余量，最后提交新预留。目录锁最多等待 5 秒，超时返回 STORAGE_BUDGET_BUSY；遍历时间预算不能抢占单个文件系统调用。

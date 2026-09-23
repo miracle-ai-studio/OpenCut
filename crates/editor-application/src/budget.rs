@@ -31,6 +31,14 @@ pub fn validate(input: &Configure) -> Result<(), EditorError> {
             "Media output file limit must be positive",
         ));
     }
+    if let Some(limit) = &input.control_limit_bytes
+        && decimal(limit)? == 0
+    {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Database control limit must be positive",
+        ));
+    }
     if input.idempotency_key.trim().is_empty()
         || input.idempotency_key.len() > 1024
         || input.idempotency_key.chars().any(char::is_control)
@@ -49,8 +57,20 @@ pub fn admit(
     additional: u64,
     available: u64,
 ) -> Result<(), EditorError> {
-    let total = used
-        .checked_add(held)
+    admit_payload(policy, used, held, 0, additional, available)
+}
+/// Control reservations share physical volume headroom, but never consume the
+/// configured logical payload quota.
+pub fn admit_payload(
+    policy: &Policy,
+    used_payload: u64,
+    held_payload: u64,
+    held_control: u64,
+    additional: u64,
+    available: u64,
+) -> Result<(), EditorError> {
+    let total = used_payload
+        .checked_add(held_payload)
         .and_then(|x| x.checked_add(additional));
     if total.is_none_or(|n| n > decimal(&policy.payload_limit_bytes).unwrap_or(0)) {
         return Err(EditorError::new(
@@ -58,8 +78,9 @@ pub fn admit(
             "Managed payload usage and outstanding reservations exceed the configured admission limit",
         ));
     }
-    let required = held
-        .checked_add(additional)
+    let required = held_payload
+        .checked_add(held_control)
+        .and_then(|n| n.checked_add(additional))
         .and_then(|n| n.checked_add(decimal(&policy.minimum_available_bytes).ok()?));
     if required.is_none_or(|n| n > available) {
         return Err(EditorError::new(
@@ -69,6 +90,39 @@ pub fn admit(
     }
     Ok(())
 }
+/// Independent logical control limit with the same physical reservation pool.
+/// The caller supplies the control margin separately from the payload policy.
+pub fn admit_control(
+    control_limit: u64,
+    used_control: u64,
+    held_control: u64,
+    held_payload: u64,
+    additional: u64,
+    minimum_available: u64,
+    available: u64,
+) -> Result<(), EditorError> {
+    let logical = used_control
+        .checked_add(held_control)
+        .and_then(|n| n.checked_add(additional));
+    if logical.is_none_or(|n| n > control_limit) {
+        return Err(EditorError::new(
+            "DATABASE_CAPACITY_EXHAUSTED",
+            "Managed database control usage and reservations exceed the configured limit",
+        ));
+    }
+    let physical = held_payload
+        .checked_add(held_control)
+        .and_then(|n| n.checked_add(additional))
+        .and_then(|n| n.checked_add(minimum_available));
+    if physical.is_none_or(|n| n > available) {
+        return Err(EditorError::new(
+            "STORAGE_CAPACITY_LOW",
+            "Observed volume headroom is insufficient for database control reservation",
+        ));
+    }
+    Ok(())
+}
+
 pub trait BudgetNative {
     fn inspect(&self, recover: bool) -> Result<Report, EditorError>;
     fn configure(
@@ -97,4 +151,36 @@ pub fn configure(
     }
     validate(&input)?;
     native.configure(input, context)
+}
+
+#[cfg(test)]
+mod admission_partition_tests {
+    use super::*;
+
+    #[test]
+    fn control_reservations_use_physical_space_without_spending_payload_quota() {
+        let policy = Policy {
+            revision: 0,
+            payload_limit_bytes: "100".into(),
+            minimum_available_bytes: "0".into(),
+        };
+        assert!(admit_payload(&policy, 80, 0, 15, 20, 35).is_ok());
+        assert_eq!(
+            admit_payload(&policy, 80, 0, 15, 21, 36).unwrap_err().code,
+            "STORAGE_BUDGET_EXCEEDED"
+        );
+        assert_eq!(
+            admit_payload(&policy, 80, 0, 15, 20, 34).unwrap_err().code,
+            "STORAGE_CAPACITY_LOW"
+        );
+        assert!(admit_control(200, 100, 20, 10, 50, 5, 85).is_ok());
+        assert_eq!(
+            admit_control(169, 100, 20, 10, 50, 5, 85).unwrap_err().code,
+            "DATABASE_CAPACITY_EXHAUSTED"
+        );
+        assert_eq!(
+            admit_control(200, 100, 20, 10, 50, 5, 84).unwrap_err().code,
+            "STORAGE_CAPACITY_LOW"
+        );
+    }
 }

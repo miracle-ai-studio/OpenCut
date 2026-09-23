@@ -60,6 +60,23 @@ impl Budget {
             Err(unavailable())
         }
     }
+    /// Reserve database growth in a separate control account. `database_name`
+    /// is a single file name in this workspace, never a caller-selected path.
+    pub fn reserve_database_control(
+        &self,
+        database_name: &str,
+        bytes: u64,
+    ) -> Result<Reservation, EditorError> {
+        #[cfg(unix)]
+        {
+            unix::reserve_control(self, database_name, bytes)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (database_name, bytes);
+            Err(unavailable())
+        }
+    }
 }
 impl BudgetNative for Budget {
     fn inspect(&self, recover: bool) -> Result<Report, EditorError> {
@@ -165,6 +182,7 @@ mod unix {
         .union(OFlags::CLOEXEC);
     const CONTROL: &str = ".storage-budget";
     const MAX_LEDGER: u64 = 16 * 1024 * 1024;
+    const DEFAULT_CONTROL_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
     const ROOTS: [&str; 5] = ["asset-store", "media", "uploads", "artifacts", "plugins"];
     fn failure() -> EditorError {
         EditorError::new(
@@ -301,6 +319,8 @@ mod unix {
     struct Receipt {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         media_output_limit_bytes: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        control_limit_bytes: Option<String>,
         input: Configure,
         policy: Policy,
         request_id: String,
@@ -311,6 +331,7 @@ mod unix {
             PolicyChange {
                 policy: self.policy.clone(),
                 media_output_limit_bytes: self.media_output_limit_bytes.clone(),
+                control_limit_bytes: self.control_limit_bytes.clone(),
                 request_id: self.request_id.clone(),
                 actor: self.actor.clone(),
             }
@@ -330,8 +351,14 @@ mod unix {
         version: u32,
         #[serde(default = "default_media_output_limit")]
         media_output_limit_bytes: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        control_limit_bytes: Option<String>,
         policy: Policy,
         held: BTreeMap<String, Entry>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        control_database_name: Option<String>,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        control_held: BTreeMap<String, Entry>,
         changes: Vec<Receipt>,
     }
     fn default_media_output_limit() -> String {
@@ -342,18 +369,42 @@ mod unix {
             Self {
                 version: 1,
                 media_output_limit_bytes: default_media_output_limit(),
+                control_limit_bytes: None,
                 policy: Policy::default(),
                 held: BTreeMap::new(),
+                control_database_name: None,
+                control_held: BTreeMap::new(),
                 changes: Vec::new(),
             }
         }
     }
     impl Ledger {
         fn validate(&self) -> Result<(), EditorError> {
-            if self.version != 1
-                || self.held.len() > MAX_RESERVATIONS
+            if !matches!(self.version, 1 | 2)
+                || self.held.len() + self.control_held.len() > MAX_RESERVATIONS
                 || self.changes.len() > MAX_POLICY_CHANGES
             {
+                return Err(failure());
+            }
+            if self.version == 1
+                && (self.control_limit_bytes.is_some()
+                    || self.control_database_name.is_some()
+                    || !self.control_held.is_empty())
+            {
+                return Err(failure());
+            }
+            if self.version == 2
+                && self
+                    .control_limit_bytes
+                    .as_deref()
+                    .and_then(|s| budget::decimal(s).ok())
+                    .is_none_or(|n| n == 0)
+            {
+                return Err(failure());
+            }
+            if let Some(name) = &self.control_database_name {
+                validate_database_name(name)?;
+            } else if !self.control_held.is_empty() {
                 return Err(failure());
             }
             budget::decimal(&self.policy.payload_limit_bytes).map_err(|_| failure())?;
@@ -379,8 +430,21 @@ mod unix {
                     return Err(failure());
                 }
             }
+            for (id, entry) in &self.control_held {
+                if self.held.contains_key(id)
+                    || uuid::Uuid::parse_str(id)
+                        .ok()
+                        .is_none_or(|u| u.to_string() != *id)
+                    || entry.category != "sqlite_control"
+                    || entry.writer.is_some()
+                    || entry.bytes > i64::MAX as u64
+                {
+                    return Err(failure());
+                }
+            }
             let mut keys = HashSet::new();
             let mut media_limit = default_media_output_limit();
+            let mut control_limit: Option<String> = None;
             for (index, receipt) in self.changes.iter().enumerate() {
                 if let Some(limit) = &receipt.input.media_output_limit_bytes {
                     media_limit = limit.clone();
@@ -391,6 +455,17 @@ mod unix {
                     .unwrap_or(&default_media_output_limit())
                     != media_limit
                 {
+                    return Err(failure());
+                }
+                if let Some(limit) = &receipt.input.control_limit_bytes {
+                    control_limit = Some(limit.clone());
+                } else if control_limit.is_none()
+                    && receipt.control_limit_bytes.as_deref()
+                        == Some(&DEFAULT_CONTROL_LIMIT.to_string())
+                {
+                    control_limit = Some(DEFAULT_CONTROL_LIMIT.to_string());
+                }
+                if receipt.control_limit_bytes != control_limit {
                     return Err(failure());
                 }
                 budget::validate(&receipt.input).map_err(|_| failure())?;
@@ -407,6 +482,15 @@ mod unix {
             if media_limit != self.media_output_limit_bytes {
                 return Err(failure());
             }
+            if let Some(limit) = control_limit {
+                if self.control_limit_bytes.as_deref() != Some(limit.as_str()) {
+                    return Err(failure());
+                }
+            } else if self.control_limit_bytes.is_some()
+                && self.control_limit_bytes.as_deref() != Some(&DEFAULT_CONTROL_LIMIT.to_string())
+            {
+                return Err(failure());
+            }
             if self
                 .changes
                 .last()
@@ -418,10 +502,22 @@ mod unix {
             }
             Ok(())
         }
-        fn total(&self) -> Result<u64, EditorError> {
+        fn payload_total(&self) -> Result<u64, EditorError> {
             self.held
                 .values()
                 .try_fold(0u64, |sum, r| sum.checked_add(r.bytes).ok_or_else(failure))
+        }
+        fn control_total(&self) -> Result<u64, EditorError> {
+            self.control_held
+                .values()
+                .try_fold(0u64, |sum, r| sum.checked_add(r.bytes).ok_or_else(failure))
+        }
+        fn control_limit(&self) -> Result<u64, EditorError> {
+            self.control_limit_bytes
+                .as_deref()
+                .map(budget::decimal)
+                .transpose()
+                .map(|n| n.unwrap_or(DEFAULT_CONTROL_LIMIT))
         }
     }
     fn coverage() -> Vec<String> {
@@ -442,6 +538,25 @@ mod unix {
         .into_iter()
         .map(String::from)
         .collect()
+    }
+    fn validate_database_name(name: &str) -> Result<(), EditorError> {
+        if name.is_empty()
+            || name.len() > 255
+            || name == "."
+            || name == ".."
+            || name.starts_with('.')
+            || name.contains('/')
+            || name.contains('\\')
+            || name.chars().any(char::is_control)
+            || ROOTS.contains(&name)
+            || name == CONTROL
+            || ["-wal", "-shm", "-journal"]
+                .iter()
+                .any(|suffix| name.ends_with(suffix))
+        {
+            return Err(failure());
+        }
+        Ok(())
     }
     fn lifetime(gate: &Gate, id: &str, create: bool) -> Result<Option<File>, EditorError> {
         let flags = OFlags::RDWR
@@ -494,7 +609,10 @@ mod unix {
             {
                 return Err(failure());
             }
-            if !ledger.held.contains_key(id) && lifetime(gate, id, false)?.is_some() {
+            if !ledger.held.contains_key(id)
+                && !ledger.control_held.contains_key(id)
+                && lifetime(gate, id, false)?.is_some()
+            {
                 fs::unlinkat(gate.dir()?, name, AtFlags::empty()).map_err(|_| failure())?;
             }
         }
@@ -508,8 +626,14 @@ mod unix {
                 stale.push(id.clone());
             }
         }
+        for id in ledger.control_held.keys() {
+            if lifetime(gate, id, false)?.is_some() {
+                stale.push(id.clone());
+            }
+        }
         for id in &stale {
             ledger.held.remove(id);
+            ledger.control_held.remove(id);
         }
         Ok(stale)
     }
@@ -534,13 +658,45 @@ mod unix {
             gate.save(&ledger)?;
             remove_locks(&gate, &recovered);
         }
-        let reserved = ledger.total()?;
+        let reserved = ledger.payload_total()?;
+        let control_reserved = ledger.control_total()?;
         let logical = budget::decimal(&ledger.policy.payload_limit_bytes)?
             .saturating_sub(used)
             .saturating_sub(reserved);
         let physical = available
             .saturating_sub(reserved)
+            .saturating_sub(control_reserved)
             .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?);
+        let control = if ledger.version == 2 {
+            let observed = observe_control(&gate.root, &ledger)?;
+            let control_limit = ledger.control_limit()?;
+            Some(budget::ControlReport {
+                database_name: ledger.control_database_name.clone(),
+                control_limit_bytes: control_limit.to_string(),
+                observed_control_bytes: observed.to_string(),
+                reserved_control_bytes: control_reserved.to_string(),
+                admission_headroom_bytes: ledger.control_database_name.as_ref().map(|_| {
+                    control_limit
+                        .saturating_sub(observed)
+                        .saturating_sub(control_reserved)
+                        .min(physical)
+                        .to_string()
+                }),
+                reservations: ledger
+                    .control_held
+                    .iter()
+                    .map(|(id, entry)| budget::Reservation {
+                        reservation_id: id.clone(),
+                        category: entry.category.clone(),
+                        reserved_bytes: entry.bytes.to_string(),
+                        writer: None,
+                    })
+                    .collect(),
+                write_interception_enabled: false,
+            })
+        } else {
+            None
+        };
         Ok(Report {
             last_policy_change: ledger.changes.last().map(Receipt::view),
             policy: ledger.policy,
@@ -559,6 +715,7 @@ mod unix {
                     writer: e.writer.clone(),
                 })
                 .collect(),
+            control,
             recovered_reservations: recovered.len(),
             coverage: coverage(),
             enforces_all_workspace_writes: false,
@@ -604,8 +761,13 @@ mod unix {
             .media_output_limit_bytes
             .clone()
             .unwrap_or_else(|| ledger.media_output_limit_bytes.clone());
+        if let Some(limit) = &input.control_limit_bytes {
+            ledger.control_limit_bytes = Some(limit.clone());
+            ledger.version = 2;
+        }
         ledger.changes.push(Receipt {
             media_output_limit_bytes: Some(ledger.media_output_limit_bytes.clone()),
+            control_limit_bytes: ledger.control_limit_bytes.clone(),
             input,
             policy: policy.clone(),
             request_id: context.request_id().into(),
@@ -660,15 +822,16 @@ mod unix {
             gate.save(&ledger)?;
             remove_locks(&gate, &stale);
         }
-        if ledger.held.len() == MAX_RESERVATIONS {
+        if ledger.held.len() + ledger.control_held.len() == MAX_RESERVATIONS {
             return Err(limit());
         }
-        let held = ledger.total()?;
+        let held = ledger.payload_total()?;
+        let control_held = ledger.control_total()?;
         let bytes = if let Some(bytes) = requested {
             bytes
         } else {
             // Reject zero headroom with the appropriate public capacity reason.
-            budget::admit(&ledger.policy, used, held, 1, available)?;
+            budget::admit_payload(&ledger.policy, used, held, control_held, 1, available)?;
             budget::decimal(&ledger.media_output_limit_bytes)?
                 .min(
                     budget::decimal(&ledger.policy.payload_limit_bytes)?
@@ -678,10 +841,11 @@ mod unix {
                 .min(
                     available
                         .saturating_sub(held)
+                        .saturating_sub(control_held)
                         .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?),
                 )
         };
-        budget::admit(&ledger.policy, used, held, bytes, available)?;
+        budget::admit_payload(&ledger.policy, used, held, control_held, bytes, available)?;
         let id = uuid::Uuid::new_v4().to_string();
         let lock = lifetime(&gate, &id, true)?.ok_or_else(failure)?;
         ledger.held.insert(
@@ -698,6 +862,70 @@ mod unix {
                 budget: budget.clone(),
                 id,
                 bytes,
+                kind: Kind::Payload,
+                lock: Some(lock),
+            },
+        })
+    }
+    pub(super) fn reserve_control(
+        budget: &Budget,
+        database_name: &str,
+        bytes: u64,
+    ) -> Result<Reservation, EditorError> {
+        validate_database_name(database_name)?;
+        if bytes > i64::MAX as u64 {
+            return Err(limit());
+        }
+        let gate = Gate::open(budget, true)?;
+        let mut ledger = gate.read()?;
+        if ledger
+            .control_database_name
+            .as_deref()
+            .is_some_and(|name| name != database_name)
+        {
+            return Err(failure());
+        }
+        let stale = recover(&gate, &mut ledger)?;
+        let (_, available) = observe(&gate.root)?;
+        if !stale.is_empty() {
+            gate.save(&ledger)?;
+            remove_locks(&gate, &stale);
+        }
+        if ledger.held.len() + ledger.control_held.len() == MAX_RESERVATIONS {
+            return Err(limit());
+        }
+        ledger.control_database_name = Some(database_name.to_owned());
+        let used = observe_control(&gate.root, &ledger)?;
+        budget::admit_control(
+            ledger.control_limit()?,
+            used,
+            ledger.control_total()?,
+            ledger.payload_total()?,
+            bytes,
+            budget::decimal(&ledger.policy.minimum_available_bytes)?,
+            available,
+        )?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let lock = lifetime(&gate, &id, true)?.ok_or_else(failure)?;
+        ledger.version = 2;
+        if ledger.control_limit_bytes.is_none() {
+            ledger.control_limit_bytes = Some(DEFAULT_CONTROL_LIMIT.to_string());
+        }
+        ledger.control_held.insert(
+            id.clone(),
+            Entry {
+                category: "sqlite_control".into(),
+                bytes,
+                writer: None,
+            },
+        );
+        gate.save(&ledger)?;
+        Ok(Reservation {
+            inner: Held {
+                budget: budget.clone(),
+                id,
+                bytes,
+                kind: Kind::Control,
                 lock: Some(lock),
             },
         })
@@ -706,7 +934,13 @@ mod unix {
         budget: Budget,
         id: String,
         bytes: u64,
+        kind: Kind,
         lock: Option<File>,
+    }
+    #[derive(Clone, Copy)]
+    enum Kind {
+        Payload,
+        Control,
     }
     impl Held {
         pub(super) fn child_lock(&self) -> (&File, u64) {
@@ -722,14 +956,30 @@ mod unix {
             let gate = Gate::open(&self.budget, true)?;
             let mut ledger = gate.read()?;
             let (used, available) = observe(&gate.root)?;
-            budget::admit(
-                &ledger.policy,
-                used,
-                ledger.total()?,
-                bytes - self.bytes,
-                available,
-            )?;
-            let entry = ledger.held.get_mut(&self.id).ok_or_else(failure)?;
+            match self.kind {
+                Kind::Payload => budget::admit_payload(
+                    &ledger.policy,
+                    used,
+                    ledger.payload_total()?,
+                    ledger.control_total()?,
+                    bytes - self.bytes,
+                    available,
+                )?,
+                Kind::Control => budget::admit_control(
+                    ledger.control_limit()?,
+                    observe_control(&gate.root, &ledger)?,
+                    ledger.control_total()?,
+                    ledger.payload_total()?,
+                    bytes - self.bytes,
+                    budget::decimal(&ledger.policy.minimum_available_bytes)?,
+                    available,
+                )?,
+            }
+            let entry = match self.kind {
+                Kind::Payload => ledger.held.get_mut(&self.id),
+                Kind::Control => ledger.control_held.get_mut(&self.id),
+            }
+            .ok_or_else(failure)?;
             if entry.bytes != self.bytes {
                 return Err(failure());
             }
@@ -753,7 +1003,10 @@ mod unix {
                     return Ok(());
                 };
                 let mut ledger = gate.read()?;
-                ledger.held.remove(&self.id);
+                match self.kind {
+                    Kind::Payload => ledger.held.remove(&self.id),
+                    Kind::Control => ledger.control_held.remove(&self.id),
+                };
                 gate.save(&ledger)?;
                 remove_locks(&gate, std::slice::from_ref(&self.id));
                 Ok(())
@@ -762,7 +1015,7 @@ mod unix {
         }
     }
     #[allow(clippy::unnecessary_cast)]
-    fn observe(root: &File) -> Result<(u64, u64), EditorError> {
+    fn scan_roots(root: &File, names: &[&str]) -> Result<u64, EditorError> {
         struct Scan {
             device: u64,
             seen: HashSet<(u64, u64)>,
@@ -835,13 +1088,26 @@ mod unix {
             bytes: 0,
             start: Instant::now(),
         };
-        for name in ROOTS {
+        for name in names {
             scan.visit(root, OsStr::new(name), 0)?;
         }
+        Ok(scan.bytes)
+    }
+    fn observe_control(root: &File, ledger: &Ledger) -> Result<u64, EditorError> {
+        let Some(database_name) = &ledger.control_database_name else {
+            return scan_roots(root, &[CONTROL]);
+        };
+        let wal = format!("{database_name}-wal");
+        let shm = format!("{database_name}-shm");
+        let journal = format!("{database_name}-journal");
+        scan_roots(root, &[CONTROL, database_name, &wal, &shm, &journal])
+    }
+    fn observe(root: &File) -> Result<(u64, u64), EditorError> {
+        let used = scan_roots(root, &ROOTS)?;
         let volume = fs::fstatvfs(root).map_err(|_| failure())?;
         let available = (volume.f_bavail as u64)
             .checked_mul(volume.f_frsize as u64)
             .ok_or_else(failure)?;
-        Ok((scan.bytes, available))
+        Ok((used, available))
     }
 }

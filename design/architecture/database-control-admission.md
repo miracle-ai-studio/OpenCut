@@ -1,6 +1,8 @@
-# SQLite 与控制元数据写入准入契约（待实现）
+# SQLite 与控制元数据写入准入契约（实施中）
 
 状态：设计冻结前的实施契约。当前产品仍返回 `enforces_all_workspace_writes=false`、`enforces_total_storage_limit=false`；[实进程缺口证据](../qa/r2-database-control-gap-2026-09-24.md)显示 payload 余量为零时 WAL 仍可增长 4,021,152 字节。不能通过给现有 payload `coverage` 列表增加 `sqlite` 字符串、限制 `PRAGMA max_page_count`、观察 `statvfs` 或事后 checkpoint 来宣称写入前准入。
+
+2026-09-24 首个实施增量：`storage-budget` 的账本 v2 新增独立控制额度与持久预留，旧 v1 策略、回执、存活锁可迁移；payload 和控制预留共享卷余量但分开计逻辑额度。owner 的配置、检查、恢复和双 SDK 生成契约已经扩展；`control.write_interception_enabled=false`。真实 CLI 将控制限额设为 4096 字节后仍成功提交工程，数据库主文件达 339,968 字节，详见[分账验收](../qa/r2-database-control-ledger-2026-09-24.md)。因此本增量**没有**完成下述 VFS、修复预留和全工作区准入门槛。
 
 技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库使用的 `rusqlite` 提供具名 VFS 打开入口。这里定义目标协议，尚未声称已注册或使用新的 VFS。
 

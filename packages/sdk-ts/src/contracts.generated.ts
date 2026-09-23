@@ -102,6 +102,7 @@ export namespace OpencutStorageBudgetInspectOutput {
 }
   export interface Report {
   admission_headroom_bytes: string;
+  control?: ControlReport | null;
   coverage: string[];
   enforces_all_workspace_writes: boolean;
   last_policy_change?: PolicyChange | null;
@@ -114,8 +115,36 @@ export namespace OpencutStorageBudgetInspectOutput {
   volume_available_bytes: string;
   [k: string]: any;
 }
+  export interface ControlReport {
+  /**
+   * Absent until the workspace database file name has been bound.
+   */
+  admission_headroom_bytes?: string | null;
+  control_limit_bytes: string;
+  database_name?: string | null;
+  observed_control_bytes: string;
+  reservations: Reservation[];
+  reserved_control_bytes: string;
+  /**
+   * True only once all managed SQLite writes use the guarded VFS.
+   */
+  write_interception_enabled: boolean;
+  [k: string]: any;
+}
+  export interface Reservation {
+  category: string;
+  reservation_id: string;
+  reserved_bytes: string;
+  writer?: Writer | null;
+  [k: string]: any;
+}
+  export interface Writer {
+  attempt: number;
+  job_id: string;
+}
   export interface PolicyChange {
   actor: Actor;
+  control_limit_bytes?: string | null;
   media_output_limit_bytes?: string | null;
   policy: Policy;
   request_id: string;
@@ -132,17 +161,6 @@ export namespace OpencutStorageBudgetInspectOutput {
   payload_limit_bytes: string;
   revision: number;
 }
-  export interface Reservation {
-  category: string;
-  reservation_id: string;
-  reserved_bytes: string;
-  writer?: Writer | null;
-  [k: string]: any;
-}
-  export interface Writer {
-  attempt: number;
-  job_id: string;
-}
   export interface EditorError {
   code: string;
   details: any;
@@ -153,6 +171,10 @@ export namespace OpencutStorageBudgetInspectOutput {
 
 export namespace OpencutStorageBudgetConfigureInput {
   export interface Configure {
+  /**
+   * Omission preserves the current database-control ceiling.
+   */
+  control_limit_bytes?: string | null;
   expected_revision: number;
   idempotency_key: string;
   /**
@@ -178,6 +200,7 @@ export namespace OpencutStorageBudgetConfigureOutput {
 }
   export interface PolicyChange {
   actor: Actor;
+  control_limit_bytes?: string | null;
   media_output_limit_bytes?: string | null;
   policy: Policy;
   request_id: string;
@@ -220,6 +243,7 @@ export namespace OpencutStorageBudgetRecoverOutput {
 }
   export interface Report {
   admission_headroom_bytes: string;
+  control?: ControlReport | null;
   coverage: string[];
   enforces_all_workspace_writes: boolean;
   last_policy_change?: PolicyChange | null;
@@ -232,8 +256,36 @@ export namespace OpencutStorageBudgetRecoverOutput {
   volume_available_bytes: string;
   [k: string]: any;
 }
+  export interface ControlReport {
+  /**
+   * Absent until the workspace database file name has been bound.
+   */
+  admission_headroom_bytes?: string | null;
+  control_limit_bytes: string;
+  database_name?: string | null;
+  observed_control_bytes: string;
+  reservations: Reservation[];
+  reserved_control_bytes: string;
+  /**
+   * True only once all managed SQLite writes use the guarded VFS.
+   */
+  write_interception_enabled: boolean;
+  [k: string]: any;
+}
+  export interface Reservation {
+  category: string;
+  reservation_id: string;
+  reserved_bytes: string;
+  writer?: Writer | null;
+  [k: string]: any;
+}
+  export interface Writer {
+  attempt: number;
+  job_id: string;
+}
   export interface PolicyChange {
   actor: Actor;
+  control_limit_bytes?: string | null;
   media_output_limit_bytes?: string | null;
   policy: Policy;
   request_id: string;
@@ -249,17 +301,6 @@ export namespace OpencutStorageBudgetRecoverOutput {
   minimum_available_bytes: string;
   payload_limit_bytes: string;
   revision: number;
-}
-  export interface Reservation {
-  category: string;
-  reservation_id: string;
-  reserved_bytes: string;
-  writer?: Writer | null;
-  [k: string]: any;
-}
-  export interface Writer {
-  attempt: number;
-  job_id: string;
 }
   export interface EditorError {
   code: string;

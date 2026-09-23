@@ -307,7 +307,7 @@
     "read_only": false
   },
   {
-    "description": "Owner-only read-only admission policy, live payload observation and durable reservations. No files created and no recovery performed. Coverage is explicit; logical headroom is conservative, volume space is observational, and not all workspace writers are yet covered.",
+    "description": "Owner-only read-only admission policy, payload observation and durable reservations. Optional control section reports a separate database limit and observed files, but write interception is not yet enabled. No files created or recovery performed; volume space is observational and all workspace writers are not covered.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -348,6 +348,50 @@
             "worker"
           ],
           "type": "string"
+        },
+        "ControlReport": {
+          "properties": {
+            "admission_headroom_bytes": {
+              "description": "Absent until the workspace database file name has been bound.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "control_limit_bytes": {
+              "type": "string"
+            },
+            "database_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "observed_control_bytes": {
+              "type": "string"
+            },
+            "reservations": {
+              "items": {
+                "$ref": "#/$defs/Reservation"
+              },
+              "type": "array"
+            },
+            "reserved_control_bytes": {
+              "type": "string"
+            },
+            "write_interception_enabled": {
+              "description": "True only once all managed SQLite writes use the guarded VFS.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "control_limit_bytes",
+            "observed_control_bytes",
+            "reserved_control_bytes",
+            "reservations",
+            "write_interception_enabled"
+          ],
+          "type": "object"
         },
         "EditorError": {
           "additionalProperties": false,
@@ -394,6 +438,12 @@
             "actor": {
               "$ref": "#/$defs/Actor"
             },
+            "control_limit_bytes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "media_output_limit_bytes": {
               "type": [
                 "string",
@@ -418,6 +468,16 @@
           "properties": {
             "admission_headroom_bytes": {
               "type": "string"
+            },
+            "control": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ControlReport"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "coverage": {
               "items": {
@@ -575,11 +635,18 @@
     "read_only": true
   },
   {
-    "description": "Owner-only persist a storage admission policy with expected revision and stable idempotency key. Lower limits affect new reservations and growth; already admitted writes may finish. Does not delete data or change upload source quotas. Policy history is bounded without silently evicting replay keys.",
+    "description": "Owner-only persist payload and optional independent database-control limits with expected revision and stable idempotency key. Omitted control limit preserves it. Lower limits affect new reservations and growth; already admitted writes may finish. Does not delete data or change upload source quotas.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "control_limit_bytes": {
+          "description": "Omission preserves the current database-control ceiling.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "expected_revision": {
           "format": "uint64",
           "minimum": 0,
@@ -691,6 +758,12 @@
             "actor": {
               "$ref": "#/$defs/Actor"
             },
+            "control_limit_bytes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "media_output_limit_bytes": {
               "type": [
                 "string",
@@ -758,7 +831,7 @@
     "read_only": false
   },
   {
-    "description": "Owner-only reconcile crashed writer reservations using OS lifetime locks, then observe current payload bytes. Never expires a live writer by clock or deletes payload. Interrupted release remains conservative and recoverable.",
+    "description": "Owner-only reconcile crashed payload and control reservations using OS lifetime locks, then observe current managed bytes. Never expires a live writer by clock or deletes files. SQLite write interception and whole-workspace enforcement are not yet enabled.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -799,6 +872,50 @@
             "worker"
           ],
           "type": "string"
+        },
+        "ControlReport": {
+          "properties": {
+            "admission_headroom_bytes": {
+              "description": "Absent until the workspace database file name has been bound.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "control_limit_bytes": {
+              "type": "string"
+            },
+            "database_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "observed_control_bytes": {
+              "type": "string"
+            },
+            "reservations": {
+              "items": {
+                "$ref": "#/$defs/Reservation"
+              },
+              "type": "array"
+            },
+            "reserved_control_bytes": {
+              "type": "string"
+            },
+            "write_interception_enabled": {
+              "description": "True only once all managed SQLite writes use the guarded VFS.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "control_limit_bytes",
+            "observed_control_bytes",
+            "reserved_control_bytes",
+            "reservations",
+            "write_interception_enabled"
+          ],
+          "type": "object"
         },
         "EditorError": {
           "additionalProperties": false,
@@ -845,6 +962,12 @@
             "actor": {
               "$ref": "#/$defs/Actor"
             },
+            "control_limit_bytes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "media_output_limit_bytes": {
               "type": [
                 "string",
@@ -869,6 +992,16 @@
           "properties": {
             "admission_headroom_bytes": {
               "type": "string"
+            },
+            "control": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ControlReport"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "coverage": {
               "items": {

@@ -16,6 +16,7 @@ fn configure(root: &Path, bytes: u64) {
         .configure(
             Configure {
                 media_output_limit_bytes: None,
+                control_limit_bytes: None,
                 expected_revision: 0,
                 idempotency_key: "policy".into(),
                 payload_limit_bytes: bytes.to_string(),
@@ -41,7 +42,11 @@ fn writer() {
     let root = Path::new(&root);
     let id = std::env::var("OPENCUT_BUDGET_TEST_ID").unwrap();
     let budget = Budget::new(root);
-    let result = budget.reserve("cas_capture", 150);
+    let result = if std::env::var_os("OPENCUT_BUDGET_TEST_CONTROL").is_some() {
+        budget.reserve_database_control("workspace.sqlite", 150)
+    } else {
+        budget.reserve("cas_capture", 150)
+    };
     match result {
         Ok(_reservation) => {
             if std::env::var_os("OPENCUT_BUDGET_TEST_BYTES").is_some() {
@@ -87,6 +92,16 @@ fn child(root: &Path, id: &str, bytes: bool) -> ChildGuard {
     if bytes {
         c.env("OPENCUT_BUDGET_TEST_BYTES", "yes");
     }
+    ChildGuard(c.spawn().unwrap())
+}
+fn control_child(root: &Path, id: &str) -> ChildGuard {
+    let mut c = Command::new(std::env::current_exe().unwrap());
+    c.args(["--ignored", "--exact", "writer", "--nocapture"])
+        .env("OPENCUT_BUDGET_TEST_ROOT", root)
+        .env("OPENCUT_BUDGET_TEST_ID", id)
+        .env("OPENCUT_BUDGET_TEST_CONTROL", "yes")
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit());
     ChildGuard(c.spawn().unwrap())
 }
 #[test]
@@ -147,6 +162,7 @@ fn observation_does_not_create_state_and_policy_replay_is_exact() {
     let context = ExecutionContext::local(CallSource::Cli);
     let input = Configure {
         media_output_limit_bytes: None,
+        control_limit_bytes: None,
         expected_revision: 0,
         idempotency_key: "first".into(),
         payload_limit_bytes: "128".into(),
@@ -211,6 +227,7 @@ fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers()
                 payload_limit_bytes: "100".into(),
                 minimum_available_bytes: "0".into(),
                 media_output_limit_bytes: Some("80".into()),
+                control_limit_bytes: None,
             },
             &context,
         )
@@ -248,6 +265,7 @@ fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers()
                 payload_limit_bytes: "100".into(),
                 minimum_available_bytes: "0".into(),
                 media_output_limit_bytes: Some("10".into()),
+                control_limit_bytes: None,
             },
             &context,
         )
@@ -269,4 +287,174 @@ fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers()
     );
     drop((first, replacement, caption));
     assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}
+
+#[test]
+fn control_ledger_is_independent_of_payload_and_recovers_a_killed_writer() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    configure(root, 20);
+    fs::write(root.join("workspace.sqlite"), vec![0; 32]).unwrap();
+    fs::write(root.join("workspace.sqlite-wal"), vec![0; 16]).unwrap();
+    let budget = Budget::new(root);
+    let mut control = budget
+        .reserve_database_control("workspace.sqlite", 100)
+        .unwrap();
+    control.ensure(120).unwrap();
+    let payload = budget.reserve("cas_capture", 20).unwrap();
+    let report = budget.inspect(false).unwrap();
+    assert_eq!(report.reserved_bytes, "20");
+    let control_report = report.control.unwrap();
+    assert_eq!(control_report.reserved_control_bytes, "120");
+    assert!(
+        control_report
+            .observed_control_bytes
+            .parse::<u64>()
+            .unwrap()
+            >= 48
+    );
+    assert!(!control_report.write_interception_enabled);
+    assert_eq!(
+        budget
+            .reserve_database_control("other.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    assert_eq!(
+        budget
+            .reserve_database_control("../workspace.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    drop((control, payload));
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .reserved_control_bytes,
+        "0"
+    );
+    let ledger: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join(".storage-budget/ledger.json")).unwrap())
+            .unwrap();
+    assert_eq!(ledger["version"], 2);
+    assert_eq!(ledger["policy"]["payload_limit_bytes"], "20");
+    assert_eq!(ledger["changes"][0]["input"]["idempotency_key"], "policy");
+    assert_eq!(ledger["control_database_name"], "workspace.sqlite");
+    assert!(ledger.get("control_held").is_none());
+
+    let mut writer = control_child(root, "control");
+    wait(&root.join("control.ready"));
+    assert_eq!(
+        fs::read_to_string(root.join("control.ready")).unwrap(),
+        "held"
+    );
+    assert_eq!(
+        budget
+            .inspect(true)
+            .unwrap()
+            .control
+            .unwrap()
+            .reserved_control_bytes,
+        "150"
+    );
+    writer.kill().unwrap();
+    writer.wait().unwrap();
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .reserved_control_bytes,
+        "150"
+    );
+    let recovered = budget.inspect(true).unwrap();
+    assert_eq!(recovered.recovered_reservations, 1);
+    assert_eq!(recovered.control.unwrap().reserved_control_bytes, "0");
+}
+
+#[test]
+fn control_observation_rejects_ambiguous_sidecars() {
+    use std::os::unix::fs::symlink;
+    let root = tempfile::tempdir().unwrap();
+    let elsewhere = tempfile::tempdir().unwrap();
+    fs::write(elsewhere.path().join("wal"), b"outside").unwrap();
+    symlink(
+        elsewhere.path().join("wal"),
+        root.path().join("workspace.sqlite-wal"),
+    )
+    .unwrap();
+    let budget = Budget::new(root.path());
+    assert_eq!(
+        budget
+            .reserve_database_control("workspace.sqlite", 1)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_ERROR"
+    );
+    assert_eq!(fs::read(elsewhere.path().join("wal")).unwrap(), b"outside");
+}
+
+#[test]
+fn owner_control_policy_is_idempotent_and_old_style_reconfigure_preserves_it() {
+    let root = tempfile::tempdir().unwrap();
+    let budget = Budget::new(root.path());
+    let context = ExecutionContext::local(CallSource::Cli);
+    let initial = budget.inspect(false).unwrap();
+    assert!(initial.control.is_none());
+    let first = Configure {
+        expected_revision: 0,
+        idempotency_key: "control-limit".into(),
+        payload_limit_bytes: "20".into(),
+        minimum_available_bytes: "0".into(),
+        media_output_limit_bytes: None,
+        control_limit_bytes: Some("4096".into()),
+    };
+    let changed = budget.configure(first.clone(), &context).unwrap();
+    assert_eq!(changed.control_limit_bytes.as_deref(), Some("4096"));
+    assert_eq!(budget.configure(first, &context).unwrap(), changed);
+    let control = budget.inspect(false).unwrap().control.unwrap();
+    assert_eq!(control.database_name, None);
+    assert_eq!(control.control_limit_bytes, "4096");
+    assert!(!control.write_interception_enabled);
+    budget
+        .configure(
+            Configure {
+                expected_revision: 1,
+                idempotency_key: "payload-only".into(),
+                payload_limit_bytes: "30".into(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: None,
+                control_limit_bytes: None,
+            },
+            &context,
+        )
+        .unwrap();
+    assert_eq!(
+        budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .control_limit_bytes,
+        "4096"
+    );
+    assert_eq!(
+        budget
+            .reserve_database_control("workspace.sqlite", 4096)
+            .err()
+            .unwrap()
+            .code,
+        "DATABASE_CAPACITY_EXHAUSTED"
+    );
+    let payload = budget.reserve("cas_capture", 30).unwrap();
+    drop(payload);
 }
