@@ -1,0 +1,7 @@
+{
+  "code": "NOT_AUTHORIZED",
+  "request_id": "5e1f1f3d-c3f3-4b7e-89b1-42ed65e8fa69",
+  "warnings": [
+    "DENIAL_AUDIT_UNAVAILABLE"
+  ]
+}

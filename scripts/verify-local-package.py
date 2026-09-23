@@ -15,6 +15,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import uuid
 import wave
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -165,6 +166,65 @@ fs.writeFileSync(report,JSON.stringify({request,transaction,job:done,upload:{id:
 use serde_json::{Value,json};
 fn main()->Result<(),Box<dyn std::error::Error>> {
  let a:Vec<_>=std::env::args().skip(1).collect();
+ if a.first().is_some_and(|mode| mode=="gc") {
+  let client=Client::new(&a[1],std::fs::read_to_string(&a[2])?.trim())?;
+  let reviewed:api::gc::Plan=serde_json::from_str(&std::fs::read_to_string(&a[3])?)?;
+  let input=api::gc::ExecuteInput{plan_id:reviewed.plan_id.clone(),expected_plan_hash:reviewed.plan_hash.clone()};
+  let wrong=api::gc::ExecuteInput{expected_plan_hash:"0".repeat(64),..input.clone()};
+  let rejected=client.call::<tools::CasGcExecute>(&wrong).expect_err("wrong reviewed hash must reject");
+  assert!(matches!(rejected,opencut_sdk::Error::Api(ref failure) if failure.error.code=="GC_PLAN_CONFLICT"));
+  let executed=client.call::<tools::CasGcExecute>(&input)?;
+  assert_eq!(executed.plan_id,reviewed.plan_id);
+  assert_eq!(executed.plan_hash,reviewed.plan_hash);
+  assert!(matches!(executed.state,api::gc::PlanState::Complete));
+  println!("{}",serde_json::to_string(&executed)?);
+  return Ok(());
+ }
+ if a.first().is_some_and(|mode| mode=="staging") {
+  let client=Client::new(&a[1],std::fs::read_to_string(&a[2])?.trim())?;
+  let prepared:Value=serde_json::from_str(&std::fs::read_to_string(&a[3])?)?;
+  let project_id=prepared["project_id"].as_str().expect("typed project id");
+  let upload_id=prepared["upload_id"].as_str().expect("typed upload id");
+  let input=api::uploads::UploadInput{upload_id:upload_id.into()};
+  let page=client.call::<tools::UploadQuery>(&api::uploads::UploadQuery{project_id:project_id.into(),cursor:None,limit:50,retained_only:true})?;
+  assert!(page.uploads.iter().any(|entry| entry.upload.upload_id==upload_id && entry.retention.release_eligible));
+  let before=client.call::<tools::UploadRetention>(&input)?;
+  assert_eq!(before.state,api::uploads::UploadRetentionState::Retained);
+  assert!(before.release_eligible);
+  let quota_before=client.call::<tools::UploadQuota>(&api::ProjectInput{project_id:project_id.into()})?;
+  assert_eq!(quota_before.project_reserved_bytes,prepared["size_bytes"].as_str().expect("typed size"));
+  let released=client.call::<tools::UploadRelease>(&input)?;
+  assert_eq!(released.state,api::uploads::UploadRetentionState::Released);
+  let quota_after=client.call::<tools::UploadQuota>(&api::ProjectInput{project_id:project_id.into()})?;
+  assert_eq!(quota_after.project_reserved_bytes,"0");
+  println!("{}",json!({"before":before,"quota_before":quota_before,"released":released,"quota_after":quota_after}));
+  return Ok(());
+ }
+ if a.first().is_some_and(|mode| mode=="preflight") {
+  let runner=Client::new(&a[1],std::fs::read_to_string(&a[2])?.trim())?;
+  let reader=Client::new(&a[1],std::fs::read_to_string(&a[3])?.trim())?;
+  let prepared:Value=serde_json::from_str(&std::fs::read_to_string(&a[4])?)?;
+  let input:api::render::RenderPreflightInput=serde_json::from_value(prepared["request"].clone())?;
+  let expected=prepared["report"].clone();
+  let actual=runner.call::<tools::RenderPreflight>(&input)?;
+  assert_eq!(serde_json::to_value(&actual)?,expected);
+  assert!(actual.ready && actual.issues.is_empty());
+  let denied=reader.call::<tools::RenderPreflight>(&input).expect_err("read-only principal must not preflight");
+  assert!(matches!(denied,opencut_sdk::Error::Api(ref failure) if failure.error.code=="NOT_AUTHORIZED"));
+  let observed=runner.call::<tools::ProjectInspect>(&api::ProjectInput{project_id:input.project_id.clone()})?;
+  assert_eq!(observed.revision,input.revision);
+  println!("{}",json!({"report":actual,"revision":observed.revision}));
+  return Ok(());
+ }
+ if a.first().is_some_and(|mode| mode=="warning") {
+  let client=Client::new(&a[1],std::fs::read_to_string(&a[2])?.trim())?;
+  let denied=client.call::<tools::PluginList>(&api::EmptyInput{}).expect_err("scoped principal must not list owner plugins");
+  let opencut_sdk::Error::Api(failure)=denied else {panic!("expected structured API refusal")};
+  assert_eq!(failure.error.code,"NOT_AUTHORIZED");
+  assert_eq!(failure.warnings,vec!["DENIAL_AUDIT_UNAVAILABLE".to_string()]);
+  println!("{}",json!({"code":failure.error.code,"warnings":failure.warnings,"request_id":failure.request_id}));
+  return Ok(());
+ }
  let client=Client::new(&a[0],std::fs::read_to_string(&a[1])?.trim())?;
  let ts:Value=serde_json::from_str(&std::fs::read_to_string(&a[2])?)?;
  let mut request:api::EditInput=serde_json::from_value(ts["request"].clone())?;
@@ -240,6 +300,160 @@ fs.writeFileSync(output,JSON.stringify({job,imported,released},null,2));
         run(['node', consumer / 'finish-upload.mjs', base, token, ts_report, rust_report,
              evidence / 'cross-sdk-upload.json'], consumer)
         checks.append('installed TS and Rust SDKs resume one raw upload, verify scoped imported bytes and release staging across the same delivered host')
+        # Review and execution must be two explicit SDK actions against the
+        # delivered host. An incorrect hash must leave the reviewed object intact.
+        capture_id = str(uuid.uuid4())
+        capture = database.parent / 'asset-store' / f'.capture-{capture_id}'
+        capture.write_bytes(b'cross-sdk-reviewed-capture')
+        (consumer / 'review-gc.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient} from '@opencut/sdk';
+const [base,token,captureId,report]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+const plan=await c.call('opencut_cas_gc_plan',{idempotency_key:'cross-sdk-reviewed-capture',limit:100});
+assert.equal(plan.state,'planned');
+assert.match(plan.plan_hash,/^[0-9a-f]{64}$/);
+assert(plan.items.some(item=>item.object.kind==='capture' && item.object.capture_id===captureId && item.state==='planned'));
+assert.deepEqual(await c.call('opencut_cas_gc_inspect',{plan_id:plan.plan_id}),plan);
+fs.writeFileSync(report,JSON.stringify(plan,null,2));
+''')
+        reviewed_plan = evidence / 'cross-sdk-gc-reviewed.json'
+        run(['node', consumer / 'review-gc.mjs', base, token, capture_id, reviewed_plan], consumer)
+        assert capture.read_bytes() == b'cross-sdk-reviewed-capture'
+        executed_plan = json.loads(run([executable, 'gc', base, token, reviewed_plan], rust_consumer))
+        assert executed_plan['plan_hash'] == json.loads(reviewed_plan.read_text())['plan_hash']
+        assert executed_plan['state'] == 'complete' and not capture.exists()
+        (consumer / 'confirm-gc.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient} from '@opencut/sdk';
+const [base,token,reviewed,executed,captureId]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+const before=JSON.parse(fs.readFileSync(reviewed,'utf8'));
+const after=JSON.parse(fs.readFileSync(executed,'utf8'));
+assert.equal(before.plan_id,after.plan_id);
+assert.equal(before.plan_hash,after.plan_hash);
+const observed=await c.call('opencut_cas_gc_inspect',{plan_id:before.plan_id});
+assert.deepEqual(observed,after);
+assert(observed.items.some(item=>item.object.kind==='capture' && item.object.capture_id===captureId && item.state==='removed'));
+''')
+        executed_file = evidence / 'cross-sdk-gc-executed.json'
+        executed_file.write_text(json.dumps(executed_plan, indent=2))
+        run(['node', consumer / 'confirm-gc.mjs', base, token, reviewed_plan, executed_file, capture_id], consumer)
+        checks.append('installed TS SDK reviews an exact CAS plan and Rust SDK rejects a wrong hash before executing it; TS confirms the same durable receipt and removed bytes')
+        policy_file = evidence / 'scoped-policy.json'
+        policy_file.write_text(json.dumps({'principal_id':'sdk-runner','expected_revision':'0','enabled':True,
+            'grants':[{'project_id':'sdk-acceptance','actions':['read','edit','run_jobs','read_artifacts']}]}))
+        policy = json.loads(run([binary, '--database', database, '--json', 'access', 'set-policy', '--input', policy_file]))
+        assert policy['error'] is None
+        scoped_token = evidence / 'sdk-runner.secret'
+        issued = json.loads(run([binary, '--database', database, '--json', 'access', 'issue', 'sdk-runner', '--output', scoped_token]))
+        assert issued['error'] is None and scoped_token.read_text().strip()
+        (consumer / 'stage-upload.mjs').write_text('''import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import fs from 'node:fs';
+import {OpenCutClient} from '@opencut/sdk';
+const [base,token,source,report]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+const bytes=fs.readFileSync(source), project_id='sdk-acceptance';
+const created=await c.call('opencut_upload_create',{project_id,idempotency_key:'cross-sdk-staging',name:'staging-tone.wav',size_bytes:String(bytes.length),content_hash:createHash('sha256').update(bytes).digest('hex')});
+const chunk=await c.uploadChunk(created.upload_id,'0',bytes);
+assert.equal(chunk.next_offset,String(bytes.length));
+const sealed=await c.call('opencut_upload_seal',{upload_id:created.upload_id});
+assert.equal(sealed.state,'sealed');
+const job=await c.waitForPublicJob(sealed.job_id,{timeoutMs:60000});
+assert.equal(job.state,'succeeded');
+const retention=await c.call('opencut_upload_retention',{upload_id:created.upload_id});
+const quota=await c.call('opencut_upload_quota',{project_id});
+const page=await c.call('opencut_upload_query',{project_id,limit:50,retained_only:true});
+assert.equal(retention.state,'retained');assert(retention.release_eligible);
+assert.equal(quota.project_reserved_bytes,String(bytes.length));
+assert(page.uploads.some(entry=>entry.upload.upload_id===created.upload_id));
+fs.writeFileSync(report,JSON.stringify({project_id,upload_id:created.upload_id,size_bytes:String(bytes.length),retention,quota},null,2));
+''')
+        stage_report = evidence / 'cross-sdk-staging-before.json'
+        run(['node', consumer / 'stage-upload.mjs', base, scoped_token, probe, stage_report], consumer)
+        staging_result = json.loads(run([executable, 'staging', base, scoped_token, stage_report], rust_consumer))
+        assert staging_result['before'] == json.loads(stage_report.read_text())['retention']
+        assert staging_result['quota_before'] == json.loads(stage_report.read_text())['quota']
+        (consumer / 'confirm-staging.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient} from '@opencut/sdk';
+const [base,token,before,rust]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+const prepared=JSON.parse(fs.readFileSync(before,'utf8'));
+const result=JSON.parse(fs.readFileSync(rust,'utf8'));
+assert.deepEqual(await c.call('opencut_upload_retention',{upload_id:prepared.upload_id}),result.released);
+assert.deepEqual(await c.call('opencut_upload_quota',{project_id:prepared.project_id}),result.quota_after);
+assert.equal((await c.call('opencut_upload_query',{project_id:prepared.project_id,limit:50,retained_only:true})).uploads.some(entry=>entry.upload.upload_id===prepared.upload_id),false);
+''')
+        staging_file = evidence / 'cross-sdk-staging-after.json'
+        staging_file.write_text(json.dumps(staging_result, indent=2))
+        run(['node', consumer / 'confirm-staging.mjs', base, scoped_token, stage_report, staging_file], consumer)
+        checks.append('installed scoped TS SDK discovers a terminal imported upload; Rust SDK reads typed retention/quota, releases it, and TS confirms freed staging')
+        reader_policy_file = evidence / 'reader-policy.json'
+        reader_policy_file.write_text(json.dumps({'principal_id':'sdk-reader','expected_revision':'0','enabled':True,
+            'grants':[{'project_id':'sdk-acceptance','actions':['read']}]}))
+        reader_policy = json.loads(run([binary, '--database', database, '--json', 'access', 'set-policy', '--input', reader_policy_file]))
+        assert reader_policy['error'] is None
+        reader_token = evidence / 'sdk-reader.secret'
+        reader_issue = json.loads(run([binary, '--database', database, '--json', 'access', 'issue', 'sdk-reader', '--output', reader_token]))
+        assert reader_issue['error'] is None and reader_token.read_text().strip()
+        (consumer / 'review-preflight.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient} from '@opencut/sdk';
+const [base,runnerToken,readerToken,importedFile,output]=process.argv.slice(2);
+const runner=new OpenCutClient({baseUrl:base,token:fs.readFileSync(runnerToken,'utf8').trim()});
+const reader=new OpenCutClient({baseUrl:base,token:fs.readFileSync(readerToken,'utf8').trim()});
+const imported=JSON.parse(fs.readFileSync(importedFile,'utf8')).imported;
+const project_id='sdk-acceptance', current=await runner.call('opencut_project_inspect',{project_id});
+const span={start:{ticks:'0',timebase:1000000},duration:imported.asset.duration};
+const applied=await runner.call('opencut_edit_apply',{project_id,request:{expected_revision:current.revision,idempotency_key:'cross-sdk-preflight-media',label:'Bind imported media for preflight',operations:[
+ {type:'asset.bind',asset:imported.asset},
+ {type:'track.create',sequence_id:'main',track:{id:'scoped-audio',name:'Scoped audio',kind:'audio',enabled:true,muted:false,locked:false,clips:[],params:{}}},
+ {type:'clip.insert',sequence_id:'main',track_id:'scoped-audio',clip:{id:'scoped-tone',asset_id:imported.asset.id,timeline_range:span,source_range:span,params:{},channels:[]}}
+]}});
+const request={project_id,revision:applied.revision,sequence_id:'main',container:'mp4',video_codec:'h264'};
+const report=await runner.call('opencut_render_preflight',request);
+assert.equal(report.ready,true);assert.deepEqual(report.issues,[]);
+await assert.rejects(()=>reader.call('opencut_render_preflight',request),e=>e.code==='NOT_AUTHORIZED');
+assert.equal((await runner.call('opencut_project_inspect',{project_id})).revision,applied.revision);
+fs.writeFileSync(output,JSON.stringify({request,report,asset:imported.asset},null,2));
+''')
+        preflight_file = evidence / 'cross-sdk-preflight-ts.json'
+        run(['node', consumer / 'review-preflight.mjs', base, scoped_token, reader_token,
+             evidence / 'cross-sdk-upload.json', preflight_file], consumer)
+        preflight_result = json.loads(run([executable, 'preflight', base, scoped_token, reader_token, preflight_file], rust_consumer))
+        assert preflight_result['report'] == json.loads(preflight_file.read_text())['report']
+        checks.append('installed restricted TS and Rust SDKs agree on typed immutable media preflight; read-only credentials reject without changing the revision')
+        (consumer / 'audit-warning.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient,OpenCutApiError} from '@opencut/sdk';
+const [base,token,report]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+let failure;
+try { await c.call('opencut_plugin_list',{}); }
+catch (error) { failure=error; }
+assert(failure instanceof OpenCutApiError);
+assert.equal(failure.code,'NOT_AUTHORIZED');
+assert.deepEqual(failure.warnings,['DENIAL_AUDIT_UNAVAILABLE']);
+fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warnings,request_id:failure.requestId},null,2));
+''')
+        with sqlite3.connect(database) as connection:
+            denials_before = connection.execute('SELECT COUNT(*) FROM denial_records').fetchone()[0]
+            connection.execute("CREATE TRIGGER cross_sdk_denial_fault BEFORE INSERT ON denial_records BEGIN SELECT RAISE(ABORT,'QA denial journal fault'); END")
+        try:
+            warning_ts_file = evidence / 'cross-sdk-warning-ts.json'
+            run(['node', consumer / 'audit-warning.mjs', base, reader_token, warning_ts_file], consumer)
+            warning_rust = json.loads(run([executable, 'warning', base, reader_token], rust_consumer))
+        finally:
+            with sqlite3.connect(database) as connection:
+                connection.execute('DROP TRIGGER cross_sdk_denial_fault')
+        warning_ts = json.loads(warning_ts_file.read_text())
+        assert warning_ts['warnings'] == warning_rust['warnings'] == ['DENIAL_AUDIT_UNAVAILABLE']
+        assert warning_ts['request_id'] != warning_rust['request_id']
+        with sqlite3.connect(database) as connection:
+            assert connection.execute('SELECT COUNT(*) FROM denial_records').fetchone()[0] == denials_before
+        checks.append('installed TS and Rust SDKs retain the denial-audit failure warning on separate real restricted refusals while failed journal writes add no records')
         history = json.loads(run(['python3', ROOT / 'scripts/verify-history-compatibility.py', '--binary', binary]))
         history_detail = json.loads(Path(history['report']).read_text())
         assert history['status'] == 'passed' and history_detail['binary_sha256'] == manifest['binary_sha256']
@@ -317,9 +531,11 @@ fs.writeFileSync(output,JSON.stringify({job,imported,released},null,2));
             checks.append('delivered import Worker survives SIGKILL, natural lease recovery and abandoned input cleanup')
         run(['python3', ROOT / 'scripts/verify-product-journey.py', '--binary', binary, '--artifacts-dir', evidence / 'media-journey'])
         checks.append('delivered binary passes real upload preview export repair and decoded RGB/PCM journey')
+        final_before = json.loads(run([binary, '--database', database, '--json', 'call', 'opencut_project_inspect', '--input', input_file]))['data']
+        assert final_before['revision'] == preflight_result['revision']
         host.terminate(); host.wait(timeout=10); host = None
         readback_after = json.loads(run([binary, '--database', database, '--json', 'call', 'opencut_project_inspect', '--input', input_file]))
-        assert readback_after['data'] == rust_result['snapshot']
+        assert readback_after['data'] == final_before
         checks.append('service stop and standalone delivered CLI reopen preserve final project')
         report = {'status':'passed','archive':str(archive),'archive_sha256':expected,'binary_sha256':manifest['binary_sha256'],
                   'target':manifest['target'],'checks':checks,'evidence':str(evidence),'doctor':doctor,

@@ -1,0 +1,18 @@
+{
+  "project_id": "sdk-acceptance",
+  "upload_id": "upload_57c5d5e2840842f688295daafad5e00e",
+  "size_bytes": "9644",
+  "retention": {
+    "project_id": "sdk-acceptance",
+    "release_eligible": true,
+    "reserved_bytes": "9644",
+    "state": "retained",
+    "upload_id": "upload_57c5d5e2840842f688295daafad5e00e"
+  },
+  "quota": {
+    "project_id": "sdk-acceptance",
+    "project_limit_bytes": "8589934592",
+    "project_reserved_bytes": "9644",
+    "workspace_limit_bytes": "34359738368"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "actor": {
+    "principal_id": "local-owner",
+    "source": "http",
+    "worker_id": null
+  },
+  "examined": 2,
+  "items": [
+    {
+      "actor": null,
+      "object": {
+        "capture_id": "69c151d8-05ed-4a5e-a8a6-95c32934a368",
+        "kind": "capture"
+      },
+      "request_id": null,
+      "size_bytes": "26",
+      "state": "planned"
+    }
+  ],
+  "next_cursor": null,
+  "origin_request_id": "848766ee-9031-410c-a5ca-c1f3a94c4288",
+  "plan_hash": "960d7898693bc113933c25e0bd67381d0bf5b9e06eb238b219754a4ccbcf2fed",
+  "plan_id": "gc_ca252c4340744fba92adcddf8505a8fa",
+  "protected": 1,
+  "state": "planned"
+}
