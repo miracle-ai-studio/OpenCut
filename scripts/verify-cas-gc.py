@@ -109,7 +109,10 @@ def verify(binary,root,sdk):
   # Old history remains usable after actual collection, not just visible in SQL.
   restored=data('opencut_revision_restore',{'project_id':'a','request':{'expected_revision':inspect()['revision'],'target_revision':old,'idempotency_key':'restore-red','label':'restore'}})
   render=data('opencut_job_submit',{'kind':'render.project','idempotency_key':'render-old','input':{'project_id':'a','revision':restored['revision'],'sequence_id':'main','container':'mp4','video_codec':'h264'}})
-  for _ in range(2):cli(['worker','run','--once'])
+  for _ in range(2):
+   worker=subprocess.run([str(binary),'--database',str(db),'worker','run','--once'],capture_output=True,text=True,timeout=30)
+   trace.append({'command':['worker','run','--once'],'exit':worker.returncode,'stdout':worker.stdout,'stderr':worker.stderr})
+   assert worker.returncode==0,(worker.stdout,worker.stderr)
   rendered=data('opencut_job_get',{'job_id':render['job_id']});assert rendered['state']=='succeeded',rendered;artifact=Path(rendered['result']['artifact']['path']);pixel=subprocess.check_output(['ffmpeg','-v','error','-i',str(artifact),'-frames:v','1','-vf','scale=1:1','-f','rawvideo','-pix_fmt','rgb24','-']);assert pixel[0]>180 and pixel[1]<70 and pixel[2]<70,list(pixel)
   assert data('opencut_job_get',{'job_id':job['job_id']})['state']=='succeeded';checks.append('After collection, actual Worker executes job-only source and restores/renders the historical red revision; independently decoded pixels agree')
   # Privacy and permissions on both network transports share owner-only policy.

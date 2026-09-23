@@ -31,7 +31,7 @@ def unpack(archive, destination):
         tar.extractall(destination, filter='data')
 
 
-def verify(archive, mcp_sdk_root=None):
+def verify(archive, mcp_sdk_root=None, component=None):
     evidence = Path(tempfile.mkdtemp(prefix='opencut-package-acceptance-')).resolve()
     logs, checks = [], []
     host = None
@@ -193,8 +193,11 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
         independent_journeys = [
             ('opencut_audit_query', 'verify-audit.py', 'actor and Worker artifact provenance with atomic audit rollback'),
             ('opencut_access_audit_query', 'verify-access-audit.py', 'owner administration history across CLI HTTP and both MCP transports'),
+            ('opencut_maintenance_query', 'verify-maintenance.py', 'media publication journal, unknown outcomes and locked reconciliation'),
+            ('opencut_denial_query', 'verify-denials.py', 'bounded refusal audit, degraded logging and stream revocation'),
             ('opencut_storage_inspect', 'verify-storage.py', 'bounded workspace observation and scoped refusal under directory replacement'),
             ('opencut_storage_budget_inspect', 'verify-budget.py', 'real write admission, failed import recovery and SIGKILL reservation recovery'),
+            ('opencut_cas_gc_plan', 'verify-cas-gc.py', 'reviewed CAS collection, historical render preservation and crash recovery'),
         ]
         if sys.platform == 'darwin' and capabilities.get('database'):
             independent_journeys.append(
@@ -206,11 +209,38 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
                 continue
             script_args = ['python3', ROOT / 'scripts' / script_name, '--binary', binary,
                            '--artifacts-dir', evidence / script_name.removesuffix('.py')]
-            if mcp_sdk_root and script_name in ('verify-storage.py', 'verify-budget.py'):
+            if mcp_sdk_root and script_name in ('verify-denials.py', 'verify-storage.py', 'verify-budget.py', 'verify-cas-gc.py'):
                 script_args += ['--mcp-sdk-root', mcp_sdk_root]
             journey = json.loads(run(script_args))
             assert journey['status'] == 'passed' and journey['binary_sha256'] == manifest['binary_sha256']
             checks.append(f'delivered binary passes {description}')
+        worker = json.loads(run(['python3', ROOT / 'scripts/verify-worker-admission.py',
+                                 '--binary', binary, '--artifacts-dir', evidence / 'worker-admission']))
+        assert worker['status'] == 'passed' and worker['binary_sha256'] == manifest['binary_sha256']
+        checks.append('delivered Worker enforces output ceilings, orphan recovery and safe cleanup on real FFmpeg tasks')
+        component_sha256 = None
+        if component:
+            component_sha256 = hashlib.sha256(component.read_bytes()).hexdigest()
+            plugin_scripts = [
+                ('verify-plugin.py', 'real WASM planner validation, immutable plan and transactional apply'),
+                ('verify-plugin-publication.py', 'plugin package and grant publication, reconciliation and MCP access'),
+                ('verify-project-plugins.py', 'project-scoped WASM grants, concurrency and CLI/HTTP/MCP planning'),
+                ('verify-budget-writers.py', 'upload, media repair, plugin install and live download write admission'),
+            ]
+            for script_name, description in plugin_scripts:
+                script_args = ['python3', ROOT / 'scripts' / script_name, '--binary', binary,
+                               '--component', component]
+                if script_name != 'verify-plugin.py':
+                    script_args += ['--artifacts-dir', evidence / script_name.removesuffix('.py')]
+                if mcp_sdk_root and script_name in ('verify-plugin-publication.py', 'verify-project-plugins.py'):
+                    script_args += ['--mcp-sdk-root', mcp_sdk_root]
+                plugin = json.loads(run(script_args))
+                assert plugin['status'] == 'passed' and plugin['binary_sha256'] == manifest['binary_sha256']
+                if 'component_sha256' in plugin:
+                    assert plugin['component_sha256'] == component_sha256
+                if script_name == 'verify-plugin.py':
+                    (evidence / 'verify-plugin.json').write_text(json.dumps(plugin, indent=2))
+                checks.append(f'delivered binary passes {description}')
         if 'http' in capabilities.get('access', {}).get('scoped_transports', []):
             network = json.loads(run(['python3', ROOT / 'scripts/verify-network-access.py',
                                       '--binary', binary, '--artifacts-dir', evidence / 'network-access']))
@@ -236,6 +266,7 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
         checks.append('service stop and standalone delivered CLI reopen preserve final project')
         report = {'status':'passed','archive':str(archive),'archive_sha256':expected,'binary_sha256':manifest['binary_sha256'],
                   'target':manifest['target'],'checks':checks,'evidence':str(evidence),'doctor':doctor,
+                  'component_sha256':component_sha256,
                   'scope':'local development package acceptance on current host; not full R0-R7 or cross-platform release'}
         (evidence / 'report.json').write_text(json.dumps(report,indent=2))
         Path(str(archive)+'.acceptance.json').write_text(json.dumps(report,indent=2))
@@ -257,5 +288,7 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('archive',type=Path)
     parser.add_argument('--mcp-sdk-root',type=Path,help='External npm prefix containing @modelcontextprotocol/sdk for independent interop')
+    parser.add_argument('--component',type=Path,help='Built wasm32-wasip2 planner component for plugin acceptance')
     args=parser.parse_args()
-    verify(args.archive.resolve(), args.mcp_sdk_root.resolve() if args.mcp_sdk_root else None)
+    verify(args.archive.resolve(), args.mcp_sdk_root.resolve() if args.mcp_sdk_root else None,
+           args.component.resolve() if args.component else None)

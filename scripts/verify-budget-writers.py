@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def verify(binary, root, component):
     root.mkdir(parents=True, exist_ok=True)
-    db = root/'workspace.sqlite'; token = root/'owner.token'; trace = []; checks = []; host = None; sockets = []
+    db = root/'workspace.sqlite'; token = root/'owner.token'; trace = []; checks = []; host = None; port = None; sockets = []
     def call(name, data=None, error=None):
         p = subprocess.run([str(binary),'--database',str(db),'--json','call',name,'--input','-'],input=json.dumps(data or {}),text=True,capture_output=True,timeout=45)
         out = json.loads(p.stdout); trace.append({'tool':name,'input':data,'response':out,'exit':p.returncode})

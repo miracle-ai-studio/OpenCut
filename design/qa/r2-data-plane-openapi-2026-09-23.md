@@ -17,6 +17,7 @@
 - [独立 TypeScript SDK 报告](evidence/data-plane-sdk-2026-09-23.json)：外部安装、13 项真实消费检查通过；75 条路径与被测宿主一致，1,373 个本地 `$ref` 全部解析。
 - [真实网络报告](evidence/data-plane-network-2026-09-23.json)：6 组受限 HTTP/MCP 动线通过，包含 SSE 光标续接、产物下载授权、下载 SHA 与像素解码、凭证撤销后中断大文件下载及活动 SSE。项目原始分块上传另由下述开发包的项目导入验收覆盖。网络脚本用固定随机原始像素生成可复现的多 MiB PNG，以确保背压窗口确实发生。
 - [仓库外开发包报告](evidence/data-plane-package-2026-09-23.json)：在独立目录解包并通过 21 组检查，覆盖双 SDK、官方 MCP、30 格历史数据库矩阵、真实盘满/WAL、写入准入、项目导入、Worker 强杀恢复和真实媒体动线。打包清单与二进制 schema 15、61 个叶操作、9 个领域和 75 条 OpenAPI 路径一致。
+- [扩展仓库外开发包报告](evidence/data-plane-package-expanded-2026-09-23.json)：同一 archive 和二进制通过 29 组检查；新增媒体发布维护日志、拒绝审计、CAS 清理、Worker 输出准入，以及真实 WASM planner 的安装、发布恢复、项目授权和媒体／插件／下载写入预算。插件组件 SHA-256 为 `42217d77989b6b03162542f4ab88d3d2f20aa8888da7bb04f49bc2ed802c3201`，由 `crates/plugin-host/examples/planner-guest` 的 `wasm32-wasip2` release 构建。插件范围只覆盖 planner，不代表分析器或 Provider 插件完成。
 - `npm --prefix packages/sdk-ts test` 10 项、生成契约 `--check`、旧 22 工具 wire 兼容及依赖边界检查通过。
 
 本地 **debug 开发包**为 `dist/local/opencut-0.1.0-dev-1d39087e4d76-x86_64-apple-darwin.tar.gz`，SHA-256 `6eaea6f2f97f274b20339a749b2fbc33509e2adf553db05e4f6163434d26c52f`；包内二进制 SHA-256 `cccee081dc81b714be5e24f6bea4718941e432798b987036014a3233aca5d6ee`，与上一轮通过 Worker 输出准入的二进制相同。复制到工作区后重新核对 archive 摘要。仍缺真实旧用户库、浏览器/桌面产品操作、release／跨平台发行和 R3–R7 完整能力验收。
