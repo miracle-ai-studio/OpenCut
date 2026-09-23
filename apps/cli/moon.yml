@@ -15,8 +15,23 @@ tasks:
     options:
       cache: false
       runInCI: false
+  audit-acceptance:
+    command: 'python3 ../../scripts/verify-audit.py --binary ../../target/debug/opencut'
+    options:
+      cache: false
+      runInCI: false
   maintenance-acceptance:
     command: 'python3 ../../scripts/verify-maintenance.py --binary ../../target/debug/opencut'
+    options:
+      cache: false
+      runInCI: false
+  mcp-http-acceptance:
+    command: 'python3 ../../scripts/verify-mcp-http.py --binary ../../target/debug/opencut'
+    options:
+      cache: false
+      runInCI: false
+  scoped-preflight-acceptance:
+    command: 'python3 ../../scripts/verify-scoped-preflight.py --binary ../../target/debug/opencut'
     options:
       cache: false
       runInCI: false

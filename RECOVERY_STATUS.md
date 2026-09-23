@@ -11,8 +11,8 @@
 - 新构建的 CLI 完成真实 HTTP/CLI 工程创建、事务编辑、冲突处理、预览、导出、服务重启和媒体完整性动线；受限凭证验收与项目上传/导入验收通过。报告保存在 `tmp/recovery-evidence-20260923/`。
 - 补回冻结的 v1–v3 数据库 SQL、历史工程与结果夹具；当前二进制的 v1–v15 × legacy/v2 历史矩阵共 30 格、22 项检查通过。这些夹具是从历史格式定义重建的合成数据，不是旧发布包的真实用户库。
 - TypeScript SDK 已重新生成类型与 OpenAPI，仓库外安装的独立消费项目通过 13 项真实 HTTP/CLI/Worker 检查；Rust SDK 仓库外消费与跨语言重放通过 12 项。官方 MCP SDK 1.26.0 通过领域调用、断线续接和资源通知。领域入口默认发现 9 个工具，覆盖 61 个旧操作，旧操作仍可调用。详见 [本轮 QA](design/qa/domain-surface-and-recovery-2026-09-23.md)。
-- 当前 debug 二进制修复了盘满时公共 Job 入口把 `DATABASE_CAPACITY_EXHAUSTED` 折叠成 `JOB_FAILED` 的错误。生成 OpenAPI 又补入真实原始上传、产物字节下载和公共 SSE，现为 75 条路径，事件记录 Schema 与 Rust 二进制同源。同一 macOS x86_64 本地开发包在仓库外通过扩展后的 29 组验收，新增媒体发布维护、拒绝审计、CAS 清理、Worker 输出准入、真实 WASM 插件安装／发布／项目级授权与写入预算；双 SDK、官方 MCP、30 格历史、真实 64 MiB 盘满／WAL、项目导入强杀恢复及媒体动线继续通过。清单从实际二进制读取 schema 15、61 个操作和 9 个领域。新包、哈希和验收范围见 [数据面 QA](design/qa/r2-data-plane-openapi-2026-09-23.md)。这不是 release 优化构建或跨平台发行。
+- 当前 debug 二进制修复了盘满时公共 Job 入口把 `DATABASE_CAPACITY_EXHAUSTED` 折叠成 `JOB_FAILED` 的错误。生成 OpenAPI 又补入真实原始上传、产物字节下载和公共 SSE，现为 75 条路径，事件记录 Schema 与 Rust 二进制同源。最新 macOS x86_64 本地开发包在仓库外通过 32 组验收，覆盖媒体发布维护、拒绝审计、CAS 清理、Worker 输出准入、真实 WASM 插件、写入预算、受限预检，以及 TS 上传前半段／Rust 续传封存／TS 验证真实导入和释放暂存；双 SDK、官方 MCP、30 格历史、真实 64 MiB 盘满／WAL、项目导入强杀恢复及媒体动线继续通过。清单从实际二进制读取 schema 15、61 个操作和 9 个领域。新包、哈希和验收范围见 [数据面 QA](design/qa/r2-data-plane-openapi-2026-09-23.md)。这不是 release 优化构建或跨平台发行。
 
-仍不能宣称历史工作树完整恢复：回放报告中仍有 20 次文件补丁与 61 次 Python 写入未自动应用，部分属于历史过程中被后续变更取代的尝试，尚未逐项核销。Web 编辑台的 [源码测试、类型、生产构建和统一契约检查](design/qa/r7-web-source-check-2026-09-23.md) 已在当前环境通过，但真实浏览器操作、桌面、全部插件和所有 R 阶段的整体完成状态尚未重新验收。
+仍不能宣称历史工作树完整恢复：[回放失败项核查](design/qa/recovery-replay-failure-audit-2026-09-23.md) 已按序号分类 20 次补丁、61 次 Python 与 11 次其他失败；其中四项精确的跨 SDK 验收意图仍待补足。Web 编辑台的 [源码测试、类型、生产构建和统一契约检查](design/qa/r7-web-source-check-2026-09-23.md) 已在当前环境通过，但真实浏览器操作、桌面、全部插件和所有 R 阶段的整体完成状态尚未重新验收。
 
 `tmp/opencut-accepted-package-20260923/` 保留了先前验收包的可执行文件、合同文件和 SDK 发布包，可用于对照，但它不证明当前源码已完整恢复。

@@ -135,7 +135,7 @@ def verify(binary, root):
         policy('editor',2,grants+['read_artifacts'],False);call('opencut_project_list',{},other,'NOT_AUTHORIZED')
         checks.append('Revocation rechecks an existing MCP connection and receipt retries; another credential survives until the principal is disabled')
         for path in (editor,reader,other):assert path.read_text().strip() not in json.dumps(trace)
-        report={'status':'passed','checks':checks,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'evidence':str(root),'scope':'CLI and stdio MCP scoped credentials; HTTP and Streamable HTTP retain owner-only bearer; not full R2 completion'}
+        report={'status':'passed','checks':checks,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'evidence':str(root),'scope':'CLI and stdio MCP scoped credentials; network authorization is verified separately; not full R2 completion'}
         (root/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
     except Exception as error:
         (root/'failure.json').write_text(json.dumps({'error':repr(error),'completed_checks':checks},indent=2));raise

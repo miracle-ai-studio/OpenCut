@@ -55,9 +55,9 @@ python3 scripts/verify-rust-sdk.py
 
 真实验收会复制 SDK 和契约源码到仓库外，编译运行、检查传递依赖、调用真实服务、用独立 CLI 回读、在后端提交后丢弃响应、验证手动重试与等待取消。随后安装 TS SDK，用同一 fixture 重放 Rust 提交，检查两个客户端取得同一事务。
 
-新增公共工具与原有接口共计 27 个。新接入可用 `tools::JobSubmit` / `tools::JobView` / `tools::JobQuery` / `tools::JobChanges`，以及 `wait_for_public_job` / `cancel_public_job`。公共终态错误为 `PublicJobFailed` / `PublicJobCancelled`，携带 JobView；八类 `api::job_views::JobResultView` 可通过 Rust enum 匹配。`artifact_url` 校验任务／哈希元组并构造内容绑定下载地址；调用方仍需 Bearer 认证，目前没有 Rust 流式下载封装。
+当前注册表有 61 个叶工具、9 个领域入口。新接入可用 `tools::JobSubmit` / `tools::JobView` / `tools::JobQuery` / `tools::JobChanges`，以及 `wait_for_public_job` / `cancel_public_job`。公共终态错误为 `PublicJobFailed` / `PublicJobCancelled`，携带 JobView；八类 `api::job_views::JobResultView` 可通过 Rust enum 匹配。`artifact_url` 校验任务／哈希元组并构造内容绑定下载地址；调用方仍需 Bearer 认证，目前没有 Rust 流式下载封装。
 
-新视图不返回 prepared input、租约和原生路径；v1 JobRecord 兼容入口仍可调用。源任务输入中的路径字符串依旧表示服务端本机路径，不是远程 asset identity。SSE、上传下载封装及独立发行继续跟踪。完整约定见仓库 `design/architecture/public-job-view-contract.md`。
+新视图不返回 prepared input、租约和原生路径；v1 JobRecord 兼容入口仍可调用。源任务输入中的路径字符串依旧表示服务端本机路径，不是远程 asset identity。上传分块助手见下文；SSE 自动续接、Rust 流式下载封装及独立发行仍待完成。完整约定见仓库 `design/architecture/public-job-view-contract.md`。
 
 `tools::AccessAuditQuery` 是 owner-only 的权限管理历史查询；`api::access::AccessAuditTarget` 和 `AccessAuditAction` 提供 typed 目标／动作，策略快照为提交时的值，序号使用独立的十进制字符串空间。条数未满也可能因 4 MB 记录预算提前分页，按 has_more/last_sequence 续查。
 
@@ -89,4 +89,4 @@ Owner-only `opencut_storage_inspect` returns typed, bounded storage observations
 CAS collection: discover with `opencut_cas_gc_query`, persist a review with `opencut_cas_gc_plan`, then explicitly execute the returned `plan_id` and exact `plan_hash` using `opencut_cas_gc_execute`. Inspect/retry the same plan after transport failure; `removing` is unresolved. Never infer deletion from acceptance, or reclaimed physical space from logical sizes. Query can return an empty filtered page with a next cursor. Discovery is in `hostCapabilities().cas_gc` / `host_capabilities()?.cas_gc`.
 
 
-全局 owner 可用 `opencut_storage_budget_inspect/configure/recover` 管理持久写入准入。configure 使用 expected_revision 与稳定幂等键，返回带原 request_id/actor 的策略回执；重放不创建新策略。字节量是规范十进制字符串。默认 64 GiB payload 准入上限和 64 MiB 卷余量；当前只覆盖 CAS 捕获、上传分块/拼接和任务私有输入复制，`enforces_all_workspace_writes=false`。inspect 不恢复或创建状态，recover 是显式写操作；已写内容与完整活动预留可能重复计入，headroom 不是物理容量承诺。公开任务和上传保留明确的容量错误；终态 Job 需要新的显式尝试。
+全局 owner 可用 `opencut_storage_budget_inspect/configure/recover` 管理持久写入准入。configure 使用 expected_revision 与稳定幂等键，返回带原 request_id/actor 的策略回执；重放不创建新策略。字节量是规范十进制字符串。默认 64 GiB payload 准入上限和 64 MiB 卷余量；当前覆盖 12 类受控写入（详见仓库的 `design/architecture/storage-admission-contract.md`），但 SQLite/WAL、控制元数据及完整保留/回收尚未覆盖，`enforces_all_workspace_writes=false`。inspect 不恢复或创建状态，recover 是显式写操作；已写内容与完整活动预留可能重复计入，headroom 不是物理容量承诺。公开任务和上传保留明确的容量错误；终态 Job 需要新的显式尝试。

@@ -123,6 +123,7 @@ def verify(archive, mcp_sdk_root=None, component=None):
         npm_package, = (bundle / 'sdk').glob('*.tgz')
         run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', npm_package], consumer)
         (consumer / 'accept.mjs').write_text('''import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import {OpenCutClient} from '@opencut/sdk';
 const [base,token,fixture,probe,report]=process.argv.slice(2);
@@ -139,7 +140,14 @@ const job=await c.submitJob({kind:'media.probe',idempotency_key:'package-probe',
 const done=await c.waitForPublicJob(job.job_id,{timeoutMs:30000});
 assert.equal(done.state,'succeeded');assert.equal(done.result.kind,'media.probe');
 assert.equal(done.result.data.streams[0].sample_rate,48000);
-fs.writeFileSync(report,JSON.stringify({request,transaction,job:done},null,2));
+const bytes=fs.readFileSync(probe);
+const contentHash=createHash('sha256').update(bytes).digest('hex');
+const upload=await c.call('opencut_upload_create',{project_id:initial.project.id,idempotency_key:'package-cross-sdk-upload',name:'tone.wav',size_bytes:String(bytes.length),content_hash:contentHash});
+const cut=Math.floor(bytes.length/2);
+const partial=await c.uploadChunk(upload.upload_id,'0',bytes.subarray(0,cut));
+assert.equal(partial.next_offset,String(cut));
+assert.equal((await c.call('opencut_upload_inspect',{upload_id:upload.upload_id})).next_offset,String(cut));
+fs.writeFileSync(report,JSON.stringify({request,transaction,job:done,upload:{id:upload.upload_id,cut,contentHash,size:bytes.length}},null,2));
 ''')
         ts_report = evidence / 'ts.json'
         run(['node', consumer / 'accept.mjs', base, token, sample, probe, ts_report], consumer)
@@ -167,7 +175,18 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
  let applied=client.call::<tools::EditApply>(&request)?;
  let observed=client.call::<tools::ProjectInspect>(&api::ProjectInput{project_id:request.project_id})?;
  assert_eq!(applied.revision,observed.revision);
- println!("{}",json!({"transaction":applied,"snapshot":observed}));Ok(())
+ let upload_id=ts["upload"]["id"].as_str().expect("TypeScript upload identity");
+ let cut=ts["upload"]["cut"].as_u64().expect("confirmed TypeScript offset") as usize;
+ let bytes=std::fs::read(&a[3])?;
+ assert_eq!(bytes.len() as u64,ts["upload"]["size"].as_u64().unwrap());
+ let continued=client.upload_chunk(upload_id,cut as u64,&bytes[cut..])?;
+ assert_eq!(continued.next_offset,bytes.len().to_string());
+ let inspected=client.call::<tools::UploadInspect>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
+ assert_eq!(inspected.next_offset,continued.next_offset);
+ let sealed=client.call::<tools::UploadSeal>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
+ assert_eq!(sealed.state,api::uploads::UploadState::Sealed);
+ let import_job_id=sealed.job_id.expect("sealed upload must accept import job");
+ println!("{}",json!({"transaction":applied,"snapshot":observed,"upload_id":upload_id,"import_job_id":import_job_id}));Ok(())
 }
 ''')
         env = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / 'target/local-package-consumer'))
@@ -179,20 +198,47 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
             if p['name'].startswith('opencut-'):
                 assert Path(p['manifest_path']).resolve().is_relative_to(evidence)
         executable = ROOT / 'target/local-package-consumer/debug/delivered-sdk-consumer'
-        rust_result = json.loads(run([executable, base, token, ts_report], rust_consumer))
+        rust_result = json.loads(run([executable, base, token, ts_report, probe], rust_consumer))
         input_file = evidence / 'inspect.json'
         input_file.write_text('{"project_id":"sdk-acceptance"}')
         readback = json.loads(run([binary, '--database', database, '--json', 'call', 'opencut_project_inspect', '--input', input_file]))
         assert readback['data'] == rust_result['snapshot']
         checks += ['Rust SDK source archive builds outside repo with portable dependencies only', 'Rust SDK replays the TS transaction then commits a new revision', 'delivered CLI independently reads the exact Rust SDK snapshot']
+        (consumer / 'finish-upload.mjs').write_text('''import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {OpenCutClient,publicJobResult} from '@opencut/sdk';
+const [base,token,tsReport,rustReport,output]=process.argv.slice(2);
+const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
+const ts=JSON.parse(fs.readFileSync(tsReport,'utf8'));
+const rust=JSON.parse(fs.readFileSync(rustReport,'utf8'));
+assert.equal(rust.upload_id,ts.upload.id);
+const job=await c.waitForPublicJob(rust.import_job_id,{timeoutMs:60000});
+const imported=publicJobResult(job,'media.import');
+assert.equal(imported.project_id,'sdk-acceptance');
+assert.equal(imported.upload_id,ts.upload.id);
+assert.equal(imported.asset.kind,'audio');
+assert.equal(imported.asset.version.content_hash,ts.upload.contentHash);
+assert.deepEqual(await c.call('opencut_project_media_inspect',{project_id:'sdk-acceptance',media_id:imported.media_id}),imported);
+const released=await c.call('opencut_upload_release',{upload_id:ts.upload.id});
+assert.equal(released.state,'released');
+assert.equal(released.reserved_bytes,'0');
+fs.writeFileSync(output,JSON.stringify({job,imported,released},null,2));
+''')
+        rust_report = evidence / 'rust.json'
+        rust_report.write_text(json.dumps(rust_result, indent=2))
+        run(['node', consumer / 'finish-upload.mjs', base, token, ts_report, rust_report,
+             evidence / 'cross-sdk-upload.json'], consumer)
+        checks.append('installed TS and Rust SDKs resume one raw upload, import verified audio and release staging across the same delivered host')
         history = json.loads(run(['python3', ROOT / 'scripts/verify-history-compatibility.py', '--binary', binary]))
         history_detail = json.loads(Path(history['report']).read_text())
         assert history['status'] == 'passed' and history_detail['binary_sha256'] == manifest['binary_sha256']
         checks.append(f"delivered binary passes {history['matrix_cells']}-cell frozen historical format matrix")
         available_tools = {tool['name'] for tool in schema}
         independent_journeys = [
+            ('opencut_access_inspect', 'verify-access.py', 'scoped CLI and stdio MCP authorization, real artifacts and live revocation'),
             ('opencut_audit_query', 'verify-audit.py', 'actor and Worker artifact provenance with atomic audit rollback'),
             ('opencut_access_audit_query', 'verify-access-audit.py', 'owner administration history across CLI HTTP and both MCP transports'),
+            ('opencut_render_preflight', 'verify-scoped-preflight.py', 'scoped CLI/HTTP/MCP preflight and decoded preview of pinned historical content'),
             ('opencut_maintenance_query', 'verify-maintenance.py', 'media publication journal, unknown outcomes and locked reconciliation'),
             ('opencut_denial_query', 'verify-denials.py', 'bounded refusal audit, degraded logging and stream revocation'),
             ('opencut_storage_inspect', 'verify-storage.py', 'bounded workspace observation and scoped refusal under directory replacement'),
@@ -209,7 +255,7 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
                 continue
             script_args = ['python3', ROOT / 'scripts' / script_name, '--binary', binary,
                            '--artifacts-dir', evidence / script_name.removesuffix('.py')]
-            if mcp_sdk_root and script_name in ('verify-denials.py', 'verify-storage.py', 'verify-budget.py', 'verify-cas-gc.py'):
+            if mcp_sdk_root and script_name in ('verify-scoped-preflight.py', 'verify-denials.py', 'verify-storage.py', 'verify-budget.py', 'verify-cas-gc.py'):
                 script_args += ['--mcp-sdk-root', mcp_sdk_root]
             journey = json.loads(run(script_args))
             assert journey['status'] == 'passed' and journey['binary_sha256'] == manifest['binary_sha256']
