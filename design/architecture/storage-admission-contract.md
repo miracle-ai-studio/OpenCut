@@ -42,6 +42,8 @@
 
 2026-09-24 后续增量：管理型 CLI／HTTP／MCP／Worker SQLite 连接已切到具名 VFS，主库、WAL、主 journal 和 SHM 增长会先申请独立控制预留；`opencut_database_inspect.managed_vfs_enabled` 说明当前连接实际入口。固定读者的 CLI 动线已证明紧额度拒绝编辑、head 不动，扩大额度后原幂等键只提交一次。上段是账本增量当时的历史状态；目前仍不能将 `control.write_interception_enabled` 或 `enforces_all_workspace_writes` 改为 true，因为临时文件、外部写者、修复预留和全工作区物理边界尚未覆盖。详见[控制写入契约](database-control-admission.md)。
 
+2026-09-24 最新增量：本机具名 VFS 已按工作区绑定，SQLite 匿名磁盘临时文件纳入控制预留；临时文件打开后被 SQLite unlink 时，活动预留仍随句柄存活。已有 4 MiB 磁盘临时表的拒绝／恢复和目录符号链接原生回归。上段描述的是当时的历史边界；当前仍不能将两个全局强制标志改为 true，预算／业务控制元数据、外部写者、运行中 repair 和完整物理故障矩阵未放行。
+
 ## 准入与保守计费
 
 在同一个工作区目录锁内读取策略与全部活动预留、确认可恢复的旧预留，再观察当前文件与 statvfs 余量，最后提交新预留。目录锁最多等待 5 秒，超时返回 STORAGE_BUDGET_BUSY；遍历时间预算不能抢占单个文件系统调用。

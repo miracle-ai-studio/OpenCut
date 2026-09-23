@@ -951,6 +951,7 @@ mod unix {
             || name.chars().any(char::is_control)
             || ROOTS.contains(&name)
             || name == CONTROL
+            || name == "sqlite-temp"
             || ["-wal", "-shm", "-journal"]
                 .iter()
                 .any(|suffix| name.ends_with(suffix))
@@ -1769,9 +1770,12 @@ mod unix {
             let wal = format!("{database_name}-wal");
             let shm = format!("{database_name}-shm");
             let journal = format!("{database_name}-journal");
-            scan_roots(root, &[CONTROL, database_name, &wal, &shm, &journal])?
+            scan_roots(
+                root,
+                &[CONTROL, database_name, &wal, &shm, &journal, "sqlite-temp"],
+            )?
         } else {
-            scan_roots(root, &[CONTROL])?
+            scan_roots(root, &[CONTROL, "sqlite-temp"])?
         };
         // Repair capacity is a separate physical allocation, not database
         // control usage. The file remains visible to the directory scanner.

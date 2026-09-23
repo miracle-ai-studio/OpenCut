@@ -110,7 +110,7 @@ def verify(archive, mcp_sdk_root=None, component=None):
             except urllib.error.HTTPError as e:
                 assert e.code == 403
                 break
-            except urllib.error.URLError:
+            except (urllib.error.URLError, TimeoutError):
                 assert time.monotonic() < deadline
                 time.sleep(.05)
         with sqlite3.connect(database) as connection:

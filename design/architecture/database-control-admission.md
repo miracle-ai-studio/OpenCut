@@ -10,6 +10,8 @@
 
 2026-09-24 第四个实施增量：管理型工作区首次写入时建立账本 v3、实际写入并同步默认 8 MiB `repair.reserve`，且核对文件的物理块数；普通写入不得使用该预留。本机 OS owner 通过 `storage recovery enter --input -` 以 expected revision／幂等键释放预留，随后只能经专用 `opencut-repair-v1` VFS 执行 `storage recovery cancel <job_id>` 或 `storage recovery release <upload_id>`；`storage recovery exit --input -` 先补足并同步预留，再恢复普通写入。进入／退出要求管理型数据库连接全部关闭；`connections.lock` 的共享／排他 OS 锁防止在状态切换时新连接抢入。真实 64 MiB HFS+ 卷在外部可用空间为 0 时完成排队 Job 取消、终态上传暂存释放、幂等回放、错误隔离、补足和 SQLite 完整性检查，详见[物理修复预留验收](../qa/r2-physical-repair-reserve-2026-09-24.md)。这仅证明有界修复，不满足全工作区写入准入、运行中 Worker 取消或跨平台保证；能力位继续为 false。旧二进制不得与 v3 账本并行写工作区。
 
+2026-09-24 第五个实施增量：VFS 改为每个工作区／数据库／模式注册独立实例，使 SQLite 的匿名 `TEMP_DB`、`TEMP_JOURNAL`、`TRANSIENT_DB`、`SUBJOURNAL` 可归属当前工作区；临时文件放在 `sqlite-temp/`，由同一控制预留和写入闸门保护。SQLite 会在打开后 unlink `DELETEONCLOSE` 临时文件，活动字节只能由文件句柄的预留表示；可见残留仍计入控制目录观察。原生回归已验证 `PRAGMA temp_store=FILE` 的 4 MiB 临时表在紧额度下写前返回 `SQLITE_FULL`、放宽额度后成功、关闭连接释放预留，以及目录符号链接拒绝。此增量不改变对具名未知 SQLite 文件、外部写者、控制元数据和全工作区物理额度的保守能力报告。
+
 VFS 将真实控制额度／卷余量拒绝映射为 SQLite `SQLITE_FULL`，由公开层返回 `DATABASE_CAPACITY_EXHAUSTED`；工作区观察失败、别名目录及账本错误映射为 SQLite I/O 错误，避免把结构损坏误导为“释放磁盘即可恢复”。Worker heartbeat 失败保留本地错误诊断。完整公共错误保真与修复路径仍需在 R2 放行前审查。
 
 技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库通过 `rusqlite` 的具名 VFS 打开入口安装包装层。下文是完整目标协议，已实施与待完成项以上述增量和 QA 证据区分。

@@ -2,13 +2,14 @@
 //! The default VFS still owns locking, durability and the actual file I/O.
 use std::{
     alloc::{Layout, alloc_zeroed, dealloc},
-    ffi::{CStr, c_int, c_void},
+    collections::HashMap,
+    ffi::{CStr, CString, c_int, c_void},
     os::unix::ffi::OsStrExt,
     panic::{AssertUnwindSafe, catch_unwind},
     path::{Path, PathBuf},
     ptr,
     sync::{
-        OnceLock,
+        Mutex, OnceLock,
         atomic::{AtomicPtr, Ordering},
     },
 };
@@ -17,12 +18,17 @@ use opencut_contracts::EditorError;
 use opencut_storage_budget::{Budget, ConnectionLease, Reservation};
 use rusqlite::{Connection, OpenFlags, ffi};
 
-const NAME: &str = "opencut-control-v1";
-const NAME_C: &[u8] = b"opencut-control-v1\0";
-const REPAIR_NAME: &str = "opencut-repair-v1";
-const REPAIR_NAME_C: &[u8] = b"opencut-repair-v1\0";
 static ORIGINAL: AtomicPtr<ffi::sqlite3_vfs> = AtomicPtr::new(ptr::null_mut());
 static REGISTERED: OnceLock<Result<(), &'static str>> = OnceLock::new();
+type WorkspaceKey = (PathBuf, String, bool);
+static WORKSPACES: OnceLock<Mutex<HashMap<WorkspaceKey, String>>> = OnceLock::new();
+const TEMP_DIRECTORY: &str = "sqlite-temp";
+
+struct WorkspaceVfs {
+    workspace: PathBuf,
+    database_name: String,
+    repair: bool,
+}
 
 pub(super) fn open(path: &Path) -> Result<Connection, EditorError> {
     open_with_mode(path, false)
@@ -42,18 +48,21 @@ fn open_with_mode(path: &Path, repair: bool) -> Result<Connection, EditorError> 
         .and_then(|name| name.to_str())
         .ok_or_else(|| EditorError::new("STORAGE_BUDGET_ERROR", "Invalid database file name"))?;
     Budget::new(parent).check_database_control_name(name)?;
-    register()?;
+    let workspace = parent
+        .canonicalize()
+        .map_err(|_| EditorError::new("STORAGE_ERROR", "Could not resolve managed workspace"))?;
+    let vfs_name = register(&workspace, name, repair)?;
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let flags = if repair {
         flags
     } else {
         flags | OpenFlags::SQLITE_OPEN_CREATE
     };
-    Connection::open_with_flags_and_vfs(path, flags, if repair { REPAIR_NAME } else { NAME })
+    Connection::open_with_flags_and_vfs(workspace.join(name), flags, vfs_name.as_str())
         .map_err(super::storage_error)
 }
 
-fn register() -> Result<(), EditorError> {
+fn initialize_original() -> Result<(), EditorError> {
     REGISTERED
         .get_or_init(|| {
             // SAFETY: SQLite owns the default VFS for the lifetime of the process.
@@ -67,23 +76,59 @@ fn register() -> Result<(), EditorError> {
                     return Err("SQLite default VFS unavailable");
                 }
                 ORIGINAL.store(original, Ordering::Release);
-                for name in [NAME_C, REPAIR_NAME_C] {
-                    let mut shim = *original;
-                    shim.zName = name.as_ptr().cast();
-                    shim.pNext = ptr::null_mut();
-                    shim.szOsFile = std::mem::size_of::<GuardedFile>() as c_int;
-                    shim.xOpen = Some(shim_open);
-                    let shim = Box::into_raw(Box::new(shim));
-                    if ffi::sqlite3_vfs_register(shim, 0) != ffi::SQLITE_OK {
-                        return Err("SQLite control VFS registration failed");
-                    }
-                }
                 Ok(())
             }
         })
         .as_ref()
         .map_err(|message| EditorError::new("STORAGE_ERROR", *message))
         .copied()
+}
+
+fn register(workspace: &Path, database_name: &str, repair: bool) -> Result<String, EditorError> {
+    initialize_original()?;
+    let registry = WORKSPACES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut registry = registry
+        .lock()
+        .map_err(|_| EditorError::new("STORAGE_ERROR", "SQLite VFS registry is unavailable"))?;
+    let key = (workspace.to_path_buf(), database_name.to_owned(), repair);
+    if let Some(name) = registry.get(&key) {
+        return Ok(name.clone());
+    }
+    let name = format!("opencut-managed-{}", uuid::Uuid::new_v4().simple());
+    let name_c = Box::new(
+        CString::new(name.as_bytes())
+            .map_err(|_| EditorError::new("STORAGE_ERROR", "Invalid SQLite VFS name"))?,
+    );
+    let mut config = Box::new(WorkspaceVfs {
+        workspace: workspace.to_path_buf(),
+        database_name: database_name.to_owned(),
+        repair,
+    });
+    // SAFETY: the copied default VFS, name and context are leaked only after
+    // registration succeeds; SQLite may call this VFS for process lifetime.
+    unsafe {
+        let original = ORIGINAL.load(Ordering::Acquire);
+        if original.is_null() {
+            return Err(EditorError::new("STORAGE_ERROR", "SQLite VFS unavailable"));
+        }
+        let mut shim = Box::new(*original);
+        shim.zName = name_c.as_ptr();
+        shim.pAppData = (&mut *config as *mut WorkspaceVfs).cast();
+        shim.pNext = ptr::null_mut();
+        shim.szOsFile = std::mem::size_of::<GuardedFile>() as c_int;
+        shim.xOpen = Some(shim_open);
+        if ffi::sqlite3_vfs_register(&mut *shim, 0) != ffi::SQLITE_OK {
+            return Err(EditorError::new(
+                "STORAGE_ERROR",
+                "SQLite VFS registration failed",
+            ));
+        }
+        Box::leak(shim);
+        Box::leak(config);
+        Box::leak(name_c);
+    }
+    registry.insert(key, name.clone());
+    Ok(name)
 }
 
 struct Identity {
@@ -226,7 +271,7 @@ fn shm_bytes(database: &Path) -> Result<u64, ()> {
 unsafe fn identity(
     z_name: *const std::ffi::c_char,
     flags: c_int,
-    repair: bool,
+    config: &WorkspaceVfs,
 ) -> Option<Identity> {
     if z_name.is_null() {
         return None;
@@ -248,13 +293,50 @@ unsafe fn identity(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let database_path = parent.join(&database_name);
+    if parent.canonicalize().ok()? != config.workspace || database_name != config.database_name {
+        return None;
+    }
+    let database_path = config.workspace.join(&database_name);
     Some(Identity {
-        budget: Budget::new(parent),
+        budget: Budget::new(&config.workspace),
         database_name,
         database_path,
-        repair,
+        repair: config.repair,
     })
+}
+
+fn is_temporary(flags: c_int) -> bool {
+    flags
+        & (ffi::SQLITE_OPEN_TEMP_DB
+            | ffi::SQLITE_OPEN_TEMP_JOURNAL
+            | ffi::SQLITE_OPEN_TRANSIENT_DB
+            | ffi::SQLITE_OPEN_SUBJOURNAL)
+        != 0
+}
+
+fn temporary_name(config: &WorkspaceVfs) -> Result<CString, ()> {
+    let path = config
+        .workspace
+        .join(TEMP_DIRECTORY)
+        .join(format!("sqlite-{}", uuid::Uuid::new_v4().simple()));
+    CString::new(path.as_os_str().as_bytes()).map_err(|_| ())
+}
+
+fn ensure_temporary_directory(config: &WorkspaceVfs) -> Result<(), ()> {
+    let directory = config.workspace.join(TEMP_DIRECTORY);
+    match std::fs::create_dir(&directory) {
+        Ok(()) => (),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => (),
+        Err(_) => return Err(()),
+    }
+    if !std::fs::symlink_metadata(&directory)
+        .map_err(|_| ())?
+        .file_type()
+        .is_dir()
+    {
+        return Err(());
+    }
+    Ok(())
 }
 
 unsafe extern "C" fn shim_open(
@@ -267,10 +349,11 @@ unsafe extern "C" fn shim_open(
     // A failed xOpen must leave pMethods null: SQLite may otherwise xClose it.
     unsafe { (*file).pMethods = ptr::null() };
     catch_unwind(AssertUnwindSafe(|| unsafe {
-        let repair = !vfs.is_null()
-            && !(*vfs).zName.is_null()
-            && CStr::from_ptr((*vfs).zName).to_bytes() == REPAIR_NAME.as_bytes();
-        open_inner(z_name, file, flags, out_flags, repair)
+        if vfs.is_null() || (*vfs).pAppData.is_null() {
+            return ffi::SQLITE_IOERR;
+        }
+        let config = &*((*vfs).pAppData.cast::<WorkspaceVfs>());
+        open_inner(z_name, file, flags, out_flags, config)
     }))
     .unwrap_or(ffi::SQLITE_IOERR)
 }
@@ -280,7 +363,7 @@ unsafe fn open_inner(
     file: *mut ffi::sqlite3_file,
     flags: c_int,
     out_flags: *mut c_int,
-    repair: bool,
+    config: &WorkspaceVfs,
 ) -> c_int {
     // SAFETY: SQLite owns `file` and `z_name` for the entire xOpen call; the
     // default VFS pointer and callback tables remain registered for process life.
@@ -300,15 +383,35 @@ unsafe fn open_inner(
             dealloc(inner.cast(), layout);
             return ffi::SQLITE_IOERR;
         };
-        let identity = identity(z_name, flags, repair);
-        if repair && identity.is_none() {
+        let temp_name = if is_temporary(flags) && z_name.is_null() {
+            match temporary_name(config) {
+                Ok(name) => Some(name),
+                Err(()) => {
+                    dealloc(inner.cast(), layout);
+                    return ffi::SQLITE_IOERR;
+                }
+            }
+        } else {
+            None
+        };
+        let identity = if temp_name.is_some() {
+            Some(Identity {
+                budget: Budget::new(&config.workspace),
+                database_name: config.database_name.clone(),
+                database_path: config.workspace.join(&config.database_name),
+                repair: config.repair,
+            })
+        } else {
+            identity(z_name, flags, config)
+        };
+        if identity.is_none() {
             dealloc(inner.cast(), layout);
-            return ffi::SQLITE_FULL;
+            return ffi::SQLITE_IOERR;
         }
         let connection_lease = if let Some(identity) = &identity {
             let result = identity
                 .budget
-                .database_connection_lease(&identity.database_name, repair);
+                .database_connection_lease(&identity.database_name, config.repair);
             match result {
                 Ok(lease) => Some(lease),
                 Err(error) => {
@@ -319,7 +422,12 @@ unsafe fn open_inner(
         } else {
             None
         };
-        let result = callback(original, z_name, inner, flags, out_flags);
+        if temp_name.is_some() && ensure_temporary_directory(config).is_err() {
+            dealloc(inner.cast(), layout);
+            return native_capacity_code(ffi::SQLITE_IOERR, identity.as_ref());
+        }
+        let filename = temp_name.as_ref().map_or(z_name, |name| name.as_ptr());
+        let result = callback(original, filename, inner, flags, out_flags);
         if result != ffi::SQLITE_OK || (*inner).pMethods.is_null() {
             if !(*inner).pMethods.is_null()
                 && let Some(close) = (*(*inner).pMethods).xClose
@@ -616,6 +724,106 @@ mod tests {
         audit::{CallSource, ExecutionContext},
         budget::{BudgetNative, Configure, RepairAction, RepairRequest},
     };
+
+    #[test]
+    fn managed_sqlite_disk_temp_is_admitted_before_growth() {
+        let workspace = tempfile::tempdir().unwrap();
+        let database = workspace.path().join("workspace.sqlite");
+        let connection = open(&database).unwrap();
+        connection
+            .execute_batch("PRAGMA temp_store=FILE; CREATE TEMP TABLE sample(value BLOB);")
+            .unwrap();
+        let budget = Budget::new(workspace.path());
+        let observed = budget
+            .inspect(false)
+            .unwrap()
+            .control
+            .unwrap()
+            .observed_control_bytes
+            .parse::<u64>()
+            .unwrap();
+        let context = ExecutionContext::local(CallSource::Cli);
+        budget
+            .configure(
+                Configure {
+                    expected_revision: 0,
+                    idempotency_key: "tight-temp".into(),
+                    payload_limit_bytes: (64_u64 << 30).to_string(),
+                    minimum_available_bytes: "0".into(),
+                    media_output_limit_bytes: None,
+                    control_limit_bytes: Some((observed + 16 * 1024).to_string()),
+                },
+                &context,
+            )
+            .unwrap();
+        let error = connection
+            .execute("INSERT INTO sample VALUES (zeroblob(4194304))", [])
+            .unwrap_err();
+        assert_eq!(
+            error.sqlite_error_code(),
+            Some(rusqlite::ErrorCode::DiskFull)
+        );
+        budget
+            .configure(
+                Configure {
+                    expected_revision: 1,
+                    idempotency_key: "room-temp".into(),
+                    payload_limit_bytes: (64_u64 << 30).to_string(),
+                    minimum_available_bytes: "0".into(),
+                    media_output_limit_bytes: None,
+                    control_limit_bytes: Some((observed + 8 * 1024 * 1024).to_string()),
+                },
+                &context,
+            )
+            .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT count(*) FROM sample", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        connection
+            .execute("INSERT INTO sample VALUES (zeroblob(4194304))", [])
+            .unwrap();
+        assert_eq!(
+            connection
+                .query_row("SELECT length(value) FROM sample", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            4_194_304
+        );
+        let control = budget.inspect(false).unwrap().control.unwrap();
+        // SQLite unlinks DELETEONCLOSE temp files while open, so the held
+        // reservation accounts for bytes that directory scanning cannot see.
+        assert!(control.reserved_control_bytes.parse::<u64>().unwrap() >= 4_194_304);
+        drop(connection);
+        assert_eq!(
+            budget
+                .inspect(false)
+                .unwrap()
+                .control
+                .unwrap()
+                .reserved_control_bytes,
+            "0"
+        );
+    }
+
+    #[test]
+    fn managed_sqlite_temp_directory_symlink_is_rejected() {
+        let workspace = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let database = workspace.path().join("workspace.sqlite");
+        let connection = open(&database).unwrap();
+        std::os::unix::fs::symlink(outside.path(), workspace.path().join(TEMP_DIRECTORY)).unwrap();
+        let error = connection
+            .execute_batch("PRAGMA temp_store=FILE; CREATE TEMP TABLE sample(value BLOB); INSERT INTO sample VALUES (zeroblob(4194304));")
+            .unwrap_err();
+        assert_eq!(
+            error.sqlite_error_code(),
+            Some(rusqlite::ErrorCode::SystemIoFailure)
+        );
+        assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
+    }
 
     #[test]
     fn repair_waits_for_open_connection_and_only_repair_vfs_can_write() {
