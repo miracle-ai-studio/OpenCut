@@ -80,7 +80,7 @@ pub async fn run(
         let identity = caller.clone();
         let trace = request_id.clone();
         let read = tokio::task::spawn_blocking(move || {
-            let mut app = opencut_sqlite_store::EditorApplication::open(path)?;
+            let mut app = opencut_sqlite_store::EditorApplication::open_managed(path)?;
             app.set_caller(identity.clone());
             app.event_changes(input).map_err(|error| {
                 use opencut_automation::denials::*;

@@ -469,6 +469,7 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             ('opencut_storage_inspect', 'verify-storage.py', 'bounded workspace observation and scoped refusal under directory replacement'),
             ('opencut_storage_budget_inspect', 'verify-budget.py', 'real write admission, failed import recovery and SIGKILL reservation recovery'),
             ('opencut_cas_gc_plan', 'verify-cas-gc.py', 'reviewed CAS collection, historical render preservation and crash recovery'),
+            ('opencut_database_inspect', 'verify-control-vfs.py', 'managed SQLite WAL write admission, exact-key retry and independent integrity'),
         ]
         if sys.platform == 'darwin' and capabilities.get('database'):
             independent_journeys.append(

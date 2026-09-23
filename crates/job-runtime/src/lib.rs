@@ -40,7 +40,7 @@ use sha2::{Digest, Sha256};
 const LEASE_MS: i64 = 30_000;
 
 pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), EditorError> {
-    let mut app = EditorApplication::open(database)?;
+    let mut app = EditorApplication::open_managed(database)?;
     let worker = format!("worker_{}", uuid::Uuid::new_v4().simple());
     let output_root = database
         .parent()
@@ -117,8 +117,8 @@ fn execute_monitored(
 ) -> Result<Value, EditorError> {
     let cancel = CancellationToken::new();
     let done = Arc::new(AtomicBool::new(false));
-    let monitor_app = EditorApplication::open(database)?;
-    let mut progress_app = EditorApplication::open(database)?;
+    let monitor_app = EditorApplication::open_managed(database)?;
+    let mut progress_app = EditorApplication::open_managed(database)?;
     std::thread::scope(|scope| {
         let monitor_cancel = cancel.clone();
         let monitor_done = done.clone();
@@ -137,7 +137,11 @@ fn execute_monitored(
                         monitor_cancel.cancel();
                         break;
                     }
-                    Err(_) => {
+                    Err(error) => {
+                        eprintln!(
+                            "Job {} attempt {} heartbeat failed: {error}",
+                            job.job_id, job.attempt
+                        );
                         monitor_cancel.cancel();
                         break;
                     }

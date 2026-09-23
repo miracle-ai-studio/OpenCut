@@ -71,7 +71,8 @@ impl HttpMcp {
                 }
                 let path = path.clone();
                 let invalid = tokio::task::spawn_blocking(move || {
-                    let mut app = opencut_sqlite_store::EditorApplication::open(path.as_ref());
+                    let mut app =
+                        opencut_sqlite_store::EditorApplication::open_managed(path.as_ref());
                     bindings
                         .into_iter()
                         .filter_map(|(id, identity)| {

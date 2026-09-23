@@ -4749,6 +4749,7 @@ dependencies = [
  "opencut-job-contracts",
  "opencut-job-execution",
  "opencut-media-contracts",
+ "opencut-storage-budget",
  "rusqlite",
  "schemars",
  "serde",

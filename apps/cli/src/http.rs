@@ -644,12 +644,11 @@ async fn job_event_stream(
                 }
                 let path = database.clone();
                 let filter = job_id.clone();
-                let page =
-                    tokio::task::spawn_blocking(move || {
-                        opencut_sqlite_store::EditorApplication::open(path.as_ref())?
-                            .job_events_after(cursor, limit, filter.as_deref())
-                    })
-                    .await;
+                let page = tokio::task::spawn_blocking(move || {
+                    opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?
+                        .job_events_after(cursor, limit, filter.as_deref())
+                })
+                .await;
                 match page {
                     Ok(Ok(events)) => pending.extend(events),
                     _ => {
@@ -729,7 +728,8 @@ async fn events(
                 let path = database.clone();
                 let identity = caller.clone();
                 let page = tokio::task::spawn_blocking(move || {
-                    let mut app = opencut_sqlite_store::EditorApplication::open(path.as_ref())?;
+                    let mut app =
+                        opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?;
                     app.set_caller(identity);
                     app.events_after(cursor, 100)
                 })
@@ -861,7 +861,7 @@ async fn read_changes(
     let path = host.database.clone();
     let caller = host.identity.caller.clone();
     tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open(path.as_ref())?;
+        let mut app = opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?;
         app.set_caller(caller);
         app.event_changes(input)
     })

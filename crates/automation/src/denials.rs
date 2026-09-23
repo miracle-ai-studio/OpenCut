@@ -5,7 +5,7 @@ pub use opencut_editor_application::denials::*;
 use opencut_sqlite_store::EditorApplication;
 use std::path::Path;
 pub fn record_at(database: &Path, denial: &Denial<'_>) -> Result<(), EditorError> {
-    EditorApplication::open(database)?.record_denial(denial)
+    EditorApplication::open_managed(database)?.record_denial(denial)
 }
 pub fn observe_response<T>(
     store: &impl DenialStore,

@@ -77,6 +77,19 @@ impl Budget {
             Err(unavailable())
         }
     }
+    /// Reject a different database in an already-bound managed workspace
+    /// before SQLite creates files or maps a binding error to SQLITE_FULL.
+    pub fn check_database_control_name(&self, database_name: &str) -> Result<(), EditorError> {
+        #[cfg(unix)]
+        {
+            unix::check_database_control_name(self, database_name)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = database_name;
+            Err(unavailable())
+        }
+    }
 }
 impl BudgetNative for Budget {
     fn inspect(&self, recover: bool) -> Result<Report, EditorError> {
@@ -555,6 +568,25 @@ mod unix {
                 .any(|suffix| name.ends_with(suffix))
         {
             return Err(failure());
+        }
+        Ok(())
+    }
+    pub(super) fn check_database_control_name(
+        budget: &Budget,
+        database_name: &str,
+    ) -> Result<(), EditorError> {
+        validate_database_name(database_name)?;
+        let gate = Gate::open(budget, false)?;
+        if gate
+            .read()?
+            .control_database_name
+            .as_deref()
+            .is_some_and(|bound| bound != database_name)
+        {
+            return Err(EditorError::new(
+                "STORAGE_BUDGET_ERROR",
+                "Managed workspace is already bound to another SQLite database",
+            ));
         }
         Ok(())
     }

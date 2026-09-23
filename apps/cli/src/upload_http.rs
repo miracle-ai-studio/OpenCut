@@ -34,7 +34,7 @@ async fn authorize(host: &Host, input: &ChunkDescriptor) -> Result<(), EditorErr
     let host = host.clone();
     let input = input.clone();
     tokio::task::spawn_blocking(move || {
-        let mut app = EditorApplication::open(host.database.as_ref())?;
+        let mut app = EditorApplication::open_managed(host.database.as_ref())?;
         host.identity.validate(&mut app)?;
         app.set_caller(host.identity.caller.clone());
         app.authorize_chunk(&input).map(|_| ())
@@ -156,7 +156,7 @@ pub(super) async fn put_chunk(
     let result = tokio::task::spawn_blocking(move || {
         // A disconnected HTTP caller cannot release capacity while its durable write still runs.
         let _permit = permit;
-        let mut app = EditorApplication::open(task_host.database.as_ref())?;
+        let mut app = EditorApplication::open_managed(task_host.database.as_ref())?;
         task_host.identity.validate(&mut app)?;
         Ok::<_, EditorError>(
             Automation::open(task_host.database.as_ref())?

@@ -101,12 +101,13 @@ def verify(binary,root):
   artifact_root.rename(preserved)
   try:
    artifact_root.symlink_to(outside,target_is_directory=True)
-   refused=worker('aliased-cleanup');assert refused.wait(timeout=30)==0;assert 'PRIVATE_INPUT_CLEANUP_FAILED' in (root/'aliased-cleanup.log').read_text()
-   rejected=run(submit('preview.frame','aliased-output',frame));assert rejected['state']=='failed' and rejected['failure']['code']=='STORAGE_BUDGET_ERROR' and not rejected['artifacts'],rejected
+   refused=worker('aliased-cleanup');exit_code=refused.wait(timeout=30);log=(root/'aliased-cleanup.log').read_text()
+   assert (exit_code==0 and 'PRIVATE_INPUT_CLEANUP_FAILED' in log) or (exit_code!=0 and 'STORAGE_ERROR' in log),(exit_code,log)
    assert sentinel.read_text()=='preserve' and list(outside.iterdir())==[sentinel]
   finally:
    artifact_root.unlink();preserved.rename(artifact_root)
-  checks.append('Worker reports aliased-root cleanup refusal and fails output admission without touching outside files or deriving another budget authority')
+  resumed=run(submit('preview.frame','after-alias-restore',frame));assert resumed['state']=='succeeded',resumed
+  checks.append('Aliased artifact root fails closed at Worker startup or cleanup without touching outside files; restored root runs a real frame job')
   assert call('opencut_project_inspect',{'project_id':'admission'})['revision']==edited['revision']
   report={'status':'passed','binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'checks':checks,'orphan_output_bytes':orphan_sizes,'orphan_output_ceiling':256<<10,'evidence':str(root)};(root/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
  except Exception as e:(root/'failure.json').write_text(json.dumps({'error':repr(e),'checks':checks},indent=2));raise

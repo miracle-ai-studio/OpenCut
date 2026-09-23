@@ -181,6 +181,15 @@ def verify(binary, root):
         # (the same path will also serve future JSON analysis artifacts).
         with sqlite3.connect(db) as connection:
             connection.execute("UPDATE jobs SET result_json=json_set(result_json,'$.artifact.mime_type','application/json') WHERE job_id=?",(tasks['a']['job_id'],))
+        # The earlier stream legitimately received job events after its first
+        # page. Start the revocation probe at the current durable cursor so
+        # buffered pre-revocation events cannot be mistaken for a leak.
+        stream_conn.close()
+        current_events=call(a,'opencut_event_changes',{'scope':scope,'limit':100})['events']
+        current_cursor=current_events[-1]['cursor']
+        stream_conn,stream=raw(a,'POST','/v1/changes/stream',{'scope':scope,'limit':2},
+                               {'Last-Event-ID':current_cursor},True)
+        assert stream.status==200 and json.loads(sse(stream)['data'])['type']=='ready'
         # Force actual TCP backpressure so revocation occurs while bytes remain unsent.
         download_conn,download=raw(a,'GET',path,stream=True,small_window=True);assert download.status==200 and download.getheader('Content-Type')=='application/json'
         prefix=download.read(8192);assert len(prefix)==8192

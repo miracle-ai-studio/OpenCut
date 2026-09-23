@@ -26,6 +26,10 @@ export namespace OpencutDatabaseInspectOutput {
   freelist_pages: string;
   journal_mode: string;
   logical_database_bytes: string;
+  /**
+   * This particular managed connection uses OpenCut's control-admitted VFS.
+   */
+  managed_vfs_enabled: boolean;
   max_page_count: string;
   page_count: string;
   page_size_bytes: number;

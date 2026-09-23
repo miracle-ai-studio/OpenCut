@@ -111,7 +111,7 @@ async fn upload_inner(
                 &hash,
                 size as u64,
             )?;
-            let mut app = opencut_sqlite_store::EditorApplication::open(database.as_ref())?;
+            let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
             app.set_execution_context(context);
             opencut_automation::media::import_observed(&root, &staging, &hash, &asset, &app)?;
             Ok(json!({"asset":asset,"media_url":format!("/v1/media/{hash}")}))
@@ -175,7 +175,7 @@ pub(super) async fn read_project(
     let database = host.database.clone();
     let identity = host.identity.clone();
     let opened = tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open(database.as_ref())?;
+        let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
         identity.validate(&mut app)?;
         app.set_caller(identity.caller);
         let imported = app
@@ -263,7 +263,7 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
     let database = host.database.clone();
     let caller = host.identity.caller.clone();
     let data = match tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open(database.as_ref())?;
+        let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
         app.set_caller(caller);
         app.artifact_job(&job).map(|record| json!(record))
     })

@@ -20,6 +20,8 @@ pub struct Report {
     pub connection_wal_autocheckpoint_pages: u64,
     pub consistency: String,
     pub enforces_total_storage_limit: bool,
+    /// This particular managed connection uses OpenCut's control-admitted VFS.
+    pub managed_vfs_enabled: bool,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

@@ -17,7 +17,7 @@ async fn observe(
         let id = job_id.to_owned();
         let identity = caller.clone();
         let job = tokio::task::spawn_blocking(move || {
-            let mut app = EditorApplication::open(path)?;
+            let mut app = EditorApplication::open_managed(path)?;
             app.set_caller(identity);
             app.get_job(&id)
         })

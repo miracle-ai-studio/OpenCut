@@ -4,7 +4,11 @@
 
 2026-09-24 首个实施增量：`storage-budget` 的账本 v2 新增独立控制额度与持久预留，旧 v1 策略、回执、存活锁可迁移；payload 和控制预留共享卷余量但分开计逻辑额度。owner 的配置、检查、恢复和双 SDK 生成契约已经扩展；`control.write_interception_enabled=false`。真实 CLI 将控制限额设为 4096 字节后仍成功提交工程，数据库主文件达 339,968 字节，详见[分账验收](../qa/r2-database-control-ledger-2026-09-24.md)。因此本增量**没有**完成下述 VFS、修复预留和全工作区准入门槛。
 
-技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库使用的 `rusqlite` 提供具名 VFS 打开入口。这里定义目标协议，尚未声称已注册或使用新的 VFS。
+2026-09-24 第二个实施增量：`sqlite-store` 注册具名 `opencut-control-v1` VFS，保留原生 VFS 的锁、同步和实际 I/O，在主库／WAL／主 journal 的 `xWrite`、增长型 `xTruncate`、`SQLITE_FCNTL_SIZE_HINT` 与 WAL-index `xShmMap` 执行前扩展持久控制预留。CLI、HTTP、MCP 和 Worker 的管理型数据库连接统一使用该入口；嵌入式 `EditorApplication::open` 仍为非管理入口。每个管理型工作区绑定一个数据库文件名，第二个不同数据库会在打开前被拒绝。`opencut_database_inspect.managed_vfs_enabled` 报告当前连接是否使用具名 VFS；总存储强制标志保持 false。真实 CLI 的固定 WAL 读者、额度拒绝、原键重试和完整性检查已通过，但临时文件、外部直接 SQLite 写入、修复预留及全工作区物理上限仍未放行；`control.write_interception_enabled` 因此仍保守为 false。旧二进制与新宿主不可同时写同一工作区。
+
+VFS 将真实控制额度／卷余量拒绝映射为 SQLite `SQLITE_FULL`，由公开层返回 `DATABASE_CAPACITY_EXHAUSTED`；工作区观察失败、别名目录及账本错误映射为 SQLite I/O 错误，避免把结构损坏误导为“释放磁盘即可恢复”。Worker heartbeat 失败保留本地错误诊断。完整公共错误保真与修复路径仍需在 R2 放行前审查。
+
+技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库通过 `rusqlite` 的具名 VFS 打开入口安装包装层。下文是完整目标协议，已实施与待完成项以上述增量和 QA 证据区分。
 
 ## 权威、范围和分账
 
@@ -19,6 +23,8 @@
 2. 账本记录控制与 payload 的不同计费类别，先锁、读取策略、确认死亡写入者、观察现有文件与卷余量，再提交新预留；文件写入不得先发生后补记。保留现有 payload 算式，新控制算式比较 `observed_control + active_control + requested` 与控制额度，同时把两类活动预留计入物理余量。
 3. SQLite 返回明确的容量错误使正在进行的事务回滚；应用错误保持 `DATABASE_CAPACITY_EXHAUSTED` 及 request ID。不能因收到错误自动换幂等键重试，也不能把可能已提交的响应丢失解释成未提交。缩小／关闭文件后，在安全重观察前不提前释放额度。
 4. 修复预留是已实际分配并同步的工作区文件，而不是 `statvfs` 的口头余量。常规写入不能消耗它；当卷已满时，owner 可进入有审计的 repair 状态，释放该文件并只允许有上限的取消、上传释放和恢复操作。容量恢复后显式补足预留才能回到常规状态。默认预留大小须经 64 MiB 盘满、最坏取消事务与并发基线定标；未分配成功不得报告有修复保证。
+
+   当前反例：若 owner 把共享 `minimum_available_bytes` 设到超过实际空余，下次受控 SQLite 打开就可能因 SHM／WAL 增长失败，使预算检查和重新配置也不可达。独立 repair 通道必须能在这一状态下读取持久策略、完成受审计的有限恢复并补足预留；仅在配置时限制数值不能解决后来被外部写满的卷。
 5. 账本升级须保留 v1 payload 策略、活动预留、幂等回执和原始 actor；新格式与旧宿主不能同时写同一工作区。每次策略/repair 变更仍使用 expected revision、幂等键和持久回执。未知版本或损坏状态拒绝受控写入，不自行重建空账本。
 
 ## 公共契约与 Agent 恢复路径

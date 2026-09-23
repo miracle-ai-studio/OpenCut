@@ -46,7 +46,7 @@ impl Automation {
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join("plugins");
-        let app = EditorApplication::open(path.as_ref())?;
+        let app = EditorApplication::open_managed(path.as_ref())?;
         let media_root = app
             .asset_store_root()
             .parent()

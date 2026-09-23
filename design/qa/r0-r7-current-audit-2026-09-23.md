@@ -14,6 +14,10 @@
 
 2026-09-24 R2 后续：独立控制额度账本、owner 配置和持久控制预留已经[单独验收](r2-database-control-ledger-2026-09-24.md)，同一新 debug 开发包在仓库外 36 项复验通过。真实 CLI 仍能在 4096 字节控制限额下提交 339,968 字节数据库，证明 SQLite 写前拦截尚未接入；R2 状态不变。
 
+2026-09-24 R2 再续：管理型 SQLite 连接已接入具名 VFS；固定 WAL 读者下，控制额度拒绝编辑后工程 head 不动，调高额度以原幂等键重试仅提交一次。128 MiB 独立卷填满后的拒绝、恢复、checkpoint 与完整性检查通过。64 MiB 卷在默认 64 MiB 空余门槛下无法初始化，repair 预留、全工作区物理保证和完整发行验收仍缺；R2 依然部分完成。
+
+2026-09-24 R2 本轮收据：相同 x86_64 debug 开发包在仓库外[32 项完整验收](evidence/r2-control-vfs-package-acceptance-2026-09-24.json)通过，覆盖双 SDK、MCP/HTTP、历史迁移、VFS、独立盘满、Worker、网络撤权、上传导入及解码后重开；可选 WASM component 未随本轮提交验收。共享空余门槛过高时 owner 可能连预算重新配置也无法进入，须由实际 repair 通道解决；状态仍为部分完成。
+
 ## Agent 的实际执行路径
 
 ```mermaid

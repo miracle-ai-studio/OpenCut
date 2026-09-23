@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "scope": "managed CLI and pinned-reader WAL; not whole-workspace physical quota",
+  "binary_sha256": "11946e176975cfa8b032fac395c711f8358a573bb05832bc887352b077a5ee85",
+  "tight_control_limit_bytes": 536927,
+  "expanded_control_limit_bytes": 2553000,
+  "denial_code": "DATABASE_CAPACITY_EXHAUSTED",
+  "head_unchanged_after_denial": true,
+  "retry_same_key_committed_once": true,
+  "pinned_checkpoint": "blocked",
+  "released_checkpoint": "complete",
+  "integrity_check": "ok",
+  "checks": [
+    "Managed CLI binds the database name to the separate control ledger",
+    "A second database in the workspace is rejected before file creation",
+    "Pinned WAL growth rejects the large edit before project commit",
+    "Wider control policy permits the original idempotency key exactly once",
+    "Checkpoint is blocked by the reader, then completes after release",
+    "Independent SQLite integrity and transaction count match the public result"
+  ]
+}

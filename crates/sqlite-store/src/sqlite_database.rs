@@ -45,6 +45,7 @@ impl DatabaseMaintenance for EditorApplication {
             connection_wal_autocheckpoint_pages: number(c, "PRAGMA wal_autocheckpoint")?,
             consistency: "live_non_atomic".into(),
             enforces_total_storage_limit: false,
+            managed_vfs_enabled: self.managed_vfs,
         })
     }
     fn checkpoint_database(

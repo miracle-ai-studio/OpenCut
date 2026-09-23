@@ -19,9 +19,11 @@ def verify(binary,root):
  def dump():
   with closing(sqlite3.connect(f'file:{db}?mode=ro',uri=True)) as c:return list(c.iterdump())
  try:
-  command(['hdiutil','create','-size','64m','-fs','HFS+','-volname','OpenCutCapacityQA',str(image)])
+  # Leave room above the default 64 MiB physical free-space floor so the
+  # managed VFS can initialize before this fixture deliberately fills the disk.
+  command(['hdiutil','create','-size','128m','-fs','HFS+','-volname','OpenCutCapacityQA',str(image)])
   command(['hdiutil','attach','-nobrowse','-mountpoint',str(mount),str(image)]);attached=True
-  volume=os.statvfs(mount);assert mount.stat().st_dev!=root.stat().st_dev and 0<volume.f_blocks*volume.f_frsize<=128<<20
+  volume=os.statvfs(mount);assert mount.stat().st_dev!=root.stat().st_dev and 0<volume.f_blocks*volume.f_frsize<=256<<20
   db=mount/'workspace.sqlite'
   initial=call('opencut_project_create',{'project':{'id':'capacity','name':'Capacity','sequence_id':'main','width':64,'height':48,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'create'})
   source=root/'source.png';command(['ffmpeg','-v','error','-f','lavfi','-i','color=red:s=64x48','-frames:v','1',str(source)])
@@ -46,7 +48,7 @@ def verify(binary,root):
   call('opencut_job_request_cancel',{'job_id':job['job_id']},'DATABASE_CAPACITY_EXHAUSTED');assert dump()==baseline
   assert call('opencut_project_inspect',{'project_id':'capacity'})==initial
   assert call('opencut_job_view',{'job_id':job['job_id']})['state']=='queued'
-  checks.append('Actual independent 64 MiB filesystem filled to ENOSPC: edit and cancellation report precise capacity failure, all SQL rows and project head remain unchanged, queued job is not falsely cancelled')
+  checks.append('Actual independent 128 MiB filesystem filled to ENOSPC: edit and cancellation report precise capacity failure, all SQL rows and project head remain unchanged, queued job is not falsely cancelled')
   filler.unlink()
   committed=call('opencut_edit_apply',request);assert call('opencut_edit_apply',request)==committed
   cancelled=call('opencut_job_request_cancel',{'job_id':job['job_id']});assert cancelled['state']=='cancelled';assert call('opencut_job_request_cancel',{'job_id':job['job_id']})['state']=='cancelled'

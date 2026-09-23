@@ -64,7 +64,7 @@ impl EditorMcp {
         let source = self.source;
         let checked = caller.clone();
         tokio::task::spawn_blocking(move|| {
-            let mut app=opencut_sqlite_store::EditorApplication::open(database.as_ref()).map_err(|_|McpError::internal_error("Identity check unavailable",None))?;
+            let mut app=opencut_sqlite_store::EditorApplication::open_managed(database.as_ref()).map_err(|_|McpError::internal_error("Identity check unavailable",None))?;
             app.set_caller(checked.clone());
             if let Err(error)=app.access_view() {
                 let response=opencut_automation::denials::observe_response(&app,Some(&checked),source,opencut_automation::denials::DeniedOperation::McpRequest,opencut_automation::denials::DenialReason::AuthorizationDenied,opencut_automation::response(Err(error)));

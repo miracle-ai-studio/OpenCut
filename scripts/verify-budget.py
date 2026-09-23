@@ -34,7 +34,7 @@ def verify(binary,root,sdk):
  def put(upload,data,error=None,status=200):return raw('PUT',f"/v1/uploads/{upload['upload_id']}/chunks/0?"+urlencode({'size_bytes':str(len(data)),'content_hash':hashlib.sha256(data).hexdigest()}),data,agent,error,status)
  try:
   call('opencut_project_create',{'project':{'id':'a','name':'A','sequence_id':'main','width':64,'height':48,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'a'})
-  assert inspect()['reserved_bytes']=='0' and not (root/'.storage-budget').exists()
+  initial_budget=inspect();assert initial_budget['reserved_bytes']=='0' and initial_budget['control']['database_name']==db.name and (root/'.storage-budget').is_dir()
   initial=head();request,policy=configure(32,'tiny');call('opencut_storage_budget_configure',{**request,'idempotency_key':'stale'},error='STORAGE_POLICY_CONFLICT');call('opencut_storage_budget_configure',{**request,'payload_limit_bytes':'33'},error='IDEMPOTENCY_KEY_REUSED');call('opencut_storage_budget_configure',{**request,'payload_limit_bytes':'032'},error='INVALID_ARGUMENT')
   source=root/'source.png';subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=red:s=64x48','-frames:v','1','-threads','1',str(source)],check=True,capture_output=True)
   asset={'id':'source','name':'Source','kind':'image','uri':str(source),'duration':None,'metadata':{}}
@@ -42,7 +42,18 @@ def verify(binary,root,sdk):
   configure(1<<20,'bind-room');at=lambda n:{'ticks':str(n),'timebase':10}
   edit([{'type':'asset.bind','asset':asset},{'type':'track.create','sequence_id':'main','track':{'id':'v','name':'V','kind':'graphic','enabled':True,'muted':False,'locked':False,'clips':[],'params':{}}},{'type':'clip.insert','sequence_id':'main','track_id':'v','clip':{'id':'c','asset_id':'source','timeline_range':{'start':at(0),'duration':at(10)},'source_range':None,'params':{},'channels':[]}}],'bind')
   state=inspect();assert int(state['observed_payload_bytes'])==source.stat().st_size and state['reserved_bytes']=='0' and not state['enforces_all_workspace_writes'];checks.append('Policy revision/replay and canonical bytes work; denied real edit leaves head untouched, accepted CAS capture settles into independently measured usage')
-  configure(1<<30,'volume-denial',9223372036854775807);copy={**asset,'id':'capacity'};edit([{'type':'asset.bind','asset':copy}],'capacity',error='STORAGE_CAPACITY_LOW')
+  capacity_source=root/'capacity.wav'
+  with wave.open(str(capacity_source),'wb') as w:
+   w.setnchannels(1);w.setsampwidth(2);w.setframerate(8000)
+   for _ in range(96):w.writeframes(b'\0'*(1<<20))
+  available=os.statvfs(root).f_bavail*os.statvfs(root).f_frsize
+  assert available>160<<20
+  # Retain enough physical space for managed SQLite control operations while
+  # making this valid audio asset too large for the remaining payload headroom.
+  configure(1<<30,'volume-denial',available-(64<<20))
+  copy={**asset,'id':'capacity','kind':'audio','uri':str(capacity_source)}
+  edit([{'type':'asset.bind','asset':copy}],'capacity',error='STORAGE_CAPACITY_LOW')
+  capacity_source.unlink()
   configure(int(state['observed_payload_bytes']),'copy-denial')
   def submit(key):return call('opencut_job_submit',{'kind':'preview.composited_frame','idempotency_key':key,'input':{'project_id':'a','revision':head()['revision'],'sequence_id':'main','requested_time':at(0),'alignment':'exact'}})
   failed=worker(submit('no-room'));assert failed['state']=='failed' and failed['failure']['code']=='STORAGE_BUDGET_EXCEEDED',failed;assert inspect()['reserved_bytes']=='0'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real-process storage observations against independently measured native files."""
-import argparse, hashlib, http.client, json, os, socket, sqlite3, stat, subprocess, tempfile, threading, time
+import argparse, hashlib, http.client, json, os, shutil, socket, sqlite3, stat, subprocess, tempfile, threading, time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -19,11 +19,11 @@ def verify(binary,root,sdk):
  try:
   cli(['call','opencut_project_create','--input','-'],{'project':{'id':'a','name':'A','sequence_id':'main','width':64,'height':48,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'a'})
   schema=cli(['system','schema'])['data'];shape=next(t for t in schema if t['name']=='opencut_storage_inspect')['input_schema']['properties']['max_entries'];assert shape['minimum']==1 and shape['maximum']==100000
-  before=state();r=call()['data'];assert r['complete'] and r['volume_observed'];assert int(r['volume_capacity_bytes'])==os.statvfs(root).f_blocks*os.statvfs(root).f_frsize
+  before=state();before_dirs={p.name for p in root.iterdir() if p.is_dir()};r=call()['data'];assert r['complete'] and r['volume_observed'];assert int(r['volume_capacity_bytes'])==os.statvfs(root).f_blocks*os.statvfs(root).f_frsize
   assert cats(r)['database']['regular_files']>=1
-  assert all(not x['present'] and x['logical_bytes']=='0' for x in r['categories'][1:]);assert state()==before;assert not any(p.is_dir() for p in root.iterdir())
+  assert all(not x['present'] and x['logical_bytes']=='0' for x in r['categories'][1:]);assert state()==before;assert {p.name for p in root.iterdir() if p.is_dir()}==before_dirs
   for data in [{'max_entries':0},{'max_entries':100001},{'path':'/private'},{'actor':'owner'}]:call(data,error='INVALID_ARGUMENT')
-  checks.append('Empty workspace observation creates no directories or business records; volume capacity matches statvfs and untrusted path/budget inputs reject')
+  checks.append('Storage observation creates no additional directories or business records; managed VFS budget metadata predates it, volume capacity matches statvfs and untrusted path/budget inputs reject')
   mapping=[('asset_store','asset-store'),('media','media'),('uploads','uploads'),('artifacts','artifacts'),('plugins','plugins')]
   for i,(category,name) in enumerate(mapping):
    folder=root/name;folder.mkdir();(folder/'entry').write_bytes(bytes([i+1])*(i+1)*2048)
@@ -57,6 +57,9 @@ def verify(binary,root,sdk):
   r=call()['data'];assert not r['complete'] and cats(r)['plugins']['omissions']['depth_limited']==1
   r=call({'max_entries':2})['data'];assert not r['complete'] and r['stop_reason']=='entry_limit' and r['visited_entries']==2 and all(not x['complete'] for x in r['categories'])
   checks.append('Symlink/FIFO/depth omissions and global entry exhaustion produce explicit partial results; linked outside bytes are never counted')
+  # The write-admission scanner must fail closed on the deliberately excessive
+  # depth. Remove only that fixture before testing later write-bearing flows.
+  shutil.rmtree(root/'plugins/d')
   policy={'principal_id':'agent','expected_revision':'0','enabled':True,'grants':[{'project_id':'a','actions':['read','edit','run_jobs']}]}
   cli(['access','set-policy','--input','-'],policy);agent=root/'agent.secret';cli(['access','issue','agent','--output',str(agent)])
   denial=call(credential=agent,error='NOT_AUTHORIZED');audit=cli(['call','opencut_denial_query','--input','-'],{'target':{'kind':'request','id':denial['request_id']}})['data'];assert len(audit['records'])==1 and audit['records'][0]['operation']['name']=='opencut_storage_inspect'

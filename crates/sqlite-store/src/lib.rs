@@ -1,3 +1,5 @@
+#[cfg(unix)]
+mod control_vfs;
 pub mod job_views;
 pub mod jobs;
 mod sqlite_access;
@@ -52,6 +54,7 @@ pub struct EditorApplication {
     connection: SqliteConnection,
     asset_store_root: std::path::PathBuf,
     _memory_store: Option<tempfile::TempDir>,
+    managed_vfs: bool,
 }
 
 pub use opencut_api_contracts::{
@@ -61,7 +64,17 @@ pub use opencut_api_contracts::{
 
 impl EditorApplication {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, EditorError> {
-        let path = path.as_ref();
+        Self::open_inner(path.as_ref(), false)
+    }
+
+    /// Open a Host/Worker workspace through the control-admitted native VFS.
+    /// Embedders using `open` retain the unmanaged compatibility path.
+    pub fn open_managed(path: impl AsRef<Path>) -> Result<Self, EditorError> {
+        Self::open_inner(path.as_ref(), true)
+    }
+
+    fn open_inner(path: &Path, managed: bool) -> Result<Self, EditorError> {
+        let managed_vfs = managed && path != Path::new(":memory:") && cfg!(unix);
         if path != Path::new(":memory:")
             && let Some(parent) = path.parent()
             && !parent.as_os_str().is_empty()
@@ -73,6 +86,13 @@ impl EditorApplication {
                 )
             })?;
         }
+        #[cfg(unix)]
+        let mut connection = if !managed || path == Path::new(":memory:") {
+            Connection::open(path).map_err(storage_error)?
+        } else {
+            control_vfs::open(path)?
+        };
+        #[cfg(not(unix))]
         let mut connection = Connection::open(path).map_err(storage_error)?;
         connection
             .busy_timeout(Duration::from_secs(5))
@@ -87,7 +107,7 @@ impl EditorApplication {
         match inspect_database(&connection)? {
             DatabaseState::Version(DATABASE_SCHEMA_VERSION) => {
                 ensure_wal_for_file_database(&connection)?;
-                return Self::finish_open(connection, path);
+                return Self::finish_open(connection, path, managed_vfs);
             }
             DatabaseState::Version(version) if !(1..DATABASE_SCHEMA_VERSION).contains(&version) => {
                 return Err(unsupported_database_version(version));
@@ -111,7 +131,7 @@ impl EditorApplication {
             DatabaseState::Version(DATABASE_SCHEMA_VERSION) => {
                 tx.commit().map_err(storage_error)?;
                 ensure_wal_for_file_database(&connection)?;
-                return Self::finish_open(connection, path);
+                return Self::finish_open(connection, path, managed_vfs);
             }
             DatabaseState::Version(version) if (1..DATABASE_SCHEMA_VERSION).contains(&version) => {
                 version
@@ -299,10 +319,14 @@ impl EditorApplication {
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
-        Self::finish_open(connection, path)
+        Self::finish_open(connection, path, managed_vfs)
     }
 
-    fn finish_open(connection: Connection, database_path: &Path) -> Result<Self, EditorError> {
+    fn finish_open(
+        connection: Connection,
+        database_path: &Path,
+        managed_vfs: bool,
+    ) -> Result<Self, EditorError> {
         let (memory_store, asset_store_root) = if database_path == Path::new(":memory:") {
             let directory = tempfile::tempdir().map_err(|error| {
                 EditorError::new(
@@ -331,6 +355,7 @@ impl EditorApplication {
             ),
             asset_store_root,
             _memory_store: memory_store,
+            managed_vfs,
         })
     }
 

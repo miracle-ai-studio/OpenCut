@@ -1,6 +1,6 @@
 [
   {
-    "description": "Owner-only live SQLite page/freelist and database/WAL/SHM file observations. No explicit checkpoint, integrity scan, quota enforcement or repair. File sizes and connection-local settings are non-atomic observations, not reserved space.",
+    "description": "Owner-only live SQLite page/freelist and database/WAL/SHM file observations. Reports whether this managed connection uses the control-admitted VFS; whole-workspace physical enforcement and repair remain unavailable. File sizes and connection-local settings are non-atomic observations, not reserved space.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -62,6 +62,10 @@
             "logical_database_bytes": {
               "type": "string"
             },
+            "managed_vfs_enabled": {
+              "description": "This particular managed connection uses OpenCut's control-admitted VFS.",
+              "type": "boolean"
+            },
             "max_page_count": {
               "type": "string"
             },
@@ -104,7 +108,8 @@
             "connection_busy_timeout_ms",
             "connection_wal_autocheckpoint_pages",
             "consistency",
-            "enforces_total_storage_limit"
+            "enforces_total_storage_limit",
+            "managed_vfs_enabled"
           ],
           "type": "object"
         }

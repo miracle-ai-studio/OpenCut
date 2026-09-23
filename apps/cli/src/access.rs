@@ -44,14 +44,15 @@ pub fn caller(database: &Path, file: Option<&Path>) -> Result<Caller, EditorErro
         .and_then(|file| file.take(66).read_to_string(&mut secret))
         .map_err(|_| denied())?;
     // Credential files are one exact secret plus an optional Unix newline.
-    EditorApplication::open(database)?.authenticate(secret.strip_suffix('\n').unwrap_or(&secret))
+    EditorApplication::open_managed(database)?
+        .authenticate(secret.strip_suffix('\n').unwrap_or(&secret))
 }
 pub fn execute(
     database: &Path,
     caller: Caller,
     command: &Command,
 ) -> Result<Response, EditorError> {
-    let mut app = EditorApplication::open(database)?;
+    let mut app = EditorApplication::open_managed(database)?;
     let context = ExecutionContext::for_caller(CallSource::Cli, caller);
     let request_id = context.request_id().to_owned();
     app.set_execution_context(context.clone());

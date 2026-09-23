@@ -23,7 +23,7 @@ impl Identity {
         }
     }
     pub fn authenticate(database: &Path, secret: &str) -> Result<Self, EditorError> {
-        let mut app = EditorApplication::open(database)?;
+        let mut app = EditorApplication::open_managed(database)?;
         let caller = app.authenticate(secret)?;
         app.set_caller(caller.clone());
         let policy_revision = app.access_view()?.policy_revision;
@@ -113,7 +113,7 @@ pub(super) fn guard_stream(
                 let expected = identity.clone();
                 let trace = request_id.clone();
                 let valid = tokio::task::spawn_blocking(move || {
-                    let mut app = EditorApplication::open(path.as_ref())?;
+                    let mut app = EditorApplication::open_managed(path.as_ref())?;
                     let result = expected.validate(&mut app);
                     use opencut_automation::denials::*;
                     if result.as_ref().err().is_some_and(is_denial)

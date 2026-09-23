@@ -61,6 +61,11 @@ def verify(binary):
         f.setframerate(48000)
         f.writeframes(b'\0\0' * 4800)
 
+    def fixture(name):
+        workspace = directory / name
+        workspace.mkdir()
+        return workspace / 'workspace.sqlite'
+
     def call(database, name, arguments, error=None):
         r = subprocess.run([str(binary), '--database', str(database), '--json', 'call', name, '--input', '-'],
                            input=encoded(arguments), text=True, capture_output=True, timeout=30)
@@ -78,14 +83,17 @@ def verify(binary):
                     for t in ['projects', 'revisions', 'editor_transactions', 'idempotency', 'outbox']}
 
     try:
-        current = directory / 'current-version.sqlite'
+        current = fixture('current-version')
         assert call(current, 'opencut_project_list', {}) == []
         with sqlite3.connect(current) as c:
             target_version = int(c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0])
         assert all((FIXTURES / f'db-v{version}.sql').is_file() for version in range(1, target_version + 1)), 'A frozen historical database fixture is missing'
         for version in range(1, target_version + 1):
             for identity in ['legacy', 'v2']:
-                database = directory / f'v{version}-{identity}.sqlite'
+                # Each historical file represents an independent managed
+                # workspace. The control ledger deliberately binds one DB name
+                # per workspace; the two concurrent hosts below still share it.
+                database = fixture(f'v{version}-{identity}')
                 seed(database, version, identity, probe)
                 original = rows(database)
                 with ThreadPoolExecutor(max_workers=2) as pool:
@@ -144,7 +152,7 @@ def verify(binary):
                    'legacy queued inputs execute in a real Worker after migration',
                    'new edits and idempotent retries work after each upgrade and persist v2 receipts']
         if target_version >= 7:
-            broken7 = directory / 'plugin-migration-rollback.sqlite'
+            broken7 = fixture('plugin-migration-rollback')
             seed(broken7, 6, 'v2', probe)
             with sqlite3.connect(broken7) as c:
                 c.execute('CREATE TABLE plugin_events(sentinel TEXT)')
@@ -157,7 +165,7 @@ def verify(binary):
             assert call(broken7, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
             checks.append('Plugin publication DDL collision rolls back v6 migration with all original data intact; corrected retry succeeds')
         if target_version >= 9:
-            retained = directory / 'retention-migration.sqlite'
+            retained = fixture('retention-migration')
             seed(retained, 8, 'v2', probe)
             with sqlite3.connect(retained) as c:
                 for i in range(10):
@@ -180,7 +188,7 @@ def verify(binary):
             assert call(retained,'opencut_project_inspect',{'project_id':'history'})==PROJECT['head']
             checks.append('Schema 8 retention collision rolls back; aborted sessions backfill conservatively above quota, release restores admission without rewriting history')
         if target_version >= 10:
-            scoped = directory / 'v9-plugin-grant-rollback.sqlite'
+            scoped = fixture('v9-plugin-grant-rollback')
             seed(scoped, 9, 'v2', probe)
             with sqlite3.connect(scoped) as c:
                 c.execute('CREATE TABLE project_plugin_grants(sentinel TEXT)')
@@ -194,7 +202,7 @@ def verify(binary):
             assert call(scoped, 'opencut_project_inspect', {'project_id':'history'}) == PROJECT['head']
             checks.append('Schema 9 plugin policy collision rolls back; retry preserves history and grants no implicit project plugin permission')
         if target_version >= 11:
-            denied = directory / 'v10-denial-rollback.sqlite'
+            denied = fixture('v10-denial-rollback')
             seed(denied, 10, 'v2', probe)
             with sqlite3.connect(denied) as c:
                 c.execute('CREATE TABLE denial_records(sentinel TEXT)')
@@ -208,7 +216,7 @@ def verify(binary):
             assert call(denied, 'opencut_project_inspect', {'project_id':'history'}) == PROJECT['head']
             checks.append('Schema 10 denial-table collision rolls back atomically; retry preserves history and does not fabricate past refusals')
         if target_version >= 12:
-            gc = directory / 'v11-collection-rollback.sqlite'
+            gc = fixture('v11-collection-rollback')
             seed(gc, 11, 'v2', probe)
             with sqlite3.connect(gc) as c:
                 c.execute('CREATE TABLE cas_gc_plans(sentinel TEXT)')
@@ -224,7 +232,7 @@ def verify(binary):
                 assert c.execute('SELECT COUNT(*) FROM cas_gc_events').fetchone()[0] == 0
             checks.append('Schema 11 GC table collision rolls back; retry preserves project data and invents no collection history')
         if target_version >= 13:
-            admission = directory / 'v12-admission-gate-rollback.sqlite'
+            admission = fixture('v12-admission-gate-rollback')
             seed(admission, 12, 'v2', probe)
             with sqlite3.connect(admission) as c:
                 c.execute("CREATE TRIGGER fail_admission_gate BEFORE UPDATE ON metadata WHEN NEW.key='schema_version' AND NEW.value='13' BEGIN SELECT RAISE(ABORT,'QA failed gate'); END")
@@ -238,7 +246,7 @@ def verify(binary):
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
             checks.append('Schema 12 admission protocol gate rolls back on failure; retry preserves all business history')
         if target_version >= 14:
-            admission = directory / 'v13-admission-gate-rollback.sqlite'
+            admission = fixture('v13-admission-gate-rollback')
             seed(admission, 13, 'v2', probe)
             with sqlite3.connect(admission) as c:
                 c.execute("CREATE TRIGGER fail_admission_gate BEFORE UPDATE ON metadata WHEN NEW.key='schema_version' AND NEW.value='14' BEGIN SELECT RAISE(ABORT,'QA failed gate'); END")
@@ -252,7 +260,7 @@ def verify(binary):
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
             checks.append('Schema 13 extended admission protocol gate rolls back on failure; retry preserves all business history')
         if target_version >= 15:
-            admission = directory / 'v14-media-output-gate-rollback.sqlite'
+            admission = fixture('v14-media-output-gate-rollback')
             seed(admission, 14, 'v2', probe)
             with sqlite3.connect(admission) as c:
                 c.execute("CREATE TRIGGER fail_admission_gate BEFORE UPDATE ON metadata WHEN NEW.key='schema_version' AND NEW.value='15' BEGIN SELECT RAISE(ABORT,'QA failed gate'); END")
@@ -266,7 +274,7 @@ def verify(binary):
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
             checks.append('Schema 14 media output protocol gate rolls back on failure; retry preserves all business history')
         for repetition in range(20):
-            race = directory / f'journal-conversion-{repetition}.sqlite'
+            race = fixture(f'journal-conversion-{repetition}')
             seed(race, 5, 'v2', probe)
             with ThreadPoolExecutor(max_workers=4) as pool:
                 snapshots = list(pool.map(lambda _: call(race, 'opencut_project_inspect', {'project_id': 'history'}), range(4)))
@@ -275,7 +283,7 @@ def verify(binary):
                 assert c.execute('PRAGMA journal_mode').fetchone()[0] == 'wal'
                 assert c.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
         checks.append('20 real four-process DELETE-to-WAL conversions preserve snapshots and complete without startup lock failures')
-        broken = directory / 'migration-rollback.sqlite'
+        broken = fixture('migration-rollback')
         seed(broken, 2, 'legacy', probe)
         with sqlite3.connect(broken) as c:
             c.execute('CREATE TABLE job_events (sentinel TEXT)')
@@ -288,7 +296,7 @@ def verify(binary):
         assert call(broken, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
         checks.append('DDL failure rolls back the entire v2 migration; fixing the fixture allows a clean retry')
         checks.append('historical actors remain unknown rather than fabricated during migration')
-        audit_broken = directory / 'audit-migration-rollback.sqlite'
+        audit_broken = fixture('audit-migration-rollback')
         seed(audit_broken, 3, 'v2', probe)
         with sqlite3.connect(audit_broken) as c:
             c.execute('CREATE TABLE audit_records(sentinel TEXT)')
@@ -300,7 +308,7 @@ def verify(binary):
             c.execute('DROP TABLE audit_records')
         assert call(audit_broken, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
         checks.append('v3 audit migration collision rolls back atomically and can be retried after repair')
-        access_broken = directory / 'access-migration-rollback.sqlite'
+        access_broken = fixture('access-migration-rollback')
         seed(access_broken, 4, 'v2', probe)
         with sqlite3.connect(access_broken) as c:
             c.execute('CREATE TABLE job_projects(sentinel TEXT)')
@@ -313,7 +321,7 @@ def verify(binary):
         assert call(access_broken, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
         checks.append('v4 access migration failure rolls back all policy and ownership tables; repaired retry preserves historical data')
         for invalid in ['999', 'invalid', 'foreign']:
-            db = directory / f'reject-{invalid}.sqlite'
+            db = fixture(f'reject-{invalid}')
             with sqlite3.connect(db) as c:
                 c.execute('CREATE TABLE sentinel(value TEXT)')
                 c.execute("INSERT INTO sentinel VALUES ('preserve')")

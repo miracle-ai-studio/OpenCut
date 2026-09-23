@@ -40,6 +40,8 @@
 
 2026-09-24 增量：owner 可单独配置 `control_limit_bytes`，持久账本 v2 分别记录控制与 payload 预留，控制报告单独呈现；两类活动预留共同参与卷余量判断。SQLite 本身仍通过原生连接直接写入，`control.write_interception_enabled=false`，参见[控制账本验收](../qa/r2-database-control-ledger-2026-09-24.md)。配置控制额度尚不限制实际数据库事务，不可把该字段解释成已生效的硬数据库配额。
 
+2026-09-24 后续增量：管理型 CLI／HTTP／MCP／Worker SQLite 连接已切到具名 VFS，主库、WAL、主 journal 和 SHM 增长会先申请独立控制预留；`opencut_database_inspect.managed_vfs_enabled` 说明当前连接实际入口。固定读者的 CLI 动线已证明紧额度拒绝编辑、head 不动，扩大额度后原幂等键只提交一次。上段是账本增量当时的历史状态；目前仍不能将 `control.write_interception_enabled` 或 `enforces_all_workspace_writes` 改为 true，因为临时文件、外部写者、修复预留和全工作区物理边界尚未覆盖。详见[控制写入契约](database-control-admission.md)。
+
 ## 准入与保守计费
 
 在同一个工作区目录锁内读取策略与全部活动预留、确认可恢复的旧预留，再观察当前文件与 statvfs 余量，最后提交新预留。目录锁最多等待 5 秒，超时返回 STORAGE_BUDGET_BUSY；遍历时间预算不能抢占单个文件系统调用。
