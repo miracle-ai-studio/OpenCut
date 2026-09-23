@@ -10,6 +10,8 @@
 
 2026-09-24 R0 续验：恢复审计的四条精确跨 SDK 动线已纳入[同一开发包的 36 项仓库外验收](r0-cross-sdk-recovery-2026-09-24.md)并通过。真实旧用户库、中文访谈／VFR／长视频和性能基线仍缺，R0 不整体放行。
 
+2026-09-24 R2 控制写入核查：在 payload 准入余量为零且读者固定 WAL 的真实多进程动线中，四次编辑仍提交，WAL 增至 4,021,152 字节；64 MiB 独立卷盘满时编辑／取消会准确回滚，但没有修复预留保证。见[缺口实测](r2-database-control-gap-2026-09-24.md)与[控制写入契约](../architecture/database-control-admission.md)。R2 仍为部分完成。
+
 ## Agent 的实际执行路径
 
 ```mermaid
