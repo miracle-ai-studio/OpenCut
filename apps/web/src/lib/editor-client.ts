@@ -1,4 +1,7 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import type {
+  JobMediaImportResult,
   JobArtifactVerifyResult,
   JobMediaProbeResult,
   JobPreviewFrameResult,
@@ -16,6 +19,9 @@ import type {
   OpencutProjectListOutput,
   OpencutRenderPreflightInput,
   OpencutRenderPreflightOutput,
+  OpencutUploadCreateOutput,
+  OpencutUploadReleaseOutput,
+  OpencutJobViewOutput,
 } from "./editor-contracts.generated";
 
 export type Time = OpencutProjectListOutput.Time;
@@ -155,6 +161,17 @@ export const timeFromDecimalSeconds = (value: string): Time => {
   return exact(ticks, timebase);
 };
 
+const UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+
+async function fileHash(file: File): Promise<string> {
+  const digest = sha256.create();
+  for (let offset = 0; offset < file.size; offset += UPLOAD_CHUNK_BYTES) {
+    digest.update(new Uint8Array(await file.slice(offset, offset + UPLOAD_CHUNK_BYTES).arrayBuffer()));
+  }
+  return bytesToHex(digest.digest());
+}
+
 export class EditorClient {
   constructor(
     public readonly baseUrl: string,
@@ -264,14 +281,116 @@ export class EditorClient {
       },
     });
   }
-  upload(file: File) {
-    return this.request<{
-      asset: Snapshot["project"]["assets"][number];
-      media_url: string;
-    }>(`/v1/media/upload?name=${encodeURIComponent(file.name)}`, {
-      method: "POST",
-      body: file,
-    });
+  async upload(projectId: string, file: File): Promise<{
+    asset: Snapshot["project"]["assets"][number];
+    media_url: string;
+    stagingWarning: string | null;
+  }> {
+    if (file.size < 1 || file.size > MAX_UPLOAD_BYTES)
+      throw new Error("Media file must be between 1 byte and 1 GiB");
+    const contentHash = await fileHash(file);
+    let uploadId: string | null = null;
+    let terminal = false;
+    const release = async (id: string): Promise<string | null> => {
+      try {
+        const retention = await this.tool<OpencutUploadReleaseOutput.UploadRetentionView>(
+          "opencut_upload_release", { upload_id: id },
+        );
+        if (retention.state !== "released" || retention.reserved_bytes !== "0")
+          throw new Error("staging remains reserved");
+        return null;
+      } catch (error) {
+        return `upload ${id} staging release needs retry: ${(error as Error).message}`;
+      }
+    };
+    try {
+      const created = await this.tool<OpencutUploadCreateOutput.UploadView>(
+        "opencut_upload_create", {
+          project_id: projectId,
+          idempotency_key: crypto.randomUUID(),
+          name: file.name,
+          size_bytes: String(file.size),
+          content_hash: contentHash,
+        },
+      );
+      uploadId = created.upload_id;
+      if (created.project_id !== projectId || created.content_hash !== contentHash ||
+          created.size_bytes !== String(file.size) || created.state !== "receiving")
+        throw new Error("Upload session does not match the selected project or file");
+      let offset = Number(created.next_offset);
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset > file.size)
+        throw new Error("Upload session returned an invalid offset");
+      while (offset < file.size) {
+        const chunk = new Uint8Array(await file.slice(offset, offset + UPLOAD_CHUNK_BYTES).arrayBuffer());
+        const query = new URLSearchParams({
+          size_bytes: String(chunk.byteLength),
+          content_hash: bytesToHex(sha256(chunk)),
+        });
+        const accepted: OpencutUploadCreateOutput.UploadView = await this.request<OpencutUploadCreateOutput.UploadView>(
+          `/v1/uploads/${encodeURIComponent(uploadId)}/chunks/${offset}?${query}`,
+          { method: "PUT", body: new Blob([chunk]),
+            headers: { "Content-Type": "application/octet-stream" } },
+        );
+        if (accepted.upload_id !== uploadId || accepted.next_offset !== String(offset + chunk.byteLength))
+          throw new Error("Upload chunk was not acknowledged at the expected offset");
+        offset += chunk.byteLength;
+      }
+      const sealed = await this.tool<OpencutUploadCreateOutput.UploadView>(
+        "opencut_upload_seal", { upload_id: uploadId },
+      );
+      if (sealed.state !== "sealed" || !sealed.job_id)
+        throw new Error("Upload was not sealed into a media import job");
+      const deadline = Date.now() + 5 * 60_000;
+      let job: OpencutJobViewOutput.JobView;
+      for (;;) {
+        job = await this.tool<OpencutJobViewOutput.JobView>(
+          "opencut_job_view", { job_id: sealed.job_id },
+        );
+        if (job.state === "succeeded" || job.state === "failed" || job.state === "cancelled") {
+          terminal = true;
+          break;
+        }
+        if (Date.now() >= deadline)
+          throw new Error(`Media import is still running (job ${sealed.job_id}); staging remains retained`);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      if (job.state !== "succeeded")
+        throw new Error(job.failure?.message ?? `Media import ${job.state}`);
+      const result = job.extended_result;
+      if (job.kind !== "media.import" || result?.kind !== "media.import" ||
+          result.schema_version !== 1 || job.result_unavailable || !result.data)
+        throw new Error("Media import result is unavailable");
+      const imported = result.data as JobMediaImportResult.MediaImportJobResult;
+      if (imported.project_id !== projectId || imported.upload_id !== uploadId ||
+          imported.job_id !== sealed.job_id)
+        throw new Error("Media import result does not match this upload");
+      const verified = await this.tool<JobMediaImportResult.MediaImportJobResult>(
+        "opencut_project_media_inspect", {
+          project_id: projectId, media_id: imported.media_id,
+        },
+      );
+      if (verified.job_id !== imported.job_id || verified.asset.id !== imported.asset.id ||
+          verified.asset.version?.content_hash !== contentHash)
+        throw new Error("Project media resource does not match the import job");
+      const mediaUrl = `/v1/projects/${encodeURIComponent(projectId)}/media/${encodeURIComponent(imported.media_id)}/content`;
+      const stagingWarning = await release(uploadId);
+      return { asset: verified.asset, media_url: mediaUrl, stagingWarning };
+    } catch (error) {
+      if (uploadId) {
+        try {
+          const current = await this.tool<OpencutUploadCreateOutput.UploadView>(
+            "opencut_upload_inspect", { upload_id: uploadId },
+          );
+          if (current.state === "receiving")
+            await this.tool("opencut_upload_abort", { upload_id: uploadId });
+          if (current.state === "receiving" || current.state === "aborted" || terminal)
+            await release(uploadId);
+        } catch {
+          // Leave the original failure visible. Retained staging is discoverable by upload ID.
+        }
+      }
+      throw error;
+    }
   }
   async mediaBlob(path: string) {
     const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}${path}`, {

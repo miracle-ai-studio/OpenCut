@@ -4,13 +4,11 @@ pub mod catalog;
 pub mod gate;
 pub mod uploads;
 use opencut_contracts::{Asset, AssetVersion, EditorError, ProjectSnapshot};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     fs::{self, File, OpenOptions},
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -232,6 +230,45 @@ impl AssetStore {
         let mut resolved = asset.clone();
         resolved.uri = path.to_string_lossy().into_owned();
         Ok(resolved)
+    }
+
+    /// Open the exact versioned bytes for an authorized reader. Verify the
+    /// opened descriptor before returning it so a later path replacement
+    /// cannot retarget the response.
+    pub fn open_verified(&self, asset: &Asset) -> Result<(File, u64), EditorError> {
+        let version = asset.version.as_ref().ok_or_else(|| {
+            error(
+                "ASSET_VERSION_INVALID",
+                "Project media has no fixed content version",
+            )
+        })?;
+        if version.id != format!("av_{}", version.content_hash) {
+            return Err(error(
+                "ASSET_VERSION_INVALID",
+                "Asset version id does not match its content hash",
+            ));
+        }
+        let path = self.object_path(&version.content_hash)?;
+        if !fs::symlink_metadata(&path)
+            .map_err(io_error)?
+            .file_type()
+            .is_file()
+        {
+            return Err(error(
+                "ASSET_UNAVAILABLE",
+                "Content-addressed object is not a regular file",
+            ));
+        }
+        let mut file = regular_file(&path)?;
+        let (hash, size) = copy_hash(&mut file, &mut std::io::sink(), &|| false)?;
+        if hash != version.content_hash || size != version.size {
+            return Err(error(
+                "ASSET_INTEGRITY_ERROR",
+                "Project media bytes do not match the fixed version",
+            ));
+        }
+        file.seek(SeekFrom::Start(0)).map_err(io_error)?;
+        Ok((file, size))
     }
 
     /// Copy and verify immutable inputs into an attempt-private directory. Never

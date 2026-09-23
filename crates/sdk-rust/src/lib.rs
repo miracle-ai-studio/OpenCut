@@ -291,6 +291,40 @@ impl Client {
         }
         Ok(format!("{}/v1/artifacts/{id}", self.base_url))
     }
+    pub fn project_media_url(
+        &self,
+        resource: &api::uploads::MediaImportJobResult,
+    ) -> Result<String, Error> {
+        let media_id = &resource.media_id;
+        let valid_id = media_id.strip_prefix("media_").is_some_and(|value| {
+            value.len() == 32
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        });
+        if resource.project_id.is_empty()
+            || !valid_id
+            || resource.asset.uri != format!("opencut-media://{media_id}")
+            || resource.asset.version.is_none()
+        {
+            return Err(Error::Configuration(
+                "Invalid project media resource".into(),
+            ));
+        }
+        let mut url = url::Url::parse(&self.base_url)
+            .map_err(|_| Error::Configuration("Invalid base URL".into()))?;
+        url.path_segments_mut()
+            .map_err(|_| Error::Configuration("Invalid base URL".into()))?
+            .extend([
+                "v1",
+                "projects",
+                resource.project_id.as_str(),
+                "media",
+                media_id.as_str(),
+                "content",
+            ]);
+        Ok(url.to_string())
+    }
     fn wait_for<T: Tool<Input = jobs::JobInput>>(
         &self,
         job_id: &str,
@@ -502,4 +536,33 @@ pub fn extended_job_result<K: jobs::JobKind>(
         status: 200,
         message: e.to_string(),
     })
+}
+
+#[cfg(test)]
+mod project_media_url_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn resource_url_encodes_project_segment_and_rejects_forged_uri() {
+        let client = Client::new("http://localhost:8788", "reader").unwrap();
+        let id = format!("media_{}", "a".repeat(32));
+        let mut resource: api::uploads::MediaImportJobResult = serde_json::from_value(json!({
+            "media_id":id,"project_id":"team/project","upload_id":"upload_x","job_id":"job_x",
+            "asset":{"id":"source","name":"source","kind":"audio",
+                "uri":format!("opencut-media://{id}"),"duration":null,"metadata":{},
+                "version":{"id":format!("av_{}", "b".repeat(64)),
+                    "content_hash":"b".repeat(64),"size":3}}
+        }))
+        .unwrap();
+        assert_eq!(
+            client.project_media_url(&resource).unwrap(),
+            format!("http://localhost:8788/v1/projects/team%2Fproject/media/{id}/content")
+        );
+        resource.asset.uri = "/private/secret".into();
+        assert!(matches!(
+            client.project_media_url(&resource),
+            Err(Error::Configuration(_))
+        ));
+    }
 }

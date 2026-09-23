@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 opencut-native-services = { path = "../../crates/native-services" }
+opencut-asset-store = { path = "../../crates/asset-store" }
 opencut-sqlite-store = { path = "../../crates/sqlite-store" }
 clap = { version = "4.6", features = ["derive"] }
 axum = "0.8.9"

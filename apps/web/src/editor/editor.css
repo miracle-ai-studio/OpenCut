@@ -76,6 +76,15 @@
   gap: 6px;
   font-size: 11px;
 }
+.oc-connect button {
+  max-width: 260px;
+  min-width: 0;
+}
+.connection-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .oc-connect svg,
 .timeline-tools svg,
 .action-row svg {

@@ -113,6 +113,10 @@ pub async fn serve(
             put(crate::upload_http::put_chunk),
         )
         .route("/v1/media/{hash}", get(crate::media_http::read))
+        .route(
+            "/v1/projects/{project}/media/{media_id}/content",
+            get(crate::media_http::read_project),
+        )
         .route("/v1/jobs", get(jobs).post(start_job))
         .route("/v1/jobs/{job}", get(job))
         .route("/v1/jobs/{job}/cancel", post(cancel_job))

@@ -164,6 +164,80 @@ pub(super) async fn read(
     response
 }
 
+/// Read project media only after resolving the opaque resource within the
+/// caller's current project grant. The returned file descriptor is verified
+/// against its fixed CAS version before any bytes reach the response.
+pub(super) async fn read_project(
+    AuthorizedHost(host): AuthorizedHost,
+    Path((project, media_id)): Path<(String, String)>,
+) -> Response {
+    use opencut_editor_application::uploads::ImportStore;
+    let database = host.database.clone();
+    let identity = host.identity.clone();
+    let opened = tokio::task::spawn_blocking(move || {
+        let mut app = opencut_sqlite_store::EditorApplication::open(database.as_ref())?;
+        identity.validate(&mut app)?;
+        app.set_caller(identity.caller);
+        let imported = app
+            .project_media(&opencut_editor_application::uploads::ProjectMediaInput {
+                project_id: project,
+                media_id,
+            })
+            .map_err(opencut_editor_application::uploads::public_error)?;
+        let mime = imported
+            .asset
+            .metadata
+            .get("mime_type")
+            .and_then(|value| value.as_str())
+            .map(str::to_owned);
+        let root = database
+            .parent()
+            .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing workspace root"))?
+            .join("asset-store");
+        let store = opencut_asset_store::AssetStore::read_only(root).map_err(|_| {
+            EditorError::new(
+                "ARTIFACT_VERIFICATION_FAILED",
+                "Project media is unavailable",
+            )
+        })?;
+        let (file, size) = store.open_verified(&imported.asset).map_err(|_| {
+            EditorError::new(
+                "ARTIFACT_VERIFICATION_FAILED",
+                "Project media content is missing or corrupt",
+            )
+        })?;
+        Ok::<_, EditorError>((file, size, mime))
+    })
+    .await;
+    let (file, size, mime) = match opened {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) => return into_http(opencut_automation::response(Err(error))),
+        Err(_) => return error_response("INTERNAL_ERROR", "Cannot read project media"),
+    };
+    let mut response = (
+        StatusCode::OK,
+        Body::from_stream(ReaderStream::new(tokio::fs::File::from_std(file))),
+    )
+        .into_response();
+    response
+        .extensions_mut()
+        .insert(crate::http_identity::RevalidateStream);
+    if let Some(mime) = mime.and_then(|value| HeaderValue::from_str(&value).ok()) {
+        response.headers_mut().insert("content-type", mime);
+    }
+    if let Ok(size) = HeaderValue::from_str(&size.to_string()) {
+        response.headers_mut().insert("content-length", size);
+    }
+    response.headers_mut().insert(
+        "x-content-type-options",
+        HeaderValue::from_static("nosniff"),
+    );
+    response
+        .headers_mut()
+        .insert("cache-control", HeaderValue::from_static("no-store"));
+    response
+}
+
 fn io_error(error: impl std::fmt::Display) -> EditorError {
     EditorError::new("STORAGE_ERROR", error.to_string())
 }

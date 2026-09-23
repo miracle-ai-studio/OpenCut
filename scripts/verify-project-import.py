@@ -81,6 +81,24 @@ def verify(binary,root,sdk):
   assert call('opencut_project_media_inspect',{'project_id':'a','media_id':imported['media_id']},reader)==imported
   http('opencut_project_media_inspect',{'project_id':'b','media_id':imported['media_id']},runner,'NOT_AUTHORIZED',403)
   checks.append('Seal accepts one real Worker job, registers a portable typed resource without changing project head, and enforces scoped resource reads')
+  def content(project,media_id,credential):
+   path=f'/v1/projects/{quote(project,safe="")}/media/{quote(media_id,safe="")}/content'
+   c=http_client.HTTPConnection('127.0.0.1',port,timeout=30)
+   c.request('GET',path,headers={'Authorization':'Bearer '+credential.read_text().strip()})
+   response=c.getresponse();body=response.read();status=response.status;headers=dict(response.getheaders());c.close()
+   return status,body,headers
+  for credential in [reader,editor,runner]:
+   status,body,headers=content('a',imported['media_id'],credential)
+   assert status==200 and body==data and digest(body)==imported['asset']['version']['content_hash']
+   assert headers['content-type']=='image/png' and headers['content-length']==str(len(data))
+   assert headers['cache-control']=='no-store' and headers['x-content-type-options']=='nosniff'
+  status,body,_=content('b',imported['media_id'],runner);assert status==403 and json.loads(body)['error']['code']=='NOT_AUTHORIZED'
+  status,body,_=content('b',imported['media_id'],owner);assert status==404 and json.loads(body)['error']['code']=='NOT_FOUND'
+  content_reader,content_id=issue('reader','-media-content')
+  assert content('a',imported['media_id'],content_reader)[0]==200
+  cli(['access','revoke',content_id])
+  assert content('a',imported['media_id'],content_reader)[0]==403
+  checks.append('Project media bytes are hash-verified and readable by current project grants; foreign IDs and revoked credentials reject without leaking bytes')
   staging=bool(cap['uploads'].get('staging'))
   if staging:
    observed=http('opencut_upload_retention',{'upload_id':upload['upload_id']},reader);assert observed['state']=='retained' and observed['release_eligible']
@@ -183,6 +201,16 @@ def verify(binary,root,sdk):
   actors={(x['action'],x['actor']['source'],x['actor']['principal_id']) for x in audit['records']}
   assert ('upload.chunk_accepted','http','uploader') in actors and ('upload.chunk_accepted','cli','uploader') in actors
   checks.append('Revocation during an incomplete HTTP body closes with a structured denial, no disk chunk/ACK, and committed writes preserve HTTP/CLI actor provenance')
+  content_hash=imported['asset']['version']['content_hash'];object_path=root/'asset-store'/content_hash[:2]/content_hash
+  original_bytes=object_path.read_bytes()
+  try:
+   object_path.chmod(0o600);object_path.write_bytes(original_bytes[:-1]+bytes([original_bytes[-1]^1]))
+   status,body,_=content('a',imported['media_id'],reader)
+   assert status!=200 and json.loads(body)['error']['code']=='ARTIFACT_VERIFICATION_FAILED'
+  finally:
+   object_path.write_bytes(original_bytes);object_path.chmod(0o444)
+  assert content('a',imported['media_id'],reader)[1]==original_bytes
+  checks.append('A same-size CAS mutation is rejected before project media streaming and intact content remains readable after repair')
   host.terminate();host.wait(timeout=10);host=None
   assert call('opencut_project_media_inspect',{'project_id':'a','media_id':imported['media_id']},runner)==imported
   report={'status':'passed','checks':checks,'binary_sha256':digest(binary.read_bytes()),'evidence':str(root),'job_id':sealed['job_id'],'media_id':imported['media_id'],'revision':revision};(root/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

@@ -55,6 +55,8 @@ policy 例：`{"principal_id":"reader","expected_revision":"0","enabled":true,"g
 
 完整会话由 `opencut_upload_seal` 接受为 `media.import` 持久 Job。成功后的公开 JobView 在 `extended_result` 中返回 schema 版本 1 的导入结果；TypeScript `publicJobResult` 和 Rust `extended_job_result` 可按类型读取。结果中的 `media_id` 只可在所属项目绑定，导入本身不修改时间线。`opencut_project_media_inspect`／`opencut_project_media_query` 用于有项目读取权的后续发现。
 
+授权客户端用 `GET /v1/projects/{project}/media/{media_id}/content` 读取导入素材字节；服务端先按当前项目 `read` 权限解析资源，再从固定 CAS 版本打开并校验完整 SHA-256／长度，然后返回检测到的 MIME 和长度。读取中策略变更按持续响应规则复核。`media_id` 与资源 URI 不授予全局媒体目录访问权；旧 `/v1/media/{hash}` 仍是 owner-only 兼容接口。TypeScript SDK 提供 `downloadProjectMedia`，Rust SDK 提供 `project_media_url`。当前 Web 的原生素材播放器会把授权响应读入浏览器 Blob；长素材的流式播放与内存边界仍需 R4/R7 单独验收。
+
 `abort` 仅处理仍在接收的会话；`UPLOAD_CLEANUP_PENDING` 表示状态已提交但私有字节尚未清完，应重试 abort。封存后的任务通过 Job 取消。终态上传暂存的保留和释放使用独立工具；完整物理配额与自动回收仍未完成。备份整个 workspace 时必须包含 `uploads` 目录。
 
 ## 媒体发布与未知结果

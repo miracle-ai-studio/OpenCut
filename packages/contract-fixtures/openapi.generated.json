@@ -4,7 +4,7 @@
   "info": {
     "title": "OpenCut automation tool API",
     "version": "1.0.0",
-    "description": "Domain and legacy automation endpoints plus raw project-upload chunks, published artifact bytes and public event SSE. Legacy v1 job paths are host-local and are not remote URLs."
+    "description": "Domain and legacy automation endpoints plus raw project-upload chunks, scoped project media reads, published artifact bytes and public event SSE. Legacy v1 job paths are host-local and are not remote URLs."
   },
   "security": [
     {
@@ -4126,6 +4126,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpencutUploadInspectOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured OpenCut error envelope; inspect error.code before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenCutErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project}/media/{media_id}/content": {
+      "get": {
+        "operationId": "opencut_project_media_content",
+        "description": "Read the verified fixed bytes of an imported project media resource. Requires the current project's read grant; the opaque media ID does not grant access by itself. Long responses revalidate authorization after policy changes. The response is not a host path or an owner-only global media URL.",
+        "x-opencut-read-only": true,
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^media_[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified media bytes with detected Content-Type and Content-Length.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }

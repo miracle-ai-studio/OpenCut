@@ -57,6 +57,11 @@ const t = (ticks: number, timebase = 24) => ({
 const n = secondsForDisplay;
 const isProjectFrameJob = (job: Job) =>
   job.kind === "preview.project_frame" || job.kind === "preview.composited_frame";
+const hasDownloadableArtifact = (job: Job) => {
+  const result = job.result as { artifact?: { content_hash?: unknown } } | null;
+  return job.state === "succeeded" &&
+    typeof result?.artifact?.content_hash === "string";
+};
 const resultTime = (value: unknown): Time | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as { ticks?: unknown; timebase?: unknown };
@@ -315,7 +320,7 @@ export function EditorWorkspace() {
         setStatus(
           err.code === "REVISION_CONFLICT"
             ? "Revision changed — refreshed"
-            : "Error",
+            : `${err.code ?? "Error"}: ${err.message}`,
         );
         if (err.code === "REVISION_CONFLICT") {
           setRedoRevision(null);
@@ -532,8 +537,10 @@ export function EditorWorkspace() {
     const sourceRequest = beginSourceRequest();
     if (!sourceRequest) return;
     let previewWarning: string | null = null;
+    let stagingWarning: string | null = null;
     await act(`Import ${file.name}`, async () => {
-      const up = await api.upload(file);
+      const up = await api.upload(snap.project.id, file);
+      stagingWarning = up.stagingWarning;
       if (!isCurrentWorkspace(editRequest, workspaceContext.current))
         throw new Error("Import was not applied because the workspace changed");
       const trackKind = trackKindForAsset(up.asset.kind);
@@ -602,11 +609,12 @@ export function EditorWorkspace() {
         previewWarning = source.error.message;
       }
     });
-    if (
-      previewWarning &&
-      isSameWorkspaceVisit(sourceRequest, currentSourceWorkspace())
-    )
-      setStatus(`Saved · source preview unavailable: ${previewWarning}`);
+    if (isSameWorkspaceVisit(sourceRequest, currentSourceWorkspace()) &&
+        (previewWarning || stagingWarning))
+      setStatus(`Saved · ${[
+        previewWarning && `source preview unavailable: ${previewWarning}`,
+        stagingWarning,
+      ].filter(Boolean).join(" · ")}`);
   };
   const replaceMedia = async (asset: Asset, file: File) => {
     if (!api || !snap || historical) return;
@@ -615,11 +623,13 @@ export function EditorWorkspace() {
     const sourceRequest = beginSourceRequest();
     if (!sourceRequest) return;
     let previewWarning: string | null = null;
+    let stagingWarning: string | null = null;
     const projectId = snap.project.id,
       revision = snap.revision;
     await act(`Replace media for ${asset.name}`, async () => {
-      const uploaded = await api.upload(file),
+      const uploaded = await api.upload(projectId, file),
         operation = assetReplaceOperation(asset, uploaded.asset);
+      stagingWarning = uploaded.stagingWarning;
       if (!isCurrentWorkspace(editRequest, workspaceContext.current))
         throw new Error("Replacement was not applied because the workspace changed");
       await api.apply(
@@ -642,11 +652,12 @@ export function EditorWorkspace() {
         previewWarning = source.error.message;
       }
     });
-    if (
-      previewWarning &&
-      isSameWorkspaceVisit(sourceRequest, currentSourceWorkspace())
-    )
-      setStatus(`Saved · source preview unavailable: ${previewWarning}`);
+    if (isSameWorkspaceVisit(sourceRequest, currentSourceWorkspace()) &&
+        (previewWarning || stagingWarning))
+      setStatus(`Saved · ${[
+        previewWarning && `source preview unavailable: ${previewWarning}`,
+        stagingWarning,
+      ].filter(Boolean).join(" · ")}`);
   };
   useEffect(
     () => () => {
@@ -1283,9 +1294,9 @@ export function EditorWorkspace() {
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
-          <button onClick={connect} disabled={busy || transitioning}>
+          <button onClick={connect} disabled={busy || transitioning} title={status}>
             {client ? <Wifi /> : <WifiOff />}
-            {status}
+            <span className="connection-status">{status}</span>
           </button>
         </div>
       </header>
@@ -1805,7 +1816,7 @@ export function EditorWorkspace() {
                     )}
                   </>
                 )}
-                {job.state === "succeeded" && (
+                {hasDownloadableArtifact(job) && (
                   <>
                     {!isProjectFrameJob(job) && (
                       <button onClick={() => previewArtifact(job)}>

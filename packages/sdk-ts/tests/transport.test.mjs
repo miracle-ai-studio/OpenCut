@@ -67,6 +67,26 @@ test("upload owns its byte snapshot and sends raw content with a verified digest
   await assert.rejects(c.uploadChunk("upload_"+"a".repeat(32), "00", original),TypeError);
 });
 
+test("project media URL stays scoped and raw reads preserve authorization errors", async () => {
+  const id = "media_" + "a".repeat(32);
+  const resource = { project_id: "team/project", media_id: id,
+    asset: { uri: `opencut-media://${id}`, version: { content_hash: "b".repeat(64), size: 3 } } };
+  const seen = [];
+  const client = new OpenCutClient({ baseUrl: "http://localhost:8788", token: "reader", fetch: async (url, init) => {
+    seen.push({url, authorization: init.headers.Authorization});
+    return new Response(Uint8Array.of(1, 2, 3), {status: 200});
+  }});
+  assert.equal(client.projectMediaUrl(resource), `http://localhost:8788/v1/projects/team%2Fproject/media/${id}/content`);
+  const response = await client.downloadProjectMedia(resource);
+  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [1, 2, 3]);
+  assert.deepEqual(seen, [{url: client.projectMediaUrl(resource), authorization: "Bearer reader"}]);
+  assert.throws(() => client.projectMediaUrl({...resource, asset: {...resource.asset, uri: "/private/secret"}}), TypeError);
+  const denied = new OpenCutClient({baseUrl:"http://localhost",token:"reader",fetch:async()=>
+    new Response(JSON.stringify({api_version:"1",request_id:"r",warnings:[],data:null,
+      error:{code:"NOT_AUTHORIZED",message:"Denied",details:{}}}),{status:403})});
+  await assert.rejects(denied.downloadProjectMedia(resource), error => error instanceof OpenCutApiError && error.code === "NOT_AUTHORIZED");
+});
+
 test("public extension results require matching successful kind and supported version", async () => {
   const { publicJobResult } = await import("../dist/index.js");
   const job = {state:"succeeded",kind:"media.import",result:null,result_unavailable:null,

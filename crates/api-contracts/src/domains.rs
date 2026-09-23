@@ -129,7 +129,7 @@ pub fn catalog(domain: Option<&str>, schemas: bool) -> Result<Vec<DomainDescript
         let actions = operations
             .iter()
             .filter_map(|tool| {
-                let (owner, action) = route(&tool.name)?;
+                let (owner, action) = route(tool.name)?;
                 (owner == *name).then(|| {
                     let full = schemas.then(|| tool_spec(tool.name).expect("registered operation"));
                     ActionDescriptor {

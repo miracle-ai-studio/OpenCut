@@ -64,9 +64,11 @@ def verify(archive, mcp_sdk_root=None, component=None):
                           *(f"/v1/tools/opencut_{domain['domain']}" for domain in domains),
                           '/v1/domains', '/v1/domains/{domain}',
                           '/v1/uploads/{upload_id}/chunks/{offset}',
+                          '/v1/projects/{project}/media/{media_id}/content',
                           '/v1/artifacts/{artifact}', '/v1/changes/stream'}
         assert set(paths) == expected_paths
         assert paths['/v1/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
+        assert paths['/v1/projects/{project}/media/{media_id}/content']['get']['operationId'] == 'opencut_project_media_content'
         assert paths['/v1/artifacts/{artifact}']['get']['operationId'] == 'opencut_artifact_download'
         assert paths['/v1/changes/stream']['post']['responses']['200']['content']['text/event-stream']['x-opencut-data-schema'] == {'$ref': '#/components/schemas/OpenCutEventStreamRecord'}
         capabilities = json.loads(run([binary, '--json', 'system', 'capabilities']))['data']
@@ -186,7 +188,10 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
  let sealed=client.call::<tools::UploadSeal>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
  assert_eq!(sealed.state,api::uploads::UploadState::Sealed);
  let import_job_id=sealed.job_id.expect("sealed upload must accept import job");
- println!("{}",json!({"transaction":applied,"snapshot":observed,"upload_id":upload_id,"import_job_id":import_job_id}));Ok(())
+ let done=client.wait_for_public_job(&import_job_id,opencut_sdk::WaitOptions::default())?;
+ let imported=opencut_sdk::extended_job_result::<opencut_sdk::jobs::kinds::MediaImport>(&done)?;
+ let media_url=client.project_media_url(&imported)?;
+ println!("{}",json!({"transaction":applied,"snapshot":observed,"upload_id":upload_id,"import_job_id":import_job_id,"media_id":imported.media_id,"media_url":media_url}));Ok(())
 }
 ''')
         env = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / 'target/local-package-consumer'))
@@ -205,6 +210,7 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
         assert readback['data'] == rust_result['snapshot']
         checks += ['Rust SDK source archive builds outside repo with portable dependencies only', 'Rust SDK replays the TS transaction then commits a new revision', 'delivered CLI independently reads the exact Rust SDK snapshot']
         (consumer / 'finish-upload.mjs').write_text('''import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import {OpenCutClient,publicJobResult} from '@opencut/sdk';
 const [base,token,tsReport,rustReport,output]=process.argv.slice(2);
@@ -219,6 +225,11 @@ assert.equal(imported.upload_id,ts.upload.id);
 assert.equal(imported.asset.kind,'audio');
 assert.equal(imported.asset.version.content_hash,ts.upload.contentHash);
 assert.deepEqual(await c.call('opencut_project_media_inspect',{project_id:'sdk-acceptance',media_id:imported.media_id}),imported);
+assert.equal(rust.media_id,imported.media_id);
+assert.equal(rust.media_url,c.projectMediaUrl(imported));
+const source=new Uint8Array(await (await c.downloadProjectMedia(imported)).arrayBuffer());
+assert.equal(source.byteLength,ts.upload.size);
+assert.equal(createHash('sha256').update(source).digest('hex'),ts.upload.contentHash);
 const released=await c.call('opencut_upload_release',{upload_id:ts.upload.id});
 assert.equal(released.state,'released');
 assert.equal(released.reserved_bytes,'0');
@@ -228,7 +239,7 @@ fs.writeFileSync(output,JSON.stringify({job,imported,released},null,2));
         rust_report.write_text(json.dumps(rust_result, indent=2))
         run(['node', consumer / 'finish-upload.mjs', base, token, ts_report, rust_report,
              evidence / 'cross-sdk-upload.json'], consumer)
-        checks.append('installed TS and Rust SDKs resume one raw upload, import verified audio and release staging across the same delivered host')
+        checks.append('installed TS and Rust SDKs resume one raw upload, verify scoped imported bytes and release staging across the same delivered host')
         history = json.loads(run(['python3', ROOT / 'scripts/verify-history-compatibility.py', '--binary', binary]))
         history_detail = json.loads(Path(history['report']).read_text())
         assert history['status'] == 'passed' and history_detail['binary_sha256'] == manifest['binary_sha256']

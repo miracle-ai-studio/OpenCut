@@ -73,12 +73,14 @@ const expectedPaths = [
   ...domains.map(d => `/v1/tools/opencut_${d.domain}`),
   "/v1/domains", "/v1/domains/{domain}",
   "/v1/uploads/{upload_id}/chunks/{offset}",
+  "/v1/projects/{project}/media/{media_id}/content",
   "/v1/artifacts/{artifact}",
   "/v1/changes/stream",
 ];
 assert.deepEqual(Object.keys(openapi.paths).sort(), expectedPaths.sort());
 assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");
 assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.requestBody.content["application/octet-stream"].schema.format, "binary");
+assert.equal(openapi.paths["/v1/projects/{project}/media/{media_id}/content"].get.operationId, "opencut_project_media_content");
 assert.equal(openapi.paths["/v1/artifacts/{artifact}"].get.operationId, "opencut_artifact_download");
 assert.equal(openapi.paths["/v1/changes/stream"].post.operationId, "opencut_changes_stream");
 assert.deepEqual(openapi.paths["/v1/changes/stream"].post.responses["200"].content["text/event-stream"]["x-opencut-data-schema"],

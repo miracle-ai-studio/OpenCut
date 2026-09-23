@@ -295,6 +295,20 @@ if (uploads) {
     },
   } };
 }
+paths["/v1/projects/{project}/media/{media_id}/content"] = { get: {
+  operationId: "opencut_project_media_content",
+  description: "Read the verified fixed bytes of an imported project media resource. Requires the current project's read grant; the opaque media ID does not grant access by itself. Long responses revalidate authorization after policy changes. The response is not a host path or an owner-only global media URL.",
+  "x-opencut-read-only": true,
+  parameters: [
+    { name: "project", in: "path", required: true, schema: { type: "string" } },
+    { name: "media_id", in: "path", required: true, schema: { type: "string", pattern: "^media_[a-f0-9]{32}$" } },
+  ],
+  responses: {
+    "200": { description: "Verified media bytes with detected Content-Type and Content-Length.",
+      content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } },
+    default: transportError,
+  },
+} };
 paths["/v1/artifacts/{artifact}"] = { get: {
   operationId: "opencut_artifact_download",
   description: "Download the bytes of a published job artifact identified by job ID and SHA-256. Authorization and integrity are checked against the committed job; a historical successful job does not guarantee that its file remains available. Content-Type identifies the actual media format.",
@@ -322,7 +336,7 @@ paths["/v1/changes/stream"] = { post: {
 const openapi = {
   openapi: "3.1.0",
   jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",
-  info: { title: "OpenCut automation tool API", version: "1.0.0", description: "Domain and legacy automation endpoints plus raw project-upload chunks, published artifact bytes and public event SSE. Legacy v1 job paths are host-local and are not remote URLs." },
+  info: { title: "OpenCut automation tool API", version: "1.0.0", description: "Domain and legacy automation endpoints plus raw project-upload chunks, scoped project media reads, published artifact bytes and public event SSE. Legacy v1 job paths are host-local and are not remote URLs." },
   security: [{ bearerAuth: [] }], paths,
   components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } }, schemas },
 };

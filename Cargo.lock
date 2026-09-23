@@ -4525,6 +4525,7 @@ dependencies = [
  "axum",
  "clap",
  "futures-util",
+ "opencut-asset-store",
  "opencut-automation",
  "opencut-contracts",
  "opencut-editor-application",

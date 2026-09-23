@@ -240,9 +240,22 @@ export class OpenCutClient {
     if (reference.artifact_id !== id || !/^artifact:job_[a-f0-9]{32}:[a-f0-9]{64}$/.test(id)) throw new TypeError("Invalid artifact reference");
     return `${this.baseUrl}/v1/artifacts/${encodeURIComponent(id)}`;
   }
+  projectMediaUrl(resource: ToolOutput<"opencut_project_media_inspect">): string {
+    if (!resource.project_id || !/^media_[a-f0-9]{32}$/.test(resource.media_id) ||
+      resource.asset.uri !== `opencut-media://${resource.media_id}`) {
+      throw new TypeError("Invalid project media resource");
+    }
+    return `${this.baseUrl}/v1/projects/${encodeURIComponent(resource.project_id)}/media/${resource.media_id}/content`;
+  }
+  /** Return authorized, hash-verified project media as a streaming response. */
+  downloadProjectMedia(resource: ToolOutput<"opencut_project_media_inspect">, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(this.projectMediaUrl(resource), "project media", options);
+  }
   /** Return a streaming response. The server verifies the published hash before serving bytes. */
-  async downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
-    const url = this.artifactUrl(reference);
+  downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(this.artifactUrl(reference), "artifact", options);
+  }
+  async #downloadBytes(url: string, kind: string, options: CallOptions): Promise<Response> {
     options.signal?.throwIfAborted();
     let response: Response;
     try {
@@ -257,12 +270,12 @@ export class OpenCutClient {
       catch (cause) {
         if (options.signal?.aborted) throw options.signal.reason;
         if (!(cause instanceof SyntaxError)) throw new OpenCutTransportError(cause);
-        throw new OpenCutProtocolError("Invalid artifact error response.", response.status);
+        throw new OpenCutProtocolError(`Invalid ${kind} error response.`, response.status);
       }
       if (object(value) && value.api_version === "1" && typeof value.request_id === "string" && object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string" && Array.isArray(value.warnings) && value.warnings.every(w => typeof w === "string")) {
         throw new OpenCutApiError(value.error.code, value.error.message, value.error.details, response.status, value.request_id, value.warnings);
       }
-      throw new OpenCutProtocolError("Invalid artifact response.", response.status);
+      throw new OpenCutProtocolError(`Invalid ${kind} response.`, response.status);
     }
     return response;
   }
