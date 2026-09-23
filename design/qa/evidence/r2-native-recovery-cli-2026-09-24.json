@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "binary_sha256": "a9fcb55c6471c1d5cc9f9180d8e91cb912b63ab6315bf572ccb5672de0b06721",
+  "checks": [
+    "An unreachable margin blocks normal SQLite tools; local owner native inspect and exact policy replay restore access without changing SQL rows or project head",
+    "Credential-bearing recovery is rejected before SQLite authentication and cannot alter the ledger",
+    "Owner configures a 64 MiB independent volume before SQLite initialization; real managed project create, reopen and integrity check pass"
+  ],
+  "small_volume": "64 MiB HFS+ bootstrap and project reopen passed",
+  "scope": "local OS-owner policy recovery and 64 MiB bootstrap; no preallocated repair reserve or disk-full repair transaction"
+}

@@ -17,7 +17,7 @@ def verify(binary,root,sdk):
  def request(method,path,credential,body=None,content_type='application/json',error=None,status=200):
   c=http_client.HTTPConnection('127.0.0.1',port,timeout=30)
   try:c.request(method,path,body,{'Authorization':'Bearer '+credential.read_text().strip(),'Content-Type':content_type})
-  except BrokenPipeError:pass # The server may reject headers before a large body finishes sending.
+  except (BrokenPipeError, ConnectionResetError):pass # The server may reject headers before a large body finishes sending.
   r=c.getresponse();data=r.read();actual=r.status;c.close()
   out=json.loads(data);trace.append({'http':method+' '+path,'status':actual,'response':out});assert actual==status,(actual,out)
   if error:assert out['error']['code']==error,out

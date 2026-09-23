@@ -6,6 +6,8 @@
 
 2026-09-24 第二个实施增量：`sqlite-store` 注册具名 `opencut-control-v1` VFS，保留原生 VFS 的锁、同步和实际 I/O，在主库／WAL／主 journal 的 `xWrite`、增长型 `xTruncate`、`SQLITE_FCNTL_SIZE_HINT` 与 WAL-index `xShmMap` 执行前扩展持久控制预留。CLI、HTTP、MCP 和 Worker 的管理型数据库连接统一使用该入口；嵌入式 `EditorApplication::open` 仍为非管理入口。每个管理型工作区绑定一个数据库文件名，第二个不同数据库会在打开前被拒绝。`opencut_database_inspect.managed_vfs_enabled` 报告当前连接是否使用具名 VFS；总存储强制标志保持 false。真实 CLI 的固定 WAL 读者、额度拒绝、原键重试和完整性检查已通过，但临时文件、外部直接 SQLite 写入、修复预留及全工作区物理上限仍未放行；`control.write_interception_enabled` 因此仍保守为 false。旧二进制与新宿主不可同时写同一工作区。
 
+2026-09-24 第三个实施增量：本机 OS owner 可使用 `opencut --database <path> storage recovery inspect` 查看原生账本，或以 `storage recovery configure --input <json-file-or->` 携带 expected revision／幂等键恢复预算策略。这个 CLI 分支在 SQLite 鉴权和打开之前执行；带 `--credential-file` 的调用直接拒绝。它使用现有持久账本回执记录 actor／request ID，不写 SQLite 审计表。该路径已在遗留 WAL 需要重建 SHM、普通工具因过高余量门槛无法打开时恢复访问；也支持在 64 MiB 独立卷初始化数据库前设置较低门槛。它**只解决策略锁死和初始化**，没有分配 repair 文件，不能保证盘满时取消／释放事务。见[本机恢复入口验收](../qa/r2-native-recovery-cli-2026-09-24.md)。
+
 VFS 将真实控制额度／卷余量拒绝映射为 SQLite `SQLITE_FULL`，由公开层返回 `DATABASE_CAPACITY_EXHAUSTED`；工作区观察失败、别名目录及账本错误映射为 SQLite I/O 错误，避免把结构损坏误导为“释放磁盘即可恢复”。Worker heartbeat 失败保留本地错误诊断。完整公共错误保真与修复路径仍需在 R2 放行前审查。
 
 技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库通过 `rusqlite` 的具名 VFS 打开入口安装包装层。下文是完整目标协议，已实施与待完成项以上述增量和 QA 证据区分。

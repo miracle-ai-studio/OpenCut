@@ -18,6 +18,10 @@
 
 2026-09-24 R2 本轮收据：相同 x86_64 debug 开发包在仓库外[32 项完整验收](evidence/r2-control-vfs-package-acceptance-2026-09-24.json)通过，覆盖双 SDK、MCP/HTTP、历史迁移、VFS、独立盘满、Worker、网络撤权、上传导入及解码后重开；可选 WASM component 未随本轮提交验收。共享空余门槛过高时 owner 可能连预算重新配置也无法进入，须由实际 repair 通道解决；状态仍为部分完成。
 
+2026-09-24 继续修复：本机 OS owner 的原生账本恢复 CLI 在 SQLite 不可达时可检查并修正过高空余门槛，带受限凭证的调用拒绝；真实遗留 WAL 与 64 MiB 卷初始化动线已[单独验收](r2-native-recovery-cli-2026-09-24.md)。这只是 repair 前置入口，没有预分配空间或盘满取消保证；完整 R2 状态不变。
+
+2026-09-24 交付复验：该恢复入口和既有编辑／导入／Worker／历史协议已随同一 x86_64 debug 归档在仓库外[33 项整包验收](evidence/r2-native-recovery-package-acceptance-2026-09-24.json)通过；本轮未随包验可选 WASM component，不据此放行完整 R2 或 R0–R7。
+
 ## Agent 的实际执行路径
 
 ```mermaid
@@ -54,7 +58,7 @@ Rust 内核不是单个 crate，也不是 CLI／MCP。它的纯计算部分与�
 |---|---|---|---|
 | R0 验收基线 | 部分完成 | 恢复历史夹具并跑通 v1–v15 × 两摘要 30 格；真实 HTTP/CLI 合成音视频 10 项；双 SDK 与官方 MCP 独立消费；macOS x86_64 debug 开发包仓库外验收 36 项通过，四条精确跨 SDK 恢复动线已核销；[回放失败项按序号分类](recovery-replay-failure-audit-2026-09-23.md) | 缺真实旧用户库、中文访谈／VFR／长视频与硬件性能基线；当前包不等于 release／完整系统发行 |
 | R1 正确性与状态 | 部分完成 | 当前二进制通过导入识别、原子编辑与同键重放、冲突、旧修订导出、损坏产物拒绝、重启重开；Web 已验实际浏览器导入、整工程恢复撤销／重做和播放 | 异步交错、选择性撤销、真实音频边界及崩溃窗口尚未组成同一版完整放行证据 |
-| R2 架构与公开契约 | 部分完成 | 纯 Core、Application 用例、原生端口、SQLite/CAS 适配及共享 Automation；九领域/61 叶操作四入口；76 路径 OpenAPI 包含项目素材读取、原始上传、产物下载和公共 SSE；同一包已验双 SDK 接续真实音频上传、受限预检、64 MiB 盘满／WAL、CAS 清理、Worker 输出准入和媒体／插件／下载写入预算 | 全工作区写入准入仍显式为 false；SQLite/WAL 的预先准入与控制元数据增长、产物保留／持续会话引用、release／跨平台交付验收未完成 |
+| R2 架构与公开契约 | 部分完成 | 纯 Core、Application 用例、原生端口、SQLite/CAS 适配及共享 Automation；九领域/61 叶操作四入口；76 路径 OpenAPI 包含项目素材读取、原始上传、产物下载和公共 SSE；同一包已验双 SDK 接续真实音频上传、受限预检、64 MiB 盘满／WAL、CAS 清理、Worker 输出准入和媒体／插件／下载写入预算；管理型 SQLite 主库/WAL/journal/SHM 已有 VFS 写前控制预留，本机 owner 可独立恢复锁死策略 | 全工作区写入准入仍显式为 false；SQLite 临时文件与控制元数据的严格物理保证、实际 repair 预留及盘满修复、产物保留／持续会话引用、release／跨平台交付验收未完成 |
 | R3 人机协作 | 部分完成 | 提交事件、游标观察、固定修订与整工程恢复存在；Web 有事件及操作协调代码 | 无选择性事务撤销、因果重做、显式分支比较／合并；真实浏览器与外部 Agent 并发协作未验 |
 | R4 连续预览 | 部分完成 | 工程帧／直接帧／区间预览和导出可由真实 Worker 生成，合成描述共用 | 无连续播放 Session、seek generation／owner lease／presentation telemetry；无真实播放 A/V 与性能门槛证据 |
 | R5 素材理解 | 未形成闭环 | 媒体探测与人工给定字幕／时间码可参与剪辑；MCP prompt 明确不声称自动转写 | 无可验的转写、词级时间、说话人、镜头／静音分析产物与证据搜索；不能完成真实访谈自动理解到修正的动线 |

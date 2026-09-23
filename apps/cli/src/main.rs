@@ -11,6 +11,7 @@ mod mcp_http;
 mod mcp_replay;
 mod mcp_sessions;
 mod media_http;
+mod storage_recovery;
 mod upload_cli;
 mod upload_http;
 
@@ -45,6 +46,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Local owner recovery of durable storage policy without opening SQLite.
+    Storage {
+        #[command(subcommand)]
+        command: storage_recovery::Command,
+    },
     Upload {
         #[command(subcommand)]
         command: upload_cli::Command,
@@ -307,6 +313,15 @@ async fn main() {
             error.exit();
         }
     };
+    if let Command::Storage { command } = &cli.command {
+        // Ordinary authentication and denial journaling both open SQLite. A
+        // recovery entry must remain reachable when SQLite cannot allocate.
+        emit_response(
+            storage_recovery::execute(&cli.database, cli.credential_file.as_deref(), command),
+            cli.json,
+        );
+        return;
+    }
     let caller = match access::caller(&cli.database, cli.credential_file.as_deref()) {
         Ok(caller) => caller,
         Err(error) => {
@@ -530,6 +545,10 @@ async fn main() {
         opencut_automation::denials::DenialReason::AuthorizationDenied,
         response,
     );
+    emit_response(response, cli.json);
+}
+
+fn emit_response(response: Response, json: bool) {
     let code = response
         .error
         .as_ref()
@@ -541,7 +560,7 @@ async fn main() {
             }
         })
         .unwrap_or(0);
-    let output = if cli.json {
+    let output = if json {
         serde_json::to_string(&response)
     } else {
         serde_json::to_string_pretty(&response)

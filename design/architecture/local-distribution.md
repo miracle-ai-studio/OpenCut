@@ -23,6 +23,8 @@ python3 doctor.py
 
 `serve` 同时运行持久化 Worker。直接 CLI/MCP 接入时，可另开 `./bin/opencut --database /your/workspace/workspace.sqlite worker run`。CLI `--json` 输出一个结构化 envelope；stderr 留给诊断。MCP 入口是 `./bin/opencut --database /your/workspace/workspace.sqlite mcp serve`。新版入口协商 2025-11-25，支持 tools、resources/templates、prompts 与每连接最多 32 个资源订阅；资源通知用于重新读取，不是持久化日志。不要把 HTTP token 写进源码或 MCP 参数。
 
+若预算门槛设置过高导致 SQLite 的 WAL／SHM 无法重建，本机 workspace owner 可运行 `./bin/opencut --database /your/workspace/workspace.sqlite --json storage recovery inspect`，再用 `storage recovery configure --input policy.json` 按当前 expected revision 和稳定幂等键恢复策略。此路径直接读取原生账本，不打开数据库；带 `--credential-file` 的调用被拒绝。策略变更有账本回执，但数据库不可用时没有 SQLite 审计记录。此命令没有预分配修复容量，不能保证实际盘满时仍可取消任务或释放上传。
+
 HTTP 公共事件流为 `POST /v1/changes/stream`，body 使用 EventChangesInput；SSE data 与 CLI 使用同一 StreamRecord。每条 event 的 id 可作为 Last-Event-ID 重连，优先于 body cursor；不要混用 MCP 回放 ID。
 
 ## 提交来源

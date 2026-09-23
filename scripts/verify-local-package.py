@@ -468,6 +468,7 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             ('opencut_denial_query', 'verify-denials.py', 'bounded refusal audit, degraded logging and stream revocation'),
             ('opencut_storage_inspect', 'verify-storage.py', 'bounded workspace observation and scoped refusal under directory replacement'),
             ('opencut_storage_budget_inspect', 'verify-budget.py', 'real write admission, failed import recovery and SIGKILL reservation recovery'),
+            ('opencut_storage_budget_inspect', 'verify-storage-recovery-cli.py', 'local owner policy recovery through a stranded WAL and 64 MiB bootstrap without SQLite access'),
             ('opencut_cas_gc_plan', 'verify-cas-gc.py', 'reviewed CAS collection, historical render preservation and crash recovery'),
             ('opencut_database_inspect', 'verify-control-vfs.py', 'managed SQLite WAL write admission, exact-key retry and independent integrity'),
         ]
