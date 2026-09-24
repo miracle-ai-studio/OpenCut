@@ -210,6 +210,91 @@ fn cancellation_is_cooperative_and_terminal_records_are_immutable() {
     );
     assert_eq!(app.get_job(&job.job_id).unwrap(), completed);
 }
+
+#[cfg(unix)]
+#[test]
+fn owner_repair_cannot_cancel_a_live_writer_but_fences_an_abandoned_attempt() {
+    use opencut_editor_application::{
+        audit::{CallSource, ExecutionContext},
+        budget::{BudgetNative, RepairAction, RepairRequest},
+    };
+    use opencut_storage_budget::{AttemptLease, Budget};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("workspace.sqlite");
+    let mut worker = EditorApplication::open_managed(&path).unwrap();
+    let job = enqueue(&mut worker, "repair-running");
+    let claimed = worker.claim_job("worker", 0, 30_000).unwrap().unwrap();
+    let attempt = dir
+        .path()
+        .join("artifacts")
+        .join(&job.job_id)
+        .join(format!("attempt-{}", claimed.attempt));
+    std::fs::create_dir_all(&attempt).unwrap();
+    let live_writer = AttemptLease::acquire(&attempt).unwrap();
+    assert_eq!(
+        worker.repair_cancel_job(&job.job_id).unwrap_err().code,
+        "CAPABILITY_UNAVAILABLE"
+    );
+    drop(worker);
+
+    let budget = Budget::new(dir.path());
+    let context = ExecutionContext::local(CallSource::Cli);
+    budget
+        .repair_transition(
+            RepairAction::Enter,
+            RepairRequest {
+                expected_revision: 0,
+                idempotency_key: "enter".into(),
+            },
+            &context,
+        )
+        .unwrap();
+    let mut repair = EditorApplication::open_managed_repair(&path).unwrap();
+    assert_eq!(
+        repair.repair_cancel_job(&job.job_id).unwrap_err().code,
+        "STORAGE_BUDGET_BUSY"
+    );
+    assert_eq!(
+        repair.get_job(&job.job_id).unwrap().state,
+        JobState::Running
+    );
+    drop(live_writer);
+    let cancelled = repair.repair_cancel_job(&job.job_id).unwrap();
+    assert_eq!(cancelled.state, JobState::Cancelled);
+    assert!(cancelled.cancel_requested);
+    assert!(cancelled.lease_owner.is_none());
+    assert!(cancelled.lease_until.is_none());
+    assert_eq!(repair.repair_cancel_job(&job.job_id).unwrap(), cancelled);
+    let events = repair.job_events_after(0, 100, Some(&job.job_id)).unwrap();
+    assert_eq!(events.last().unwrap().event_type, "cancelled");
+    drop(repair);
+    budget
+        .repair_transition(
+            RepairAction::Exit,
+            RepairRequest {
+                expected_revision: 1,
+                idempotency_key: "exit".into(),
+            },
+            &context,
+        )
+        .unwrap();
+    let mut reopened = EditorApplication::open_managed(&path).unwrap();
+    assert_eq!(reopened.get_job(&job.job_id).unwrap(), cancelled);
+    assert_eq!(
+        reopened
+            .fail_job(
+                &job.job_id,
+                "worker",
+                claimed.attempt,
+                1,
+                json!({"late":true})
+            )
+            .unwrap_err()
+            .code,
+        "JOB_LEASE_LOST"
+    );
+}
 #[test]
 fn a_lease_identity_cannot_be_used_for_another_job_with_the_same_worker_and_attempt() {
     let mut app = EditorApplication::open(":memory:").unwrap();

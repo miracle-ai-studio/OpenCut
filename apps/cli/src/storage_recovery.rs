@@ -30,7 +30,7 @@ pub enum RecoveryCommand {
         #[arg(long)]
         input: PathBuf,
     },
-    /// Cancel one existing job while the bounded repair gate is active.
+    /// Cancel one existing job after fencing normal hosts and live attempt writers.
     Cancel { job_id: String },
     /// Release eligible upload staging while the bounded repair gate is active.
     Release { upload_id: String },
@@ -106,7 +106,7 @@ pub fn execute(database: &Path, credential: Option<&Path>, command: &Command) ->
                 let mut app =
                     opencut_sqlite_store::EditorApplication::open_managed_repair(database)?;
                 app.set_execution_context(context.clone());
-                Ok(json!(app.cancel_job(job_id)?))
+                Ok(json!(app.repair_cancel_job(job_id)?))
             }
             Command::Recovery {
                 command: RecoveryCommand::Release { upload_id },

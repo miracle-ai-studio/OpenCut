@@ -75,6 +75,12 @@ pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), Edi
         };
         if let Some(job) = claimed {
             let result = execute_monitored(database, &output_root, &worker, &job, stop.clone());
+            let capacity_fault = result.as_ref().err().is_some_and(|error| {
+                matches!(
+                    error.code.as_str(),
+                    "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
+                )
+            });
             let state = app.get_job(&job.job_id)?;
             // Host shutdown abandons the lease; recovery retries the immutable input.
             // A user cancellation, in contrast, must reach the cancelled state.
@@ -108,7 +114,16 @@ pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), Edi
                 };
                 if let Err(error) = completion {
                     eprintln!("Could not publish job {}: {error}", job.job_id);
+                    // A worker that cannot persist its outcome must release all
+                    // managed SQLite connections so the owner can enter repair.
+                    return Err(error);
                 }
+            }
+            if capacity_fault {
+                return Err(EditorError::new(
+                    "DATABASE_CAPACITY_EXHAUSTED",
+                    "Worker stopped after storage capacity failure; owner repair may be required",
+                ));
             }
             if once {
                 return Ok(());
@@ -136,13 +151,16 @@ fn execute_monitored(
     std::thread::scope(|scope| {
         let monitor_cancel = cancel.clone();
         let monitor_done = done.clone();
-        scope.spawn(move || {
+        let monitor = scope.spawn(move || {
             let mut app = monitor_app;
             let mut last_heartbeat = Instant::now();
-            while !monitor_done.load(Ordering::SeqCst) {
+            loop {
+                if monitor_done.load(Ordering::SeqCst) {
+                    break None;
+                }
                 if stop.load(Ordering::SeqCst) {
                     monitor_cancel.cancel();
-                    break;
+                    break None;
                 }
                 match app
                     .live_jobs()
@@ -150,7 +168,7 @@ fn execute_monitored(
                 {
                     Ok(state) if state.cancel_requested => {
                         monitor_cancel.cancel();
-                        break;
+                        break None;
                     }
                     Ok(_) => last_heartbeat = Instant::now(),
                     Err(error)
@@ -167,7 +185,7 @@ fn execute_monitored(
                             job.job_id, job.attempt
                         );
                         monitor_cancel.cancel();
-                        break;
+                        break Some(error);
                     }
                 }
                 for _ in 0..5 {
@@ -183,7 +201,12 @@ fn execute_monitored(
             execute(root, job, &cancel, &mut |update| reporter.report(update))
         }));
         done.store(true, Ordering::SeqCst);
-        if let Some(error) = reporter.error {
+        let monitor_error = monitor
+            .join()
+            .unwrap_or_else(|_| Some(EditorError::new("INTERNAL_ERROR", "Job monitor panicked")));
+        if let Some(error) = monitor_error {
+            Err(error)
+        } else if let Some(error) = reporter.error {
             Err(error)
         } else {
             outcome.unwrap_or_else(|_| {
@@ -596,7 +619,11 @@ fn execute(
         }
         "media.probe" => {
             let request: ProbeRequest = parse(job.input.clone())?;
-            Ok(json!(backend.probe(&request).map_err(media_error)?))
+            Ok(json!(
+                backend
+                    .probe_cancellable(&request, cancel)
+                    .map_err(media_error)?
+            ))
         }
         "preview.frame" => {
             let request: FrameJobInput = parse(job.input.clone())?;

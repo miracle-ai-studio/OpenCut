@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "binary_sha256": "9feb66843d671300c46e3f4d6f74b5a18b6cb8978b1c89edd84a737e9961abd1",
+  "checks": [
+    "The managed 64 MiB workspace physically writes, fsyncs and reports an allocated 8 MiB reserve before failure",
+    "An active Worker connection prevents repair entry on the full volume; killing the supervisor leaves the inherited attempt lock with its live media child",
+    "At zero external free bytes, an ordinary edit is rejected before changing the project head",
+    "A full volume rejects the admission ledger staging before changing the owner policy",
+    "Repair refuses to cancel a running job while its orphaned media child holds the attempt lock, then atomically cancels it after the child exits",
+    "The owner releases the reserve on an actually full volume, durably retries the refused policy, cancels one queued job and releases one retained upload through the repair VFS, while normal edits and premature replenishment remain blocked",
+    "After external capacity returns, reserve replenishment, normal editing with exact-key replay, reopen and independent SQLite integrity all pass"
+  ],
+  "volume_capacity_bytes": 67067904,
+  "available_at_failure_bytes": 0,
+  "released_available_bytes": 8417280,
+  "filler_bytes": 65142784,
+  "repair_target_bytes": 8388608,
+  "scope": "macOS HFS+ 64 MiB bounded running and queued job cancellation, inherited writer lifetime, retained-upload release and ledger staging; external writers and full workspace physical enforcement remain outside this result"
+}

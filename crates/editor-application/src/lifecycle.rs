@@ -31,6 +31,9 @@ pub enum WorkerUpdate {
 }
 pub enum JobAction<'a> {
     RequestCancel,
+    /// Owner repair has fenced normal database connections and verified that
+    /// the attempt has no live writer before abandoning its durable lease.
+    RepairCancel,
     Claim {
         worker: &'a str,
         lease_ms: i64,
@@ -86,6 +89,10 @@ impl<'a, S: JobLifecycleStore, C: JobClock> JobService<'a, S, C> {
     pub fn cancel(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
         self.store
             .update_atomic(job_id, JobAction::RequestCancel, &self.clock)
+    }
+    pub fn repair_cancel(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
+        self.store
+            .update_atomic(job_id, JobAction::RepairCancel, &self.clock)
     }
     pub fn recover(&mut self) -> Result<usize, EditorError> {
         self.store.recover_atomic(&self.clock)
@@ -200,6 +207,20 @@ pub fn transition(
                 None
             }
         },
+        JobAction::RepairCancel => {
+            if current.state != JobState::Running {
+                changed = false;
+                None
+            } else {
+                next.state = JobState::Cancelled;
+                next.cancel_requested = true;
+                next.lease_owner = None;
+                next.lease_until = None;
+                next.result = None;
+                next.error = None;
+                event("cancelled", json!({"repair":true}))
+            }
+        }
         JobAction::Claim { worker, lease_ms } => {
             let until = deadline(worker, now_ms, lease_ms)?;
             if current.state != JobState::Queued || current.cancel_requested {

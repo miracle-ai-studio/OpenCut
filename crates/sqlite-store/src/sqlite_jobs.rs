@@ -51,6 +51,7 @@ impl JobLifecycleStore for SqliteConnection {
         }
         let context = match &action {
             JobAction::RequestCancel => self.1.clone(),
+            JobAction::RepairCancel => self.1.clone(),
             JobAction::Claim { worker, .. } => ExecutionContext::worker(Some(worker)),
             JobAction::Worker { lease, .. } => ExecutionContext::worker(Some(lease.worker)),
             JobAction::Recover => ExecutionContext::worker(None),

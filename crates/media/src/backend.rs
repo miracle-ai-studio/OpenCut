@@ -91,8 +91,16 @@ impl FfmpegBackend {
     }
 
     pub fn probe(&self, request: &ProbeRequest) -> MediaResult<MediaMetadata> {
+        self.probe_cancellable(request, &CancellationToken::new())
+    }
+
+    pub fn probe_cancellable(
+        &self,
+        request: &ProbeRequest,
+        cancel: &CancellationToken,
+    ) -> MediaResult<MediaMetadata> {
         require_input(&request.input)?;
-        let output = process::checked_output(
+        let output = process::checked_output_limited(
             Command::new(&self.ffprobe)
                 .args([
                     "-v",
@@ -104,10 +112,12 @@ impl FfmpegBackend {
                 ])
                 .arg(&request.input),
             "ffprobe",
+            cancel,
+            Duration::from_secs(30),
             self.admission.as_deref(),
         )?;
         let raw: RawProbe =
-            serde_json::from_slice(&output.stdout).map_err(|e| MediaError::InvalidToolOutput {
+            serde_json::from_slice(&output).map_err(|e| MediaError::InvalidToolOutput {
                 tool: "ffprobe".into(),
                 detail: e.to_string(),
             })?;
@@ -1866,6 +1876,38 @@ fn parse_decimal_time(v: &str) -> Option<MediaTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn worker_probe_honors_cancellation_of_a_blocked_reader() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("media.wav");
+        fs::write(&input, b"fixture").unwrap();
+        let probe = dir.path().join("ffprobe");
+        fs::write(
+            &probe,
+            "#!/usr/bin/env python3\nimport time\ntime.sleep(30)\n",
+        )
+        .unwrap();
+        fs::set_permissions(&probe, fs::Permissions::from_mode(0o755)).unwrap();
+        let backend = FfmpegBackend {
+            ffmpeg: PathBuf::from("ffmpeg"),
+            ffprobe: probe,
+            admission: None,
+        };
+        let cancel = CancellationToken::new();
+        let signal = cancel.clone();
+        let timer = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(100));
+            signal.cancel();
+        });
+        let start = std::time::Instant::now();
+        let result = backend.probe_cancellable(&ProbeRequest { input }, &cancel);
+        timer.join().unwrap();
+        assert!(matches!(result, Err(MediaError::Cancelled)), "{result:?}");
+        assert!(start.elapsed() < Duration::from_secs(3));
+    }
 
     #[test]
     fn audio_start_maps_exact_rational_time_to_output_samples() {

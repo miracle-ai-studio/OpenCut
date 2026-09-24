@@ -55,6 +55,7 @@ pub struct EditorApplication {
     asset_store_root: std::path::PathBuf,
     _memory_store: Option<tempfile::TempDir>,
     managed_vfs: bool,
+    repair_mode: bool,
 }
 
 pub use opencut_api_contracts::{
@@ -133,7 +134,7 @@ impl EditorApplication {
                 } else {
                     ensure_wal_for_file_database(&connection)?;
                 }
-                return Self::finish_open(connection, path, managed_vfs);
+                return Self::finish_open(connection, path, managed_vfs, repair);
             }
             DatabaseState::Version(version) if !(1..DATABASE_SCHEMA_VERSION).contains(&version) => {
                 return Err(unsupported_database_version(version));
@@ -163,7 +164,7 @@ impl EditorApplication {
             DatabaseState::Version(DATABASE_SCHEMA_VERSION) => {
                 tx.commit().map_err(storage_error)?;
                 ensure_wal_for_file_database(&connection)?;
-                return Self::finish_open(connection, path, managed_vfs);
+                return Self::finish_open(connection, path, managed_vfs, repair);
             }
             DatabaseState::Version(version) if (1..DATABASE_SCHEMA_VERSION).contains(&version) => {
                 version
@@ -351,13 +352,14 @@ impl EditorApplication {
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
-        Self::finish_open(connection, path, managed_vfs)
+        Self::finish_open(connection, path, managed_vfs, repair)
     }
 
     fn finish_open(
         connection: Connection,
         database_path: &Path,
         managed_vfs: bool,
+        repair_mode: bool,
     ) -> Result<Self, EditorError> {
         let (memory_store, asset_store_root) = if database_path == Path::new(":memory:") {
             let directory = tempfile::tempdir().map_err(|error| {
@@ -388,6 +390,7 @@ impl EditorApplication {
             asset_store_root,
             _memory_store: memory_store,
             managed_vfs,
+            repair_mode,
         })
     }
 
@@ -591,6 +594,57 @@ impl EditorApplication {
 
     pub fn cancel_job(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
         self.live_jobs().cancel(job_id)
+    }
+
+    /// Owner-only repair cancellation. The active repair gate excludes normal
+    /// Worker connections; the attempt lock also excludes an orphaned FFmpeg
+    /// child that outlived its supervisor. Keep the exclusive lock until the
+    /// state and cancellation event commit atomically.
+    pub fn repair_cancel_job(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
+        if !self.repair_mode {
+            return Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                "Immediate cancellation requires an active owner repair session",
+            ));
+        }
+        sqlite_access::owner(&self.connection.1)?;
+        let job = self.get_job(job_id)?;
+        if job.state != JobState::Running {
+            return self.cancel_job(job_id);
+        }
+        let attempt_directory = self
+            .asset_store_root
+            .parent()
+            .ok_or_else(|| EditorError::new("STORAGE_ERROR", "Invalid workspace root"))?
+            .join("artifacts")
+            .join(&job.job_id)
+            .join(format!("attempt-{}", job.attempt));
+        let guard = opencut_storage_budget::AttemptLease::try_cleanup(&attempt_directory)
+            .map_err(|_| EditorError::new("STORAGE_BUDGET_ERROR", "Could not inspect job attempt"))?
+            .ok_or_else(|| {
+                EditorError::new(
+                    "STORAGE_BUDGET_BUSY",
+                    "Job attempt still has a live media writer",
+                )
+            });
+        // A not-yet-created attempt directory is possible after claim, but a
+        // live managed Worker would still hold a database connection and block
+        // entry into repair. Missing directories have no writer lock to hold.
+        let guard = match std::fs::symlink_metadata(&attempt_directory) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            _ => Some(guard?),
+        };
+        if let Some(guard) = &guard
+            && !guard.still_names(&attempt_directory).map_err(|_| {
+                EditorError::new("STORAGE_BUDGET_ERROR", "Could not recheck job attempt")
+            })?
+        {
+            return Err(EditorError::new(
+                "STORAGE_BUDGET_BUSY",
+                "Job attempt changed during repair cancellation",
+            ));
+        }
+        self.live_jobs().repair_cancel(job_id)
     }
 
     /// Explicit-time compatibility APIs are retained for deterministic embedded
