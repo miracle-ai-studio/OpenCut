@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "binary_sha256": "12bb3362c7a42f95d2d2bc0bbc18ee97b120d906a47dcc52b28a2f2ae1f3e0f3",
+  "checks": [
+    "SIGKILL after exclusive attempt lease but before durable intent rolls back the mark and preserves source bytes",
+    "The exact original plan then removes those bytes once and records a durable receipt",
+    "SIGKILL after durable intent and unlink but before receipt leaves a persistent removing fence",
+    "A new project publication is fenced until exact retry records absent and restores writes"
+  ],
+  "first_plan_id": "agc_020938f64a04474db6668ecbd33e4bba",
+  "second_plan_id": "agc_21911f2c4ccc4e6db69abeda51399ab2",
+  "directory": "/private/tmp/opencut-artifact-gc-sigkill-1790247000001"
+}

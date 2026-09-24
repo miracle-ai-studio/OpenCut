@@ -547,6 +547,10 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             checks.append('delivered import Worker survives SIGKILL, natural lease recovery and abandoned input cleanup')
         run(['python3', ROOT / 'scripts/verify-product-journey.py', '--binary', binary, '--artifacts-dir', evidence / 'media-journey'])
         checks.append('delivered binary passes real upload preview export repair and decoded RGB/PCM journey')
+        gc_download = json.loads(run(['python3', ROOT / 'scripts/verify-artifact-gc-download.py',
+            '--binary', binary, '--artifacts-dir', evidence / 'artifact-gc-download']))
+        assert gc_download['status'] == 'passed' and gc_download['checks'] == 6
+        checks.append('delivered HTTP download lease excludes collection; file, directory and hardlink replacements remain untouched')
         final_before = json.loads(run([binary, '--database', database, '--json', 'call', 'opencut_project_inspect', '--input', input_file]))['data']
         assert final_before['revision'] == preflight_result['revision']
         host.terminate(); host.wait(timeout=10); host = None
