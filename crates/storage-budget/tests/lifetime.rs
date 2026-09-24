@@ -421,6 +421,84 @@ fn ambiguous_namespace_and_corrupt_journal_fail_closed() {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
+fn automatic_output_ceiling_keeps_room_for_its_own_durable_ledger() {
+    use opencut_editor_application::budget::Writer;
+    let root = tempfile::tempdir().unwrap();
+    let image = root.path().join("volume.dmg");
+    let mount = root.path().join("volume");
+    fs::create_dir(&mount).unwrap();
+    assert!(
+        Command::new("hdiutil")
+            .args([
+                "create",
+                "-size",
+                "64m",
+                "-fs",
+                "HFS+",
+                "-volname",
+                "OpenCutCeilingQA"
+            ])
+            .arg(&image)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("hdiutil")
+            .args(["attach", "-nobrowse", "-mountpoint"])
+            .arg(&mount)
+            .arg(&image)
+            .status()
+            .unwrap()
+            .success()
+    );
+    struct Mounted(std::path::PathBuf);
+    impl Drop for Mounted {
+        fn drop(&mut self) {
+            for _ in 0..10 {
+                if Command::new("hdiutil")
+                    .arg("detach")
+                    .arg(&self.0)
+                    .output()
+                    .is_ok_and(|result| result.status.success())
+                {
+                    return;
+                }
+                thread::sleep(Duration::from_millis(100));
+            }
+            panic!("could not detach test volume");
+        }
+    }
+    let _mounted = Mounted(mount.clone());
+    let budget = Budget::new(&mount);
+    budget
+        .configure(
+            Configure {
+                expected_revision: 0,
+                idempotency_key: "physical-ceiling".into(),
+                payload_limit_bytes: i64::MAX.to_string(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: Some(i64::MAX.to_string()),
+                control_limit_bytes: None,
+            },
+            &ExecutionContext::local(CallSource::Cli),
+        )
+        .unwrap();
+    let reservation = budget
+        .reserve_output(Writer {
+            job_id: "job_00000000000000000000000000000001".into(),
+            attempt: 1,
+        })
+        .unwrap();
+    assert!(reservation.reserved_bytes() > 0);
+    assert!(reservation.reserved_bytes() < 64 << 20);
+    assert!(budget.volume_available_bytes().unwrap() > reservation.reserved_bytes());
+    drop(reservation);
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}
+
+#[test]
 fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers() {
     use opencut_editor_application::budget::Writer;
     let root = tempfile::tempdir().unwrap();

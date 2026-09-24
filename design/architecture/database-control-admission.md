@@ -12,6 +12,8 @@
 
 2026-09-24 第五个实施增量：VFS 改为每个工作区／数据库／模式注册独立实例，使 SQLite 的匿名 `TEMP_DB`、`TEMP_JOURNAL`、`TRANSIENT_DB`、`SUBJOURNAL` 可归属当前工作区；临时文件放在 `sqlite-temp/`，由同一控制预留和写入闸门保护。SQLite 会在打开后 unlink `DELETEONCLOSE` 临时文件，活动字节只能由文件句柄的预留表示；可见残留仍计入控制目录观察。原生回归已验证 `PRAGMA temp_store=FILE` 的 4 MiB 临时表在紧额度下写前返回 `SQLITE_FULL`、放宽额度后成功、关闭连接释放预留，以及目录符号链接拒绝。此增量不改变对具名未知 SQLite 文件、外部写者、控制元数据和全工作区物理额度的保守能力报告。
 
+2026-09-24 第六个实施增量：原生账本每次原子替换 `ledger.json` 前，按文件系统块向上取整新 `ledger.tmp` 的序列化字节并留 64 KiB 目录／同步余量，与活动 payload／control 预留共同核对真实卷空闲；普通准入同时保留配置的最小空余。自动计算的 Worker 单文件输出上限还要留出本次账本和锁文件的写入空间，不能把卷余量全部承诺给 FFmpeg。owner 策略恢复不受原先可能过高的最小空余门槛锁死，但仍须有实际暂存空间。退出 repair 前先构造下一版完整账本并核对补足预留后的暂存空间，避免先补足文件却无法持久化 Ready 状态。真实 64 MiB 盘满卷已验证策略写入提前返回 `STORAGE_CAPACITY_LOW`、修订不变；释放 repair 预留后用同一请求持久重试，再完成取消、暂存释放、补足和完整性检查。该预检不构成严格物理保证：外部写者、文件系统写时复制、目录分配和 fsync 竞态仍可能使实际写入失败，能力位继续为 false。
+
 VFS 将真实控制额度／卷余量拒绝映射为 SQLite `SQLITE_FULL`，由公开层返回 `DATABASE_CAPACITY_EXHAUSTED`；工作区观察失败、别名目录及账本错误映射为 SQLite I/O 错误，避免把结构损坏误导为“释放磁盘即可恢复”。Worker heartbeat 失败保留本地错误诊断。完整公共错误保真与修复路径仍需在 R2 放行前审查。
 
 技术边界依据 SQLite 官方的[VFS 结构](https://www.sqlite.org/vfs.html)、[文件 I/O 方法](https://www.sqlite.org/c3ref/io_methods.html)和[WAL 共享内存要求](https://www.sqlite.org/wal.html)；本仓库通过 `rusqlite` 的具名 VFS 打开入口安装包装层。下文是完整目标协议，已实施与待完成项以上述增量和 QA 证据区分。

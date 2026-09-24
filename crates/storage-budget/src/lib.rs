@@ -279,6 +279,7 @@ mod unix {
         .union(OFlags::CLOEXEC);
     const CONTROL: &str = ".storage-budget";
     const MAX_LEDGER: u64 = 16 * 1024 * 1024;
+    const LEDGER_STAGING_SLACK: u64 = 64 * 1024;
     const DEFAULT_CONTROL_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
     const REPAIR_FILE: &str = "repair.reserve";
     const CONNECTION_LOCK: &str = "connections.lock";
@@ -301,6 +302,14 @@ mod unix {
             "RESOURCE_TOO_LARGE",
             "Storage admission metadata or observation budget exceeded",
         )
+    }
+    fn ledger_staging_bytes(data_len: usize, block: u64) -> Result<u64, EditorError> {
+        let block = block.max(4096);
+        (data_len as u64)
+            .checked_add(block - 1)
+            .map(|n| n / block * block)
+            .and_then(|n| n.checked_add(LEDGER_STAGING_SLACK))
+            .ok_or_else(metadata_capacity)
     }
     fn locked(file: &File, exclusive: bool) -> Result<(), EditorError> {
         let started = Instant::now();
@@ -399,6 +408,13 @@ mod unix {
             Ok(value)
         }
         fn save(&self, value: &Ledger) -> Result<(), EditorError> {
+            self.save_with_margin(value, false)
+        }
+        fn save_with_margin(
+            &self,
+            value: &Ledger,
+            respect_margin: bool,
+        ) -> Result<(), EditorError> {
             value.validate()?;
             let data = serde_json::to_vec(value).map_err(|_| failure())?;
             if data.len() as u64 > MAX_LEDGER {
@@ -409,6 +425,29 @@ mod unix {
             match fs::unlinkat(dir, "ledger.tmp", AtFlags::empty()) {
                 Ok(()) | Err(rustix::io::Errno::NOENT) => (),
                 Err(_) => return Err(failure()),
+            }
+            // `ledger.json` remains live until rename. Its new copy consumes
+            // physical space even though the ledger itself records admissions.
+            // Check the copy against every outstanding writer before creating
+            // it; owner recovery may lower an over-high configured margin.
+            let volume = fs::fstatvfs(&self.root).map_err(|_| failure())?;
+            let staged = ledger_staging_bytes(data.len(), volume.f_frsize as u64)?;
+            let margin = if respect_margin {
+                budget::decimal(&value.policy.minimum_available_bytes)?
+            } else {
+                0
+            };
+            let required = value
+                .payload_total()?
+                .checked_add(value.control_total()?)
+                .and_then(|n| n.checked_add(staged))
+                .and_then(|n| n.checked_add(margin))
+                .ok_or_else(metadata_capacity)?;
+            let available = (volume.f_bavail as u64)
+                .checked_mul(volume.f_frsize as u64)
+                .ok_or_else(failure)?;
+            if available < required {
+                return Err(metadata_capacity());
             }
             let mut file: File = fs::openat(
                 dir,
@@ -485,6 +524,12 @@ mod unix {
             "Volume cannot allocate and synchronize the physical repair reserve",
         )
     }
+    fn metadata_capacity() -> EditorError {
+        EditorError::new(
+            "STORAGE_CAPACITY_LOW",
+            "Volume cannot safely stage the durable storage admission ledger",
+        )
+    }
     fn fill_repair_file(gate: &Gate) -> Result<(), EditorError> {
         if repair_file_ready(gate)? {
             return Ok(());
@@ -545,7 +590,7 @@ mod unix {
             state: budget::RepairState::Ready,
             baseline_control_bytes: None,
         });
-        gate.save(ledger)
+        gate.save_with_margin(ledger, true)
     }
     fn require_normal_repair(
         gate: &Gate,
@@ -616,7 +661,7 @@ mod unix {
             require_normal_repair(&gate, &ledger, true)?;
             if ledger.control_database_name.is_none() {
                 ledger.control_database_name = Some(database_name.to_owned());
-                gate.save(&ledger)?;
+                gate.save_with_margin(&ledger, true)?;
             }
         }
         let file = connection_lock_file(&gate, false)?;
@@ -649,7 +694,7 @@ mod unix {
             available,
         )
     }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
     struct Receipt {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -672,7 +717,7 @@ mod unix {
             }
         }
     }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
     struct Entry {
         category: String,
@@ -680,7 +725,7 @@ mod unix {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         writer: Option<budget::Writer>,
     }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
     struct RepairRecord {
         target_bytes: String,
@@ -689,7 +734,7 @@ mod unix {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         baseline_control_bytes: Option<String>,
     }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
     struct Ledger {
         version: u32,
@@ -1002,7 +1047,7 @@ mod unix {
             provision_repair(&exclusive, &mut current)?;
             if current.control_database_name.is_none() {
                 current.control_database_name = Some(database_name.to_owned());
-                exclusive.save(&current)?;
+                exclusive.save_with_margin(&current, true)?;
             }
             drop(exclusive);
             gate = Gate::open(budget, false)?;
@@ -1368,10 +1413,36 @@ mod unix {
             }
             RepairAction::Exit => {
                 let (_, available) = observe(&gate.root)?;
-                let (_, existing_blocks) = repair_stats(&gate)?;
+                let (existing_size, existing_blocks) = repair_stats(&gate)?;
+                if existing_size > REPAIR_BYTES {
+                    return Err(failure());
+                }
+                // Check the exact next ledger before consuming the released
+                // repair blocks. Otherwise an oversized receipt could leave
+                // a fully refilled reserve with the durable state still Active.
+                let mut candidate = ledger.clone();
+                let next_repair = candidate.repair.as_mut().ok_or_else(failure)?;
+                next_repair.baseline_control_bytes = None;
+                next_repair.revision += 1;
+                next_repair.state = budget::RepairState::Ready;
+                candidate.repair_changes.push(RepairChange {
+                    action,
+                    input: input.clone(),
+                    revision: next_repair.revision,
+                    state: budget::RepairState::Ready,
+                    request_id: context.request_id().into(),
+                    actor: context.actor().clone(),
+                });
+                candidate.validate()?;
+                let candidate_bytes = serde_json::to_vec(&candidate).map_err(|_| failure())?;
+                if candidate_bytes.len() as u64 > MAX_LEDGER {
+                    return Err(limit());
+                }
+                let volume = fs::fstatvfs(&gate.root).map_err(|_| failure())?;
+                let staging = ledger_staging_bytes(candidate_bytes.len(), volume.f_frsize as u64)?;
                 if available
                     .checked_add(existing_blocks)
-                    .is_none_or(|n| n < REPAIR_BYTES + 512 * 1024)
+                    .is_none_or(|headroom| headroom < REPAIR_BYTES + staging)
                 {
                     return Err(capacity());
                 }
@@ -1452,12 +1523,29 @@ mod unix {
         }
         let held = ledger.payload_total()?;
         let control_held = ledger.control_total()?;
+        let id = uuid::Uuid::new_v4().to_string();
         let bytes = if let Some(bytes) = requested {
             bytes
         } else {
             // Reject zero headroom with the appropriate public capacity reason.
             budget::admit_payload(&ledger.policy, used, held, control_held, 1, available)?;
-            budget::decimal(&ledger.media_output_limit_bytes)?
+            // The automatic FFmpeg ceiling must leave room for publishing its
+            // own durable reservation and lock, not consume every free block.
+            let mut candidate = ledger.clone();
+            candidate.held.insert(
+                id.clone(),
+                Entry {
+                    category: category.into(),
+                    bytes: i64::MAX as u64,
+                    writer: writer.clone(),
+                },
+            );
+            let serialized = serde_json::to_vec(&candidate).map_err(|_| failure())?;
+            let volume = fs::fstatvfs(&gate.root).map_err(|_| failure())?;
+            let staging = ledger_staging_bytes(serialized.len(), volume.f_frsize as u64)?
+                .checked_add(LEDGER_STAGING_SLACK)
+                .ok_or_else(metadata_capacity)?;
+            let ceiling = budget::decimal(&ledger.media_output_limit_bytes)?
                 .min(
                     budget::decimal(&ledger.policy.payload_limit_bytes)?
                         .saturating_sub(used)
@@ -1467,11 +1555,15 @@ mod unix {
                     available
                         .saturating_sub(held)
                         .saturating_sub(control_held)
-                        .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?),
-                )
+                        .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?)
+                        .saturating_sub(staging),
+                );
+            if ceiling == 0 {
+                return Err(metadata_capacity());
+            }
+            ceiling
         };
         budget::admit_payload(&ledger.policy, used, held, control_held, bytes, available)?;
-        let id = uuid::Uuid::new_v4().to_string();
         let lock = lifetime(&gate, &id, true)?.ok_or_else(failure)?;
         ledger.held.insert(
             id.clone(),
@@ -1481,7 +1573,7 @@ mod unix {
                 writer,
             },
         );
-        gate.save(&ledger)?;
+        gate.save_with_margin(&ledger, true)?;
         Ok(Reservation {
             inner: Held {
                 budget: budget.clone(),
@@ -1573,7 +1665,7 @@ mod unix {
                 writer: None,
             },
         );
-        gate.save(&ledger)?;
+        gate.save_with_margin(&ledger, !repair_mode)?;
         Ok(Reservation {
             inner: Held {
                 budget: budget.clone(),
@@ -1656,7 +1748,7 @@ mod unix {
                 return Err(failure());
             }
             entry.bytes = bytes;
-            gate.save(&ledger)?;
+            gate.save_with_margin(&ledger, !matches!(self.kind, Kind::RepairControl))?;
             self.bytes = bytes;
             Ok(())
         }

@@ -136,12 +136,26 @@ def verify(binary: Path, root: Path) -> dict:
         tool("opencut_edit_apply", ordinary_edit, "DATABASE_CAPACITY_EXHAUSTED")
         checks.append("At zero external free bytes, an ordinary edit is rejected before changing the project head")
 
+        policy_before = recovery("inspect")["policy"]
+        blocked_policy = {
+            "expected_revision": policy_before["revision"],
+            "idempotency_key": "policy-while-full",
+            "payload_limit_bytes": policy_before["payload_limit_bytes"],
+            "minimum_available_bytes": policy_before["minimum_available_bytes"],
+        }
+        recovery("configure", blocked_policy, "STORAGE_CAPACITY_LOW")
+        assert recovery("inspect")["policy"] == policy_before
+        assert not (mount / ".storage-budget" / "ledger.tmp").exists()
+        checks.append("A full volume rejects the admission ledger staging before changing the owner policy")
+
         entered = recovery("enter", {"expected_revision": 0,
                                      "idempotency_key": "enter-full-volume"})
         assert entered["state"] == "active" and entered["actor"]["source"] == "cli"
         assert reserve_path.stat().st_size == 0
         released_available = os.statvfs(mount).f_bavail * os.statvfs(mount).f_frsize
         assert released_available >= 7 << 20, released_available
+        restored_policy = recovery("configure", blocked_policy)
+        assert restored_policy["policy"]["revision"] == policy_before["revision"] + 1
         tool("opencut_edit_apply", ordinary_edit, "DATABASE_CAPACITY_EXHAUSTED")
         cancelled = call(["storage", "recovery", "cancel", job["job_id"]])
         assert cancelled["state"] == "cancelled"
@@ -154,7 +168,7 @@ def verify(binary: Path, root: Path) -> dict:
         recovery("exit", {"expected_revision": 1,
                           "idempotency_key": "exit-after-cancel"}, "STORAGE_CAPACITY_LOW")
         assert reserve_path.stat().st_size == 0
-        checks.append("The owner releases the reserve on an actually full volume, cancels one queued job and releases one retained upload through the repair VFS, while normal edits and premature replenishment remain blocked")
+        checks.append("The owner releases the reserve on an actually full volume, durably retries the refused policy, cancels one queued job and releases one retained upload through the repair VFS, while normal edits and premature replenishment remain blocked")
 
         filler.unlink()
         exited = recovery("exit", {"expected_revision": 1,
@@ -183,7 +197,7 @@ def verify(binary: Path, root: Path) -> dict:
                   "available_at_failure_bytes": available_full,
                   "released_available_bytes": released_available, "filler_bytes": filled,
                   "repair_target_bytes": 8 << 20,
-                  "scope": "macOS HFS+ 64 MiB bounded queued-job cancellation and retained-upload release; temporary SQLite files, external writers and full workspace physical enforcement remain outside this result"}
+                  "scope": "macOS HFS+ 64 MiB bounded queued-job cancellation, retained-upload release and ledger staging; external writers and full workspace physical enforcement remain outside this result"}
         (root / "report.json").write_text(json.dumps(report, indent=2) + "\n")
         return report
     finally:
