@@ -3,6 +3,7 @@
 import argparse
 from contextlib import closing
 import errno
+import fcntl
 import hashlib
 import json
 import os
@@ -147,11 +148,28 @@ def verify(binary: Path, root: Path) -> dict:
                       "alignment": "exact"},
         })
         assert tool("opencut_job_get", {"job_id": job["job_id"]})["state"] == "queued"
-        # Stop only after the queued write has committed. SIGSTOP can freeze a
-        # heartbeat inside SQLite's short write transaction; a subsequent CLI
-        # submission would then time out for a scheduling reason unrelated to
-        # disk-full repair.
-        os.kill(worker.pid, signal.SIGSTOP)
+        # SIGSTOP can catch a heartbeat inside the short admission lock. A
+        # frozen process cannot release it, so resume and stop again until the
+        # fixture owns the gate. This keeps the following repair assertions
+        # about full-volume behavior rather than scheduler timing.
+        gate_fd = os.open(mount / ".storage-budget", os.O_RDONLY)
+        try:
+            deadline = time.monotonic() + 15
+            while True:
+                os.kill(worker.pid, signal.SIGSTOP)
+                stopped, status = os.waitpid(worker.pid, os.WUNTRACED)
+                assert stopped == worker.pid and os.WIFSTOPPED(status), status
+                try:
+                    fcntl.flock(gate_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    os.kill(worker.pid, signal.SIGCONT)
+                    assert time.monotonic() < deadline, "Worker did not release admission gate"
+                    time.sleep(.05)
+                else:
+                    fcntl.flock(gate_fd, fcntl.LOCK_UN)
+                    break
+        finally:
+            os.close(gate_fd)
         ready = recovery("inspect")["control"]["repair"]
         assert ready["state"] == "ready" and ready["target_bytes"] == "8388608"
         assert ready["allocated_file_bytes"] == ready["target_bytes"]

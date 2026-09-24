@@ -11,7 +11,11 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         "DATABASE_CAPACITY_EXHAUSTED" => (507, 8),
         "INVALID_ARGUMENT" | "TIME_OVERFLOW" | "INVALID_CURSOR" => (400, 2),
         "UPLOAD_CONTENT_MISMATCH" => (400, 2),
-        "UPLOAD_BUSY" | "STORAGE_SCAN_BUSY" | "STORAGE_BUSY" | "STORAGE_BUDGET_BUSY" => (429, 7),
+        "UPLOAD_BUSY"
+        | "STORAGE_SCAN_BUSY"
+        | "STORAGE_BUSY"
+        | "STORAGE_BUDGET_BUSY"
+        | "DATABASE_BUSY" => (429, 7),
         "UPLOAD_TIMEOUT" => (408, 124),
         "INVALID_PLUGIN" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" => (403, 3),
@@ -19,6 +23,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         "CURSOR_EXPIRED" => (410, 4),
         "STORAGE_POLICY_CONFLICT"
         | "GC_PLAN_CONFLICT"
+        | "ARTIFACT_ALREADY_RELEASED"
         | "REVISION_CONFLICT"
         | "IDEMPOTENCY_KEY_REUSED"
         | "ALREADY_EXISTS"

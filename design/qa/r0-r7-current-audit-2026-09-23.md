@@ -1,6 +1,8 @@
 # R0–R7 当前源码产品与架构核对（2026-09-23）
 
-判断对象是从历史记录恢复、后续继续推进的当前源码。设计目标以[完整架构](../architecture/agent-friendly-editor-v1.md)和[验收迭代](../architecture/acceptance-driven-iteration-plan.md)为准；历史 QA 只证明对应版本。当前生成的 OpenAPI 有 76 条路径，最新 macOS x86_64 debug 开发包通过 35 项仓库外验收；此前不同脚本版本的 34 项和 36 项收据保留为历史证据。状态用“部分完成”表达已实现的边界，不把缺失阶段折算为完成百分比。
+判断对象是从历史记录恢复、后续继续推进的当前源码。设计目标以[完整架构](../architecture/agent-friendly-editor-v1.md)和[验收迭代](../architecture/acceptance-driven-iteration-plan.md)为准；历史 QA 只证明对应版本。当前生成的 OpenAPI 有 78 条路径；最新 macOS x86_64 debug 开发包的仓库外验收结果见[产物保留增量收据](r2-artifact-retention-release-2026-09-24.md)。此前不同脚本版本的 34、35、36 项收据保留为历史证据。状态用“部分完成”表达已实现的边界，不把缺失阶段折算为完成百分比。
+
+2026-09-24 最新增量：schema 16、63 个叶操作、9 个领域入口；成功 Job 产物的 Owner 保留状态查询和显式 release 已接入共享 Application／SQLite／Automation。同一 macOS x86_64 debug 归档在仓库外通过[35 组整包验收](r2-artifact-retention-release-2026-09-24.md)，覆盖真实媒体的审计回滚、同键重放、跨入口与重启持久化、32 格历史矩阵及 7 秒双锁下的 Worker 续租和取消。release 不删字节；引用图、可审阅回收计划和执行仍待做，R2 未放行。
 
 2026-09-24 最新增量：已发布产物下载的共享读取租约和别名围栏通过真实 HTTP／CLI 媒体动线；当前 macOS x86_64 debug 归档在仓库外通过[35 项整包验收](r2-artifact-read-lease-2026-09-24.md)。统一产物保留／回收及其余 R0–R7 缺口不因本轮放行。
 
@@ -50,7 +52,7 @@ flowchart LR
   O --> A
 ```
 
-九领域工具是发现层；61 个叶操作仍是权限、幂等、审计及兼容单元。MCP 默认列表只给 `action` 枚举与通用 `input` 容器，Agent 必须先读取该领域的精确 schema，再调用。CLI `system domains`、MCP `opencut://schemas/domains/{domain}` 和 HTTP `/v1/domains/{domain}` 提供同源契约。持久 Job 的“已接受”与“成功产物”是两种状态，SDK 需要显式等待、读取公开 JobView 并核验产物。
+九领域工具是发现层；63 个叶操作仍是权限、幂等、审计及兼容单元。MCP 默认列表只给 `action` 枚举与通用 `input` 容器，Agent 必须先读取该领域的精确 schema，再调用。CLI `system domains`、MCP `opencut://schemas/domains/{domain}` 和 HTTP `/v1/domains/{domain}` 提供同源契约。持久 Job 的“已接受”与“成功产物”是两种状态，SDK 需要显式等待、读取公开 JobView 并核验产物。
 
 ## Rust 内核与外层适配
 
@@ -68,9 +70,9 @@ Rust 内核不是单个 crate，也不是 CLI／MCP。它的纯计算部分与�
 
 | 阶段 | 当前判断 | 已有源码／本轮证据 | 不能放行的关键缺口 |
 |---|---|---|---|
-| R0 验收基线 | 部分完成 | 恢复历史夹具并跑通 v1–v15 × 两摘要 30 格；真实 HTTP/CLI 合成音视频 10 项；双 SDK 与官方 MCP 独立消费；最新 macOS x86_64 debug 开发包仓库外验收 34 项通过，四条精确跨 SDK 恢复动线已核销；[回放失败项按序号分类](recovery-replay-failure-audit-2026-09-23.md) | 缺真实旧用户库、中文访谈／VFR／长视频与硬件性能基线；当前包不等于 release／完整系统发行 |
+| R0 验收基线 | 部分完成 | 恢复历史夹具并跑通 v1–v16 × 两摘要 32 格；真实 HTTP/CLI 合成音视频 11 项；双 SDK 与官方 MCP 独立消费；此前 macOS x86_64 debug 开发包仓库外验收 34／35／36 项分别通过，四条精确跨 SDK 恢复动线已核销；[回放失败项按序号分类](recovery-replay-failure-audit-2026-09-23.md) | 缺真实旧用户库、中文访谈／VFR／长视频与硬件性能基线；当前包不等于 release／完整系统发行 |
 | R1 正确性与状态 | 部分完成 | 当前二进制通过导入识别、原子编辑与同键重放、冲突、旧修订导出、损坏产物拒绝、重启重开；Web 已验实际浏览器导入、整工程恢复撤销／重做和播放 | 异步交错、选择性撤销、真实音频边界及崩溃窗口尚未组成同一版完整放行证据 |
-| R2 架构与公开契约 | 部分完成 | 纯 Core、Application 用例、原生端口、SQLite/CAS 适配及共享 Automation；九领域/61 叶操作四入口；76 路径 OpenAPI 包含项目素材读取、原始上传、产物下载和公共 SSE；最新包已验双 SDK 接续真实音频上传、受限预检、64 MiB 盘满／WAL、CAS 清理、Worker 输出准入和媒体／下载写入预算；插件/WASM 有早期独立证据，本包未附可选 component；管理型 SQLite 主库/WAL/journal/SHM 和匿名磁盘临时文件已有 VFS 写前控制预留，本机 owner 可独立恢复锁死策略；8 MiB 物理 repair 预留在真盘满下完成有界取消、暂存释放与补足 | 全工作区写入准入仍显式为 false；具名未知 SQLite 文件、控制元数据的严格物理保证、运行中任务／并发故障的盘满修复、产物保留／持续会话引用、release／跨平台交付验收未完成 |
+| R2 架构与公开契约 | 部分完成 | 纯 Core、Application 用例、原生端口、SQLite/CAS 适配及共享 Automation；九领域/63 叶操作四入口；78 路径 OpenAPI 包含项目素材读取、原始上传、产物下载、产物保留查询／release 和公共 SSE；开发包已验双 SDK 接续真实音频上传、受限预检、64 MiB 盘满／WAL、CAS 清理、Worker 输出准入和媒体／下载写入预算；插件/WASM 有早期独立证据，本包未附可选 component；管理型 SQLite 主库/WAL/journal/SHM 和匿名磁盘临时文件已有 VFS 写前控制预留，本机 owner 可独立恢复锁死策略；8 MiB 物理 repair 预留在真盘满下完成有界取消、暂存释放与补足 | 全工作区写入准入仍显式为 false；具名未知 SQLite 文件、控制元数据的严格物理保证、完整并发故障矩阵、产物统一引用图／回收计划与执行、持续会话引用、release 构建／跨平台交付验收未完成 |
 | R3 人机协作 | 部分完成 | 提交事件、游标观察、固定修订与整工程恢复存在；Web 有事件及操作协调代码 | 无选择性事务撤销、因果重做、显式分支比较／合并；真实浏览器与外部 Agent 并发协作未验 |
 | R4 连续预览 | 部分完成 | 工程帧／直接帧／区间预览和导出可由真实 Worker 生成，合成描述共用 | 无连续播放 Session、seek generation／owner lease／presentation telemetry；无真实播放 A/V 与性能门槛证据 |
 | R5 素材理解 | 未形成闭环 | 媒体探测与人工给定字幕／时间码可参与剪辑；MCP prompt 明确不声称自动转写 | 无可验的转写、词级时间、说话人、镜头／静音分析产物与证据搜索；不能完成真实访谈自动理解到修正的动线 |

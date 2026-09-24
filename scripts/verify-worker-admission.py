@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """Real Worker output limits, caption bytes, attempt locks and orphan recovery."""
-import argparse, hashlib, json, os, shutil, signal, sqlite3, subprocess, tarfile, tempfile, time
+import argparse, fcntl, hashlib, json, os, shutil, signal, sqlite3, subprocess, tarfile, tempfile, time
+from contextlib import closing
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 
 def verify(binary,root):
  root.mkdir(parents=True,exist_ok=True);db=root/'workspace.sqlite';trace=[];checks=[];workers=[];children=set();ffmpeg=shutil.which('ffmpeg');assert ffmpeg
- def call(name,data=None,error=None,database=db,exe=binary):
-  p=subprocess.run([str(exe),'--database',str(database),'--json','call',name,'--input','-'],input=json.dumps(data or {}),text=True,capture_output=True,timeout=40);r=json.loads(p.stdout);trace.append({'tool':name,'input':data,'response':r,'exit':p.returncode})
+ def call(name,data=None,error=None,database=db,exe=binary,retry_busy=False):
+  deadline=time.monotonic()+30
+  while True:
+   p=subprocess.run([str(exe),'--database',str(database),'--json','call',name,'--input','-'],input=json.dumps(data or {}),text=True,capture_output=True,timeout=40);r=json.loads(p.stdout);trace.append({'tool':name,'input':data,'response':r,'exit':p.returncode,'stderr':p.stderr[-4000:]})
+   if retry_busy and r['error'] and r['error']['code'] in ('DATABASE_BUSY','STORAGE_BUDGET_BUSY'):
+    assert time.monotonic()<deadline,(r,p.stderr)
+    time.sleep(1)
+    continue
+   break
   if error:assert p.returncode and r['error']['code']==error,(r,p.stderr)
   else:assert not p.returncode and r['error'] is None,(r,p.stderr)
   return r['data']
@@ -23,6 +31,14 @@ def verify(binary,root):
   with (root/f'{label}.log').open('w') as log:p=subprocess.Popen([str(binary),'--database',str(db),'worker','run','--once'],env=env,stdout=log,stderr=log)
   workers.append(p);return p
  def view(job):return call('opencut_job_view',{'job_id':job['job_id']})
+ def renewed(job,previous,parent):
+  deadline=time.monotonic()+30
+  while True:
+   record=call('opencut_job_get',{'job_id':job['job_id']})
+   assert parent.poll() is None and record['state']=='running' and record['lease_until'] is not None,record
+   if record['lease_until']>previous:return record['lease_until']
+   assert time.monotonic()<deadline and int(time.time()*1000)<previous-2000,record
+   time.sleep(1)
  def run(job):
   p=worker('run-'+job['job_id']);assert p.wait(timeout=90)==0
   result=view(job);assert result['state'] in ['succeeded','failed','cancelled'],result;return result
@@ -86,17 +102,24 @@ def verify(binary,root):
   busy_worker=worker('busy-heartbeat',env);deadline=time.monotonic()+20
   while view(busy_job)['state']!='running':assert busy_worker.poll() is None and time.monotonic()<deadline;time.sleep(.05)
   lease_before=call('opencut_job_get',{'job_id':busy_job['job_id']})['lease_until']
-  with sqlite3.connect(db,timeout=5) as lock:
+  with closing(sqlite3.connect(db,timeout=5)) as lock:
    lock.execute('BEGIN IMMEDIATE')
    time.sleep(7)
    lock.rollback()
   assert view(busy_job)['state']=='running' and not view(busy_job)['cancel_requested']
-  deadline=time.monotonic()+12
-  while call('opencut_job_get',{'job_id':busy_job['job_id']})['lease_until']<=lease_before:
-   assert time.monotonic()<deadline;time.sleep(.1)
-  call('opencut_job_request_cancel',{'job_id':busy_job['job_id']});assert busy_worker.wait(timeout=30)==0
+  lease_before=renewed(busy_job,lease_before,busy_worker)
+  budget_lock=os.open(root/'.storage-budget',os.O_RDONLY)
+  try:
+   fcntl.flock(budget_lock,fcntl.LOCK_EX)
+   time.sleep(7)
+   fcntl.flock(budget_lock,fcntl.LOCK_UN)
+  finally:
+   os.close(budget_lock)
+  assert view(busy_job)['state']=='running' and not view(busy_job)['cancel_requested']
+  renewed(busy_job,lease_before,busy_worker)
+  call('opencut_job_request_cancel',{'job_id':busy_job['job_id']},retry_busy=True);assert busy_worker.wait(timeout=30)==0
   assert view(busy_job)['state']=='cancelled' and 'heartbeat failed' not in (root/'busy-heartbeat.log').read_text()
-  settled();checks.append('A real seven-second SQLite write lock outlasts one busy timeout; the Worker retains and renews its lease instead of cancelling on transient database busy')
+  settled();checks.append('Real seven-second SQLite and admission-directory locks exercise busy and bounded gate waits; Worker renews its lease and cancels after transient contention')
   configure('orphan-limit',256<<10);job=submit('render.export','orphan',{'segments':[{'input':str(video),'source_start':t(0),'source_duration':t(600)}],'container':'mp4','video':{'width':320,'height':180,'frame_rate':{'numerator':10,'denominator':1},'aspect_mode':'fit','codec':'h264'},'audio':{'mode':'drop'}})
   first=worker('orphan-first',env);pid1,_,reservation=live(job,1,first);assert reservation['reserved_bytes']==str(256<<10);attempt1=root/'artifacts'/job['job_id']/'attempt-1';assert attempt1.is_dir();first.kill();first.wait(timeout=15)
   recovered=call('opencut_storage_budget_recover');assert any(r.get('writer')=={'job_id':job['job_id'],'attempt':1} for r in recovered['reservations'])

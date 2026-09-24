@@ -3,6 +3,7 @@ mod control_vfs;
 pub mod job_views;
 pub mod jobs;
 mod sqlite_access;
+mod sqlite_artifact_retention;
 mod sqlite_audit;
 mod sqlite_denials;
 mod sqlite_gc;
@@ -26,7 +27,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 15;
+const DATABASE_SCHEMA_VERSION: i64 = 16;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -349,6 +350,11 @@ impl EditorApplication {
                 [],
             )
             .map_err(storage_error)?;
+            version = 15;
+        }
+        if version == 15 {
+            tx.execute_batch(sqlite_artifact_retention::MIGRATION)
+                .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
@@ -2064,7 +2070,7 @@ mod tests {
         let connection = Connection::open(&path).unwrap();
         connection
             .execute_batch(
-                "DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
+                "DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
              DROP TABLE access_grants;
@@ -2225,7 +2231,7 @@ mod tests {
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
-             DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;
+             DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;
              DROP TABLE maintenance_publications;
              DROP TABLE job_projects;
              DROP TABLE access_events;

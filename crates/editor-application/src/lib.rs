@@ -1,6 +1,7 @@
 //! Portable application use cases and ports; native storage and host I/O are adapters.
 pub mod access;
 pub mod access_audit;
+pub mod artifact_retention;
 pub mod audit;
 pub mod events;
 pub mod identity;

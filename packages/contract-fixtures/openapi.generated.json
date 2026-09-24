@@ -363,6 +363,84 @@
         }
       }
     },
+    "/v1/tools/opencut_artifact_retention_inspect": {
+      "post": {
+        "operationId": "opencut_artifact_retention_inspect",
+        "description": "Owner-only: inspect whether a successful job artifact still has its default retention root. Released does not mean deleted or unavailable; actual bytes are checked at download. Does not expose native paths.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionInspectInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_artifact_retention_release": {
+      "post": {
+        "operationId": "opencut_artifact_retention_release",
+        "description": "Owner-only: durably release one successful job artifact's default retention root under an exact idempotency key. Does not delete bytes, alter job success or override other retained references. Inspect before retrying with a different key.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_storage_inspect": {
       "post": {
         "operationId": "opencut_storage_inspect",
@@ -3681,6 +3759,8 @@
           "cas.gc.plan": "opencut_cas_gc_plan",
           "cas.gc.inspect": "opencut_cas_gc_inspect",
           "cas.gc.execute": "opencut_cas_gc_execute",
+          "artifact.retention.inspect": "opencut_artifact_retention_inspect",
+          "artifact.retention.release": "opencut_artifact_retention_release",
           "storage.inspect": "opencut_storage_inspect",
           "plugin.publication.query": "opencut_plugin_publication_query",
           "plugin.publication.reconcile": "opencut_plugin_publication_reconcile",
@@ -3841,6 +3921,38 @@
                     "type": "object",
                     "properties": {
                       "action": {
+                        "const": "artifact.retention.inspect"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutArtifactRetentionInspectInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "artifact.retention.release"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
                         "const": "storage.inspect"
                       },
                       "input": {
@@ -3955,6 +4067,12 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutCasGcExecuteOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutStorageInspectOutput"
@@ -6615,6 +6733,258 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OpencutCasGcExecuteOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutArtifactRetentionInspectInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id"
+        ],
+        "title": "InspectInput",
+        "type": "object"
+      },
+      "OpencutArtifactRetentionInspectOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "RetentionState": {
+            "enum": [
+              "retained",
+              "released"
+            ],
+            "type": "string"
+          },
+          "View": {
+            "properties": {
+              "artifact_id": {
+                "type": "string"
+              },
+              "content_hash": {
+                "type": "string"
+              },
+              "job_id": {
+                "type": "string"
+              },
+              "release_request_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "released_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "size_bytes": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput/$defs/RetentionState"
+              }
+            },
+            "required": [
+              "artifact_id",
+              "job_id",
+              "content_hash",
+              "size_bytes",
+              "state"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput/$defs/View"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutArtifactRetentionReleaseInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "idempotency_key"
+        ],
+        "title": "ReleaseInput",
+        "type": "object"
+      },
+      "OpencutArtifactRetentionReleaseOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "RetentionState": {
+            "enum": [
+              "retained",
+              "released"
+            ],
+            "type": "string"
+          },
+          "View": {
+            "properties": {
+              "artifact_id": {
+                "type": "string"
+              },
+              "content_hash": {
+                "type": "string"
+              },
+              "job_id": {
+                "type": "string"
+              },
+              "release_request_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "released_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "size_bytes": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput/$defs/RetentionState"
+              }
+            },
+            "required": [
+              "artifact_id",
+              "job_id",
+              "content_hash",
+              "size_bytes",
+              "state"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput/$defs/View"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput/$defs/EditorError"
               },
               {
                 "type": "null"

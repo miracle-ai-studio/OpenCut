@@ -38,6 +38,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const LEASE_MS: i64 = 30_000;
+// A busy SQLite operation can consume its full five-second timeout. Keep
+// retrying a transient lock while there is still one timeout of lease runway,
+// instead of failing a healthy writer halfway through its durable lease.
+const HEARTBEAT_BUSY_RUNWAY_MS: u64 = 5_000;
 
 pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), EditorError> {
     let mut app = EditorApplication::open_managed(database)?;
@@ -146,26 +150,40 @@ fn execute_monitored(
 ) -> Result<Value, EditorError> {
     let cancel = CancellationToken::new();
     let done = Arc::new(AtomicBool::new(false));
+    let heartbeat_pending = Arc::new(AtomicBool::new(false));
     let monitor_app = EditorApplication::open_managed(database)?;
-    let mut progress_app = EditorApplication::open_managed(database)?;
+    let progress_app = EditorApplication::open_managed(database)?;
     std::thread::scope(|scope| {
         let monitor_cancel = cancel.clone();
         let monitor_done = done.clone();
+        let monitor_heartbeat_pending = heartbeat_pending.clone();
         let monitor = scope.spawn(move || {
-            let mut app = monitor_app;
+            let mut app = Some(monitor_app);
             let mut last_heartbeat = Instant::now();
             loop {
                 if monitor_done.load(Ordering::SeqCst) {
+                    monitor_heartbeat_pending.store(false, Ordering::SeqCst);
                     break None;
                 }
                 if stop.load(Ordering::SeqCst) {
                     monitor_cancel.cancel();
+                    monitor_heartbeat_pending.store(false, Ordering::SeqCst);
                     break None;
                 }
-                match app
-                    .live_jobs()
-                    .heartbeat(&job.job_id, worker, job.attempt, LEASE_MS)
-                {
+                monitor_heartbeat_pending.store(true, Ordering::SeqCst);
+                let heartbeat = (|| {
+                    if app.is_none() {
+                        app = Some(EditorApplication::open_managed(database)?);
+                    }
+                    app.as_mut()
+                        .expect("monitor connection was opened")
+                        .live_jobs()
+                        .heartbeat(&job.job_id, worker, job.attempt, LEASE_MS)
+                })();
+                if heartbeat.is_ok() {
+                    monitor_heartbeat_pending.store(false, Ordering::SeqCst);
+                }
+                match heartbeat {
                     Ok(state) if state.cancel_requested => {
                         monitor_cancel.cancel();
                         break None;
@@ -174,12 +192,18 @@ fn execute_monitored(
                     Err(error)
                         if error.code == "DATABASE_BUSY"
                             && last_heartbeat.elapsed()
-                                < Duration::from_millis(LEASE_MS as u64 / 2) =>
+                                < Duration::from_millis(
+                                    LEASE_MS as u64 - HEARTBEAT_BUSY_RUNWAY_MS,
+                                ) =>
                     {
+                        // A VFS write may have returned BUSY after a SQLite
+                        // transaction began. Drop its pager before retrying.
+                        app.take();
                         std::thread::sleep(Duration::from_millis(100));
                         continue;
                     }
                     Err(error) => {
+                        monitor_heartbeat_pending.store(false, Ordering::SeqCst);
                         eprintln!(
                             "Job {} attempt {} heartbeat failed: {error}",
                             job.job_id, job.attempt
@@ -196,7 +220,9 @@ fn execute_monitored(
                 }
             }
         });
-        let mut reporter = ProgressReporter::new(&mut progress_app, worker, job, &cancel);
+        let mut reporter =
+            ProgressReporter::new(progress_app, Some(database), worker, job, &cancel)
+                .with_heartbeat_priority(heartbeat_pending);
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             execute(root, job, &cancel, &mut |update| reporter.report(update))
         }));
@@ -219,29 +245,39 @@ fn execute_monitored(
 /// The fraction belongs to the reported stage, not to total job completion.
 /// Stage changes and the stage's final sample bypass the write-rate limit.
 struct ProgressReporter<'a> {
-    app: &'a mut EditorApplication,
+    app: Option<EditorApplication>,
+    database: Option<&'a Path>,
     worker: &'a str,
     job: &'a JobRecord,
     cancel: &'a CancellationToken,
+    heartbeat_pending: Option<Arc<AtomicBool>>,
     last: Option<(JobProgress, Instant)>,
     error: Option<EditorError>,
 }
 
 impl<'a> ProgressReporter<'a> {
     fn new(
-        app: &'a mut EditorApplication,
+        app: EditorApplication,
+        database: Option<&'a Path>,
         worker: &'a str,
         job: &'a JobRecord,
         cancel: &'a CancellationToken,
     ) -> Self {
         Self {
-            app,
+            app: Some(app),
+            database,
             worker,
             job,
             cancel,
+            heartbeat_pending: None,
             last: None,
             error: None,
         }
+    }
+
+    fn with_heartbeat_priority(mut self, pending: Arc<AtomicBool>) -> Self {
+        self.heartbeat_pending = Some(pending);
+        self
     }
 
     fn report(&mut self, update: ProgressUpdate) {
@@ -249,7 +285,13 @@ impl<'a> ProgressReporter<'a> {
     }
 
     fn report_at(&mut self, update: ProgressUpdate, observed_at: Instant) {
-        if self.error.is_some() || self.cancel.is_cancelled() {
+        if self.error.is_some()
+            || self.cancel.is_cancelled()
+            || self
+                .heartbeat_pending
+                .as_ref()
+                .is_some_and(|pending| pending.load(Ordering::SeqCst))
+        {
             return;
         }
         let progress = JobProgress {
@@ -279,12 +321,37 @@ impl<'a> ProgressReporter<'a> {
                 return;
             }
         }
-        match self.app.live_jobs().progress(
-            &self.job.job_id,
-            self.worker,
-            self.job.attempt,
-            progress.clone(),
-        ) {
+        if self.app.is_none() {
+            let Some(database) = self.database else {
+                self.cancel.cancel();
+                self.error = Some(EditorError::new(
+                    "INTERNAL_ERROR",
+                    "Progress connection lost",
+                ));
+                return;
+            };
+            match EditorApplication::open_managed(database) {
+                Ok(app) => self.app = Some(app),
+                Err(error) if error.code == "DATABASE_BUSY" => return,
+                Err(error) => {
+                    self.cancel.cancel();
+                    self.error = Some(error);
+                    return;
+                }
+            }
+        }
+        let result = self
+            .app
+            .as_mut()
+            .expect("progress connection was opened")
+            .live_jobs()
+            .progress(
+                &self.job.job_id,
+                self.worker,
+                self.job.attempt,
+                progress.clone(),
+            );
+        match result {
             Ok(state) => {
                 self.last = Some((progress, observed_at));
                 if state.cancel_requested {
@@ -294,6 +361,9 @@ impl<'a> ProgressReporter<'a> {
             Err(error) if error.code == "DATABASE_BUSY" => {
                 // Progress is advisory. The monitor will retry the heartbeat;
                 // final publication still checks the current lease in SQLite.
+                if self.database.is_some() {
+                    self.app.take();
+                }
             }
             Err(error) => {
                 // Do not keep rendering or publish a successful result after losing
@@ -1334,7 +1404,7 @@ mod tests {
         let cancel = CancellationToken::new();
         let start = Instant::now();
         {
-            let mut reporter = ProgressReporter::new(&mut app, "worker", &job, &cancel);
+            let mut reporter = ProgressReporter::new(app, None, "worker", &job, &cancel);
             reporter.report_at(encoding(0.1), start);
             reporter.report_at(encoding(0.2), start + Duration::from_millis(1));
             reporter.report_at(encoding(0.5), start + Duration::from_millis(300));
@@ -1349,6 +1419,7 @@ mod tests {
                 start + Duration::from_millis(303),
             );
             assert!(reporter.error.is_none());
+            app = reporter.app.take().unwrap();
         }
         let events = app.job_events_after(0, 100, Some(&job.job_id)).unwrap();
         let progress: Vec<_> = events
@@ -1369,6 +1440,31 @@ mod tests {
     }
 
     #[test]
+    fn progress_yields_to_a_pending_heartbeat_then_resumes() {
+        let mut app = EditorApplication::open(":memory:").unwrap();
+        let job = claimed_job(&mut app);
+        let cancel = CancellationToken::new();
+        let pending = Arc::new(AtomicBool::new(true));
+        let start = Instant::now();
+        let mut reporter = ProgressReporter::new(app, None, "worker", &job, &cancel)
+            .with_heartbeat_priority(pending.clone());
+        reporter.report_at(encoding(0.2), start);
+        assert!(reporter.last.is_none());
+        pending.store(false, Ordering::SeqCst);
+        reporter.report_at(encoding(0.5), start + Duration::from_millis(1));
+        assert!(reporter.error.is_none());
+        app = reporter.app.take().unwrap();
+        let progress: Vec<_> = app
+            .job_events_after(0, 100, Some(&job.job_id))
+            .unwrap()
+            .into_iter()
+            .filter(|event| event.event_type == "progress")
+            .collect();
+        assert_eq!(progress.len(), 1);
+        assert_eq!(progress[0].payload["fraction"], 0.5);
+    }
+
+    #[test]
     fn stale_attempt_cancels_media_without_publishing_progress() {
         let mut app = EditorApplication::open(":memory:").unwrap();
         let job = claimed_job(&mut app);
@@ -1380,10 +1476,11 @@ mod tests {
         let before = app.job_events_after(0, 100, None).unwrap().len();
         let cancel = CancellationToken::new();
         {
-            let mut reporter = ProgressReporter::new(&mut app, "worker", &job, &cancel);
+            let mut reporter = ProgressReporter::new(app, None, "worker", &job, &cancel);
             reporter.report(encoding(0.5));
             assert_eq!(reporter.error.as_ref().unwrap().code, "JOB_LEASE_LOST");
             reporter.report(encoding(1.0));
+            app = reporter.app.take().unwrap();
         }
         assert!(cancel.is_cancelled());
         assert_eq!(

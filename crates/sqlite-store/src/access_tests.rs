@@ -433,7 +433,7 @@ fn migration_only_adopts_jobs_with_authoritative_snapshots_and_rolls_back_on_col
         (valid, forged)
     };
     let connection = Connection::open(&path).unwrap();
-    connection.execute_batch("DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects; DROP TABLE access_events; DROP TABLE access_credentials; DROP TABLE access_grants; DROP TABLE access_principals; UPDATE metadata SET value='4'; CREATE TABLE job_projects(collision TEXT);").unwrap();
+    connection.execute_batch("DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects; DROP TABLE access_events; DROP TABLE access_credentials; DROP TABLE access_grants; DROP TABLE access_principals; UPDATE metadata SET value='4'; CREATE TABLE job_projects(collision TEXT);").unwrap();
     assert!(EditorApplication::open(&path).is_err());
     assert_eq!(
         connection

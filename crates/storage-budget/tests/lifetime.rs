@@ -1,4 +1,5 @@
 #![cfg(unix)]
+use fs2::FileExt;
 use opencut_editor_application::{
     audit::{CallSource, ExecutionContext},
     budget::{BudgetNative, Configure, RepairAction, RepairRequest, RepairState},
@@ -33,6 +34,26 @@ fn wait(path: &Path) {
         assert!(Instant::now() < deadline, "missing {}", path.display());
         thread::sleep(Duration::from_millis(10));
     }
+}
+#[test]
+fn bound_database_connection_does_not_need_an_exclusive_admission_gate() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let budget = Budget::new(root);
+    drop(
+        budget
+            .database_connection_lease("workspace.sqlite", false)
+            .unwrap(),
+    );
+    let gate = fs::File::open(root.join(".storage-budget")).unwrap();
+    FileExt::lock_shared(&gate).unwrap();
+    let started = Instant::now();
+    let lease = budget
+        .database_connection_lease("workspace.sqlite", false)
+        .unwrap();
+    assert!(started.elapsed() < Duration::from_secs(1));
+    drop(lease);
+    FileExt::unlock(&gate).unwrap();
 }
 #[test]
 fn physical_repair_reserve_fences_normal_writes_and_replays_transitions() {

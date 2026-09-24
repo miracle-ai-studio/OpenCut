@@ -1,0 +1,54 @@
+{
+  "status": "passed_with_remaining_scope",
+  "scope": "real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation",
+  "checks": [
+    "HTTP import and read-only plan; atomic apply and exact retry return same transaction",
+    "HTTP write and separate CLI equivalent-time retry share transaction; changed duration rejects",
+    "Split followed by independent human caption; stale Agent edit rejected without losing caption",
+    "Nonzero range preview independently decoded red then blue, two seconds and audible PCM",
+    "Correct opacity then edit head; old fixed revision export preserves four seconds and half-intensity blue",
+    "Real service restart and separate CLI reopen preserve latest head and clip count",
+    "Whole-project restore creates a new revision and restores two editable clips",
+    "Renamed and concurrent duplicate uploads preserve video identity and original MIME",
+    "PNG content stays image despite movie extension; MJPEG movie stays video; invalid bytes rejected",
+    "Truncated, same-size corrupted, symlink and hardlinked artifacts rejected; original successful record preserved; restored file downloads",
+    "Owner release is durable and exactly replayable across HTTP, CLI and restart; audit commits once, other artifact stays retained and release does not delete bytes"
+  ],
+  "findings": {
+    "renamed_video": {
+      "same_asset_id": true,
+      "original_kind": "video",
+      "renamed_kind": "video",
+      "renamed_mime": "video/mp4"
+    },
+    "missing_journey_jobs": [
+      "analysis.shots",
+      "analysis.transcribe",
+      "project.package"
+    ]
+  },
+  "evidence": {
+    "preview_rgb": [
+      [
+        253,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        255
+      ]
+    ],
+    "export_blue": [
+      1,
+      0,
+      130
+    ],
+    "export_duration": 4.0,
+    "preview_pcm_rms": 2030.216993417482,
+    "job_id": "job_4a2357ab713f45519ae60e62b7ab7fe6"
+  },
+  "directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-ti_dl6kc/media-journey/journey-1790228718737290000",
+  "binary_sha256": "d2ced025aced3a4c8e4f6726dcf74c9561e5eb7554360dc2610a7ba7826a97f8"
+}

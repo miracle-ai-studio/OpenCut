@@ -101,6 +101,10 @@ pub fn public_error(original: EditorError) -> EditorError {
             "REVISION_CONFLICT",
             "The expected revision is no longer current",
         ),
+        "DATABASE_BUSY" => error(
+            "DATABASE_BUSY",
+            "Task state is temporarily locked; inspect it and retry the same request",
+        ),
         "STORAGE_ERROR" | "INTERNAL_ERROR" => {
             error("INTERNAL_ERROR", "Task state could not be read or changed")
         }
@@ -543,5 +547,11 @@ mod tests {
             Some(json!({"code":"DATABASE_CAPACITY_EXHAUSTED","message":"/private/secret"}));
         let view = project(failed);
         assert_eq!(view.failure.unwrap().code, "DATABASE_CAPACITY_EXHAUSTED");
+    }
+    #[test]
+    fn transient_database_lock_remains_retryable_without_leaking_storage_details() {
+        let public = public_error(EditorError::new("DATABASE_BUSY", "/private/secret"));
+        assert_eq!(public.code, "DATABASE_BUSY");
+        assert!(!public.message.contains("/private/secret"));
     }
 }

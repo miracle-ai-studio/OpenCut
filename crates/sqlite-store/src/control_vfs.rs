@@ -239,6 +239,11 @@ fn admission_sqlite_code(error: &EditorError, other: c_int) -> c_int {
         "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
     ) {
         ffi::SQLITE_FULL
+    } else if error.code == "STORAGE_BUDGET_BUSY" {
+        // Admission locks can be held by another live Host. Keep this
+        // retryable for callers such as Worker heartbeats; IOERR would turn a
+        // transient lock into a terminal task failure.
+        ffi::SQLITE_BUSY
     } else {
         other
     }
@@ -724,6 +729,20 @@ mod tests {
         audit::{CallSource, ExecutionContext},
         budget::{BudgetNative, Configure, RepairAction, RepairRequest},
     };
+
+    #[test]
+    fn transient_admission_lock_maps_to_retryable_sqlite_busy() {
+        let busy = EditorError::new("STORAGE_BUDGET_BUSY", "another live writer holds admission");
+        assert_eq!(
+            admission_sqlite_code(&busy, ffi::SQLITE_IOERR),
+            ffi::SQLITE_BUSY
+        );
+        let full = EditorError::new("DATABASE_CAPACITY_EXHAUSTED", "no capacity");
+        assert_eq!(
+            admission_sqlite_code(&full, ffi::SQLITE_IOERR),
+            ffi::SQLITE_FULL
+        );
+    }
 
     #[test]
     fn managed_sqlite_disk_temp_is_admitted_before_growth() {

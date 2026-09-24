@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "binary_sha256": "d2ced025aced3a4c8e4f6726dcf74c9561e5eb7554360dc2610a7ba7826a97f8",
+  "checks": [
+    "Output ceiling is explicit, old configure input preserves it, zero is rejected atomically, capped real FFmpeg fails without artifact and fresh task succeeds with decoded red pixels",
+    "Direct/composited frame, range and project export use the same admission port; actual caption intermediates clean on failure/success and final images decode correctly",
+    "Real seven-second SQLite and admission-directory locks exercise busy and bounded gate waits; Worker renews its lease and cancels after transient contention",
+    "Actual Worker SIGKILL retains orphan FFmpeg output and attempt locks; natural lease expiry starts attempt 2 without deleting live attempt 1, cancellation stops only attempt 2, and later orphan exit permits cleanup",
+    "Aliased artifact root fails closed at Worker startup or cleanup without touching outside files; restored root runs a real frame job"
+  ],
+  "orphan_output_bytes": [
+    262144
+  ],
+  "orphan_output_ceiling": 262144,
+  "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-ti_dl6kc/worker-admission"
+}

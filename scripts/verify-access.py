@@ -84,7 +84,8 @@ def verify(binary, root):
         request=edit(revision,'scoped-edit');call('opencut_edit_plan',request,reader,'NOT_AUTHORIZED');call('opencut_edit_apply',request,reader,'NOT_AUTHORIZED')
         call('opencut_edit_plan',request,editor);changed=call('opencut_edit_apply',request,editor);assert call('opencut_edit_apply',request,editor)==changed
         call('opencut_edit_apply',setup,editor,'NOT_AUTHORIZED') # even a known receipt containing host paths
-        for tool,args in [('opencut_job_get',{'job_id':'guessed'}),('opencut_plugin_list',{}),('opencut_media_inspect',{'id':'guessed'})]:call(tool,args,editor,'NOT_AUTHORIZED')
+        guessed_artifact='artifact:job_'+'0'*32+':'+'0'*64
+        for tool,args in [('opencut_job_get',{'job_id':'guessed'}),('opencut_plugin_list',{}),('opencut_media_inspect',{'id':'guessed'}),('opencut_artifact_retention_inspect',{'artifact_id':guessed_artifact}),('opencut_artifact_retention_release',{'artifact_id':guessed_artifact,'idempotency_key':'forbidden-release'})]:call(tool,args,editor,'NOT_AUTHORIZED')
         call('opencut_job_submit',{'kind':'media.probe','idempotency_key':'path-injection','input':{'input':str(source)}},editor,'NOT_AUTHORIZED')
         command(['worker','run','--once'],credential=editor,error='NOT_AUTHORIZED')
         command(['serve'],credential=editor,error='NOT_AUTHORIZED')

@@ -284,6 +284,11 @@ mod unix {
     const REPAIR_FILE: &str = "repair.reserve";
     const CONNECTION_LOCK: &str = "connections.lock";
     const REPAIR_BYTES: u64 = 8 * 1024 * 1024;
+    const DEFAULT_GATE_WAIT: Duration = Duration::from_secs(5);
+    // SQLite may ask the VFS to grow its WAL while it owns a write transaction.
+    // Give that control reservation time to outlive a short independent budget
+    // operation instead of returning BUSY from xWrite with SQLite locks held.
+    const DATABASE_CONTROL_GATE_WAIT: Duration = Duration::from_secs(15);
     const ROOTS: [&str; 5] = ["asset-store", "media", "uploads", "artifacts", "plugins"];
     fn failure() -> EditorError {
         EditorError::new(
@@ -311,7 +316,7 @@ mod unix {
             .and_then(|n| n.checked_add(LEDGER_STAGING_SLACK))
             .ok_or_else(metadata_capacity)
     }
-    fn locked(file: &File, exclusive: bool) -> Result<(), EditorError> {
+    fn locked(file: &File, exclusive: bool, timeout: Duration) -> Result<(), EditorError> {
         let started = Instant::now();
         loop {
             let result = if exclusive {
@@ -322,7 +327,7 @@ mod unix {
             match result {
                 Ok(()) => return Ok(()),
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    if started.elapsed() >= Duration::from_secs(5) {
+                    if started.elapsed() >= timeout {
                         return Err(busy());
                     }
                     std::thread::sleep(Duration::from_millis(5));
@@ -337,6 +342,13 @@ mod unix {
     }
     impl Gate {
         fn open(budget: &Budget, write: bool) -> Result<Self, EditorError> {
+            Self::open_with_timeout(budget, write, DEFAULT_GATE_WAIT)
+        }
+        fn open_with_timeout(
+            budget: &Budget,
+            write: bool,
+            timeout: Duration,
+        ) -> Result<Self, EditorError> {
             let root: File = fs::open(&budget.workspace, DIR, Mode::empty())
                 .map_err(|_| failure())?
                 .into();
@@ -352,7 +364,7 @@ mod unix {
             let directory = match fs::openat(&root, CONTROL, DIR, Mode::empty()) {
                 Ok(fd) => {
                     let file: File = fd.into();
-                    locked(&file, write)?;
+                    locked(&file, write, timeout)?;
                     Some(file)
                 }
                 Err(rustix::io::Errno::NOENT) if !write => None,
@@ -636,12 +648,48 @@ mod unix {
     pub(super) struct ConnectionLease {
         _file: File,
     }
+    fn connection_lease(gate: &Gate) -> Result<super::ConnectionLease, EditorError> {
+        let file = connection_lock_file(gate, false)?;
+        match FileExt::try_lock_shared(&file) {
+            Ok(()) => Ok(super::ConnectionLease {
+                _inner: ConnectionLease { _file: file },
+            }),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Err(busy()),
+            Err(_) => Err(failure()),
+        }
+    }
     pub(super) fn database_connection_lease(
         budget: &Budget,
         database_name: &str,
         repair: bool,
     ) -> Result<super::ConnectionLease, EditorError> {
         validate_database_name(database_name)?;
+        // Once repair and database binding are durable, an ordinary connection
+        // only observes them. Shared admission avoids making every CLI/API
+        // connection compete for the exclusive gate with live Worker writes.
+        let shared = Gate::open(budget, false)?;
+        let observed = shared.read()?;
+        if observed
+            .control_database_name
+            .as_deref()
+            .is_some_and(|bound| bound != database_name)
+        {
+            return Err(failure());
+        }
+        if repair {
+            require_repair_active(&shared, &observed)?;
+            if observed.control_database_name.as_deref() != Some(database_name) {
+                return Err(failure());
+            }
+            return connection_lease(&shared);
+        }
+        if observed.control_database_name.as_deref() == Some(database_name)
+            && observed.repair.is_some()
+        {
+            require_normal_repair(&shared, &observed, true)?;
+            return connection_lease(&shared);
+        }
+        drop(shared);
         let gate = Gate::open(budget, true)?;
         let mut ledger = gate.read()?;
         if ledger
@@ -651,27 +699,13 @@ mod unix {
         {
             return Err(failure());
         }
-        if repair {
-            require_repair_active(&gate, &ledger)?;
-            if ledger.control_database_name.as_deref() != Some(database_name) {
-                return Err(failure());
-            }
-        } else {
-            provision_repair(&gate, &mut ledger)?;
-            require_normal_repair(&gate, &ledger, true)?;
-            if ledger.control_database_name.is_none() {
-                ledger.control_database_name = Some(database_name.to_owned());
-                gate.save_with_margin(&ledger, true)?;
-            }
+        provision_repair(&gate, &mut ledger)?;
+        require_normal_repair(&gate, &ledger, true)?;
+        if ledger.control_database_name.is_none() {
+            ledger.control_database_name = Some(database_name.to_owned());
+            gate.save_with_margin(&ledger, true)?;
         }
-        let file = connection_lock_file(&gate, false)?;
-        match FileExt::try_lock_shared(&file) {
-            Ok(()) => Ok(super::ConnectionLease {
-                _inner: ConnectionLease { _file: file },
-            }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Err(busy()),
-            Err(_) => Err(failure()),
-        }
+        connection_lease(&gate)
     }
     fn admit_repair_control(
         ledger: &Ledger,
@@ -1608,7 +1642,7 @@ mod unix {
         if bytes > i64::MAX as u64 {
             return Err(limit());
         }
-        let gate = Gate::open(budget, true)?;
+        let gate = Gate::open_with_timeout(budget, true, DATABASE_CONTROL_GATE_WAIT)?;
         let mut ledger = gate.read()?;
         if ledger
             .control_database_name
@@ -1704,7 +1738,11 @@ mod unix {
             if bytes > i64::MAX as u64 {
                 return Err(limit());
             }
-            let gate = Gate::open(&self.budget, true)?;
+            let gate = if matches!(self.kind, Kind::Control | Kind::RepairControl) {
+                Gate::open_with_timeout(&self.budget, true, DATABASE_CONTROL_GATE_WAIT)?
+            } else {
+                Gate::open(&self.budget, true)?
+            };
             let mut ledger = gate.read()?;
             provision_repair(&gate, &mut ledger)?;
             if !matches!(self.kind, Kind::RepairControl) {

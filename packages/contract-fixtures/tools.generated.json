@@ -2391,6 +2391,268 @@
     "read_only": false
   },
   {
+    "description": "Owner-only: inspect whether a successful job artifact still has its default retention root. Released does not mean deleted or unavailable; actual bytes are checked at download. Does not expose native paths.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id"
+      ],
+      "title": "InspectInput",
+      "type": "object"
+    },
+    "name": "opencut_artifact_retention_inspect",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "RetentionState": {
+          "enum": [
+            "retained",
+            "released"
+          ],
+          "type": "string"
+        },
+        "View": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "release_request_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "released_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/RetentionState"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "job_id",
+            "content_hash",
+            "size_bytes",
+            "state"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/View"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Owner-only: durably release one successful job artifact's default retention root under an exact idempotency key. Does not delete bytes, alter job success or override other retained references. Inspect before retrying with a different key.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "idempotency_key"
+      ],
+      "title": "ReleaseInput",
+      "type": "object"
+    },
+    "name": "opencut_artifact_retention_release",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "RetentionState": {
+          "enum": [
+            "retained",
+            "released"
+          ],
+          "type": "string"
+        },
+        "View": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "release_request_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "released_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/RetentionState"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "job_id",
+            "content_hash",
+            "size_bytes",
+            "state"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/View"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
     "description": "Owner-only bounded native storage observation. Reports managed categories, unique inode bytes, partial scans and volume availability without exposing paths. Live scan, not an atomic snapshot, quota reservation or garbage-collection plan. Never deletes or repairs files.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

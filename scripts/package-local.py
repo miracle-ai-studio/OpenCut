@@ -98,7 +98,7 @@ def package(output, skip_build, supplied_binary=None):
         for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
                          'storage-governance-contract.md', 'cas-gc-contract.md',
                          'storage-admission-contract.md', 'database-control-admission.md',
-                         'native-child-write-contract.md']:
+                         'native-child-write-contract.md', 'artifact-retention-contract.md']:
             shutil.copy2(ROOT / 'design/architecture' / contract, host / contract)
         (host / 'sdk').mkdir()
         shutil.copy2(stage / packed, host / 'sdk' / packed)

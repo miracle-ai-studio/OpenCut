@@ -187,6 +187,18 @@ impl Automation {
                 &self.app,
                 parse(arguments)?,
             )?),
+            "opencut_artifact_retention_inspect" => {
+                to_value(opencut_editor_application::artifact_retention::inspect(
+                    &self.app,
+                    parse(arguments)?,
+                )?)
+            }
+            "opencut_artifact_retention_release" => {
+                to_value(opencut_editor_application::artifact_retention::release(
+                    &mut self.app,
+                    parse(arguments)?,
+                )?)
+            }
             "opencut_storage_inspect" => to_value(opencut_editor_application::storage::inspect(
                 &self.caller,
                 &opencut_native_services::storage::NativeStorage(&self.database),

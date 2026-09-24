@@ -273,6 +273,21 @@ def verify(binary):
             with sqlite3.connect(admission) as c:
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
             checks.append('Schema 14 media output protocol gate rolls back on failure; retry preserves all business history')
+        if target_version >= 16:
+            retention = fixture('v15-artifact-retention-rollback')
+            seed(retention, 15, 'v2', probe)
+            with sqlite3.connect(retention) as c:
+                c.execute('CREATE TABLE artifact_retention(collision TEXT)')
+                before = list(c.iterdump())
+            call(retention, 'opencut_project_inspect', {'project_id':'history'}, 'STORAGE_ERROR')
+            with sqlite3.connect(retention) as c:
+                assert list(c.iterdump()) == before
+                c.execute('DROP TABLE artifact_retention')
+            assert call(retention, 'opencut_project_inspect', {'project_id':'history'}) == PROJECT['head']
+            with sqlite3.connect(retention) as c:
+                assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
+                assert c.execute('SELECT count(*) FROM artifact_retention').fetchone()[0] == 0
+            checks.append('Schema 15 artifact retention collision rolls back; retry preserves historical results without inventing releases')
         for repetition in range(20):
             race = fixture(f'journal-conversion-{repetition}')
             seed(race, 5, 'v2', probe)

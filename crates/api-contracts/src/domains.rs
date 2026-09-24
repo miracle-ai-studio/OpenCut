@@ -104,6 +104,7 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
     } else if suffix.starts_with("database_")
         || suffix.starts_with("storage_")
         || suffix.starts_with("cas_gc_")
+        || suffix.starts_with("artifact_retention_")
         || suffix.starts_with("maintenance_")
     {
         ("workspace", suffix.replace('_', "."))

@@ -605,6 +605,79 @@ export namespace OpencutCasGcExecuteOutput {
 
 }
 
+export namespace OpencutArtifactRetentionInspectInput {
+  export interface InspectInput {
+  artifact_id: string;
+}
+
+}
+
+export namespace OpencutArtifactRetentionInspectOutput {
+  export type RetentionState = 'retained' | 'released';
+
+  export interface Response {
+  api_version: string;
+  data?: View | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface View {
+  artifact_id: string;
+  content_hash: string;
+  job_id: string;
+  release_request_id?: string | null;
+  released_at?: string | null;
+  size_bytes: string;
+  state: RetentionState;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutArtifactRetentionReleaseInput {
+  export interface ReleaseInput {
+  artifact_id: string;
+  idempotency_key: string;
+}
+
+}
+
+export namespace OpencutArtifactRetentionReleaseOutput {
+  export type RetentionState = 'retained' | 'released';
+
+  export interface Response {
+  api_version: string;
+  data?: View | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface View {
+  artifact_id: string;
+  content_hash: string;
+  job_id: string;
+  release_request_id?: string | null;
+  released_at?: string | null;
+  size_bytes: string;
+  state: RetentionState;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutStorageInspectInput {
   export interface InspectInput {
   max_entries?: number;
@@ -7838,6 +7911,8 @@ export interface ToolMap {
   opencut_cas_gc_plan: { input: OpencutCasGcPlanInput.PlanInput; output: NonNullable<OpencutCasGcPlanOutput.Response["data"]> };
   opencut_cas_gc_inspect: { input: OpencutCasGcInspectInput.PlanId; output: NonNullable<OpencutCasGcInspectOutput.Response["data"]> };
   opencut_cas_gc_execute: { input: OpencutCasGcExecuteInput.ExecuteInput; output: NonNullable<OpencutCasGcExecuteOutput.Response["data"]> };
+  opencut_artifact_retention_inspect: { input: OpencutArtifactRetentionInspectInput.InspectInput; output: NonNullable<OpencutArtifactRetentionInspectOutput.Response["data"]> };
+  opencut_artifact_retention_release: { input: OpencutArtifactRetentionReleaseInput.ReleaseInput; output: NonNullable<OpencutArtifactRetentionReleaseOutput.Response["data"]> };
   opencut_storage_inspect: { input: OpencutStorageInspectInput.InspectInput; output: NonNullable<OpencutStorageInspectOutput.Response["data"]> };
   opencut_upload_create: { input: OpencutUploadCreateInput.CreateUpload; output: NonNullable<OpencutUploadCreateOutput.Response["data"]> };
   opencut_upload_inspect: { input: OpencutUploadInspectInput.UploadInput; output: NonNullable<OpencutUploadInspectOutput.Response["data"]> };
@@ -7965,6 +8040,8 @@ export interface DomainMap {
     "cas.gc.plan": ToolMap["opencut_cas_gc_plan"];
     "cas.gc.inspect": ToolMap["opencut_cas_gc_inspect"];
     "cas.gc.execute": ToolMap["opencut_cas_gc_execute"];
+    "artifact.retention.inspect": ToolMap["opencut_artifact_retention_inspect"];
+    "artifact.retention.release": ToolMap["opencut_artifact_retention_release"];
     "storage.inspect": ToolMap["opencut_storage_inspect"];
     "plugin.publication.query": ToolMap["opencut_plugin_publication_query"];
     "plugin.publication.reconcile": ToolMap["opencut_plugin_publication_reconcile"];
@@ -8057,6 +8134,8 @@ export const domainActions = {
     "cas.gc.plan",
     "cas.gc.inspect",
     "cas.gc.execute",
+    "artifact.retention.inspect",
+    "artifact.retention.release",
     "storage.inspect",
     "plugin.publication.query",
     "plugin.publication.reconcile",
@@ -8085,6 +8164,8 @@ export const toolNames = [
   "opencut_cas_gc_plan",
   "opencut_cas_gc_inspect",
   "opencut_cas_gc_execute",
+  "opencut_artifact_retention_inspect",
+  "opencut_artifact_retention_release",
   "opencut_storage_inspect",
   "opencut_upload_create",
   "opencut_upload_inspect",

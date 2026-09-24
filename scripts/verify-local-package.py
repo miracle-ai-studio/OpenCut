@@ -54,7 +54,8 @@ def verify(archive, mcp_sdk_root=None, component=None):
         assert hashlib.sha256(binary.read_bytes()).hexdigest() == manifest['binary_sha256']
         for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
                          'storage-governance-contract.md', 'cas-gc-contract.md',
-                         'storage-admission-contract.md', 'native-child-write-contract.md']:
+                         'storage-admission-contract.md', 'database-control-admission.md',
+                         'native-child-write-contract.md', 'artifact-retention-contract.md']:
             assert (bundle / contract).is_file(), f'Missing packaged contract: {contract}'
         schema = json.loads(run([binary, '--json', 'system', 'schema']))['data']
         assert schema == json.loads((bundle / 'contracts/tools.generated.json').read_text())
