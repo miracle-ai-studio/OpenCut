@@ -21,7 +21,9 @@ Owner 还可调用 `opencut_artifact_references_inspect`：在一次 SQLite 读�
 
 schema 17 的 `artifact_gc_plans` 保存 `opencut_artifact_gc_plan` 的幂等参数、完整根集、私有原生路径／文件身份和公共审阅快照；计划与 `artifact.gc.planned` 审计在同一 SQLite 事务提交。Owner 以 `opencut_artifact_gc_inspect` 按 ID 重读，或用 `opencut_artifact_gc_query` 有界分页找回。计划哈希绑定公共快照与私有观察。计划时会把原生路径候选按文件身份与发布文件比对，识别普通路径、符号链接和百分号编码的 `file://` URI；无法解析的文件 URI、损坏权威文档及扫描超限会报错。公共计划最多展示 100 个保护根，不泄露路径或 inode。SQLite 读快照和文件身份观察不是跨存储原子快照，之后仍须在执行门闩内重检；`execution_available=false`，当前没有执行工具。
 
-`remove_if` 的回调仅是锁内重查的插槽；新引用发布尚未统一经过删除门闩，也没有 SQLite 删除回执或公开 API 调用它，因此**当前没有已发布产物删除能力**。
+`remove_if` 的回调仅是锁内重查的插槽；它尚未接入持久发布围栏，也没有 SQLite 删除回执或公开 API 调用它，因此**当前没有已发布产物删除能力**。
+
+schema 18 已为执行阶段建立持久发布围栏：`artifact_gc_removals` 中只要存在 `removing`，工程修订、Job 输入／结果、项目素材、插件发布及项目插件授权的新增或引用字段改写都会由 SQLite 触发器拒绝，并返回 `ARTIFACT_COLLECTION_RECOVERY_REQUIRED`；普通 Job 状态更新可继续。执行者还必须先持有 SQLite `BEGIN IMMEDIATE` 写事务，完成即时引用重查并原子写入 `removing`，再释放事务进行原生删除。这样即使进程在事务结束后强杀，新的持久引用也不能趁空档发布。当前没有公开操作创建或解决这类删除意图；后续执行与恢复须保证终态回执落盘后才解除围栏。围栏不约束直接在数据库之外篡改文件系统的进程，原生路径别名仍须在删除前重新解析。
 
 ## 验收门槛
 

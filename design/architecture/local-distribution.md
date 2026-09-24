@@ -113,6 +113,8 @@ Owner 通过 cas_gc_query 发现未完成计划，通过 cas_gc_plan 创建可�
 
 Owner 可用 `opencut_artifact_retention_inspect/release` 管理成功任务产物的默认保留根，使用 `opencut_artifact_references_inspect` 观察持久引用。`opencut_artifact_gc_plan` 按产物 ID 和稳定幂等键保存文件身份及保护根的审阅快照；`opencut_artifact_gc_query/inspect` 可在断线后找回。计划不删除文件，`execution_available=false`。发布门闩、执行和崩溃删除回执尚未接入；零引用或 release 不能作为删除依据。详见包内 `artifact-retention-contract.md`。
 
+schema 18 的 SQLite 发布围栏会在未完成删除意图存续时阻止五类持久引用新增或改写，避免执行进程退出后新引用穿过空档。当前公开工具尚不创建删除意图，也没有执行／恢复入口；升级包仍需整体停机迁移，不能把该围栏视作已可删除产物。详见包内 `artifact-retention-contract.md`。
+
 
 ## 持久写入准入
 

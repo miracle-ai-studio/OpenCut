@@ -303,6 +303,21 @@ def verify(binary):
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
                 assert c.execute('SELECT count(*) FROM artifact_gc_plans').fetchone()[0] == 0
             checks.append('Schema 16 artifact plan collision rolls back; retry preserves history without inventing plans')
+        if target_version >= 18:
+            removals = fixture('v17-artifact-publication-rollback')
+            seed(removals, 17, 'v2', probe)
+            with sqlite3.connect(removals) as c:
+                c.execute('CREATE TABLE artifact_gc_removals(collision TEXT)')
+                before = list(c.iterdump())
+            call(removals, 'opencut_project_inspect', {'project_id': 'history'}, 'STORAGE_ERROR')
+            with sqlite3.connect(removals) as c:
+                assert list(c.iterdump()) == before
+                c.execute('DROP TABLE artifact_gc_removals')
+            assert call(removals, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
+            with sqlite3.connect(removals) as c:
+                assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
+                assert c.execute('SELECT count(*) FROM artifact_gc_removals').fetchone()[0] == 0
+            checks.append('Schema 17 publication fence collision rolls back; retry preserves history without inventing removals')
         for repetition in range(20):
             race = fixture(f'journal-conversion-{repetition}')
             seed(race, 5, 'v2', probe)

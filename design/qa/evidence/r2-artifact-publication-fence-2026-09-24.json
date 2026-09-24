@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "checks": [
+    "a separate delivered CLI process cannot commit a project revision while the removal intent survives a process exit; failed commit leaves no head or receipt",
+    "resolving the durable fence allows exact-key retry to create one revision and one receipt"
+  ],
+  "directory": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-artifact-publication-w19irdn7",
+  "binary_sha256": "7421191dbaa4f1c8b87fbbf87759d746e7ded1347c256611198b0c9e41799a57"
+}

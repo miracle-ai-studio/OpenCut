@@ -444,7 +444,7 @@
     "/v1/tools/opencut_artifact_gc_plan": {
       "post": {
         "operationId": "opencut_artifact_gc_plan",
-        "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file identity privately, default retention and bounded persisted reference roots; resolves native path aliases by file identity at observation time. No deletion occurs. The plan is a snapshot, not permission to remove bytes, and execution is unavailable until concurrent publication fencing is implemented.",
+        "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file identity privately, default retention and bounded persisted reference roots; resolves native path aliases by file identity at observation time. No deletion occurs. The plan is a snapshot, not permission to remove bytes; execution remains unavailable until locked recheck and durable deletion receipts are implemented.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,

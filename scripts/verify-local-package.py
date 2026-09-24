@@ -459,6 +459,10 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
         history_detail = json.loads(Path(history['report']).read_text())
         assert history['status'] == 'passed' and history_detail['binary_sha256'] == manifest['binary_sha256']
         checks.append(f"delivered binary passes {history['matrix_cells']}-cell frozen historical format matrix")
+        publication = json.loads(run(['python3', ROOT / 'scripts/verify-artifact-publication-fence.py', '--binary', binary]))
+        publication_detail = json.loads(Path(publication['report']).read_text())
+        assert publication['status'] == 'passed' and publication_detail['binary_sha256'] == manifest['binary_sha256']
+        checks.append('delivered CLI rejects new project references while a crash-persistent artifact removal intent is unresolved, then retries cleanly')
         available_tools = {tool['name'] for tool in schema}
         independent_journeys = [
             ('opencut_access_inspect', 'verify-access.py', 'scoped CLI and stdio MCP authorization, real artifacts and live revocation'),

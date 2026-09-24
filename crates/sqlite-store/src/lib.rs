@@ -4,6 +4,7 @@ pub mod job_views;
 pub mod jobs;
 mod sqlite_access;
 mod sqlite_artifact_gc;
+mod sqlite_artifact_publication;
 mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
 mod sqlite_audit;
@@ -29,7 +30,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 17;
+const DATABASE_SCHEMA_VERSION: i64 = 18;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -361,6 +362,11 @@ impl EditorApplication {
         }
         if version == 16 {
             tx.execute_batch(sqlite_artifact_gc::MIGRATION)
+                .map_err(storage_error)?;
+            version = 17;
+        }
+        if version == 17 {
+            tx.execute_batch(sqlite_artifact_publication::MIGRATION)
                 .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
@@ -1150,6 +1156,9 @@ fn idempotency_insert_error(error: rusqlite::Error) -> EditorError {
 }
 
 fn constraint_or_storage(error: rusqlite::Error) -> EditorError {
+    if is_artifact_publication_fence(&error) {
+        return storage_error(error);
+    }
     if matches!(
         error.sqlite_error_code(),
         Some(ErrorCode::ConstraintViolation)
@@ -1160,7 +1169,17 @@ fn constraint_or_storage(error: rusqlite::Error) -> EditorError {
     }
 }
 
+fn is_artifact_publication_fence(error: &rusqlite::Error) -> bool {
+    matches!(error, rusqlite::Error::SqliteFailure(_, Some(message)) if message == "artifact collection publication fenced")
+}
+
 fn storage_error(error: rusqlite::Error) -> EditorError {
+    if is_artifact_publication_fence(&error) {
+        return EditorError::new(
+            "ARTIFACT_COLLECTION_RECOVERY_REQUIRED",
+            "An unfinished artifact removal is fencing new references; resolve its durable result before retrying the original request",
+        );
+    }
     if error.sqlite_error_code() == Some(ErrorCode::DiskFull) {
         return EditorError {
             code: "DATABASE_CAPACITY_EXHAUSTED".into(),
@@ -2076,6 +2095,9 @@ mod tests {
         };
         let connection = Connection::open(&path).unwrap();
         connection
+            .execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
+            .unwrap();
+        connection
             .execute_batch(
                 "DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
@@ -2235,6 +2257,9 @@ mod tests {
             app.create_job(job_request("job-key")).unwrap()
         };
         let connection = Connection::open(&path).unwrap();
+        connection
+            .execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
+            .unwrap();
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
