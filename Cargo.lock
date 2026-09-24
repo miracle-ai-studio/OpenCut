@@ -4670,6 +4670,7 @@ dependencies = [
 name = "opencut-native-services"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "opencut-api-contracts",
  "opencut-asset-store",
  "opencut-contracts",

@@ -31,32 +31,7 @@ impl AttemptLease {
     /// Open a direct child of the locked attempt inode, never following a
     /// replacement of the attempt path or a symbolic link at the file name.
     pub fn open_readonly_child(&self, name: &OsStr) -> io::Result<File> {
-        let mut components = Path::new(name).components();
-        if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Invalid attempt child name",
-            ));
-        }
-        #[cfg(unix)]
-        {
-            use rustix::fs::{Mode, OFlags, openat};
-            let fd = openat(
-                self.0.as_ref(),
-                Path::new(name),
-                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-                Mode::empty(),
-            )?;
-            Ok(fd.into())
-        }
-        #[cfg(not(unix))]
-        {
-            let _ = name;
-            Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                "Attempt child reads require Unix",
-            ))
-        }
+        open_child(&self.0, name)
     }
     pub fn spawn_readonly(
         self,
@@ -85,6 +60,59 @@ impl AttemptLease {
 impl CleanupLease {
     pub fn still_names(&self, path: &Path) -> io::Result<bool> {
         same_directory(&self.0, path)
+    }
+    pub fn open_readonly_child(&self, name: &OsStr) -> io::Result<File> {
+        open_child(&self.0, name)
+    }
+    /// Unlink only a direct child of this locked directory, then make the
+    /// directory entry removal durable before the collector records success.
+    pub fn unlink_child_sync(&self, name: &OsStr) -> io::Result<()> {
+        valid_child(name)?;
+        #[cfg(unix)]
+        {
+            rustix::fs::unlinkat(&self.0, Path::new(name), rustix::fs::AtFlags::empty())?;
+            self.0.sync_all()
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = name;
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Attempt child deletion requires Unix",
+            ))
+        }
+    }
+}
+fn valid_child(name: &OsStr) -> io::Result<()> {
+    let mut components = Path::new(name).components();
+    if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Invalid attempt child name",
+        ));
+    }
+    Ok(())
+}
+fn open_child(directory: &File, name: &OsStr) -> io::Result<File> {
+    valid_child(name)?;
+    #[cfg(unix)]
+    {
+        use rustix::fs::{Mode, OFlags, openat};
+        let fd = openat(
+            directory,
+            Path::new(name),
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC | OFlags::NONBLOCK,
+            Mode::empty(),
+        )?;
+        Ok(fd.into())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (directory, name);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Attempt child reads require Unix",
+        ))
     }
 }
 fn same_directory(file: &File, path: &Path) -> io::Result<bool> {

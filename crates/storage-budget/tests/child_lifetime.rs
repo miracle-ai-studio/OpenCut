@@ -239,7 +239,15 @@ fn cleanup_tolerates_another_cleaner_and_rechecks_directory_identity() {
     let lease = AttemptLease::acquire(&path).unwrap();
     assert!(AttemptLease::try_cleanup(&path).unwrap().is_none());
     drop(lease);
-    let guard = AttemptLease::try_cleanup(&path).unwrap().unwrap();
+    // A parallel test may be between fork and exec while briefly inheriting
+    // this CLOEXEC descriptor. Busy is safe and transient; retain the first
+    // successful exclusive guard rather than assuming the next probe wins.
+    let mut guard = None;
+    until(|| {
+        guard = AttemptLease::try_cleanup(&path).unwrap();
+        guard.is_some()
+    });
+    let guard = guard.unwrap();
     assert!(guard.still_names(&path).unwrap());
     fs::remove_dir(&path).unwrap();
     assert!(!guard.still_names(&path).unwrap());
