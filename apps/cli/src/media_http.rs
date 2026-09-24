@@ -295,15 +295,18 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
     else {
         return error_response("NOT_FOUND", "Task has no downloadable artifact");
     };
-    let (Ok(path), Ok(root)) = (
-        tokio::fs::canonicalize(path).await,
-        tokio::fs::canonicalize(host.artifact_root.as_ref()).await,
+    let (Some(job_id), Some(attempt)) = (
+        data.get("job_id").and_then(|value| value.as_str()),
+        data.get("attempt")
+            .and_then(|value| value.as_u64())
+            .and_then(|value| u32::try_from(value).ok()),
     ) else {
-        return error_response("NOT_FOUND", "Artifact is missing");
+        return error_response("ARTIFACT_VERIFICATION_FAILED", "Task attempt is invalid");
     };
-    if !path.starts_with(root) {
-        return error_response("NOT_AUTHORIZED", "Artifact is outside the workspace");
-    }
+    let job_id = job_id.to_owned();
+    // Preserve the published name for the native adapter. Canonicalizing it
+    // here would erase a final-component symlink before openat can reject it.
+    let path = std::path::PathBuf::from(path);
     let Some(expected_size) = data
         .pointer("/result/artifact/size")
         .and_then(|v| v.as_u64())
@@ -317,6 +320,7 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
         return error_response("ARTIFACT_VERIFICATION_FAILED", "Artifact hash is missing");
     };
     let expected_hash = expected_hash.to_owned();
+    let artifact_root = host.artifact_root.clone();
     let verified_path = host
         .artifact_root
         .join(format!(".download-{}", uuid::Uuid::new_v4().simple()));
@@ -324,7 +328,12 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
     let cancelled = Cancellation::default();
     let signal = cancelled.0.clone();
     let verified = match BlockingOwned::create(move || {
-        let mut source = std::fs::File::open(&path).map_err(io_error)?;
+        let mut source = opencut_native_services::artifacts::ArtifactSource::open(
+            artifact_root.as_ref(),
+            &job_id,
+            attempt,
+            &path,
+        )?;
         let metadata = source.metadata().map_err(io_error)?;
         if !metadata.is_file() || metadata.len() != expected_size {
             return Err(EditorError::new(

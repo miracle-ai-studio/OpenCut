@@ -140,13 +140,18 @@ def verify(binary: Path, root: Path) -> dict:
             os.close(marker_fd)
             marker_fd = None
             assert tool("opencut_job_get", {"job_id": running["job_id"]})["state"] == "running"
-            os.kill(worker.pid, signal.SIGSTOP)
         job = tool("opencut_job_submit", {
             "kind": "preview.project_frame", "idempotency_key": "queued",
             "input": {"project_id": "repair", "revision": project["revision"],
                       "sequence_id": "main", "requested_time": {"ticks": "0", "timebase": 10},
                       "alignment": "exact"},
         })
+        assert tool("opencut_job_get", {"job_id": job["job_id"]})["state"] == "queued"
+        # Stop only after the queued write has committed. SIGSTOP can freeze a
+        # heartbeat inside SQLite's short write transaction; a subsequent CLI
+        # submission would then time out for a scheduling reason unrelated to
+        # disk-full repair.
+        os.kill(worker.pid, signal.SIGSTOP)
         ready = recovery("inspect")["control"]["repair"]
         assert ready["state"] == "ready" and ready["target_bytes"] == "8388608"
         assert ready["allocated_file_bytes"] == ready["target_bytes"]

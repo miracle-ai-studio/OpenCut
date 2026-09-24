@@ -1,6 +1,8 @@
 # R0–R7 当前源码产品与架构核对（2026-09-23）
 
-判断对象是从历史记录恢复、后续继续推进的当前源码。设计目标以[完整架构](../architecture/agent-friendly-editor-v1.md)和[验收迭代](../architecture/acceptance-driven-iteration-plan.md)为准；历史 QA 只证明对应版本。当前生成的 OpenAPI 有 76 条路径，最新 macOS x86_64 debug 开发包通过 34 项仓库外验收；此前不同脚本版本的 36 项收据保留为历史证据。状态用“部分完成”表达已实现的边界，不把缺失阶段折算为完成百分比。
+判断对象是从历史记录恢复、后续继续推进的当前源码。设计目标以[完整架构](../architecture/agent-friendly-editor-v1.md)和[验收迭代](../architecture/acceptance-driven-iteration-plan.md)为准；历史 QA 只证明对应版本。当前生成的 OpenAPI 有 76 条路径，最新 macOS x86_64 debug 开发包通过 35 项仓库外验收；此前不同脚本版本的 34 项和 36 项收据保留为历史证据。状态用“部分完成”表达已实现的边界，不把缺失阶段折算为完成百分比。
+
+2026-09-24 最新增量：已发布产物下载的共享读取租约和别名围栏通过真实 HTTP／CLI 媒体动线；当前 macOS x86_64 debug 归档在仓库外通过[35 项整包验收](r2-artifact-read-lease-2026-09-24.md)。统一产物保留／回收及其余 R0–R7 缺口不因本轮放行。
 
 2026-09-24 补充：Web 的根路径入口、合成音频导入、字幕、整工程恢复式撤销／重做、预检、帧／区间预览、导出及重开后的浏览器播放已按[真实 Chrome 动线](r7-web-browser-2026-09-24.md)实测。R1／R7 仍为部分完成。
 

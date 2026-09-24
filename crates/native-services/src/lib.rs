@@ -8,4 +8,5 @@ pub mod storage;
 
 pub mod gc;
 
+pub mod artifacts;
 pub mod budget;

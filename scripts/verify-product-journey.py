@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Public product journey; synthetic media is not real interview or browser acceptance."""
-import argparse,copy,json,subprocess,socket,time,urllib.request,urllib.error,hashlib,signal
+import argparse,copy,json,subprocess,socket,time,urllib.request,urllib.error,hashlib,signal,os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from array import array
@@ -137,8 +137,23 @@ try:
    assert unchanged['state']=='succeeded' and unchanged['result']['artifact']==a
  finally:
   artifact_path.write_bytes(original)
+ backup=artifact_path.with_name(artifact_path.name+'.saved')
+ artifact_path.rename(backup)
+ artifact_path.symlink_to(backup.name)
+ try:
+  failure=http('/v1/jobs/'+exported['job_id']+'/artifact')
+  assert failure['error']['code']=='ARTIFACT_VERIFICATION_FAILED',failure
+ finally:
+  artifact_path.unlink();backup.rename(artifact_path)
+ linked=run/'linked-artifact.mp4'
+ os.link(artifact_path,linked)
+ try:
+  failure=http('/v1/jobs/'+exported['job_id']+'/artifact')
+  assert failure['error']['code']=='ARTIFACT_VERIFICATION_FAILED',failure
+ finally:
+  linked.unlink()
  assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
- checks.append('Truncated and same-size corrupted artifact rejected; original successful record preserved; restored file downloads')
+ checks.append('Truncated, same-size corrupted, symlink and hardlinked artifacts rejected; original successful record preserved; restored file downloads')
  findings={'renamed_video':{'same_asset_id':renamed['asset']['id']==upload['asset']['id'],'original_kind':upload['asset']['kind'],'renamed_kind':renamed['asset']['kind'],'renamed_mime':renamed['asset']['metadata'].get('mime_type')},'missing_journey_jobs':sorted({'analysis.transcribe','analysis.shots','project.package'}-kinds)}
  report={'status':'passed_with_remaining_scope','scope':'real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation','checks':checks,'findings':findings,'evidence':{'preview_rgb':[r,b],'export_blue':blue,'export_duration':duration(output),'preview_pcm_rms':rms,'job_id':exported['job_id']},'directory':str(run),'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest()}
  (run/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
