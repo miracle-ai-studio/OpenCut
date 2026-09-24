@@ -36,7 +36,7 @@ def verify(binary):
 
         catalog = cli(["system", "domains"])["data"]
         assert len(catalog) == 9
-        assert sum(len(domain["actions"]) for domain in catalog) == 64
+        assert sum(len(domain["actions"]) for domain in catalog) == 67
         assert {d["domain"] for d in catalog} == {
             "system", "project", "edit", "media", "task", "observe",
             "plugin", "access", "workspace",

@@ -17,7 +17,7 @@ CREATE INDEX artifact_retention_job_idx ON artifact_retention(job_id);
 UPDATE metadata SET value='16' WHERE key='schema_version' AND value='15';
 ";
 
-fn published(
+pub(super) fn published(
     c: &Connection,
     artifact_id: &str,
 ) -> Result<

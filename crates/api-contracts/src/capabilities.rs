@@ -36,6 +36,8 @@ pub struct HostCapabilities {
     #[serde(default)]
     pub cas_gc: Option<crate::gc::Capabilities>,
     #[serde(default)]
+    pub artifact_gc: Option<crate::artifact_gc::Capabilities>,
+    #[serde(default)]
     pub storage_budget: Option<crate::budget::Capabilities>,
     #[serde(default)]
     pub database: Option<crate::database::Capabilities>,

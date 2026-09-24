@@ -200,6 +200,39 @@ try:
  assert ('revision',bound['revision']) in roots and ('job_input',queued['job_id']) in roots,references
  assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
  checks.append('After release, a real new project revision and queued Job referencing the published bytes appear as distinct protection roots; the artifact remains downloadable')
+ alias_path=run/'artifact alias.mp4'
+ os.symlink(artifact_path,alias_path)
+ alias_job=call('/v1/jobs',{'kind':'media.probe','idempotency_key':'consume-artifact-alias','input':{'input':alias_path.as_uri()}})
+ assert alias_job['state']=='queued',alias_job
+ with sqlite3.connect(db) as connection:
+  connection.execute("CREATE TRIGGER fail_artifact_plan BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.planned' BEGIN SELECT RAISE(ABORT,'forced plan audit failure'); END")
+ failed_plan=http('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':artifact_id,'idempotency_key':'review-artifact'})
+ assert failed_plan['error'] is not None,failed_plan
+ with sqlite3.connect(db) as connection:
+  assert connection.execute('SELECT count(*) FROM artifact_gc_plans').fetchone()[0]==0
+  connection.execute('DROP TRIGGER fail_artifact_plan')
+ plan_input={'artifact_id':artifact_id,'idempotency_key':'review-artifact'}
+ planned=call('/v1/tools/opencut_artifact_gc_plan',plan_input)
+ assert planned['artifact_id']==artifact_id and not planned['default_retained'] and not planned['execution_available'],planned
+ assert len(planned['plan_hash'])==64 and planned['size_bytes']==str(a['size']),planned
+ plan_roots={(root['kind'],root['resource_id']) for root in planned['roots']}
+ assert ('revision',bound['revision']) in plan_roots and ('job_input',queued['job_id']) in plan_roots and ('job_input',alias_job['job_id']) in plan_roots,planned
+ assert int(planned['native_alias_root_count'])>=1 and str(artifact_path) not in json.dumps(planned),planned
+ assert call('/v1/tools/opencut_artifact_gc_plan',plan_input)==planned
+ assert http('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':preview_id,'idempotency_key':'review-artifact'})['error']['code']=='IDEMPOTENCY_KEY_REUSED'
+ retained_plan=call('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':preview_id,'idempotency_key':'review-preview'})
+ assert retained_plan['default_retained'] and not retained_plan['execution_available'],retained_plan
+ first_page=call('/v1/tools/opencut_artifact_gc_query',{'limit':1})
+ assert first_page['plans'][0]['plan_id']==planned['plan_id'] and first_page['next_cursor'],first_page
+ second_page=call('/v1/tools/opencut_artifact_gc_query',{'limit':1,'cursor':first_page['next_cursor']})
+ assert second_page['plans'][0]['plan_id']==retained_plan['plan_id'] and second_page['next_cursor'] is None,second_page
+ assert http('/v1/tools/opencut_artifact_gc_query',{'limit':1,'cursor':'agc1:missing'})['error']['code']=='INVALID_CURSOR'
+ stop();start()
+ assert call('/v1/tools/opencut_artifact_gc_inspect',{'plan_id':planned['plan_id']})==planned
+ assert call('/v1/tools/opencut_artifact_gc_plan',plan_input)==planned
+ assert call('/v1/tools/opencut_artifact_gc_query',{'limit':1})==first_page
+ assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
+ checks.append('Durable artifact review plan captures file identity privately and percent-encoded file-URI symlink alias; audit rollback, exact replay, bounded discovery and restart preserve plans without deleting bytes')
  findings={'renamed_video':{'same_asset_id':renamed['asset']['id']==upload['asset']['id'],'original_kind':upload['asset']['kind'],'renamed_kind':renamed['asset']['kind'],'renamed_mime':renamed['asset']['metadata'].get('mime_type')},'missing_journey_jobs':sorted({'analysis.transcribe','analysis.shots','project.package'}-kinds)}
  report={'status':'passed_with_remaining_scope','scope':'real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation','checks':checks,'findings':findings,'evidence':{'preview_rgb':[r,b],'export_blue':blue,'export_duration':duration(output),'preview_pcm_rms':rms,'job_id':exported['job_id']},'directory':str(run),'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest()}
  (run/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

@@ -1,5 +1,6 @@
 //! Version 1 wire contracts; no database, native paths, codecs, or plugin runtime.
 pub mod access;
+pub mod artifact_gc;
 pub mod artifact_retention;
 pub mod audit;
 pub mod capabilities;

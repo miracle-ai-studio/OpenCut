@@ -106,6 +106,7 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
         || suffix.starts_with("cas_gc_")
         || suffix.starts_with("artifact_retention_")
         || suffix.starts_with("artifact_references_")
+        || suffix.starts_with("artifact_gc_")
         || suffix.starts_with("maintenance_")
     {
         ("workspace", suffix.replace('_', "."))

@@ -109,6 +109,10 @@ Owner 可以用 `opencut_storage_inspect` 查询六类托管数据的实际文�
 
 Owner 通过 cas_gc_query 发现未完成计划，通过 cas_gc_plan 创建可审阅计划，随后用 cas_gc_execute 明确提交准确 plan_id/expected_plan_hash。断线或进程退出后用 cas_gc_inspect 核对并重试同一计划。工具名均带 `opencut_` 前缀。务必先停止不参与新锁协议的旧 Host/Worker，再升级整个专用工作区。多数据库/别名布局明确拒绝回收。完整范围、根保护和逐项状态见包内 `cas-gc-contract.md`。
 
+## 已发布产物的审阅计划
+
+Owner 可用 `opencut_artifact_retention_inspect/release` 管理成功任务产物的默认保留根，使用 `opencut_artifact_references_inspect` 观察持久引用。`opencut_artifact_gc_plan` 按产物 ID 和稳定幂等键保存文件身份及保护根的审阅快照；`opencut_artifact_gc_query/inspect` 可在断线后找回。计划不删除文件，`execution_available=false`。发布门闩、执行和崩溃删除回执尚未接入；零引用或 release 不能作为删除依据。详见包内 `artifact-retention-contract.md`。
+
 
 ## 持久写入准入
 

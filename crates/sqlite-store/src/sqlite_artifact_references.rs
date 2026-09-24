@@ -7,11 +7,15 @@ use opencut_api_contracts::artifact_retention::{ReferenceKind, ReferenceRoot};
 use opencut_editor_application::gc::{
     MAX_REFERENCE_BYTES, MAX_REFERENCE_DOCUMENT_BYTES, MAX_REFERENCE_MS, MAX_REFERENCE_ROWS,
 };
-use std::{collections::BTreeSet, time::Instant};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    time::Instant,
+};
+use url::Url;
 
 pub(super) struct References {
     pub roots: BTreeSet<ReferenceRoot>,
-    pub native_paths: BTreeSet<String>,
+    pub native_paths: BTreeMap<String, BTreeSet<ReferenceRoot>>,
     pub examined_rows: usize,
 }
 
@@ -22,13 +26,31 @@ fn limit() -> EditorError {
     )
 }
 
-fn candidate_path(value: &str) -> Option<String> {
-    let path = value.strip_prefix("file://").unwrap_or(value);
-    if Path::new(path).is_absolute() && !path.chars().any(char::is_control) {
-        Some(path.to_owned())
+fn candidate_path(value: &str) -> Result<Option<String>, EditorError> {
+    let path = if value.starts_with("file:") {
+        let url = Url::parse(value).map_err(|_| invalid_native_reference())?;
+        if url.scheme() != "file" || url.query().is_some() || url.fragment().is_some() {
+            return Err(invalid_native_reference());
+        }
+        url.to_file_path()
+            .map_err(|_| invalid_native_reference())?
+            .to_str()
+            .ok_or_else(invalid_native_reference)?
+            .to_owned()
     } else {
-        None
+        value.to_owned()
+    };
+    if path.chars().any(char::is_control) && Path::new(&path).is_absolute() {
+        return Err(invalid_native_reference());
     }
+    Ok(Path::new(&path).is_absolute().then_some(path))
+}
+
+fn invalid_native_reference() -> EditorError {
+    EditorError::new(
+        "INVALID_STORED_REFERENCE",
+        "Stored native source reference cannot be resolved",
+    )
 }
 
 fn inspect_value(
@@ -36,14 +58,14 @@ fn inspect_value(
     artifact_id: &str,
     published_path: &str,
     native_paths: &mut BTreeSet<String>,
-) -> bool {
+) -> Result<bool, EditorError> {
     let mut matched = false;
     let mut pending = vec![value];
     while let Some(current) = pending.pop() {
         match current {
             Value::String(text) => {
                 matched |= text.contains(artifact_id) || text.contains(published_path);
-                if let Some(path) = candidate_path(text) {
+                if let Some(path) = candidate_path(text)? {
                     native_paths.insert(path);
                 }
             }
@@ -51,13 +73,16 @@ fn inspect_value(
             Value::Object(values) => {
                 for (key, value) in values {
                     matched |= key.contains(artifact_id) || key.contains(published_path);
+                    if let Some(path) = candidate_path(key)? {
+                        native_paths.insert(path);
+                    }
                     pending.push(value);
                 }
             }
             _ => {}
         }
     }
-    matched
+    Ok(matched)
 }
 
 pub(super) fn scan(
@@ -73,7 +98,7 @@ pub(super) fn scan(
         ));
     }
     let mut roots = BTreeSet::new();
-    let mut native_paths = BTreeSet::new();
+    let mut native_paths: BTreeMap<String, BTreeSet<ReferenceRoot>> = BTreeMap::new();
     let mut examined_rows = 0usize;
     let mut examined_bytes = 0usize;
     let started = Instant::now();
@@ -130,11 +155,16 @@ pub(super) fn scan(
             if kind == ReferenceKind::JobResult && id == producing_job_id {
                 continue;
             }
-            if inspect_value(&value, artifact_id, published_path, &mut native_paths) {
-                roots.insert(ReferenceRoot {
-                    kind,
-                    resource_id: id,
-                });
+            let root = ReferenceRoot {
+                kind,
+                resource_id: id,
+            };
+            let mut document_paths = BTreeSet::new();
+            if inspect_value(&value, artifact_id, published_path, &mut document_paths)? {
+                roots.insert(root.clone());
+            }
+            for path in document_paths {
+                native_paths.entry(path).or_default().insert(root.clone());
             }
             if started.elapsed().as_millis() > u128::from(MAX_REFERENCE_MS) {
                 return Err(limit());
@@ -199,7 +229,7 @@ mod tests {
                 .collect()
         );
         assert_eq!(found.examined_rows, 10);
-        assert!(found.native_paths.contains(path));
+        assert!(found.native_paths.contains_key(path));
         assert!(
             !found.roots.iter().any(|root| {
                 root.kind == ReferenceKind::JobResult && root.resource_id == producer
@@ -226,5 +256,19 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn file_uri_decodes_aliases_and_rejects_ambiguous_authority() {
+        assert_eq!(
+            candidate_path("file:///workspace/clip%20one.mp4").unwrap(),
+            Some("/workspace/clip one.mp4".into())
+        );
+        assert_eq!(
+            candidate_path("/workspace/clip%20one.mp4").unwrap(),
+            Some("/workspace/clip%20one.mp4".into())
+        );
+        assert!(candidate_path("file://remote.example/workspace/clip.mp4").is_err());
+        assert!(candidate_path("file:///workspace/clip.mp4#fragment").is_err());
     }
 }

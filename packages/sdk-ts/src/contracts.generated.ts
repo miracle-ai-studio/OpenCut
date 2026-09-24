@@ -683,6 +683,171 @@ export namespace OpencutArtifactReferencesInspectOutput {
 
 }
 
+export namespace OpencutArtifactGcPlanInput {
+  export interface PlanInput {
+  artifact_id: string;
+  idempotency_key: string;
+}
+
+}
+
+export namespace OpencutArtifactGcPlanOutput {
+  export type CallSource = 'cli' | 'http' | 'mcp_stdio' | 'mcp_http' | 'embedded' | 'worker';
+  export type ReferenceKind =
+  'revision' | 'job_input' | 'job_result' | 'project_media' | 'plugin_publication' | 'project_plugin_grant';
+
+  export interface Response {
+  api_version: string;
+  data?: Plan | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface Plan {
+  actor: Actor;
+  artifact_id: string;
+  default_retained: boolean;
+  examined_rows: string;
+  execution_available: boolean;
+  native_alias_root_count: string;
+  native_paths_examined: string;
+  observed_at: string;
+  origin_request_id: string;
+  plan_hash: string;
+  plan_id: string;
+  root_count: string;
+  roots: ReferenceRoot[];
+  roots_truncated: boolean;
+  size_bytes: string;
+  [k: string]: any;
+}
+  export interface Actor {
+  principal_id: string;
+  source: CallSource;
+  worker_id?: string | null;
+  [k: string]: any;
+}
+  export interface ReferenceRoot {
+  kind: ReferenceKind;
+  resource_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutArtifactGcInspectInput {
+  export interface PlanId {
+  plan_id: string;
+}
+
+}
+
+export namespace OpencutArtifactGcInspectOutput {
+  export type CallSource = 'cli' | 'http' | 'mcp_stdio' | 'mcp_http' | 'embedded' | 'worker';
+  export type ReferenceKind =
+  'revision' | 'job_input' | 'job_result' | 'project_media' | 'plugin_publication' | 'project_plugin_grant';
+
+  export interface Response {
+  api_version: string;
+  data?: Plan | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface Plan {
+  actor: Actor;
+  artifact_id: string;
+  default_retained: boolean;
+  examined_rows: string;
+  execution_available: boolean;
+  native_alias_root_count: string;
+  native_paths_examined: string;
+  observed_at: string;
+  origin_request_id: string;
+  plan_hash: string;
+  plan_id: string;
+  root_count: string;
+  roots: ReferenceRoot[];
+  roots_truncated: boolean;
+  size_bytes: string;
+  [k: string]: any;
+}
+  export interface Actor {
+  principal_id: string;
+  source: CallSource;
+  worker_id?: string | null;
+  [k: string]: any;
+}
+  export interface ReferenceRoot {
+  kind: ReferenceKind;
+  resource_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutArtifactGcQueryInput {
+  export interface Query {
+  cursor?: string | null;
+  limit?: number;
+}
+
+}
+
+export namespace OpencutArtifactGcQueryOutput {
+  export type CallSource = 'cli' | 'http' | 'mcp_stdio' | 'mcp_http' | 'embedded' | 'worker';
+
+  export interface Response {
+  api_version: string;
+  data?: Page | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface Page {
+  examined: number;
+  next_cursor?: string | null;
+  plans: Summary[];
+  [k: string]: any;
+}
+  export interface Summary {
+  actor: Actor;
+  artifact_id: string;
+  default_retained: boolean;
+  observed_at: string;
+  origin_request_id: string;
+  plan_hash: string;
+  plan_id: string;
+  root_count: string;
+  [k: string]: any;
+}
+  export interface Actor {
+  principal_id: string;
+  source: CallSource;
+  worker_id?: string | null;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutArtifactRetentionReleaseInput {
   export interface ReleaseInput {
   artifact_id: string;
@@ -1821,8 +1986,9 @@ export namespace OpencutResourceReadOutput {
   export interface HostCapabilities {
   access?: AccessCapabilities;
   api_version: string;
+  artifact_gc?: Capabilities4 | null;
   cas_gc?: Capabilities3 | null;
-  database?: Capabilities5 | null;
+  database?: Capabilities6 | null;
   denials?: DenialCapabilities | null;
   features: Features;
   host: string;
@@ -1836,7 +2002,7 @@ export namespace OpencutResourceReadOutput {
   project_schema_version: number;
   rendering: Rendering;
   storage?: Capabilities2 | null;
-  storage_budget?: Capabilities4 | null;
+  storage_budget?: Capabilities5 | null;
   tools: string[];
   uploads?: UploadCapabilities | null;
   [k: string]: any;
@@ -1851,6 +2017,18 @@ export namespace OpencutResourceReadOutput {
    */
   scoped_preflight?: boolean;
   scoped_transports: string[];
+  [k: string]: any;
+}
+  export interface Capabilities4 {
+  execute_available: boolean;
+  inspect_tool: string;
+  max_reference_bytes: number;
+  max_reference_rows: number;
+  owner_only: boolean;
+  plan_available: boolean;
+  plan_tool: string;
+  query_tool: string;
+  references_tool: string;
   [k: string]: any;
 }
   export interface Capabilities3 {
@@ -1871,7 +2049,7 @@ export namespace OpencutResourceReadOutput {
   reference_cooperative_time_limit_ms: number;
   [k: string]: any;
 }
-  export interface Capabilities5 {
+  export interface Capabilities6 {
   checkpoint_tool: string;
   enforces_total_storage_limit: boolean;
   inspect_tool: string;
@@ -2013,7 +2191,7 @@ export namespace OpencutResourceReadOutput {
   owner_only: boolean;
   [k: string]: any;
 }
-  export interface Capabilities4 {
+  export interface Capabilities5 {
   available: boolean;
   configure_tool: string;
   enforces_all_workspace_writes: boolean;
@@ -7955,6 +8133,9 @@ export interface ToolMap {
   opencut_cas_gc_execute: { input: OpencutCasGcExecuteInput.ExecuteInput; output: NonNullable<OpencutCasGcExecuteOutput.Response["data"]> };
   opencut_artifact_retention_inspect: { input: OpencutArtifactRetentionInspectInput.InspectInput; output: NonNullable<OpencutArtifactRetentionInspectOutput.Response["data"]> };
   opencut_artifact_references_inspect: { input: OpencutArtifactReferencesInspectInput.ReferencesInput; output: NonNullable<OpencutArtifactReferencesInspectOutput.Response["data"]> };
+  opencut_artifact_gc_plan: { input: OpencutArtifactGcPlanInput.PlanInput; output: NonNullable<OpencutArtifactGcPlanOutput.Response["data"]> };
+  opencut_artifact_gc_inspect: { input: OpencutArtifactGcInspectInput.PlanId; output: NonNullable<OpencutArtifactGcInspectOutput.Response["data"]> };
+  opencut_artifact_gc_query: { input: OpencutArtifactGcQueryInput.Query; output: NonNullable<OpencutArtifactGcQueryOutput.Response["data"]> };
   opencut_artifact_retention_release: { input: OpencutArtifactRetentionReleaseInput.ReleaseInput; output: NonNullable<OpencutArtifactRetentionReleaseOutput.Response["data"]> };
   opencut_storage_inspect: { input: OpencutStorageInspectInput.InspectInput; output: NonNullable<OpencutStorageInspectOutput.Response["data"]> };
   opencut_upload_create: { input: OpencutUploadCreateInput.CreateUpload; output: NonNullable<OpencutUploadCreateOutput.Response["data"]> };
@@ -8085,6 +8266,9 @@ export interface DomainMap {
     "cas.gc.execute": ToolMap["opencut_cas_gc_execute"];
     "artifact.retention.inspect": ToolMap["opencut_artifact_retention_inspect"];
     "artifact.references.inspect": ToolMap["opencut_artifact_references_inspect"];
+    "artifact.gc.plan": ToolMap["opencut_artifact_gc_plan"];
+    "artifact.gc.inspect": ToolMap["opencut_artifact_gc_inspect"];
+    "artifact.gc.query": ToolMap["opencut_artifact_gc_query"];
     "artifact.retention.release": ToolMap["opencut_artifact_retention_release"];
     "storage.inspect": ToolMap["opencut_storage_inspect"];
     "plugin.publication.query": ToolMap["opencut_plugin_publication_query"];
@@ -8180,6 +8364,9 @@ export const domainActions = {
     "cas.gc.execute",
     "artifact.retention.inspect",
     "artifact.references.inspect",
+    "artifact.gc.plan",
+    "artifact.gc.inspect",
+    "artifact.gc.query",
     "artifact.retention.release",
     "storage.inspect",
     "plugin.publication.query",
@@ -8211,6 +8398,9 @@ export const toolNames = [
   "opencut_cas_gc_execute",
   "opencut_artifact_retention_inspect",
   "opencut_artifact_references_inspect",
+  "opencut_artifact_gc_plan",
+  "opencut_artifact_gc_inspect",
+  "opencut_artifact_gc_query",
   "opencut_artifact_retention_release",
   "opencut_storage_inspect",
   "opencut_upload_create",

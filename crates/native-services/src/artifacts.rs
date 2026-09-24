@@ -1,7 +1,10 @@
 //! Native read lease for a published Worker artifact.
+use opencut_api_contracts::artifact_retention::ReferenceRoot;
 use opencut_contracts::EditorError;
+use opencut_editor_application::artifact_gc::{Native, Observation, Source};
 use opencut_storage_budget::AttemptLease;
 use std::{
+    collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     fs::{self, File, Metadata},
     io::{self, Read},
@@ -191,6 +194,24 @@ impl ArtifactCandidate {
         })
     }
 
+    pub fn identity(&self) -> String {
+        let value = self.identity;
+        format!(
+            "{}:{}:{}:{}:{}:{}:{}",
+            value.device,
+            value.inode,
+            value.size,
+            value.modified_seconds,
+            value.modified_nanos,
+            value.changed_seconds,
+            value.changed_nanos
+        )
+    }
+
+    pub fn size_bytes(&self) -> u64 {
+        self.identity.size
+    }
+
     /// Nonblocking exclusive attempt lock excludes active download verification
     /// and inherited media writers. The caller must recheck durable references
     /// inside this lock, immediately before deletion. A changed file is never
@@ -251,6 +272,90 @@ impl ArtifactCandidate {
             .unlink_child_sync(&self.name)
             .map_err(|_| unavailable())?;
         Ok(Removal::Removed)
+    }
+}
+
+/// Native observation for a durable review plan. The plan remains observational:
+/// a later collector must resolve aliases again under its publication fence.
+pub struct ArtifactPlanner<'a>(pub &'a Path);
+
+impl Native for ArtifactPlanner<'_> {
+    fn observe(&self, source: &Source) -> Result<Observation, EditorError> {
+        #[cfg(unix)]
+        {
+            let candidate =
+                ArtifactCandidate::observe(self.0, &source.job_id, source.attempt, &source.path)?;
+            Ok(Observation {
+                source: source.clone(),
+                identity: candidate.identity(),
+                size_bytes: candidate.size_bytes().to_string(),
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = source;
+            Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                "Artifact planning requires native file identity support",
+            ))
+        }
+    }
+
+    fn matching_roots(
+        &self,
+        observation: &Observation,
+        native_sources: &BTreeMap<String, BTreeSet<ReferenceRoot>>,
+    ) -> Result<BTreeSet<ReferenceRoot>, EditorError> {
+        #[cfg(unix)]
+        {
+            use std::{
+                os::unix::fs::MetadataExt,
+                time::{Duration, Instant},
+            };
+            let mut parts = observation.identity.split(':');
+            let device: u64 = parts
+                .next()
+                .and_then(|s| s.parse().ok())
+                .ok_or_else(unavailable)?;
+            let inode: u64 = parts
+                .next()
+                .and_then(|s| s.parse().ok())
+                .ok_or_else(unavailable)?;
+            let start = Instant::now();
+            let mut roots = BTreeSet::new();
+            for (path, sources) in native_sources {
+                if start.elapsed() > Duration::from_millis(5_000) {
+                    return Err(EditorError::new(
+                        "RESOURCE_TOO_LARGE",
+                        "Artifact native reference resolution exceeded its bound",
+                    ));
+                }
+                let metadata = match fs::metadata(path) {
+                    Ok(value) => value,
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+                        ) =>
+                    {
+                        continue;
+                    }
+                    Err(_) => return Err(unavailable()),
+                };
+                if metadata.is_file() && metadata.dev() == device && metadata.ino() == inode {
+                    roots.extend(sources.iter().cloned());
+                }
+            }
+            Ok(roots)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (observation, native_sources);
+            Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                "Artifact planning requires native file identity support",
+            ))
+        }
     }
 }
 

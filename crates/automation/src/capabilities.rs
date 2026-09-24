@@ -37,6 +37,17 @@ pub fn document() -> HostCapabilities {
             protects_all_jobs: true,
             deletes_published_artifacts: false,
         }),
+        artifact_gc: Some(opencut_api_contracts::artifact_gc::Capabilities {
+            references_tool: "opencut_artifact_references_inspect".into(),
+            plan_tool: "opencut_artifact_gc_plan".into(),
+            inspect_tool: "opencut_artifact_gc_inspect".into(),
+            query_tool: "opencut_artifact_gc_query".into(),
+            plan_available: cfg!(unix),
+            execute_available: false,
+            owner_only: true,
+            max_reference_rows: opencut_api_contracts::gc::MAX_REFERENCE_ROWS,
+            max_reference_bytes: opencut_api_contracts::gc::MAX_REFERENCE_BYTES,
+        }),
         storage: Some(opencut_api_contracts::storage::Capabilities {
             inspect_tool: "opencut_storage_inspect".into(),
             available: cfg!(unix),

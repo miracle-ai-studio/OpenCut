@@ -199,6 +199,25 @@ impl Automation {
                     parse(arguments)?,
                 )?)
             }
+            "opencut_artifact_gc_plan" => {
+                let artifact_root = self
+                    .app
+                    .asset_store_root()
+                    .parent()
+                    .expect("workspace root")
+                    .join("artifacts");
+                to_value(opencut_editor_application::artifact_gc::plan(
+                    &mut self.app,
+                    &opencut_native_services::artifacts::ArtifactPlanner(&artifact_root),
+                    parse(arguments)?,
+                )?)
+            }
+            "opencut_artifact_gc_inspect" => to_value(
+                opencut_editor_application::artifact_gc::inspect(&self.app, parse(arguments)?)?,
+            ),
+            "opencut_artifact_gc_query" => to_value(
+                opencut_editor_application::artifact_gc::query(&self.app, parse(arguments)?)?,
+            ),
             "opencut_artifact_retention_release" => {
                 to_value(opencut_editor_application::artifact_retention::release(
                     &mut self.app,
