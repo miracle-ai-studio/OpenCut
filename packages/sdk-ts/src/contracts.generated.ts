@@ -641,6 +641,48 @@ export namespace OpencutArtifactRetentionInspectOutput {
 
 }
 
+export namespace OpencutArtifactReferencesInspectInput {
+  export interface ReferencesInput {
+  artifact_id: string;
+}
+
+}
+
+export namespace OpencutArtifactReferencesInspectOutput {
+  export type ReferenceKind =
+  'revision' | 'job_input' | 'job_result' | 'project_media' | 'plugin_publication' | 'project_plugin_grant';
+
+  export interface Response {
+  api_version: string;
+  data?: ReferencesView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface ReferencesView {
+  artifact_id: string;
+  default_retained: boolean;
+  examined_rows: string;
+  native_source_candidates: string;
+  root_count: string;
+  roots: ReferenceRoot[];
+  roots_truncated: boolean;
+  [k: string]: any;
+}
+  export interface ReferenceRoot {
+  kind: ReferenceKind;
+  resource_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutArtifactRetentionReleaseInput {
   export interface ReleaseInput {
   artifact_id: string;
@@ -7912,6 +7954,7 @@ export interface ToolMap {
   opencut_cas_gc_inspect: { input: OpencutCasGcInspectInput.PlanId; output: NonNullable<OpencutCasGcInspectOutput.Response["data"]> };
   opencut_cas_gc_execute: { input: OpencutCasGcExecuteInput.ExecuteInput; output: NonNullable<OpencutCasGcExecuteOutput.Response["data"]> };
   opencut_artifact_retention_inspect: { input: OpencutArtifactRetentionInspectInput.InspectInput; output: NonNullable<OpencutArtifactRetentionInspectOutput.Response["data"]> };
+  opencut_artifact_references_inspect: { input: OpencutArtifactReferencesInspectInput.ReferencesInput; output: NonNullable<OpencutArtifactReferencesInspectOutput.Response["data"]> };
   opencut_artifact_retention_release: { input: OpencutArtifactRetentionReleaseInput.ReleaseInput; output: NonNullable<OpencutArtifactRetentionReleaseOutput.Response["data"]> };
   opencut_storage_inspect: { input: OpencutStorageInspectInput.InspectInput; output: NonNullable<OpencutStorageInspectOutput.Response["data"]> };
   opencut_upload_create: { input: OpencutUploadCreateInput.CreateUpload; output: NonNullable<OpencutUploadCreateOutput.Response["data"]> };
@@ -8041,6 +8084,7 @@ export interface DomainMap {
     "cas.gc.inspect": ToolMap["opencut_cas_gc_inspect"];
     "cas.gc.execute": ToolMap["opencut_cas_gc_execute"];
     "artifact.retention.inspect": ToolMap["opencut_artifact_retention_inspect"];
+    "artifact.references.inspect": ToolMap["opencut_artifact_references_inspect"];
     "artifact.retention.release": ToolMap["opencut_artifact_retention_release"];
     "storage.inspect": ToolMap["opencut_storage_inspect"];
     "plugin.publication.query": ToolMap["opencut_plugin_publication_query"];
@@ -8135,6 +8179,7 @@ export const domainActions = {
     "cas.gc.inspect",
     "cas.gc.execute",
     "artifact.retention.inspect",
+    "artifact.references.inspect",
     "artifact.retention.release",
     "storage.inspect",
     "plugin.publication.query",
@@ -8165,6 +8210,7 @@ export const toolNames = [
   "opencut_cas_gc_inspect",
   "opencut_cas_gc_execute",
   "opencut_artifact_retention_inspect",
+  "opencut_artifact_references_inspect",
   "opencut_artifact_retention_release",
   "opencut_storage_inspect",
   "opencut_upload_create",

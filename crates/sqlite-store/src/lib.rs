@@ -3,6 +3,7 @@ mod control_vfs;
 pub mod job_views;
 pub mod jobs;
 mod sqlite_access;
+mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
 mod sqlite_audit;
 mod sqlite_denials;

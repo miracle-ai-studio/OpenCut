@@ -193,6 +193,12 @@ impl Automation {
                     parse(arguments)?,
                 )?)
             }
+            "opencut_artifact_references_inspect" => {
+                to_value(opencut_editor_application::artifact_retention::references(
+                    &self.app,
+                    parse(arguments)?,
+                )?)
+            }
             "opencut_artifact_retention_release" => {
                 to_value(opencut_editor_application::artifact_retention::release(
                     &mut self.app,

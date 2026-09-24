@@ -1,6 +1,8 @@
 //! Durable owner release of the default retention root for published artifacts.
 use super::*;
-use opencut_editor_application::artifact_retention::{self, RetentionState, Store, View};
+use opencut_editor_application::artifact_retention::{
+    self, ReferencesView, RetentionState, Store, View,
+};
 
 pub(super) const MIGRATION: &str = "
 CREATE TABLE artifact_retention(
@@ -78,6 +80,46 @@ impl Store for EditorApplication {
             .unchecked_transaction()
             .map_err(storage_error)?;
         view(&tx, artifact_id)
+    }
+
+    fn retention_references(&self, artifact_id: &str) -> Result<ReferencesView, EditorError> {
+        sqlite_access::owner(&self.connection.1)?;
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        let (job, _) = published(&tx, artifact_id)?;
+        let path = job
+            .result
+            .as_ref()
+            .and_then(|result| result.pointer("/artifact/path"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                EditorError::new("INVALID_STORED_RESULT", "Published artifact path is absent")
+            })?;
+        let references = sqlite_artifact_references::scan(&tx, &job.job_id, artifact_id, path)?;
+        let retained: bool = tx
+            .query_row(
+                "SELECT NOT EXISTS(SELECT 1 FROM artifact_retention WHERE artifact_id=?1)",
+                [artifact_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        let root_count = references.roots.len();
+        const MAX_VISIBLE_ROOTS: usize = 100;
+        Ok(ReferencesView {
+            artifact_id: artifact_id.into(),
+            default_retained: retained,
+            roots: references
+                .roots
+                .into_iter()
+                .take(MAX_VISIBLE_ROOTS)
+                .collect(),
+            root_count: root_count.to_string(),
+            roots_truncated: root_count > MAX_VISIBLE_ROOTS,
+            examined_rows: references.examined_rows.to_string(),
+            native_source_candidates: references.native_paths.len().to_string(),
+        })
     }
 
     fn retention_release(

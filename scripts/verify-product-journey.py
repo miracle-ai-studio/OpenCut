@@ -159,6 +159,8 @@ try:
  preview_id='artifact:'+preview['job_id']+':'+preview_artifact['content_hash']
  retained=call('/v1/tools/opencut_artifact_retention_inspect',{'artifact_id':artifact_id})
  assert retained['state']=='retained' and retained['artifact_id']==artifact_id and retained['size_bytes']==str(a['size']),retained
+ references=call('/v1/tools/opencut_artifact_references_inspect',{'artifact_id':artifact_id})
+ assert references['default_retained'] and references['root_count']=='0' and references['artifact_id']==artifact_id,references
  wrong_id='artifact:'+exported['job_id']+':'+'0'*64
  assert http('/v1/tools/opencut_artifact_retention_inspect',{'artifact_id':wrong_id})['error']['code']=='NOT_FOUND'
  with sqlite3.connect(db) as connection:
@@ -187,6 +189,17 @@ try:
  assert call('/v1/tools/opencut_artifact_retention_inspect',{'artifact_id':artifact_id})==released
  assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
  checks.append('Owner release is durable and exactly replayable across HTTP, CLI and restart; audit commits once, other artifact stays retained and release does not delete bytes')
+ consumer=call('/v1/projects',{'project':{'id':'artifact-consumer','name':'Artifact consumer','sequence_id':'main','width':160,'height':90,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'artifact-consumer-create'})
+ dependent={'id':'rendered','name':'Rendered source','kind':'video','uri':str(artifact_path),'duration':t(40),'metadata':{}}
+ bound=call('/v1/projects/artifact-consumer/branches/main/transactions',edit(consumer['revision'],'bind-artifact-source',[{'type':'asset.bind','asset':dependent}]))
+ queued=call('/v1/jobs',{'kind':'media.probe','idempotency_key':'consume-released-artifact','input':{'input':str(artifact_path)}})
+ assert queued['state']=='queued',queued
+ references=call('/v1/tools/opencut_artifact_references_inspect',{'artifact_id':artifact_id})
+ assert not references['default_retained'] and int(references['root_count'])>=2,references
+ roots={(root['kind'],root['resource_id']) for root in references['roots']}
+ assert ('revision',bound['revision']) in roots and ('job_input',queued['job_id']) in roots,references
+ assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
+ checks.append('After release, a real new project revision and queued Job referencing the published bytes appear as distinct protection roots; the artifact remains downloadable')
  findings={'renamed_video':{'same_asset_id':renamed['asset']['id']==upload['asset']['id'],'original_kind':upload['asset']['kind'],'renamed_kind':renamed['asset']['kind'],'renamed_mime':renamed['asset']['metadata'].get('mime_type')},'missing_journey_jobs':sorted({'analysis.transcribe','analysis.shots','project.package'}-kinds)}
  report={'status':'passed_with_remaining_scope','scope':'real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation','checks':checks,'findings':findings,'evidence':{'preview_rgb':[r,b],'export_blue':blue,'export_duration':duration(output),'preview_pcm_rms':rms,'job_id':exported['job_id']},'directory':str(run),'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest()}
  (run/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

@@ -402,6 +402,45 @@
         }
       }
     },
+    "/v1/tools/opencut_artifact_references_inspect": {
+      "post": {
+        "operationId": "opencut_artifact_references_inspect",
+        "description": "Owner-only bounded scan of persisted project revisions, task inputs and other task results, project media and plugin configuration for references to one published artifact. Reports root identities and native source candidate count without paths. Observational only: native aliases and concurrent publication are not yet resolved, so an empty result is not deletion eligibility.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutArtifactReferencesInspectInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_artifact_retention_release": {
       "post": {
         "operationId": "opencut_artifact_retention_release",
@@ -3760,6 +3799,7 @@
           "cas.gc.inspect": "opencut_cas_gc_inspect",
           "cas.gc.execute": "opencut_cas_gc_execute",
           "artifact.retention.inspect": "opencut_artifact_retention_inspect",
+          "artifact.references.inspect": "opencut_artifact_references_inspect",
           "artifact.retention.release": "opencut_artifact_retention_release",
           "storage.inspect": "opencut_storage_inspect",
           "plugin.publication.query": "opencut_plugin_publication_query",
@@ -3937,6 +3977,22 @@
                     "type": "object",
                     "properties": {
                       "action": {
+                        "const": "artifact.references.inspect"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutArtifactReferencesInspectInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
                         "const": "artifact.retention.release"
                       },
                       "input": {
@@ -4070,6 +4126,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput"
@@ -6857,6 +6916,148 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OpencutArtifactRetentionInspectOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutArtifactReferencesInspectInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id"
+        ],
+        "title": "ReferencesInput",
+        "type": "object"
+      },
+      "OpencutArtifactReferencesInspectOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "ReferenceKind": {
+            "enum": [
+              "revision",
+              "job_input",
+              "job_result",
+              "project_media",
+              "plugin_publication",
+              "project_plugin_grant"
+            ],
+            "type": "string"
+          },
+          "ReferenceRoot": {
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput/$defs/ReferenceKind"
+              },
+              "resource_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "resource_id"
+            ],
+            "type": "object"
+          },
+          "ReferencesView": {
+            "properties": {
+              "artifact_id": {
+                "type": "string"
+              },
+              "default_retained": {
+                "type": "boolean"
+              },
+              "examined_rows": {
+                "type": "string"
+              },
+              "native_source_candidates": {
+                "type": "string"
+              },
+              "root_count": {
+                "type": "string"
+              },
+              "roots": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput/$defs/ReferenceRoot"
+                },
+                "type": "array"
+              },
+              "roots_truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "artifact_id",
+              "default_retained",
+              "roots",
+              "root_count",
+              "roots_truncated",
+              "examined_rows",
+              "native_source_candidates"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput/$defs/ReferencesView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactReferencesInspectOutput/$defs/EditorError"
               },
               {
                 "type": "null"

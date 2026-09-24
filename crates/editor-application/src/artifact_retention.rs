@@ -8,6 +8,7 @@ pub trait Store {
     fn retention_context(&self) -> ExecutionContext;
     fn retention_inspect(&self, artifact_id: &str) -> Result<View, EditorError>;
     fn retention_release(&mut self, input: &ReleaseInput) -> Result<View, EditorError>;
+    fn retention_references(&self, artifact_id: &str) -> Result<ReferencesView, EditorError>;
 }
 
 fn owner(store: &impl Store) -> Result<(), EditorError> {
@@ -26,6 +27,15 @@ pub fn inspect(store: &impl Store, input: InspectInput) -> Result<View, EditorEr
     owner(store)?;
     validate_id(&input.artifact_id)?;
     store.retention_inspect(&input.artifact_id)
+}
+
+pub fn references(
+    store: &impl Store,
+    input: ReferencesInput,
+) -> Result<ReferencesView, EditorError> {
+    owner(store)?;
+    validate_id(&input.artifact_id)?;
+    store.retention_references(&input.artifact_id)
 }
 
 pub fn release(store: &mut impl Store, input: ReleaseInput) -> Result<View, EditorError> {
