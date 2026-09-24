@@ -472,6 +472,11 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             ('opencut_cas_gc_plan', 'verify-cas-gc.py', 'reviewed CAS collection, historical render preservation and crash recovery'),
             ('opencut_database_inspect', 'verify-control-vfs.py', 'managed SQLite WAL write admission, exact-key retry and independent integrity'),
         ]
+        if os.name == 'posix':
+            independent_journeys.append(
+                ('opencut_storage_budget_inspect', 'verify-worker-capacity-quiesce.py',
+                 'live Worker capacity-fault quiescence, owner repair cancellation and audit')
+            )
         if sys.platform == 'darwin' and capabilities.get('database'):
             independent_journeys.append(
                 ('opencut_database_checkpoint', 'verify-database-recovery.py',
@@ -479,7 +484,7 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             )
             independent_journeys.append(
                 ('opencut_storage_budget_inspect', 'verify-repair-reserve.py',
-                 'physically allocated repair reserve and bounded cancel/release on a full 64 MiB volume')
+                 'physical repair reserve and fenced running/queued cancellation on a full 64 MiB volume')
             )
         for tool_name, script_name, description in independent_journeys:
             if tool_name not in available_tools:

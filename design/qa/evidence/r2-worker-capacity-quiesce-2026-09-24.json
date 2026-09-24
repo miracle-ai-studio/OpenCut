@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "binary_sha256": "9feb66843d671300c46e3f4d6f74b5a18b6cb8978b1c89edd84a737e9961abd1",
+  "checks": [
+    "A live Worker runs a real blocked ffprobe child under an inherited attempt lock",
+    "Tightening control admission during the job makes Worker stop with a capacity error and release its database connection",
+    "Owner repair immediately fences and cancels the abandoned running attempt without waiting for its lease deadline",
+    "Replenishment, policy restoration, exact cancellation replay, audit and independent SQLite integrity pass"
+  ],
+  "job_id": "job_4c331998d6c14c0da97f1e346cbb9d9d",
+  "worker_exit": 8,
+  "scope": "Unix live Worker control-capacity failure and owner repair; not physical ENOSPC or multi-host concurrency"
+}
