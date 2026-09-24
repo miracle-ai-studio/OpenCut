@@ -19,6 +19,35 @@ pub struct PlanId {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ExecuteInput {
+    pub plan_id: String,
+    pub expected_plan_hash: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionState {
+    Planned,
+    Busy,
+    Retained,
+    Removing,
+    Removed,
+    Absent,
+    Changed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExecutionView {
+    pub plan_id: String,
+    pub plan_hash: String,
+    pub artifact_id: String,
+    pub state: ExecutionState,
+    pub durable: bool,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Query {
     #[serde(default)]
     pub cursor: Option<String>,
@@ -75,6 +104,8 @@ pub struct Capabilities {
     pub plan_tool: String,
     pub inspect_tool: String,
     pub query_tool: String,
+    pub execute_tool: String,
+    pub execution_inspect_tool: String,
     pub plan_available: bool,
     pub execute_available: bool,
     pub owner_only: bool,

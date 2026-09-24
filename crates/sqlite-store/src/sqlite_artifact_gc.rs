@@ -1,10 +1,14 @@
-//! Durable, owner-only artifact collection review plans. No deletion entry exists yet.
+//! Durable, owner-only artifact collection plans and execution receipts.
 use super::*;
 use opencut_api_contracts::{
-    artifact_gc::{Page, Plan, PlanInput, Query, Summary},
+    artifact_gc::{
+        ExecuteInput, ExecutionState, ExecutionView, Page, Plan, PlanInput, Query, Summary,
+    },
     artifact_retention::ReferenceRoot,
 };
-use opencut_editor_application::artifact_gc::{Observation, Snapshot, Source, Store};
+use opencut_editor_application::artifact_gc::{
+    ExecutionSubject, Native, Observation, Removal, Snapshot, Source, Store,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -48,7 +52,7 @@ fn identity_hash(stored: &StoredPlan) -> Result<String, EditorError> {
     ))
 }
 
-fn load(connection: &Connection, plan_id: &str) -> Result<Plan, EditorError> {
+fn load_stored(connection: &Connection, plan_id: &str) -> Result<StoredPlan, EditorError> {
     let text: Option<String> = connection
         .query_row(
             "SELECT plan_json FROM artifact_gc_plans WHERE plan_id=?1",
@@ -74,14 +78,74 @@ fn load(connection: &Connection, plan_id: &str) -> Result<Plan, EditorError> {
         || stored.view.roots_truncated != (stored.all_roots.len() > 100)
         || stored.view.native_alias_root_count != stored.alias_roots.len().to_string()
         || stored.view.size_bytes != stored.observation.size_bytes
-        || stored.view.execution_available
+        || stored.view.execution_available != stored.observation.directory_identity.is_some()
     {
         return Err(EditorError::new(
             "STORAGE_ERROR",
             "Artifact plan identity is invalid",
         ));
     }
-    Ok(stored.view)
+    Ok(stored)
+}
+
+fn load(connection: &Connection, plan_id: &str) -> Result<Plan, EditorError> {
+    Ok(load_stored(connection, plan_id)?.view)
+}
+
+fn receipt(connection: &Connection, stored: &StoredPlan) -> Result<ExecutionView, EditorError> {
+    let row: Option<(String, String)> = connection
+        .query_row(
+            "SELECT state,updated_at FROM artifact_gc_removals WHERE plan_id=?1",
+            [&stored.view.plan_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(storage_error)?;
+    let state = match row.as_ref().map(|(state, _)| state.as_str()) {
+        None => ExecutionState::Planned,
+        Some("removing") => ExecutionState::Removing,
+        Some("removed") => ExecutionState::Removed,
+        Some("absent") => ExecutionState::Absent,
+        Some("changed") => ExecutionState::Changed,
+        _ => {
+            return Err(EditorError::new(
+                "STORAGE_ERROR",
+                "Invalid artifact removal state",
+            ));
+        }
+    };
+    Ok(ExecutionView {
+        plan_id: stored.view.plan_id.clone(),
+        plan_hash: stored.view.plan_hash.clone(),
+        artifact_id: stored.view.artifact_id.clone(),
+        state,
+        durable: row.is_some(),
+        updated_at: row.map(|(_, updated_at)| updated_at),
+    })
+}
+
+fn checked_stored(
+    connection: &Connection,
+    input: &ExecuteInput,
+) -> Result<StoredPlan, EditorError> {
+    let stored = load_stored(connection, &input.plan_id)?;
+    if stored.view.plan_hash != input.expected_plan_hash {
+        return Err(EditorError::new(
+            "PLAN_HASH_MISMATCH",
+            "Artifact plan changed or the expected hash is incorrect",
+        ));
+    }
+    if !stored.view.execution_available
+        || stored.observation.directory_identity.is_none()
+        || stored.view.default_retained
+        || !stored.all_roots.is_empty()
+    {
+        return Err(EditorError::new(
+            "ARTIFACT_PLAN_PROTECTED",
+            "Artifact plan cannot authorize deletion; create a new unprotected plan",
+        ));
+    }
+    Ok(stored)
 }
 
 fn replay(connection: &Connection, input: &PlanInput) -> Result<Option<Plan>, EditorError> {
@@ -189,7 +253,7 @@ impl Store for EditorApplication {
             native_paths_examined: snapshot.native_sources.len().to_string(),
             origin_request_id: context.request_id().into(),
             actor: context.actor().clone(),
-            execution_available: false,
+            execution_available: observation.directory_identity.is_some(),
         };
         let mut stored = StoredPlan {
             view,
@@ -283,5 +347,187 @@ impl Store for EditorApplication {
             next_cursor,
             examined,
         })
+    }
+
+    fn artifact_execution_subject(&self, plan_id: &str) -> Result<ExecutionSubject, EditorError> {
+        sqlite_access::owner(&self.connection.1)?;
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        let stored = load_stored(&tx, plan_id)?;
+        let receipt = receipt(&tx, &stored)?;
+        Ok(ExecutionSubject {
+            plan: stored.view,
+            observation: stored.observation,
+            receipt,
+        })
+    }
+
+    fn artifact_execution_mark(
+        &mut self,
+        input: &ExecuteInput,
+        native: &dyn Native,
+    ) -> Result<bool, EditorError> {
+        let context = self.connection.1.clone();
+        sqlite_access::owner(&context)?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(storage_error)?;
+        let stored = checked_stored(&tx, input)?;
+        let current = receipt(&tx, &stored)?;
+        if matches!(
+            current.state,
+            ExecutionState::Removed | ExecutionState::Absent | ExecutionState::Changed
+        ) {
+            return Ok(false);
+        }
+        let other_pending: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM artifact_gc_removals WHERE state='removing' AND plan_id<>?1)",
+                [&input.plan_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if other_pending {
+            return Err(EditorError::new(
+                "ARTIFACT_COLLECTION_RECOVERY_REQUIRED",
+                "Recover the previous artifact removal before starting another",
+            ));
+        }
+        let (job, _) = sqlite_artifact_retention::published(&tx, &stored.view.artifact_id)?;
+        let path = job
+            .result
+            .as_ref()
+            .and_then(|result| result.pointer("/artifact/path"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| EditorError::new("INVALID_STORED_RESULT", "Artifact path is absent"))?;
+        if (Source {
+            job_id: job.job_id.clone(),
+            attempt: job.attempt,
+            path: path.into(),
+        }) != stored.observation.source
+        {
+            return Ok(false);
+        }
+        let retained: bool = tx
+            .query_row(
+                "SELECT NOT EXISTS(SELECT 1 FROM artifact_retention WHERE artifact_id=?1)",
+                [&stored.view.artifact_id],
+                |row| row.get(0),
+            )
+            .map_err(storage_error)?;
+        if retained {
+            return Ok(false);
+        }
+        let references =
+            sqlite_artifact_references::scan(&tx, &job.job_id, &stored.view.artifact_id, path)?;
+        let alias_roots = native.matching_roots(&stored.observation, &references.native_paths)?;
+        if !references.roots.is_empty() || !alias_roots.is_empty() {
+            return Ok(false);
+        }
+        if current.state == ExecutionState::Removing {
+            return Ok(true);
+        }
+        tx.execute(
+            "INSERT INTO artifact_gc_removals(plan_id,state) VALUES (?1,'removing')",
+            [&input.plan_id],
+        )
+        .map_err(storage_error)?;
+        sqlite_audit::insert(
+            &tx,
+            &context,
+            "artifact.gc.removing",
+            sqlite_audit::Links {
+                job_id: Some(&job.job_id),
+                ..Default::default()
+            },
+        )?;
+        tx.commit().map_err(storage_error)?;
+        Ok(true)
+    }
+
+    fn artifact_execution_finish(
+        &mut self,
+        input: &ExecuteInput,
+        outcome: Removal,
+    ) -> Result<ExecutionView, EditorError> {
+        let context = self.connection.1.clone();
+        sqlite_access::owner(&context)?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(storage_error)?;
+        let stored = checked_stored(&tx, input)?;
+        let current = receipt(&tx, &stored)?;
+        if matches!(
+            current.state,
+            ExecutionState::Removed | ExecutionState::Absent | ExecutionState::Changed
+        ) {
+            return Ok(current);
+        }
+        let terminal = match outcome {
+            Removal::Busy => {
+                return Ok(ExecutionView {
+                    state: ExecutionState::Busy,
+                    durable: false,
+                    ..current
+                });
+            }
+            Removal::Retained if current.state != ExecutionState::Removing => {
+                return Ok(ExecutionView {
+                    state: ExecutionState::Retained,
+                    durable: false,
+                    ..current
+                });
+            }
+            Removal::Retained | Removal::Changed => "changed",
+            Removal::Absent => "absent",
+            Removal::Removed => {
+                if current.state != ExecutionState::Removing {
+                    return Err(EditorError::new(
+                        "STORAGE_ERROR",
+                        "Artifact bytes were removed without a durable intent",
+                    ));
+                }
+                "removed"
+            }
+        };
+        if current.state == ExecutionState::Removing {
+            tx.execute(
+                "UPDATE artifact_gc_removals SET state=?1,updated_at=CURRENT_TIMESTAMP WHERE plan_id=?2 AND state='removing'",
+                params![terminal, input.plan_id],
+            )
+            .map_err(storage_error)?;
+        } else {
+            tx.execute(
+                "INSERT INTO artifact_gc_removals(plan_id,state) VALUES (?1,?2)",
+                params![input.plan_id, terminal],
+            )
+            .map_err(storage_error)?;
+        }
+        sqlite_audit::insert(
+            &tx,
+            &context,
+            &format!("artifact.gc.{terminal}"),
+            sqlite_audit::Links {
+                job_id: Some(&stored.observation.source.job_id),
+                ..Default::default()
+            },
+        )?;
+        let result = receipt(&tx, &stored)?;
+        tx.commit().map_err(storage_error)?;
+        Ok(result)
+    }
+
+    fn artifact_execution_inspect(&self, plan_id: &str) -> Result<ExecutionView, EditorError> {
+        sqlite_access::owner(&self.connection.1)?;
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        let stored = load_stored(&tx, plan_id)?;
+        receipt(&tx, &stored)
     }
 }

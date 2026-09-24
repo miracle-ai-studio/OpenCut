@@ -30,7 +30,7 @@ def verify(binary):
 
     assert call('opencut_project_list', {})['data'] == []
     with sqlite3.connect(database) as connection:
-        assert connection.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == '18'
+        assert int(connection.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0]) >= 18
     ready = directory / 'intent-committed'
     child = subprocess.Popen([
         sys.executable, '-c', '''import sqlite3,sys,time

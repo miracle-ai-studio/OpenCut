@@ -206,14 +206,22 @@ try:
  assert alias_job['state']=='queued',alias_job
  with sqlite3.connect(db) as connection:
   connection.execute("CREATE TRIGGER fail_artifact_plan BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.planned' BEGIN SELECT RAISE(ABORT,'forced plan audit failure'); END")
+ connection.close()
  failed_plan=http('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':artifact_id,'idempotency_key':'review-artifact'})
  assert failed_plan['error'] is not None,failed_plan
  with sqlite3.connect(db) as connection:
   assert connection.execute('SELECT count(*) FROM artifact_gc_plans').fetchone()[0]==0
   connection.execute('DROP TRIGGER fail_artifact_plan')
+ connection.close()
  plan_input={'artifact_id':artifact_id,'idempotency_key':'review-artifact'}
- planned=call('/v1/tools/opencut_artifact_gc_plan',plan_input)
- assert planned['artifact_id']==artifact_id and not planned['default_retained'] and not planned['execution_available'],planned
+ for attempt in range(10):
+  planned_response=http('/v1/tools/opencut_artifact_gc_plan',plan_input)
+  if planned_response['error'] is None:
+   planned=planned_response['data'];break
+  assert planned_response['error']['code']=='DATABASE_BUSY',planned_response
+  time.sleep(.1)
+ else:raise AssertionError('artifact plan stayed busy after exact-key retries')
+ assert planned['artifact_id']==artifact_id and not planned['default_retained'] and planned['execution_available'],planned
  assert len(planned['plan_hash'])==64 and planned['size_bytes']==str(a['size']),planned
  plan_roots={(root['kind'],root['resource_id']) for root in planned['roots']}
  assert ('revision',bound['revision']) in plan_roots and ('job_input',queued['job_id']) in plan_roots and ('job_input',alias_job['job_id']) in plan_roots,planned
@@ -221,7 +229,10 @@ try:
  assert call('/v1/tools/opencut_artifact_gc_plan',plan_input)==planned
  assert http('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':preview_id,'idempotency_key':'review-artifact'})['error']['code']=='IDEMPOTENCY_KEY_REUSED'
  retained_plan=call('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':preview_id,'idempotency_key':'review-preview'})
- assert retained_plan['default_retained'] and not retained_plan['execution_available'],retained_plan
+ assert retained_plan['default_retained'] and retained_plan['execution_available'],retained_plan
+ for protected in (planned,retained_plan):
+  refused=http('/v1/tools/opencut_artifact_gc_execute',{'plan_id':protected['plan_id'],'expected_plan_hash':protected['plan_hash']})
+  assert refused['error']['code']=='ARTIFACT_PLAN_PROTECTED',refused
  first_page=call('/v1/tools/opencut_artifact_gc_query',{'limit':1})
  assert first_page['plans'][0]['plan_id']==planned['plan_id'] and first_page['next_cursor'],first_page
  second_page=call('/v1/tools/opencut_artifact_gc_query',{'limit':1,'cursor':first_page['next_cursor']})
@@ -233,6 +244,78 @@ try:
  assert call('/v1/tools/opencut_artifact_gc_query',{'limit':1})==first_page
  assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
  checks.append('Durable artifact review plan captures file identity privately and percent-encoded file-URI symlink alias; audit rollback, exact replay, bounded discovery and restart preserve plans without deleting bytes')
+ preview_release=call('/v1/tools/opencut_artifact_retention_release',{'artifact_id':preview_id,'idempotency_key':'release-preview-for-collection'})
+ assert preview_release['state']=='released',preview_release
+ recover_plan=call('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':preview_id,'idempotency_key':'collect-preview-after-release'})
+ assert recover_plan['root_count']=='0' and not recover_plan['default_retained'] and recover_plan['execution_available'],recover_plan
+ recovery_input={'plan_id':recover_plan['plan_id'],'expected_plan_hash':recover_plan['plan_hash']}
+ assert http('/v1/tools/opencut_artifact_gc_execute',{'plan_id':recover_plan['plan_id'],'expected_plan_hash':'0'*64})['error']['code']=='PLAN_HASH_MISMATCH'
+ recovery_path=Path(preview_artifact['path'])
+ assert recovery_path.is_file() and http('/v1/jobs/'+preview['job_id']+'/artifact',raw=True)==preview_path.read_bytes()
+ with sqlite3.connect(db) as connection:
+  connection.execute("CREATE TRIGGER fail_gc_mark BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.removing' BEGIN SELECT RAISE(ABORT,'forced removal intent audit failure'); END")
+ refused=http('/v1/tools/opencut_artifact_gc_execute',recovery_input)
+ assert refused['error'] and recovery_path.is_file(),refused
+ with sqlite3.connect(db) as connection:
+  assert connection.execute('SELECT count(*) FROM artifact_gc_removals WHERE plan_id=?',(recover_plan['plan_id'],)).fetchone()[0]==0
+  connection.execute('DROP TRIGGER fail_gc_mark')
+ checks.append('Wrong plan hash and failed removal-intent audit leave reviewed bytes and durable state unchanged')
+ with sqlite3.connect(db) as connection:
+  connection.execute("CREATE TRIGGER fail_gc_result BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.removed' BEGIN SELECT RAISE(ABORT,'forced removal result audit failure'); END")
+ failed_result=http('/v1/tools/opencut_artifact_gc_execute',recovery_input)
+ assert failed_result['error'] and not recovery_path.exists(),failed_result
+ pending=call('/v1/tools/opencut_artifact_gc_execution_inspect',{'plan_id':recover_plan['plan_id']})
+ assert pending['state']=='removing' and pending['durable'],pending
+ blocked_project={'project':{'id':'gc-fenced','name':'GC fenced','sequence_id':'main','width':160,'height':90,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'gc-fenced-create'}
+ blocked=http('/v1/projects',blocked_project)
+ assert blocked['error']['code']=='ARTIFACT_COLLECTION_RECOVERY_REQUIRED',blocked
+ with sqlite3.connect(db) as connection:
+  assert connection.execute("SELECT count(*) FROM projects WHERE project_id='gc-fenced'").fetchone()[0]==0
+  connection.execute('DROP TRIGGER fail_gc_result')
+ stop();start()
+ recovered=call('/v1/tools/opencut_artifact_gc_execute',recovery_input)
+ assert recovered['state']=='absent' and recovered['durable'],recovered
+ assert call('/v1/tools/opencut_artifact_gc_execution_inspect',{'plan_id':recover_plan['plan_id']})==recovered
+ assert call('/v1/tools/opencut_artifact_gc_execute',recovery_input)==recovered
+ assert call('/v1/projects',blocked_project)['project']['id']=='gc-fenced'
+ with sqlite3.connect(db) as connection:
+  assert connection.execute("SELECT count(*) FROM audit_records WHERE action='artifact.gc.removing'").fetchone()[0]==1
+  assert connection.execute("SELECT count(*) FROM audit_records WHERE action='artifact.gc.absent'").fetchone()[0]==1
+  assert connection.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+ checks.append('Failed final audit after durable unlink leaves removing fence; restart and exact retry record absent once, then blocked project publish resumes')
+ second=wait(call('/v1/jobs',{'kind':'preview.project_range','idempotency_key':'preview-for-direct-collection','input':{'project_id':'journey','revision':human['revision'],'sequence_id':'main','requested_range':span(10,20),'alignment':'exact'}}))
+ second_artifact=second['result']['artifact'];second_path=Path(second_artifact['path'])
+ second_id='artifact:'+second['job_id']+':'+second_artifact['content_hash']
+ assert second_path.is_file()
+ call('/v1/tools/opencut_artifact_retention_release',{'artifact_id':second_id,'idempotency_key':'release-second-preview'})
+ direct_plan=call('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':second_id,'idempotency_key':'collect-second-preview'})
+ assert direct_plan['root_count']=='0' and not direct_plan['default_retained'],direct_plan
+ direct_input={'plan_id':direct_plan['plan_id'],'expected_plan_hash':direct_plan['plan_hash']}
+ direct_cli=subprocess.run([str(BIN),'--database',str(db),'--json','call','opencut_artifact_gc_execute','--input','-'],input=json.dumps(direct_input).encode(),capture_output=True,timeout=30)
+ assert direct_cli.returncode==0,(direct_cli.stdout,direct_cli.stderr)
+ removed=json.loads(direct_cli.stdout)['data']
+ assert removed['state']=='removed' and removed['durable'] and not second_path.exists(),removed
+ assert call('/v1/tools/opencut_artifact_gc_execute',direct_input)==removed
+ assert call('/v1/tools/opencut_artifact_gc_execution_inspect',{'plan_id':direct_plan['plan_id']})==removed
+ assert call('/v1/jobs/'+second['job_id'])['state']=='succeeded'
+ assert http('/v1/jobs/'+second['job_id']+'/artifact')['error']['code']=='ARTIFACT_VERIFICATION_FAILED'
+ stop();start()
+ assert call('/v1/tools/opencut_artifact_gc_execute',direct_input)==removed
+ checks.append('Unprotected published preview is unlinked through CLI under exact reviewed hash, terminal receipt replays through HTTP across restart, and historical Job success remains')
+ legacy_id='agc_'+'1'*32
+ with sqlite3.connect(db) as connection:
+  stored=json.loads(connection.execute('SELECT plan_json FROM artifact_gc_plans WHERE plan_id=?',(direct_plan['plan_id'],)).fetchone()[0])
+  stored['view']['plan_id']=legacy_id
+  stored['view']['execution_available']=False
+  stored['view']['plan_hash']=''
+  stored['observation'].pop('directory_identity')
+  digest=json.dumps([stored['view'],stored['observation'],stored['all_roots'],stored['alias_roots']],ensure_ascii=False,separators=(',',':')).encode()
+  stored['view']['plan_hash']=hashlib.sha256(digest).hexdigest()
+  connection.execute('INSERT INTO artifact_gc_plans(plan_id,idempotency_key,input_json,plan_json) VALUES (?,?,?,?)',(legacy_id,'legacy-review-plan',json.dumps({'artifact_id':second_id,'idempotency_key':'legacy-review-plan'},separators=(',',':')),json.dumps(stored,ensure_ascii=False,separators=(',',':'))))
+ legacy=call('/v1/tools/opencut_artifact_gc_inspect',{'plan_id':legacy_id})
+ assert not legacy['execution_available'] and legacy['plan_hash']==stored['view']['plan_hash'],legacy
+ assert http('/v1/tools/opencut_artifact_gc_execute',{'plan_id':legacy_id,'expected_plan_hash':legacy['plan_hash']})['error']['code']=='CAPABILITY_UNAVAILABLE'
+ checks.append('Legacy schema-18 review plan remains readable but cannot authorize deletion without a private directory identity')
  findings={'renamed_video':{'same_asset_id':renamed['asset']['id']==upload['asset']['id'],'original_kind':upload['asset']['kind'],'renamed_kind':renamed['asset']['kind'],'renamed_mime':renamed['asset']['metadata'].get('mime_type')},'missing_journey_jobs':sorted({'analysis.transcribe','analysis.shots','project.package'}-kinds)}
  report={'status':'passed_with_remaining_scope','scope':'real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation','checks':checks,'findings':findings,'evidence':{'preview_rgb':[r,b],'export_blue':blue,'export_duration':duration(output),'preview_pcm_rms':rms,'job_id':exported['job_id']},'directory':str(run),'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest()}
  (run/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

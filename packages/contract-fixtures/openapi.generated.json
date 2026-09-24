@@ -444,7 +444,7 @@
     "/v1/tools/opencut_artifact_gc_plan": {
       "post": {
         "operationId": "opencut_artifact_gc_plan",
-        "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file identity privately, default retention and bounded persisted reference roots; resolves native path aliases by file identity at observation time. No deletion occurs. The plan is a snapshot, not permission to remove bytes; execution remains unavailable until locked recheck and durable deletion receipts are implemented.",
+        "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file and attempt-directory identity privately, default retention and bounded persisted reference roots. Planning never deletes bytes. An executable plan requires default retention released and zero protection roots; execution still rechecks all authorities under a publication fence and attempt lock.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -483,7 +483,7 @@
     "/v1/tools/opencut_artifact_gc_inspect": {
       "post": {
         "operationId": "opencut_artifact_gc_inspect",
-        "description": "Owner-only: inspect a durable artifact review plan by plan_id after a lost response. The plan is an observation, not deletion eligibility; execution is unavailable.",
+        "description": "Owner-only: inspect an immutable artifact review plan by plan_id after a lost response. A plan does not itself prove deletion eligibility; execution rechecks the live protection graph and native identity.",
         "x-opencut-read-only": true,
         "requestBody": {
           "required": true,
@@ -551,6 +551,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpencutArtifactGcQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_artifact_gc_execute": {
+      "post": {
+        "operationId": "opencut_artifact_gc_execute",
+        "description": "Owner-only explicit execution of an unprotected, exact-hash artifact review plan. Holds the published attempt's exclusive native lock, rechecks retention and every persisted reference under the SQLite publication fence, then durably records removal or a conservative changed/absent outcome. Busy and newly retained responses are transient. Retry the same plan after a crash; physical free space is not inferred from logical file size.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecuteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_artifact_gc_execution_inspect": {
+      "post": {
+        "operationId": "opencut_artifact_gc_execution_inspect",
+        "description": "Owner-only read of a plan's durable removal state. Removing is unresolved and requires explicit execute retry with the same plan hash; planned, busy and retained are not deletion receipts.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput"
                 }
               }
             }
@@ -3920,6 +3998,8 @@
           "artifact.gc.plan": "opencut_artifact_gc_plan",
           "artifact.gc.inspect": "opencut_artifact_gc_inspect",
           "artifact.gc.query": "opencut_artifact_gc_query",
+          "artifact.gc.execute": "opencut_artifact_gc_execute",
+          "artifact.gc.execution.inspect": "opencut_artifact_gc_execution_inspect",
           "artifact.retention.release": "opencut_artifact_retention_release",
           "storage.inspect": "opencut_storage_inspect",
           "plugin.publication.query": "opencut_plugin_publication_query",
@@ -4161,6 +4241,38 @@
                     "type": "object",
                     "properties": {
                       "action": {
+                        "const": "artifact.gc.execute"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutArtifactGcExecuteInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "artifact.gc.execution.inspect"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
                         "const": "artifact.retention.release"
                       },
                       "input": {
@@ -4306,6 +4418,12 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutArtifactGcQueryOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutArtifactRetentionReleaseOutput"
@@ -7834,6 +7952,256 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OpencutArtifactGcQueryOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutArtifactGcExecuteInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_plan_hash": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "expected_plan_hash"
+        ],
+        "title": "ExecuteInput",
+        "type": "object"
+      },
+      "OpencutArtifactGcExecuteOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "ExecutionState": {
+            "enum": [
+              "planned",
+              "busy",
+              "retained",
+              "removing",
+              "removed",
+              "absent",
+              "changed"
+            ],
+            "type": "string"
+          },
+          "ExecutionView": {
+            "properties": {
+              "artifact_id": {
+                "type": "string"
+              },
+              "durable": {
+                "type": "boolean"
+              },
+              "plan_hash": {
+                "type": "string"
+              },
+              "plan_id": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput/$defs/ExecutionState"
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "plan_id",
+              "plan_hash",
+              "artifact_id",
+              "state",
+              "durable"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput/$defs/ExecutionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecuteOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutArtifactGcExecutionInspectInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "plan_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id"
+        ],
+        "title": "PlanId",
+        "type": "object"
+      },
+      "OpencutArtifactGcExecutionInspectOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "ExecutionState": {
+            "enum": [
+              "planned",
+              "busy",
+              "retained",
+              "removing",
+              "removed",
+              "absent",
+              "changed"
+            ],
+            "type": "string"
+          },
+          "ExecutionView": {
+            "properties": {
+              "artifact_id": {
+                "type": "string"
+              },
+              "durable": {
+                "type": "boolean"
+              },
+              "plan_hash": {
+                "type": "string"
+              },
+              "plan_id": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput/$defs/ExecutionState"
+              },
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "plan_id",
+              "plan_hash",
+              "artifact_id",
+              "state",
+              "durable"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput/$defs/ExecutionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutArtifactGcExecutionInspectOutput/$defs/EditorError"
               },
               {
                 "type": "null"
@@ -11793,6 +12161,12 @@
               "execute_available": {
                 "type": "boolean"
               },
+              "execute_tool": {
+                "type": "string"
+              },
+              "execution_inspect_tool": {
+                "type": "string"
+              },
               "inspect_tool": {
                 "type": "string"
               },
@@ -11827,6 +12201,8 @@
               "plan_tool",
               "inspect_tool",
               "query_tool",
+              "execute_tool",
+              "execution_inspect_tool",
               "plan_available",
               "execute_available",
               "owner_only",

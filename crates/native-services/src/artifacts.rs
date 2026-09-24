@@ -1,7 +1,9 @@
 //! Native read lease for a published Worker artifact.
 use opencut_api_contracts::artifact_retention::ReferenceRoot;
 use opencut_contracts::EditorError;
-use opencut_editor_application::artifact_gc::{Native, Observation, Source};
+use opencut_editor_application::artifact_gc::{
+    Native, Observation, Removal as ApplicationRemoval, Source,
+};
 use opencut_storage_budget::AttemptLease;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -112,9 +114,9 @@ impl ArtifactSource {
     }
 }
 
-/// A private, exact-inode deletion candidate. A durable collector must recheck
-/// all authoritative references while holding its own publication gate before
-/// calling `remove_if`; this type only supplies the filesystem half of that protocol.
+/// A private, exact-inode deletion candidate. The supplied `remove_if` callback
+/// must durably fence publication and recheck all authoritative references while
+/// this type holds the attempt's exclusive filesystem lease.
 #[cfg(unix)]
 pub struct ArtifactCandidate {
     directory: PathBuf,
@@ -150,6 +152,20 @@ impl FileIdentity {
             changed_nanos: metadata.ctime_nsec(),
         }
     }
+
+    fn parse(value: &str) -> Option<Self> {
+        let mut fields = value.split(':');
+        let parsed = Self {
+            device: fields.next()?.parse().ok()?,
+            inode: fields.next()?.parse().ok()?,
+            size: fields.next()?.parse().ok()?,
+            modified_seconds: fields.next()?.parse().ok()?,
+            modified_nanos: fields.next()?.parse().ok()?,
+            changed_seconds: fields.next()?.parse().ok()?,
+            changed_nanos: fields.next()?.parse().ok()?,
+        };
+        fields.next().is_none().then_some(parsed)
+    }
 }
 
 #[cfg(unix)]
@@ -164,6 +180,51 @@ pub enum Removal {
 
 #[cfg(unix)]
 impl ArtifactCandidate {
+    fn from_observation(root: &Path, observation: &Observation) -> Result<Self, EditorError> {
+        let source = &observation.source;
+        if source.job_id.is_empty()
+            || source.job_id.len() > 128
+            || !source
+                .job_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+            || source.attempt == 0
+        {
+            return Err(unavailable());
+        }
+        let raw_directory = root
+            .join(&source.job_id)
+            .join(format!("attempt-{}", source.attempt));
+        let root = fs::canonicalize(root).map_err(|_| unavailable())?;
+        let directory = root
+            .join(&source.job_id)
+            .join(format!("attempt-{}", source.attempt));
+        let source_path = Path::new(&source.path);
+        let name = source_path.file_name().ok_or_else(unavailable)?.to_owned();
+        if source_path != directory.join(&name) && source_path != raw_directory.join(&name) {
+            return Err(unavailable());
+        }
+        let directory_identity = observation
+            .directory_identity
+            .as_deref()
+            .ok_or_else(unavailable)?;
+        let (directory_device, directory_inode) = directory_identity
+            .split_once(':')
+            .and_then(|(device, inode)| Some((device.parse().ok()?, inode.parse().ok()?)))
+            .ok_or_else(unavailable)?;
+        let identity = FileIdentity::parse(&observation.identity).ok_or_else(unavailable)?;
+        if observation.size_bytes != identity.size.to_string() {
+            return Err(unavailable());
+        }
+        Ok(Self {
+            directory,
+            directory_device,
+            directory_inode,
+            name,
+            identity,
+        })
+    }
+
     pub fn observe(
         root: &Path,
         job_id: &str,
@@ -212,6 +273,10 @@ impl ArtifactCandidate {
         self.identity.size
     }
 
+    pub fn directory_identity(&self) -> String {
+        format!("{}:{}", self.directory_device, self.directory_inode)
+    }
+
     /// Nonblocking exclusive attempt lock excludes active download verification
     /// and inherited media writers. The caller must recheck durable references
     /// inside this lock, immediately before deletion. A changed file is never
@@ -220,8 +285,17 @@ impl ArtifactCandidate {
         &self,
         still_unreferenced: impl FnOnce() -> Result<bool, EditorError>,
     ) -> Result<Removal, EditorError> {
-        let Some(guard) = AttemptLease::try_cleanup(&self.directory).map_err(|_| unavailable())?
-        else {
+        let lease = match AttemptLease::try_cleanup(&self.directory) {
+            Ok(lease) => lease,
+            Err(error)
+                if error.kind() == io::ErrorKind::NotADirectory
+                    || error.raw_os_error() == Some(libc::ELOOP) =>
+            {
+                return Ok(Removal::Changed);
+            }
+            Err(_) => return Err(unavailable()),
+        };
+        let Some(guard) = lease else {
             return match fs::symlink_metadata(&self.directory) {
                 Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Removal::AlreadyAbsent),
                 Ok(_) => Ok(Removal::Busy),
@@ -275,20 +349,31 @@ impl ArtifactCandidate {
     }
 }
 
-/// Native observation for a durable review plan. The plan remains observational:
-/// a later collector must resolve aliases again under its publication fence.
+/// Native observation for a durable review plan. Execution resolves aliases
+/// again while committing its publication fence under the exclusive lease.
 pub struct ArtifactPlanner<'a>(pub &'a Path);
 
 impl Native for ArtifactPlanner<'_> {
     fn observe(&self, source: &Source) -> Result<Observation, EditorError> {
         #[cfg(unix)]
         {
+            let source_path = Path::new(&source.path);
             let candidate =
-                ArtifactCandidate::observe(self.0, &source.job_id, source.attempt, &source.path)?;
+                ArtifactCandidate::observe(self.0, &source.job_id, source.attempt, source_path)?;
+            let raw_directory = self
+                .0
+                .join(&source.job_id)
+                .join(format!("attempt-{}", source.attempt));
+            if source_path != candidate.directory.join(&candidate.name)
+                && source_path != raw_directory.join(&candidate.name)
+            {
+                return Err(unavailable());
+            }
             Ok(Observation {
                 source: source.clone(),
                 identity: candidate.identity(),
                 size_bytes: candidate.size_bytes().to_string(),
+                directory_identity: Some(candidate.directory_identity()),
             })
         }
         #[cfg(not(unix))]
@@ -354,6 +439,33 @@ impl Native for ArtifactPlanner<'_> {
             Err(EditorError::new(
                 "CAPABILITY_UNAVAILABLE",
                 "Artifact planning requires native file identity support",
+            ))
+        }
+    }
+
+    fn remove_if(
+        &self,
+        observation: &Observation,
+        still_unreferenced: &mut dyn FnMut() -> Result<bool, EditorError>,
+    ) -> Result<ApplicationRemoval, EditorError> {
+        #[cfg(unix)]
+        {
+            let candidate = ArtifactCandidate::from_observation(self.0, observation)?;
+            let removed = candidate.remove_if(still_unreferenced)?;
+            Ok(match removed {
+                Removal::Removed => ApplicationRemoval::Removed,
+                Removal::AlreadyAbsent => ApplicationRemoval::Absent,
+                Removal::Changed => ApplicationRemoval::Changed,
+                Removal::Busy => ApplicationRemoval::Busy,
+                Removal::Retained => ApplicationRemoval::Retained,
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (observation, still_unreferenced);
+            Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                "Artifact execution requires native file identity support",
             ))
         }
     }
@@ -492,5 +604,49 @@ mod tests {
         fs::rename(moved.join("frame.png"), &output).unwrap();
         assert_eq!(candidate.remove_if(|| Ok(true)).unwrap(), Removal::Changed);
         assert_eq!(fs::read(output).unwrap(), b"published");
+    }
+
+    #[test]
+    fn private_plan_identity_recovers_absent_file_and_rejects_replaced_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let artifacts = root.path().join("artifacts");
+        let attempt = artifacts.join("job_1").join("attempt-1");
+        fs::create_dir_all(&attempt).unwrap();
+        let output = attempt.join("frame.png");
+        fs::write(&output, b"published").unwrap();
+        let planner = ArtifactPlanner(&artifacts);
+        let observation = planner
+            .observe(&Source {
+                job_id: "job_1".into(),
+                attempt: 1,
+                path: output.to_string_lossy().into_owned(),
+            })
+            .unwrap();
+        assert!(observation.directory_identity.is_some());
+        assert_eq!(
+            ArtifactCandidate::from_observation(&artifacts, &observation)
+                .unwrap()
+                .remove_if(|| Ok(true))
+                .unwrap(),
+            Removal::Removed
+        );
+        assert_eq!(
+            ArtifactCandidate::from_observation(&artifacts, &observation)
+                .unwrap()
+                .remove_if(|| Ok(true))
+                .unwrap(),
+            Removal::AlreadyAbsent
+        );
+        fs::rename(&attempt, root.path().join("old-attempt")).unwrap();
+        fs::create_dir(&attempt).unwrap();
+        fs::write(&output, b"replacement").unwrap();
+        assert_eq!(
+            ArtifactCandidate::from_observation(&artifacts, &observation)
+                .unwrap()
+                .remove_if(|| Ok(true))
+                .unwrap(),
+            Removal::Changed
+        );
+        assert_eq!(fs::read(output).unwrap(), b"replacement");
     }
 }

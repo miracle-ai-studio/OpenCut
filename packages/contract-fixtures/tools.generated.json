@@ -2667,7 +2667,7 @@
     "read_only": true
   },
   {
-    "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file identity privately, default retention and bounded persisted reference roots; resolves native path aliases by file identity at observation time. No deletion occurs. The plan is a snapshot, not permission to remove bytes; execution remains unavailable until locked recheck and durable deletion receipts are implemented.",
+    "description": "Owner-only: persist an idempotent review plan for one published artifact. Records exact native file and attempt-directory identity privately, default retention and bounded persisted reference roots. Planning never deletes bytes. An executable plan requires default retention released and zero protection roots; execution still rechecks all authorities under a publication fence and attempt lock.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2882,7 +2882,7 @@
     "read_only": false
   },
   {
-    "description": "Owner-only: inspect a durable artifact review plan by plan_id after a lost response. The plan is an observation, not deletion eligibility; execution is unavailable.",
+    "description": "Owner-only: inspect an immutable artifact review plan by plan_id after a lost response. A plan does not itself prove deletion eligibility; execution rechecks the live protection graph and native identity.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3244,6 +3244,266 @@
           "anyOf": [
             {
               "$ref": "#/$defs/Page"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Owner-only explicit execution of an unprotected, exact-hash artifact review plan. Holds the published attempt's exclusive native lock, rechecks retention and every persisted reference under the SQLite publication fence, then durably records removal or a conservative changed/absent outcome. Busy and newly retained responses are transient. Retry the same plan after a crash; physical free space is not inferred from logical file size.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_plan_hash": {
+          "type": "string"
+        },
+        "plan_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "expected_plan_hash"
+      ],
+      "title": "ExecuteInput",
+      "type": "object"
+    },
+    "name": "opencut_artifact_gc_execute",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExecutionState": {
+          "enum": [
+            "planned",
+            "busy",
+            "retained",
+            "removing",
+            "removed",
+            "absent",
+            "changed"
+          ],
+          "type": "string"
+        },
+        "ExecutionView": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "durable": {
+              "type": "boolean"
+            },
+            "plan_hash": {
+              "type": "string"
+            },
+            "plan_id": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/ExecutionState"
+            },
+            "updated_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_hash",
+            "artifact_id",
+            "state",
+            "durable"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Owner-only read of a plan's durable removal state. Removing is unresolved and requires explicit execute retry with the same plan hash; planned, busy and retained are not deletion receipts.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id"
+      ],
+      "title": "PlanId",
+      "type": "object"
+    },
+    "name": "opencut_artifact_gc_execution_inspect",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExecutionState": {
+          "enum": [
+            "planned",
+            "busy",
+            "retained",
+            "removing",
+            "removed",
+            "absent",
+            "changed"
+          ],
+          "type": "string"
+        },
+        "ExecutionView": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "durable": {
+              "type": "boolean"
+            },
+            "plan_hash": {
+              "type": "string"
+            },
+            "plan_id": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/ExecutionState"
+            },
+            "updated_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_hash",
+            "artifact_id",
+            "state",
+            "durable"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionView"
             },
             {
               "type": "null"
@@ -7308,6 +7568,12 @@
             "execute_available": {
               "type": "boolean"
             },
+            "execute_tool": {
+              "type": "string"
+            },
+            "execution_inspect_tool": {
+              "type": "string"
+            },
             "inspect_tool": {
               "type": "string"
             },
@@ -7342,6 +7608,8 @@
             "plan_tool",
             "inspect_tool",
             "query_tool",
+            "execute_tool",
+            "execution_inspect_tool",
             "plan_available",
             "execute_available",
             "owner_only",

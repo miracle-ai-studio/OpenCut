@@ -109,11 +109,11 @@ Owner 可以用 `opencut_storage_inspect` 查询六类托管数据的实际文�
 
 Owner 通过 cas_gc_query 发现未完成计划，通过 cas_gc_plan 创建可审阅计划，随后用 cas_gc_execute 明确提交准确 plan_id/expected_plan_hash。断线或进程退出后用 cas_gc_inspect 核对并重试同一计划。工具名均带 `opencut_` 前缀。务必先停止不参与新锁协议的旧 Host/Worker，再升级整个专用工作区。多数据库/别名布局明确拒绝回收。完整范围、根保护和逐项状态见包内 `cas-gc-contract.md`。
 
-## 已发布产物的审阅计划
+## 已发布产物的审阅与显式回收
 
-Owner 可用 `opencut_artifact_retention_inspect/release` 管理成功任务产物的默认保留根，使用 `opencut_artifact_references_inspect` 观察持久引用。`opencut_artifact_gc_plan` 按产物 ID 和稳定幂等键保存文件身份及保护根的审阅快照；`opencut_artifact_gc_query/inspect` 可在断线后找回。计划不删除文件，`execution_available=false`。发布门闩、执行和崩溃删除回执尚未接入；零引用或 release 不能作为删除依据。详见包内 `artifact-retention-contract.md`。
+Owner 可用 `opencut_artifact_retention_inspect/release` 管理成功任务产物的默认保留根，使用 `opencut_artifact_references_inspect` 观察持久引用。`opencut_artifact_gc_plan` 按产物 ID 和稳定幂等键保存文件身份及保护根的审阅快照；`opencut_artifact_gc_query/inspect` 可在断线后找回。计划不删除文件。新 Unix 计划只有 `execution_available=true`、默认保留已 release 且保护根为零时，才能以 `opencut_artifact_gc_execute` 提交准确的 `plan_id/expected_plan_hash`。断线或进程退出后用 `opencut_artifact_gc_execution_inspect` 读取持久状态，再以相同参数重试。旧计划不可执行，须重新生成。详见包内 `artifact-retention-contract.md`。
 
-schema 18 的 SQLite 发布围栏会在未完成删除意图存续时阻止五类持久引用新增或改写，避免执行进程退出后新引用穿过空档。当前公开工具尚不创建删除意图，也没有执行／恢复入口；升级包仍需整体停机迁移，不能把该围栏视作已可删除产物。详见包内 `artifact-retention-contract.md`。
+schema 18 的 SQLite 发布围栏会在未完成删除意图存续时阻止五类持久引用新增或改写，避免执行进程退出后新引用穿过空档。schema 19 接通原生执行、即时重查与持久终态回执；`removing` 表示仍须恢复，不能据此推断字节是否存在。升级包仍需整体停机迁移；旧 Host/Worker 不能与新执行者共用工作区。正式回收验收和非 Unix 实现仍未完成。
 
 
 ## 持久写入准入

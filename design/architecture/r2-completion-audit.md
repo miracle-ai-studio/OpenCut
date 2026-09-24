@@ -1,6 +1,8 @@
 # R2 分层、契约与放行核对（2026-09-24）
 
-**状态：部分完成。** 当前 Rust 宿主的业务数据库为 schema 18，公开注册表有 67 个叶工具和 9 个领域入口，生成 OpenAPI 有 82 条路径。CLI、HTTP、stdio MCP、Streamable HTTP 与双 SDK 使用同一 Automation/Application 规则；release 编译的 macOS x86_64 本地开发包已在仓库外通过[36 项整包验收](../qa/r2-artifact-publication-fence-2026-09-24.md)。它仍标记 `development`，不代表 R2 全部放行、正式发行或跨平台交付。
+**状态：部分完成。** 当前 Rust 宿主的业务数据库为 schema 19，公开注册表有 69 个叶工具和 9 个领域入口，生成 OpenAPI 有 84 条路径。CLI、HTTP、stdio MCP、Streamable HTTP 与双 SDK 使用同一 Automation/Application 规则。单产物显式回收执行随 macOS x86_64 release 开发包通过[36 项仓库外整包验收](../qa/r2-artifact-execution-2026-09-24.md)，其中真实媒体 17 项、历史矩阵 38 格。并行 release 媒体试跑曾出现数据库瞬时错误，尚未解释；完整 R2、正式发行和跨平台交付仍未放行。
+
+2026-09-24 执行增量：Owner 可对零保护根的新 Unix 计划提交精确哈希，原生独占锁、SQLite 即时重查与持久 `removing` 围栏协调删除；`removed/absent/changed` 回执可跨进程查询与重放。真实媒体的审计失败、删除后重启恢复和权限拒绝已验，详见[专项验收](../qa/r2-artifact-execution-2026-09-24.md)。下载并发、每个强杀窗口、盘满回执和多宿主仍待同包验证，R2 保持部分完成。
 
 2026-09-24 发布围栏增量：schema 18 在未完成删除意图存在时，用 SQLite 触发器阻止工程修订、Job 输入／结果、项目素材、插件发布和项目授权新增或改写引用；失败公开为 `ARTIFACT_COLLECTION_RECOVERY_REQUIRED`。双连接、强杀后独立 CLI、36 格历史矩阵和真实媒体动线通过，见[专项验收](../qa/r2-artifact-publication-fence-2026-09-24.md)。围栏尚未接原生执行、即时重查与持久删除回执；产物删除仍不可用。
 

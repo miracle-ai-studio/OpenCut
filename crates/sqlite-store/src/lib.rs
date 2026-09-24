@@ -30,7 +30,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 18;
+const DATABASE_SCHEMA_VERSION: i64 = 19;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -368,6 +368,17 @@ impl EditorApplication {
         if version == 17 {
             tx.execute_batch(sqlite_artifact_publication::MIGRATION)
                 .map_err(storage_error)?;
+            version = 18;
+        }
+        if version == 18 {
+            // Executable artifact plans and recovery receipts require the
+            // durable publication fence from schema 18. Older hosts must not
+            // reopen a workspace that exposes this collection protocol.
+            tx.execute(
+                "UPDATE metadata SET value='19' WHERE key='schema_version' AND value='18'",
+                [],
+            )
+            .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;

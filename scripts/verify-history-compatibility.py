@@ -318,6 +318,21 @@ def verify(binary):
                 assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
                 assert c.execute('SELECT count(*) FROM artifact_gc_removals').fetchone()[0] == 0
             checks.append('Schema 17 publication fence collision rolls back; retry preserves history without inventing removals')
+        if target_version >= 19:
+            execution = fixture('v18-artifact-execution-gate-rollback')
+            seed(execution, 18, 'v2', probe)
+            with sqlite3.connect(execution) as c:
+                c.execute("CREATE TRIGGER fail_execution_gate BEFORE UPDATE ON metadata WHEN NEW.key='schema_version' AND NEW.value='19' BEGIN SELECT RAISE(ABORT,'QA failed execution gate'); END")
+                before = list(c.iterdump())
+            call(execution, 'opencut_project_inspect', {'project_id': 'history'}, 'STORAGE_ERROR')
+            with sqlite3.connect(execution) as c:
+                assert list(c.iterdump()) == before
+                c.execute('DROP TRIGGER fail_execution_gate')
+            assert call(execution, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
+            with sqlite3.connect(execution) as c:
+                assert c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0] == str(target_version)
+                assert c.execute('SELECT count(*) FROM artifact_gc_removals').fetchone()[0] == 0
+            checks.append('Schema 18 artifact execution protocol gate rolls back on failure; retry preserves history')
         for repetition in range(20):
             race = fixture(f'journal-conversion-{repetition}')
             seed(race, 5, 'v2', probe)
