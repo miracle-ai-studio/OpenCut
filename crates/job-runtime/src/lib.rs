@@ -42,6 +42,75 @@ const LEASE_MS: i64 = 30_000;
 // retrying a transient lock while there is still one timeout of lease runway,
 // instead of failing a healthy writer halfway through its durable lease.
 const HEARTBEAT_BUSY_RUNWAY_MS: u64 = 5_000;
+const PUBLICATION_BUSY_RUNWAY_MS: u64 = 5_000;
+
+enum Publication {
+    Published,
+    AlreadyTerminal,
+    LostLease,
+    HostShutdown,
+}
+
+fn publish_with_busy_retry(
+    database: &Path,
+    worker: &str,
+    job: &JobRecord,
+    result: &Result<Value, EditorError>,
+    stop: &AtomicBool,
+) -> Result<Publication, EditorError> {
+    let deadline =
+        Instant::now() + Duration::from_millis(LEASE_MS as u64 - PUBLICATION_BUSY_RUNWAY_MS);
+    loop {
+        // A BUSY result may leave the previous connection's pager in a failed
+        // transaction. Reopen before inspecting the durable state or retrying
+        // the attempt, including when a commit's outcome was not observed.
+        let publication: Result<Publication, EditorError> = (|| {
+            let mut app = EditorApplication::open_managed(database)?;
+            let state = app.get_job(&job.job_id)?;
+            if state.state != JobState::Running {
+                return Ok(
+                    if state.attempt == job.attempt
+                        && matches!(
+                            state.state,
+                            JobState::Succeeded | JobState::Failed | JobState::Cancelled
+                        )
+                    {
+                        Publication::AlreadyTerminal
+                    } else {
+                        Publication::LostLease
+                    },
+                );
+            }
+            if state.lease_owner.as_deref() != Some(worker) || state.attempt != job.attempt {
+                return Ok(Publication::LostLease);
+            }
+            if stop.load(Ordering::SeqCst) && !state.cancel_requested {
+                return Ok(Publication::HostShutdown);
+            }
+            match result {
+                Ok(value) => {
+                    app.live_jobs()
+                        .complete(&job.job_id, worker, job.attempt, value.clone())?
+                }
+                Err(_) if state.cancel_requested => {
+                    app.live_jobs()
+                        .finish_cancelled(&job.job_id, worker, job.attempt)?
+                }
+                Err(error) => {
+                    app.live_jobs()
+                        .fail(&job.job_id, worker, job.attempt, json!(error))?
+                }
+            };
+            Ok(Publication::Published)
+        })();
+        match publication {
+            Err(error) if error.code == "DATABASE_BUSY" && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            other => return other,
+        }
+    }
+}
 
 pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), EditorError> {
     let mut app = EditorApplication::open_managed(database)?;
@@ -85,38 +154,21 @@ pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), Edi
                     "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
                 )
             });
-            let state = app.get_job(&job.job_id)?;
-            // Host shutdown abandons the lease; recovery retries the immutable input.
-            // A user cancellation, in contrast, must reach the cancelled state.
-            if stop.load(Ordering::SeqCst) && !state.cancel_requested {
-                return Ok(());
-            }
-            if state.lease_owner.as_deref() != Some(&worker)
-                || state.attempt != job.attempt
-                || state.state != JobState::Running
-            {
-                eprintln!(
+            match publish_with_busy_retry(database, &worker, &job, &result, &stop) {
+                Ok(Publication::Published | Publication::AlreadyTerminal) => (),
+                Ok(Publication::HostShutdown) => return Ok(()),
+                Ok(Publication::LostLease) => eprintln!(
                     "Job {} attempt {} lost its lease; private output was not published",
                     job.job_id, job.attempt
-                );
-            } else {
-                let completion = match result {
-                    Ok(result) => {
-                        app.live_jobs()
-                            .complete(&job.job_id, &worker, job.attempt, result)
-                    }
-                    Err(error) if state.cancel_requested => app
-                        .live_jobs()
-                        .finish_cancelled(&job.job_id, &worker, job.attempt)
-                        .inspect_err(|_| {
-                            eprintln!("Task cancellation: {error}");
-                        }),
-                    Err(error) => {
-                        app.live_jobs()
-                            .fail(&job.job_id, &worker, job.attempt, json!(error))
-                    }
-                };
-                if let Err(error) = completion {
+                ),
+                Err(error) if error.code == "DATABASE_BUSY" && !capacity_fault && !once => {
+                    eprintln!(
+                        "Could not publish job {} before the lease retry window ended: {error}; awaiting durable lease recovery",
+                        job.job_id
+                    );
+                    continue;
+                }
+                Err(error) => {
                     eprintln!("Could not publish job {}: {error}", job.job_id);
                     // A worker that cannot persist its outcome must release all
                     // managed SQLite connections so the owner can enter repair.
@@ -1087,6 +1139,57 @@ mod tests {
     use super::*;
     use opencut_contracts::Time;
     use opencut_editor_application::JobRequest;
+
+    #[test]
+    fn publication_retries_a_real_sqlite_writer_lock_without_duplicating_the_result() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("workspace.sqlite");
+        let mut app = EditorApplication::open_managed(&database).unwrap();
+        let job = app
+            .create_job(JobRequest {
+                kind: "render.project".into(),
+                input: json!({}),
+                idempotency_key: "publish-busy".into(),
+            })
+            .unwrap();
+        let claimed = app.live_jobs().claim("worker", LEASE_MS).unwrap().unwrap();
+        assert_eq!(claimed.job_id, job.job_id);
+        drop(app);
+
+        let blocker = rusqlite::Connection::open(&database).unwrap();
+        blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let result = Ok(json!({"published": true}));
+        let stop = AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            let publish = scope
+                .spawn(|| publish_with_busy_retry(&database, "worker", &claimed, &result, &stop));
+            // Outlast one full SQLite busy timeout so the first publication
+            // attempt observes the lock, then allow the fresh connection to
+            // inspect and commit the same attempt.
+            std::thread::sleep(Duration::from_millis(5_500));
+            blocker.execute_batch("COMMIT").unwrap();
+            assert!(matches!(
+                publish.join().unwrap().unwrap(),
+                Publication::Published
+            ));
+        });
+        assert!(matches!(
+            publish_with_busy_retry(&database, "worker", &claimed, &result, &stop).unwrap(),
+            Publication::AlreadyTerminal
+        ));
+        let app = EditorApplication::open_managed(&database).unwrap();
+        let finished = app.get_job(&job.job_id).unwrap();
+        assert_eq!(finished.state, JobState::Succeeded);
+        assert_eq!(finished.result, Some(json!({"published": true})));
+        assert_eq!(
+            app.job_events_after(0, 100, Some(&job.job_id))
+                .unwrap()
+                .into_iter()
+                .filter(|event| event.event_type == "succeeded")
+                .count(),
+            1
+        );
+    }
 
     #[test]
     fn versioned_inputs_require_lock_but_unused_versions_do_not_block_legacy_jobs() {

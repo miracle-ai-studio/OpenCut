@@ -234,6 +234,12 @@ fn admission_storage_error() -> EditorError {
 }
 
 fn admission_sqlite_code(error: &EditorError, other: c_int) -> c_int {
+    if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
+        eprintln!(
+            "OpenCut VFS admission failure: fallback={other} code={} message={}",
+            error.code, error.message
+        );
+    }
     if matches!(
         error.code.as_str(),
         "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
@@ -250,6 +256,12 @@ fn admission_sqlite_code(error: &EditorError, other: c_int) -> c_int {
 }
 
 fn native_capacity_code(result: c_int, identity: Option<&Identity>) -> c_int {
+    if result != ffi::SQLITE_OK
+        && result != ffi::SQLITE_NOTFOUND
+        && std::env::var_os("OPENCUT_TRACE_SQLITE").is_some()
+    {
+        eprintln!("OpenCut native VFS failure: result={result}");
+    }
     if matches!(result & 0xff, ffi::SQLITE_CANTOPEN | ffi::SQLITE_IOERR)
         && identity.is_some_and(|identity| {
             identity.budget.volume_available_bytes().ok() == Some(0)

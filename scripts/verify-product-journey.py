@@ -29,7 +29,12 @@ def http(path,body=None,raw=False):
  value=json.loads(data); trace.append({'path':path,'status':status,'response':value});return value
 
 def call(path,body=None):
- v=http(path,body);assert v.get('error') is None,v;return v['data']
+ deadline=time.monotonic()+20
+ while True:
+  v=http(path,body)
+  if v.get('error') is None:return v['data']
+  assert v['error']['code']=='DATABASE_BUSY' and time.monotonic()<deadline,v
+  time.sleep(.1)
 def start():
  global process,token
  process=subprocess.Popen([str(BIN),'--database',str(db),'serve','--listen',f'127.0.0.1:{port}','--token-file',str(run/'token')],stdout=logfile,stderr=logfile)
@@ -163,11 +168,11 @@ try:
  assert references['default_retained'] and references['root_count']=='0' and references['artifact_id']==artifact_id,references
  wrong_id='artifact:'+exported['job_id']+':'+'0'*64
  assert http('/v1/tools/opencut_artifact_retention_inspect',{'artifact_id':wrong_id})['error']['code']=='NOT_FOUND'
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   connection.execute("CREATE TRIGGER fail_artifact_release BEFORE INSERT ON audit_records WHEN NEW.action='artifact.released' BEGIN SELECT RAISE(ABORT,'forced audit failure'); END")
  rolled_back=http('/v1/tools/opencut_artifact_retention_release',{'artifact_id':artifact_id,'idempotency_key':'release-export'})
  assert rolled_back['error'] and call('/v1/tools/opencut_artifact_retention_inspect',{'artifact_id':artifact_id})['state']=='retained',rolled_back
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute('SELECT count(*) FROM artifact_retention').fetchone()[0]==0
   connection.execute('DROP TRIGGER fail_artifact_release')
  released=call('/v1/tools/opencut_artifact_retention_release',{'artifact_id':artifact_id,'idempotency_key':'release-export'})
@@ -182,7 +187,7 @@ try:
  cli_retention=subprocess.run([str(BIN),'--database',str(db),'--json','call','opencut_artifact_retention_inspect','--input','-'],input=json.dumps({'artifact_id':artifact_id}).encode(),capture_output=True,timeout=15)
  assert cli_retention.returncode==0,(cli_retention.stdout,cli_retention.stderr)
  assert json.loads(cli_retention.stdout)['data']==released
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute("SELECT count(*) FROM audit_records WHERE action='artifact.released' AND job_id=?",(exported['job_id'],)).fetchone()[0]==1
  assert http('/v1/jobs/'+exported['job_id']+'/artifact',raw=True)==original
  stop();start()
@@ -204,12 +209,12 @@ try:
  os.symlink(artifact_path,alias_path)
  alias_job=call('/v1/jobs',{'kind':'media.probe','idempotency_key':'consume-artifact-alias','input':{'input':alias_path.as_uri()}})
  assert alias_job['state']=='queued',alias_job
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   connection.execute("CREATE TRIGGER fail_artifact_plan BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.planned' BEGIN SELECT RAISE(ABORT,'forced plan audit failure'); END")
  connection.close()
  failed_plan=http('/v1/tools/opencut_artifact_gc_plan',{'artifact_id':artifact_id,'idempotency_key':'review-artifact'})
  assert failed_plan['error'] is not None,failed_plan
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute('SELECT count(*) FROM artifact_gc_plans').fetchone()[0]==0
   connection.execute('DROP TRIGGER fail_artifact_plan')
  connection.close()
@@ -252,15 +257,15 @@ try:
  assert http('/v1/tools/opencut_artifact_gc_execute',{'plan_id':recover_plan['plan_id'],'expected_plan_hash':'0'*64})['error']['code']=='PLAN_HASH_MISMATCH'
  recovery_path=Path(preview_artifact['path'])
  assert recovery_path.is_file() and http('/v1/jobs/'+preview['job_id']+'/artifact',raw=True)==preview_path.read_bytes()
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   connection.execute("CREATE TRIGGER fail_gc_mark BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.removing' BEGIN SELECT RAISE(ABORT,'forced removal intent audit failure'); END")
  refused=http('/v1/tools/opencut_artifact_gc_execute',recovery_input)
  assert refused['error'] and recovery_path.is_file(),refused
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute('SELECT count(*) FROM artifact_gc_removals WHERE plan_id=?',(recover_plan['plan_id'],)).fetchone()[0]==0
   connection.execute('DROP TRIGGER fail_gc_mark')
  checks.append('Wrong plan hash and failed removal-intent audit leave reviewed bytes and durable state unchanged')
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   connection.execute("CREATE TRIGGER fail_gc_result BEFORE INSERT ON audit_records WHEN NEW.action='artifact.gc.removed' BEGIN SELECT RAISE(ABORT,'forced removal result audit failure'); END")
  failed_result=http('/v1/tools/opencut_artifact_gc_execute',recovery_input)
  assert failed_result['error'] and not recovery_path.exists(),failed_result
@@ -269,7 +274,7 @@ try:
  blocked_project={'project':{'id':'gc-fenced','name':'GC fenced','sequence_id':'main','width':160,'height':90,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'gc-fenced-create'}
  blocked=http('/v1/projects',blocked_project)
  assert blocked['error']['code']=='ARTIFACT_COLLECTION_RECOVERY_REQUIRED',blocked
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute("SELECT count(*) FROM projects WHERE project_id='gc-fenced'").fetchone()[0]==0
   connection.execute('DROP TRIGGER fail_gc_result')
  stop();start()
@@ -278,7 +283,7 @@ try:
  assert call('/v1/tools/opencut_artifact_gc_execution_inspect',{'plan_id':recover_plan['plan_id']})==recovered
  assert call('/v1/tools/opencut_artifact_gc_execute',recovery_input)==recovered
  assert call('/v1/projects',blocked_project)['project']['id']=='gc-fenced'
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   assert connection.execute("SELECT count(*) FROM audit_records WHERE action='artifact.gc.removing'").fetchone()[0]==1
   assert connection.execute("SELECT count(*) FROM audit_records WHERE action='artifact.gc.absent'").fetchone()[0]==1
   assert connection.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
@@ -303,7 +308,7 @@ try:
  assert call('/v1/tools/opencut_artifact_gc_execute',direct_input)==removed
  checks.append('Unprotected published preview is unlinked through CLI under exact reviewed hash, terminal receipt replays through HTTP across restart, and historical Job success remains')
  legacy_id='agc_'+'1'*32
- with sqlite3.connect(db) as connection:
+ with sqlite3.connect(db,timeout=30) as connection:
   stored=json.loads(connection.execute('SELECT plan_json FROM artifact_gc_plans WHERE plan_id=?',(direct_plan['plan_id'],)).fetchone()[0])
   stored['view']['plan_id']=legacy_id
   stored['view']['execution_available']=False

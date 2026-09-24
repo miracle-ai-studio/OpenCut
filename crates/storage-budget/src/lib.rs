@@ -290,7 +290,14 @@ mod unix {
     // operation instead of returning BUSY from xWrite with SQLite locks held.
     const DATABASE_CONTROL_GATE_WAIT: Duration = Duration::from_secs(15);
     const ROOTS: [&str; 5] = ["asset-store", "media", "uploads", "artifacts", "plugins"];
+    #[track_caller]
     fn failure() -> EditorError {
+        if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
+            eprintln!(
+                "OpenCut budget failure at {}",
+                std::panic::Location::caller()
+            );
+        }
         EditorError::new(
             "STORAGE_BUDGET_ERROR",
             "Cannot safely read or persist storage admission state",
@@ -326,6 +333,7 @@ mod unix {
             };
             match result {
                 Ok(()) => return Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     if started.elapsed() >= timeout {
                         return Err(busy());
@@ -1064,13 +1072,22 @@ mod unix {
         repair: bool,
         write: impl FnOnce() -> T,
     ) -> Result<T, EditorError> {
+        let trace = |stage: &str, error: EditorError| {
+            if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
+                eprintln!("OpenCut budget database write {stage}: {error}");
+            }
+            error
+        };
         validate_database_name(database_name)?;
-        let mut gate = Gate::open(budget, false)?;
-        let mut ledger = gate.read()?;
+        let mut gate = Gate::open(budget, false).map_err(|error| trace("gate open", error))?;
+        let mut ledger = gate.read().map_err(|error| trace("ledger read", error))?;
         if !repair && (ledger.version < 3 || ledger.control_database_name.is_none()) {
             drop(gate);
-            let exclusive = Gate::open(budget, true)?;
-            let mut current = exclusive.read()?;
+            let exclusive =
+                Gate::open(budget, true).map_err(|error| trace("exclusive gate open", error))?;
+            let mut current = exclusive
+                .read()
+                .map_err(|error| trace("exclusive ledger read", error))?;
             if current
                 .control_database_name
                 .as_deref()
@@ -1084,16 +1101,20 @@ mod unix {
                 exclusive.save_with_margin(&current, true)?;
             }
             drop(exclusive);
-            gate = Gate::open(budget, false)?;
-            ledger = gate.read()?;
+            gate = Gate::open(budget, false).map_err(|error| trace("reopen gate", error))?;
+            ledger = gate
+                .read()
+                .map_err(|error| trace("reopened ledger read", error))?;
         }
         if ledger.control_database_name.as_deref() != Some(database_name) {
             return Err(failure());
         }
         if repair {
-            require_repair_active(&gate, &ledger)?;
+            require_repair_active(&gate, &ledger)
+                .map_err(|error| trace("active repair check", error))?;
         } else {
-            require_normal_repair(&gate, &ledger, true)?;
+            require_normal_repair(&gate, &ledger, true)
+                .map_err(|error| trace("normal repair check", error))?;
         }
         // Keep `gate` alive while the default VFS performs its actual write.
         let result = write();
@@ -1816,6 +1837,35 @@ mod unix {
             let _ = result;
         }
     }
+    fn open_observed_directory(
+        parent: &impl AsFd,
+        name: &OsStr,
+        device: u64,
+        inode: u64,
+    ) -> Result<Option<rustix::fd::OwnedFd>, EditorError> {
+        let fd = match fs::openat(parent, name, DIR, Mode::empty()) {
+            Ok(fd) => fd,
+            // Media workers may remove an abandoned attempt directory between
+            // statat and openat. Its bytes no longer occupy the scanned tree.
+            Err(rustix::io::Errno::NOENT) => {
+                return match fs::statat(parent, name, AtFlags::SYMLINK_NOFOLLOW) {
+                    Err(rustix::io::Errno::NOENT) => Ok(None),
+                    _ => Err(failure()),
+                };
+            }
+            Err(error) => {
+                if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
+                    eprintln!("OpenCut budget directory open failure: {error}");
+                }
+                return Err(failure());
+            }
+        };
+        let opened = fs::fstat(&fd).map_err(|_| failure())?;
+        if opened.st_dev as u64 != device || opened.st_ino as u64 != inode {
+            return Err(failure());
+        }
+        Ok(Some(fd))
+    }
     #[allow(clippy::unnecessary_cast)]
     fn scan_roots(root: &File, names: &[&str]) -> Result<u64, EditorError> {
         struct Scan {
@@ -1860,12 +1910,15 @@ mod unix {
                         }
                     }
                     FileType::Directory => {
-                        let fd =
-                            fs::openat(parent, name, DIR, Mode::empty()).map_err(|_| failure())?;
-                        let opened = fs::fstat(&fd).map_err(|_| failure())?;
-                        if opened.st_dev != stat.st_dev || opened.st_ino != stat.st_ino {
-                            return Err(failure());
-                        }
+                        let Some(fd) = open_observed_directory(
+                            parent,
+                            name,
+                            stat.st_dev as u64,
+                            stat.st_ino as u64,
+                        )?
+                        else {
+                            return Ok(());
+                        };
                         let mut dir = fs::Dir::read_from(&fd).map_err(|_| failure())?;
                         for entry in &mut dir {
                             let entry = entry.map_err(|_| failure())?;
@@ -1954,5 +2007,52 @@ mod unix {
         (volume.f_bavail as u64)
             .checked_mul(volume.f_frsize as u64)
             .ok_or_else(failure)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn disappearing_scanned_directory_is_skipped_but_replacement_is_rejected() {
+            let temporary = tempfile::tempdir().unwrap();
+            let parent = File::open(temporary.path()).unwrap();
+            let child = temporary.path().join("attempt");
+            std::fs::create_dir(&child).unwrap();
+            let observed = fs::statat(&parent, "attempt", AtFlags::SYMLINK_NOFOLLOW).unwrap();
+            std::fs::remove_dir(&child).unwrap();
+            assert!(
+                open_observed_directory(
+                    &parent,
+                    OsStr::new("attempt"),
+                    observed.st_dev as u64,
+                    observed.st_ino as u64,
+                )
+                .unwrap()
+                .is_none()
+            );
+
+            std::os::unix::fs::symlink(temporary.path(), &child).unwrap();
+            assert!(
+                open_observed_directory(
+                    &parent,
+                    OsStr::new("attempt"),
+                    observed.st_dev as u64,
+                    observed.st_ino as u64,
+                )
+                .is_err()
+            );
+            std::fs::remove_file(&child).unwrap();
+            std::os::unix::fs::symlink(temporary.path().join("missing"), &child).unwrap();
+            assert!(
+                open_observed_directory(
+                    &parent,
+                    OsStr::new("attempt"),
+                    observed.st_dev as u64,
+                    observed.st_ino as u64,
+                )
+                .is_err()
+            );
+        }
     }
 }

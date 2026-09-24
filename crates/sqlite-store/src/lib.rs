@@ -1185,6 +1185,9 @@ fn is_artifact_publication_fence(error: &rusqlite::Error) -> bool {
 }
 
 fn storage_error(error: rusqlite::Error) -> EditorError {
+    if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
+        eprintln!("OpenCut SQLite failure: {error:?}");
+    }
     if is_artifact_publication_fence(&error) {
         return EditorError::new(
             "ARTIFACT_COLLECTION_RECOVERY_REQUIRED",

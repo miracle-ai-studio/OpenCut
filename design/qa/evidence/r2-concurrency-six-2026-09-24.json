@@ -1,0 +1,70 @@
+{
+  "status": "passed",
+  "binary": "/Users/vincent/Desktop/OpenCut/target/release/opencut",
+  "parallel": 6,
+  "runs": [
+    {
+      "index": 0,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/0/journey-1790243543057707000",
+      "elapsed_seconds": 375.86,
+      "busy_responses": 4
+    },
+    {
+      "index": 1,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/1/journey-1790243543057855000",
+      "elapsed_seconds": 377.57,
+      "busy_responses": 2
+    },
+    {
+      "index": 2,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/2/journey-1790243543058612000",
+      "elapsed_seconds": 377.19,
+      "busy_responses": 2
+    },
+    {
+      "index": 3,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/3/journey-1790243543064551000",
+      "elapsed_seconds": 371.72,
+      "busy_responses": 3
+    },
+    {
+      "index": 4,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/4/journey-1790243543066383000",
+      "elapsed_seconds": 378.0,
+      "busy_responses": 3
+    },
+    {
+      "index": 5,
+      "exit_code": 0,
+      "status": "passed_with_remaining_scope",
+      "checks": 17,
+      "error": "",
+      "evidence": "/private/tmp/opencut-r2-concurrent-final-1790243542674/5/journey-1790243543071991000",
+      "elapsed_seconds": 376.32,
+      "busy_responses": 2
+    }
+  ],
+  "scope": "Independent workspaces with real synthetic audio/video; does not prove full R0-R7 acceptance",
+  "binary_sha256": "12bb3362c7a42f95d2d2bc0bbc18ee97b120d906a47dcc52b28a2f2ae1f3e0f3",
+  "busy_responses_total": 16
+}

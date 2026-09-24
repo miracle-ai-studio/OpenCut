@@ -1,5 +1,7 @@
 # R2 已发布产物显式回收执行验收（2026-09-24）
 
+后续并发故障的定位、修复与同一新包复验见[并发预算扫描与 Worker 发布验收](r2-concurrent-budget-and-publication-2026-09-24.md)；下文记录的是当时归档的边界。
+
 状态：**Unix 本机单产物删除执行已接通，R2 整体仍为部分完成。** schema 19、69 个叶操作和共享 Automation 入口包含 `opencut_artifact_gc_execute` 与 `opencut_artifact_gc_execution_inspect`。Owner 以准确的计划 ID／哈希执行；旧计划、默认保留或带保护根的计划不能删除。执行锁定尝试目录，在 SQLite 写事务中即时重扫引用与 inode 别名，将 `removing` 和审计原子提交，然后按计划中的目录／文件身份删除并同步目录。终态回执跨进程可重放，历史成功 Job 不因字节回收而删除。
 
 本机 Rust 测试、生成契约、权限与分层检查均通过；同一 macOS x86_64 release 开发包在仓库外通过 [36 项整包检查](evidence/r2-artifact-execution-package-2026-09-24.json)。包内真实 HTTP／CLI 合成音视频动线通过 [17 项检查](evidence/r2-artifact-execution-product-2026-09-24.json)，二进制 SHA-256 一致。强制删除意图审计失败时文件仍存在且无删除行；强制最终审计失败时文件已删除但 `removing` 保留，新的工程发布被围栏拒绝；重启后同计划重试记录 `absent` 并解除围栏。另一个无保护产物由 CLI 删除为 `removed`，HTTP 查询跨重启重放。v1–v19 两种摘要身份的 38 格历史矩阵通过。按旧编码去掉目录身份的计划仍可读取，执行明确返回 `CAPABILITY_UNAVAILABLE`。
