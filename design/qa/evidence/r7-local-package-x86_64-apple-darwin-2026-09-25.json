@@ -1,25 +1,173 @@
 {
+  "date": "2026-09-25",
   "status": "passed",
-  "archive": "/private/tmp/opencut-r7-speaker-fix-20260925/opencut-local.tar.gz/opencut-0.1.0-dev-6eecf43c516c-x86_64-apple-darwin.tar.gz",
-  "archive_sha256": "c73246f411f17b8619cc12502b26d2d636649a3a7edd201e62c4c3c44fb8ad78",
-  "binary_sha256": "978d9657b32db170fb9f047e24aa7ea3cd8c5a13637f13601ed1e3809c0f3429",
   "target": "x86_64-apple-darwin",
-  "maturity": "development",
-  "package_builder": "scripts/package-local.py",
-  "package_builder_sha256": "f88816584a5d60d8bd973a0a8968c85686ba305a5508e2b759973761cccb1369",
-  "acceptance_runner": "scripts/verify-local-package.py",
-  "acceptance_runner_sha256": "6e51f15f02059a740361507b839e647ca8bc26e945fe47495f1dccb59e16c8fc",
-  "acceptance": "full 40-check package-outside-repository verification passed after speaker-turn parser fix",
-  "previous_accepted_candidate": {
-    "archive": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz",
-    "archive_sha256": "3d9f8aac74a8c009c178a667f8ae452f92b270315f145af70e4bc6fb30b778ec",
-    "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
-    "acceptance_report_sha256": "dce1eb0f86c52a71bac4cedc2e1a3d083222637e8e8f4be7b157993c86da69f4"
+  "scope": "local development package acceptance on current host; not full R0-R7 or cross-platform release",
+  "archive_filename": "opencut-0.1.0-dev-a08350f60a58-x86_64-apple-darwin.tar.gz",
+  "archive_sha256": "d71fec8bb45f04ea04b6d766dbc1e02dad60bc4813aa9325afc26c0ea9ac3a6f",
+  "cli_sha256": "68c11d7202bf7f27d92742ba8c5efc1b8f97d05f2283dd1f353c4934d8b4f4b9",
+  "checks_count": 40,
+  "checks": [
+    "Delivered Streamable HTTP lifecycle, authenticated sessions and bounded replay",
+    "archive digest and every delivered file verified outside repository",
+    "diagnostic reports a tampered contract file and accepts restored bytes",
+    "delivered manifest matches executable database version, domain registry and OpenAPI routes",
+    "npm tarball installs independently and plans commits retries through delivered HTTP host",
+    "installed TS SDK submits and observes a real FFprobe Worker task",
+    "Rust SDK source archive builds outside repo with portable dependencies only",
+    "Rust SDK replays the TS transaction then commits a new revision",
+    "delivered CLI independently reads the exact Rust SDK snapshot",
+    "installed TS and Rust SDKs resume one raw upload, verify scoped imported bytes and release staging across the same delivered host",
+    "installed TS SDK reviews an exact CAS plan and Rust SDK rejects a wrong hash before executing it; TS confirms the same durable receipt and removed bytes",
+    "installed scoped TS SDK discovers a terminal imported upload; Rust SDK reads typed retention/quota, releases it, and TS confirms freed staging",
+    "installed restricted TS and Rust SDKs agree on typed immutable media preflight; read-only credentials reject without changing the revision",
+    "installed TS and Rust SDKs retain the denial-audit failure warning on separate real restricted refusals while failed journal writes add no records",
+    "delivered binary passes 46-cell frozen historical format matrix",
+    "delivered CLI rejects new project references while a crash-persistent artifact removal intent is unresolved, then retries cleanly",
+    "delivered binary passes scoped CLI and stdio MCP authorization, real artifacts and live revocation",
+    "delivered binary passes actor and Worker artifact provenance with atomic audit rollback",
+    "delivered binary passes owner administration history across CLI HTTP and both MCP transports",
+    "delivered binary passes scoped CLI/HTTP/MCP preflight and decoded preview of pinned historical content",
+    "delivered binary passes media publication journal, unknown outcomes and locked reconciliation",
+    "delivered binary passes bounded refusal audit, degraded logging and stream revocation",
+    "delivered binary passes bounded workspace observation and scoped refusal under directory replacement",
+    "delivered binary passes real write admission, failed import recovery and SIGKILL reservation recovery",
+    "delivered binary passes local owner policy recovery through a stranded WAL and 64 MiB bootstrap without SQLite access",
+    "delivered binary passes reviewed CAS collection, historical render preservation and crash recovery",
+    "delivered binary passes managed SQLite WAL write admission, exact-key retry and independent integrity",
+    "delivered binary passes live Worker capacity-fault quiescence, owner repair cancellation and audit",
+    "delivered binary passes actual disk-full SQL rollback and pinned-reader WAL checkpoint recovery",
+    "delivered binary passes physical repair reserve and fenced running/queued cancellation on a full 64 MiB volume",
+    "delivered Worker enforces output ceilings, orphan recovery and safe cleanup on real FFmpeg tasks",
+    "delivered scoped HTTP/MCP enforces SSE resume, verified artifact bytes and live stream revocation",
+    "delivered project import passes scoped CLI/HTTP/MCP byte transfer, publication, binding and independent media decode",
+    "delivered import Worker survives SIGKILL, natural lease recovery and abandoned input cleanup",
+    "delivered binary passes real upload preview export repair and decoded RGB/PCM journey",
+    "delivered HTTP download lease excludes collection; file, directory and hardlink replacements remain untouched",
+    "delivered collector survives real full-volume failure before intent and after unlink, then resumes the exact plans",
+    "delivered collector preserves bytes through revoked attempt and file permissions, then resumes reviewed plans",
+    "delivered collector rechecks file identity after durable intent and preserves new file or symlink names",
+    "service stop and standalone delivered CLI reopen preserve final project"
+  ],
+  "doctor": {
+    "status": "passed",
+    "target": "x86_64-apple-darwin",
+    "checks": [
+      {
+        "check": "bundle_file",
+        "path": "LICENSE",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "README.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "artifact-retention-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "bin/opencut",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "cas-gc-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/edit-journey.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/event-stream.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/openapi.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "contracts/tools.generated.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "database-control-admission.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "denial-audit-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "dependency-inventory.json",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "doctor.py",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "native-child-write-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "project-plugin-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "sdk/opencut-rust-sdk-0.1.0.tar.gz",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "sdk/opencut-sdk-0.1.0.tgz",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "storage-admission-contract.md",
+        "passed": true
+      },
+      {
+        "check": "bundle_file",
+        "path": "storage-governance-contract.md",
+        "passed": true
+      },
+      {
+        "check": "external_tool",
+        "tool": "ffmpeg",
+        "passed": true,
+        "version": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+      },
+      {
+        "check": "external_tool",
+        "tool": "ffprobe",
+        "passed": true,
+        "version": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers"
+      },
+      {
+        "check": "binary_executes",
+        "passed": true,
+        "version": "opencut 0.1.0"
+      }
+    ]
   },
-  "acceptance_checks": 40,
-  "acceptance_report": "/private/tmp/opencut-r7-speaker-fix-20260925/opencut-local.tar.gz/opencut-0.1.0-dev-6eecf43c516c-x86_64-apple-darwin.tar.gz.acceptance.json",
-  "acceptance_report_sha256": "45f706c397074a5b14cb9cccc1b9a58d1fe452a673ee1cdc89afe6ae01ff9ce6",
-  "acceptance_commands_sha256": "5dd96de346be0deb42a654b7041316f9c30a086cf0e3d8a37cb756f291cded9a",
-  "acceptance_evidence_directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-w1achksw",
-  "acceptance_result": "all 40 checks passed; archive, target, manifest and binary hashes match the delivered package"
+  "component_sha256": null,
+  "raw_report": "r7-local-package-run-x86_64-apple-darwin-2026-09-25.json",
+  "raw_report_sha256": "26371da75ca924ba07b61ff06d2d8b36a1114e43d450f269294039c0b851e03c"
 }
