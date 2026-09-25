@@ -1,0 +1,227 @@
+{
+  "status": "passed_with_remaining_scope",
+  "scope": "24 concurrent release CLI product journeys on one macOS x86_64 host; each journey owns an isolated host process and workspace; one 160x90/10fps, 4-second synthetic audiovisual source profile; reports end-to-end journey elapsed time, not per-request latency",
+  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "verifier_script": "scripts/verify-concurrent-product-journeys.py",
+  "verifier_script_sha256": "d123c6bbbec65804f777f59ad62d21b8d62f88171ce345583beeb192a40b53bc",
+  "sample_count": 24,
+  "parallel": 6,
+  "checks_per_sample": 19,
+  "checks_total": 456,
+  "failed_samples": 0,
+  "database_busy_responses": 0,
+  "source": {
+    "size_bytes": 39604,
+    "sha256": "cde7824805a836a792f674214e69f60123d5b2d405ba34033a0011216f849a21"
+  },
+  "journey_elapsed_seconds": {
+    "minimum": 86.38,
+    "mean": 89.127,
+    "p50_linear_interpolated": 87.915,
+    "p95_linear_interpolated": 92.532,
+    "maximum": 94.08
+  },
+  "external_report": "/tmp/opencut-r1-concurrent-load-20260925/report.json",
+  "external_report_sha256": "34e08b59de2ff3b4f2391da37dc51b982582c456fe876ec2546aa24ee2eb13e1",
+  "samples": [
+    {
+      "index": 0,
+      "elapsed_seconds": 86.71,
+      "checks": 19,
+      "journey_report_sha256": "3739e01f412e31e1a6230131584a3a8ca85393a98a973152201669d95fa3a0a6",
+      "http_trace_sha256": "d614bd5978f1b7a94237bf6fa414444c071f0a9893bb908c5cc242e4b9036bf7",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/0/journey-1790333579506077000"
+    },
+    {
+      "index": 1,
+      "elapsed_seconds": 86.98,
+      "checks": 19,
+      "journey_report_sha256": "ee38a919c0e5b77bf08bf7e6b1c957b5f3931faa2ce676931f77deb1b3ab38da",
+      "http_trace_sha256": "9c962e4a0e9fe3dcc0b6656fa690566845555679f8a8a298102d2c846e97c6b3",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/1/journey-1790333579515483000"
+    },
+    {
+      "index": 2,
+      "elapsed_seconds": 87.12,
+      "checks": 19,
+      "journey_report_sha256": "f180e333cad7dc3e001804040f0d8174775cc8695bc7aaace558104b1c10bb85",
+      "http_trace_sha256": "4e766c5cd5aa14f7144f52a1297324625c58570634332e41bd3c840fde3bde15",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/2/journey-1790333579511786000"
+    },
+    {
+      "index": 3,
+      "elapsed_seconds": 86.38,
+      "checks": 19,
+      "journey_report_sha256": "ceda14d4428431cbf117331afeb06f56b3c5d59326df0c04116d106ab3076044",
+      "http_trace_sha256": "054a2c98019a812b8f09ae64fc7becba1f6d88e7e45fbe9d32c13b31c6e47bca",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/3/journey-1790333579512424000"
+    },
+    {
+      "index": 4,
+      "elapsed_seconds": 87.78,
+      "checks": 19,
+      "journey_report_sha256": "e0786fd207be5671c5a749b021dec88c52ae29a07eeaf2c08303d8429e0339be",
+      "http_trace_sha256": "1172a6ffc562198eb941047130068636d05505e9b2ebb6b258f27d3dc25c7eb9",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/4/journey-1790333579517541000"
+    },
+    {
+      "index": 5,
+      "elapsed_seconds": 87.55,
+      "checks": 19,
+      "journey_report_sha256": "9a8d917941206114795c2ab6f43cf1e58636194b660e8b708c31b90a9b3609ee",
+      "http_trace_sha256": "c5f8d0a81419fb5241ef7d04c048e9a64f2510e4dc135053b1e84a79b17d01bf",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/5/journey-1790333579524987000"
+    },
+    {
+      "index": 6,
+      "elapsed_seconds": 90.86,
+      "checks": 19,
+      "journey_report_sha256": "efcc0df8dc44aecf24f19eadaa0cd9027dd872d349c47d4d33eb24bafce28e58",
+      "http_trace_sha256": "31fa1bcd4c62b085729367564e59a07059394529aacca9d8f5478bba9cb2e062",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/6/journey-1790333665897335000"
+    },
+    {
+      "index": 7,
+      "elapsed_seconds": 90.64,
+      "checks": 19,
+      "journey_report_sha256": "019ac92f6eee6847ea5f7f3791f6fa02244f5d594305c6006da8e25aa98b8f82",
+      "http_trace_sha256": "b508aee5ce007e9f51a0eca84b2c9a56c8d2ddab259b40d834cebbd663155f4a",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/7/journey-1790333666236406000"
+    },
+    {
+      "index": 8,
+      "elapsed_seconds": 94.08,
+      "checks": 19,
+      "journey_report_sha256": "4749a65a556cc66dfa11bb580a53fe2ddd9ad53cefccde04b0798aec2d975aba",
+      "http_trace_sha256": "5600780e3eb8fdd78ac743d4925585cb0fc8db00a7fd15ad7ab26f2f43d433d1",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/8/journey-1790333666517790000"
+    },
+    {
+      "index": 9,
+      "elapsed_seconds": 92.2,
+      "checks": 19,
+      "journey_report_sha256": "759738711a0fae464fa7a7bcee19cb0727917f4e8a2af656e0961818991c54af",
+      "http_trace_sha256": "7df46eba463c4dec699270e6177e5614d24e9285ba4ca25d8e89f07ec56af58d",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/9/journey-1790333666642886000"
+    },
+    {
+      "index": 10,
+      "elapsed_seconds": 92.13,
+      "checks": 19,
+      "journey_report_sha256": "0c00302a5ca54ee5dd28be12c1a819c4e730212dd9bdc484dbd505ecec78e188",
+      "http_trace_sha256": "e6fa2b0ba3b86fc5fb81f36eb72645e31abd89f7a80490dcbfc01e9c5441789f",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/10/journey-1790333667071957000"
+    },
+    {
+      "index": 11,
+      "elapsed_seconds": 92.59,
+      "checks": 19,
+      "journey_report_sha256": "1fb0e10ed2a27fa256689544c8e00a89bc63a8cf5412a23ec43497e3a0acc214",
+      "http_trace_sha256": "a36d328250e0fc44070d0bb5862b7e43bd7c8faddc4b23a93aefc646ce00f845",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/11/journey-1790333667282175000"
+    },
+    {
+      "index": 12,
+      "elapsed_seconds": 87.9,
+      "checks": 19,
+      "journey_report_sha256": "ff7a57d4cc3b3422a3a9d53f5988cdb2bafa31d2fe4825ec44a2e2c85f365be6",
+      "http_trace_sha256": "60d4b3c9a5f44996a3faa944b6b16fd3ccdf5d97ed786fa194197846261afad2",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/12/journey-1790333756750882000"
+    },
+    {
+      "index": 13,
+      "elapsed_seconds": 87.72,
+      "checks": 19,
+      "journey_report_sha256": "72a9a9106a77e96e1b2ad684f6a5d26b8a5710bb8cf52b5539eab77afd93e67d",
+      "http_trace_sha256": "6ee101f20e34a457c3aea30f8038e52537fbca67d656aba69ea5fa4e97d6906b",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/13/journey-1790333756850271000"
+    },
+    {
+      "index": 14,
+      "elapsed_seconds": 87.93,
+      "checks": 19,
+      "journey_report_sha256": "ba3c62aebfb2a5f3f4f2fef8d4c590b13f41dcaea7232c9f77e60e8981ae460f",
+      "http_trace_sha256": "f3887d9f30c0225b0a8f89917bd40e098e2d8e9794fa057c98edb5325661abe5",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/14/journey-1790333758841991000"
+    },
+    {
+      "index": 15,
+      "elapsed_seconds": 90.73,
+      "checks": 19,
+      "journey_report_sha256": "5daba277f3cdc7b3960e474f8d246e63af93aa29d3d7780f88ccba3c684b6539",
+      "http_trace_sha256": "0fb47404349b77f736b9e9a49b68a56cfe1ca15cc637f983d45fefdb11de56be",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/15/journey-1790333759185011000"
+    },
+    {
+      "index": 16,
+      "elapsed_seconds": 89.56,
+      "checks": 19,
+      "journey_report_sha256": "3f32bff5299ee4ed8f05014ed0d302c49484ae3720663b273f22c933cd4e7a2a",
+      "http_trace_sha256": "7b5ad4433cb691942a79474c72c2185027c88d0caa7954bb1c19a860510350d9",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/16/journey-1790333759885424000"
+    },
+    {
+      "index": 17,
+      "elapsed_seconds": 90.81,
+      "checks": 19,
+      "journey_report_sha256": "60407a129177a802cc9894f241f286ca566e85632864d8f0a91fc443ca2ec20e",
+      "http_trace_sha256": "96af4a149f3f4f85f98ba17cb8fb71e6444a3218396355a6afcc863ad31aaf74",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/17/journey-1790333760585151000"
+    },
+    {
+      "index": 18,
+      "elapsed_seconds": 87.7,
+      "checks": 19,
+      "journey_report_sha256": "f4c37ce773b7b71de6b370b6d90fe06b91af598eb2eab0dbba09113b1bd984bf",
+      "http_trace_sha256": "2b42622bd25ea34b67e88da47bae577afcef3e36faff53adb240e3babff7e05b",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/18/journey-1790333844570748000"
+    },
+    {
+      "index": 19,
+      "elapsed_seconds": 89.71,
+      "checks": 19,
+      "journey_report_sha256": "a4a10bb25153499dc7fdd379c262d249a9f2d047ea3644d1491058050745df96",
+      "http_trace_sha256": "65739b7cfa16adbafd7131155e3d7f3cfbe28a3f649f0bb88261d9b982d4af96",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/19/journey-1790333844609216000"
+    },
+    {
+      "index": 20,
+      "elapsed_seconds": 89.72,
+      "checks": 19,
+      "journey_report_sha256": "a9faa941a729796a38e25527d355d1a1a319cb9b2240ec056953ab56e153120e",
+      "http_trace_sha256": "4e7631f213c348efdda067610d2184684550a97bf7169f3fd390154610a41566",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/20/journey-1790333846732638000"
+    },
+    {
+      "index": 21,
+      "elapsed_seconds": 86.9,
+      "checks": 19,
+      "journey_report_sha256": "041d43a230ed06e3b2bff0b893dbb916d86de61228998490d0744a058f4b1c8a",
+      "http_trace_sha256": "a1749c18fceefdb285e8e19ff96175a2d4096ce6e33df4f8e7a098cf680c74f9",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/21/journey-1790333849464987000"
+    },
+    {
+      "index": 22,
+      "elapsed_seconds": 87.78,
+      "checks": 19,
+      "journey_report_sha256": "6d4b5cac53c2044fcf97f3bd574d05e909e764c4d9cc6eb35ec5e6389a0f8c14",
+      "http_trace_sha256": "dcb650fbd20676bf45ba31811f09e2748015f9a3b01d5a8dad9612ee467856d6",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/22/journey-1790333849892679000"
+    },
+    {
+      "index": 23,
+      "elapsed_seconds": 87.56,
+      "checks": 19,
+      "journey_report_sha256": "8daae7bcb7d58dc18ecaef88dc7fda991f33cb328459f4d7ef651c467892d021",
+      "http_trace_sha256": "375387c89bc0e6ea01758d6f98a488bada32c71975e83741a6a1aa7badf9fd16",
+      "evidence_directory": "/private/tmp/opencut-r1-concurrent-load-20260925/23/journey-1790333851375932000"
+    }
+  ],
+  "remaining_scope": [
+    "single small synthetic media profile; no multi-size or large-file percentile sweep",
+    "isolated workspaces and host processes; no shared-database contention claim",
+    "end-to-end journey duration; no per-request latency distribution",
+    "single macOS x86_64 host; no cross-platform or cold/hot baseline",
+    "no performance pass threshold was frozen, so measurements are descriptive only"
+  ]
+}
