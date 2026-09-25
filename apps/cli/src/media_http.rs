@@ -2,7 +2,7 @@ use crate::blocking_owned::BlockingOwned;
 use axum::{
     body::Body,
     extract::{Path, Query},
-    http::{HeaderValue, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode, header::CONTENT_LENGTH},
     response::{IntoResponse, Response},
 };
 use futures_util::StreamExt;
@@ -18,6 +18,9 @@ use tokio_util::io::ReaderStream;
 use crate::http::{Host, error_response, into_http};
 use crate::http_identity::AuthorizedHost;
 
+const UPLOAD_WRITE_BATCH_BYTES: usize = 4 * 1024 * 1024;
+const MAX_UPLOAD_BYTES: u64 = opencut_editor_application::uploads::MAX_UPLOAD_BYTES;
+
 #[derive(Deserialize)]
 pub(super) struct UploadQuery {
     name: String,
@@ -26,6 +29,7 @@ pub(super) struct UploadQuery {
 pub(super) async fn upload(
     AuthorizedHost(host): AuthorizedHost,
     Query(query): Query<UploadQuery>,
+    headers: HeaderMap,
     body: Body,
 ) -> Response {
     if !host.identity.caller.is_owner() {
@@ -42,7 +46,12 @@ pub(super) async fn upload(
         host.identity.caller.clone(),
     );
     let request_id = context.request_id().to_owned();
-    let result = upload_inner(&host, query, body, &staging, context).await;
+    let result = match declared_upload_length(&headers) {
+        Ok(declared_size) => {
+            upload_inner(&host, query, body, &staging, context, declared_size).await
+        }
+        Err(error) => Err(error),
+    };
     into_http(opencut_automation::Response::from_result_with_id(
         request_id, result,
     ))
@@ -54,6 +63,7 @@ async fn upload_inner(
     body: Body,
     staging: &std::path::Path,
     context: opencut_automation::ExecutionContext,
+    declared_size: Option<u64>,
 ) -> Result<serde_json::Value, EditorError> {
     if query.name.trim().is_empty() || query.name.len() > 512 {
         return Err(EditorError::new(
@@ -64,25 +74,57 @@ async fn upload_inner(
     let database = host.database.clone();
     let temporary = staging.to_path_buf();
     let mut file = BlockingOwned::create(move || {
-        AdmittedFile::create(&database, &temporary, "media_upload", 0, false)
+        AdmittedFile::create(
+            &database,
+            &temporary,
+            "media_upload",
+            declared_size.unwrap_or(0),
+            false,
+        )
     })
     .await?;
     let mut stream = body.into_data_stream();
     let mut hash = Sha256::new();
-    let mut size = 0usize;
+    let mut size = 0_u64;
+    let mut pending = Vec::new();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(io_error)?;
         size = size
-            .checked_add(chunk.len())
+            .checked_add(chunk.len() as u64)
             .ok_or_else(|| EditorError::new("INVALID_ARGUMENT", "Upload exceeds size limit"))?;
-        if size > 1_073_741_824 {
+        if size > MAX_UPLOAD_BYTES {
             return Err(EditorError::new(
                 "INVALID_ARGUMENT",
                 "Upload exceeds 1 GiB limit",
             ));
         }
         hash.update(&chunk);
-        (file, ()) = file.run(move |file| file.append(&chunk)).await?;
+        let mut offset = 0;
+        while offset < chunk.len() {
+            let count = (UPLOAD_WRITE_BATCH_BYTES - pending.len()).min(chunk.len() - offset);
+            pending.extend_from_slice(&chunk[offset..offset + count]);
+            offset += count;
+            if pending.len() == UPLOAD_WRITE_BATCH_BYTES {
+                let batch = std::mem::take(&mut pending);
+                (file, pending) = file
+                    .run(move |file| {
+                        file.append(&batch)?;
+                        let mut batch = batch;
+                        batch.clear();
+                        Ok(batch)
+                    })
+                    .await?;
+            }
+        }
+    }
+    if declared_size.is_some_and(|expected| expected != size) {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Upload byte count does not match Content-Length",
+        ));
+    }
+    if !pending.is_empty() {
+        (file, ()) = file.run(move |file| file.append(&pending)).await?;
     }
     if size == 0 {
         return Err(EditorError::new("INVALID_ARGUMENT", "Empty upload"));
@@ -109,7 +151,7 @@ async fn upload_inner(
                 &canonical,
                 &query.name,
                 &hash,
-                size as u64,
+                size,
             )?;
             let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
             app.set_execution_context(context);
@@ -118,6 +160,47 @@ async fn upload_inner(
         })
         .await?;
     Ok(result)
+}
+
+fn declared_upload_length(headers: &HeaderMap) -> Result<Option<u64>, EditorError> {
+    let Some(value) = headers.get(CONTENT_LENGTH) else {
+        return Ok(None);
+    };
+    let size = value
+        .to_str()
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .ok_or_else(|| EditorError::new("INVALID_ARGUMENT", "Invalid Content-Length"))?;
+    if !(1..=MAX_UPLOAD_BYTES).contains(&size) {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Upload must be between 1 byte and 1 GiB",
+        ));
+    }
+    Ok(Some(size))
+}
+
+#[cfg(test)]
+mod upload_length_tests {
+    use super::*;
+
+    #[test]
+    fn declared_length_reserves_only_nonempty_bounded_requests() {
+        let headers = HeaderMap::new();
+        assert_eq!(declared_upload_length(&headers).unwrap(), None);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("4194304"));
+        assert_eq!(declared_upload_length(&headers).unwrap(), Some(4_194_304));
+
+        for value in ["0", "1073741825", "not-a-number"] {
+            headers.insert(CONTENT_LENGTH, HeaderValue::from_str(value).unwrap());
+            assert_eq!(
+                declared_upload_length(&headers).unwrap_err().code,
+                "INVALID_ARGUMENT"
+            );
+        }
+    }
 }
 
 pub(super) async fn read(

@@ -76,4 +76,5 @@ pub struct RevisionTimelineV3 {
     pub schema_version: u32,
     pub sequence: Sequence,
     pub visual: opencut_contracts::project_v3::SequenceVisualV3,
+    pub keyframe_curves: Vec<opencut_contracts::project_v3::KeyframeCurveV1>,
 }

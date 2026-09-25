@@ -133,6 +133,7 @@ pub fn progress(value: JobProgress) -> ProgressView {
 fn metadata(value: media::MediaMetadata) -> MediaInfo {
     MediaInfo {
         format_name: value.format_name,
+        format_brand: value.format_brand,
         duration: value.duration,
         bit_rate: value.bit_rate,
         streams: value.streams,

@@ -657,6 +657,32 @@ mod tests {
             "position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}}]}))
         .unwrap()
     }
+
+    fn keyframe_curve_request(revision: &str) -> ApplyV3Project {
+        serde_json::from_value(json!({
+            "project_id":"v3",
+            "expected_revision":revision,
+            "idempotency_key":"set-curve",
+            "label":"Add eased opacity",
+            "operations":[
+                {"type":"base.apply","operation":{"type":"track.create","sequence_id":"main",
+                    "track":{"id":"video","name":"Video","kind":"video","enabled":true,
+                    "muted":false,"locked":false,"clips":[],"params":{}}}},
+                {"type":"base.apply","operation":{"type":"clip.insert","sequence_id":"main",
+                    "track_id":"video","clip":{"id":"animated","asset_id":null,
+                    "timeline_range":{"start":{"ticks":"0","timebase":1000},
+                    "duration":{"ticks":"1000","timebase":1000}},"source_range":null,
+                    "params":{},"channels":[{"parameter":"opacity","keyframes":[
+                    {"id":"fade-in","time":{"ticks":"0","timebase":1000},"value":0.0,"interpolation":"linear"},
+                    {"id":"fade-out","time":{"ticks":"1000","timebase":1000},"value":1.0,"interpolation":"linear"}]}]}}},
+                {"type":"keyframe.curve_set","sequence_id":"main","curve":{
+                    "id":"opacity-ease","schema_version":1,"sequence_id":"main","clip_id":"animated",
+                    "parameter":"opacity","keyframe_id":"fade-in",
+                    "curve":{"x1":0.0,"y1":0.0,"x2":1.0,"y2":0.0}}}
+            ]
+        }))
+        .unwrap()
+    }
     #[test]
     fn v3_create_apply_fixed_revision_reopen_and_legacy_rejection() {
         let dir = tempfile::tempdir().unwrap();
@@ -847,6 +873,31 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn keyframe_curve_edit_is_versioned_persisted_idempotent_and_reopenable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.sqlite");
+        let mut app = EditorApplication::open(&path).unwrap();
+        let initial = app.create_v3_project(&create()).unwrap();
+        let request = keyframe_curve_request(&initial.revision);
+        let planned = app.plan_v3_project(&request).unwrap();
+        assert_eq!(planned.proposed_project.keyframe_curves.len(), 1);
+        let applied = app.apply_v3_project(&request).unwrap();
+        assert_eq!(app.apply_v3_project(&request).unwrap(), applied);
+        drop(app);
+
+        let app = EditorApplication::open(&path).unwrap();
+        let inspected = app
+            .inspect_v3_project(&InspectV3Project {
+                project_id: "v3".into(),
+                revision: Some(applied.revision),
+            })
+            .unwrap();
+        assert_eq!(inspected.project.keyframe_curves.len(), 1);
+        assert_eq!(inspected.project.keyframe_curves[0].schema_version, 1);
+        assert_eq!(inspected.project.keyframe_curves[0].curve.y2, 0.0);
     }
 
     #[test]

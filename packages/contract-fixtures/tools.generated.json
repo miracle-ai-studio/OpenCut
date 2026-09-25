@@ -7964,6 +7964,34 @@
           ],
           "type": "string"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "DecodedSample": {
           "properties": {
             "decoded": {
@@ -8868,6 +8896,45 @@
           ],
           "type": "object"
         },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
+          ],
+          "type": "object"
+        },
         "KeyframeInterpolation": {
           "enum": [
             "hold",
@@ -9087,6 +9154,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -10152,6 +10225,12 @@
         },
         "RevisionTimelineV3": {
           "properties": {
+            "keyframe_curves": {
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
+            },
             "project_id": {
               "type": "string"
             },
@@ -10175,7 +10254,8 @@
             "revision",
             "schema_version",
             "sequence",
-            "visual"
+            "visual",
+            "keyframe_curves"
           ],
           "type": "object"
         },
@@ -12008,6 +12088,12 @@
                 }
               ]
             },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "format_name": {
               "type": [
                 "string",
@@ -13335,6 +13421,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -15483,6 +15575,12 @@
                 }
               ]
             },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "format_name": {
               "type": [
                 "string",
@@ -16821,6 +16919,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -18173,6 +18277,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -19541,6 +19651,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -20976,6 +21092,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -21110,6 +21254,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -21266,6 +21449,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -22013,6 +22204,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -22147,6 +22366,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -22303,6 +22561,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -23049,6 +23315,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -23183,6 +23477,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -23339,6 +23672,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -24009,7 +24350,7 @@
     "read_only": true
   },
   {
-    "description": "Validate and preview an atomic versioned edit against a fixed revision. Planning does not commit or move the project head.",
+    "description": "Validate and preview an atomic versioned edit against a fixed revision, including keyframe.curve_set and keyframe.curve_delete. Planning does not commit or move the project head.",
     "input_schema": {
       "$defs": {
         "Asset": {
@@ -24238,6 +24579,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EffectNode": {
           "additionalProperties": false,
           "properties": {
@@ -24354,6 +24723,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -25529,6 +25937,48 @@
                 "id"
               ],
               "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/KeyframeCurveV1"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "curve"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
             }
           ]
         }
@@ -25794,6 +26244,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -25928,6 +26406,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -26084,6 +26601,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -26596,7 +27121,7 @@
     "read_only": true
   },
   {
-    "description": "Atomically apply validated schema 3 edits with expected revision, stable idempotency key, audit and outbox. Honors owner edit holds.",
+    "description": "Atomically apply validated schema 3 edits with expected revision, stable idempotency key, audit and outbox. Supports versioned keyframe.curve_set and keyframe.curve_delete easing overrides. Honors owner edit holds.",
     "input_schema": {
       "$defs": {
         "Asset": {
@@ -26825,6 +27350,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EffectNode": {
           "additionalProperties": false,
           "properties": {
@@ -26941,6 +27494,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -28107,6 +28699,48 @@
                 },
                 "type": {
                   "const": "transition.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/KeyframeCurveV1"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "curve"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_delete",
                   "type": "string"
                 }
               },
@@ -29491,6 +30125,12 @@
                 }
               ]
             },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "format_name": {
               "type": [
                 "string",
@@ -30816,6 +31456,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -32434,6 +33080,12 @@
                 }
               ]
             },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "format_name": {
               "type": [
                 "string",
@@ -33752,6 +34404,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -35076,6 +35734,12 @@
                 }
               ]
             },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "format_name": {
               "type": [
                 "string",
@@ -36377,6 +37041,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "format_name": {
@@ -44115,6 +44785,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "Direction": {
           "enum": [
             "undo",
@@ -44256,6 +44954,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -44412,6 +45149,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -45395,6 +46140,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "Direction": {
           "enum": [
             "undo",
@@ -45536,6 +46309,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -45692,6 +46504,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -46897,6 +47717,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EffectNode": {
           "additionalProperties": false,
           "properties": {
@@ -47013,6 +47861,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -48188,6 +49075,48 @@
                 "id"
               ],
               "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/KeyframeCurveV1"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "curve"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
             }
           ]
         }
@@ -48599,6 +49528,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -48733,6 +49690,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -48889,6 +49885,14 @@
             "base": {
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
             },
             "schema_version": {
               "format": "uint32",
@@ -59506,6 +60510,34 @@
           ],
           "type": "object"
         },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
         "EditorError": {
           "additionalProperties": false,
           "properties": {
@@ -59640,6 +60672,45 @@
           "required": [
             "parameter",
             "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
           ],
           "type": "object"
         },
@@ -60380,6 +61451,14 @@
               "$ref": "#/$defs/ProjectDocument",
               "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
             },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
+            },
             "schema_version": {
               "format": "uint32",
               "minimum": 0,
@@ -60989,6 +62068,48 @@
                 },
                 "type": {
                   "const": "transition.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/KeyframeCurveV1"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "curve"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_delete",
                   "type": "string"
                 }
               },

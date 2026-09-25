@@ -2524,12 +2524,31 @@ export namespace OpencutResourceReadOutput {
   value: any;
 }
   export interface RevisionTimelineV3 {
+  keyframe_curves: KeyframeCurveV1[];
   project_id: string;
   revision: string;
   schema_version: number;
   sequence: Sequence;
   visual: SequenceVisualV3;
   [k: string]: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -2660,6 +2679,7 @@ export namespace OpencutResourceReadOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -3060,6 +3080,7 @@ export namespace OpencutJobViewOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -3372,6 +3393,7 @@ export namespace OpencutJobQueryOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -3870,6 +3892,7 @@ export namespace OpencutJobSubmitOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -4184,6 +4207,7 @@ export namespace OpencutJobV3RenderOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -4501,6 +4525,7 @@ export namespace OpencutJobV3FrameOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -4822,6 +4847,7 @@ export namespace OpencutJobV3RangeOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -5188,6 +5214,10 @@ export namespace OpencutProjectV3CreateOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -5298,6 +5328,24 @@ export namespace OpencutProjectV3CreateOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -5443,6 +5491,10 @@ export namespace OpencutProjectV3PromoteOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -5553,6 +5605,24 @@ export namespace OpencutProjectV3PromoteOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -5700,6 +5770,10 @@ export namespace OpencutProjectV3InspectOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -5810,6 +5884,24 @@ export namespace OpencutProjectV3InspectOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -5984,6 +6076,16 @@ export namespace OpencutEditV3PlanInput {
       id: string;
       sequence_id: string;
       type: 'transition.delete';
+    }
+  | {
+      curve: KeyframeCurveV1;
+      sequence_id: string;
+      type: 'keyframe.curve_set';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'keyframe.curve_delete';
     };
   export type Operation =
   | {
@@ -6313,6 +6415,24 @@ export namespace OpencutEditV3PlanInput {
   ticks: string;
   timebase: number;
 }
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
 
 }
 
@@ -6371,6 +6491,10 @@ export namespace OpencutEditV3PlanOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -6481,6 +6605,24 @@ export namespace OpencutEditV3PlanOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -6609,6 +6751,16 @@ export namespace OpencutEditV3ApplyInput {
       id: string;
       sequence_id: string;
       type: 'transition.delete';
+    }
+  | {
+      curve: KeyframeCurveV1;
+      sequence_id: string;
+      type: 'keyframe.curve_set';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'keyframe.curve_delete';
     };
   export type Operation =
   | {
@@ -6937,6 +7089,24 @@ export namespace OpencutEditV3ApplyInput {
   export interface Time1 {
   ticks: string;
   timebase: number;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
 
 }
@@ -7244,6 +7414,7 @@ export namespace OpencutAnalysisSpeakerTurnsOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -7558,6 +7729,7 @@ export namespace OpencutAnalysisTranscribeOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -7947,6 +8119,7 @@ export namespace OpencutAnalysisSilenceOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -8257,6 +8430,7 @@ export namespace OpencutAnalysisShotsOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -8567,6 +8741,7 @@ export namespace OpencutAnalysisWaveformOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -8873,6 +9048,7 @@ export namespace OpencutJobRequestCancelOutput {
   export interface MediaInfo {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  format_brand?: string | null;
   format_name?: string | null;
   streams: MediaStream[];
   [k: string]: any;
@@ -10758,6 +10934,10 @@ export namespace OpencutEditV3UndoPlanOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -10868,6 +11048,24 @@ export namespace OpencutEditV3UndoPlanOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -11081,6 +11279,10 @@ export namespace OpencutEditV3RedoPlanOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -11191,6 +11393,24 @@ export namespace OpencutEditV3RedoPlanOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -11431,6 +11651,16 @@ export namespace OpencutEditV3BranchApplyInput {
       id: string;
       sequence_id: string;
       type: 'transition.delete';
+    }
+  | {
+      curve: KeyframeCurveV1;
+      sequence_id: string;
+      type: 'keyframe.curve_set';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'keyframe.curve_delete';
     };
   export type Operation =
   | {
@@ -11765,6 +11995,24 @@ export namespace OpencutEditV3BranchApplyInput {
   ticks: string;
   timebase: number;
 }
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
 
 }
 
@@ -11881,6 +12129,10 @@ export namespace OpencutEditV3BranchCompareOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -11991,6 +12243,24 @@ export namespace OpencutEditV3BranchCompareOutput {
   interpolation: KeyframeInterpolation;
   time: Time;
   value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
   export interface SequenceVisualV3 {
   effects: EffectNode[];
@@ -14675,6 +14945,16 @@ export namespace OpencutPluginV2PresetV3PlanOutput {
       id: string;
       sequence_id: string;
       type: 'transition.delete';
+    }
+  | {
+      curve: KeyframeCurveV1;
+      sequence_id: string;
+      type: 'keyframe.curve_set';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'keyframe.curve_delete';
     };
   export type Operation =
   | {
@@ -15012,6 +15292,24 @@ export namespace OpencutPluginV2PresetV3PlanOutput {
   ticks: string;
   timebase: number;
 }
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
   export interface VisualPlan {
   changed_ids: string[];
   created_ids: string[];
@@ -15020,6 +15318,10 @@ export namespace OpencutPluginV2PresetV3PlanOutput {
 }
   export interface ProjectDocumentV3 {
   base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
   schema_version: number;
   visual: SequenceVisualV3[];
 }
@@ -16630,6 +16932,10 @@ export namespace JobMediaProbeResult {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -17009,6 +17315,10 @@ export namespace JobPreviewProjectRangeResult {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -17174,6 +17484,10 @@ export namespace JobRenderExportResult {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -17322,6 +17636,10 @@ export namespace JobRenderProjectResult {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -17455,6 +17773,10 @@ export namespace JobArtifactVerifyResult {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -17844,6 +18166,10 @@ export namespace JobRenderProjectV3Result {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];
@@ -18120,6 +18446,10 @@ export namespace JobPreviewProjectRangeV3Result {
   export interface MediaMetadata {
   bit_rate?: number | null;
   duration?: MediaTime | null;
+  /**
+   * ISO Base Media File Format major brand when the container exposes one.
+   */
+  format_brand?: string | null;
   format_name?: string | null;
   input: string;
   streams: MediaStream[];

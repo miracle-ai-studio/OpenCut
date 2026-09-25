@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "checks": [
+    "Fixed asset revision and scoped idempotent session creation",
+    "Invalid seek preserves generation; only one lease-bound stream may open",
+    "One continuous generation decodes at the requested duration as fMP4 with video, audio and visible caption glyphs",
+    "HTTP client disconnect cancels its generation, records PREVIEW_DISCONNECTED and reaps FFmpeg",
+    "Presentation telemetry alone sets pause anchor; old generation rejects control and stream",
+    "Head edit leaves fixed revision intact; events distinguish production and presentation",
+    "Active owner blocks takeover; release rotates lease and rejects old controls",
+    "Stop cancels producer and rejects another stream",
+    "SIGKILL restart reclaims stale private input while preserving another live host lease",
+    "SIGTERM reaps preview inputs and FFmpeg; restart terminates ephemeral session"
+  ],
+  "binary_sha256": "893c57d289da5afd86da7a1957d253abe0fc4075d2735b79ede08835a5ff472e",
+  "script": "scripts/verify-preview-journey.py",
+  "fixture_duration_seconds": 300,
+  "stream_duration_seconds": 300.021406,
+  "transfer_seconds": 8.467,
+  "transfer_rate_media_seconds_per_second": 35.43,
+  "stream_bytes": 5166167,
+  "stream_sha256": "8d1b90ef1e9d8110e61c1f4979bc4f8c041c72b2ee09e3cac22f97c52a27b7b7",
+  "session_id": "preview_75a5bb212e214a38bc5e5928110eb06f",
+  "environment": {
+    "os": "Darwin 25.5.0 x86_64",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "scope": "300-second synthetic 320x180/25 fps video plus 48 kHz audio over the full HTTP session path; validates media duration, transfer, decode and cleanup. It is not live 300-second playback, human media acceptance, or a p50/p95 performance baseline."
+}

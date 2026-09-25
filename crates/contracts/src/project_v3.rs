@@ -11,6 +11,31 @@ pub struct ProjectDocumentV3 {
     /// clip timing, audio and captions. Visual nodes refer to its stable IDs.
     pub base: ProjectDocument,
     pub visual: Vec<SequenceVisualV3>,
+    /// Versioned easing overrides for existing base keyframe channels.
+    #[serde(default)]
+    pub keyframe_curves: Vec<KeyframeCurveV1>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KeyframeCurveV1 {
+    pub id: String,
+    pub schema_version: u32,
+    pub sequence_id: String,
+    pub clip_id: String,
+    pub parameter: String,
+    /// The outgoing keyframe controls the segment to the next keyframe.
+    pub keyframe_id: String,
+    pub curve: CubicBezierV1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CubicBezierV1 {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

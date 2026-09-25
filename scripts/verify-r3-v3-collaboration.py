@@ -48,6 +48,10 @@ def verify(binary: Path, root: Path):
         return {'type': 'base.apply', 'operation': {'type': 'sequence.update_settings',
             'sequence_id': 'main', 'name': name, 'width': None, 'height': None, 'fps': None}}
 
+    def legacy_rename(name):
+        return {'type': 'sequence.update_settings', 'sequence_id': 'main', 'name': name,
+                'width': None, 'height': None, 'fps': None}
+
     def snapshot():
         return call('opencut_project_v3_inspect', {'project_id': 'r3v3', 'revision': None})
 
@@ -123,15 +127,42 @@ def verify(binary: Path, root: Path):
         legacy = call('opencut_project_create', {'project': {'id': 'promoted', 'name': 'Promotion',
             'sequence_id': 'main', 'width': 640, 'height': 360,
             'fps': {'numerator': 25, 'denominator': 1}}, 'idempotency_key': 'legacy-create'})
+        legacy_track = call('opencut_edit_apply', {'project_id': 'promoted', 'request': {
+            'expected_revision': legacy['revision'], 'idempotency_key': 'legacy-track',
+            'label': 'Create graphics track', 'operations': [{'type': 'track.create',
+                'sequence_id': 'main', 'track': {'id': 'graphics', 'name': 'Graphics',
+                    'kind': 'graphic', 'enabled': True, 'muted': False, 'locked': False,
+                    'clips': [], 'params': {}}}]}})
+        pre_promotion_edit = call('opencut_edit_apply', {'project_id': 'promoted', 'request': {
+            'expected_revision': legacy_track['revision'], 'idempotency_key': 'legacy-rename',
+            'label': 'Rename before promotion',
+            'operations': [legacy_rename('Edited before promotion')]}})
         promoted = call('opencut_project_v3_promote', {'project_id': 'promoted',
-            'expected_revision': legacy['revision'], 'idempotency_key': 'promote'})
+            'expected_revision': pre_promotion_edit['revision'], 'idempotency_key': 'promote'})
+        post_promotion_edit = call('opencut_edit_v3_apply', edit(promoted['revision'],
+            'post-promotion-shape', [shape('preserved-shape')], project='promoted'))
+        old_edit_undo = {'project_id': 'promoted', 'expected_revision': post_promotion_edit['revision'],
+            'target_transaction_id': pre_promotion_edit['transaction_id'], 'idempotency_key': 'undo-old-edit'}
+        old_edit_plan = call('opencut_edit_v3_undo_plan', old_edit_undo)
+        assert old_edit_plan['conflicts'] == []
+        assert old_edit_plan['proposed_project']['base']['sequences'][0]['name'] == 'Main'
+        assert old_edit_plan['proposed_project']['visual'][0]['shapes'][0]['id'] == 'preserved-shape'
+        old_edit_undone = call('opencut_edit_v3_undo_apply', old_edit_undo)
+        assert call('opencut_edit_v3_undo_apply', old_edit_undo) == old_edit_undone
+        old_edit_redone = call('opencut_edit_v3_redo_apply', {
+            'project_id': 'promoted', 'expected_revision': old_edit_undone['transaction']['revision'],
+            'undo_transaction_id': old_edit_undone['transaction']['transaction_id'],
+            'idempotency_key': 'redo-old-edit'})
+        assert call('opencut_project_v3_inspect', {'project_id': 'promoted', 'revision': None})[
+            'project']['base']['sequences'][0]['name'] == 'Edited before promotion'
+        checks.append('Schema 2 edit history is selectively undone/redone after promotion while later schema 3 visual work survives')
         with sqlite3.connect(database) as connection:
             promotion_id = connection.execute('SELECT transaction_id FROM revisions WHERE project_id=? AND revision=?',
                 ('promoted', promoted['revision'])).fetchone()[0]
         call('opencut_edit_v3_undo_plan', {'project_id': 'promoted',
-            'expected_revision': promoted['revision'], 'target_transaction_id': promotion_id,
+            'expected_revision': old_edit_redone['transaction']['revision'], 'target_transaction_id': promotion_id,
             'idempotency_key': 'undo-promotion'}, error='INVALID_ARGUMENT')
-        checks.append('Schema 2-to-3 promotion cannot be selectively undone through V3 history')
+        checks.append('The schema 2-to-3 promotion record remains excluded from content undo')
 
         report = {'status': 'passed', 'checks': checks,
                   'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest()}

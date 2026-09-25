@@ -286,7 +286,7 @@ fn merge_field(
 fn collection_key(path: &str) -> Option<&'static str> {
     match path.rsplit('/').next()? {
         "assets" | "sequences" | "tracks" | "clips" | "caption_cues" | "keyframes" | "shapes"
-        | "effects" | "masks" | "transitions" => Some("id"),
+        | "effects" | "masks" | "transitions" | "keyframe_curves" => Some("id"),
         "visual" => Some("sequence_id"),
         "channels" => Some("parameter"),
         _ => None,
@@ -468,6 +468,7 @@ mod tests {
             schema_version: 3,
             base: base.clone(),
             visual: vec![],
+            keyframe_curves: vec![],
         };
         let mut after = before.clone();
         after.base.sequences[0].tracks[0]
@@ -508,6 +509,7 @@ mod tests {
             schema_version: 3,
             base: document(),
             visual: vec![],
+            keyframe_curves: vec![],
         };
         let mut after = before.clone();
         after.visual.push(
@@ -533,5 +535,41 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["later"]
         );
+    }
+
+    #[test]
+    fn v3_undo_of_one_keyframe_curve_preserves_an_independent_curve() {
+        let base = document();
+        let before = ProjectDocumentV3 {
+            schema_version: 3,
+            base: base.clone(),
+            visual: vec![],
+            keyframe_curves: vec![],
+        };
+        let curve = |id: &str, keyframe_id: &str| {
+            serde_json::json!({
+                "id":id,"schema_version":1,"sequence_id":"main","clip_id":"clip",
+                "parameter":"opacity","keyframe_id":keyframe_id,
+                "curve":{"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}
+            })
+        };
+        let first: opencut_contracts::project_v3::KeyframeCurveV1 =
+            serde_json::from_value(curve("curve-a", "key-a")).unwrap();
+        let second: opencut_contracts::project_v3::KeyframeCurveV1 =
+            serde_json::from_value(curve("curve-b", "key-b")).unwrap();
+        let mut after = before.clone();
+        after.keyframe_curves = vec![first.clone()];
+        let mut head = after.clone();
+        head.keyframe_curves.push(second.clone());
+
+        let undo = selective_merge_v3(&after, &before, &head);
+        assert!(undo.conflicts.is_empty(), "{:?}", undo.conflicts);
+        assert_eq!(undo.project.unwrap().keyframe_curves, [second]);
+
+        let mut conflicting_head = after.clone();
+        conflicting_head.keyframe_curves[0].curve.y1 = 0.25;
+        let conflict = selective_merge_v3(&after, &before, &conflicting_head);
+        assert_eq!(conflict.conflicts.len(), 1);
+        assert!(conflict.conflicts[0].path.contains("curve-a"));
     }
 }

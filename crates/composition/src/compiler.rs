@@ -26,6 +26,16 @@ pub(crate) fn compile_with_min_end(
     scope: CompositionScope,
     minimum_end: Option<RationalTime>,
 ) -> Result<Composition, CompositionError> {
+    compile_with_min_end_and_curves(snapshot, sequence_id, scope, minimum_end, &[])
+}
+
+pub(crate) fn compile_with_min_end_and_curves(
+    snapshot: &ProjectSnapshot,
+    sequence_id: &str,
+    scope: CompositionScope,
+    minimum_end: Option<RationalTime>,
+    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
+) -> Result<Composition, CompositionError> {
     opencut_editor_core::validate_project(&snapshot.project)
         .map_err(|e| error("INVALID_PROJECT", e.to_string()))?;
     let sequence = snapshot
@@ -40,8 +50,12 @@ pub(crate) fn compile_with_min_end(
         .iter()
         .map(|a| (a.id.as_str(), a))
         .collect();
-    let (video_clips, image_clips, mut audio_clips, mut end) =
-        compile_visual_clips(sequence, &assets, scope == CompositionScope::AudioVisual)?;
+    let (video_clips, image_clips, mut audio_clips, mut end) = compile_visual_clips(
+        sequence,
+        &assets,
+        scope == CompositionScope::AudioVisual,
+        keyframe_curves,
+    )?;
     if let Some(minimum_end) = minimum_end
         && end.is_none_or(|current| current.cmp_exact(minimum_end).is_lt())
     {
@@ -86,7 +100,13 @@ pub(crate) fn compile_with_min_end(
                 gain: track_gain * volume(&clip.params)?,
                 optional: false,
                 stream: None,
-                gain_curve: curve(clip, "volume", track_gain as f64)?,
+                gain_curve: curve(
+                    clip,
+                    "volume",
+                    track_gain as f64,
+                    &sequence.id,
+                    keyframe_curves,
+                )?,
             });
             include_end(&mut end, &clip.timeline_range)?;
         }
@@ -177,6 +197,7 @@ fn compile_visual_clips(
     sequence: &opencut_contracts::Sequence,
     assets: &HashMap<&str, &Asset>,
     include_video_audio: bool,
+    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
 ) -> Result<CompiledVisualClips, CompositionError> {
     let mut video_clips = Vec::new();
     let mut image_clips = Vec::new();
@@ -228,7 +249,7 @@ fn compile_visual_clips(
                 rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
                 z_index: i32::try_from(track_index)
                     .map_err(|_| capability("too many visual tracks"))?,
-                curves: visual_curves(clip, track_opacity as f64)?,
+                curves: visual_curves(clip, track_opacity as f64, &sequence.id, keyframe_curves)?,
             });
             if include_video_audio && !track.muted {
                 audio_clips.push(TimelineAudioClip {
@@ -240,7 +261,13 @@ fn compile_visual_clips(
                     gain: track_gain * volume(&clip.params)?,
                     optional: true,
                     stream: None,
-                    gain_curve: curve(clip, "volume", track_gain as f64)?,
+                    gain_curve: curve(
+                        clip,
+                        "volume",
+                        track_gain as f64,
+                        &sequence.id,
+                        keyframe_curves,
+                    )?,
                 });
             }
             include_end(&mut end, &clip.timeline_range)?;
@@ -279,7 +306,7 @@ fn compile_visual_clips(
                 rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
                 z_index: i32::try_from(track_index)
                     .map_err(|_| capability("too many visual tracks"))?,
-                curves: visual_curves(clip, track_opacity as f64)?,
+                curves: visual_curves(clip, track_opacity as f64, &sequence.id, keyframe_curves)?,
             });
             include_end(&mut end, &clip.timeline_range)?;
         }
@@ -372,14 +399,16 @@ pub fn validate_channels(clip: &Clip, allowed: &[&str]) -> Result<(), Compositio
 fn visual_curves(
     clip: &Clip,
     track_opacity: f64,
+    sequence_id: &str,
+    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
 ) -> Result<TimelineVisualCurves, CompositionError> {
     Ok(TimelineVisualCurves {
-        opacity: curve(clip, "opacity", track_opacity)?,
-        position_x: curve(clip, "position_x", 1.0)?,
-        position_y: curve(clip, "position_y", 1.0)?,
-        scale_x: curve(clip, "scale_x", 1.0)?,
-        scale_y: curve(clip, "scale_y", 1.0)?,
-        rotation_degrees: curve(clip, "rotation_degrees", 1.0)?,
+        opacity: curve(clip, "opacity", track_opacity, sequence_id, keyframe_curves)?,
+        position_x: curve(clip, "position_x", 1.0, sequence_id, keyframe_curves)?,
+        position_y: curve(clip, "position_y", 1.0, sequence_id, keyframe_curves)?,
+        scale_x: curve(clip, "scale_x", 1.0, sequence_id, keyframe_curves)?,
+        scale_y: curve(clip, "scale_y", 1.0, sequence_id, keyframe_curves)?,
+        rotation_degrees: curve(clip, "rotation_degrees", 1.0, sequence_id, keyframe_curves)?,
     })
 }
 
@@ -387,6 +416,8 @@ fn curve(
     clip: &Clip,
     parameter: &str,
     multiplier: f64,
+    sequence_id: &str,
+    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
 ) -> Result<EvaluatedCurve, CompositionError> {
     let Some(channel) = clip.channels.iter().find(|c| c.parameter == parameter) else {
         return Ok(EvaluatedCurve::default());
@@ -421,11 +452,32 @@ fn curve(
         {
             end_value = start_value;
         }
+        let cubic_bezier = channel
+            .keyframes
+            .iter()
+            .find(|key| time_cmp(&key.time, &pair[0]).is_ok_and(|value| value.is_eq()))
+            .and_then(|key| {
+                keyframe_curves.iter().find(|curve| {
+                    curve.sequence_id == sequence_id
+                        && curve.clip_id == clip.id
+                        && curve.parameter == parameter
+                        && curve.keyframe_id == key.id
+                })
+            })
+            .map(
+                |curve| opencut_media_contracts::composition::CubicBezierCurve {
+                    x1: curve.curve.x1,
+                    y1: curve.curve.y1,
+                    x2: curve.curve.x2,
+                    y2: curve.curve.y2,
+                },
+            );
         segments.push(EvaluatedSegment {
             start,
             end,
             start_value,
             end_value,
+            cubic_bezier,
         });
     }
     Ok(EvaluatedCurve { segments })
@@ -543,7 +595,7 @@ mod tests {
                     .collect(),
             }],
         };
-        let compiled = curve(&clip, "position_x", 1.0).unwrap();
+        let compiled = curve(&clip, "position_x", 1.0, "s", &[]).unwrap();
         assert_eq!(compiled.segments.len(), 3);
         assert_eq!(compiled.segments[1].start.ticks, first);
         assert_eq!(compiled.segments[1].end.ticks, second);

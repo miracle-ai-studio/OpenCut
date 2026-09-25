@@ -1,0 +1,125 @@
+{
+  "status": "passed_with_remaining_scope",
+  "scope": "real HTTP/CLI workflow with synthetic audiovisual media; no browser or interview understanding validation",
+  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "verifier_script": "scripts/verify-product-journey.py",
+  "verifier_script_sha256": "0340637bc06bf96d14fd26a20d0e460fd1b9a353d4718aaf562e34aa94453d0c",
+  "report_sha256": "a3a10422d152660505387eb94c3e4b72bd5a6c845c7d3c0feb74d3f98ea7b28e",
+  "trace_sha256": "2b7b35ab723396d903bbd78dc840e9aa4ccc0a136f18000e3101cd519833ca47",
+  "external_run_directory": "/tmp/opencut-r1-journey-final-20260925/journey-1790332355352679000",
+  "checks_count": 19,
+  "checks": [
+    "HTTP import and read-only plan; atomic apply and exact retry return same transaction",
+    "HTTP write and separate CLI equivalent-time retry share transaction; changed duration rejects",
+    "Split followed by independent human caption; stale Agent edit rejected without losing caption",
+    "Nonzero range preview independently decoded red then blue, two seconds and audible PCM",
+    "Correct opacity then edit head; old fixed revision export preserves four seconds and half-intensity blue",
+    "Real service restart and separate CLI reopen preserve latest head and clip count",
+    "Whole-project restore creates a new revision and restores two editable clips",
+    "MP4 and QuickTime MOV share FFprobe aliases; major brand keeps MIME distinct through upload and public probe Job despite opposite filename extension",
+    "Renamed and concurrent duplicate uploads preserve video identity and original MIME",
+    "Chunked HTTP upload without Content-Length crosses the 4 MiB write batch and downloads identical verified bytes",
+    "PNG content stays image despite movie extension; MJPEG movie stays video; invalid and truncated containers return structured rejection",
+    "Truncated, same-size corrupted, symlink and hardlinked artifacts rejected; original successful record preserved; restored file downloads",
+    "Owner release is durable and exactly replayable across HTTP, CLI and restart; audit commits once, other artifact stays retained and release does not delete bytes",
+    "After release, a real new project revision and queued Job referencing the published bytes appear as distinct protection roots; the artifact remains downloadable",
+    "Durable artifact review plan captures file identity privately and percent-encoded file-URI symlink alias; audit rollback, exact replay, bounded discovery and restart preserve plans without deleting bytes",
+    "Wrong plan hash and failed removal-intent audit leave reviewed bytes and durable state unchanged",
+    "Failed final audit after durable unlink leaves removing fence; restart and exact retry record absent once, then blocked project publish resumes",
+    "Unprotected published preview is unlinked through CLI under exact reviewed hash, terminal receipt replays through HTTP across restart, and historical Job success remains",
+    "Legacy schema-18 review plan remains readable but cannot authorize deletion without a private directory identity"
+  ],
+  "findings": {
+    "renamed_video": {
+      "same_asset_id": true,
+      "original_kind": "video",
+      "renamed_kind": "video",
+      "renamed_mime": "video/mp4"
+    },
+    "missing_journey_jobs": [
+      "project.package"
+    ]
+  },
+  "content_probe": {
+    "arbitrary_invalid_bytes": {
+      "path": "/v1/media/upload?name=invalid.mp4",
+      "status": 400,
+      "error_code": "INVALID_ARGUMENT",
+      "asset_kind": null,
+      "mime_type": null
+    },
+    "truncated_mp4": {
+      "path": "/v1/media/upload?name=truncated.mp4",
+      "status": 400,
+      "error_code": "INVALID_ARGUMENT",
+      "asset_kind": null,
+      "mime_type": null
+    },
+    "quicktime_uploaded_with_mp4_name": {
+      "path": "/v1/media/upload?name=quicktime.mp4",
+      "status": 200,
+      "error_code": null,
+      "asset_kind": "video",
+      "mime_type": "video/quicktime"
+    },
+    "public_probe_jobs": {
+      "source.mp4": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_brand": "isom"
+      },
+      "quicktime.mov": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_brand": "qt"
+      }
+    }
+  },
+  "published_artifact_integrity": {
+    "job_id": "job_b30773f4ab0e43a58e17e7fff5011aa3",
+    "content_sha256": "e75edb8e28b13999f0712b9389b9086ca504bd2b3be75293d2cac2e21689a035",
+    "rejected_replacements": [
+      {
+        "path": "/v1/jobs/job_b30773f4ab0e43a58e17e7fff5011aa3/artifact",
+        "status": 500,
+        "error_code": "ARTIFACT_VERIFICATION_FAILED"
+      },
+      {
+        "path": "/v1/jobs/job_b30773f4ab0e43a58e17e7fff5011aa3/artifact",
+        "status": 500,
+        "error_code": "ARTIFACT_VERIFICATION_FAILED"
+      },
+      {
+        "path": "/v1/jobs/job_b30773f4ab0e43a58e17e7fff5011aa3/artifact",
+        "status": 500,
+        "error_code": "ARTIFACT_VERIFICATION_FAILED"
+      },
+      {
+        "path": "/v1/jobs/job_b30773f4ab0e43a58e17e7fff5011aa3/artifact",
+        "status": 500,
+        "error_code": "ARTIFACT_VERIFICATION_FAILED"
+      },
+      {
+        "path": "/v1/jobs/job_b30773f4ab0e43a58e17e7fff5011aa3/artifact",
+        "status": 500,
+        "error_code": "ARTIFACT_VERIFICATION_FAILED"
+      }
+    ],
+    "historical_job_state_after_rejection": "succeeded",
+    "restored_download_sha256": "e75edb8e28b13999f0712b9389b9086ca504bd2b3be75293d2cac2e21689a035"
+  },
+  "remaining_scope": [
+    "broader codec/profile combinations and alternate FFmpeg/platform matrix",
+    "multi-size/concurrent p50 and p95 load envelope",
+    "cross-platform temporary-file behavior",
+    "browser and human interview-media acceptance"
+  ],
+  "chunked_upload": {
+    "transport": "HTTP Transfer-Encoding: chunked",
+    "content_length_header": false,
+    "size_bytes": 5760078,
+    "sha256": "5472afcfa7f86e8fafa93268dca82d9c5bcccb6a6c1893795759c6894a127269",
+    "kind": "audio",
+    "mime_type": "audio/wav",
+    "download_sha256": "5472afcfa7f86e8fafa93268dca82d9c5bcccb6a6c1893795759c6894a127269",
+    "write_batch_bytes": 4194304
+  }
+}

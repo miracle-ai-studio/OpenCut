@@ -140,12 +140,14 @@ def verify(archive, mcp_sdk_root=None, component=None):
                           '/v1/domains', '/v1/domains/{domain}',
                           '/v1/uploads/{upload_id}/chunks/{offset}',
                           '/v1/projects/{project}/media/{media_id}/content',
-                          '/v1/artifacts/{artifact}', '/v1/changes/stream'}
+                          '/v1/artifacts/{artifact}', '/v1/changes/stream',
+                          '/v1/preview/stream'}
         assert set(paths) == expected_paths
         assert paths['/v1/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
         assert paths['/v1/projects/{project}/media/{media_id}/content']['get']['operationId'] == 'opencut_project_media_content'
         assert paths['/v1/artifacts/{artifact}']['get']['operationId'] == 'opencut_artifact_download'
         assert paths['/v1/changes/stream']['post']['responses']['200']['content']['text/event-stream']['x-opencut-data-schema'] == {'$ref': '#/components/schemas/OpenCutEventStreamRecord'}
+        assert paths['/v1/preview/stream']['post']['operationId'] == 'opencut_preview_stream'
         capabilities = json.loads(run([binary, '--json', 'system', 'capabilities']))['data']
         if 'streamable-http' in capabilities.get('mcp', {}).get('transports', []):
             http_report = json.loads(run(['python3', ROOT / 'scripts/verify-mcp-http.py', '--binary', binary,

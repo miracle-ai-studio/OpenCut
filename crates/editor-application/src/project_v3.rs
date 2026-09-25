@@ -1,12 +1,14 @@
 //! Pure schema 3 aggregate edits. SQLite owns CAS, identity, audit and publication.
 use crate::access::SourceAccess;
 use opencut_contracts::{
-    CreateProject, EditorError, ProjectDocument, ProjectSnapshot, TransactionRequest,
+    CreateProject, EditorError, Operation, ProjectDocument, ProjectSnapshot, TransactionRequest,
     project_v3::{
         EffectNode, MaskNode, ProjectDocumentV3, SequenceVisualV3, ShapeClip, TransitionNode,
     },
     project_v3_ops::{ApplyV3Project, VisualOperation, VisualPlan},
 };
+use opencut_time::RationalTime;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 /// A fixed v3 revision paired with source-path authority derived from host identity.
@@ -33,6 +35,7 @@ pub fn promote(base: &ProjectDocument) -> Result<ProjectDocumentV3, EditorError>
         schema_version: 3,
         base: base.clone(),
         visual: Vec::new(),
+        keyframe_curves: Vec::new(),
     };
     opencut_editor_core::project_v3::validate_project_v3(&project)?;
     Ok(project)
@@ -241,6 +244,24 @@ fn check_visual_lock(
             unlocked_target(project, sequence_id, &old.outgoing_clip_id)?;
             unlocked_target(project, sequence_id, &old.incoming_clip_id)
         }
+        VisualOperation::KeyframeCurveSet { curve, .. } => {
+            if let Some(old) = project
+                .keyframe_curves
+                .iter()
+                .find(|existing| existing.id == curve.id)
+            {
+                unlocked_target(project, sequence_id, &old.clip_id)?;
+            }
+            unlocked_target(project, sequence_id, &curve.clip_id)
+        }
+        VisualOperation::KeyframeCurveDelete { id, .. } => {
+            let curve = project
+                .keyframe_curves
+                .iter()
+                .find(|curve| curve.id == *id)
+                .ok_or_else(|| EditorError::new("NOT_FOUND", "Keyframe curve does not exist"))?;
+            unlocked_target(project, sequence_id, &curve.clip_id)
+        }
         VisualOperation::Base { .. } => Ok(()),
     }
 }
@@ -274,6 +295,9 @@ fn entity_value(project: &ProjectDocumentV3, id: &str) -> Option<serde_json::Val
             }
         }
     }
+    if let Some(curve) = project.keyframe_curves.iter().find(|curve| curve.id == id) {
+        return serde_json::to_value(curve).ok();
+    }
     for visual in &project.visual {
         for shape in &visual.shapes {
             if shape.id == id {
@@ -299,6 +323,266 @@ fn entity_value(project: &ProjectDocumentV3, id: &str) -> Option<serde_json::Val
     None
 }
 
+fn split_curve_id(source_curve_id: &str, right_clip_id: &str) -> String {
+    let identity =
+        serde_json::to_vec(&(source_curve_id, right_clip_id)).expect("curve identity serializes");
+    format!("curve_{:x}", Sha256::digest(identity))
+}
+
+fn bezier_component(t: f64, first: f64, second: f64) -> f64 {
+    let inverse = 1.0 - t;
+    3.0 * inverse * inverse * t * first + 3.0 * inverse * t * t * second + t * t * t
+}
+
+fn split_bezier(
+    curve: opencut_contracts::project_v3::CubicBezierV1,
+    progress: f64,
+) -> Result<
+    (
+        opencut_contracts::project_v3::CubicBezierV1,
+        opencut_contracts::project_v3::CubicBezierV1,
+        f64,
+    ),
+    EditorError,
+> {
+    if !progress.is_finite() || !(0.0..1.0).contains(&progress) {
+        return Err(invalid(
+            "keyframe curve split point must lie inside its segment",
+        ));
+    }
+    let (mut low, mut high) = (0.0, 1.0);
+    for _ in 0..48 {
+        let middle = (low + high) * 0.5;
+        if bezier_component(middle, curve.x1, curve.x2) < progress {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    let t = (low + high) * 0.5;
+    let p0 = (0.0, 0.0);
+    let p1 = (curve.x1, curve.y1);
+    let p2 = (curve.x2, curve.y2);
+    let p3 = (1.0, 1.0);
+    let lerp = |a: (f64, f64), b: (f64, f64)| (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t);
+    let q0 = lerp(p0, p1);
+    let q1 = lerp(p1, p2);
+    let q2 = lerp(p2, p3);
+    let r0 = lerp(q0, q1);
+    let r1 = lerp(q1, q2);
+    let point = lerp(r0, r1);
+    if point.0 <= 0.0 || point.0 >= 1.0 || point.1 <= 0.0 || point.1 >= 1.0 {
+        return Err(invalid("keyframe curve split could not be normalized"));
+    }
+    let unit = |value: f64| value.clamp(0.0, 1.0);
+    let left = opencut_contracts::project_v3::CubicBezierV1 {
+        x1: unit(q0.0 / point.0),
+        y1: unit(q0.1 / point.1),
+        x2: unit(r0.0 / point.0),
+        y2: unit(r0.1 / point.1),
+    };
+    let right = opencut_contracts::project_v3::CubicBezierV1 {
+        x1: unit((r1.0 - point.0) / (1.0 - point.0)),
+        y1: unit((r1.1 - point.1) / (1.0 - point.1)),
+        x2: unit((q2.0 - point.0) / (1.0 - point.0)),
+        y2: unit((q2.1 - point.1) / (1.0 - point.1)),
+    };
+    Ok((left, right, point.1))
+}
+
+fn set_keyframe_value(
+    project: &mut ProjectDocument,
+    sequence_id: &str,
+    clip_id: &str,
+    parameter: &str,
+    keyframe_id: &str,
+    value: f64,
+) -> Result<(), EditorError> {
+    let keyframe = project
+        .sequences
+        .iter_mut()
+        .find(|sequence| sequence.id == sequence_id)
+        .and_then(|sequence| {
+            sequence
+                .tracks
+                .iter_mut()
+                .flat_map(|track| track.clips.iter_mut())
+                .find(|clip| clip.id == clip_id)
+        })
+        .and_then(|clip| {
+            clip.channels
+                .iter_mut()
+                .find(|channel| channel.parameter == parameter)
+        })
+        .and_then(|channel| {
+            channel
+                .keyframes
+                .iter_mut()
+                .find(|keyframe| keyframe.id == keyframe_id)
+        })
+        .ok_or_else(|| invalid("split keyframe boundary does not exist"))?;
+    keyframe.value = serde_json::json!(value);
+    Ok(())
+}
+
+fn boundary_keyframe_id(
+    project: &ProjectDocument,
+    sequence_id: &str,
+    clip_id: &str,
+    parameter: &str,
+    at: &RationalTime,
+    original_key_ids: &BTreeSet<String>,
+) -> Result<String, EditorError> {
+    let clip = project
+        .sequences
+        .iter()
+        .find(|sequence| sequence.id == sequence_id)
+        .and_then(|sequence| {
+            sequence
+                .tracks
+                .iter()
+                .flat_map(|track| track.clips.iter())
+                .find(|clip| clip.id == clip_id)
+        })
+        .ok_or_else(|| invalid("split clip is missing"))?;
+    let channel = clip
+        .channels
+        .iter()
+        .find(|channel| channel.parameter == parameter)
+        .ok_or_else(|| invalid("split keyframe channel is missing"))?;
+    channel
+        .keyframes
+        .iter()
+        .find(|keyframe| {
+            !original_key_ids.contains(&keyframe.id)
+                && RationalTime::try_from(&keyframe.time)
+                    .is_ok_and(|time| time.cmp_exact(*at).is_eq())
+        })
+        .map(|keyframe| keyframe.id.clone())
+        .ok_or_else(|| invalid("split keyframe boundary was not created"))
+}
+
+fn preserve_curves_across_split(
+    project: &mut ProjectDocumentV3,
+    original: &ProjectDocument,
+    split_point: &opencut_contracts::Time,
+    sequence_id: &str,
+    clip_id: &str,
+    right_clip_id: &str,
+) -> Result<(Vec<String>, Vec<String>), EditorError> {
+    let original_clip = original
+        .sequences
+        .iter()
+        .find(|sequence| sequence.id == sequence_id)
+        .and_then(|sequence| {
+            sequence
+                .tracks
+                .iter()
+                .flat_map(|track| track.clips.iter())
+                .find(|clip| clip.id == clip_id)
+        })
+        .ok_or_else(|| invalid("split source clip is missing"))?;
+    let point = RationalTime::try_from(split_point)?
+        .checked_sub(RationalTime::try_from(&original_clip.timeline_range.start)?)?;
+    let mut retained = Vec::with_capacity(project.keyframe_curves.len());
+    let mut added = Vec::new();
+    let mut changed = Vec::new();
+    for mut curve in std::mem::take(&mut project.keyframe_curves) {
+        if curve.sequence_id != sequence_id || curve.clip_id != clip_id {
+            retained.push(curve);
+            continue;
+        }
+        let channel = original_clip
+            .channels
+            .iter()
+            .find(|channel| channel.parameter == curve.parameter)
+            .ok_or_else(|| invalid("split source keyframe channel is missing"))?;
+        let index = channel
+            .keyframes
+            .iter()
+            .position(|keyframe| keyframe.id == curve.keyframe_id)
+            .ok_or_else(|| invalid("split source curve keyframe is missing"))?;
+        let start = RationalTime::try_from(&channel.keyframes[index].time)?;
+        let end = RationalTime::try_from(&channel.keyframes[index + 1].time)?;
+        if point.cmp_exact(start).is_le() {
+            curve.clip_id = right_clip_id.into();
+            changed.push(curve.id.clone());
+            retained.push(curve);
+            continue;
+        }
+        if point.cmp_exact(end).is_ge() {
+            retained.push(curve);
+            continue;
+        }
+
+        let offset = point.checked_sub(start)?;
+        let duration = end.checked_sub(start)?;
+        let progress = (offset.ticks() as f64 * duration.timebase() as f64)
+            / (offset.timebase() as f64 * duration.ticks() as f64);
+        let (left_curve, right_curve, eased_progress) = split_bezier(curve.curve, progress)?;
+        let from = channel.keyframes[index]
+            .value
+            .as_f64()
+            .ok_or_else(|| invalid("split keyframe value is not numeric"))?;
+        let to = channel.keyframes[index + 1]
+            .value
+            .as_f64()
+            .ok_or_else(|| invalid("split keyframe value is not numeric"))?;
+        let boundary_value = from * (1.0 - eased_progress) + to * eased_progress;
+        let original_key_ids: BTreeSet<_> = channel
+            .keyframes
+            .iter()
+            .map(|keyframe| keyframe.id.clone())
+            .collect();
+        let left_boundary = boundary_keyframe_id(
+            &project.base,
+            sequence_id,
+            clip_id,
+            &curve.parameter,
+            &point,
+            &original_key_ids,
+        )?;
+        let zero = RationalTime::new(0, 1)?;
+        let right_boundary = boundary_keyframe_id(
+            &project.base,
+            sequence_id,
+            right_clip_id,
+            &curve.parameter,
+            &zero,
+            &original_key_ids,
+        )?;
+        set_keyframe_value(
+            &mut project.base,
+            sequence_id,
+            clip_id,
+            &curve.parameter,
+            &left_boundary,
+            boundary_value,
+        )?;
+        set_keyframe_value(
+            &mut project.base,
+            sequence_id,
+            right_clip_id,
+            &curve.parameter,
+            &right_boundary,
+            boundary_value,
+        )?;
+        curve.curve = left_curve;
+        changed.push(curve.id.clone());
+        retained.push(curve.clone());
+        let mut right = curve;
+        right.id = split_curve_id(&right.id, right_clip_id);
+        right.clip_id = right_clip_id.into();
+        right.keyframe_id = right_boundary;
+        right.curve = right_curve;
+        added.push(right.id.clone());
+        retained.push(right);
+    }
+    project.keyframe_curves = retained;
+    project.keyframe_curves.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok((added, changed))
+}
+
 pub fn plan_apply(
     current: &ProjectDocumentV3,
     request: &ApplyV3Project,
@@ -319,6 +603,7 @@ pub fn plan_apply(
             operation: base_operation,
         } = operation
         {
+            let before_base = proposed.base.clone();
             let base_request = TransactionRequest {
                 expected_revision: request.expected_revision.clone(),
                 idempotency_key: request.idempotency_key.clone(),
@@ -336,7 +621,105 @@ pub fn plan_apply(
             created.extend(planned.created_ids);
             changed.extend(planned.changed_ids);
             deleted.extend(planned.deleted_ids);
+            match base_operation {
+                Operation::SplitClip {
+                    sequence_id,
+                    clip_id,
+                    at,
+                    right_clip_id,
+                    ..
+                } => {
+                    let (new_curves, changed_curves) = preserve_curves_across_split(
+                        &mut proposed,
+                        &before_base,
+                        at,
+                        sequence_id,
+                        clip_id,
+                        right_clip_id,
+                    )?;
+                    created.extend(new_curves);
+                    changed.extend(changed_curves);
+                }
+                Operation::DeleteClip {
+                    sequence_id,
+                    clip_id,
+                    ..
+                } => {
+                    let removed: Vec<_> = proposed
+                        .keyframe_curves
+                        .iter()
+                        .filter(|curve| {
+                            curve.sequence_id == *sequence_id && curve.clip_id == *clip_id
+                        })
+                        .map(|curve| curve.id.clone())
+                        .collect();
+                    proposed.keyframe_curves.retain(|curve| {
+                        curve.sequence_id != *sequence_id || curve.clip_id != *clip_id
+                    });
+                    deleted.extend(removed);
+                }
+                Operation::DeleteKeyframeChannel {
+                    sequence_id,
+                    clip_id,
+                    parameter,
+                    ..
+                } => {
+                    let removed: Vec<_> = proposed
+                        .keyframe_curves
+                        .iter()
+                        .filter(|curve| {
+                            curve.sequence_id == *sequence_id
+                                && curve.clip_id == *clip_id
+                                && curve.parameter == *parameter
+                        })
+                        .map(|curve| curve.id.clone())
+                        .collect();
+                    proposed.keyframe_curves.retain(|curve| {
+                        curve.sequence_id != *sequence_id
+                            || curve.clip_id != *clip_id
+                            || curve.parameter != *parameter
+                    });
+                    deleted.extend(removed);
+                }
+                _ => {}
+            }
             continue;
+        }
+        match operation {
+            VisualOperation::KeyframeCurveSet { sequence_id, curve } => {
+                check_visual_lock(&proposed, operation)?;
+                if curve.sequence_id != *sequence_id {
+                    return Err(invalid("Keyframe curve sequence does not match operation"));
+                }
+                if let Some(index) = proposed
+                    .keyframe_curves
+                    .iter()
+                    .position(|value| value.id == curve.id)
+                {
+                    if proposed.keyframe_curves[index] != *curve {
+                        proposed.keyframe_curves[index] = curve.clone();
+                        changed.push(curve.id.clone());
+                    }
+                } else {
+                    proposed.keyframe_curves.push(curve.clone());
+                    created.push(curve.id.clone());
+                }
+                continue;
+            }
+            VisualOperation::KeyframeCurveDelete { id, .. } => {
+                check_visual_lock(&proposed, operation)?;
+                let index = proposed
+                    .keyframe_curves
+                    .iter()
+                    .position(|curve| curve.id == *id)
+                    .ok_or_else(|| {
+                        EditorError::new("NOT_FOUND", "Keyframe curve does not exist")
+                    })?;
+                proposed.keyframe_curves.remove(index);
+                deleted.push(id.clone());
+                continue;
+            }
+            _ => {}
         }
         check_visual_lock(&proposed, operation)?;
         let visual = sequence(
@@ -376,8 +759,11 @@ pub fn plan_apply(
             VisualOperation::TransitionDelete { id, .. } => {
                 delete(&mut visual.transitions, id, &mut deleted)?
             }
+            VisualOperation::KeyframeCurveSet { .. }
+            | VisualOperation::KeyframeCurveDelete { .. } => unreachable!(),
         }
     }
+    proposed.keyframe_curves.sort_by(|a, b| a.id.cmp(&b.id));
     if proposed == *current || (created.is_empty() && changed.is_empty() && deleted.is_empty()) {
         return Err(EditorError::new("NO_EFFECT", "Visual edit has no effect"));
     }
@@ -406,7 +792,10 @@ pub fn plan_apply(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opencut_contracts::FrameRate;
+    use opencut_contracts::{
+        Clip, FrameRate, Keyframe, KeyframeChannel, KeyframeInterpolation,
+        project_v3::{CubicBezierV1, KeyframeCurveV1},
+    };
     use serde_json::json;
 
     fn project(locked: bool) -> ProjectDocumentV3 {
@@ -429,6 +818,44 @@ mod tests {
             }))
             .unwrap(),
         );
+        project
+    }
+    fn project_with_keyframes(locked: bool) -> ProjectDocumentV3 {
+        let mut project = project(locked);
+        let graphic_track = project.base.sequences[0]
+            .tracks
+            .iter_mut()
+            .find(|track| track.id == "graphics")
+            .unwrap();
+        graphic_track.clips.push(Clip {
+            id: "animated-clip".into(),
+            asset_id: None,
+            timeline_range: serde_json::from_value(json!({
+                "start":{"ticks":"0","timebase":1000},
+                "duration":{"ticks":"1000","timebase":1000}
+            }))
+            .unwrap(),
+            source_range: None,
+            params: Default::default(),
+            channels: vec![KeyframeChannel {
+                parameter: "opacity".into(),
+                keyframes: vec![
+                    Keyframe {
+                        id: "opacity-start".into(),
+                        time: serde_json::from_value(json!({"ticks":"0","timebase":1000})).unwrap(),
+                        value: json!(0.0),
+                        interpolation: KeyframeInterpolation::Linear,
+                    },
+                    Keyframe {
+                        id: "opacity-end".into(),
+                        time: serde_json::from_value(json!({"ticks":"1000","timebase":1000}))
+                            .unwrap(),
+                        value: json!(1.0),
+                        interpolation: KeyframeInterpolation::Linear,
+                    },
+                ],
+            }],
+        });
         project
     }
     fn shape() -> ShapeClip {
@@ -493,6 +920,135 @@ mod tests {
             .unwrap_err()
             .code,
             "CONSTRAINT_VIOLATION"
+        );
+    }
+
+    #[test]
+    fn versioned_keyframe_curve_edits_plan_and_respect_track_locks() {
+        let curve = KeyframeCurveV1 {
+            id: "opacity-curve".into(),
+            schema_version: 1,
+            sequence_id: "s".into(),
+            clip_id: "animated-clip".into(),
+            parameter: "opacity".into(),
+            keyframe_id: "opacity-start".into(),
+            curve: CubicBezierV1 {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 0.0,
+            },
+        };
+        let operation = VisualOperation::KeyframeCurveSet {
+            sequence_id: "s".into(),
+            curve: curve.clone(),
+        };
+        let planned = plan_apply(
+            &project_with_keyframes(false),
+            &request(vec![operation.clone()]),
+        )
+        .unwrap();
+        assert_eq!(planned.proposed_project.keyframe_curves, [curve]);
+        assert_eq!(planned.created_ids, ["opacity-curve"]);
+
+        let deleted = plan_apply(
+            &planned.proposed_project,
+            &request(vec![VisualOperation::KeyframeCurveDelete {
+                sequence_id: "s".into(),
+                id: "opacity-curve".into(),
+            }]),
+        )
+        .unwrap();
+        assert!(deleted.proposed_project.keyframe_curves.is_empty());
+        assert_eq!(deleted.deleted_ids, ["opacity-curve"]);
+
+        assert_eq!(
+            plan_apply(&project_with_keyframes(true), &request(vec![operation]),)
+                .unwrap_err()
+                .code,
+            "CONSTRAINT_VIOLATION"
+        );
+    }
+
+    #[test]
+    fn clip_split_subdivides_curve_and_samples_the_same_boundary_value() {
+        let set_curve = plan_apply(
+            &project_with_keyframes(false),
+            &request(vec![VisualOperation::KeyframeCurveSet {
+                sequence_id: "s".into(),
+                curve: KeyframeCurveV1 {
+                    id: "opacity-curve".into(),
+                    schema_version: 1,
+                    sequence_id: "s".into(),
+                    clip_id: "animated-clip".into(),
+                    parameter: "opacity".into(),
+                    keyframe_id: "opacity-start".into(),
+                    curve: CubicBezierV1 {
+                        x1: 0.0,
+                        y1: 0.0,
+                        x2: 1.0,
+                        y2: 0.0,
+                    },
+                },
+            }]),
+        )
+        .unwrap()
+        .proposed_project;
+        let split = plan_apply(
+            &set_curve,
+            &request(vec![VisualOperation::Base {
+                operation: Operation::SplitClip {
+                    sequence_id: "s".into(),
+                    track_id: "graphics".into(),
+                    clip_id: "animated-clip".into(),
+                    at: serde_json::from_value(json!({"ticks":"500","timebase":1000})).unwrap(),
+                    right_clip_id: "right-clip".into(),
+                },
+            }]),
+        )
+        .unwrap();
+        assert_eq!(split.proposed_project.keyframe_curves.len(), 2);
+        let left_curve = split
+            .proposed_project
+            .keyframe_curves
+            .iter()
+            .find(|curve| curve.id == "opacity-curve")
+            .unwrap();
+        let right_curve_id = split_curve_id("opacity-curve", "right-clip");
+        let right_curve = split
+            .proposed_project
+            .keyframe_curves
+            .iter()
+            .find(|curve| curve.id == right_curve_id)
+            .unwrap();
+        assert_eq!(left_curve.clip_id, "animated-clip");
+        assert_eq!(right_curve.clip_id, "right-clip");
+        assert_eq!(left_curve.curve.x1, 0.0);
+        assert!(right_curve.curve.x1.is_finite());
+        assert!(split.created_ids.contains(&right_curve_id));
+        assert!(split.changed_ids.contains(&"opacity-curve".into()));
+
+        let boundary = |clip_id: &str, boundary_suffix: &str| {
+            split.proposed_project.base.sequences[0].tracks[0]
+                .clips
+                .iter()
+                .find(|clip| clip.id == clip_id)
+                .unwrap()
+                .channels[0]
+                .keyframes
+                .iter()
+                .find(|keyframe| keyframe.id.contains(boundary_suffix))
+                .unwrap()
+                .value
+                .as_f64()
+                .unwrap()
+        };
+        let left_value = boundary("animated-clip", "left-boundary");
+        let right_value = boundary("right-clip", "right-boundary");
+        assert!((left_value - right_value).abs() < 1e-12);
+        assert!(
+            left_value > 0.0 && left_value < 0.2,
+            "eased split value: {left_value}"
         );
     }
     #[test]

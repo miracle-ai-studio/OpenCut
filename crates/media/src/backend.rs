@@ -168,7 +168,7 @@ impl FfmpegBackend {
                 "-v", "error", "-protocol_whitelist", "file",
                 "-format_whitelist", "mov,matroska,avi,wav,mp3,flac,ogg,aac,mpeg,mpegts,png_pipe,jpeg_pipe,webp_pipe,bmp_pipe,tiff_pipe,gif",
                 "-enable_drefs", "0", "-use_absolute_path", "0",
-                "-show_entries", "format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height",
+                "-show_entries", "format=format_name,duration,bit_rate:format_tags=major_brand:stream=index,codec_type,codec_name,width,height",
                 "-of", "json", "-i",
             ]).arg(input), "ffprobe", cancel, Duration::from_secs(30), self.admission.as_deref(),
         )?;
@@ -461,6 +461,10 @@ impl FfmpegBackend {
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<ExportResult> {
         self.render_timeline_inner(request, None, None, cancel, progress)
+    }
+
+    pub fn validate_timeline_request(&self, request: &TimelineExportRequest) -> MediaResult<()> {
+        validate_timeline_export(request)
     }
 
     pub fn render_timeline_v3(
@@ -1571,6 +1575,9 @@ fn validate_timeline_export(r: &TimelineExportRequest) -> MediaResult<()> {
             ));
         }
     }
+    for clip in &r.audio_clips {
+        retime_sample_rate(clip.source_duration, clip.timeline_duration)?;
+    }
     for (opacity, sx, sy) in r
         .video_clips
         .iter()
@@ -1934,19 +1941,26 @@ pub(crate) fn finish_timeline_filter(
                 format!("volume='{gain}':eval=frame")
             };
             let delay_samples = time_to_sample_index(clip.timeline_start, 48_000)?;
-            // WSOLA is not a sample-preserving identity even at atempo=1:
-            // sparse transients can move by a processing window. Bypass it for
-            // exactly equal source/timeline durations, before floating conversion.
+            // Preserve the exact rational identity test before converting to
+            // floating point. The project model does not carry a maintain-pitch
+            // flag, so non-identity retiming follows Classic's default behavior:
+            // change pitch with the clip rate. Pitch-preserving WSOLA can move
+            // transients and does not meet the source-to-timeline mapping here.
             let identity_rate = i128::from(clip.source_duration.ticks)
                 * i128::from(clip.timeline_duration.timebase)
                 == i128::from(clip.timeline_duration.ticks)
                     * i128::from(clip.source_duration.timebase);
-            let tempo = if identity_rate {
+            let retime = if identity_rate {
                 String::new()
             } else {
-                format!("atempo={rate:.12},")
+                let sample_rate = retime_sample_rate(clip.source_duration, clip.timeline_duration)?;
+                format!("asetrate={sample_rate},aresample=48000,")
             };
-            chains.push(format!("[{input}:{stream}]atrim=start={start:.9}:end={end:.9},asetpts=PTS-STARTPTS,{tempo}{volume},aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay={delay_samples}S|{delay_samples}S[a{i}]"));
+            // Normalize the delayed samples to a zero-based sample clock before
+            // downstream absolute-range trimming. Rate-changing filters may
+            // retain a source-clock offset; without this reset, a retimed clip
+            // can lose its leading delay despite adelay's exact sample count.
+            chains.push(format!("[{input}:{stream}]atrim=start={start:.9}:end={end:.9},asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,{retime}{volume},adelay={delay_samples}S|{delay_samples}S,asetpts=N/SR/TB[a{i}]"));
             labels.push_str(&format!("[a{i}]"));
         }
         if r.audio_clips.len() == 1 {
@@ -1984,6 +1998,51 @@ pub(crate) fn time_to_sample_index(time: MediaTime, sample_rate: u32) -> MediaRe
     })
 }
 
+fn retime_sample_rate(source: MediaTime, timeline: MediaTime) -> MediaResult<u32> {
+    if source.ticks <= 0 || source.timebase == 0 || timeline.ticks <= 0 || timeline.timebase == 0 {
+        return Err(MediaError::InvalidRequest(
+            "audio retime durations and timebases must be positive".into(),
+        ));
+    }
+    let rate_numerator = i128::from(source.ticks) * i128::from(timeline.timebase);
+    let rate_denominator = i128::from(source.timebase) * i128::from(timeline.ticks);
+    if 2 * rate_numerator < rate_denominator || rate_numerator > 2 * rate_denominator {
+        return Err(MediaError::Unsupported(
+            "audio retime rate must be between 0.5 and 2.0".into(),
+        ));
+    }
+    let numerator = rate_numerator * 48_000;
+    let denominator = rate_denominator;
+    let rounded_rate = (numerator + denominator / 2) / denominator;
+    let rounded_rate = u32::try_from(rounded_rate).map_err(|_| {
+        MediaError::InvalidRequest("audio retime sample rate exceeds its supported range".into())
+    })?;
+    if !(24_000..=96_000).contains(&rounded_rate) {
+        return Err(MediaError::Unsupported(
+            "audio retime sample rate must be between 24000 and 96000 Hz".into(),
+        ));
+    }
+    let source_samples = rounded_positive_ratio(
+        i128::from(source.ticks) * 48_000,
+        i128::from(source.timebase),
+    );
+    let mapped_samples = rounded_positive_ratio(source_samples * 48_000, i128::from(rounded_rate));
+    let timeline_samples = rounded_positive_ratio(
+        i128::from(timeline.ticks) * 48_000,
+        i128::from(timeline.timebase),
+    );
+    if mapped_samples.abs_diff(timeline_samples) > 1 {
+        return Err(MediaError::Unsupported(
+            "audio retime rate cannot be represented within one 48 kHz sample".into(),
+        ));
+    }
+    Ok(rounded_rate)
+}
+
+fn rounded_positive_ratio(numerator: i128, denominator: i128) -> i128 {
+    (numerator + denominator / 2) / denominator
+}
+
 pub(crate) fn curve_expr(curve: &EvaluatedCurve, fallback: f64, time: &str) -> MediaResult<String> {
     if curve.segments.is_empty() {
         return Ok(format!("{fallback:.12}"));
@@ -2002,8 +2061,25 @@ pub(crate) fn curve_expr(curve: &EvaluatedCurve, fallback: f64, time: &str) -> M
                 "animation segments must be finite, ordered, and nonempty".into(),
             ));
         }
+        if segment.cubic_bezier.is_some_and(|curve| {
+            ![curve.x1, curve.y1, curve.x2, curve.y2]
+                .into_iter()
+                .all(|value| value.is_finite() && (0.0..=1.0).contains(&value))
+        }) {
+            return Err(MediaError::InvalidRequest(
+                "cubic Bezier control points must be finite and within 0..1".into(),
+            ));
+        }
         let value = if segment.start_value == segment.end_value {
             format!("{:.12}", segment.start_value)
+        } else if let Some(control) = segment.cubic_bezier {
+            let progress = format!("(({time})-{start:.12})/{:.12}", end - start);
+            let eased = cubic_bezier_lookup(control, &progress);
+            format!(
+                "{:.12}+({:.12})*({eased})",
+                segment.start_value,
+                segment.end_value - segment.start_value
+            )
         } else {
             format!(
                 "{:.12}+({:.12})*(({time})-{start:.12})/{:.12}",
@@ -2015,6 +2091,60 @@ pub(crate) fn curve_expr(curve: &EvaluatedCurve, fallback: f64, time: &str) -> M
         expression = format!("if(lt(({time}),{end:.12}),({value}),({expression}))");
     }
     Ok(expression)
+}
+
+fn cubic_bezier_lookup(
+    curve: opencut_media_contracts::composition::CubicBezierCurve,
+    progress: &str,
+) -> String {
+    const SUBDIVISIONS: usize = 32;
+    let mut points = Vec::with_capacity(SUBDIVISIONS + 1);
+    for index in 0..=SUBDIVISIONS {
+        let x = index as f64 / SUBDIVISIONS as f64;
+        let mut low = 0.0;
+        let mut high = 1.0;
+        for _ in 0..40 {
+            let middle = (low + high) * 0.5;
+            if bezier_component(middle, curve.x1, curve.x2) < x {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        let t = (low + high) * 0.5;
+        points.push((x, bezier_component(t, curve.y1, curve.y2)));
+    }
+    fn linear(left: (f64, f64), right: (f64, f64), progress: &str) -> String {
+        let width = right.0 - left.0;
+        if width <= f64::EPSILON {
+            return format!("{:.12}", right.1);
+        }
+        format!(
+            "{:.12}+({:.12})*((({progress})-{:.12})/{:.12})",
+            left.1,
+            right.1 - left.1,
+            left.0,
+            width
+        )
+    }
+    fn lookup(points: &[(f64, f64)], low: usize, high: usize, progress: &str) -> String {
+        if high - low == 1 {
+            return linear(points[low], points[high], progress);
+        }
+        let middle = low + (high - low) / 2;
+        let before = lookup(points, low, middle, progress);
+        let after = lookup(points, middle, high, progress);
+        format!(
+            "if(lt(({progress}),{:.12}),({before}),({after}))",
+            points[middle].0
+        )
+    }
+    lookup(&points, 0, SUBDIVISIONS, progress)
+}
+
+fn bezier_component(t: f64, first: f64, second: f64) -> f64 {
+    let inverse = 1.0 - t;
+    3.0 * inverse * inverse * t * first + 3.0 * inverse * t * t * second + t * t * t
 }
 
 fn build_filter(r: &ExportRequest, audio: bool) -> String {
@@ -2128,6 +2258,11 @@ struct RawFormat {
     format_name: Option<String>,
     duration: Option<String>,
     bit_rate: Option<String>,
+    tags: Option<RawFormatTags>,
+}
+#[derive(Deserialize)]
+struct RawFormatTags {
+    major_brand: Option<String>,
 }
 #[derive(Deserialize)]
 struct RawStream {
@@ -2149,9 +2284,16 @@ struct RawStream {
 }
 fn convert_probe(input: PathBuf, raw: RawProbe) -> MediaMetadata {
     let format = raw.format;
+    let format_brand = format
+        .as_ref()
+        .and_then(|f| f.tags.as_ref()?.major_brand.as_deref())
+        .map(str::trim)
+        .filter(|brand| !brand.is_empty())
+        .map(str::to_owned);
     MediaMetadata {
         input,
         format_name: format.as_ref().and_then(|f| f.format_name.clone()),
+        format_brand,
         duration: format
             .as_ref()
             .and_then(|f| parse_decimal_time(f.duration.as_deref()?)),
@@ -2263,6 +2405,85 @@ mod tests {
             .unwrap(),
             1,
             "half-sample ties select the later sample"
+        );
+    }
+
+    #[test]
+    fn audio_retime_maps_rational_rate_to_nearest_output_sample_rate() {
+        assert_eq!(
+            retime_sample_rate(
+                MediaTime {
+                    ticks: 1,
+                    timebase: 1,
+                },
+                MediaTime {
+                    ticks: 4,
+                    timebase: 5,
+                },
+            )
+            .unwrap(),
+            60_000,
+        );
+        assert_eq!(
+            retime_sample_rate(
+                MediaTime {
+                    ticks: 1,
+                    timebase: 1,
+                },
+                MediaTime {
+                    ticks: 7,
+                    timebase: 9,
+                },
+            )
+            .unwrap(),
+            61_714,
+            "rate calculation uses exact integer rationals before rounding",
+        );
+    }
+
+    #[test]
+    fn audio_retime_rejects_invalid_duration_and_unsupported_sample_rate() {
+        assert!(matches!(
+            retime_sample_rate(
+                MediaTime {
+                    ticks: 1,
+                    timebase: 1,
+                },
+                MediaTime {
+                    ticks: 0,
+                    timebase: 1,
+                },
+            ),
+            Err(MediaError::InvalidRequest(_))
+        ));
+        assert!(matches!(
+            retime_sample_rate(
+                MediaTime {
+                    ticks: 1,
+                    timebase: 1,
+                },
+                MediaTime {
+                    ticks: 3,
+                    timebase: 1,
+                },
+            ),
+            Err(MediaError::Unsupported(_))
+        ));
+        assert!(
+            matches!(
+                retime_sample_rate(
+                    MediaTime {
+                        ticks: 1,
+                        timebase: 1,
+                    },
+                    MediaTime {
+                        ticks: 29,
+                        timebase: 15,
+                    },
+                ),
+                Err(MediaError::Unsupported(_))
+            ),
+            "rejects a representable filter rate that would drift by two output samples"
         );
     }
 

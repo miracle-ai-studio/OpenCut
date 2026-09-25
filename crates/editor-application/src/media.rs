@@ -86,6 +86,8 @@ pub fn describe<P>(
         .iter()
         .any(|s| s.codec_type == StreamKind::Audio);
     let format = metadata.format_name.as_deref().unwrap_or("");
+    let format_brand = metadata.format_brand.as_deref().unwrap_or("").trim();
+    let normalized_brand = format_brand.to_ascii_lowercase();
     let video_codec = video.and_then(|stream| stream.codec_name.as_deref());
     // A PNG/MJPEG codec inside a movie is still a video. Classify the
     // container detected from bytes, never the supplied filename or codec alone.
@@ -116,7 +118,21 @@ pub fn describe<P>(
     } else if video.is_some() {
         (
             AssetKind::Video,
-            if format.split(',').any(|part| part == "matroska") {
+            if format_brand.eq_ignore_ascii_case("qt") {
+                "video/quicktime"
+            } else if normalized_brand.starts_with("3g2") {
+                "video/3gpp2"
+            } else if normalized_brand.starts_with("3gp") {
+                "video/3gpp"
+            } else if format.split(',').any(|part| part == "mov") {
+                if known_mp4_brand(&normalized_brand) {
+                    "video/mp4"
+                } else {
+                    // FFprobe exposes MOV/MP4/3GP as one shared demuxer alias.
+                    // Unknown or missing brand cannot safely distinguish them.
+                    "application/octet-stream"
+                }
+            } else if format.split(',').any(|part| part == "matroska") {
                 // ffprobe uses a shared Matroska/WebM demuxer. Do not assert
                 // WebM codec restrictions from that ambiguous format name.
                 "application/octet-stream"
@@ -130,6 +146,10 @@ pub fn describe<P>(
                 "video/quicktime"
             } else if format.split(',').any(|part| part == "mp4") {
                 "video/mp4"
+            } else if format.split(',').any(|part| part == "mpegts") {
+                "video/mp2t"
+            } else if format.split(',').any(|part| part == "mpeg") {
+                "video/mpeg"
             } else {
                 "application/octet-stream"
             },
@@ -137,7 +157,19 @@ pub fn describe<P>(
     } else if audio {
         (
             AssetKind::Audio,
-            if format.split(',').any(|part| part == "wav") {
+            if format_brand.eq_ignore_ascii_case("qt") {
+                "audio/quicktime"
+            } else if normalized_brand.starts_with("3g2") {
+                "audio/3gpp2"
+            } else if normalized_brand.starts_with("3gp") {
+                "audio/3gpp"
+            } else if format.split(',').any(|part| part == "mov") {
+                if known_mp4_brand(&normalized_brand) {
+                    "audio/mp4"
+                } else {
+                    "application/octet-stream"
+                }
+            } else if format.split(',').any(|part| part == "wav") {
                 "audio/wav"
             } else if format.split(',').any(|part| part == "mp3") {
                 "audio/mpeg"
@@ -145,6 +177,8 @@ pub fn describe<P>(
                 "audio/ogg"
             } else if format == "flac" {
                 "audio/flac"
+            } else if format.split(',').any(|part| part == "aac") {
+                "audio/aac"
             } else if format.split(',').any(|part| part == "mp4") {
                 "audio/mp4"
             } else {
@@ -184,4 +218,166 @@ pub fn describe<P>(
         metadata: fields,
     };
     Ok(asset)
+}
+
+fn known_mp4_brand(brand: &str) -> bool {
+    matches!(
+        brand,
+        "isom" | "iso2" | "mp41" | "mp42" | "mp4v" | "avc1" | "dash" | "m4v" | "m4a"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opencut_media_contracts::{MediaStream, StreamKind};
+
+    fn visual(format_name: &str, format_brand: Option<&str>) -> MediaMetadata<String> {
+        MediaMetadata {
+            input: "/private/media".into(),
+            format_name: Some(format_name.into()),
+            format_brand: format_brand.map(str::to_owned),
+            duration: None,
+            bit_rate: None,
+            streams: vec![MediaStream {
+                index: 0,
+                codec_type: StreamKind::Video,
+                codec_name: Some("h264".into()),
+                duration: None,
+                time_base: None,
+                width: Some(64),
+                height: Some(64),
+                sample_rate: None,
+                channels: None,
+                average_frame_rate: None,
+                pixel_format: None,
+                channel_layout: None,
+                color_space: None,
+                color_transfer: None,
+                color_primaries: None,
+            }],
+        }
+    }
+
+    fn audio(format_name: &str, format_brand: Option<&str>) -> MediaMetadata<String> {
+        MediaMetadata {
+            input: "/private/media".into(),
+            format_name: Some(format_name.into()),
+            format_brand: format_brand.map(str::to_owned),
+            duration: None,
+            bit_rate: None,
+            streams: vec![MediaStream {
+                index: 0,
+                codec_type: StreamKind::Audio,
+                codec_name: Some("aac".into()),
+                duration: None,
+                time_base: None,
+                width: None,
+                height: None,
+                sample_rate: Some(44_100),
+                channels: Some(1),
+                average_frame_rate: None,
+                pixel_format: None,
+                channel_layout: Some("mono".into()),
+                color_space: None,
+                color_transfer: None,
+                color_primaries: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn iso_bmff_major_brand_disambiguates_quicktime_mov_from_mp4() {
+        let mov = describe(
+            &visual("mov,mp4,m4a,3gp,3g2,mj2", Some("qt  ")),
+            "uri",
+            "renamed.bin",
+            "a",
+            1,
+        )
+        .unwrap();
+        let mp4 = describe(
+            &visual("mov,mp4,m4a,3gp,3g2,mj2", Some("isom")),
+            "uri",
+            "renamed.bin",
+            "b",
+            1,
+        )
+        .unwrap();
+        assert_eq!(mov.kind, AssetKind::Video);
+        assert_eq!(mov.metadata["mime_type"], "video/quicktime");
+        assert_eq!(mp4.kind, AssetKind::Video);
+        assert_eq!(mp4.metadata["mime_type"], "video/mp4");
+
+        for brand in [None, Some("unknown")] {
+            let ambiguous = describe(
+                &visual("mov,mp4,m4a,3gp,3g2,mj2", brand),
+                "uri",
+                "movie.mp4",
+                "ambiguous",
+                1,
+            )
+            .unwrap();
+            assert_eq!(ambiguous.metadata["mime_type"], "application/octet-stream");
+        }
+
+        let three_gp = describe(
+            &visual("mov,mp4,m4a,3gp,3g2,mj2", Some("3gp6")),
+            "uri",
+            "renamed.bin",
+            "c",
+            1,
+        )
+        .unwrap();
+        let three_g2 = describe(
+            &visual("mov,mp4,m4a,3gp,3g2,mj2", Some("3g2b")),
+            "uri",
+            "renamed.bin",
+            "d",
+            1,
+        )
+        .unwrap();
+        assert_eq!(three_gp.metadata["mime_type"], "video/3gpp");
+        assert_eq!(three_g2.metadata["mime_type"], "video/3gpp2");
+    }
+
+    #[test]
+    fn iso_bmff_brand_maps_audio_only_containers_without_filename_hints() {
+        for (brand, expected) in [
+            ("qt  ", "audio/quicktime"),
+            ("3gp6", "audio/3gpp"),
+            ("3g2b", "audio/3gpp2"),
+        ] {
+            let asset = describe(
+                &audio("mov,mp4,m4a,3gp,3g2,mj2", Some(brand)),
+                "uri",
+                "misleading.wav",
+                "a",
+                1,
+            )
+            .unwrap();
+            assert_eq!(asset.kind, AssetKind::Audio);
+            assert_eq!(asset.metadata["mime_type"], expected);
+        }
+
+        let unknown = describe(
+            &audio("mov,mp4,m4a,3gp,3g2,mj2", None),
+            "uri",
+            "misleading.mp3",
+            "unknown-brand",
+            1,
+        )
+        .unwrap();
+        assert_eq!(unknown.metadata["mime_type"], "application/octet-stream");
+
+        let m4a = describe(
+            &audio("mov,mp4,m4a,3gp,3g2,mj2", Some("M4A ")),
+            "uri",
+            "misleading.wav",
+            "m4a",
+            1,
+        )
+        .unwrap();
+        assert_eq!(m4a.metadata["mime_type"], "audio/mp4");
+    }
 }

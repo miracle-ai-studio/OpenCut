@@ -258,14 +258,14 @@ pub fn read(
         Target::Timeline {
             project,
             revision,
-            sequence,
+            sequence: sequence_id,
         } => match store.project_context(&project, Some(&revision))? {
             ContextSnapshot::Legacy(snapshot) => {
                 let sequence = snapshot
                     .project
                     .sequences
                     .into_iter()
-                    .find(|s| s.id == sequence)
+                    .find(|s| s.id == sequence_id)
                     .ok_or_else(missing)?;
                 ResourcePayload::Timeline(RevisionTimeline {
                     project_id: project,
@@ -278,9 +278,9 @@ pub fn read(
                     .project
                     .visual
                     .into_iter()
-                    .find(|v| v.sequence_id == sequence)
+                    .find(|v| v.sequence_id == sequence_id)
                     .unwrap_or(opencut_contracts::project_v3::SequenceVisualV3 {
-                        sequence_id: sequence.clone(),
+                        sequence_id: sequence_id.clone(),
                         shapes: vec![],
                         effects: vec![],
                         masks: vec![],
@@ -291,7 +291,7 @@ pub fn read(
                     .base
                     .sequences
                     .into_iter()
-                    .find(|s| s.id == sequence)
+                    .find(|s| s.id == sequence_id)
                     .ok_or_else(missing)?;
                 ResourcePayload::TimelineV3(RevisionTimelineV3 {
                     project_id: project,
@@ -299,6 +299,12 @@ pub fn read(
                     schema_version: 3,
                     sequence,
                     visual,
+                    keyframe_curves: snapshot
+                        .project
+                        .keyframe_curves
+                        .into_iter()
+                        .filter(|curve| curve.sequence_id == sequence_id)
+                        .collect(),
                 })
             }
         },

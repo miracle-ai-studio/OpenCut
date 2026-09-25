@@ -116,7 +116,7 @@ pub fn compile_v3(
             }
         }
     }
-    let base = crate::compiler::compile_with_min_end(
+    let base = crate::compiler::compile_with_min_end_and_curves(
         &ProjectSnapshot {
             project: snapshot.project.base.clone(),
             revision: snapshot.revision.clone(),
@@ -124,6 +124,7 @@ pub fn compile_v3(
         sequence_id,
         scope,
         minimum_end,
+        &snapshot.project.keyframe_curves,
     )?;
     let mut graph = CompiledVisualGraph {
         targets: Vec::new(),
@@ -228,7 +229,12 @@ pub fn compile_v3(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opencut_contracts::{CreateProject, FrameRate, Time, TimeRange, Track};
+    use opencut_contracts::{
+        Asset, AssetKind, Clip, CreateProject, FrameRate, Keyframe, KeyframeChannel,
+        KeyframeInterpolation, Time, TimeRange, Track,
+        project_v3::{CubicBezierV1, KeyframeCurveV1},
+    };
+    use serde_json::json;
 
     fn time(ticks: i64) -> Time {
         Time {
@@ -264,6 +270,7 @@ mod tests {
             project: ProjectDocumentV3 {
                 schema_version: 3,
                 base,
+                keyframe_curves: vec![],
                 visual: vec![SequenceVisualV3 {
                     sequence_id: "main".into(),
                     shapes: vec![ShapeClip {
@@ -324,6 +331,89 @@ mod tests {
         assert_eq!(visual.visual.targets[0].kind, VisualTargetKind::Shape);
         assert_eq!(visual.visual.effects[0].target_id, "shape");
         assert_eq!(visual.visual.masks[0].target_id, "shape");
+    }
+
+    #[test]
+    fn schema_3_keyframe_curves_reach_the_media_composition_contract() {
+        let mut source = fixture();
+        source.project.base.assets.push(Asset {
+            id: "footage".into(),
+            name: "Footage".into(),
+            kind: AssetKind::Video,
+            uri: "asset://footage".into(),
+            duration: Some(time(1000)),
+            version: None,
+            metadata: Default::default(),
+        });
+        source.project.base.sequences[0].tracks.push(Track {
+            id: "video".into(),
+            name: "Video".into(),
+            kind: TrackKind::Video,
+            enabled: true,
+            muted: false,
+            locked: false,
+            clips: vec![Clip {
+                id: "clip".into(),
+                asset_id: Some("footage".into()),
+                timeline_range: TimeRange {
+                    start: time(0),
+                    duration: time(1000),
+                },
+                source_range: Some(TimeRange {
+                    start: time(0),
+                    duration: time(1000),
+                }),
+                params: Default::default(),
+                channels: vec![KeyframeChannel {
+                    parameter: "opacity".into(),
+                    keyframes: vec![
+                        Keyframe {
+                            id: "start".into(),
+                            time: time(0),
+                            value: json!(0.0),
+                            interpolation: KeyframeInterpolation::Linear,
+                        },
+                        Keyframe {
+                            id: "end".into(),
+                            time: time(1000),
+                            value: json!(1.0),
+                            interpolation: KeyframeInterpolation::Linear,
+                        },
+                    ],
+                }],
+            }],
+            params: Default::default(),
+        });
+        source.project.keyframe_curves.push(KeyframeCurveV1 {
+            id: "opacity-ease".into(),
+            schema_version: 1,
+            sequence_id: "main".into(),
+            clip_id: "clip".into(),
+            parameter: "opacity".into(),
+            keyframe_id: "start".into(),
+            curve: CubicBezierV1 {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 0.0,
+            },
+        });
+
+        let composition = compile_v3(&source, "main", CompositionScope::Visual).unwrap();
+        assert_eq!(composition.base.timeline.video_clips.len(), 1);
+        assert_eq!(
+            composition.base.timeline.video_clips[0]
+                .curves
+                .opacity
+                .segments[0]
+                .cubic_bezier,
+            Some(opencut_media_contracts::composition::CubicBezierCurve {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 0.0,
+            })
+        );
     }
     #[test]
     fn feathered_mask_is_preserved_in_compiled_visual_graph() {

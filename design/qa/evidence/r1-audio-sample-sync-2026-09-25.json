@@ -1,0 +1,99 @@
+{
+  "status": "passed",
+  "scope": "public HTTP upload/edit/render/download with independent AAC decode; synthetic impulses",
+  "command": "python3 scripts/verify-r1-audio-sample-sync.py --binary target/release/opencut --artifacts-dir /tmp/opencut-r1-audio-final-20260925",
+  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "verifier_script": "scripts/verify-r1-audio-sample-sync.py",
+  "verifier_script_sha256": "22ae08efabc1eb98fd0acb1aac4da553809d6ed4d6b19d38f9ab2ea5a3f9b014",
+  "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+  "source_sha256": "11e36d1cf6656ecf98ebf859cc2d5d941ec723c9f3677508fcd4fa5797c0c0d7",
+  "checks": [
+    "HTTP upload, fixed-revision edit, render Job and verified artifact download",
+    "44.1 kHz normal-speed impulses land within one 48 kHz sample of exact rational positions",
+    "Retimed impulses follow the exact 4/5 clip mapping within one 48 kHz output sample",
+    "Splitting the retimed clip preserves both source-to-sequence pulse positions",
+    "Preflight rejects a non-unity rate whose integer sample-rate approximation drifts by two samples"
+  ],
+  "audio_semantics": {
+    "default_retime": "pitch-changing sample-rate retime, matching Classic maintainPitch=false",
+    "pitch_preservation": "not represented by Composition v1 and explicitly unavailable",
+    "unrepresentable_rate": "preflight rejects target sample-rate approximation that drifts by more than one 48 kHz output sample"
+  },
+  "evidence": {
+    "source_rate": 44100,
+    "output_rate": 48000,
+    "timeline_start": {
+      "ticks": "1",
+      "timebase": 7
+    },
+    "normal_speed": {
+      "expected_output_samples": [
+        11657,
+        35657
+      ],
+      "observed_peak_and_magnitude": [
+        [
+          11657,
+          16051
+        ],
+        [
+          35657,
+          15977
+        ]
+      ],
+      "tolerance_samples": 1,
+      "artifact_sha256": "04f8ff5413dee0614d5c815a6c95192ca6186d18cd33f3c81a7a6bc7d371e5f3",
+      "job_id": "job_9fafa28dce4e431382fe439b1fd1fa13",
+      "revision": "rev_e5f48ef89923ffee286eae3d21e740780e9b9dcc7086f9093c394c5a608b7d14"
+    },
+    "retimed": {
+      "expected_output_samples": [
+        10697,
+        29897
+      ],
+      "observed_peak_and_magnitude": [
+        [
+          10697,
+          12802
+        ],
+        [
+          29897,
+          12870
+        ]
+      ],
+      "artifact_sha256": "9065c308eb3878ffb8dc65da5812a8f49dc9e0e69a314154ffd8620fb5964a1a",
+      "job_id": "job_edfb794a107c478ab5355f9635bed28f",
+      "revision": "rev_53f4a6c4b5dec6be34f6a28c3057aa9669c45cf9e4926805966e194d6e9a0db7",
+      "tolerance_samples": 1
+    },
+    "retimed_split": {
+      "observed_peak_and_magnitude": [
+        [
+          10697,
+          12802
+        ],
+        [
+          29897,
+          12870
+        ]
+      ],
+      "artifact_sha256": "9065c308eb3878ffb8dc65da5812a8f49dc9e0e69a314154ffd8620fb5964a1a",
+      "job_id": "job_009abe17a346496d8c87a8bcc10bd28e",
+      "revision": "rev_ae96ec4c9ce63be2da7e36a7c0c2248b67a336babdb83f657bc173c6395749a9",
+      "tolerance_samples": 1
+    },
+    "unsupported_rate_preflight": {
+      "ready": false,
+      "issue": {
+        "asset_id": null,
+        "clip_id": null,
+        "code": "CAPABILITY_UNAVAILABLE",
+        "cue_id": null,
+        "message": "unsupported media capability: audio retime rate cannot be represented within one 48 kHz sample"
+      },
+      "revision": "rev_1184cf505f720a1783f22c2a203262923eaff84dabcea0cdd1144a3c2ef85c60"
+    }
+  },
+  "http_trace_report": "/tmp/opencut-r1-audio-final-20260925/r1-audio-sync-1790332355352075000/report.json",
+  "report_sha256": "d060e87557ee2ffc85fca32673057e55ec4888efcf8dcad4a843826cdea58dcf"
+}

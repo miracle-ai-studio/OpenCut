@@ -131,6 +131,17 @@ pub struct EvaluatedSegment {
     pub end: MediaTime,
     pub start_value: f64,
     pub end_value: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cubic_bezier: Option<CubicBezierCurve>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CubicBezierCurve {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
 }
 fn default_one_f32() -> f32 {
     1.0

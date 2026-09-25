@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Public product journey; synthetic media is not real interview or browser acceptance."""
 import argparse,copy,json,subprocess,socket,time,urllib.request,urllib.error,hashlib,signal,os,sqlite3
+from http.client import HTTPConnection
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from array import array
@@ -27,6 +28,22 @@ def http(path,body=None,raw=False):
  except urllib.error.HTTPError as e:data=e.read();status=e.code
  if raw:return data
  value=json.loads(data); trace.append({'path':path,'status':status,'response':value});return value
+
+def upload_chunked(path,payload):
+ connection=HTTPConnection('127.0.0.1',port,timeout=60)
+ connection.putrequest('POST',path)
+ connection.putheader('Authorization',f'Bearer {token}')
+ connection.putheader('Content-Type','application/octet-stream')
+ connection.putheader('Transfer-Encoding','chunked')
+ connection.endheaders()
+ for offset in range(0,len(payload),65536):
+  block=payload[offset:offset+65536]
+  connection.send(f'{len(block):X}\r\n'.encode()+block+b'\r\n')
+ connection.send(b'0\r\n\r\n')
+ response=connection.getresponse();data=response.read();connection.close()
+ value=json.loads(data);trace.append({'path':path,'status':response.status,'response':value})
+ assert response.status==200 and value['error'] is None,(response.status,value)
+ return value['data']
 
 def call(path,body=None):
  deadline=time.monotonic()+20
@@ -117,10 +134,28 @@ try:
    assert response.read()==source.read_bytes()
    return response.headers['Content-Type']
  assert content_type(upload['media_url'])=='video/mp4'
+ mp4_probe=wait(call('/v1/jobs',{'kind':'media.probe','idempotency_key':'probe-mp4-brand','input':{'input':str(source)}}))
+ assert mp4_probe['kind']=='media.probe' and mp4_probe['result']['format_brand']=='isom',mp4_probe
+ mov=run/'quicktime.mov'
+ cmd(['ffmpeg','-v','error','-f','lavfi','-i','color=green:s=160x90:r=10:d=0.5','-an','-c:v','libx264','-f','mov',str(mov)])
+ quicktime=call('/v1/media/upload?name=quicktime.mp4',mov.read_bytes())
+ assert quicktime['asset']['kind']=='video' and quicktime['asset']['metadata']['mime_type']=='video/quicktime',quicktime
+ mov_probe=wait(call('/v1/jobs',{'kind':'media.probe','idempotency_key':'probe-quicktime-brand','input':{'input':str(mov)}}))
+ assert mov_probe['kind']=='media.probe' and mov_probe['result']['format_brand']=='qt',mov_probe
+ checks.append('MP4 and QuickTime MOV share FFprobe aliases; major brand keeps MIME distinct through upload and public probe Job despite opposite filename extension')
  with ThreadPoolExecutor(max_workers=4) as executor:
   duplicates=list(executor.map(lambda i:call('/v1/media/upload?name=duplicate-'+str(i)+'.png',source.read_bytes()),range(8)))
  assert all(item['asset']['id']==upload['asset']['id'] and item['asset']['kind']=='video' for item in duplicates)
  checks.append('Renamed and concurrent duplicate uploads preserve video identity and original MIME')
+ chunked_source=run/'chunked.wav'
+ cmd(['ffmpeg','-v','error','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=60','-ac','1','-c:a','pcm_s16le',str(chunked_source)])
+ chunked_bytes=chunked_source.read_bytes();assert len(chunked_bytes)>4*1024*1024
+ chunked=upload_chunked('/v1/media/upload?name=chunked.wav',chunked_bytes)['asset']
+ chunked_download=http(chunked['metadata']['media_url'],raw=True)
+ assert chunked['kind']=='audio' and chunked['metadata']['mime_type']=='audio/wav'
+ assert chunked['metadata']['content_hash']==hashlib.sha256(chunked_bytes).hexdigest()
+ assert chunked_download==chunked_bytes
+ checks.append('Chunked HTTP upload without Content-Length crosses the 4 MiB write batch and downloads identical verified bytes')
  png=run/'image.png'
  cmd(['ffmpeg','-v','error','-i',str(source),'-frames:v','1',str(png)])
  image=call('/v1/media/upload?name=picture.mp4',png.read_bytes())
@@ -131,7 +166,11 @@ try:
  assert movie['asset']['kind']=='video' and movie['asset']['metadata']['mime_type']=='video/x-msvideo',movie
  bad=http('/v1/media/upload?name=invalid.mp4',b'not a movie')
  assert bad['error'] is not None,bad
- checks.append('PNG content stays image despite movie extension; MJPEG movie stays video; invalid bytes rejected')
+ truncated=run/'truncated.mp4'
+ truncated.write_bytes(source.read_bytes()[:len(source.read_bytes())//2])
+ partial=http('/v1/media/upload?name=truncated.mp4',truncated.read_bytes())
+ assert partial['error'] is not None and partial['error'].get('code'),partial
+ checks.append('PNG content stays image despite movie extension; MJPEG movie stays video; invalid and truncated containers return structured rejection')
  a=exported['result']['artifact']; artifact_path=Path(a['path']); original=artifact_path.read_bytes()
  try:
   for corrupted in (b'corrupt',bytes([original[0]^1])+original[1:]):

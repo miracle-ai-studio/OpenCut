@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "archive": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz",
+  "archive_sha256": "3d9f8aac74a8c009c178a667f8ae452f92b270315f145af70e4bc6fb30b778ec",
+  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "target": "x86_64-apple-darwin",
+  "maturity": "development",
+  "package_builder": "scripts/package-local.py",
+  "package_builder_sha256": "f88816584a5d60d8bd973a0a8968c85686ba305a5508e2b759973761cccb1369",
+  "acceptance_runner": "scripts/verify-local-package.py",
+  "acceptance_runner_sha256": "6e51f15f02059a740361507b839e647ca8bc26e945fe47495f1dccb59e16c8fc",
+  "acceptance": "full 40-check package-outside-repository verification passed",
+  "acceptance_checks": 40,
+  "acceptance_report": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz.acceptance.json",
+  "acceptance_report_sha256": "dce1eb0f86c52a71bac4cedc2e1a3d083222637e8e8f4be7b157993c86da69f4",
+  "acceptance_evidence_directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-hq8359tl",
+  "acceptance_result": "all 40 checks passed; package, target and binary hashes match the delivered archive"
+}

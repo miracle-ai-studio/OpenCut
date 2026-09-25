@@ -55,3 +55,9 @@ MCP 使用同名工具和相同参数。HTTP 使用带现有 Bearer 授权的 `P
 `asset-store::catalog` 管理锁、版本比较、内容校验、私有副本及原子存储，探测由回调提供，不依赖 FFmpeg、HTTP 或 SQLite。`automation::media` 把媒体后端探测结果转换为工程 Asset。HTTP 上传与修复共享该转换，避免再次按扩展名分叉。
 
 这是 R2 的部分边界收拢，不代表所有 Automation 编排、独立 SDK 或公共 DTO 的后端隔离已经完成。
+
+## 容器品牌与 MIME
+
+上传类别只由内容探测的流类型和容器信息决定；调用方提供的文件名只用于显示，不用来推断资产 kind 或 `mime_type`。ISO Base Media 格式族在 FFprobe 的 `format_name` 中共享 MOV/MP4/3GP/3G2/MJ2 别名，因此 `MediaMetadata.format_brand` 可选地保存 `major_brand`，例如 `qt` 区分 QuickTime、`isom` 表示常见 ISO MP4、`3gp*`／`3g2*` 区分 3GPP；品牌按视频或纯音频流映射到相应 MIME。该字段也由 `media.probe` 的公共 Job 视图输出；旧结果没有它时保持兼容读取。
+
+Matroska/WebM 使用共享 FFprobe demuxer，不能仅凭该别名稳定区分容器品牌，当前上传元数据保守使用 `application/octet-stream`。其他未知 brand 不从扩展名猜测。已声明上传探测白名单的容器族由公共 HTTP 格式矩阵验证 MIME 和下载字节身份。

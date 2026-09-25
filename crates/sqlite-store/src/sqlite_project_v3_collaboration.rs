@@ -14,6 +14,43 @@ fn authorize(
     sqlite_project_v3::require_edit(connection, context, project)
 }
 
+/// Lift a historical schema 1/2 revision into the current editable document shape.
+/// This lets schema 3 collaboration selectively merge legacy edits without
+/// rewriting the original revision or downgrading the current project head.
+fn history_project_v3(
+    connection: &Connection,
+    project: &str,
+    revision: &str,
+) -> Result<ProjectDocumentV3, EditorError> {
+    let raw: Option<String> = connection
+        .query_row(
+            "SELECT document_json FROM revisions WHERE project_id=?1 AND revision=?2",
+            params![project, revision],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(storage_error)?;
+    let document = match sqlite_project_v3::decode_versioned_project(&raw.ok_or_else(|| {
+        EditorError::new("NOT_FOUND", "Revision does not belong to this project")
+    })?)? {
+        sqlite_project_v3::VersionedProjectDocument::V3(document) => document,
+        sqlite_project_v3::VersionedProjectDocument::Legacy(mut document) => {
+            // Schema 1 and 2 share the same typed legacy shape. A version 1
+            // snapshot has no versioned assets, so lifting it to schema 2 is
+            // semantics-preserving and required by the schema 3 base contract.
+            document.schema_version = 2;
+            opencut_editor_application::project_v3::promote(&document)?
+        }
+    };
+    if document.base.id != project {
+        return Err(EditorError::new(
+            "STORAGE_ERROR",
+            "Project identity differs from historical revision scope",
+        ));
+    }
+    Ok(document)
+}
+
 fn planned(
     connection: &Connection,
     context: &opencut_editor_application::audit::ExecutionContext,
@@ -66,12 +103,12 @@ fn planned(
         }
         _ => {}
     }
-    // A promotion crosses schema versions and cannot be inverted as a schema 3 edit.
-    let before =
-        sqlite_project_v3::load_v3_snapshot(connection, project, Some(&target.base_revision))?
-            .project;
-    let after =
-        sqlite_project_v3::load_v3_snapshot(connection, project, Some(&target.revision))?.project;
+    // Schema 1/2 edit snapshots are lifted to schema 3 in memory. The history
+    // remains immutable and later visual edits can still be preserved. The
+    // promotion transaction itself remains excluded above because it changes
+    // document format rather than user-authored project content.
+    let before = history_project_v3(connection, project, &target.base_revision)?;
+    let after = history_project_v3(connection, project, &target.revision)?;
     let (from, to) = match direction {
         Direction::Undo => (&after, &before),
         Direction::Redo => (&before, &after),
@@ -311,5 +348,50 @@ impl EditorApplication {
                 .map_err(|e| EditorError::new("SERIALIZATION_ERROR", e.to_string()))?,
             |tx, context| plan_redo_on(tx, context, request),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opencut_contracts::{CreateProject, FrameRate};
+
+    #[test]
+    fn historical_schema_one_revision_lifts_without_changing_project_content() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut app = EditorApplication::open(directory.path().join("workspace.sqlite")).unwrap();
+        let snapshot = app
+            .create_project(
+                CreateProject {
+                    id: "legacy-v1".into(),
+                    name: "Legacy v1".into(),
+                    sequence_id: "main".into(),
+                    width: 640,
+                    height: 360,
+                    fps: FrameRate {
+                        numerator: 25,
+                        denominator: 1,
+                    },
+                },
+                "create-v1-fixture",
+            )
+            .unwrap();
+        let mut historical = snapshot.project;
+        historical.schema_version = 1;
+        let raw = serde_json::to_string(&historical).unwrap();
+        app.connection.execute(
+            "INSERT INTO revisions(revision,project_id,parent_revision,transaction_id,document_json)
+             VALUES ('rev_historical_schema_one','legacy-v1',NULL,NULL,?1)",
+            [&raw],
+        ).unwrap();
+
+        let lifted =
+            history_project_v3(&app.connection, "legacy-v1", "rev_historical_schema_one").unwrap();
+        assert_eq!(lifted.schema_version, 3);
+        assert_eq!(lifted.base.schema_version, 2);
+        assert_eq!(lifted.base.name, historical.name);
+        assert_eq!(lifted.base.sequences, historical.sequences);
+        assert!(lifted.visual.is_empty());
+        assert!(lifted.keyframe_curves.is_empty());
     }
 }

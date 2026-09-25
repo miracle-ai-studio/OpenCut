@@ -54,17 +54,18 @@ target/debug/opencut --database .opencut/workspace.sqlite mcp serve
 target/debug/opencut --database .opencut/workspace.sqlite --json job events --limit 100
 ```
 
-Local speech transcription is available through `opencut_analysis_transcribe` (media action `analysis.transcribe`). Configure `OPENCUT_WHISPER_MODEL` on the worker host and install `whisper-cli`; clients reference a fixed project revision and asset, and receive segment timings through the existing public Job view. See the [transcription contract](design/architecture/transcription-contract.md) and [SDK example](packages/sdk-ts/README.md). Word alignment and speaker identification are not implemented.
+Local speech transcription is available through `opencut_analysis_transcribe` (media action `analysis.transcribe`). Configure `OPENCUT_WHISPER_MODEL` on the worker host and install `whisper-cli`; clients reference a fixed project revision and asset, and receive model-derived timings through the public Job view. Word-level intervals are available for supported model output and have been verified with English speech. Speaker identity assignment is unavailable, and positive multi-speaker boundary accuracy has not been established. See the [transcription contract](design/architecture/transcription-contract.md) and [SDK example](packages/sdk-ts/README.md).
 
 MCP advertises nine domain tools by default (`system`, `project`, `edit`,
 `media`, `task`, `observe`, `plugin`, `access`, `workspace`). Read
 `opencut://schemas/domains` and then `opencut://schemas/domains/{domain}`
 for the exact action contracts. For example, the CLI form is
 `opencut --json domain edit plan --input request.json`; the MCP form calls
-`opencut_edit` with `{"action":"plan","input":{...}}`. The underlying
-61 versioned operations remain available through `opencut call` and the
-HTTP API. Existing MCP clients may call their old tool names directly, or
-start the host with `--tool-surface legacy` to advertise the old list.
+`opencut_edit` with `{"action":"plan","input":{...}}`. The current leaf
+operation inventory is published by `system capabilities`; versioned operations
+remain available through `opencut call` and the HTTP API. Existing MCP clients
+may call their old tool names directly, or start the host with
+`--tool-surface legacy` to advertise the old list.
 Domain calls resolve to the same leaf operation before authorization,
 validation and execution. Media bytes use the separate upload data endpoint.
 
@@ -75,19 +76,21 @@ Tools, resources, prompts and subscriptions share the stdio implementation.
 See the [MCP transport contract](design/architecture/mcp-http-contract.md) for
 session limits, bounded replay, expiry and disconnect behavior.
 
-`opencut --json system capabilities` includes `job_kinds`: nine native job names
-with their public input payload and successful result JSON Schemas. The Web
-contract generator emits their concrete TypeScript input and result types. Automation
-and workers share typed task contracts; stored job records retain their JSON
-extension boundary. Legacy results without media-lock fields remain readable as
-unlocked results.
+`opencut --json system capabilities` includes the current `job_kinds` inventory
+with each native job's public input payload and successful result JSON Schemas.
+The Web contract generator emits their concrete TypeScript input and result types.
+Automation and workers share typed task contracts; stored job records retain
+their JSON extension boundary. Legacy results without media-lock fields remain
+readable as unlocked results.
 
 See the [architecture and contracts](design/architecture/agent-friendly-editor-v1.md)
 and [implementation and verification status](design/architecture/implementation-status.md)
 for the supported scope, reproducible checks, and remaining work. Source previews,
 rendered project artifacts, and job-backed project frame previews use distinct
-interfaces. A full interactive project preview and complete Classic feature parity
-are still in development.
+interfaces. A native continuous project-preview session backend is available.
+Browser presentation, audible playback, and low-latency behavior have not been
+accepted. Host restart ends ephemeral preview sessions under the current contract;
+complete Classic feature parity is also still in development.
 
 `preview.project_frame` accepts a fixed revision and a sequence time through the
 same job API as exports:
@@ -129,10 +132,12 @@ endpoints are aligned on the sequence frame grid; collapsed or out-of-bounds
 intervals are rejected. The output plays from zero while its content retains the
 absolute sequence animation and audio timing. This path encodes the selected
 interval but may decode the prefix, and currently locks all required audiovisual
-assets in the sequence. It does not provide continuous timeline playback.
-The [continuous-preview plan](design/architecture/continuous-preview-plan.md)
-defines the next session, playback-clock, cancellation, and observation contracts;
-those session APIs are not implemented yet.
+assets in the sequence. It is a bounded preview job, separate from continuous
+playback. The continuous session API is available through the preview create,
+inspect, control, events, and acquire operations; the HTTP media stream is
+`/v1/preview/stream`. The [preview session contract](design/architecture/preview-session-contract.md)
+documents ownership and playback observation. Browser presentation is unverified;
+host restart terminates the ephemeral session by contract.
 
 Before submitting a project render, `opencut render preflight --input render.json`
 checks a fixed revision. Its input contains `project_id`, `revision`, `sequence_id`,
@@ -156,8 +161,10 @@ with the same idempotency key return the accepted result.
 Legacy unversioned assets are still supported and are captured when a project
 job is accepted; their historical documents are not silently upgraded. Persisted
 older jobs without a media lock explicitly report `legacy_unlocked`.
-Font/plugin/tool dependencies, source-only jobs, and CAS garbage collection still
-need further work. See the implementation status for verification of the current
+CAS garbage collection is available through owner-only plan, inspect, and execute
+operations, but full storage admission and platform acceptance remain incomplete.
+Font/plugin/tool dependency locking and source-only job media locking also need
+further work. See the implementation status for verification of the current
 asset-version integration; the full reproducibility contract is not complete.
 
 ## Development
@@ -212,7 +219,7 @@ moon run desktop:dev   # see apps/desktop/README.md
 
 The Rust CLI/HTTP/MCP host and standalone SDKs can be packaged with `python3 scripts/package-local.py` and verified outside the repository with `python3 scripts/verify-local-package.py <archive>`. See [installation and upgrade instructions](design/architecture/local-distribution.md) and the [R2 completion audit](design/architecture/r2-completion-audit.md). These are local development bundles, not a complete R0–R7 product release.
 
-CLI and stdio MCP accept project-scoped credentials through `--credential-file`; REST and Streamable HTTP accept the same credential as a bearer. Local owner administration remains under `access`. MCP sessions bind a credential and policy revision; streams and artifact downloads recheck authorization. See the [permission contract](design/architecture/access-control-contract.md) and [network acceptance](design/qa/r2-network-access-2026-09-21.md). Scoped media import, preflight/plugin access remain unfinished. Owner administration history is available through `opencut_access_audit_query` or `access events --input FILE`.
+CLI and stdio MCP accept project-scoped credentials through `--credential-file`; REST and Streamable HTTP accept the same credential as a bearer. Local owner administration remains under `access`. MCP sessions bind a credential and policy revision; streams and artifact downloads recheck authorization. Project-scoped media upload/read, render preflight, and read-only plugin discovery/planning are available; plugin grant changes remain owner-only. See the [permission contract](design/architecture/access-control-contract.md) and [network acceptance](design/qa/r2-network-access-2026-09-21.md). Owner administration history is available through `opencut_access_audit_query` or `access events --input FILE`.
 
 ## Contributing
 

@@ -280,6 +280,7 @@ fn renders_timeline_range_with_absolute_visual_and_audio_time() {
                     end: mt(20, 10),
                     start_value: 0.2,
                     end_value: 1.0,
+                    cubic_bezier: None,
                 }],
             },
         }],
@@ -545,12 +546,14 @@ fn ntsc_range_has_exact_half_open_frames_and_absolute_audio_window() {
                         end: frame(3),
                         start_value: 0.0,
                         end_value: 0.0,
+                        cubic_bezier: None,
                     },
                     EvaluatedSegment {
                         start: frame(3),
                         end: frame(10),
                         start_value: 1.0,
                         end_value: 1.0,
+                        cubic_bezier: None,
                     },
                 ],
             },
@@ -627,6 +630,106 @@ fn ntsc_range_has_exact_half_open_frames_and_absolute_audio_window() {
     assert!(
         late_peak > 100,
         "absolute audible window was not selected: {late_peak}"
+    );
+}
+
+#[test]
+fn cubic_bezier_keyframe_curve_changes_real_rendered_frame_pixels() {
+    let Some(backend) = backend() else {
+        eprintln!("skipping: ffmpeg/ffprobe unavailable");
+        return;
+    };
+    let ffmpeg = if Path::new("/usr/local/bin/ffmpeg").is_file() {
+        Path::new("/usr/local/bin/ffmpeg")
+    } else {
+        Path::new("ffmpeg")
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("white-source.mp4");
+    make_fixture(ffmpeg, &source, "white", 440);
+    let frame = |path: &Path, easing| {
+        let output = dir.path().join(path);
+        backend
+            .render_timeline(
+                &TimelineExportRequest {
+                    output: output.clone(),
+                    container: Container::Mp4,
+                    video: VideoOutput {
+                        width: 160,
+                        height: 90,
+                        frame_rate: FrameRate {
+                            numerator: 10,
+                            denominator: 1,
+                        },
+                        aspect_mode: AspectMode::Fit,
+                        codec: VideoCodec::H264,
+                        crf: None,
+                    },
+                    duration: mt(1, 1),
+                    video_clips: vec![TimelineVideoClip {
+                        input: source.clone(),
+                        source_start: mt(0, 1),
+                        source_duration: mt(1, 1),
+                        timeline_start: mt(0, 1),
+                        timeline_duration: mt(1, 1),
+                        stream: None,
+                        opacity: 1.0,
+                        position_x: 0.0,
+                        position_y: 0.0,
+                        scale_x: 1.0,
+                        scale_y: 1.0,
+                        rotation_degrees: 0.0,
+                        z_index: 0,
+                        curves: TimelineVisualCurves {
+                            opacity: EvaluatedCurve {
+                                segments: vec![EvaluatedSegment {
+                                    start: mt(0, 1),
+                                    end: mt(1, 1),
+                                    start_value: 0.0,
+                                    end_value: 1.0,
+                                    cubic_bezier: easing,
+                                }],
+                            },
+                            ..Default::default()
+                        },
+                    }],
+                    image_clips: vec![],
+                    audio_clips: vec![],
+                    captions: vec![],
+                    overwrite: false,
+                },
+                &CancellationToken::new(),
+                &mut |_| {},
+            )
+            .unwrap();
+        let decoded = Command::new(ffmpeg)
+            .args(["-v", "error", "-ss", "0.5", "-i"])
+            .arg(output)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap();
+        assert!(decoded.status.success());
+        let center = (45 * 160 + 80) * 3;
+        decoded.stdout[center..center + 3]
+            .iter()
+            .map(|value| u16::from(*value))
+            .sum::<u16>()
+            / 3
+    };
+    let linear = frame(Path::new("linear.mp4"), None);
+    let cubic = frame(
+        Path::new("cubic.mp4"),
+        Some(opencut_media_contracts::composition::CubicBezierCurve {
+            x1: 0.0,
+            y1: 0.0,
+            x2: 1.0,
+            y2: 0.0,
+        }),
+    );
+    assert!(linear > 35, "linear mid-frame should be visible: {linear}");
+    assert!(
+        cubic + 20 < linear,
+        "cubic easing should change pixels: cubic={cubic}, linear={linear}"
     );
 }
 

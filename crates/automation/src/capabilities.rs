@@ -40,6 +40,8 @@ pub fn document() -> HostCapabilities {
                 "mask.delete",
                 "transition.put",
                 "transition.delete",
+                "keyframe.curve_set",
+                "keyframe.curve_delete",
             ]
             .map(str::to_owned)
             .into(),

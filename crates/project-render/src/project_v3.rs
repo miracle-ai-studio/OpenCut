@@ -584,6 +584,7 @@ mod tests {
             project: ProjectDocumentV3 {
                 schema_version: 3,
                 base,
+                keyframe_curves: vec![],
                 visual: vec![SequenceVisualV3 {
                     sequence_id: "main".into(),
                     shapes: vec![ShapeClip {

@@ -1,0 +1,341 @@
+{
+  "status": "passed",
+  "checks": [
+    "v1–v23 concurrent process opening and migration retain all project history and receipts",
+    "unversioned and v2 request hashes replay original creation and edit results without writes",
+    "omitted optional fields normalize; changed intent with same key is rejected",
+    "all eight compatible historical result kinds read through raw and public views",
+    "missing locking fields default to legacy_unlocked; host paths are excluded from public views",
+    "unknown and invalid historical results remain succeeded with explicit unavailable result",
+    "legacy queued inputs execute in a real Worker after migration",
+    "new edits and idempotent retries work after each upgrade and persist v2 receipts",
+    "Plugin publication DDL collision rolls back v6 migration with all original data intact; corrected retry succeeds",
+    "Schema 8 retention collision rolls back; aborted sessions backfill conservatively above quota, release restores admission without rewriting history",
+    "Schema 9 plugin policy collision rolls back; retry preserves history and grants no implicit project plugin permission",
+    "Schema 10 denial-table collision rolls back atomically; retry preserves history and does not fabricate past refusals",
+    "Schema 11 GC table collision rolls back; retry preserves project data and invents no collection history",
+    "Schema 12 admission protocol gate rolls back on failure; retry preserves all business history",
+    "Schema 13 extended admission protocol gate rolls back on failure; retry preserves all business history",
+    "Schema 14 media output protocol gate rolls back on failure; retry preserves all business history",
+    "Schema 15 artifact retention collision rolls back; retry preserves historical results without inventing releases",
+    "Schema 16 artifact plan collision rolls back; retry preserves history without inventing plans",
+    "Schema 17 publication fence collision rolls back; retry preserves history without inventing removals",
+    "Schema 18 artifact execution protocol gate rolls back on failure; retry preserves history",
+    "20 real four-process DELETE-to-WAL conversions preserve snapshots and complete without startup lock failures",
+    "DDL failure rolls back the entire v2 migration; fixing the fixture allows a clean retry",
+    "historical actors remain unknown rather than fabricated during migration",
+    "v3 audit migration collision rolls back atomically and can be retried after repair",
+    "v4 access migration failure rolls back all policy and ownership tables; repaired retry preserves historical data",
+    "future malformed and foreign database versions reject without changing database bytes"
+  ],
+  "matrix": [
+    {
+      "database_version": 1,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 0
+    },
+    {
+      "database_version": 1,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 0
+    },
+    {
+      "database_version": 2,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 2,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 3,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 3,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 4,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 4,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 5,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 5,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 6,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 6,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 7,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 7,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 8,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 8,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 9,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 9,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 10,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 10,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 11,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 11,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 12,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 12,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 13,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 13,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 14,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 14,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 15,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 15,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 16,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 16,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 17,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 17,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 18,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 18,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 19,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 19,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 20,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 20,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 21,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 21,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 22,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 22,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 23,
+      "identity": "legacy",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    },
+    {
+      "database_version": 23,
+      "identity": "v2",
+      "status": "passed",
+      "legacy_result_kinds": 8
+    }
+  ],
+  "binary_sha256": "af0b338a636c910362599da792ad4be425ee0b4704d0cd1a163d706e19b6a9fa",
+  "fixture_hashes": {
+    "db-v19.sql": "875f61d84d68a1ae13acf051e5624c5ac01aed9b8990c4f40245b5f6378084df",
+    "db-v18.sql": "07513cdc7f32bbc8843fc92fed6898ce4e4a67933abd1133830bc20b93335bdc",
+    "db-v20.sql": "4f393d4e2b74e16b78a1cd69cf436e1c9928f3dcd4c6764772a9a872958907ee",
+    "db-v21.sql": "f1c9cefe4cd9c3b22be74cd30c16c88cc5ef77701417b2feadcbde6c8bc91fbe",
+    "db-v23.sql": "06592aecef8e22f3ce90950202533fb76838aa233df185051aa5f00db9706ecd",
+    "db-v22.sql": "77998f84900343390dd4b635c05ba3f61a505e65b4065507cb270755f320db6b",
+    "project.json": "2bff4956fb06bcfee690448b61e27bcba89e9238672644349dddfe9212a97dfe",
+    "db-v1.sql": "eaf4b10807b6133308b0d1ce3436d9f17662a71d2c7b9446b28917d059443355",
+    "db-v3.sql": "3e6c5b3b2778133207a665d9921e794b5e481f35f4a96e05c7ae8e0fe8156466",
+    "results.json": "b3f89e6a8ef36032059beafc6cb958147e05e1bc774b877a7586963b3c81f571",
+    "db-v2.sql": "4645a1f025ea280330f349e1e35634640ab391f6bc3ea102d31d0b369b5fd3a8",
+    "db-v6.sql": "04939b9443cade7f7603e21beb123160327b3d83da40cc2fa5078da76cb1add3",
+    "db-v7.sql": "ea6af02710d05d1f0f0d8150185cbe52f59e8cb33d2f0f1261a3febc556be28d",
+    "db-v5.sql": "476efc876adeca1c2349a987be79d8a06fb0fa2c992c698e1e0308d66fb8518e",
+    "db-v4.sql": "fed26941263fc21ae4e873de445a2d60e2d1f56212c917b6a64bcc46a327afb8",
+    "db-v9.sql": "0d94388c46a59bd225c38097958b270fa64a5bbb047e30cde93c27772bd57f7b",
+    "README.md": "419e71db0952a4caaa5c2fa2e833c81ca8ac3b72e89b094e648c6be47ce72f77",
+    "db-v8.sql": "064b91b4f34d82afb93707c4b535cb8538c4c366e51ecb17905eac910c4e8d3f",
+    "db-v13.sql": "c80a9ddae03de364cdf06b13c31dc04fe7df0dcab5ef84896d1eca89d0b3eb9b",
+    "db-v12.sql": "78edb7ccde86f3192436da49ca7b6286326517f3aaf7588391a644758218e3c4",
+    "db-v10.sql": "59c5ad53e553a7c92cd0c5e3afc88ccfbb2f36e08e4ddbab638919ecb674bc19",
+    "db-v11.sql": "13b3ed7a69d78ce1fa02a251bca07fb8612895e0c872e23d7297b95b38039f78",
+    "db-v15.sql": "b6ad436a0bab7c20ab9895d6e928081b1c4cb77e6f7a222b4127d1bc94a4d634",
+    "db-v14.sql": "ca9eb6a290cf72bd32a30f54e515fd201d0455be3b9a1b3a0d6d25529ab8649e",
+    "db-v16.sql": "89b7d29ff34b5ef7bb362b72a423afe3f7c63b3ae03a6b88e2169c4403238eba",
+    "db-v17.sql": "01bd55a743ba28466ce08269857656acad49995d26e46fbd4374af5a73a8a8fe"
+  },
+  "scope": "frozen reconstructed supported formats; not archived release binaries or a downgrade guarantee",
+  "verifier_script": "scripts/verify-history-compatibility.py",
+  "verifier_script_sha256": "39fe06ebada04a41abe349904af4564819c6abdda1d8858dd1f1d28de680b5b8"
+}

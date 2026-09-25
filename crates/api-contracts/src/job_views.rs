@@ -93,6 +93,8 @@ pub enum ArtifactAvailability {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MediaInfo {
     pub format_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format_brand: Option<String>,
     pub duration: Option<MediaTime>,
     pub bit_rate: Option<u64>,
     pub streams: Vec<MediaStream>,

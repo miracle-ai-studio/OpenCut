@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "binary_sha256": "bfb1ebb7fec36b04f52565fd8b4bf559c21c5c462f5db9df7a057e6f4ab36c90",
+  "environment": {
+    "os": "macOS-26.5.1-x86_64-i386-64bit-Mach-O",
+    "machine": "x86_64",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "source_sha256": "874a2de3f6241c0e14926664175769d9a7293ad73ceff3e425374655aedcd34b",
+  "base_revision": "rev_16992e414e7bd9c3b1be0545472000835c90bc3b430bdb73785573a60bc19dbd",
+  "curve_revision": "rev_2a4f83c8373492e13fe8a66ba5e478e927a45bc0131a17985e9d4a1ef6dac53f",
+  "jobs": {
+    "linear_frame": {
+      "job_id": "job_f9e6c2d9831a4af9ada2f9412b5a8f65",
+      "artifact_sha256": "f76d92b59a4cb45a5bfd79aa1de0f462143e60eabe7ba2522a40946c5a45901a"
+    },
+    "cubic_frame": {
+      "job_id": "job_efcf09afa61a4c2d9e5c2d21bd6d6d19",
+      "artifact_sha256": "057b1daa4b136cd7048cc9f609e16860168c711f259b78d999598246eb7c1745"
+    },
+    "cubic_render": {
+      "job_id": "job_5074cd31fc6f43f780b03df5d2b54fb6",
+      "artifact_sha256": "49233107f0a665932c53fac414b752e3befaa2e542df79d169b4c54040ba8b68"
+    }
+  },
+  "linear_midframe_gray": 126,
+  "cubic_midframe_gray": 31,
+  "rendered_midframe_gray": 31,
+  "checks": [
+    "Versioned keyframe.curve_set is discoverable through schema 3 plan/apply",
+    "Curve project persists through inspect and idempotent SQLite replay",
+    "Fixed revision frame jobs render linear and cubic easing through composition",
+    "Full schema 3 render uses the same cubic easing as the frame job",
+    "HTTP artifact downloads match committed hashes after source removal"
+  ],
+  "journey_script": "scripts/verify-keyframe-curve-journey.py",
+  "journey_script_sha256": "7bb963174e53b7d2ac5e28dc994e567938d997c6dca256916891342ff8868dfc",
+  "package_archive": "opencut-0.1.0-dev-3ffa8f86d659-x86_64-apple-darwin.tar.gz",
+  "package_archive_sha256": "efcaab0a7c1aa9f26faed6508ede6fcf15e4f045e40e204bec10e00ed81312ae"
+}

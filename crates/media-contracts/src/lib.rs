@@ -69,6 +69,9 @@ pub struct ProbeRequest<P = String> {
 pub struct MediaMetadata<P = String> {
     pub input: P,
     pub format_name: Option<String>,
+    /// ISO Base Media File Format major brand when the container exposes one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format_brand: Option<String>,
     pub duration: Option<MediaTime>,
     pub bit_rate: Option<u64>,
     pub streams: Vec<MediaStream>,
@@ -328,6 +331,7 @@ impl<P> MediaMetadata<P> {
         Ok(MediaMetadata {
             input: map(self.input)?,
             format_name: self.format_name,
+            format_brand: self.format_brand,
             duration: self.duration,
             bit_rate: self.bit_rate,
             streams: self.streams,

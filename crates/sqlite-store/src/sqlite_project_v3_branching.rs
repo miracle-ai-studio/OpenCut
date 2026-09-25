@@ -485,7 +485,7 @@ mod tests {
     use super::*;
     use opencut_contracts::{
         CreateProject, FrameRate,
-        project_v3_ops::{ApplyV3Project, CreateV3Project},
+        project_v3_ops::{ApplyV3Project, CreateV3Project, PromoteV3Project},
     };
 
     fn edit(revision: &str, key: &str, operations: Value) -> ApplyV3Project {
@@ -632,5 +632,114 @@ mod tests {
             .unwrap();
         assert_eq!(final_snapshot.project.base.sequences[0].name, "Human later");
         assert!(final_snapshot.project.visual[0].effects.is_empty());
+    }
+
+    #[test]
+    fn schema_2_history_can_be_undone_and_redone_after_promotion() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = EditorApplication::open(dir.path().join("workspace.sqlite")).unwrap();
+        let base = app
+            .create_project(
+                CreateProject {
+                    id: "p".into(),
+                    name: "P".into(),
+                    sequence_id: "main".into(),
+                    width: 640,
+                    height: 360,
+                    fps: FrameRate {
+                        numerator: 25,
+                        denominator: 1,
+                    },
+                },
+                "legacy-create",
+            )
+            .unwrap();
+        let track = app
+            .apply(
+                "p",
+                &serde_json::from_value(json!({
+                    "expected_revision":base.revision,"idempotency_key":"legacy-track",
+                    "label":"Create graphics track","operations":[{"type":"track.create",
+                    "sequence_id":"main","track":{"id":"graphics","name":"Graphics",
+                    "kind":"graphic","enabled":true,"muted":false,"locked":false,
+                    "clips":[],"params":{}}}]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let renamed = app
+            .apply(
+                "p",
+                &serde_json::from_value(json!({
+                    "expected_revision":track.revision,"idempotency_key":"legacy-rename",
+                    "label":"Rename sequence","operations":[{"type":"sequence.update_settings",
+                    "sequence_id":"main","name":"Edited","width":null,"height":null,"fps":null}]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let promoted = app
+            .promote_v3_project(&PromoteV3Project {
+                project_id: "p".into(),
+                expected_revision: renamed.revision,
+                idempotency_key: "promote-v3".into(),
+            })
+            .unwrap();
+        let visual_edit = app
+            .apply_v3_project(&edit(
+                &promoted.revision,
+                "post-promotion-shape",
+                json!([shape()]),
+            ))
+            .unwrap();
+
+        let undo_request = opencut_api_contracts::collaboration::UndoRequest {
+            project_id: "p".into(),
+            expected_revision: visual_edit.revision.clone(),
+            target_transaction_id: renamed.transaction_id.clone(),
+            idempotency_key: "undo-before-promotion".into(),
+        };
+        let undo_plan = app.plan_v3_undo(&undo_request).unwrap();
+        assert!(undo_plan.conflicts.is_empty(), "{:?}", undo_plan.conflicts);
+        assert_eq!(
+            undo_plan.proposed_project.as_ref().unwrap().base.sequences[0].name,
+            "Main"
+        );
+        assert_eq!(
+            undo_plan.proposed_project.as_ref().unwrap().visual[0].shapes[0].id,
+            "card"
+        );
+        let undo = app.apply_v3_undo(&undo_request).unwrap();
+        assert_eq!(app.apply_v3_undo(&undo_request).unwrap(), undo);
+
+        let redo_request = opencut_api_contracts::collaboration::RedoRequest {
+            project_id: "p".into(),
+            expected_revision: undo.transaction.revision.clone(),
+            undo_transaction_id: undo.transaction.transaction_id.clone(),
+            idempotency_key: "redo-before-promotion".into(),
+        };
+        let redo_plan = app.plan_v3_redo(&redo_request).unwrap();
+        assert!(redo_plan.conflicts.is_empty(), "{:?}", redo_plan.conflicts);
+        assert_eq!(
+            redo_plan.proposed_project.as_ref().unwrap().base.sequences[0].name,
+            "Edited"
+        );
+        assert_eq!(
+            redo_plan.proposed_project.as_ref().unwrap().visual[0].shapes[0].id,
+            "card"
+        );
+        app.apply_v3_redo(&redo_request).unwrap();
+        let head = app
+            .inspect_v3_project(&opencut_contracts::project_v3_ops::InspectV3Project {
+                project_id: "p".into(),
+                revision: None,
+            })
+            .unwrap();
+        assert_eq!(head.project.base.sequences[0].name, "Edited");
+        assert_eq!(head.project.visual[0].shapes[0].id, "card");
+        assert_eq!(
+            sqlite_branching::parents(&app.connection, "p", &undo.transaction.revision).unwrap(),
+            [visual_edit.revision]
+        );
     }
 }

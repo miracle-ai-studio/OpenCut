@@ -1,7 +1,9 @@
 //! Versioned visual-edit requests. Not part of the legacy schema 2 tool set.
 use crate::{
     CreateProject, Operation,
-    project_v3::{EffectNode, MaskNode, ProjectDocumentV3, ShapeClip, TransitionNode},
+    project_v3::{
+        EffectNode, KeyframeCurveV1, MaskNode, ProjectDocumentV3, ShapeClip, TransitionNode,
+    },
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -102,6 +104,13 @@ pub enum VisualOperation {
     },
     #[serde(rename = "transition.delete")]
     TransitionDelete { sequence_id: String, id: String },
+    #[serde(rename = "keyframe.curve_set")]
+    KeyframeCurveSet {
+        sequence_id: String,
+        curve: KeyframeCurveV1,
+    },
+    #[serde(rename = "keyframe.curve_delete")]
+    KeyframeCurveDelete { sequence_id: String, id: String },
 }
 
 impl VisualOperation {
@@ -115,7 +124,9 @@ impl VisualOperation {
             | Self::MaskPut { sequence_id, .. }
             | Self::MaskDelete { sequence_id, .. }
             | Self::TransitionPut { sequence_id, .. }
-            | Self::TransitionDelete { sequence_id, .. } => Some(sequence_id),
+            | Self::TransitionDelete { sequence_id, .. }
+            | Self::KeyframeCurveSet { sequence_id, .. }
+            | Self::KeyframeCurveDelete { sequence_id, .. } => Some(sequence_id),
         }
     }
 }

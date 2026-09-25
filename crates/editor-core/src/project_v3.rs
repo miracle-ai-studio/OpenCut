@@ -2,8 +2,8 @@
 use opencut_contracts::{
     AssetKind, Clip, EditorError, ProjectDocument, Time, TrackKind,
     project_v3::{
-        EffectNode, MaskNode, MaskShape, ProjectDocumentV3, SequenceVisualV3, ShapePrimitive,
-        TransitionNode, VisualEffect,
+        EffectNode, KeyframeCurveV1, MaskNode, MaskShape, ProjectDocumentV3, SequenceVisualV3,
+        ShapePrimitive, TransitionNode, VisualEffect,
     },
 };
 use opencut_time::{RationalTime, range_end, validate_range};
@@ -244,6 +244,77 @@ pub fn validate_project_v3(project: &ProjectDocumentV3) -> Result<(), EditorErro
             .ok_or_else(|| invalid("visual sequence is missing from base project"))?;
         validate_sequence(visual, sequence, &project.base, &mut ids)?;
     }
+    let mut curve_keys = HashSet::new();
+    if project.keyframe_curves.len() > 100_000 {
+        return Err(invalid("keyframe curve count exceeds limit"));
+    }
+    for curve in &project.keyframe_curves {
+        unique(&mut ids, &curve.id)?;
+        validate_keyframe_curve(curve, &project.base, &mut curve_keys)?;
+    }
+    Ok(())
+}
+
+fn validate_keyframe_curve<'a>(
+    curve: &'a KeyframeCurveV1,
+    base: &ProjectDocument,
+    keys: &mut HashSet<(&'a str, &'a str, &'a str, &'a str)>,
+) -> Result<(), EditorError> {
+    if curve.schema_version != 1
+        || curve.sequence_id.is_empty()
+        || curve.clip_id.is_empty()
+        || curve.parameter.is_empty()
+        || curve.keyframe_id.is_empty()
+        || !keys.insert((
+            &curve.sequence_id,
+            &curve.clip_id,
+            &curve.parameter,
+            &curve.keyframe_id,
+        ))
+    {
+        return Err(invalid("invalid or duplicate keyframe curve identity"));
+    }
+    if ![
+        curve.curve.x1,
+        curve.curve.y1,
+        curve.curve.x2,
+        curve.curve.y2,
+    ]
+    .into_iter()
+    .all(|value| bounded(value, 0.0, 1.0))
+    {
+        return Err(invalid("cubic Bezier control points must be within 0..1"));
+    }
+    let clip = base
+        .sequences
+        .iter()
+        .find(|sequence| sequence.id == curve.sequence_id)
+        .and_then(|sequence| {
+            sequence
+                .tracks
+                .iter()
+                .flat_map(|track| track.clips.iter())
+                .find(|clip| clip.id == curve.clip_id)
+        })
+        .ok_or_else(|| invalid("keyframe curve target clip does not exist"))?;
+    let channel = clip
+        .channels
+        .iter()
+        .find(|channel| channel.parameter == curve.parameter)
+        .ok_or_else(|| invalid("keyframe curve channel does not exist"))?;
+    let index = channel
+        .keyframes
+        .iter()
+        .position(|keyframe| keyframe.id == curve.keyframe_id)
+        .ok_or_else(|| invalid("keyframe curve start key does not exist"))?;
+    if index + 1 >= channel.keyframes.len()
+        || channel.keyframes[index].interpolation
+            != opencut_contracts::KeyframeInterpolation::Linear
+    {
+        return Err(invalid(
+            "keyframe curves require a non-final linear keyframe segment",
+        ));
+    }
     Ok(())
 }
 
@@ -312,10 +383,14 @@ fn validate_sequence(
 mod tests {
     use super::*;
     use opencut_contracts::project_v3::{
-        EffectNode, MaskNode, MaskShape, ProjectDocumentV3, Rgba, SequenceVisualV3, ShapeClip,
-        Transition, TransitionNode, VisualEffect,
+        CubicBezierV1, EffectNode, KeyframeCurveV1, MaskNode, MaskShape, ProjectDocumentV3, Rgba,
+        SequenceVisualV3, ShapeClip, Transition, TransitionNode, VisualEffect,
     };
-    use opencut_contracts::{CreateProject, FrameRate, TimeRange, Track};
+    use opencut_contracts::{
+        Clip, CreateProject, FrameRate, Keyframe, KeyframeChannel, KeyframeInterpolation,
+        TimeRange, Track,
+    };
+    use serde_json::json;
 
     fn time(ticks: i64) -> Time {
         Time {
@@ -355,6 +430,7 @@ mod tests {
         ProjectDocumentV3 {
             schema_version: 3,
             base,
+            keyframe_curves: vec![],
             visual: vec![SequenceVisualV3 {
                 sequence_id: "main".into(),
                 shapes: vec![ShapeClip {
@@ -400,6 +476,71 @@ mod tests {
                 transitions: vec![],
             }],
         }
+    }
+
+    fn curve_fixture() -> ProjectDocumentV3 {
+        let mut project = fixture();
+        let clip = Clip {
+            id: "clip".into(),
+            asset_id: None,
+            timeline_range: range(0, 1000),
+            source_range: None,
+            params: Default::default(),
+            channels: vec![KeyframeChannel {
+                parameter: "opacity".into(),
+                keyframes: vec![
+                    Keyframe {
+                        id: "start".into(),
+                        time: time(0),
+                        value: json!(0.0),
+                        interpolation: KeyframeInterpolation::Linear,
+                    },
+                    Keyframe {
+                        id: "end".into(),
+                        time: time(1000),
+                        value: json!(1.0),
+                        interpolation: KeyframeInterpolation::Linear,
+                    },
+                ],
+            }],
+        };
+        project.base.sequences[0].tracks[0].clips.push(clip);
+        project.keyframe_curves.push(KeyframeCurveV1 {
+            id: "curve-opacity-start".into(),
+            schema_version: 1,
+            sequence_id: "main".into(),
+            clip_id: "clip".into(),
+            parameter: "opacity".into(),
+            keyframe_id: "start".into(),
+            curve: CubicBezierV1 {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 0.0,
+            },
+        });
+        project
+    }
+
+    #[test]
+    fn keyframe_curve_contract_requires_a_valid_linear_segment_and_control_points() {
+        assert!(validate_project_v3(&curve_fixture()).is_ok());
+
+        let mut out_of_range = curve_fixture();
+        out_of_range.keyframe_curves[0].curve.x1 = 1.01;
+        assert!(validate_project_v3(&out_of_range).is_err());
+
+        let mut final_key = curve_fixture();
+        final_key.keyframe_curves[0].keyframe_id = "end".into();
+        assert!(validate_project_v3(&final_key).is_err());
+
+        let mut wrong_version = curve_fixture();
+        wrong_version.keyframe_curves[0].schema_version = 2;
+        assert!(validate_project_v3(&wrong_version).is_err());
+
+        let mut duplicate_id = curve_fixture();
+        duplicate_id.keyframe_curves[0].id = "clip".into();
+        assert!(validate_project_v3(&duplicate_id).is_err());
     }
     #[test]
     fn shape_effect_and_hard_mask_are_strict_and_versioned() {

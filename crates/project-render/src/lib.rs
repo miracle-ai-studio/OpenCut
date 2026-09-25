@@ -422,7 +422,7 @@ impl ProjectRenderAdapter {
                 }
             }
         }
-        match backend {
+        match &backend {
             Err(problem) => issues.push(preflight_issue(
                 "TOOL_UNAVAILABLE",
                 problem.to_string(),
@@ -452,7 +452,7 @@ impl ProjectRenderAdapter {
                     )),
                 }
                 probe_required_assets(
-                    &backend,
+                    backend,
                     sequence,
                     &assets,
                     &required_ids,
@@ -501,16 +501,33 @@ impl ProjectRenderAdapter {
             video_codec: request.video_codec,
             overwrite: false,
         };
-        if let Err(problem) = Self::plan_impl(&probe_request, resolved_assets)
-            && !issues.iter().any(|issue| issue.message == problem.message)
-        {
-            issues.push(preflight_issue(
-                problem.code,
-                problem.message,
-                None,
-                None,
-                None,
-            ));
+        match Self::plan_impl(&probe_request, resolved_assets) {
+            Ok(plan) => {
+                if let Ok(backend) = &backend
+                    && let Err(problem) = backend.validate_timeline_request(&plan.media_request)
+                    && !issues
+                        .iter()
+                        .any(|issue| issue.message == problem.to_string())
+                {
+                    issues.push(preflight_issue(
+                        problem.code(),
+                        problem.to_string(),
+                        None,
+                        None,
+                        None,
+                    ));
+                }
+            }
+            Err(problem) if !issues.iter().any(|issue| issue.message == problem.message) => {
+                issues.push(preflight_issue(
+                    problem.code,
+                    problem.message,
+                    None,
+                    None,
+                    None,
+                ));
+            }
+            Err(_) => {}
         }
         ProjectPreflightReport {
             revision,

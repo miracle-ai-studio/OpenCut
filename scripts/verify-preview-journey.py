@@ -35,7 +35,7 @@ def sha(path):
     return digest.hexdigest()
 
 
-def verify(binary, root):
+def verify(binary, root, fixture_seconds):
     root.mkdir(parents=True, exist_ok=True)
     database = root / 'workspace.sqlite'
     owner, runner, reader = (root / f'{name}.secret' for name in ('owner', 'runner', 'reader'))
@@ -141,6 +141,12 @@ def verify(binary, root):
     def preview_inputs():
         return set((root / 'previews').glob('.opencut-preview-*'))
 
+    def preview_ffmpeg_processes():
+        processes = subprocess.check_output(['ps', '-axo', 'command='], text=True)
+        return [line for line in processes.splitlines()
+                if 'ffmpeg' in line and str(root / 'previews') in line
+                and '.opencut-preview-' in line]
+
     def upload(path, key):
         content = path.read_bytes()
         item = tool('opencut_upload_create', {'project_id': 'preview', 'idempotency_key': key,
@@ -170,12 +176,12 @@ def verify(binary, root):
         fixture = root / 'preview-source.mp4'
         audio_fixture = root / 'preview-source.wav'
         subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
-            'color=c=0x202836:size=320x180:rate=25:duration=6', '-f', 'lavfi', '-i',
-            'sine=frequency=440:sample_rate=48000:duration=6', '-c:v', 'mpeg4', '-c:a', 'aac',
-            '-shortest', '-y', str(fixture)], check=True, timeout=60)
+            f'color=c=0x202836:size=320x180:rate=25:duration={fixture_seconds}', '-f', 'lavfi', '-i',
+            f'sine=frequency=440:sample_rate=48000:duration={fixture_seconds}', '-c:v', 'mpeg4', '-c:a', 'aac',
+            '-shortest', '-y', str(fixture)], check=True, timeout=max(60, fixture_seconds * 2))
         subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
-            'sine=frequency=440:sample_rate=48000:duration=6', '-c:a', 'pcm_s16le',
-            '-y', str(audio_fixture)], check=True, timeout=60)
+            f'sine=frequency=440:sample_rate=48000:duration={fixture_seconds}', '-c:a', 'pcm_s16le',
+            '-y', str(audio_fixture)], check=True, timeout=max(60, fixture_seconds * 2))
         created = cli(['call', 'opencut_project_create', '--input', '-'], {
             'project': {'id': 'preview', 'name': 'Continuous preview fixture', 'sequence_id': 'main',
                         'width': 320, 'height': 180, 'fps': {'numerator': 25, 'denominator': 1}},
@@ -188,14 +194,15 @@ def verify(binary, root):
         start_host()
         asset = upload(fixture, 'source-upload')
         assert asset['kind'] == 'video' and asset['version']['content_hash'] == sha(fixture)
-        asset.update(id='source', name='Six second audio visual fixture')
+        asset.update(id='source', name=f'{fixture_seconds} second audio visual fixture')
         audio_asset = upload(audio_fixture, 'audio-upload')
         assert audio_asset['kind'] == 'audio' and audio_asset['version']['content_hash'] == sha(audio_fixture)
-        audio_asset.update(id='sound-source', name='Six second tone')
+        audio_asset.update(id='sound-source', name=f'{fixture_seconds} second tone')
         track = lambda name, kind: {'id': name, 'name': name, 'kind': kind,
             'enabled': True, 'muted': False, 'locked': False, 'clips': [], 'params': {}}
-        clip = lambda name, asset_id: {'id': name, 'asset_id': asset_id, 'timeline_range': span(0, 6000),
-            'source_range': span(0, 6000), 'params': {}, 'channels': []}
+        clip = lambda name, asset_id: {'id': name, 'asset_id': asset_id,
+            'timeline_range': span(0, fixture_seconds * 1000),
+            'source_range': span(0, fixture_seconds * 1000), 'params': {}, 'channels': []}
         bound = tool('opencut_edit_apply', {'project_id': 'preview', 'request': {
             'expected_revision': created['revision'], 'idempotency_key': 'bind', 'label': 'bind fixture',
             'operations': [{'type': 'asset.bind', 'asset': asset},
@@ -231,7 +238,7 @@ def verify(binary, root):
         current = tool('opencut_preview_inspect', {'session_id': ready['session_id']})
         assert current['presentation'] is None
         # A malformed seek is rejected before it can invalidate the live generation.
-        control(playing, {'kind': 'seek', 'sequence_time': tick(6000),
+        control(playing, {'kind': 'seek', 'sequence_time': tick(fixture_seconds * 1000),
                           'alignment': 'exact'}, 'INVALID_ARGUMENT')
         assert tool('opencut_preview_inspect', {'session_id': ready['session_id']})['generation'] == '1'
         opened, error = stream(playing)
@@ -245,6 +252,7 @@ def verify(binary, root):
 
         connection, response = opened
         fmp4 = root / 'preview-stream.mp4'
+        stream_started = time.monotonic()
         with fmp4.open('wb') as output:
             while True:
                 chunk = response.read(64 * 1024)
@@ -252,21 +260,49 @@ def verify(binary, root):
                     break
                 output.write(chunk)
         connection.close()
+        stream_seconds = time.monotonic() - stream_started
         assert fmp4.stat().st_size > 1024
         probe = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-show_entries',
             'stream=codec_type,codec_name:format=format_name,duration', '-of', 'json', str(fmp4)],
             check=True, capture_output=True, text=True, timeout=30).stdout)
         kinds = {stream['codec_type'] for stream in probe['streams']}
         assert {'video', 'audio'} <= kinds and 'mov' in probe['format']['format_name'], probe
+        actual_duration = float(probe['format']['duration'])
+        assert abs(actual_duration - fixture_seconds) <= .1, (actual_duration, fixture_seconds)
         subprocess.run(['ffmpeg', '-v', 'error', '-i', str(fmp4), '-f', 'null', '-'],
-                       check=True, capture_output=True, timeout=45)
+                       check=True, capture_output=True, timeout=max(45, fixture_seconds * 2))
         frame = subprocess.check_output(['ffmpeg', '-v', 'error', '-ss', '1.5', '-i', str(fmp4),
             '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], timeout=30)
         assert len(frame) == 320 * 180 * 3
         bright = sum(1 for offset in range(0, len(frame), 3)
                      if min(frame[offset:offset + 3]) > 180)
         assert bright > 100, f'Caption glyphs missing from decoded preview frame: {bright}'
-        checks.append('One continuous generation decodes as fMP4 with video, audio and visible caption glyphs')
+        checks.append('One continuous generation decodes at the requested duration as fMP4 with video, audio and visible caption glyphs')
+
+        disconnect_ready = tool('opencut_preview_create', {
+            **create, 'idempotency_key': 'disconnect-session'})
+        disconnect_playing = control(disconnect_ready, {'kind': 'play'})
+        disconnect_stream, disconnect_error = stream(disconnect_playing)
+        assert disconnect_error is None, disconnect_error
+        disconnect_connection, disconnect_response = disconnect_stream
+        assert disconnect_response.read(1024), 'Disconnected preview stream produced no bytes'
+        disconnect_response.close()
+        disconnect_connection.close()
+        deadline = time.monotonic() + 10
+        disconnected = None
+        while time.monotonic() < deadline:
+            disconnected = tool('opencut_preview_inspect', {
+                'session_id': disconnect_ready['session_id']})
+            if disconnected['state'] == 'failed':
+                break
+            time.sleep(.1)
+        assert disconnected and disconnected['state'] == 'failed' \
+            and disconnected['failure_code'] == 'PREVIEW_DISCONNECTED', disconnected
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and preview_ffmpeg_processes():
+            time.sleep(.1)
+        assert not preview_ffmpeg_processes(), 'HTTP disconnect orphaned preview FFmpeg'
+        checks.append('HTTP client disconnect cancels its generation, records PREVIEW_DISCONNECTED and reaps FFmpeg')
 
         telemetry = {'sequence': '1', 'presented_time': tick(1000), 'media_clock_time': tick(1000),
             'playing': True, 'stalled': False, 'client_observed_at_ms': str(int(time.time() * 1000))}
@@ -348,12 +384,14 @@ def verify(binary, root):
         while time.monotonic() < deadline and preview_inputs():
             time.sleep(.1)
         assert not preview_inputs(), 'SIGTERM retained preview private inputs'
-        processes = subprocess.check_output(['ps', '-axo', 'command='], text=True)
-        assert not any('ffmpeg' in line and str(root / '.opencut-preview-') in line
-                       for line in processes.splitlines()), 'SIGTERM orphaned preview FFmpeg'
+        assert not preview_ffmpeg_processes(), 'SIGTERM orphaned preview FFmpeg'
         checks.append('SIGTERM reaps preview inputs and FFmpeg; restart terminates ephemeral session')
         report = {'status': 'passed', 'checks': checks, 'binary_sha256': sha(binary),
-                  'media': str(fmp4), 'session_id': ready['session_id']}
+                  'fixture_duration_seconds': fixture_seconds,
+                  'stream_duration_seconds': actual_duration,
+                  'stream_transfer_seconds': round(stream_seconds, 3),
+                  'stream_bytes': fmp4.stat().st_size, 'stream_sha256': sha(fmp4),
+                  'session_id': ready['session_id']}
         (root / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps({'status': 'passed', 'report': str(root / 'report.json')}))
     except Exception as error:
@@ -372,6 +410,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--artifacts-dir', type=Path)
+    parser.add_argument('--fixture-seconds', type=int, default=6,
+                        help='continuous A/V duration for the acceptance fixture (6..300)')
     args = parser.parse_args()
+    if not 6 <= args.fixture_seconds <= 300:
+        parser.error('--fixture-seconds must be between 6 and 300')
     verify(args.binary.resolve(),
-           (args.artifacts_dir or Path(tempfile.mkdtemp(prefix='opencut-preview-'))).resolve())
+           (args.artifacts_dir or Path(tempfile.mkdtemp(prefix='opencut-preview-'))).resolve(),
+           args.fixture_seconds)
