@@ -13559,24 +13559,16 @@ export namespace OpencutProjectV3PackageImportInput {
 
 export namespace OpencutProjectV3PackageImportOutput {
 /**
- * Project authorization policy is carried for review and restoration, never applied on import.
+ * Fully parameterized calls that an Owner may review and apply after import.
  */
-  export type PackagePluginGrant =
+  export type PluginGrantRestoreAction =
   | {
-      enabled: boolean;
-      id: string;
-      kind: 'planner_v1';
-      operations: string[];
-      package_sha256: string;
-      version: string;
+      input: SetGrant;
+      tool: 'opencut_project_plugin_grant';
     }
   | {
-      enabled: boolean;
-      id: string;
-      kind: 'preset_v2';
-      package_sha256: string;
-      preset_names: string[];
-      version: string;
+      input: SetGrant2;
+      tool: 'opencut_plugin_v2_grant';
     };
 
   export interface Response {
@@ -13594,9 +13586,9 @@ export namespace OpencutProjectV3PackageImportOutput {
   fully_reproducible: boolean;
   manifest_sha256: string;
   /**
-   * Owner-reviewed actions; no project grants are automatically applied during import.
+   * Direct tool calls for Owner review; import never executes these actions.
    */
-  plugin_grant_restore_plan: PackagePluginGrant[];
+  plugin_grant_restore_plan: PluginGrantRestoreAction[];
   revision: string;
   self_contained_media: boolean;
   source_project_id: string;
@@ -13620,6 +13612,32 @@ export namespace OpencutProjectV3PackageImportOutput {
    */
   tools_not_locked: string[];
   unsupported: string[];
+}
+  export interface SetGrant {
+  enabled: boolean;
+  expected_revision: string;
+  idempotency_key: string;
+  operations: string[];
+  package_sha256: string;
+  target: PluginTarget;
+}
+  export interface PluginTarget {
+  id: string;
+  project_id: string;
+  version: string;
+}
+  export interface SetGrant2 {
+  enabled: boolean;
+  expected_revision: string;
+  idempotency_key: string;
+  package_sha256: string;
+  preset_names: string[];
+  target: GrantTarget;
+}
+  export interface GrantTarget {
+  id: string;
+  project_id: string;
+  version: string;
 }
   export interface PackageToolLock {
   binary_sha256: string;

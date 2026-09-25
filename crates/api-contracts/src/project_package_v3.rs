@@ -67,6 +67,16 @@ pub enum PackagePluginGrant {
     },
 }
 
+/// Fully parameterized calls that an Owner may review and apply after import.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "tool", content = "input", deny_unknown_fields)]
+pub enum PluginGrantRestoreAction {
+    #[serde(rename = "opencut_project_plugin_grant")]
+    PlannerV1(crate::project_plugins::SetGrant),
+    #[serde(rename = "opencut_plugin_v2_grant")]
+    PresetV2(crate::plugin_v2::SetGrant),
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PreparedImportV3 {
@@ -118,8 +128,8 @@ pub struct ImportReceipt {
     pub tool_locks: Vec<PackageToolLock>,
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,
-    /// Owner-reviewed actions; no project grants are automatically applied during import.
-    pub plugin_grant_restore_plan: Vec<PackagePluginGrant>,
+    /// Direct tool calls for Owner review; import never executes these actions.
+    pub plugin_grant_restore_plan: Vec<PluginGrantRestoreAction>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
 }

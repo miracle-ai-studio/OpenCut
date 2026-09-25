@@ -3603,7 +3603,7 @@
     "/v1/tools/opencut_project_v3_package_import": {
       "post": {
         "operationId": "opencut_project_v3_package_import",
-        "description": "Owner-local: import schema 2 or 3 legacy packages and package schema 4 for schema 3 projects. Reports missing font families, native tool mismatches and an owner-reviewed plugin grant restore plan; never installs plugins or automatically applies grants. Replay uses the manifest hash and idempotency key.",
+        "description": "Owner-local: import schema 2 or 3 legacy packages and package schema 4 for schema 3 projects. Reports missing font families, native tool mismatches and typed {tool,input} plugin grant restore calls; never installs plugins or automatically applies grants. Review and invoke restore calls separately. Replay uses the manifest hash and idempotency key.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -62942,6 +62942,26 @@
             ],
             "type": "object"
           },
+          "GrantTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project_id",
+              "id",
+              "version"
+            ],
+            "type": "object"
+          },
           "ImportReceipt": {
             "additionalProperties": false,
             "properties": {
@@ -62964,9 +62984,9 @@
                 "type": "string"
               },
               "plugin_grant_restore_plan": {
-                "description": "Owner-reviewed actions; no project grants are automatically applied during import.",
+                "description": "Direct tool calls for Owner review; import never executes these actions.",
                 "items": {
-                  "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PackagePluginGrant"
+                  "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PluginGrantRestoreAction"
                 },
                 "type": "array"
               },
@@ -63058,85 +63078,6 @@
             ],
             "type": "object"
           },
-          "PackagePluginGrant": {
-            "description": "Project authorization policy is carried for review and restoration, never applied on import.",
-            "oneOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "const": "planner_v1",
-                    "type": "string"
-                  },
-                  "operations": {
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array",
-                    "uniqueItems": true
-                  },
-                  "package_sha256": {
-                    "type": "string"
-                  },
-                  "version": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id",
-                  "version",
-                  "package_sha256",
-                  "operations",
-                  "enabled"
-                ],
-                "type": "object"
-              },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "const": "preset_v2",
-                    "type": "string"
-                  },
-                  "package_sha256": {
-                    "type": "string"
-                  },
-                  "preset_names": {
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array",
-                    "uniqueItems": true
-                  },
-                  "version": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id",
-                  "version",
-                  "package_sha256",
-                  "preset_names",
-                  "enabled"
-                ],
-                "type": "object"
-              }
-            ]
-          },
           "PackageToolLock": {
             "additionalProperties": false,
             "properties": {
@@ -63154,6 +63095,137 @@
               "name",
               "version",
               "binary_sha256"
+            ],
+            "type": "object"
+          },
+          "PluginGrantRestoreAction": {
+            "description": "Fully parameterized calls that an Owner may review and apply after import.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/SetGrant"
+                  },
+                  "tool": {
+                    "const": "opencut_project_plugin_grant",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "input"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/SetGrant2"
+                  },
+                  "tool": {
+                    "const": "opencut_plugin_v2_grant",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "input"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "PluginTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project_id",
+              "id",
+              "version"
+            ],
+            "type": "object"
+          },
+          "SetGrant": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "expected_revision": {
+                "type": "string"
+              },
+              "idempotency_key": {
+                "type": "string"
+              },
+              "operations": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "uniqueItems": true
+              },
+              "package_sha256": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PluginTarget"
+              }
+            },
+            "required": [
+              "target",
+              "package_sha256",
+              "operations",
+              "enabled",
+              "expected_revision",
+              "idempotency_key"
+            ],
+            "type": "object"
+          },
+          "SetGrant2": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "expected_revision": {
+                "type": "string"
+              },
+              "idempotency_key": {
+                "type": "string"
+              },
+              "package_sha256": {
+                "type": "string"
+              },
+              "preset_names": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "uniqueItems": true
+              },
+              "target": {
+                "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/GrantTarget"
+              }
+            },
+            "required": [
+              "target",
+              "package_sha256",
+              "preset_names",
+              "enabled",
+              "expected_revision",
+              "idempotency_key"
             ],
             "type": "object"
           }

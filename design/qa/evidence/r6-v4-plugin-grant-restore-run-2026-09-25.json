@@ -1,7 +1,7 @@
 {
-  "binary_sha256": "6101e6a5ac182578daf026e2ab2672653effbebd7d54017bd99d79e3fdbf8286",
+  "binary_sha256": "68c11d7202bf7f27d92742ba8c5efc1b8f97d05f2283dd1f353c4934d8b4f4b9",
   "source_sha256": "038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
-  "manifest_sha256": "70753dccee6612576ae4a6a94cbdc28cc31b9bc8de8150f3502e21df983608ef",
+  "manifest_sha256": "90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202",
   "tool_locks": [
     {
       "name": "ffmpeg",
@@ -31,7 +31,7 @@
     ],
     "render_preflight_ready": false
   },
-  "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+  "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
   "imported_revision": "rev_10554675bc42d9e2c3847c97bcf27c0f77253c0871943772a58d7265bc217b43",
   "render_sha256": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
   "pixels": {
@@ -68,7 +68,7 @@
     "tool lock mismatch remains importable and is reported",
     "schema 2 package compatibility remains explicit as unlocked",
     "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
-    "import returns full enabled and disabled grant snapshots without installing or granting in the target workspace",
+    "typed restore actions do not run during import; Owner installs the exact V2 package, applies V1/V2 actions explicitly and replays them idempotently",
     "missing font families are reported on import and block render preflight"
   ],
   "trace": [
@@ -77,7 +77,7 @@
       "tool": "opencut_project_v3_create",
       "response": {
         "api_version": "1",
-        "request_id": "6bcddae5-89ef-4793-afcf-7aa07724f06c",
+        "request_id": "56929e0d-6883-43ac-808a-9dea2d94ba3b",
         "data": {
           "project": {
             "base": {
@@ -116,7 +116,7 @@
       "tool": "opencut_edit_v3_apply",
       "response": {
         "api_version": "1",
-        "request_id": "06008776-832a-4b06-a327-789d11ba507c",
+        "request_id": "0cdf9165-000f-40c4-8d07-791260a1fb32",
         "data": {
           "base_revision": "rev_7708a671dc286abd124f02b92837b90987f649b9d3af05a2d8018e55d3d88631",
           "changed_ids": [
@@ -133,8 +133,8 @@
             "video"
           ],
           "deleted_ids": [],
-          "revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
-          "transaction_id": "txn_d29065cb5f104ea6acd82fee5ac64270"
+          "revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
+          "transaction_id": "txn_1d9ff897461a47a284acc25c5ec779d1"
         },
         "error": null,
         "warnings": []
@@ -145,7 +145,7 @@
       "tool": "opencut_project_plugin_grant",
       "response": {
         "api_version": "1",
-        "request_id": "232ff329-9ab7-4905-b9c6-34fdb46559ea",
+        "request_id": "8a5d22b3-0a64-4d6f-a468-9c86c9fe659d",
         "data": {
           "enabled": true,
           "operations": [
@@ -168,7 +168,7 @@
       "tool": "opencut_project_plugin_grant",
       "response": {
         "api_version": "1",
-        "request_id": "bea301b8-378a-4f1f-b6e9-b55b6d6917ce",
+        "request_id": "cf13570b-ef00-4ebd-9fba-bed74d6ba7a5",
         "data": {
           "enabled": false,
           "operations": [
@@ -191,7 +191,7 @@
       "tool": "opencut_plugin_v2_install",
       "response": {
         "api_version": "1",
-        "request_id": "31082773-2ade-4eb2-b018-b9b2d648d85b",
+        "request_id": "09ed363e-a929-413a-9299-de6f84e8e518",
         "data": {
           "manifest": {
             "display_name": "Package preset",
@@ -217,7 +217,7 @@
       "tool": "opencut_plugin_v2_grant",
       "response": {
         "api_version": "1",
-        "request_id": "f9f15597-e472-4941-b99e-52ea49f6e8e4",
+        "request_id": "624bf286-f660-42ed-a802-697e6254b1ed",
         "data": {
           "enabled": true,
           "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
@@ -240,7 +240,7 @@
       "tool": "opencut_project_v3_package_export",
       "response": {
         "api_version": "1",
-        "request_id": "969d926e-3fb6-462e-960d-531c696b73a6",
+        "request_id": "74f7dac4-ea9e-4ebb-90d0-1c38b9d32621",
         "data": {
           "asset_count": 1,
           "dependencies": {
@@ -255,8 +255,8 @@
             "unsupported": []
           },
           "fully_reproducible": false,
-          "manifest_sha256": "aa60690fbf3be30cac4bb68cb17b07e9438afc2a97f3843eb04177c0d90176e4",
-          "package_path": "/private/tmp/package-v3-1790341551595739000/linked.opencut",
+          "manifest_sha256": "39b8e56cb2a71572fd08bb6340dd74ba3ed5b2809b43648807f1c7e73a2094d8",
+          "package_path": "/private/tmp/package-v3-1790342304607908000/linked.opencut",
           "plugin_grants": [
             {
               "enabled": false,
@@ -280,7 +280,7 @@
             }
           ],
           "self_contained_media": false,
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "tool_locks": [
             {
               "binary_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
@@ -303,7 +303,7 @@
       "tool": "opencut_project_v3_package_export",
       "response": {
         "api_version": "1",
-        "request_id": "ca69ddf7-9e91-4af4-83a0-eff6a7983193",
+        "request_id": "94e76f5a-8e8d-4237-8a4f-1e38c69c576d",
         "data": {
           "asset_count": 1,
           "dependencies": {
@@ -318,8 +318,8 @@
             "unsupported": []
           },
           "fully_reproducible": false,
-          "manifest_sha256": "70753dccee6612576ae4a6a94cbdc28cc31b9bc8de8150f3502e21df983608ef",
-          "package_path": "/private/tmp/package-v3-1790341551595739000/portable.opencut",
+          "manifest_sha256": "90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202",
+          "package_path": "/private/tmp/package-v3-1790342304607908000/portable.opencut",
           "plugin_grants": [
             {
               "enabled": false,
@@ -343,7 +343,7 @@
             }
           ],
           "self_contained_media": true,
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "tool_locks": [
             {
               "binary_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
@@ -366,7 +366,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "311d8f62-50c1-40aa-93be-61c8aa93234b",
+        "request_id": "dcedd031-d37a-43a1-b3bc-27f5b2940530",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -382,33 +382,47 @@
           "font_environment_checked": true,
           "fonts_missing": [],
           "fully_reproducible": false,
-          "manifest_sha256": "aa60690fbf3be30cac4bb68cb17b07e9438afc2a97f3843eb04177c0d90176e4",
+          "manifest_sha256": "39b8e56cb2a71572fd08bb6340dd74ba3ed5b2809b43648807f1c7e73a2094d8",
           "plugin_grant_restore_plan": [
             {
-              "enabled": false,
-              "id": "org.example.package-planner",
-              "kind": "planner_v1",
-              "operations": [
-                "org.example.package-planner.apply"
-              ],
-              "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
-              "version": "1.2.0"
+              "input": {
+                "enabled": false,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-39b8e56cb2a71572fd08bb6340dd74ba3ed5b2809b43648807f1c7e73a2094d8-0",
+                "operations": [
+                  "org.example.package-planner.apply"
+                ],
+                "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+                "target": {
+                  "id": "org.example.package-planner",
+                  "project_id": "linked-v3",
+                  "version": "1.2.0"
+                }
+              },
+              "tool": "opencut_project_plugin_grant"
             },
             {
-              "enabled": true,
-              "id": "org.example.package-preset",
-              "kind": "preset_v2",
-              "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
-              "preset_names": [
-                "captions"
-              ],
-              "version": "2.1.0"
+              "input": {
+                "enabled": true,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-39b8e56cb2a71572fd08bb6340dd74ba3ed5b2809b43648807f1c7e73a2094d8-1",
+                "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+                "preset_names": [
+                  "captions"
+                ],
+                "target": {
+                  "id": "org.example.package-preset",
+                  "project_id": "linked-v3",
+                  "version": "2.1.0"
+                }
+              },
+              "tool": "opencut_plugin_v2_grant"
             }
           ],
           "revision": "rev_1ea727c39d1132015da9063040181e0d343bcaa840aeb96f403d9525bf72ebb0",
           "self_contained_media": false,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "linked-v3",
           "tool_environment_matches": true,
           "tool_lock_mismatches": [],
@@ -434,7 +448,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "9f6c29c5-9483-4522-ba49-d0050d8a04ca",
+        "request_id": "2346ed1d-c836-4dc0-895d-c0445b518b18",
         "data": null,
         "error": {
           "code": "PACKAGE_IO_ERROR",
@@ -449,7 +463,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "b74beb53-e20a-46bd-9db5-104bb4d178dd",
+        "request_id": "a9ce07b8-6417-4bce-b68d-fc52420149ba",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -465,33 +479,47 @@
           "font_environment_checked": true,
           "fonts_missing": [],
           "fully_reproducible": false,
-          "manifest_sha256": "70753dccee6612576ae4a6a94cbdc28cc31b9bc8de8150f3502e21df983608ef",
+          "manifest_sha256": "90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202",
           "plugin_grant_restore_plan": [
             {
-              "enabled": false,
-              "id": "org.example.package-planner",
-              "kind": "planner_v1",
-              "operations": [
-                "org.example.package-planner.apply"
-              ],
-              "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
-              "version": "1.2.0"
+              "input": {
+                "enabled": false,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202-0",
+                "operations": [
+                  "org.example.package-planner.apply"
+                ],
+                "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+                "target": {
+                  "id": "org.example.package-planner",
+                  "project_id": "restored-v3",
+                  "version": "1.2.0"
+                }
+              },
+              "tool": "opencut_project_plugin_grant"
             },
             {
-              "enabled": true,
-              "id": "org.example.package-preset",
-              "kind": "preset_v2",
-              "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
-              "preset_names": [
-                "captions"
-              ],
-              "version": "2.1.0"
+              "input": {
+                "enabled": true,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202-1",
+                "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+                "preset_names": [
+                  "captions"
+                ],
+                "target": {
+                  "id": "org.example.package-preset",
+                  "project_id": "restored-v3",
+                  "version": "2.1.0"
+                }
+              },
+              "tool": "opencut_plugin_v2_grant"
             }
           ],
           "revision": "rev_10554675bc42d9e2c3847c97bcf27c0f77253c0871943772a58d7265bc217b43",
           "self_contained_media": true,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "restored-v3",
           "tool_environment_matches": true,
           "tool_lock_mismatches": [],
@@ -517,7 +545,7 @@
       "tool": "opencut_project_plugin_list",
       "response": {
         "api_version": "1",
-        "request_id": "009b20a9-5162-4146-beeb-1b0108dbfa85",
+        "request_id": "496fa051-7369-47b1-a00b-4a46b0c0d4ce",
         "data": [],
         "error": null,
         "warnings": []
@@ -528,7 +556,7 @@
       "tool": "opencut_plugin_v2_grants",
       "response": {
         "api_version": "1",
-        "request_id": "605d1672-d271-47a3-bf9f-8207275fddee",
+        "request_id": "5434e4ce-d944-40d6-ab2c-e8209d13d74a",
         "data": [],
         "error": null,
         "warnings": []
@@ -539,7 +567,7 @@
       "tool": "opencut_plugin_list",
       "response": {
         "api_version": "1",
-        "request_id": "330ed1c8-81fa-42b4-918f-ebe6b40db6a9",
+        "request_id": "d7771504-58e1-4868-ab96-1e169cab4315",
         "data": [],
         "error": null,
         "warnings": []
@@ -550,8 +578,176 @@
       "tool": "opencut_plugin_v2_list",
       "response": {
         "api_version": "1",
-        "request_id": "a35a2c94-9aae-47ad-b2e5-03c0db80333b",
+        "request_id": "ecf72c46-ee8e-4068-b674-db9dae042157",
         "data": [],
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_plugin_v2_install",
+      "response": {
+        "api_version": "1",
+        "request_id": "77a29a0b-26e4-4be9-9a9f-d803a0b93d95",
+        "data": {
+          "manifest": {
+            "display_name": "Package preset",
+            "id": "org.example.package-preset",
+            "manifest_version": 2,
+            "presets": [
+              {
+                "name": "captions",
+                "spec_path": "specs/captions.json",
+                "spec_sha256": "61e4c47ae17c7f84a3670b990cdbf40794d5ed9eb4ef1563034d964d395f7149"
+              }
+            ],
+            "version": "2.1.0"
+          },
+          "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_plugin_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "1d996cfb-4157-439e-a893-b4480af78724",
+        "data": {
+          "enabled": false,
+          "operations": [
+            "org.example.package-planner.apply"
+          ],
+          "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+          "revision": "1",
+          "target": {
+            "id": "org.example.package-planner",
+            "project_id": "restored-v3",
+            "version": "1.2.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "96ae3604-214d-4840-9245-155637aca3cb",
+        "data": {
+          "enabled": true,
+          "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+          "preset_names": [
+            "captions"
+          ],
+          "revision": "1",
+          "target": {
+            "id": "org.example.package-preset",
+            "project_id": "restored-v3",
+            "version": "2.1.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_plugin_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "c498fde7-47b9-473e-8001-4b4e2ba3041c",
+        "data": {
+          "enabled": false,
+          "operations": [
+            "org.example.package-planner.apply"
+          ],
+          "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+          "revision": "1",
+          "target": {
+            "id": "org.example.package-planner",
+            "project_id": "restored-v3",
+            "version": "1.2.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "668cd5a7-bf85-4c7e-8245-0efd63d48a94",
+        "data": {
+          "enabled": true,
+          "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+          "preset_names": [
+            "captions"
+          ],
+          "revision": "1",
+          "target": {
+            "id": "org.example.package-preset",
+            "project_id": "restored-v3",
+            "version": "2.1.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_plugin_list",
+      "response": {
+        "api_version": "1",
+        "request_id": "30e94d85-3d46-49bb-8170-ecbc8138b28f",
+        "data": [
+          {
+            "enabled": false,
+            "operations": [
+              "org.example.package-planner.apply"
+            ],
+            "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+            "revision": "1",
+            "target": {
+              "id": "org.example.package-planner",
+              "project_id": "restored-v3",
+              "version": "1.2.0"
+            }
+          }
+        ],
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_plugin_v2_grants",
+      "response": {
+        "api_version": "1",
+        "request_id": "99eb5934-da6d-4825-8941-86b0d863204b",
+        "data": [
+          {
+            "enabled": true,
+            "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+            "preset_names": [
+              "captions"
+            ],
+            "revision": "1",
+            "target": {
+              "id": "org.example.package-preset",
+              "project_id": "restored-v3",
+              "version": "2.1.0"
+            }
+          }
+        ],
         "error": null,
         "warnings": []
       }
@@ -561,7 +757,7 @@
       "tool": "opencut_project_v3_inspect",
       "response": {
         "api_version": "1",
-        "request_id": "12b747bd-c659-4d19-b584-3d6d1e306c66",
+        "request_id": "68a1c7c1-2c9a-442c-991d-a73c7c1c6dd9",
         "data": {
           "project": {
             "base": {
@@ -750,7 +946,7 @@
       "tool": "opencut_project_inspect",
       "response": {
         "api_version": "1",
-        "request_id": "f81b8f76-9440-4964-bc7e-0ed54f662c1a",
+        "request_id": "ef4f7ee9-e4a2-49ce-a089-338c2927ca54",
         "data": null,
         "error": {
           "code": "UNSUPPORTED_PROJECT_VERSION",
@@ -765,7 +961,7 @@
       "tool": "opencut_edit_v3_apply",
       "response": {
         "api_version": "1",
-        "request_id": "6b961d43-8ceb-4c2a-b971-d38e43e7ae79",
+        "request_id": "8b845f79-b731-486d-889b-eafaa65552f0",
         "data": {
           "base_revision": "rev_10554675bc42d9e2c3847c97bcf27c0f77253c0871943772a58d7265bc217b43",
           "changed_ids": [],
@@ -773,8 +969,8 @@
             "green"
           ],
           "deleted_ids": [],
-          "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5",
-          "transaction_id": "txn_2fdadeb80ea5420e9b23802becff4599"
+          "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc",
+          "transaction_id": "txn_5748f54f1c8a4b658a9031fd2611a16c"
         },
         "error": null,
         "warnings": []
@@ -785,11 +981,11 @@
       "tool": "opencut_render_v3_preflight",
       "response": {
         "api_version": "1",
-        "request_id": "54548ff2-c0eb-4df5-9903-43f891ac8dfe",
+        "request_id": "56a1ed86-38a9-413a-8dbe-35418f6d9e68",
         "data": {
           "issues": [],
           "ready": true,
-          "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5",
+          "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc",
           "sequence_id": "main"
         },
         "error": null,
@@ -801,13 +997,13 @@
       "tool": "opencut_job_v3_render",
       "response": {
         "api_version": "1",
-        "request_id": "4f327289-6301-4f8d-b5e6-22eaf78767e3",
+        "request_id": "05c08a7c-6865-4c5f-aeb0-cde666eae79f",
         "data": {
           "artifacts": [],
           "cancel_requested": false,
           "extended_result": null,
           "failure": null,
-          "job_id": "job_d423261a593b4457b48f1c3351294ab0",
+          "job_id": "job_52c8fcfacc7d4346992592e19821fb7b",
           "kind": "render.project.v3",
           "progress": null,
           "resource_target": null,
@@ -816,7 +1012,7 @@
           "state": "queued",
           "target": {
             "project_id": "restored-v3",
-            "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5",
+            "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc",
             "sequence_id": "main"
           }
         },
@@ -829,14 +1025,14 @@
       "tool": "opencut_job_view",
       "response": {
         "api_version": "1",
-        "request_id": "b553e75b-f114-4061-857c-61077162f2a5",
+        "request_id": "f4b6479f-c5bf-4d77-a884-ad09c56551a2",
         "data": {
           "artifacts": [
             {
-              "artifact_id": "artifact:job_d423261a593b4457b48f1c3351294ab0:3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
+              "artifact_id": "artifact:job_52c8fcfacc7d4346992592e19821fb7b:3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
               "availability": "unchecked",
               "content_hash": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
-              "job_id": "job_d423261a593b4457b48f1c3351294ab0",
+              "job_id": "job_52c8fcfacc7d4346992592e19821fb7b",
               "mime_type": "video/mp4",
               "role": "primary",
               "size_bytes": "3327"
@@ -853,7 +1049,7 @@
                     "size": 1852
                   }
                 ],
-                "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5",
+                "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc",
                 "sequence_id": "main",
                 "version": 1
               },
@@ -1069,13 +1265,13 @@
                   "passed": true
                 }
               },
-              "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5"
+              "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc"
             },
             "kind": "render.project.v3",
             "schema_version": 1
           },
           "failure": null,
-          "job_id": "job_d423261a593b4457b48f1c3351294ab0",
+          "job_id": "job_52c8fcfacc7d4346992592e19821fb7b",
           "kind": "render.project.v3",
           "progress": {
             "fraction": null,
@@ -1091,7 +1287,7 @@
           "state": "succeeded",
           "target": {
             "project_id": "restored-v3",
-            "revision": "rev_768326cf27185207725f8925539929b8fe3009a6543aba171937e649c9d993e5",
+            "revision": "rev_3069647e1ceb974ce094b0db49a1b75188b2ca086e4f7bf028212f55e4c881cc",
             "sequence_id": "main"
           }
         },
@@ -1104,7 +1300,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "2c255c8b-2ba6-4f03-a4b6-323b677133b7",
+        "request_id": "0a58690a-caf4-4795-9c46-a448b0da9347",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -1120,33 +1316,47 @@
           "font_environment_checked": true,
           "fonts_missing": [],
           "fully_reproducible": false,
-          "manifest_sha256": "3cf66c7b67ad69898a5ff915760bbde2b964f008a74e63435a5a3e93a3f94070",
+          "manifest_sha256": "ed743b24b8d4b67aff9772564f44a38c3792aab69e4d9e0ddf7cf2b8b36fc7da",
           "plugin_grant_restore_plan": [
             {
-              "enabled": false,
-              "id": "org.example.package-planner",
-              "kind": "planner_v1",
-              "operations": [
-                "org.example.package-planner.apply"
-              ],
-              "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
-              "version": "1.2.0"
+              "input": {
+                "enabled": false,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-ed743b24b8d4b67aff9772564f44a38c3792aab69e4d9e0ddf7cf2b8b36fc7da-0",
+                "operations": [
+                  "org.example.package-planner.apply"
+                ],
+                "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+                "target": {
+                  "id": "org.example.package-planner",
+                  "project_id": "restored-v3-tool-mismatch",
+                  "version": "1.2.0"
+                }
+              },
+              "tool": "opencut_project_plugin_grant"
             },
             {
-              "enabled": true,
-              "id": "org.example.package-preset",
-              "kind": "preset_v2",
-              "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
-              "preset_names": [
-                "captions"
-              ],
-              "version": "2.1.0"
+              "input": {
+                "enabled": true,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-ed743b24b8d4b67aff9772564f44a38c3792aab69e4d9e0ddf7cf2b8b36fc7da-1",
+                "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+                "preset_names": [
+                  "captions"
+                ],
+                "target": {
+                  "id": "org.example.package-preset",
+                  "project_id": "restored-v3-tool-mismatch",
+                  "version": "2.1.0"
+                }
+              },
+              "tool": "opencut_plugin_v2_grant"
             }
           ],
           "revision": "rev_d41eb4565eef8f8d16b3ccee1fc36773db90f6a03a8d12f4b8d1834ff2e621ce",
           "self_contained_media": true,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "restored-v3-tool-mismatch",
           "tool_environment_matches": false,
           "tool_lock_mismatches": [
@@ -1174,7 +1384,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "719c589c-55e9-4696-83e7-5be312199128",
+        "request_id": "fccc74cf-d211-48dd-af9e-2e12bfc01574",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -1190,12 +1400,12 @@
           "font_environment_checked": true,
           "fonts_missing": [],
           "fully_reproducible": false,
-          "manifest_sha256": "a9f782790844b09d515281bedb2a8231bc583ea135556ff2361e5a2fb06a2336",
+          "manifest_sha256": "e128772650768785b569a83b97d827e9dff4e4c0d4542f57d4cc7b335cd3a435",
           "plugin_grant_restore_plan": [],
           "revision": "rev_169743d33dae5d5b889b892bbba6027179637928158845eb0d7ac12b01afae03",
           "self_contained_media": true,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "restored-v3-legacy",
           "tool_environment_matches": false,
           "tool_lock_mismatches": [
@@ -1213,7 +1423,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "f6149aea-4eb8-45d8-af60-7b592f55e46a",
+        "request_id": "375c2f54-9dc6-4d4c-8198-3c4f35055618",
         "data": null,
         "error": {
           "code": "PACKAGE_DEPENDENCY_MISSING",
@@ -1228,7 +1438,7 @@
       "tool": "opencut_project_v3_inspect",
       "response": {
         "api_version": "1",
-        "request_id": "da53d35f-8f4e-48ec-9d2f-5a62d2c884a7",
+        "request_id": "8b7436bf-bb7a-4bdf-9eaa-41c0c97c4461",
         "data": null,
         "error": {
           "code": "NOT_FOUND",
@@ -1243,7 +1453,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "746507ef-f649-439b-8ab8-6be557704d47",
+        "request_id": "96d8a8d3-8edd-4a1f-b51d-485da5e9809c",
         "data": null,
         "error": {
           "code": "PACKAGE_INVALID",
@@ -1258,7 +1468,7 @@
       "tool": "opencut_project_v3_inspect",
       "response": {
         "api_version": "1",
-        "request_id": "45503d15-56bb-4051-891f-8028cb69fae9",
+        "request_id": "989c2aad-2e7d-4dae-b2a5-9e6b0dcc2fce",
         "data": null,
         "error": {
           "code": "NOT_FOUND",
@@ -1273,7 +1483,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "d934d69d-e25b-4435-9318-02540c5a4596",
+        "request_id": "140e05f1-5a96-47b6-bbf5-55a1f4bbd713",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -1291,33 +1501,47 @@
             "OpenCut Missing Package Font 4D27C9"
           ],
           "fully_reproducible": false,
-          "manifest_sha256": "65f57ad883aba5ee55422b828d8f70db3c11d903f380ddc827b85209c720c737",
+          "manifest_sha256": "d0d3fb7421664481112110167bf63a6c831513b870c64565a867f2e48a312c4a",
           "plugin_grant_restore_plan": [
             {
-              "enabled": false,
-              "id": "org.example.package-planner",
-              "kind": "planner_v1",
-              "operations": [
-                "org.example.package-planner.apply"
-              ],
-              "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
-              "version": "1.2.0"
+              "input": {
+                "enabled": false,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-d0d3fb7421664481112110167bf63a6c831513b870c64565a867f2e48a312c4a-0",
+                "operations": [
+                  "org.example.package-planner.apply"
+                ],
+                "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+                "target": {
+                  "id": "org.example.package-planner",
+                  "project_id": "restored-v3-font-missing",
+                  "version": "1.2.0"
+                }
+              },
+              "tool": "opencut_project_plugin_grant"
             },
             {
-              "enabled": true,
-              "id": "org.example.package-preset",
-              "kind": "preset_v2",
-              "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
-              "preset_names": [
-                "captions"
-              ],
-              "version": "2.1.0"
+              "input": {
+                "enabled": true,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-d0d3fb7421664481112110167bf63a6c831513b870c64565a867f2e48a312c4a-1",
+                "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+                "preset_names": [
+                  "captions"
+                ],
+                "target": {
+                  "id": "org.example.package-preset",
+                  "project_id": "restored-v3-font-missing",
+                  "version": "2.1.0"
+                }
+              },
+              "tool": "opencut_plugin_v2_grant"
             }
           ],
           "revision": "rev_3328b9ec4b20b7e36e5f64bc2bae45961a9507343915101476e3c83d9b6c129d",
           "self_contained_media": true,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "restored-v3-font-missing",
           "tool_environment_matches": true,
           "tool_lock_mismatches": [],
@@ -1343,7 +1567,7 @@
       "tool": "opencut_render_v3_preflight",
       "response": {
         "api_version": "1",
-        "request_id": "4476237d-7483-4f45-9c4d-510bfebe42d5",
+        "request_id": "a92e93c6-b9de-48a6-9355-fbb4af386f09",
         "data": {
           "issues": [
             {
@@ -1367,7 +1591,7 @@
       "tool": "opencut_project_v3_package_import",
       "response": {
         "api_version": "1",
-        "request_id": "87ff6d78-078f-41f4-85de-e36a18909ae8",
+        "request_id": "1ba2fd76-aedb-4e96-a42c-5ed735ac03b7",
         "data": {
           "dependencies": {
             "fonts_not_bundled": [
@@ -1383,33 +1607,47 @@
           "font_environment_checked": true,
           "fonts_missing": [],
           "fully_reproducible": false,
-          "manifest_sha256": "70753dccee6612576ae4a6a94cbdc28cc31b9bc8de8150f3502e21df983608ef",
+          "manifest_sha256": "90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202",
           "plugin_grant_restore_plan": [
             {
-              "enabled": false,
-              "id": "org.example.package-planner",
-              "kind": "planner_v1",
-              "operations": [
-                "org.example.package-planner.apply"
-              ],
-              "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
-              "version": "1.2.0"
+              "input": {
+                "enabled": false,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202-0",
+                "operations": [
+                  "org.example.package-planner.apply"
+                ],
+                "package_sha256": "8c149524dbebbf69a7ecfb9ebd209ef8f6f48d1be54cea4f18ebaa9766a601ee",
+                "target": {
+                  "id": "org.example.package-planner",
+                  "project_id": "restored-v3",
+                  "version": "1.2.0"
+                }
+              },
+              "tool": "opencut_project_plugin_grant"
             },
             {
-              "enabled": true,
-              "id": "org.example.package-preset",
-              "kind": "preset_v2",
-              "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
-              "preset_names": [
-                "captions"
-              ],
-              "version": "2.1.0"
+              "input": {
+                "enabled": true,
+                "expected_revision": "0",
+                "idempotency_key": "package-restore-90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202-1",
+                "package_sha256": "2a18ad8795150e5e565797a0e6eeed741aee5e84ab6c78c9b796669223ac2e6a",
+                "preset_names": [
+                  "captions"
+                ],
+                "target": {
+                  "id": "org.example.package-preset",
+                  "project_id": "restored-v3",
+                  "version": "2.1.0"
+                }
+              },
+              "tool": "opencut_plugin_v2_grant"
             }
           ],
           "revision": "rev_10554675bc42d9e2c3847c97bcf27c0f77253c0871943772a58d7265bc217b43",
           "self_contained_media": true,
           "source_project_id": "source-v3",
-          "source_revision": "rev_065f9ca0a12beda12cec7372f6198e84f8080026568845ec7235c4496e5ecde1",
+          "source_revision": "rev_d84bec370f02586de6d84bbaafb307cab7b84df4d5ef12e7125152a9f712e24d",
           "target_project_id": "restored-v3",
           "tool_environment_matches": true,
           "tool_lock_mismatches": [],

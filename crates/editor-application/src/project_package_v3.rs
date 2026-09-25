@@ -2,7 +2,9 @@
 use crate::project_package::{self, PackageExportSource};
 use opencut_api_contracts::{
     project_package::{PackageDependencies, PackageManifest, PreparedImport},
-    project_package_v3::{PackageManifestV3, PackagePluginGrant, PreparedImportV3},
+    project_package_v3::{
+        PackageManifestV3, PackagePluginGrant, PluginGrantRestoreAction, PreparedImportV3,
+    },
 };
 use opencut_contracts::{
     EditorError, ProjectSnapshot,
@@ -120,6 +122,73 @@ fn validate_plugin_grants(grants: &[PackagePluginGrant]) -> Result<(), EditorErr
         previous = Some(identity);
     }
     Ok(())
+}
+
+pub fn plugin_grant_restore_plan(
+    grants: &[PackagePluginGrant],
+    target_project_id: &str,
+    manifest_sha256: &str,
+) -> Result<Vec<PluginGrantRestoreAction>, EditorError> {
+    if target_project_id.trim().is_empty()
+        || target_project_id.len() > 1024
+        || target_project_id.chars().any(char::is_control)
+        || !is_sha256(manifest_sha256)
+    {
+        return Err(EditorError::new(
+            "PACKAGE_INVALID",
+            "Invalid plugin grant restore plan identity",
+        ));
+    }
+    validate_plugin_grants(grants)?;
+    Ok(grants
+        .iter()
+        .enumerate()
+        .map(|(index, grant)| {
+            let idempotency_key = format!("package-restore-{manifest_sha256}-{index}");
+            match grant {
+                PackagePluginGrant::PlannerV1 {
+                    id,
+                    version,
+                    package_sha256,
+                    operations,
+                    enabled,
+                } => PluginGrantRestoreAction::PlannerV1(
+                    opencut_api_contracts::project_plugins::SetGrant {
+                        target: opencut_api_contracts::project_plugins::PluginTarget {
+                            project_id: target_project_id.into(),
+                            id: id.clone(),
+                            version: version.clone(),
+                        },
+                        package_sha256: package_sha256.clone(),
+                        operations: operations.clone(),
+                        enabled: *enabled,
+                        expected_revision: "0".into(),
+                        idempotency_key,
+                    },
+                ),
+                PackagePluginGrant::PresetV2 {
+                    id,
+                    version,
+                    package_sha256,
+                    preset_names,
+                    enabled,
+                } => {
+                    PluginGrantRestoreAction::PresetV2(opencut_api_contracts::plugin_v2::SetGrant {
+                        target: opencut_api_contracts::plugin_v2::GrantTarget {
+                            project_id: target_project_id.into(),
+                            id: id.clone(),
+                            version: version.clone(),
+                        },
+                        package_sha256: package_sha256.clone(),
+                        preset_names: preset_names.clone(),
+                        enabled: *enabled,
+                        expected_revision: "0".into(),
+                        idempotency_key,
+                    })
+                }
+            }
+        })
+        .collect())
 }
 
 pub fn validate_export_document(document: &ProjectDocumentV3) -> Result<(), EditorError> {
@@ -334,6 +403,39 @@ mod tests {
         assert!(validate_manifest(&manifest(2)).is_ok());
         assert!(validate_manifest(&manifest(3)).is_ok());
         assert!(validate_manifest(&manifest(4)).is_ok());
+    }
+
+    #[test]
+    fn restore_plan_is_typed_target_bound_and_idempotent() {
+        let package = manifest(4);
+        let plan =
+            plugin_grant_restore_plan(&package.plugin_grants, "restored-project", &"e".repeat(64))
+                .unwrap();
+        assert_eq!(plan.len(), 2);
+        let v1 = serde_json::to_value(&plan[0]).unwrap();
+        assert_eq!(v1["tool"], "opencut_project_plugin_grant");
+        assert_eq!(v1["input"]["target"]["project_id"], "restored-project");
+        assert_eq!(v1["input"]["expected_revision"], "0");
+        assert_eq!(v1["input"]["enabled"], true);
+        assert_eq!(
+            v1["input"]["idempotency_key"],
+            format!("package-restore-{}-0", "e".repeat(64))
+        );
+        let v2 = serde_json::to_value(&plan[1]).unwrap();
+        assert_eq!(v2["tool"], "opencut_plugin_v2_grant");
+        assert_eq!(v2["input"]["preset_names"], serde_json::json!(["captions"]));
+        assert_eq!(
+            serde_json::to_value(plan).unwrap(),
+            serde_json::to_value(
+                plugin_grant_restore_plan(
+                    &package.plugin_grants,
+                    "restored-project",
+                    &"e".repeat(64)
+                )
+                .unwrap()
+            )
+            .unwrap()
+        );
     }
 
     #[test]

@@ -1,11 +1,11 @@
 {
   "date": "2026-09-25",
   "status": "passed",
-  "acceptance": "release CLI schema4 package round trip with V1/V2 project grant snapshots",
-  "cli_sha256": "6101e6a5ac182578daf026e2ab2672653effbebd7d54017bd99d79e3fdbf8286",
+  "acceptance": "release CLI schema4 package round trip with typed V1/V2 grant restore actions",
+  "cli_sha256": "68c11d7202bf7f27d92742ba8c5efc1b8f97d05f2283dd1f353c4934d8b4f4b9",
   "raw_report": "r6-v4-plugin-grant-restore-run-2026-09-25.json",
-  "raw_report_sha256": "6f2df62cc5b22f0fb20f75b699493dded33dc657e7402c86502e45fae7287545",
-  "manifest_sha256": "70753dccee6612576ae4a6a94cbdc28cc31b9bc8de8150f3502e21df983608ef",
+  "raw_report_sha256": "b4a35820e44fb330ac52842a64ee180f53cf4e81ce125fe8a0c368653ba35800",
+  "manifest_sha256": "90731c7939d1b19df73b09b704cf34a42a36775613a1ea54adda98f41de07202",
   "render_sha256": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
   "tool_locks": [
     {
@@ -48,12 +48,12 @@
     "tool lock mismatch remains importable and is reported",
     "schema 2 package compatibility remains explicit as unlocked",
     "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
-    "import returns full enabled and disabled grant snapshots without installing or granting in the target workspace",
+    "typed restore actions do not run during import; Owner installs the exact V2 package, applies V1/V2 actions explicitly and replays them idempotently",
     "missing font families are reported on import and block render preflight"
   ],
   "validation": {
     "targeted_rust_tests": [
-      "opencut-editor-application project_package_v3: 2 passed",
+      "opencut-editor-application project_package_v3: 3 passed",
       "opencut-sqlite-store sqlite_project_package_v3: 2 passed"
     ],
     "clippy": "opencut-api-contracts, opencut-editor-application, opencut-native-services, opencut-sqlite-store, opencut-automation; all targets; -D warnings",

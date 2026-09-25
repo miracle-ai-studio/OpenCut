@@ -136,12 +136,37 @@ def verify(binary: Path, artifacts: Path):
     imported = call(target, "opencut_project_v3_package_import", request)
     assert imported["tool_environment_matches"] and not imported["tool_lock_mismatches"]
     assert imported["font_environment_checked"] and not imported["fonts_missing"]
-    assert imported["plugin_grant_restore_plan"] == manifest["plugin_grants"]
+    restore_plan = imported["plugin_grant_restore_plan"]
+    assert [item["tool"] for item in restore_plan] == [
+        "opencut_project_plugin_grant", "opencut_plugin_v2_grant"]
+    v1_action = restore_plan[0]["input"]
+    v2_action = restore_plan[1]["input"]
+    assert v1_action["target"]["project_id"] == "restored-v3"
+    assert v1_action["expected_revision"] == v2_action["expected_revision"] == "0"
+    assert v1_action["operations"] == ["org.example.package-planner.apply"]
+    assert not v1_action["enabled"]
+    assert v2_action["target"]["id"] == v2_manifest["id"]
+    assert v2_action["preset_names"] == ["captions"] and v2_action["enabled"]
     assert imported["dependencies"]["plugins_not_bundled"] == manifest["dependencies"]["plugins_not_bundled"]
+    # Import only returns actions. Neither V1/V2 grants nor V2 packages appear until Owner acts.
     assert call(target, "opencut_project_plugin_list", {"project_id": "restored-v3"}) == []
     assert call(target, "opencut_plugin_v2_grants", {"project_id": "restored-v3"}) == []
     assert call(target, "opencut_plugin_list", {}) == []
     assert call(target, "opencut_plugin_v2_list", {}) == []
+    target_v2 = call(target, "opencut_plugin_v2_install", {"package_root": str(v2_package)})
+    assert target_v2["package_sha256"] == v2_action["package_sha256"]
+    restored_v1 = call(target, restore_plan[0]["tool"], v1_action)
+    restored_v2 = call(target, restore_plan[1]["tool"], v2_action)
+    assert not restored_v1["enabled"] and restored_v1["revision"] == "1"
+    assert restored_v2["enabled"] and restored_v2["revision"] == "1"
+    assert restored_v1["package_sha256"] == v1_action["package_sha256"]
+    assert restored_v1["operations"] == v1_action["operations"]
+    assert restored_v2["package_sha256"] == v2_action["package_sha256"]
+    assert restored_v2["preset_names"] == v2_action["preset_names"]
+    assert call(target, restore_plan[0]["tool"], v1_action) == restored_v1
+    assert call(target, restore_plan[1]["tool"], v2_action) == restored_v2
+    assert call(target, "opencut_project_plugin_list", {"project_id": "restored-v3"}) == [restored_v1]
+    assert call(target, "opencut_plugin_v2_grants", {"project_id": "restored-v3"}) == [restored_v2]
     snapshot = call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3", "revision": None})
     assert snapshot["revision"] == imported["revision"]
     assert snapshot["project"]["schema_version"] == 3
@@ -318,7 +343,7 @@ def verify(binary: Path, artifacts: Path):
             "tool lock mismatch remains importable and is reported",
             "schema 2 package compatibility remains explicit as unlocked",
             "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
-            "import returns full enabled and disabled grant snapshots without installing or granting in the target workspace",
+            "typed restore actions do not run during import; Owner installs the exact V2 package, applies V1/V2 actions explicitly and replays them idempotently",
             "missing font families are reported on import and block render preflight"],"trace":trace}
     (run/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     return {"status":"passed","report":str(run/"report.json"),"checks":report["checks"]}

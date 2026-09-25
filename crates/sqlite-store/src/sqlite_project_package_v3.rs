@@ -187,7 +187,11 @@ impl EditorApplication {
             tool_environment_matches: prepared.tool_environment_matches,
             tool_lock_mismatches: prepared.tool_lock_mismatches.clone(),
             plugin_grant_restore_plan: if prepared.manifest.schema_version == 4 {
-                prepared.manifest.plugin_grants.clone()
+                project_package_v3::plugin_grant_restore_plan(
+                    &prepared.manifest.plugin_grants,
+                    &input.target_project_id,
+                    &prepared.manifest_sha256,
+                )?
             } else {
                 Vec::new()
             },
