@@ -2,6 +2,7 @@
 """Real schema 3 package round trip, source removal, continued edit and render."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import shutil
 import socket
@@ -10,8 +11,15 @@ import time
 import urllib.request
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+plugin_spec = importlib.util.spec_from_file_location(
+    "plugin_publication", ROOT / "scripts/verify-plugin-publication.py"
+)
+plugin_fixture = importlib.util.module_from_spec(plugin_spec)
+plugin_spec.loader.exec_module(plugin_fixture)
 
-def verify(binary: Path, artifacts: Path):
+
+def verify(binary: Path, artifacts: Path, component: Path):
     run = artifacts.resolve() / f"package-v3-{time.time_ns()}"
     origin, target = run / "origin", run / "target"
     origin.mkdir(parents=True)
@@ -74,9 +82,14 @@ def verify(binary: Path, artifacts: Path):
         "expected_revision": created["revision"], "idempotency_key": "build-v3",
         "label": "Build portable composition", "operations": operations})
     revision = edited["revision"]
-    v1_target = {"project_id": "source-v3", "id": "org.example.package-planner", "version": "1.2.0"}
-    v1_grant = {"target": v1_target, "package_sha256": hashlib.sha256(b"planner package fixture").hexdigest(),
-        "operations": ["org.example.package-planner.apply"], "enabled": True,
+    v1_package = run / "package-v1"
+    v1_manifest, v1_permissions = plugin_fixture.fixture(v1_package, component)
+    installed_v1 = call(origin, "opencut_plugin_install", {"package_root": str(v1_package),
+        "granted_permissions": v1_permissions})
+    v1_operation = v1_manifest["contributes"]["operations"][0]["name"]
+    v1_target = {"project_id": "source-v3", "id": v1_manifest["id"], "version": v1_manifest["version"]}
+    v1_grant = {"target": v1_target, "package_sha256": installed_v1["package_sha256"],
+        "operations": [v1_operation], "enabled": True,
         "expected_revision": "0", "idempotency_key": "grant-v1-package"}
     call(origin, "opencut_project_plugin_grant", v1_grant)
     stored_v1_grant = call(origin, "opencut_project_plugin_grant", {**v1_grant,
@@ -106,7 +119,7 @@ def verify(binary: Path, artifacts: Path):
     portable = call(origin, "opencut_project_v3_package_export", {"project_id": "source-v3",
         "revision": revision, "destination": str(run / "portable.opencut"), "mode": "self_contained"})
     manifest = json.loads((Path(portable["package_path"]) / "manifest.json").read_text())
-    assert manifest["schema_version"] == 4 and manifest["project_schema_version"] == 3
+    assert manifest["schema_version"] == 5 and manifest["project_schema_version"] == 3
     assert [lock["name"] for lock in manifest["tool_locks"]] == ["ffmpeg", "ffprobe"]
     assert all(len(lock["binary_sha256"]) == 64 and lock["version"] for lock in manifest["tool_locks"])
     assert manifest["assets"][0]["content_hash"] == source_hash
@@ -114,7 +127,7 @@ def verify(binary: Path, artifacts: Path):
     assert portable["plugin_grants"] == manifest["plugin_grants"]
     assert {grant["kind"] for grant in manifest["plugin_grants"]} == {"planner_v1", "preset_v2"}
     assert any(grant["kind"] == "planner_v1"
-        and grant["operations"] == ["org.example.package-planner.apply"]
+        and grant["operations"] == [v1_operation]
         and not grant["enabled"]
         and grant["package_sha256"] == stored_v1_grant["package_sha256"]
         for grant in manifest["plugin_grants"])
@@ -122,7 +135,18 @@ def verify(binary: Path, artifacts: Path):
         and grant["preset_names"] == ["captions"]
         and grant["package_sha256"] == stored_v2_grant["package_sha256"]
         for grant in manifest["plugin_grants"])
-    assert portable["self_contained_media"] and not portable["fully_reproducible"]
+    assert len(manifest["plugin_bundles"]) == 2
+    assert {bundle["kind"] for bundle in manifest["plugin_bundles"]} == {"planner_v1", "preset_v2"}
+    assert all((Path(portable["package_path"]) / bundle["path"]).is_dir()
+        for bundle in manifest["plugin_bundles"])
+    v1_bundle = Path(portable["package_path"]) / next(
+        bundle["path"] for bundle in manifest["plugin_bundles"] if bundle["kind"] == "planner_v1")
+    assert not (v1_bundle / ".opencut-grants.json").exists()
+    v1_bundle_record = next(bundle for bundle in manifest["plugin_bundles"]
+        if bundle["kind"] == "planner_v1")
+    assert sorted(v1_bundle_record["proposed_global_permissions"]) == sorted(v1_permissions)
+    assert manifest["dependencies"]["plugins_not_bundled"] == []
+    assert portable["self_contained_media"]
     linked_request = {"package_path": linked["package_path"], "target_project_id": "linked-v3",
         "expected_manifest_sha256": linked["manifest_sha256"], "idempotency_key": "import-linked-v3"}
     linked_import = call(target, "opencut_project_v3_package_import", linked_request)
@@ -138,33 +162,61 @@ def verify(binary: Path, artifacts: Path):
     assert imported["font_environment_checked"] and not imported["fonts_missing"]
     restore_plan = imported["plugin_grant_restore_plan"]
     assert [item["tool"] for item in restore_plan] == [
+        "opencut_plugin_install_pinned", "opencut_plugin_v2_install_pinned",
         "opencut_project_plugin_grant", "opencut_plugin_v2_grant"]
-    v1_action = restore_plan[0]["input"]
-    v2_action = restore_plan[1]["input"]
+    v1_install = restore_plan[0]["input"]
+    v2_install = restore_plan[1]["input"]
+    v1_action = restore_plan[2]["input"]
+    v2_action = restore_plan[3]["input"]
+    assert sorted(v1_install["granted_permissions"]) == sorted(v1_permissions)
+    assert v1_install["expected_package_sha256"] == v1_action["package_sha256"]
+    assert v2_install["expected_package_sha256"] == v2_action["package_sha256"]
+    assert v1_install["package_root"] == str(
+        Path(portable["package_path"]) / manifest["plugin_bundles"][0]["path"])
     assert v1_action["target"]["project_id"] == "restored-v3"
     assert v1_action["expected_revision"] == v2_action["expected_revision"] == "0"
-    assert v1_action["operations"] == ["org.example.package-planner.apply"]
+    assert v1_action["operations"] == [v1_operation]
     assert not v1_action["enabled"]
     assert v2_action["target"]["id"] == v2_manifest["id"]
     assert v2_action["preset_names"] == ["captions"] and v2_action["enabled"]
-    assert imported["dependencies"]["plugins_not_bundled"] == manifest["dependencies"]["plugins_not_bundled"]
+    assert imported["dependencies"]["plugins_not_bundled"] == []
     # Import only returns actions. Neither V1/V2 grants nor V2 packages appear until Owner acts.
     assert call(target, "opencut_project_plugin_list", {"project_id": "restored-v3"}) == []
     assert call(target, "opencut_plugin_v2_grants", {"project_id": "restored-v3"}) == []
     assert call(target, "opencut_plugin_list", {}) == []
     assert call(target, "opencut_plugin_v2_list", {}) == []
-    target_v2 = call(target, "opencut_plugin_v2_install", {"package_root": str(v2_package)})
+
+    # The reviewed actions pin the exact verified bytes; replacing either bundle
+    # after import must fail before installation or permission application.
+    for action, tool, manifest_name in [
+        (v1_install, restore_plan[0]["tool"], "manifest.json"),
+        (v2_install, restore_plan[1]["tool"], "manifest_v2.json"),
+    ]:
+        bundle_manifest = Path(action["package_root"]) / manifest_name
+        original_bytes = bundle_manifest.read_bytes()
+        replaced = json.loads(original_bytes)
+        replaced["display_name"] += " replaced after import"
+        bundle_manifest.write_text(json.dumps(replaced, ensure_ascii=False), encoding="utf-8")
+        call(target, tool, action, error="PLUGIN_INTEGRITY")
+        bundle_manifest.write_bytes(original_bytes)
+    assert call(target, "opencut_plugin_list", {}) == []
+    assert call(target, "opencut_plugin_v2_list", {}) == []
+
+    target_v1 = call(target, restore_plan[0]["tool"], v1_install)
+    target_v2 = call(target, restore_plan[1]["tool"], v2_install)
+    assert target_v1["package_sha256"] == v1_action["package_sha256"]
+    assert sorted(target_v1["granted_permissions"]) == sorted(v1_permissions)
     assert target_v2["package_sha256"] == v2_action["package_sha256"]
-    restored_v1 = call(target, restore_plan[0]["tool"], v1_action)
-    restored_v2 = call(target, restore_plan[1]["tool"], v2_action)
+    restored_v1 = call(target, restore_plan[2]["tool"], v1_action)
+    restored_v2 = call(target, restore_plan[3]["tool"], v2_action)
     assert not restored_v1["enabled"] and restored_v1["revision"] == "1"
     assert restored_v2["enabled"] and restored_v2["revision"] == "1"
     assert restored_v1["package_sha256"] == v1_action["package_sha256"]
     assert restored_v1["operations"] == v1_action["operations"]
     assert restored_v2["package_sha256"] == v2_action["package_sha256"]
     assert restored_v2["preset_names"] == v2_action["preset_names"]
-    assert call(target, restore_plan[0]["tool"], v1_action) == restored_v1
-    assert call(target, restore_plan[1]["tool"], v2_action) == restored_v2
+    assert call(target, restore_plan[2]["tool"], v1_action) == restored_v1
+    assert call(target, restore_plan[3]["tool"], v2_action) == restored_v2
     assert call(target, "opencut_project_plugin_list", {"project_id": "restored-v3"}) == [restored_v1]
     assert call(target, "opencut_plugin_v2_grants", {"project_id": "restored-v3"}) == [restored_v2]
     snapshot = call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3", "revision": None})
@@ -249,6 +301,8 @@ def verify(binary: Path, artifacts: Path):
     legacy_manifest["schema_version"] = 2
     legacy_manifest.pop("tool_locks")
     legacy_manifest.pop("plugin_grants")
+    legacy_manifest.pop("plugin_bundles")
+    shutil.rmtree(legacy_package / "plugins")
     legacy_manifest["dependencies"]["plugins_not_bundled"] = []
     legacy_manifest["dependencies"]["tools_not_locked"] = ["ffmpeg", "ffprobe"]
     legacy_manifest["fully_reproducible"] = False
@@ -267,6 +321,11 @@ def verify(binary: Path, artifacts: Path):
     legacy_plugin_manifest = json.loads(legacy_plugin_manifest_path.read_text())
     legacy_plugin_manifest["schema_version"] = 3
     legacy_plugin_manifest.pop("plugin_grants")
+    legacy_plugin_manifest.pop("plugin_bundles")
+    legacy_plugin_manifest["dependencies"]["plugins_not_bundled"] = sorted(
+        f"{('v1' if grant['kind'] == 'planner_v1' else 'v2')}:{grant['id']}@{grant['version']}#{grant['package_sha256']}"
+        for grant in manifest["plugin_grants"])
+    shutil.rmtree(legacy_plugin_package / "plugins")
     legacy_plugin_manifest_bytes = json.dumps(legacy_plugin_manifest, separators=(",", ":")).encode()
     legacy_plugin_manifest_path.write_bytes(legacy_plugin_manifest_bytes)
     legacy_plugin_request = {"package_path": str(legacy_plugin_package),
@@ -277,6 +336,33 @@ def verify(binary: Path, artifacts: Path):
         error="PACKAGE_DEPENDENCY_MISSING")
     call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3-legacy-plugin", "revision": None},
         error="NOT_FOUND")
+
+    plugin_tamper_package = run / "plugin-tampered.opencut"
+    shutil.copytree(portable["package_path"], plugin_tamper_package)
+    bundled_v2 = plugin_tamper_package / next(
+        bundle["path"] for bundle in manifest["plugin_bundles"] if bundle["kind"] == "preset_v2")
+    (bundled_v2 / "specs" / "captions.json").write_bytes(b"tampered")
+    tamper_request = {"package_path": str(plugin_tamper_package), "target_project_id": "restored-v3-plugin-tampered",
+        "expected_manifest_sha256": portable["manifest_sha256"], "idempotency_key": "import-v3-plugin-tampered"}
+    call(target, "opencut_project_v3_package_import", tamper_request, error="PACKAGE_INVALID")
+    call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3-plugin-tampered", "revision": None},
+        error="NOT_FOUND")
+
+    permission_tamper_package = run / "plugin-permission-tampered.opencut"
+    shutil.copytree(portable["package_path"], permission_tamper_package)
+    permission_manifest_path = permission_tamper_package / "manifest.json"
+    permission_manifest = json.loads(permission_manifest_path.read_text())
+    next(bundle for bundle in permission_manifest["plugin_bundles"]
+        if bundle["kind"] == "planner_v1")["proposed_global_permissions"].append("system.admin")
+    permission_manifest_bytes = json.dumps(permission_manifest, separators=(",", ":")).encode()
+    permission_manifest_path.write_bytes(permission_manifest_bytes)
+    permission_request = {"package_path": str(permission_tamper_package),
+        "target_project_id": "restored-v3-plugin-permission-tampered",
+        "expected_manifest_sha256": hashlib.sha256(permission_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-plugin-permission-tampered"}
+    call(target, "opencut_project_v3_package_import", permission_request, error="PACKAGE_INVALID")
+    call(target, "opencut_project_v3_inspect", {
+        "project_id": "restored-v3-plugin-permission-tampered", "revision": None}, error="NOT_FOUND")
 
     grant_mismatch_package = run / "grant-mismatch.opencut"
     shutil.copytree(portable["package_path"], grant_mismatch_package)
@@ -332,7 +418,7 @@ def verify(binary: Path, artifacts: Path):
             "render_preflight_ready": font_preflight["ready"]},
         "source_revision":revision,"imported_revision":imported["revision"],
         "render_sha256":render_hash,"pixels":{"masked_left":left,"masked_right":right,"blue":blue,"green":green},
-        "checks":["schema4 manifest/document, visual graph, and exact V1/V2 grant snapshots validated",
+        "checks":["schema5 manifest/document, visual graph, exact V1/V2 plugin bytes and grant snapshots validated",
             "linked package requires original CAS after source workspace removal",
             "self-contained package imports after origin workspace removal",
             "V3 visual graph survives relocation and accepts a new edit",
@@ -343,11 +429,14 @@ def verify(binary: Path, artifacts: Path):
             "tool lock mismatch remains importable and is reported",
             "schema 2 package compatibility remains explicit as unlocked",
             "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
-            "typed restore actions do not run during import; Owner installs the exact V2 package, applies V1/V2 actions explicitly and replays them idempotently",
+            "typed restore actions do not run during import; Owner reviews proposed V1 host permissions, installs exact V1/V2 bundles, applies grants explicitly and replays them idempotently",
+            "restore install actions reject valid package bytes changed after import using the expected SHA-256 pin",
+            "tampered bundled plugin bytes are rejected before project publication",
+            "tampered V1 permission proposals outside the plugin manifest are rejected before publication",
             "missing font families are reported on import and block render preflight"],"trace":trace}
     (run/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     return {"status":"passed","report":str(run/"report.json"),"checks":report["checks"]}
 
 if __name__ == "__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("--binary",type=Path,required=True);parser.add_argument("--artifacts-dir",type=Path,required=True);args=parser.parse_args()
-    print(json.dumps(verify(args.binary.resolve(),args.artifacts_dir),ensure_ascii=False))
+    parser=argparse.ArgumentParser();parser.add_argument("--binary",type=Path,required=True);parser.add_argument("--artifacts-dir",type=Path,required=True);parser.add_argument("--component",type=Path,default=ROOT/"crates/plugin-host/examples/planner-guest/target/wasm32-wasip2/release/opencut_example_planner_guest.wasm");args=parser.parse_args()
+    print(json.dumps(verify(args.binary.resolve(),args.artifacts_dir, args.component.resolve()),ensure_ascii=False))

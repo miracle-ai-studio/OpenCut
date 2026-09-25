@@ -3,7 +3,8 @@ use crate::project_package::{self, PackageExportSource};
 use opencut_api_contracts::{
     project_package::{PackageDependencies, PackageManifest, PreparedImport},
     project_package_v3::{
-        PackageManifestV3, PackagePluginGrant, PluginGrantRestoreAction, PreparedImportV3,
+        PackageManifestV3, PackagePluginBundle, PackagePluginGrant, PackagePluginKind,
+        PluginGrantRestoreAction, PreparedImportV3,
     },
 };
 use opencut_contracts::{
@@ -52,6 +53,119 @@ fn plugin_dependency_identity(grant: &PackagePluginGrant) -> String {
             ..
         } => format!("v2:{id}@{version}#{package_sha256}"),
     }
+}
+
+fn plugin_bundle_path(kind: PackagePluginKind, id: &str, version: &str, hash: &str) -> String {
+    let kind = match kind {
+        PackagePluginKind::PlannerV1 => "v1",
+        PackagePluginKind::PresetV2 => "v2",
+    };
+    format!("plugins/{kind}/{id}/{version}/{hash}")
+}
+
+fn plugin_bundle_identity(bundle: &PackagePluginBundle) -> String {
+    let kind = match bundle.kind {
+        PackagePluginKind::PlannerV1 => "v1",
+        PackagePluginKind::PresetV2 => "v2",
+    };
+    format!(
+        "{kind}:{}@{}#{}",
+        bundle.id, bundle.version, bundle.package_sha256
+    )
+}
+
+pub fn plugin_bundles(grants: &[PackagePluginGrant]) -> Vec<PackagePluginBundle> {
+    let mut bundles = grants
+        .iter()
+        .map(|grant| match grant {
+            PackagePluginGrant::PlannerV1 {
+                id,
+                version,
+                package_sha256,
+                ..
+            } => PackagePluginBundle {
+                kind: PackagePluginKind::PlannerV1,
+                id: id.clone(),
+                version: version.clone(),
+                package_sha256: package_sha256.clone(),
+                proposed_global_permissions: Default::default(),
+                path: plugin_bundle_path(PackagePluginKind::PlannerV1, id, version, package_sha256),
+            },
+            PackagePluginGrant::PresetV2 {
+                id,
+                version,
+                package_sha256,
+                ..
+            } => PackagePluginBundle {
+                kind: PackagePluginKind::PresetV2,
+                id: id.clone(),
+                version: version.clone(),
+                package_sha256: package_sha256.clone(),
+                proposed_global_permissions: Default::default(),
+                path: plugin_bundle_path(PackagePluginKind::PresetV2, id, version, package_sha256),
+            },
+        })
+        .collect::<Vec<_>>();
+    bundles.sort_by_key(plugin_bundle_identity);
+    bundles
+}
+
+fn validate_plugin_bundles(
+    bundles: &[PackagePluginBundle],
+    grants: &[PackagePluginGrant],
+) -> Result<(), EditorError> {
+    let expected = plugin_bundles(grants);
+    if bundles.len() > 128
+        || bundles.len() != expected.len()
+        || bundles.iter().zip(&expected).any(|(actual, expected)| {
+            actual.kind != expected.kind
+                || actual.id != expected.id
+                || actual.version != expected.version
+                || actual.package_sha256 != expected.package_sha256
+                || actual.path != expected.path
+        })
+    {
+        return Err(EditorError::new(
+            "PACKAGE_INVALID",
+            "Plugin bundle inventory does not match project plugin identities",
+        ));
+    }
+    let mut previous = None;
+    for bundle in bundles {
+        if !is_sha256(&bundle.package_sha256)
+            || bundle.proposed_global_permissions.len() > 32
+            || bundle.proposed_global_permissions.iter().any(|permission| {
+                permission.is_empty()
+                    || permission.len() > 128
+                    || !permission
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+            })
+            || (bundle.kind == PackagePluginKind::PresetV2
+                && !bundle.proposed_global_permissions.is_empty())
+            || bundle.path
+                != plugin_bundle_path(
+                    bundle.kind,
+                    &bundle.id,
+                    &bundle.version,
+                    &bundle.package_sha256,
+                )
+        {
+            return Err(EditorError::new(
+                "PACKAGE_INVALID",
+                "Plugin bundle path or digest is invalid",
+            ));
+        }
+        let identity = plugin_bundle_identity(bundle);
+        if previous.as_ref().is_some_and(|value| value >= &identity) {
+            return Err(EditorError::new(
+                "PACKAGE_INVALID",
+                "Plugin bundles are duplicated or not canonically ordered",
+            ));
+        }
+        previous = Some(identity);
+    }
+    Ok(())
 }
 
 fn validate_plugin_grants(grants: &[PackagePluginGrant]) -> Result<(), EditorError> {
@@ -200,7 +314,7 @@ pub fn prepare_import(
     target_project_id: &str,
 ) -> Result<ProjectDocumentV3, EditorError> {
     let manifest = &prepared.manifest;
-    if !matches!(manifest.schema_version, 2..=4)
+    if !matches!(manifest.schema_version, 2..=5)
         || manifest.project_schema_version != 3
         || prepared.document.schema_version != 3
     {
@@ -210,8 +324,11 @@ pub fn prepare_import(
         ));
     }
     validate_export_document(&prepared.document)?;
-    if manifest.schema_version == 4 {
+    if matches!(manifest.schema_version, 4 | 5) {
         validate_plugin_grants(&manifest.plugin_grants)?;
+    }
+    if manifest.schema_version == 5 {
+        validate_plugin_bundles(&manifest.plugin_bundles, &manifest.plugin_grants)?;
     }
     let source = PackageExportSourceV3 {
         snapshot: ProjectSnapshotV3 {
@@ -224,6 +341,7 @@ pub fn prepare_import(
     let plugin_dependencies_valid = match manifest.schema_version {
         2 | 3 => manifest.plugin_grants.is_empty(),
         4 => declared.plugins_not_bundled == manifest.dependencies.plugins_not_bundled,
+        5 => manifest.dependencies.plugins_not_bundled.is_empty(),
         _ => false,
     };
     if declared.fonts_not_bundled != manifest.dependencies.fonts_not_bundled
@@ -241,7 +359,7 @@ pub fn prepare_import(
     }
     let mut base_dependencies = manifest.dependencies.clone();
     // Grant state travels in the reviewed restore plan and is never enabled by package import.
-    if manifest.schema_version == 4 {
+    if matches!(manifest.schema_version, 4 | 5) {
         base_dependencies.plugins_not_bundled.clear();
     }
     let base_manifest = PackageManifest {
@@ -284,7 +402,7 @@ pub fn validate_manifest(manifest: &PackageManifestV3) -> Result<(), EditorError
             manifest.tool_locks.is_empty()
                 && manifest.dependencies.tools_not_locked == expected_tool_names.map(str::to_owned)
         }
-        3 | 4 => {
+        3..=5 => {
             tool_lock_names == expected_tool_names
                 && manifest
                     .tool_locks
@@ -295,11 +413,18 @@ pub fn validate_manifest(manifest: &PackageManifestV3) -> Result<(), EditorError
         _ => false,
     };
     let grants_valid = match manifest.schema_version {
-        2 | 3 => manifest.plugin_grants.is_empty(),
+        2 | 3 => manifest.plugin_grants.is_empty() && manifest.plugin_bundles.is_empty(),
         4 => {
             validate_plugin_grants(&manifest.plugin_grants).is_ok()
+                && manifest.plugin_bundles.is_empty()
                 && plugin_dependencies(&manifest.plugin_grants)
                     == manifest.dependencies.plugins_not_bundled
+        }
+        5 => {
+            validate_plugin_grants(&manifest.plugin_grants).is_ok()
+                && validate_plugin_bundles(&manifest.plugin_bundles, &manifest.plugin_grants)
+                    .is_ok()
+                && manifest.dependencies.plugins_not_bundled.is_empty()
         }
         _ => false,
     };
@@ -340,7 +465,7 @@ mod tests {
     };
 
     fn manifest(schema_version: u32) -> PackageManifestV3 {
-        let plugin_grants = if schema_version == 4 {
+        let plugin_grants = if matches!(schema_version, 4 | 5) {
             vec![
                 PackagePluginGrant::PlannerV1 {
                     id: "org.example.planner".into(),
@@ -360,7 +485,7 @@ mod tests {
         } else {
             Vec::new()
         };
-        let tool_locks = if matches!(schema_version, 3 | 4) {
+        let tool_locks = if matches!(schema_version, 3..=5) {
             ["ffmpeg", "ffprobe"]
                 .into_iter()
                 .map(|name| PackageToolLock {
@@ -369,6 +494,11 @@ mod tests {
                     binary_sha256: "a".repeat(64),
                 })
                 .collect()
+        } else {
+            Vec::new()
+        };
+        let plugin_bundles = if schema_version == 5 {
+            plugin_bundles(&plugin_grants)
         } else {
             Vec::new()
         };
@@ -383,7 +513,11 @@ mod tests {
             assets: Vec::new(),
             dependencies: PackageDependencies {
                 fonts_not_bundled: Vec::new(),
-                plugins_not_bundled: plugin_dependencies(&plugin_grants),
+                plugins_not_bundled: if schema_version == 5 {
+                    Vec::new()
+                } else {
+                    plugin_dependencies(&plugin_grants)
+                },
                 tools_not_locked: if schema_version == 2 {
                     vec!["ffmpeg".into(), "ffprobe".into()]
                 } else {
@@ -393,8 +527,9 @@ mod tests {
             },
             tool_locks,
             plugin_grants,
+            plugin_bundles,
             self_contained_media: true,
-            fully_reproducible: schema_version == 3,
+            fully_reproducible: matches!(schema_version, 3 | 5),
         }
     }
 
@@ -403,6 +538,7 @@ mod tests {
         assert!(validate_manifest(&manifest(2)).is_ok());
         assert!(validate_manifest(&manifest(3)).is_ok());
         assert!(validate_manifest(&manifest(4)).is_ok());
+        assert!(validate_manifest(&manifest(5)).is_ok());
     }
 
     #[test]
@@ -439,6 +575,22 @@ mod tests {
     }
 
     #[test]
+    fn schema5_grant_restore_plan_keeps_v1_and_v2_actions_typed() {
+        let package = manifest(5);
+        let plan =
+            plugin_grant_restore_plan(&package.plugin_grants, "restored-project", &"e".repeat(64))
+                .unwrap();
+        assert_eq!(plan.len(), 2);
+        let first = serde_json::to_value(&plan[0]).unwrap();
+        assert_eq!(first["tool"], "opencut_project_plugin_grant");
+        assert_eq!(first["input"]["target"]["project_id"], "restored-project");
+        assert_eq!(
+            serde_json::to_value(&plan[1]).unwrap()["tool"],
+            "opencut_plugin_v2_grant"
+        );
+    }
+
+    #[test]
     fn rejects_incomplete_or_misreported_tool_locks() {
         let mut incomplete = manifest(3);
         incomplete.tool_locks.pop();
@@ -470,6 +622,22 @@ mod tests {
             validate_manifest(&missing_plugin_dependency)
                 .unwrap_err()
                 .code,
+            "PACKAGE_INVALID"
+        );
+
+        let mut missing_bundle = manifest(5);
+        missing_bundle.plugin_bundles.pop();
+        assert_eq!(
+            validate_manifest(&missing_bundle).unwrap_err().code,
+            "PACKAGE_INVALID"
+        );
+
+        let mut v2_bundle_permissions = manifest(5);
+        v2_bundle_permissions.plugin_bundles[1]
+            .proposed_global_permissions
+            .insert("edit.plan.propose".into());
+        assert_eq!(
+            validate_manifest(&v2_bundle_permissions).unwrap_err().code,
             "PACKAGE_INVALID"
         );
 

@@ -3564,7 +3564,7 @@
     "/v1/tools/opencut_project_v3_package_export": {
       "post": {
         "operationId": "opencut_project_v3_package_export",
-        "description": "Owner-local: export one complete schema 3 project revision including visual nodes and verified media in package schema 4. Locks exact FFmpeg and ffprobe versions and binary hashes; captures full planner-v1 and preset-v2 project grant snapshots without bundling plugin packages.",
+        "description": "Owner-local: export one complete schema 3 project revision including visual nodes and verified media in package schema 5. Locks exact FFmpeg and ffprobe versions and binary hashes, bundles exact granted planner-v1/preset-v2 package bytes and captures project grant snapshots. V1 global permissions are recorded as an explicit install proposal; host grant files are excluded. Plugin bytes are bounded to 256 MiB total.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -3603,7 +3603,7 @@
     "/v1/tools/opencut_project_v3_package_import": {
       "post": {
         "operationId": "opencut_project_v3_package_import",
-        "description": "Owner-local: import schema 2 or 3 legacy packages and package schema 4 for schema 3 projects. Reports missing font families, native tool mismatches and typed {tool,input} plugin grant restore calls; never installs plugins or automatically applies grants. Review and invoke restore calls separately. Replay uses the manifest hash and idempotency key.",
+        "description": "Owner-local: import schema 2-5 packages for schema 3 projects. Verifies bundled plugin bytes, reports missing font families and native tool mismatches, and returns typed {tool,input} install calls followed by grant restore calls. Import never installs plugins, applies proposed global permissions or applies project grants. Review and invoke each call separately. Replay uses the manifest hash and idempotency key.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -4419,6 +4419,45 @@
         }
       }
     },
+    "/v1/tools/opencut_plugin_v2_install_pinned": {
+      "post": {
+        "operationId": "opencut_plugin_v2_install_pinned",
+        "description": "Owner-only install an immutable, bounded declarative preset package only when its SHA-256 matches expected_package_sha256. Used by reviewed project-package restore actions.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_plugin_v2_list": {
       "post": {
         "operationId": "opencut_plugin_v2_list",
@@ -4724,6 +4763,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpencutPluginInstallOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_plugin_install_pinned": {
+      "post": {
+        "operationId": "opencut_plugin_install_pinned",
+        "description": "Owner-only install a local WASM component package when its SHA-256 matches expected_package_sha256, with explicitly supplied permission grants. Used by reviewed project-package restore actions.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput"
                 }
               }
             }
@@ -6964,6 +7042,7 @@
         "x-opencut-action-operations": {
           "v2.preset.v3.plan": "opencut_plugin_v2_preset_v3_plan",
           "v2.install": "opencut_plugin_v2_install",
+          "v2.install.pinned": "opencut_plugin_v2_install_pinned",
           "v2.list": "opencut_plugin_v2_list",
           "v2.grant": "opencut_plugin_v2_grant",
           "v2.grants": "opencut_plugin_v2_grants",
@@ -6972,6 +7051,7 @@
           "list": "opencut_plugin_list",
           "inspect": "opencut_plugin_inspect",
           "install": "opencut_plugin_install",
+          "install.pinned": "opencut_plugin_install_pinned",
           "project.plugin.grant": "opencut_project_plugin_grant",
           "project.plugin.list": "opencut_project_plugin_list",
           "project.plugin.inspect": "opencut_project_plugin_inspect",
@@ -7008,6 +7088,22 @@
                       },
                       "input": {
                         "$ref": "#/components/schemas/OpencutPluginV2InstallInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "v2.install.pinned"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedInput"
                       }
                     },
                     "required": [
@@ -7148,6 +7244,22 @@
                     "type": "object",
                     "properties": {
                       "action": {
+                        "const": "install.pinned"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutPluginInstallPinnedInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
                         "const": "project.plugin.grant"
                       },
                       "input": {
@@ -7243,6 +7355,9 @@
                       "$ref": "#/components/schemas/OpencutPluginV2InstallOutput"
                     },
                     {
+                      "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput"
+                    },
+                    {
                       "$ref": "#/components/schemas/OpencutPluginV2ListOutput"
                     },
                     {
@@ -7265,6 +7380,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutPluginInstallOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutProjectPluginGrantOutput"
@@ -62984,7 +63102,8 @@
                 "type": "string"
               },
               "plugin_grant_restore_plan": {
-                "description": "Direct tool calls for Owner review; import never executes these actions.",
+                "default": [],
+                "description": "Direct install calls followed by grant calls for Owner review; import executes neither.",
                 "items": {
                   "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PluginGrantRestoreAction"
                 },
@@ -63033,9 +63152,49 @@
               "tool_locks",
               "tool_environment_matches",
               "tool_lock_mismatches",
-              "plugin_grant_restore_plan",
               "self_contained_media",
               "fully_reproducible"
+            ],
+            "type": "object"
+          },
+          "InstallPinnedInput": {
+            "additionalProperties": false,
+            "description": "Project-package install action pinned to the package bytes validated at import.",
+            "properties": {
+              "expected_package_sha256": {
+                "type": "string"
+              },
+              "granted_permissions": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "package_root": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "package_root",
+              "granted_permissions",
+              "expected_package_sha256"
+            ],
+            "type": "object"
+          },
+          "InstallPinnedInput2": {
+            "additionalProperties": false,
+            "description": "Project-package install action pinned to the package bytes validated at import.",
+            "properties": {
+              "expected_package_sha256": {
+                "type": "string"
+              },
+              "package_root": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "package_root",
+              "expected_package_sha256"
             ],
             "type": "object"
           },
@@ -63101,6 +63260,40 @@
           "PluginGrantRestoreAction": {
             "description": "Fully parameterized calls that an Owner may review and apply after import.",
             "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/InstallPinnedInput"
+                  },
+                  "tool": {
+                    "const": "opencut_plugin_install_pinned",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "input"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/InstallPinnedInput2"
+                  },
+                  "tool": {
+                    "const": "opencut_plugin_v2_install_pinned",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "input"
+                ],
+                "type": "object"
+              },
               {
                 "additionalProperties": false,
                 "properties": {
@@ -70358,6 +70551,158 @@
         "title": "Response",
         "type": "object"
       },
+      "OpencutPluginV2InstallPinnedInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "Project-package install action pinned to the package bytes validated at import.",
+        "properties": {
+          "expected_package_sha256": {
+            "type": "string"
+          },
+          "package_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "package_root",
+          "expected_package_sha256"
+        ],
+        "title": "InstallPinnedInput",
+        "type": "object"
+      },
+      "OpencutPluginV2InstallPinnedOutput": {
+        "$defs": {
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "InstalledPackage": {
+            "additionalProperties": false,
+            "properties": {
+              "manifest": {
+                "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput/$defs/ManifestV2"
+              },
+              "package_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "manifest",
+              "package_sha256"
+            ],
+            "type": "object"
+          },
+          "ManifestV2": {
+            "additionalProperties": false,
+            "properties": {
+              "display_name": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "manifest_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "presets": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput/$defs/PresetDeclaration"
+                },
+                "type": "array"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "manifest_version",
+              "id",
+              "version",
+              "display_name",
+              "presets"
+            ],
+            "type": "object"
+          },
+          "PresetDeclaration": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "spec_path": {
+                "type": "string"
+              },
+              "spec_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "spec_path",
+              "spec_sha256"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput/$defs/InstalledPackage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutPluginV2InstallPinnedOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
       "OpencutPluginV2ListInput": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -73097,6 +73442,276 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OpencutPluginInstallOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutPluginInstallPinnedInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "Project-package install action pinned to the package bytes validated at import.",
+        "properties": {
+          "expected_package_sha256": {
+            "type": "string"
+          },
+          "granted_permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "package_root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "package_root",
+          "granted_permissions",
+          "expected_package_sha256"
+        ],
+        "title": "InstallPinnedInput",
+        "type": "object"
+      },
+      "OpencutPluginInstallPinnedOutput": {
+        "$defs": {
+          "Contributions": {
+            "additionalProperties": false,
+            "properties": {
+              "operations": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/PluginOperation"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "operations"
+            ],
+            "type": "object"
+          },
+          "EditorError": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "details": true,
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "type": "object"
+          },
+          "InstalledPlugin": {
+            "properties": {
+              "granted_permissions": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "uniqueItems": true
+              },
+              "install_path": {
+                "type": "string"
+              },
+              "manifest": {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/PluginManifest"
+              },
+              "package_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "manifest",
+              "package_sha256",
+              "install_path",
+              "granted_permissions"
+            ],
+            "type": "object"
+          },
+          "PluginLimits": {
+            "additionalProperties": false,
+            "properties": {
+              "fuel": {
+                "default": 10000000,
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "memory_mib": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "output_bytes": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "wall_time_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "memory_mib",
+              "wall_time_ms",
+              "output_bytes"
+            ],
+            "type": "object"
+          },
+          "PluginManifest": {
+            "additionalProperties": false,
+            "properties": {
+              "contributes": {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/Contributions"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "limits": {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/PluginLimits"
+              },
+              "manifest_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "permissions": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "plugin_api": {
+                "type": "string"
+              },
+              "runtime": {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/RuntimeManifest"
+              },
+              "targets": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "manifest_version",
+              "id",
+              "version",
+              "display_name",
+              "plugin_api",
+              "runtime",
+              "targets",
+              "permissions",
+              "contributes",
+              "limits"
+            ],
+            "type": "object"
+          },
+          "PluginOperation": {
+            "additionalProperties": false,
+            "properties": {
+              "input_schema": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "output_schema": {
+                "type": "string"
+              },
+              "version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "version",
+              "kind",
+              "input_schema",
+              "output_schema"
+            ],
+            "type": "object"
+          },
+          "RuntimeManifest": {
+            "additionalProperties": false,
+            "properties": {
+              "entry": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "world": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "entry",
+              "world"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/InstalledPlugin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutPluginInstallPinnedOutput/$defs/EditorError"
               },
               {
                 "type": "null"

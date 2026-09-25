@@ -50,6 +50,7 @@ pub trait PresetGrantStore {
 pub trait PresetCatalog {
     /// Native adapter uses the dedicated plugin-packages-v2 root and version lock.
     fn install(&self, input: &InstallInput) -> Result<InstalledPackage, EditorError>;
+    fn install_pinned(&self, input: &InstallPinnedInput) -> Result<InstalledPackage, EditorError>;
     fn list(&self) -> Result<Vec<InstalledPackage>, EditorError>;
     fn inspect(&self, input: &PackageInput) -> Result<InstalledPackage, EditorError>;
     fn load_spec(
@@ -64,6 +65,12 @@ pub fn install(
     input: &InstallInput,
 ) -> Result<InstalledPackage, EditorError> {
     catalog.install(input)
+}
+pub fn install_pinned(
+    catalog: &impl PresetCatalog,
+    input: &InstallPinnedInput,
+) -> Result<InstalledPackage, EditorError> {
+    catalog.install_pinned(input)
 }
 pub fn list(catalog: &impl PresetCatalog) -> Result<Vec<InstalledPackage>, EditorError> {
     catalog.list()

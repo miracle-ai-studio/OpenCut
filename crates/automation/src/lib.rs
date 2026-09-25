@@ -701,6 +701,7 @@ impl Automation {
                         &input,
                         &source,
                         self.app.asset_store_root(),
+                        &self.plugin_root,
                     )?,
                 )
             }
@@ -837,6 +838,7 @@ impl Automation {
                 )?)
             }
             "opencut_plugin_v2_install"
+            | "opencut_plugin_v2_install_pinned"
             | "opencut_plugin_v2_list"
             | "opencut_plugin_v2_grant"
             | "opencut_plugin_v2_grants"
@@ -852,6 +854,9 @@ impl Automation {
                 match name {
                     "opencut_plugin_v2_install" => {
                         to_value(presets::install(&catalog, &parse(arguments)?)?)
+                    }
+                    "opencut_plugin_v2_install_pinned" => {
+                        to_value(presets::install_pinned(&catalog, &parse(arguments)?)?)
                     }
                     "opencut_plugin_v2_list" => {
                         let _: EmptyInput = parse(arguments)?;
@@ -880,6 +885,11 @@ impl Automation {
                 to_value(plugins::inspect(&self.plugin_root, parse(arguments)?)?)
             }
             "opencut_plugin_install" => to_value(plugins::install_observed(
+                &self.plugin_root,
+                parse(arguments)?,
+                &self.app,
+            )?),
+            "opencut_plugin_install_pinned" => to_value(plugins::install_pinned_observed(
                 &self.plugin_root,
                 parse(arguments)?,
                 &self.app,

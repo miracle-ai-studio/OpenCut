@@ -79,6 +79,15 @@ pub struct InstallInput {
     pub granted_permissions: Vec<String>,
 }
 
+/// Project-package install action pinned to the package bytes validated at import.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InstallPinnedInput {
+    pub package_root: String,
+    pub granted_permissions: Vec<String>,
+    pub expected_package_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PluginInput {

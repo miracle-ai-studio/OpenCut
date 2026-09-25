@@ -13563,6 +13563,14 @@ export namespace OpencutProjectV3PackageImportOutput {
  */
   export type PluginGrantRestoreAction =
   | {
+      input: InstallPinnedInput;
+      tool: 'opencut_plugin_install_pinned';
+    }
+  | {
+      input: InstallPinnedInput2;
+      tool: 'opencut_plugin_v2_install_pinned';
+    }
+  | {
       input: SetGrant;
       tool: 'opencut_project_plugin_grant';
     }
@@ -13586,9 +13594,9 @@ export namespace OpencutProjectV3PackageImportOutput {
   fully_reproducible: boolean;
   manifest_sha256: string;
   /**
-   * Direct tool calls for Owner review; import never executes these actions.
+   * Direct install calls followed by grant calls for Owner review; import executes neither.
    */
-  plugin_grant_restore_plan: PluginGrantRestoreAction[];
+  plugin_grant_restore_plan?: PluginGrantRestoreAction[];
   revision: string;
   self_contained_media: boolean;
   source_project_id: string;
@@ -13612,6 +13620,21 @@ export namespace OpencutProjectV3PackageImportOutput {
    */
   tools_not_locked: string[];
   unsupported: string[];
+}
+/**
+ * Project-package install action pinned to the package bytes validated at import.
+ */
+  export interface InstallPinnedInput {
+  expected_package_sha256: string;
+  granted_permissions: string[];
+  package_root: string;
+}
+/**
+ * Project-package install action pinned to the package bytes validated at import.
+ */
+  export interface InstallPinnedInput2 {
+  expected_package_sha256: string;
+  package_root: string;
 }
   export interface SetGrant {
   enabled: boolean;
@@ -15485,6 +15508,50 @@ export namespace OpencutPluginV2InstallOutput {
 
 }
 
+export namespace OpencutPluginV2InstallPinnedInput {
+/**
+ * Project-package install action pinned to the package bytes validated at import.
+ */
+  export interface InstallPinnedInput {
+  expected_package_sha256: string;
+  package_root: string;
+}
+
+}
+
+export namespace OpencutPluginV2InstallPinnedOutput {
+  export interface Response {
+  api_version: string;
+  data?: InstalledPackage | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface InstalledPackage {
+  manifest: ManifestV2;
+  package_sha256: string;
+}
+  export interface ManifestV2 {
+  display_name: string;
+  id: string;
+  manifest_version: number;
+  presets: PresetDeclaration[];
+  version: string;
+}
+  export interface PresetDeclaration {
+  name: string;
+  spec_path: string;
+  spec_sha256: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutPluginV2ListInput {
   export interface EmptyInput {}
 
@@ -16113,6 +16180,75 @@ export namespace OpencutPluginInstallInput {
 }
 
 export namespace OpencutPluginInstallOutput {
+  export interface Response {
+  api_version: string;
+  data?: InstalledPlugin | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface InstalledPlugin {
+  granted_permissions: string[];
+  install_path: string;
+  manifest: PluginManifest;
+  package_sha256: string;
+  [k: string]: any;
+}
+  export interface PluginManifest {
+  contributes: Contributions;
+  display_name: string;
+  id: string;
+  limits: PluginLimits;
+  manifest_version: number;
+  permissions: string[];
+  plugin_api: string;
+  runtime: RuntimeManifest;
+  targets: string[];
+  version: string;
+}
+  export interface Contributions {
+  operations: PluginOperation[];
+}
+  export interface PluginOperation {
+  input_schema: string;
+  kind: string;
+  name: string;
+  output_schema: string;
+  version: number;
+}
+  export interface PluginLimits {
+  fuel?: number;
+  memory_mib: number;
+  output_bytes: number;
+  wall_time_ms: number;
+}
+  export interface RuntimeManifest {
+  entry: string;
+  kind: string;
+  world: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutPluginInstallPinnedInput {
+/**
+ * Project-package install action pinned to the package bytes validated at import.
+ */
+  export interface InstallPinnedInput {
+  expected_package_sha256: string;
+  granted_permissions: string[];
+  package_root: string;
+}
+
+}
+
+export namespace OpencutPluginInstallPinnedOutput {
   export interface Response {
   api_version: string;
   data?: InstalledPlugin | null;
@@ -18735,6 +18871,7 @@ export interface ToolMap {
   opencut_job_cancel: { input: OpencutJobCancelInput.JobInput; output: NonNullable<OpencutJobCancelOutput.Response["data"]> };
   opencut_plugin_v2_preset_v3_plan: { input: OpencutPluginV2PresetV3PlanInput.PresetPlanInput; output: NonNullable<OpencutPluginV2PresetV3PlanOutput.Response["data"]> };
   opencut_plugin_v2_install: { input: OpencutPluginV2InstallInput.InstallInput; output: NonNullable<OpencutPluginV2InstallOutput.Response["data"]> };
+  opencut_plugin_v2_install_pinned: { input: OpencutPluginV2InstallPinnedInput.InstallPinnedInput; output: NonNullable<OpencutPluginV2InstallPinnedOutput.Response["data"]> };
   opencut_plugin_v2_list: { input: OpencutPluginV2ListInput.EmptyInput; output: NonNullable<OpencutPluginV2ListOutput.Response["data"]> };
   opencut_plugin_v2_grant: { input: OpencutPluginV2GrantInput.SetGrant; output: NonNullable<OpencutPluginV2GrantOutput.Response["data"]> };
   opencut_plugin_v2_grants: { input: OpencutPluginV2GrantsInput.ProjectInput; output: NonNullable<OpencutPluginV2GrantsOutput.Response["data"]> };
@@ -18743,6 +18880,7 @@ export interface ToolMap {
   opencut_plugin_list: { input: OpencutPluginListInput.EmptyInput; output: NonNullable<OpencutPluginListOutput.Response["data"]> };
   opencut_plugin_inspect: { input: OpencutPluginInspectInput.PluginInput; output: NonNullable<OpencutPluginInspectOutput.Response["data"]> };
   opencut_plugin_install: { input: OpencutPluginInstallInput.InstallInput; output: NonNullable<OpencutPluginInstallOutput.Response["data"]> };
+  opencut_plugin_install_pinned: { input: OpencutPluginInstallPinnedInput.InstallPinnedInput; output: NonNullable<OpencutPluginInstallPinnedOutput.Response["data"]> };
   opencut_denial_query: { input: OpencutDenialQueryInput.DenialQuery; output: NonNullable<OpencutDenialQueryOutput.Response["data"]> };
   opencut_project_plugin_grant: { input: OpencutProjectPluginGrantInput.SetGrant; output: NonNullable<OpencutProjectPluginGrantOutput.Response["data"]> };
   opencut_project_plugin_list: { input: OpencutProjectPluginListInput.ProjectInput; output: NonNullable<OpencutProjectPluginListOutput.Response["data"]> };
@@ -18853,6 +18991,7 @@ export interface DomainMap {
   "plugin": {
     "v2.preset.v3.plan": ToolMap["opencut_plugin_v2_preset_v3_plan"];
     "v2.install": ToolMap["opencut_plugin_v2_install"];
+    "v2.install.pinned": ToolMap["opencut_plugin_v2_install_pinned"];
     "v2.list": ToolMap["opencut_plugin_v2_list"];
     "v2.grant": ToolMap["opencut_plugin_v2_grant"];
     "v2.grants": ToolMap["opencut_plugin_v2_grants"];
@@ -18861,6 +19000,7 @@ export interface DomainMap {
     "list": ToolMap["opencut_plugin_list"];
     "inspect": ToolMap["opencut_plugin_inspect"];
     "install": ToolMap["opencut_plugin_install"];
+    "install.pinned": ToolMap["opencut_plugin_install_pinned"];
     "project.plugin.grant": ToolMap["opencut_project_plugin_grant"];
     "project.plugin.list": ToolMap["opencut_project_plugin_list"];
     "project.plugin.inspect": ToolMap["opencut_project_plugin_inspect"];
@@ -19011,6 +19151,7 @@ export const domainActions = {
   "plugin": [
     "v2.preset.v3.plan",
     "v2.install",
+    "v2.install.pinned",
     "v2.list",
     "v2.grant",
     "v2.grants",
@@ -19019,6 +19160,7 @@ export const domainActions = {
     "list",
     "inspect",
     "install",
+    "install.pinned",
     "project.plugin.grant",
     "project.plugin.list",
     "project.plugin.inspect",
@@ -19188,6 +19330,7 @@ export const toolNames = [
   "opencut_job_cancel",
   "opencut_plugin_v2_preset_v3_plan",
   "opencut_plugin_v2_install",
+  "opencut_plugin_v2_install_pinned",
   "opencut_plugin_v2_list",
   "opencut_plugin_v2_grant",
   "opencut_plugin_v2_grants",
@@ -19196,6 +19339,7 @@ export const toolNames = [
   "opencut_plugin_list",
   "opencut_plugin_inspect",
   "opencut_plugin_install",
+  "opencut_plugin_install_pinned",
   "opencut_denial_query",
   "opencut_project_plugin_grant",
   "opencut_project_plugin_list",

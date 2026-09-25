@@ -252,6 +252,57 @@ impl PresetPackages {
             root: workspace.as_ref().join("plugin-packages-v2"),
         }
     }
+
+    /// Copies one verified installed package into a project package without changing it.
+    pub fn copy_installed_package(
+        &self,
+        id: &str,
+        version: &str,
+        expected_sha256: &str,
+        destination: impl AsRef<Path>,
+    ) -> Result<u64, EditorError> {
+        let (package, source) = self.installed(&PackageInput {
+            id: id.to_owned(),
+            version: version.to_owned(),
+        })?;
+        if package.package_sha256 != expected_sha256 {
+            return Err(invalid(
+                "Installed preset package differs from the project grant identity",
+            ));
+        }
+        let destination = destination.as_ref();
+        if destination.exists() {
+            return Err(invalid("Plugin bundle destination already exists"));
+        }
+        let (_, files, _) = read_package(&source)?;
+        let total_size = files.values().map(|bytes| bytes.len() as u64).sum();
+        fs::create_dir_all(destination.join("specs")).map_err(io)?;
+        for (relative, bytes) in files {
+            let target = destination.join(relative);
+            write_file(&target, &bytes)?;
+        }
+        File::open(destination.join("specs"))
+            .map_err(io)?
+            .sync_all()
+            .map_err(io)?;
+        File::open(destination)
+            .map_err(io)?
+            .sync_all()
+            .map_err(io)?;
+        let (_, _, copied_hash) = read_package(destination)?;
+        if copied_hash != expected_sha256 {
+            return Err(invalid("Copied plugin package identity differs"));
+        }
+        Ok(total_size)
+    }
+
+    /// Validates an uninstalled package directory and returns its identity.
+    pub fn verify_package_root(
+        root: impl AsRef<Path>,
+    ) -> Result<(ManifestV2, String), EditorError> {
+        let (manifest, _, digest) = read_package(root.as_ref())?;
+        Ok((manifest, digest))
+    }
     fn version_lock(&self, id: &str, version: &str, exclusive: bool) -> Result<File, EditorError> {
         if !plugin_v2::valid_package_id(id) || !plugin_v2::valid_version(version) {
             return Err(invalid("Invalid package identity"));
@@ -314,12 +365,13 @@ impl PresetPackages {
         ))
     }
 }
-impl PresetCatalog for PresetPackages {
-    fn install(
+impl PresetPackages {
+    fn install_package(
         &self,
-        input: &opencut_api_contracts::plugin_v2::InstallInput,
+        package_root: &str,
+        expected_sha256: Option<&str>,
     ) -> Result<InstalledPackage, EditorError> {
-        let source = Path::new(&input.package_root);
+        let source = Path::new(package_root);
         if !source.is_absolute() {
             return Err(invalid(
                 "Installation requires an absolute owner-local path",
@@ -327,6 +379,12 @@ impl PresetCatalog for PresetPackages {
         }
         let source = source.canonicalize().map_err(io)?;
         let (manifest, files, hash) = read_package(&source)?;
+        if expected_sha256.is_some_and(|expected| expected != hash) {
+            return Err(EditorError::new(
+                "PLUGIN_INTEGRITY",
+                "Preset package differs from the expected content identity",
+            ));
+        }
         let _lock = self.version_lock(&manifest.id, &manifest.version, true)?;
         let id_root = self.root.join(&manifest.id);
         ensure_dir(&id_root)?;
@@ -396,6 +454,20 @@ impl PresetCatalog for PresetPackages {
             manifest,
             package_sha256: hash,
         })
+    }
+}
+impl PresetCatalog for PresetPackages {
+    fn install(
+        &self,
+        input: &opencut_api_contracts::plugin_v2::InstallInput,
+    ) -> Result<InstalledPackage, EditorError> {
+        self.install_package(&input.package_root, None)
+    }
+    fn install_pinned(
+        &self,
+        input: &opencut_api_contracts::plugin_v2::InstallPinnedInput,
+    ) -> Result<InstalledPackage, EditorError> {
+        self.install_package(&input.package_root, Some(&input.expected_package_sha256))
     }
     fn list(&self) -> Result<Vec<InstalledPackage>, EditorError> {
         if !self.root.exists() {
@@ -538,6 +610,21 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[test]
+    fn pinned_install_rejects_different_package_bytes_before_installing() {
+        let workspace = tempfile::tempdir().unwrap();
+        let package_root = tempfile::tempdir().unwrap();
+        let (input, _) = fixture(package_root.path());
+        let pinned = opencut_api_contracts::plugin_v2::InstallPinnedInput {
+            package_root: input.package_root,
+            expected_package_sha256: "0".repeat(64),
+        };
+        let catalog = PresetPackages::new(workspace.path());
+        let error = catalog.install_pinned(&pinned).unwrap_err();
+        assert_eq!(error.code, "PLUGIN_INTEGRITY");
+        assert!(catalog.list().unwrap().is_empty());
+    }
+
     #[test]
     fn source_symlink_and_extra_files_are_rejected() {
         use std::os::unix::fs::symlink;

@@ -43,8 +43,32 @@ pub struct PackageManifestV3 {
     /// Exact project grant policy snapshots. Added in package schema 4; old package manifests omit it.
     #[serde(default)]
     pub plugin_grants: Vec<PackagePluginGrant>,
+    /// Exact installed plugin package identities and relative content roots. Added in schema 5.
+    #[serde(default)]
+    pub plugin_bundles: Vec<PackagePluginBundle>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PackagePluginBundle {
+    pub kind: PackagePluginKind,
+    pub id: String,
+    pub version: String,
+    pub package_sha256: String,
+    /// Source V1 permission snapshot. It is a reviewed install proposal, never applied on import.
+    #[serde(default)]
+    pub proposed_global_permissions: BTreeSet<String>,
+    /// Canonical package-relative directory under `plugins/`.
+    pub path: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PackagePluginKind {
+    PlannerV1,
+    PresetV2,
 }
 
 /// Project authorization policy is carried for review and restoration, never applied on import.
@@ -71,6 +95,10 @@ pub enum PackagePluginGrant {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "tool", content = "input", deny_unknown_fields)]
 pub enum PluginGrantRestoreAction {
+    #[serde(rename = "opencut_plugin_install_pinned")]
+    PlannerV1Install(crate::plugins::InstallPinnedInput),
+    #[serde(rename = "opencut_plugin_v2_install_pinned")]
+    PresetV2Install(crate::plugin_v2::InstallPinnedInput),
     #[serde(rename = "opencut_project_plugin_grant")]
     PlannerV1(crate::project_plugins::SetGrant),
     #[serde(rename = "opencut_plugin_v2_grant")]
@@ -89,6 +117,9 @@ pub struct PreparedImportV3 {
     /// Target-host result. This is computed during native package inspection.
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,
+    /// Verified direct install calls for bundles; never applied by package import.
+    #[serde(default)]
+    pub plugin_package_install_plan: Vec<PluginGrantRestoreAction>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -128,7 +159,8 @@ pub struct ImportReceipt {
     pub tool_locks: Vec<PackageToolLock>,
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,
-    /// Direct tool calls for Owner review; import never executes these actions.
+    /// Direct install calls followed by grant calls for Owner review; import executes neither.
+    #[serde(default)]
     pub plugin_grant_restore_plan: Vec<PluginGrantRestoreAction>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,

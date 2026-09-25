@@ -1,13 +1,14 @@
 //! Plugin application use cases. A runtime can propose operations, never a trusted plan or a write.
 use crate::projects::ProjectRead;
 pub use opencut_api_contracts::plugins::{
-    InstallInput, InstalledPlugin, PlanInput, PlanInvocation, PluginInput,
+    InstallInput, InstallPinnedInput, InstalledPlugin, PlanInput, PlanInvocation, PluginInput,
 };
 use opencut_contracts::{EditorError, Operation, ProjectSnapshot, TransactionRequest};
 pub trait PluginCatalog {
     fn list(&self) -> Result<Vec<InstalledPlugin>, EditorError>;
     fn inspect(&self, input: &PluginInput) -> Result<InstalledPlugin, EditorError>;
     fn install(&self, input: InstallInput) -> Result<InstalledPlugin, EditorError>;
+    fn install_pinned(&self, input: InstallPinnedInput) -> Result<InstalledPlugin, EditorError>;
 }
 pub trait PluginRuntime {
     /// Runtime enforces package identity, grants, ABI, schemas and limits.
@@ -32,6 +33,12 @@ pub fn install(
     input: InstallInput,
 ) -> Result<InstalledPlugin, EditorError> {
     catalog.install(input)
+}
+pub fn install_pinned(
+    catalog: &impl PluginCatalog,
+    input: InstallPinnedInput,
+) -> Result<InstalledPlugin, EditorError> {
+    catalog.install_pinned(input)
 }
 pub fn plan(
     projects: &impl ProjectRead,

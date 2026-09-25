@@ -186,7 +186,15 @@ impl EditorApplication {
             tool_locks: prepared.manifest.tool_locks.clone(),
             tool_environment_matches: prepared.tool_environment_matches,
             tool_lock_mismatches: prepared.tool_lock_mismatches.clone(),
-            plugin_grant_restore_plan: if prepared.manifest.schema_version == 4 {
+            plugin_grant_restore_plan: if prepared.manifest.schema_version == 5 {
+                let mut plan = prepared.plugin_package_install_plan.clone();
+                plan.extend(project_package_v3::plugin_grant_restore_plan(
+                    &prepared.manifest.plugin_grants,
+                    &input.target_project_id,
+                    &prepared.manifest_sha256,
+                )?);
+                plan
+            } else if prepared.manifest.schema_version == 4 {
                 project_package_v3::plugin_grant_restore_plan(
                     &prepared.manifest.plugin_grants,
                     &input.target_project_id,

@@ -1,6 +1,6 @@
 use opencut_api_contracts::plugin_publication;
 pub use opencut_api_contracts::plugins::{
-    InstallInput, InstalledPlugin, PlanInput, PlanInvocation, PluginInput,
+    InstallInput, InstallPinnedInput, InstalledPlugin, PlanInput, PlanInvocation, PluginInput,
 };
 use opencut_contracts::{EditorError, Operation, ProjectSnapshot};
 use opencut_editor_application::maintenance::{PublicationJournal, UntrackedPublication};
@@ -54,6 +54,20 @@ impl application::PluginCatalog for NativePlugins<'_> {
             self.1.unwrap_or(&UntrackedPublication),
         )?)
     }
+    fn install_pinned(&self, input: InstallPinnedInput) -> Result<InstalledPlugin, EditorError> {
+        if self.0.to_str().is_none() {
+            return Err(EditorError::new(
+                "INVALID_PLUGIN",
+                "Plugin installation path is not valid UTF-8",
+            ));
+        }
+        portable(PluginHost::new_managed(self.0)?.install_pinned_observed(
+            input.package_root,
+            input.granted_permissions,
+            Some(&input.expected_package_sha256),
+            self.1.unwrap_or(&UntrackedPublication),
+        )?)
+    }
 }
 impl application::PluginRuntime for NativePlugins<'_> {
     fn propose(
@@ -78,6 +92,19 @@ pub fn inspect(root: &Path, input: PluginInput) -> Result<InstalledPlugin, Edito
 }
 pub fn install(root: &Path, input: InstallInput) -> Result<InstalledPlugin, EditorError> {
     application::install(&NativePlugins(root, None), input)
+}
+pub fn install_pinned(
+    root: &Path,
+    input: InstallPinnedInput,
+) -> Result<InstalledPlugin, EditorError> {
+    application::install_pinned(&NativePlugins(root, None), input)
+}
+pub fn install_pinned_observed(
+    root: &Path,
+    input: InstallPinnedInput,
+    journal: &dyn PublicationJournal<plugin_publication::Object>,
+) -> Result<InstalledPlugin, EditorError> {
+    application::install_pinned(&NativePlugins(root, Some(journal)), input)
 }
 pub fn plan(
     projects: &impl ProjectRead,

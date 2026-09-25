@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-25",
+  "status": "passed",
+  "scope": "schema 3 project package schema 5 CLI acceptance on current macOS host; not cross-platform release acceptance",
+  "schema_version": 5,
+  "project_schema_version": 3,
+  "cli_sha256": "0737e8122508ce58c18caa10b2f77ab9f3ccaa03e8d5faa47e07c4c20c97409a",
+  "wasm_component_sha256": "42217d77989b6b03162542f4ab88d3d2f20aa8888da7bb04f49bc2ed802c3201",
+  "manifest_sha256": "f29c4c95115e6dde1dfc91cc38f71df52acc142a730b80d5ae3fd69afbd6e0d9",
+  "render_sha256": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
+  "tool_locks": [
+    {
+      "name": "ffmpeg",
+      "version": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+      "binary_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb"
+    },
+    {
+      "name": "ffprobe",
+      "version": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+      "binary_sha256": "501ae4034055451cbd993166b43b7764dd69553ccebbcf55c2730b732b82c570"
+    }
+  ],
+  "checks_count": 16,
+  "checks": [
+    "schema5 manifest/document, visual graph, exact V1/V2 plugin bytes and grant snapshots validated",
+    "linked package requires original CAS after source workspace removal",
+    "self-contained package imports after origin workspace removal",
+    "V3 visual graph survives relocation and accepts a new edit",
+    "schema3 preflight resolves pinned assets and visual render dependencies",
+    "render artifact download hash and actual mask/effect/shape pixels verified",
+    "identical import replay succeeds after package removal",
+    "exact FFmpeg and ffprobe binary locks are recorded and verified",
+    "tool lock mismatch remains importable and is reported",
+    "schema 2 package compatibility remains explicit as unlocked",
+    "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
+    "typed restore actions do not run during import; Owner reviews proposed V1 host permissions, installs exact V1/V2 bundles, applies grants explicitly and replays them idempotently",
+    "restore install actions reject valid package bytes changed after import using the expected SHA-256 pin",
+    "tampered bundled plugin bytes are rejected before project publication",
+    "tampered V1 permission proposals outside the plugin manifest are rejected before publication",
+    "missing font families are reported on import and block render preflight"
+  ],
+  "raw_report": "r6-v5-plugin-bundles-run-2026-09-25.json",
+  "raw_report_sha256": "9a5739cc380b29daebfa7d73c670cf5e1d60bd74624eccbc9368089a9875b84b",
+  "properties": [
+    "V1 and V2 package bytes transferred with exact package hashes",
+    "V1 host grant file excluded; global permissions are a reviewed proposal",
+    "import does not install plugins or grant permissions",
+    "install actions precede project grant actions",
+    "tampered plugin bytes and tampered permission proposals rejected before publication",
+    "schema2 and schema3 legacy imports exercised; continued edit and decoded render passed",
+    "restore install actions reject valid package bytes changed after import using the expected SHA-256 pin"
+  ]
+}

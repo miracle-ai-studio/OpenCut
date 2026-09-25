@@ -408,6 +408,16 @@ pub(super) fn capture_media(
     document: &ProjectDocument,
     asset_store_root: &Path,
 ) -> Result<(), EditorError> {
+    capture_media_with_plugins(root, manifest, document, asset_store_root, &[])
+}
+
+pub(super) fn capture_media_with_plugins(
+    root: &Path,
+    manifest: &PackageManifest,
+    document: &ProjectDocument,
+    asset_store_root: &Path,
+    plugin_bundle_paths: &[String],
+) -> Result<(), EditorError> {
     let mut permitted = BTreeSet::from(["manifest.json".to_string(), "project.json".to_string()]);
     let mut seen = BTreeSet::new();
     let mut total = 0_u64;
@@ -466,6 +476,9 @@ pub(super) fn capture_media(
             return Err(invalid("CAS capture differs from package inventory"));
         }
     }
+    if !plugin_bundle_paths.is_empty() {
+        permitted.insert("plugins".to_string());
+    }
     // Reject extra entries and symlinks so no unreviewed content is carried as
     // an apparent part of this package. Linked packages have no media directory.
     for entry in fs::read_dir(root).map_err(io)? {
@@ -482,8 +495,64 @@ pub(super) fn capture_media(
                     return Err(invalid("Unexpected package media entry"));
                 }
             }
+        } else if name == "plugins" && !plugin_bundle_paths.is_empty() {
+            if !entry.file_type().map_err(io)?.is_dir() {
+                return Err(invalid("Invalid plugin bundle directory"));
+            }
+            validate_plugin_bundle_tree(root, &entry.path(), plugin_bundle_paths)?;
         } else if !permitted.contains(&name) || !entry.file_type().map_err(io)?.is_file() {
             return Err(invalid("Unexpected package entry"));
+        }
+    }
+    Ok(())
+}
+
+fn validate_plugin_bundle_tree(
+    root: &Path,
+    current: &Path,
+    expected_roots: &[String],
+) -> Result<(), EditorError> {
+    let current_relative = current
+        .strip_prefix(root)
+        .map_err(|_| invalid("Plugin bundle path escaped package root"))?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let is_expected_root = expected_roots.iter().any(|path| path == &current_relative);
+    let is_expected_parent = expected_roots
+        .iter()
+        .any(|path| path.starts_with(&(current_relative.clone() + "/")));
+    let is_expected_descendant = expected_roots
+        .iter()
+        .any(|path| current_relative.starts_with(&(path.clone() + "/")));
+    if current_relative != "plugins"
+        && !is_expected_root
+        && !is_expected_parent
+        && !is_expected_descendant
+    {
+        return Err(invalid("Unexpected plugin package entry"));
+    }
+    for entry in fs::read_dir(current).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let file_type = entry.file_type().map_err(io)?;
+        if file_type.is_dir() {
+            validate_plugin_bundle_tree(root, &entry.path(), expected_roots)?;
+        } else if file_type.is_file() {
+            let relative = entry
+                .path()
+                .strip_prefix(root)
+                .map_err(|_| invalid("Plugin bundle path escaped package root"))?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !expected_roots
+                .iter()
+                .any(|path| relative.starts_with(&(path.clone() + "/")))
+            {
+                return Err(invalid("Unexpected file in plugin package inventory"));
+            }
+        } else {
+            return Err(invalid(
+                "Plugin package entries must be regular files or directories",
+            ));
         }
     }
     Ok(())

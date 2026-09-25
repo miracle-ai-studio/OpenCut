@@ -1,10 +1,10 @@
-//! Owner-local schema 3 project packages and schema 4 grant snapshots, built on the v1 media verifier.
+//! Owner-local schema 3 project packages and schema 5 plugin bundles, built on the v1 media verifier.
 use crate::project_package as common;
 use opencut_api_contracts::{
     project_package::{PackageManifest, PackageMode},
     project_package_v3::{
-        ExportPackageV3, ExportReceipt, ImportPackageV3, PackageManifestV3, PackageToolLock,
-        PreparedImportV3,
+        ExportPackageV3, ExportReceipt, ImportPackageV3, PackageManifestV3, PackagePluginKind,
+        PackageToolLock, PluginGrantRestoreAction, PreparedImportV3,
     },
 };
 use opencut_asset_store::AssetStore;
@@ -15,6 +15,8 @@ use std::{
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+const MAX_PLUGIN_BUNDLE_BYTES: u64 = 256 * 1024 * 1024;
 
 fn common_manifest(manifest: &PackageManifestV3) -> PackageManifest {
     PackageManifest {
@@ -35,6 +37,7 @@ pub fn export_package_v3(
     input: &ExportPackageV3,
     source: &PackageExportSourceV3,
     asset_store_root: &Path,
+    plugin_root: &Path,
 ) -> Result<ExportReceipt, EditorError> {
     if source.snapshot.project.base.id != input.project_id
         || source.snapshot.revision != input.revision
@@ -87,6 +90,53 @@ pub fn export_package_v3(
         }
         common::write_file(&staging.join("project.json"), &document_bytes)?;
         let mut dependencies = project_package_v3::dependencies(source);
+        let mut plugin_bundles = project_package_v3::plugin_bundles(&source.plugin_grants);
+        let workspace_root = asset_store_root
+            .parent()
+            .ok_or_else(|| common::invalid("Invalid workspace asset-store path"))?;
+        let mut plugin_bytes = 0_u64;
+        if !plugin_bundles.is_empty() {
+            for bundle in &mut plugin_bundles {
+                let target = staging.join(&bundle.path);
+                fs::create_dir_all(
+                    target
+                        .parent()
+                        .ok_or_else(|| common::invalid("Invalid plugin bundle path"))?,
+                )
+                .map_err(common::io)?;
+                let copied = match bundle.kind {
+                    PackagePluginKind::PlannerV1 => {
+                        let (size, permissions) =
+                            opencut_plugin_host::PluginHost::read_only(plugin_root)?
+                                .copy_installed_package(
+                                    &bundle.id,
+                                    &bundle.version,
+                                    &bundle.package_sha256,
+                                    &target,
+                                    MAX_PLUGIN_BUNDLE_BYTES - plugin_bytes,
+                                )?;
+                        bundle.proposed_global_permissions = permissions;
+                        size
+                    }
+                    PackagePluginKind::PresetV2 => {
+                        crate::plugin_v2::PresetPackages::new(workspace_root)
+                            .copy_installed_package(
+                                &bundle.id,
+                                &bundle.version,
+                                &bundle.package_sha256,
+                                &target,
+                            )?
+                    }
+                };
+                plugin_bytes = plugin_bytes
+                    .checked_add(copied)
+                    .ok_or_else(|| common::invalid("Plugin bundle size overflow"))?;
+                if plugin_bytes > MAX_PLUGIN_BUNDLE_BYTES {
+                    return Err(common::invalid("Plugin bundles exceed package size limit"));
+                }
+            }
+        }
+        dependencies.plugins_not_bundled.clear();
         let tool_locks = opencut_media::FfmpegBackend::discover()
             .and_then(|backend| backend.tool_fingerprints())
             .map_err(|error| {
@@ -104,7 +154,7 @@ pub fn export_package_v3(
             .collect::<Vec<_>>();
         dependencies.tools_not_locked.clear();
         let manifest = PackageManifestV3 {
-            schema_version: 4,
+            schema_version: 5,
             project_schema_version: 3,
             mode: input.mode.clone(),
             source_project_id: input.project_id.clone(),
@@ -115,6 +165,7 @@ pub fn export_package_v3(
             dependencies: dependencies.clone(),
             tool_locks: tool_locks.clone(),
             plugin_grants: source.plugin_grants.clone(),
+            plugin_bundles,
             self_contained_media: input.mode == PackageMode::SelfContained,
             fully_reproducible: input.mode == PackageMode::SelfContained
                 && dependencies.fonts_not_bundled.is_empty()
@@ -132,6 +183,7 @@ pub fn export_package_v3(
         if input.mode == PackageMode::SelfContained {
             common::sync_dir(&staging.join("media"))?;
         }
+        sync_package_directories(&staging)?;
         common::sync_dir(&staging)?;
         if destination.exists() {
             return Err(common::invalid(
@@ -156,6 +208,16 @@ pub fn export_package_v3(
         let _ = fs::remove_dir_all(&staging);
     }
     result
+}
+
+fn sync_package_directories(root: &Path) -> Result<(), EditorError> {
+    for entry in fs::read_dir(root).map_err(common::io)? {
+        let entry = entry.map_err(common::io)?;
+        if entry.file_type().map_err(common::io)?.is_dir() {
+            sync_package_directories(&entry.path())?;
+        }
+    }
+    common::sync_dir(root)
 }
 
 pub fn read_package_v3(
@@ -187,6 +249,8 @@ pub fn read_package_v3(
     let manifest: PackageManifestV3 = serde_json::from_slice(&manifest_bytes)
         .map_err(|_| common::invalid("Schema 3 package manifest is invalid"))?;
     project_package_v3::validate_manifest(&manifest)?;
+    let plugin_bundle_paths = verify_plugin_bundles(root, &manifest)?;
+    let plugin_package_install_plan = plugin_package_install_plan(root, &manifest)?;
     let document_bytes = common::bounded_bytes(
         &common::relative(root, &manifest.project_path)?,
         common::MAX_DOCUMENT_BYTES,
@@ -227,12 +291,13 @@ pub fn read_package_v3(
             .collect(),
     };
     let tool_environment_matches =
-        matches!(manifest.schema_version, 3 | 4) && tool_lock_mismatches.is_empty();
-    common::capture_media(
+        matches!(manifest.schema_version, 3..=5) && tool_lock_mismatches.is_empty();
+    common::capture_media_with_plugins(
         root,
         &common_manifest(&manifest),
         &document.base,
         asset_store_root,
+        &plugin_bundle_paths,
     )?;
     Ok(PreparedImportV3 {
         manifest_sha256,
@@ -242,5 +307,140 @@ pub fn read_package_v3(
         fonts_missing,
         tool_environment_matches,
         tool_lock_mismatches,
+        plugin_package_install_plan,
     })
+}
+
+fn plugin_package_install_plan(
+    root: &Path,
+    manifest: &PackageManifestV3,
+) -> Result<Vec<PluginGrantRestoreAction>, EditorError> {
+    manifest
+        .plugin_bundles
+        .iter()
+        .map(|bundle| {
+            let path = common::relative(root, &bundle.path)?;
+            let package_root = path
+                .into_os_string()
+                .into_string()
+                .map_err(|_| common::invalid("Plugin bundle path is not valid UTF-8"))?;
+            Ok(match bundle.kind {
+                PackagePluginKind::PlannerV1 => PluginGrantRestoreAction::PlannerV1Install(
+                    opencut_api_contracts::plugins::InstallPinnedInput {
+                        package_root,
+                        granted_permissions: bundle
+                            .proposed_global_permissions
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        expected_package_sha256: bundle.package_sha256.clone(),
+                    },
+                ),
+                PackagePluginKind::PresetV2 => PluginGrantRestoreAction::PresetV2Install(
+                    opencut_api_contracts::plugin_v2::InstallPinnedInput {
+                        package_root,
+                        expected_package_sha256: bundle.package_sha256.clone(),
+                    },
+                ),
+            })
+        })
+        .collect()
+}
+
+fn verify_plugin_bundles(
+    root: &Path,
+    manifest: &PackageManifestV3,
+) -> Result<Vec<String>, EditorError> {
+    let mut total = 0_u64;
+    let mut paths = Vec::with_capacity(manifest.plugin_bundles.len());
+    for bundle in &manifest.plugin_bundles {
+        let package_root = common::relative(root, &bundle.path)?;
+        if !fs::symlink_metadata(&package_root)
+            .map_err(common::io)?
+            .file_type()
+            .is_dir()
+        {
+            return Err(common::invalid("Plugin bundle root is not a directory"));
+        }
+        let (id, version, package_sha256, bytes) = match bundle.kind {
+            PackagePluginKind::PlannerV1 => {
+                let (plugin_manifest, hash) =
+                    opencut_plugin_host::PluginHost::verify_package_root(&package_root).map_err(
+                        |_| common::invalid("Bundled planner plugin package failed verification"),
+                    )?;
+                if plugin_manifest.id != bundle.id
+                    || plugin_manifest.version != bundle.version
+                    || hash != bundle.package_sha256
+                    || bundle
+                        .proposed_global_permissions
+                        .iter()
+                        .any(|permission| !plugin_manifest.permissions.contains(permission))
+                {
+                    return Err(common::invalid(
+                        "Planner plugin bundle identity or permission snapshot differs",
+                    ));
+                }
+                (
+                    plugin_manifest.id,
+                    plugin_manifest.version,
+                    hash,
+                    bounded_tree_size(&package_root)?,
+                )
+            }
+            PackagePluginKind::PresetV2 => {
+                let (plugin_manifest, hash) =
+                    crate::plugin_v2::PresetPackages::verify_package_root(&package_root).map_err(
+                        |_| common::invalid("Bundled preset plugin package failed verification"),
+                    )?;
+                if plugin_manifest.id != bundle.id
+                    || plugin_manifest.version != bundle.version
+                    || hash != bundle.package_sha256
+                {
+                    return Err(common::invalid("Preset plugin bundle identity differs"));
+                }
+                (
+                    plugin_manifest.id,
+                    plugin_manifest.version,
+                    hash,
+                    bounded_tree_size(&package_root)?,
+                )
+            }
+        };
+        if id != bundle.id || version != bundle.version || package_sha256 != bundle.package_sha256 {
+            return Err(common::invalid("Plugin bundle identity differs"));
+        }
+        total = total
+            .checked_add(bytes)
+            .ok_or_else(|| common::invalid("Plugin bundle size overflow"))?;
+        if total > MAX_PLUGIN_BUNDLE_BYTES {
+            return Err(common::invalid("Plugin bundles exceed package size limit"));
+        }
+        paths.push(bundle.path.clone());
+    }
+    Ok(paths)
+}
+
+fn bounded_tree_size(root: &Path) -> Result<u64, EditorError> {
+    let mut total = 0_u64;
+    for entry in fs::read_dir(root).map_err(common::io)? {
+        let entry = entry.map_err(common::io)?;
+        let ty = entry.file_type().map_err(common::io)?;
+        if ty.is_dir() {
+            total = total
+                .checked_add(bounded_tree_size(&entry.path())?)
+                .ok_or_else(|| common::invalid("Plugin bundle size overflow"))?;
+        } else if ty.is_file() {
+            total = total
+                .checked_add(entry.metadata().map_err(common::io)?.len())
+                .ok_or_else(|| common::invalid("Plugin bundle size overflow"))?;
+        } else {
+            return Err(common::invalid(
+                "Plugin bundle entries must be regular files or directories",
+            ));
+        }
+        if total > MAX_PLUGIN_BUNDLE_BYTES {
+            return Err(common::invalid("Plugin bundles exceed package size limit"));
+        }
+    }
+    Ok(total)
 }

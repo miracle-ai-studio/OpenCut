@@ -97,6 +97,17 @@ impl PluginHost {
         granted_permissions: impl IntoIterator<Item = String>,
         journal: &dyn PublicationJournal<PluginObject>,
     ) -> Result<InstalledPlugin, EditorError> {
+        self.install_pinned_observed(package_root, granted_permissions, None, journal)
+    }
+
+    /// Installs a package only when its verified content identity matches an optional pin.
+    pub fn install_pinned_observed(
+        &self,
+        package_root: impl AsRef<Path>,
+        granted_permissions: impl IntoIterator<Item = String>,
+        expected_package_sha256: Option<&str>,
+        journal: &dyn PublicationJournal<PluginObject>,
+    ) -> Result<InstalledPlugin, EditorError> {
         let package_root = package_root.as_ref().canonicalize().map_err(io_error)?;
         if !package_root.is_dir() {
             return Err(invalid("plugin package must be a directory"));
@@ -121,6 +132,12 @@ impl PluginHost {
             }
         }
         let package_sha256 = hash_package(&package_root)?;
+        if expected_package_sha256.is_some_and(|expected| expected != package_sha256) {
+            return Err(EditorError::new(
+                "PLUGIN_INTEGRITY",
+                "Plugin package differs from the expected content identity",
+            ));
+        }
         let package_object = PluginObject::PluginPackage {
             plugin_id: manifest.id.clone(),
             version: manifest.version.clone(),
@@ -357,6 +374,75 @@ impl PluginHost {
             "NOT_FOUND",
             format!("plugin {id}@{version} is not installed"),
         ))
+    }
+
+    /// Copies the immutable package bytes for project export, excluding host-local grants.
+    pub fn copy_installed_package(
+        &self,
+        id: &str,
+        version: &str,
+        expected_sha256: &str,
+        destination: impl AsRef<Path>,
+        max_bytes: u64,
+    ) -> Result<(u64, BTreeSet<String>), EditorError> {
+        let installed = self.inspect(id, version)?;
+        if installed.package_sha256 != expected_sha256 {
+            return Err(EditorError::new(
+                "PLUGIN_INTEGRITY",
+                "Installed plugin package differs from the project grant identity",
+            ));
+        }
+        if installed
+            .granted_permissions
+            .iter()
+            .any(|permission| !installed.manifest.permissions.contains(permission))
+        {
+            return Err(EditorError::new(
+                "PLUGIN_INTEGRITY",
+                "Installed plugin permissions differ from its manifest",
+            ));
+        }
+        let destination = destination.as_ref();
+        if destination.exists() {
+            return Err(invalid("Plugin bundle destination already exists"));
+        }
+        let result = (|| {
+            let copied = copy_plugin_bundle(&installed.install_path, destination, max_bytes)?;
+            let (_, copied_hash) = Self::verify_package_root(destination)?;
+            if copied_hash != expected_sha256 {
+                return Err(EditorError::new(
+                    "PLUGIN_INTEGRITY",
+                    "Copied plugin package differs from its content identity",
+                ));
+            }
+            Ok((copied, installed.granted_permissions))
+        })();
+        if result.is_err() {
+            let _ = fs::remove_dir_all(destination);
+        }
+        result
+    }
+
+    /// Validates an uninstalled package directory and returns its manifest and content identity.
+    pub fn verify_package_root(
+        root: impl AsRef<Path>,
+    ) -> Result<(PluginManifest, String), EditorError> {
+        let root = root.as_ref().canonicalize().map_err(io_error)?;
+        if !root.is_dir() {
+            return Err(invalid("plugin package must be a directory"));
+        }
+        reject_symlinks(&root, &root)?;
+        let manifest: PluginManifest =
+            serde_json::from_slice(&fs::read(root.join("manifest.json")).map_err(io_error)?)
+                .map_err(|e| invalid(format!("invalid manifest schema: {e}")))?;
+        validate_manifest(&manifest, &root)?;
+        if root.join(".opencut-grants.json").exists()
+            || root.join(".opencut-grants.json.tmp").exists()
+        {
+            return Err(invalid("plugin package uses a reserved host metadata path"));
+        }
+        let package_sha256 = hash_package(&root)?;
+        Ok((manifest, package_sha256))
     }
 
     pub fn invoke_plan(
@@ -803,6 +889,73 @@ fn copy_package(
     sync_dir(destination)
 }
 
+fn copy_plugin_bundle(
+    source: &Path,
+    destination: &Path,
+    max_bytes: u64,
+) -> Result<u64, EditorError> {
+    let mut copied = 0_u64;
+    copy_plugin_bundle_entries(source, destination, max_bytes, &mut copied)?;
+    Ok(copied)
+}
+
+fn copy_plugin_bundle_entries(
+    source: &Path,
+    destination: &Path,
+    max_bytes: u64,
+    copied: &mut u64,
+) -> Result<(), EditorError> {
+    fs::create_dir_all(destination).map_err(io_error)?;
+    for entry in fs::read_dir(source).map_err(io_error)? {
+        let entry = entry.map_err(io_error)?;
+        if matches!(
+            entry.file_name().to_str(),
+            Some(".opencut-grants.json" | ".opencut-grants.json.tmp")
+        ) {
+            continue;
+        }
+        let target = destination.join(entry.file_name());
+        let file_type = entry.file_type().map_err(io_error)?;
+        if file_type.is_dir() {
+            copy_plugin_bundle_entries(&entry.path(), &target, max_bytes, copied)?;
+        } else if file_type.is_file() {
+            let mut input = fs::File::open(entry.path()).map_err(io_error)?;
+            let expected = input.metadata().map_err(io_error)?.len();
+            if copied
+                .checked_add(expected)
+                .is_none_or(|size| size > max_bytes)
+            {
+                return Err(invalid("Plugin bundle exceeds project package size limit"));
+            }
+            let mut output = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target)
+                .map_err(io_error)?;
+            let mut buffer = [0_u8; 65536];
+            loop {
+                let count = input.read(&mut buffer).map_err(io_error)?;
+                if count == 0 {
+                    break;
+                }
+                *copied = copied
+                    .checked_add(count as u64)
+                    .ok_or_else(|| invalid("Plugin bundle size overflow"))?;
+                if *copied > max_bytes {
+                    return Err(invalid("Plugin bundle exceeds project package size limit"));
+                }
+                output.write_all(&buffer[..count]).map_err(io_error)?;
+            }
+            output.sync_all().map_err(io_error)?;
+        } else {
+            return Err(invalid(
+                "Plugin bundle entries must be regular files or directories",
+            ));
+        }
+    }
+    sync_dir(destination)
+}
+
 struct Staging(PathBuf);
 impl Drop for Staging {
     fn drop(&mut self) {
@@ -1162,6 +1315,72 @@ mod tests {
             .code,
             "PERMISSION_DENIED"
         );
+    }
+
+    #[test]
+    fn package_bundle_copy_preserves_package_hash_and_excludes_host_permissions() {
+        let package = package(|_| {});
+        let host_root = tempfile::tempdir().unwrap();
+        let host = PluginHost::new(host_root.path()).unwrap();
+        let installed = host
+            .install(
+                package.path(),
+                ["project.snapshot.read".into(), "edit.plan.propose".into()],
+            )
+            .unwrap();
+        let output_root = tempfile::tempdir().unwrap();
+        let destination = output_root.path().join("bundle");
+        let (size, permissions) = host
+            .copy_installed_package(
+                "org.example.planner",
+                "1.0.0",
+                &installed.package_sha256,
+                &destination,
+                1024 * 1024,
+            )
+            .unwrap();
+        assert!(size > 0);
+        assert_eq!(
+            hash_package(&destination).unwrap(),
+            installed.package_sha256
+        );
+        assert!(!destination.join(".opencut-grants.json").exists());
+        assert_eq!(permissions, installed.granted_permissions);
+        let (manifest, digest) = PluginHost::verify_package_root(&destination).unwrap();
+        assert_eq!(manifest.id, "org.example.planner");
+        assert_eq!(digest, installed.package_sha256);
+        let limited_destination = output_root.path().join("over-limit");
+        assert_eq!(
+            host.copy_installed_package(
+                "org.example.planner",
+                "1.0.0",
+                &installed.package_sha256,
+                &limited_destination,
+                1,
+            )
+            .unwrap_err()
+            .code,
+            "INVALID_PLUGIN"
+        );
+        assert!(!limited_destination.exists());
+    }
+
+    #[test]
+    fn pinned_install_rejects_different_package_bytes_before_installing() {
+        let package = package(|_| {});
+        let host_root = tempfile::tempdir().unwrap();
+        let host = PluginHost::new(host_root.path()).unwrap();
+        let expected = "0".repeat(64);
+        let error = host
+            .install_pinned_observed(
+                package.path(),
+                ["project.snapshot.read".into()],
+                Some(&expected),
+                &UntrackedPublication,
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "PLUGIN_INTEGRITY");
+        assert!(host.list().unwrap().is_empty());
     }
 
     #[test]

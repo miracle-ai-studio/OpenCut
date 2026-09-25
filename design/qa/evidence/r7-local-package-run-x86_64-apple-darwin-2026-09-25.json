@@ -1,8 +1,8 @@
 {
   "status": "passed",
-  "archive": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-a08350f60a58-x86_64-apple-darwin.tar.gz",
-  "archive_sha256": "d71fec8bb45f04ea04b6d766dbc1e02dad60bc4813aa9325afc26c0ea9ac3a6f",
-  "binary_sha256": "68c11d7202bf7f27d92742ba8c5efc1b8f97d05f2283dd1f353c4934d8b4f4b9",
+  "archive": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-30c3db6b4ed7-x86_64-apple-darwin.tar.gz",
+  "archive_sha256": "3ebe6f8ff8a09e18cbd44a63834d9d2bd93c70d69957dacaea835e7a05d83f7f",
+  "binary_sha256": "0737e8122508ce58c18caa10b2f77ab9f3ccaa03e8d5faa47e07c4c20c97409a",
   "target": "x86_64-apple-darwin",
   "checks": [
     "Delivered Streamable HTTP lifecycle, authenticated sessions and bounded replay",
@@ -46,7 +46,7 @@
     "delivered collector rechecks file identity after durable intent and preserves new file or symlink names",
     "service stop and standalone delivered CLI reopen preserve final project"
   ],
-  "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-qj2jnpi9",
+  "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-d635z3qy",
   "doctor": {
     "status": "passed",
     "target": "x86_64-apple-darwin",
