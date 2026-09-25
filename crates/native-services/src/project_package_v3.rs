@@ -1,4 +1,4 @@
-//! Owner-local schema 3 package I/O built on the version 1 media verifier.
+//! Owner-local schema 3 project packages and schema 4 grant snapshots, built on the v1 media verifier.
 use crate::project_package as common;
 use opencut_api_contracts::{
     project_package::{PackageManifest, PackageMode},
@@ -104,7 +104,7 @@ pub fn export_package_v3(
             .collect::<Vec<_>>();
         dependencies.tools_not_locked.clear();
         let manifest = PackageManifestV3 {
-            schema_version: 3,
+            schema_version: 4,
             project_schema_version: 3,
             mode: input.mode.clone(),
             source_project_id: input.project_id.clone(),
@@ -114,6 +114,7 @@ pub fn export_package_v3(
             assets: inventory,
             dependencies: dependencies.clone(),
             tool_locks: tool_locks.clone(),
+            plugin_grants: source.plugin_grants.clone(),
             self_contained_media: input.mode == PackageMode::SelfContained,
             fully_reproducible: input.mode == PackageMode::SelfContained
                 && dependencies.fonts_not_bundled.is_empty()
@@ -121,6 +122,7 @@ pub fn export_package_v3(
                 && dependencies.tools_not_locked.is_empty()
                 && dependencies.unsupported.is_empty(),
         };
+        project_package_v3::validate_manifest(&manifest)?;
         let manifest_bytes = serde_json::to_vec(&manifest)
             .map_err(|_| common::invalid("Could not serialize schema 3 manifest"))?;
         if manifest_bytes.len() as u64 > common::MAX_MANIFEST_BYTES {
@@ -145,6 +147,7 @@ pub fn export_package_v3(
             asset_count: document.base.assets.len(),
             dependencies,
             tool_locks,
+            plugin_grants: source.plugin_grants.clone(),
             self_contained_media: manifest.self_contained_media,
             fully_reproducible: manifest.fully_reproducible,
         })
@@ -223,7 +226,8 @@ pub fn read_package_v3(
             .chain(manifest.dependencies.tools_not_locked.iter().cloned())
             .collect(),
     };
-    let tool_environment_matches = manifest.schema_version == 3 && tool_lock_mismatches.is_empty();
+    let tool_environment_matches =
+        matches!(manifest.schema_version, 3 | 4) && tool_lock_mismatches.is_empty();
     common::capture_media(
         root,
         &common_manifest(&manifest),

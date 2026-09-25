@@ -74,16 +74,54 @@ def verify(binary: Path, artifacts: Path):
         "expected_revision": created["revision"], "idempotency_key": "build-v3",
         "label": "Build portable composition", "operations": operations})
     revision = edited["revision"]
+    v1_target = {"project_id": "source-v3", "id": "org.example.package-planner", "version": "1.2.0"}
+    v1_grant = {"target": v1_target, "package_sha256": hashlib.sha256(b"planner package fixture").hexdigest(),
+        "operations": ["org.example.package-planner.apply"], "enabled": True,
+        "expected_revision": "0", "idempotency_key": "grant-v1-package"}
+    call(origin, "opencut_project_plugin_grant", v1_grant)
+    stored_v1_grant = call(origin, "opencut_project_plugin_grant", {**v1_grant,
+        "enabled": False, "expected_revision": "1", "idempotency_key": "disable-v1-package"})
+    assert stored_v1_grant["revision"] == "2" and not stored_v1_grant["enabled"]
+
+    v2_package = run / "package-v2"
+    (v2_package / "specs").mkdir(parents=True)
+    v2_style = {"font_family": "Arial", "font_size": 30.0, "color": "#ffffff",
+        "background_color": None,
+        "font_policy": {"mode": "explicit_fallback", "families": ["Helvetica"]}}
+    v2_spec = {"kind": "caption_style", "style": v2_style}
+    v2_spec_bytes = json.dumps(v2_spec, separators=(",", ":"), ensure_ascii=False).encode()
+    (v2_package / "specs" / "captions.json").write_bytes(v2_spec_bytes)
+    v2_manifest = {"manifest_version": 2, "id": "org.example.package-preset", "version": "2.1.0",
+        "display_name": "Package preset", "presets": [{"name": "captions",
+            "spec_path": "specs/captions.json", "spec_sha256": hashlib.sha256(v2_spec_bytes).hexdigest()}]}
+    (v2_package / "manifest_v2.json").write_text(json.dumps(v2_manifest, ensure_ascii=False))
+    installed_v2 = call(origin, "opencut_plugin_v2_install", {"package_root": str(v2_package)})
+    v2_grant = {"target": {"project_id": "source-v3", "id": v2_manifest["id"],
+        "version": v2_manifest["version"]}, "package_sha256": installed_v2["package_sha256"],
+        "preset_names": ["captions"], "enabled": True, "expected_revision": "0",
+        "idempotency_key": "grant-v2-package"}
+    stored_v2_grant = call(origin, "opencut_plugin_v2_grant", v2_grant)
     linked = call(origin, "opencut_project_v3_package_export", {"project_id": "source-v3",
         "revision": revision, "destination": str(run / "linked.opencut"), "mode": "linked"})
     portable = call(origin, "opencut_project_v3_package_export", {"project_id": "source-v3",
         "revision": revision, "destination": str(run / "portable.opencut"), "mode": "self_contained"})
     manifest = json.loads((Path(portable["package_path"]) / "manifest.json").read_text())
-    assert manifest["schema_version"] == 3 and manifest["project_schema_version"] == 3
+    assert manifest["schema_version"] == 4 and manifest["project_schema_version"] == 3
     assert [lock["name"] for lock in manifest["tool_locks"]] == ["ffmpeg", "ffprobe"]
     assert all(len(lock["binary_sha256"]) == 64 and lock["version"] for lock in manifest["tool_locks"])
     assert manifest["assets"][0]["content_hash"] == source_hash
     assert portable["tool_locks"] == manifest["tool_locks"]
+    assert portable["plugin_grants"] == manifest["plugin_grants"]
+    assert {grant["kind"] for grant in manifest["plugin_grants"]} == {"planner_v1", "preset_v2"}
+    assert any(grant["kind"] == "planner_v1"
+        and grant["operations"] == ["org.example.package-planner.apply"]
+        and not grant["enabled"]
+        and grant["package_sha256"] == stored_v1_grant["package_sha256"]
+        for grant in manifest["plugin_grants"])
+    assert any(grant["kind"] == "preset_v2"
+        and grant["preset_names"] == ["captions"]
+        and grant["package_sha256"] == stored_v2_grant["package_sha256"]
+        for grant in manifest["plugin_grants"])
     assert portable["self_contained_media"] and not portable["fully_reproducible"]
     linked_request = {"package_path": linked["package_path"], "target_project_id": "linked-v3",
         "expected_manifest_sha256": linked["manifest_sha256"], "idempotency_key": "import-linked-v3"}
@@ -98,6 +136,12 @@ def verify(binary: Path, artifacts: Path):
     imported = call(target, "opencut_project_v3_package_import", request)
     assert imported["tool_environment_matches"] and not imported["tool_lock_mismatches"]
     assert imported["font_environment_checked"] and not imported["fonts_missing"]
+    assert imported["plugin_grant_restore_plan"] == manifest["plugin_grants"]
+    assert imported["dependencies"]["plugins_not_bundled"] == manifest["dependencies"]["plugins_not_bundled"]
+    assert call(target, "opencut_project_plugin_list", {"project_id": "restored-v3"}) == []
+    assert call(target, "opencut_plugin_v2_grants", {"project_id": "restored-v3"}) == []
+    assert call(target, "opencut_plugin_list", {}) == []
+    assert call(target, "opencut_plugin_v2_list", {}) == []
     snapshot = call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3", "revision": None})
     assert snapshot["revision"] == imported["revision"]
     assert snapshot["project"]["schema_version"] == 3
@@ -179,6 +223,8 @@ def verify(binary: Path, artifacts: Path):
     legacy_manifest = json.loads(legacy_manifest_path.read_text())
     legacy_manifest["schema_version"] = 2
     legacy_manifest.pop("tool_locks")
+    legacy_manifest.pop("plugin_grants")
+    legacy_manifest["dependencies"]["plugins_not_bundled"] = []
     legacy_manifest["dependencies"]["tools_not_locked"] = ["ffmpeg", "ffprobe"]
     legacy_manifest["fully_reproducible"] = False
     legacy_manifest_bytes = json.dumps(legacy_manifest, separators=(",", ":")).encode()
@@ -189,6 +235,38 @@ def verify(binary: Path, artifacts: Path):
     legacy_import = call(target, "opencut_project_v3_package_import", legacy_request)
     assert not legacy_import["tool_environment_matches"]
     assert legacy_import["tool_lock_mismatches"] == ["ffmpeg", "ffprobe"]
+
+    legacy_plugin_package = run / "legacy-v3-plugin-unlocked.opencut"
+    shutil.copytree(portable["package_path"], legacy_plugin_package)
+    legacy_plugin_manifest_path = legacy_plugin_package / "manifest.json"
+    legacy_plugin_manifest = json.loads(legacy_plugin_manifest_path.read_text())
+    legacy_plugin_manifest["schema_version"] = 3
+    legacy_plugin_manifest.pop("plugin_grants")
+    legacy_plugin_manifest_bytes = json.dumps(legacy_plugin_manifest, separators=(",", ":")).encode()
+    legacy_plugin_manifest_path.write_bytes(legacy_plugin_manifest_bytes)
+    legacy_plugin_request = {"package_path": str(legacy_plugin_package),
+        "target_project_id": "restored-v3-legacy-plugin",
+        "expected_manifest_sha256": hashlib.sha256(legacy_plugin_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-legacy-plugin"}
+    call(target, "opencut_project_v3_package_import", legacy_plugin_request,
+        error="PACKAGE_DEPENDENCY_MISSING")
+    call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3-legacy-plugin", "revision": None},
+        error="NOT_FOUND")
+
+    grant_mismatch_package = run / "grant-mismatch.opencut"
+    shutil.copytree(portable["package_path"], grant_mismatch_package)
+    grant_manifest_path = grant_mismatch_package / "manifest.json"
+    grant_manifest = json.loads(grant_manifest_path.read_text())
+    grant_manifest["plugin_grants"][0]["package_sha256"] = "0" * 64
+    grant_manifest_bytes = json.dumps(grant_manifest, separators=(",", ":")).encode()
+    grant_manifest_path.write_bytes(grant_manifest_bytes)
+    grant_mismatch_request = {"package_path": str(grant_mismatch_package),
+        "target_project_id": "restored-v3-grant-mismatch",
+        "expected_manifest_sha256": hashlib.sha256(grant_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-grant-mismatch"}
+    call(target, "opencut_project_v3_package_import", grant_mismatch_request, error="PACKAGE_INVALID")
+    call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3-grant-mismatch", "revision": None},
+        error="NOT_FOUND")
 
     font_package = run / "font-missing.opencut"
     shutil.copytree(portable["package_path"], font_package)
@@ -229,7 +307,7 @@ def verify(binary: Path, artifacts: Path):
             "render_preflight_ready": font_preflight["ready"]},
         "source_revision":revision,"imported_revision":imported["revision"],
         "render_sha256":render_hash,"pixels":{"masked_left":left,"masked_right":right,"blue":blue,"green":green},
-        "checks":["schema3 manifest/document and visual graph validated",
+        "checks":["schema4 manifest/document, visual graph, and exact V1/V2 grant snapshots validated",
             "linked package requires original CAS after source workspace removal",
             "self-contained package imports after origin workspace removal",
             "V3 visual graph survives relocation and accepts a new edit",
@@ -239,6 +317,8 @@ def verify(binary: Path, artifacts: Path):
             "exact FFmpeg and ffprobe binary locks are recorded and verified",
             "tool lock mismatch remains importable and is reported",
             "schema 2 package compatibility remains explicit as unlocked",
+            "legacy plugin grants without complete snapshots remain explicitly blocked; mismatched schema4 identities are rejected",
+            "import returns full enabled and disabled grant snapshots without installing or granting in the target workspace",
             "missing font families are reported on import and block render preflight"],"trace":trace}
     (run/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     return {"status":"passed","report":str(run/"report.json"),"checks":report["checks"]}

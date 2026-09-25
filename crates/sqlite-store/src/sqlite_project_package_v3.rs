@@ -1,12 +1,19 @@
 //! Owner-only fixed schema 3 package source and atomic target publication.
 use super::*;
 use opencut_api_contracts::project_package_v3::{
-    ImportPackageV3, ImportReceipt, PackageToolLock, PreparedImportV3,
+    ImportPackageV3, ImportReceipt, PackagePluginGrant, PackageToolLock, PreparedImportV3,
 };
 use opencut_editor_application::project_package_v3::{self, PackageExportSourceV3};
 
 fn decode_import_receipt(raw: &str) -> Result<ImportReceipt, EditorError> {
-    if let Ok(receipt) = serde_json::from_str::<ImportReceipt>(raw) {
+    let mut value: serde_json::Value = decode_json(raw, "schema 3 package import receipt")?;
+    if let Some(object) = value.as_object_mut() {
+        // The public receipt always includes this field; only rows written before schema 4 omit it.
+        object
+            .entry("plugin_grant_restore_plan")
+            .or_insert_with(|| json!([]));
+    }
+    if let Ok(receipt) = serde_json::from_value::<ImportReceipt>(value) {
         return Ok(receipt);
     }
     let legacy: opencut_api_contracts::project_package::ImportReceipt =
@@ -25,6 +32,7 @@ fn decode_import_receipt(raw: &str) -> Result<ImportReceipt, EditorError> {
         tool_environment_matches: false,
         self_contained_media: legacy.self_contained_media,
         fully_reproducible: legacy.fully_reproducible,
+        plugin_grant_restore_plan: Vec::new(),
     })
 }
 
@@ -41,20 +49,28 @@ impl EditorApplication {
             .map_err(storage_error)?;
         let snapshot = sqlite_project_v3::load_v3_snapshot(&tx, project_id, Some(revision))?;
         let mut statement = tx.prepare(
-            "SELECT plugin_id,version FROM project_plugin_grants WHERE project_id=?1 ORDER BY plugin_id,version",
+            "SELECT grant_json FROM project_plugin_grants WHERE project_id=?1 ORDER BY plugin_id,version",
         ).map_err(storage_error)?;
-        let mut plugin_grants = statement
-            .query_map([project_id], |row| {
-                Ok(format!(
-                    "{}@{}",
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?
-                ))
-            })
+        let planner_grants = statement
+            .query_map([project_id], |row| row.get::<_, String>(0))
             .map_err(storage_error)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(storage_error)?;
         drop(statement);
+        let mut plugin_grants = planner_grants
+            .iter()
+            .map(|raw| {
+                let grant: opencut_api_contracts::project_plugins::Grant =
+                    decode_json(raw, "project plugin grant")?;
+                Ok(PackagePluginGrant::PlannerV1 {
+                    id: grant.target.id,
+                    version: grant.target.version,
+                    package_sha256: grant.package_sha256,
+                    operations: grant.operations,
+                    enabled: grant.enabled,
+                })
+            })
+            .collect::<Result<Vec<_>, EditorError>>()?;
         let mut v2_statement = tx.prepare(
             "SELECT grant_json FROM project_preset_grants WHERE project_id=?1 ORDER BY plugin_id,version",
         ).map_err(storage_error)?;
@@ -65,14 +81,23 @@ impl EditorApplication {
             .map_err(storage_error)?;
         for raw in v2 {
             let grant: opencut_api_contracts::plugin_v2::Grant = decode_json(&raw, "preset grant")?;
-            if grant.enabled {
-                plugin_grants.push(format!(
-                    "v2:{}@{}#{}",
-                    grant.target.id, grant.target.version, grant.package_sha256
-                ));
-            }
+            plugin_grants.push(PackagePluginGrant::PresetV2 {
+                id: grant.target.id,
+                version: grant.target.version,
+                package_sha256: grant.package_sha256,
+                preset_names: grant.preset_names,
+                enabled: grant.enabled,
+            });
         }
         drop(v2_statement);
+        plugin_grants.sort_by_key(|grant| match grant {
+            PackagePluginGrant::PlannerV1 { id, version, .. } => {
+                format!("v1:{id}@{version}")
+            }
+            PackagePluginGrant::PresetV2 { id, version, .. } => {
+                format!("v2:{id}@{version}")
+            }
+        });
         tx.commit().map_err(storage_error)?;
         Ok(PackageExportSourceV3 {
             snapshot,
@@ -161,6 +186,11 @@ impl EditorApplication {
             tool_locks: prepared.manifest.tool_locks.clone(),
             tool_environment_matches: prepared.tool_environment_matches,
             tool_lock_mismatches: prepared.tool_lock_mismatches.clone(),
+            plugin_grant_restore_plan: if prepared.manifest.schema_version == 4 {
+                prepared.manifest.plugin_grants.clone()
+            } else {
+                Vec::new()
+            },
             self_contained_media: prepared.manifest.self_contained_media,
             fully_reproducible: prepared.manifest.fully_reproducible,
         };
@@ -221,5 +251,42 @@ mod tests {
             vec!["ffmpeg".to_string(), "ffprobe".to_string()]
         );
         assert!(restored.tool_locks.is_empty());
+    }
+
+    #[test]
+    fn intermediate_schema3_receipt_replays_without_a_grant_restore_plan() {
+        let receipt = ImportReceipt {
+            target_project_id: "restored".into(),
+            revision: "rev_new".into(),
+            manifest_sha256: "a".repeat(64),
+            source_project_id: "source".into(),
+            source_revision: "rev_source".into(),
+            dependencies: PackageDependencies {
+                fonts_not_bundled: vec!["Arial".into()],
+                plugins_not_bundled: vec!["org.example.plugin@1.0.0".into()],
+                tools_not_locked: Vec::new(),
+                unsupported: Vec::new(),
+            },
+            font_environment_checked: true,
+            fonts_missing: Vec::new(),
+            tool_locks: Vec::new(),
+            tool_environment_matches: true,
+            tool_lock_mismatches: Vec::new(),
+            plugin_grant_restore_plan: Vec::new(),
+            self_contained_media: true,
+            fully_reproducible: false,
+        };
+        let mut stored = serde_json::to_value(receipt).unwrap();
+        stored
+            .as_object_mut()
+            .unwrap()
+            .remove("plugin_grant_restore_plan");
+        let restored = decode_import_receipt(&stored.to_string()).unwrap();
+        assert!(restored.plugin_grant_restore_plan.is_empty());
+        assert_eq!(
+            restored.dependencies.plugins_not_bundled,
+            ["org.example.plugin@1.0.0"]
+        );
+        assert!(restored.font_environment_checked);
     }
 }

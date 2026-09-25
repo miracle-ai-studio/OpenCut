@@ -3564,7 +3564,7 @@
     "/v1/tools/opencut_project_v3_package_export": {
       "post": {
         "operationId": "opencut_project_v3_package_export",
-        "description": "Owner-local: export one complete schema 3 revision including visual nodes and verified media. Locks exact FFmpeg and ffprobe versions and binary hashes; reports external fonts and plugins.",
+        "description": "Owner-local: export one complete schema 3 project revision including visual nodes and verified media in package schema 4. Locks exact FFmpeg and ffprobe versions and binary hashes; captures full planner-v1 and preset-v2 project grant snapshots without bundling plugin packages.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -3603,7 +3603,7 @@
     "/v1/tools/opencut_project_v3_package_import": {
       "post": {
         "operationId": "opencut_project_v3_package_import",
-        "description": "Owner-local: validate and import a schema 3 package, report missing font families and whether locked FFmpeg and ffprobe binaries match, and continue when these host dependencies differ. Replay uses the manifest hash and idempotency key.",
+        "description": "Owner-local: import schema 2 or 3 legacy packages and package schema 4 for schema 3 projects. Reports missing font families, native tool mismatches and an owner-reviewed plugin grant restore plan; never installs plugins or automatically applies grants. Replay uses the manifest hash and idempotency key.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -62680,6 +62680,13 @@
               "package_path": {
                 "type": "string"
               },
+              "plugin_grants": {
+                "description": "Grant snapshots written into the package, never applied during export.",
+                "items": {
+                  "$ref": "#/components/schemas/OpencutProjectV3PackageExportOutput/$defs/PackagePluginGrant"
+                },
+                "type": "array"
+              },
               "self_contained_media": {
                 "type": "boolean"
               },
@@ -62700,6 +62707,7 @@
               "asset_count",
               "dependencies",
               "tool_locks",
+              "plugin_grants",
               "self_contained_media",
               "fully_reproducible"
             ],
@@ -62716,7 +62724,7 @@
                 "type": "array"
               },
               "plugins_not_bundled": {
-                "description": "Project plugin grants are reported, not installed in the target workspace.",
+                "description": "Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.",
                 "items": {
                   "type": "string"
                 },
@@ -62743,6 +62751,85 @@
               "unsupported"
             ],
             "type": "object"
+          },
+          "PackagePluginGrant": {
+            "description": "Project authorization policy is carried for review and restoration, never applied on import.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "planner_v1",
+                    "type": "string"
+                  },
+                  "operations": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "package_sha256": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "version",
+                  "package_sha256",
+                  "operations",
+                  "enabled"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "preset_v2",
+                    "type": "string"
+                  },
+                  "package_sha256": {
+                    "type": "string"
+                  },
+                  "preset_names": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "version",
+                  "package_sha256",
+                  "preset_names",
+                  "enabled"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "PackageToolLock": {
             "additionalProperties": false,
@@ -62876,6 +62963,13 @@
               "manifest_sha256": {
                 "type": "string"
               },
+              "plugin_grant_restore_plan": {
+                "description": "Owner-reviewed actions; no project grants are automatically applied during import.",
+                "items": {
+                  "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PackagePluginGrant"
+                },
+                "type": "array"
+              },
               "revision": {
                 "type": "string"
               },
@@ -62919,6 +63013,7 @@
               "tool_locks",
               "tool_environment_matches",
               "tool_lock_mismatches",
+              "plugin_grant_restore_plan",
               "self_contained_media",
               "fully_reproducible"
             ],
@@ -62935,7 +63030,7 @@
                 "type": "array"
               },
               "plugins_not_bundled": {
-                "description": "Project plugin grants are reported, not installed in the target workspace.",
+                "description": "Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.",
                 "items": {
                   "type": "string"
                 },
@@ -62962,6 +63057,85 @@
               "unsupported"
             ],
             "type": "object"
+          },
+          "PackagePluginGrant": {
+            "description": "Project authorization policy is carried for review and restoration, never applied on import.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "planner_v1",
+                    "type": "string"
+                  },
+                  "operations": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "package_sha256": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "version",
+                  "package_sha256",
+                  "operations",
+                  "enabled"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "preset_v2",
+                    "type": "string"
+                  },
+                  "package_sha256": {
+                    "type": "string"
+                  },
+                  "preset_names": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "version",
+                  "package_sha256",
+                  "preset_names",
+                  "enabled"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "PackageToolLock": {
             "additionalProperties": false,
@@ -63132,7 +63306,7 @@
                 "type": "array"
               },
               "plugins_not_bundled": {
-                "description": "Project plugin grants are reported, not installed in the target workspace.",
+                "description": "Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.",
                 "items": {
                   "type": "string"
                 },
@@ -63302,7 +63476,7 @@
                 "type": "array"
               },
               "plugins_not_bundled": {
-                "description": "Project plugin grants are reported, not installed in the target workspace.",
+                "description": "Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.",
                 "items": {
                   "type": "string"
                 },

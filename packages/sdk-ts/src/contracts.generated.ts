@@ -13473,6 +13473,27 @@ export namespace OpencutProjectV3PackageExportInput {
 }
 
 export namespace OpencutProjectV3PackageExportOutput {
+/**
+ * Project authorization policy is carried for review and restoration, never applied on import.
+ */
+  export type PackagePluginGrant =
+  | {
+      enabled: boolean;
+      id: string;
+      kind: 'planner_v1';
+      operations: string[];
+      package_sha256: string;
+      version: string;
+    }
+  | {
+      enabled: boolean;
+      id: string;
+      kind: 'preset_v2';
+      package_sha256: string;
+      preset_names: string[];
+      version: string;
+    };
+
   export interface Response {
   api_version: string;
   data?: ExportReceipt | null;
@@ -13487,6 +13508,10 @@ export namespace OpencutProjectV3PackageExportOutput {
   fully_reproducible: boolean;
   manifest_sha256: string;
   package_path: string;
+  /**
+   * Grant snapshots written into the package, never applied during export.
+   */
+  plugin_grants: PackagePluginGrant[];
   self_contained_media: boolean;
   source_revision: string;
   tool_locks: PackageToolLock[];
@@ -13497,7 +13522,7 @@ export namespace OpencutProjectV3PackageExportOutput {
    */
   fonts_not_bundled: string[];
   /**
-   * Project plugin grants are reported, not installed in the target workspace.
+   * Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.
    */
   plugins_not_bundled: string[];
   /**
@@ -13533,6 +13558,27 @@ export namespace OpencutProjectV3PackageImportInput {
 }
 
 export namespace OpencutProjectV3PackageImportOutput {
+/**
+ * Project authorization policy is carried for review and restoration, never applied on import.
+ */
+  export type PackagePluginGrant =
+  | {
+      enabled: boolean;
+      id: string;
+      kind: 'planner_v1';
+      operations: string[];
+      package_sha256: string;
+      version: string;
+    }
+  | {
+      enabled: boolean;
+      id: string;
+      kind: 'preset_v2';
+      package_sha256: string;
+      preset_names: string[];
+      version: string;
+    };
+
   export interface Response {
   api_version: string;
   data?: ImportReceipt | null;
@@ -13547,6 +13593,10 @@ export namespace OpencutProjectV3PackageImportOutput {
   fonts_missing: string[];
   fully_reproducible: boolean;
   manifest_sha256: string;
+  /**
+   * Owner-reviewed actions; no project grants are automatically applied during import.
+   */
+  plugin_grant_restore_plan: PackagePluginGrant[];
   revision: string;
   self_contained_media: boolean;
   source_project_id: string;
@@ -13562,7 +13612,7 @@ export namespace OpencutProjectV3PackageImportOutput {
    */
   fonts_not_bundled: string[];
   /**
-   * Project plugin grants are reported, not installed in the target workspace.
+   * Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.
    */
   plugins_not_bundled: string[];
   /**
@@ -13623,7 +13673,7 @@ export namespace OpencutProjectPackageExportOutput {
    */
   fonts_not_bundled: string[];
   /**
-   * Project plugin grants are reported, not installed in the target workspace.
+   * Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.
    */
   plugins_not_bundled: string[];
   /**
@@ -13678,7 +13728,7 @@ export namespace OpencutProjectPackageImportOutput {
    */
   fonts_not_bundled: string[];
   /**
-   * Project plugin grants are reported, not installed in the target workspace.
+   * Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.
    */
   plugins_not_bundled: string[];
   /**

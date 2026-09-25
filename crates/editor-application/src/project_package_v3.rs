@@ -1,8 +1,8 @@
-//! Schema 3 package validation keeps every visual dependency attached to its base.
+//! Schema 3 project packages validate their visual graph and portable schema 4 grant snapshots.
 use crate::project_package::{self, PackageExportSource};
 use opencut_api_contracts::{
     project_package::{PackageDependencies, PackageManifest, PreparedImport},
-    project_package_v3::{PackageManifestV3, PreparedImportV3},
+    project_package_v3::{PackageManifestV3, PackagePluginGrant, PreparedImportV3},
 };
 use opencut_contracts::{
     EditorError, ProjectSnapshot,
@@ -12,7 +12,7 @@ use opencut_contracts::{
 #[derive(Clone, Debug)]
 pub struct PackageExportSourceV3 {
     pub snapshot: ProjectSnapshotV3,
-    pub plugin_grants: Vec<String>,
+    pub plugin_grants: Vec<PackagePluginGrant>,
 }
 
 pub fn dependencies(source: &PackageExportSourceV3) -> PackageDependencies {
@@ -21,8 +21,105 @@ pub fn dependencies(source: &PackageExportSourceV3) -> PackageDependencies {
             project: source.snapshot.project.base.clone(),
             revision: source.snapshot.revision.clone(),
         },
-        plugin_grants: source.plugin_grants.clone(),
+        plugin_grants: plugin_dependencies(&source.plugin_grants),
     })
+}
+
+fn plugin_dependencies(grants: &[PackagePluginGrant]) -> Vec<String> {
+    let mut dependencies = grants
+        .iter()
+        .map(plugin_dependency_identity)
+        .collect::<Vec<_>>();
+    dependencies.sort();
+    dependencies.dedup();
+    dependencies
+}
+
+fn plugin_dependency_identity(grant: &PackagePluginGrant) -> String {
+    match grant {
+        PackagePluginGrant::PlannerV1 {
+            id,
+            version,
+            package_sha256,
+            ..
+        } => format!("v1:{id}@{version}#{package_sha256}"),
+        PackagePluginGrant::PresetV2 {
+            id,
+            version,
+            package_sha256,
+            ..
+        } => format!("v2:{id}@{version}#{package_sha256}"),
+    }
+}
+
+fn validate_plugin_grants(grants: &[PackagePluginGrant]) -> Result<(), EditorError> {
+    if grants.len() > 128 {
+        return Err(EditorError::new(
+            "PACKAGE_INVALID",
+            "Package contains too many project plugin grants",
+        ));
+    }
+    let mut previous = None;
+    for grant in grants {
+        let (kind, id, version) = match grant {
+            PackagePluginGrant::PlannerV1 {
+                id,
+                version,
+                package_sha256,
+                operations,
+                enabled,
+            } => {
+                let input = opencut_api_contracts::project_plugins::SetGrant {
+                    target: opencut_api_contracts::project_plugins::PluginTarget {
+                        project_id: "package-validation".into(),
+                        id: id.clone(),
+                        version: version.clone(),
+                    },
+                    package_sha256: package_sha256.clone(),
+                    operations: operations.clone(),
+                    enabled: *enabled,
+                    expected_revision: "0".into(),
+                    idempotency_key: "package-validation".into(),
+                };
+                crate::project_plugins::validate_grant(&input)?;
+                ("v1", id, version)
+            }
+            PackagePluginGrant::PresetV2 {
+                id,
+                version,
+                package_sha256,
+                preset_names,
+                enabled,
+            } => {
+                let input = opencut_api_contracts::plugin_v2::SetGrant {
+                    target: opencut_api_contracts::plugin_v2::GrantTarget {
+                        project_id: "package-validation".into(),
+                        id: id.clone(),
+                        version: version.clone(),
+                    },
+                    package_sha256: package_sha256.clone(),
+                    preset_names: preset_names.clone(),
+                    enabled: *enabled,
+                    expected_revision: "0".into(),
+                    idempotency_key: "package-validation".into(),
+                };
+                crate::plugin_v2::validate_grant(&input)?;
+                ("v2", id, version)
+            }
+        };
+        let identity = format!("{kind}:{id}@{version}");
+        if previous
+            .as_ref()
+            .is_some_and(|previous| previous >= &identity)
+        {
+            return Err(EditorError::new(
+                "PACKAGE_INVALID",
+                "Package plugin grants are duplicated or not canonically ordered",
+            ));
+        }
+        previous = Some(identity);
+    }
+    Ok(())
 }
 
 pub fn validate_export_document(document: &ProjectDocumentV3) -> Result<(), EditorError> {
@@ -34,7 +131,7 @@ pub fn prepare_import(
     target_project_id: &str,
 ) -> Result<ProjectDocumentV3, EditorError> {
     let manifest = &prepared.manifest;
-    if !matches!(manifest.schema_version, 2 | 3)
+    if !matches!(manifest.schema_version, 2..=4)
         || manifest.project_schema_version != 3
         || prepared.document.schema_version != 3
     {
@@ -44,23 +141,39 @@ pub fn prepare_import(
         ));
     }
     validate_export_document(&prepared.document)?;
-    let declared = dependencies(&PackageExportSourceV3 {
+    if manifest.schema_version == 4 {
+        validate_plugin_grants(&manifest.plugin_grants)?;
+    }
+    let source = PackageExportSourceV3 {
         snapshot: ProjectSnapshotV3 {
             project: prepared.document.clone(),
             revision: manifest.source_revision.clone(),
         },
-        plugin_grants: manifest.dependencies.plugins_not_bundled.clone(),
-    });
+        plugin_grants: manifest.plugin_grants.clone(),
+    };
+    let declared = dependencies(&source);
+    let plugin_dependencies_valid = match manifest.schema_version {
+        2 | 3 => manifest.plugin_grants.is_empty(),
+        4 => declared.plugins_not_bundled == manifest.dependencies.plugins_not_bundled,
+        _ => false,
+    };
     if declared.fonts_not_bundled != manifest.dependencies.fonts_not_bundled
+        || !plugin_dependencies_valid
         || (manifest.schema_version == 2
             && declared.tools_not_locked != manifest.dependencies.tools_not_locked)
-        || (manifest.schema_version == 3 && !manifest.dependencies.tools_not_locked.is_empty())
+        || (matches!(manifest.schema_version, 3 | 4)
+            && !manifest.dependencies.tools_not_locked.is_empty())
         || !manifest.dependencies.unsupported.is_empty()
     {
         return Err(EditorError::new(
             "PACKAGE_INVALID",
             "Package dependency report does not match project content",
         ));
+    }
+    let mut base_dependencies = manifest.dependencies.clone();
+    // Grant state travels in the reviewed restore plan and is never enabled by package import.
+    if manifest.schema_version == 4 {
+        base_dependencies.plugins_not_bundled.clear();
     }
     let base_manifest = PackageManifest {
         schema_version: 1,
@@ -70,7 +183,7 @@ pub fn prepare_import(
         project_path: manifest.project_path.clone(),
         project_sha256: manifest.project_sha256.clone(),
         assets: manifest.assets.clone(),
-        dependencies: manifest.dependencies.clone(),
+        dependencies: base_dependencies,
         self_contained_media: manifest.self_contained_media,
         fully_reproducible: manifest.fully_reproducible,
     };
@@ -102,7 +215,7 @@ pub fn validate_manifest(manifest: &PackageManifestV3) -> Result<(), EditorError
             manifest.tool_locks.is_empty()
                 && manifest.dependencies.tools_not_locked == expected_tool_names.map(str::to_owned)
         }
-        3 => {
+        3 | 4 => {
             tool_lock_names == expected_tool_names
                 && manifest
                     .tool_locks
@@ -112,7 +225,17 @@ pub fn validate_manifest(manifest: &PackageManifestV3) -> Result<(), EditorError
         }
         _ => false,
     };
+    let grants_valid = match manifest.schema_version {
+        2 | 3 => manifest.plugin_grants.is_empty(),
+        4 => {
+            validate_plugin_grants(&manifest.plugin_grants).is_ok()
+                && plugin_dependencies(&manifest.plugin_grants)
+                    == manifest.dependencies.plugins_not_bundled
+        }
+        _ => false,
+    };
     if !tool_locks_valid
+        || !grants_valid
         || manifest.project_schema_version != 3
         || manifest.project_path != "project.json"
         || manifest.self_contained_media
@@ -144,11 +267,31 @@ mod tests {
     use super::*;
     use opencut_api_contracts::{
         project_package::{PackageDependencies, PackageMode},
-        project_package_v3::{PackageManifestV3, PackageToolLock},
+        project_package_v3::{PackageManifestV3, PackagePluginGrant, PackageToolLock},
     };
 
     fn manifest(schema_version: u32) -> PackageManifestV3 {
-        let tool_locks = if schema_version == 3 {
+        let plugin_grants = if schema_version == 4 {
+            vec![
+                PackagePluginGrant::PlannerV1 {
+                    id: "org.example.planner".into(),
+                    version: "1.0.0".into(),
+                    package_sha256: "c".repeat(64),
+                    operations: ["org.example.planner.plan".to_string()].into(),
+                    enabled: true,
+                },
+                PackagePluginGrant::PresetV2 {
+                    id: "org.example.preset".into(),
+                    version: "2.0.0".into(),
+                    package_sha256: "d".repeat(64),
+                    preset_names: ["captions".to_string()].into(),
+                    enabled: true,
+                },
+            ]
+        } else {
+            Vec::new()
+        };
+        let tool_locks = if matches!(schema_version, 3 | 4) {
             ["ffmpeg", "ffprobe"]
                 .into_iter()
                 .map(|name| PackageToolLock {
@@ -171,7 +314,7 @@ mod tests {
             assets: Vec::new(),
             dependencies: PackageDependencies {
                 fonts_not_bundled: Vec::new(),
-                plugins_not_bundled: Vec::new(),
+                plugins_not_bundled: plugin_dependencies(&plugin_grants),
                 tools_not_locked: if schema_version == 2 {
                     vec!["ffmpeg".into(), "ffprobe".into()]
                 } else {
@@ -180,15 +323,17 @@ mod tests {
                 unsupported: Vec::new(),
             },
             tool_locks,
+            plugin_grants,
             self_contained_media: true,
             fully_reproducible: schema_version == 3,
         }
     }
 
     #[test]
-    fn accepts_legacy_unlocked_and_current_exact_tool_lock_manifests() {
+    fn accepts_legacy_unlocked_tool_locks_and_schema4_plugin_snapshots() {
         assert!(validate_manifest(&manifest(2)).is_ok());
         assert!(validate_manifest(&manifest(3)).is_ok());
+        assert!(validate_manifest(&manifest(4)).is_ok());
     }
 
     #[test]
@@ -211,6 +356,29 @@ mod tests {
         malformed_hash.tool_locks[0].binary_sha256 = "not-a-sha".into();
         assert_eq!(
             validate_manifest(&malformed_hash).unwrap_err().code,
+            "PACKAGE_INVALID"
+        );
+
+        let mut missing_plugin_dependency = manifest(4);
+        missing_plugin_dependency
+            .dependencies
+            .plugins_not_bundled
+            .clear();
+        assert_eq!(
+            validate_manifest(&missing_plugin_dependency)
+                .unwrap_err()
+                .code,
+            "PACKAGE_INVALID"
+        );
+
+        let mut invalid_snapshot = manifest(4);
+        if let PackagePluginGrant::PlannerV1 { operations, .. } =
+            &mut invalid_snapshot.plugin_grants[0]
+        {
+            operations.clear();
+        }
+        assert_eq!(
+            validate_manifest(&invalid_snapshot).unwrap_err().code,
             "PACKAGE_INVALID"
         );
     }

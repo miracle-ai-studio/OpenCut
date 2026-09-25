@@ -47,7 +47,7 @@ pub struct PackageAsset {
 pub struct PackageDependencies {
     /// Font families declared by caption styles. Font bytes and exact versions are not bundled.
     pub fonts_not_bundled: Vec<String>,
-    /// Project plugin grants are reported, not installed in the target workspace.
+    /// Plugin package binaries remain external; schema 4 carries full project grant snapshots separately.
     pub plugins_not_bundled: Vec<String>,
     /// Required native tools without exact binary locks in this package.
     pub tools_not_locked: Vec<String>,

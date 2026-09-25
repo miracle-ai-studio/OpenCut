@@ -3,6 +3,7 @@ use crate::project_package::{PackageAsset, PackageDependencies, PackageMode};
 use opencut_contracts::project_v3::ProjectDocumentV3;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -39,8 +40,31 @@ pub struct PackageManifestV3 {
     /// Exact FFmpeg tool identities. Empty only in legacy schema 2 manifests.
     #[serde(default)]
     pub tool_locks: Vec<PackageToolLock>,
+    /// Exact project grant policy snapshots. Added in package schema 4; old package manifests omit it.
+    #[serde(default)]
+    pub plugin_grants: Vec<PackagePluginGrant>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
+}
+
+/// Project authorization policy is carried for review and restoration, never applied on import.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PackagePluginGrant {
+    PlannerV1 {
+        id: String,
+        version: String,
+        package_sha256: String,
+        operations: BTreeSet<String>,
+        enabled: bool,
+    },
+    PresetV2 {
+        id: String,
+        version: String,
+        package_sha256: String,
+        preset_names: BTreeSet<String>,
+        enabled: bool,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -74,6 +98,8 @@ pub struct ExportReceipt {
     pub asset_count: usize,
     pub dependencies: PackageDependencies,
     pub tool_locks: Vec<PackageToolLock>,
+    /// Grant snapshots written into the package, never applied during export.
+    pub plugin_grants: Vec<PackagePluginGrant>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
 }
@@ -92,6 +118,8 @@ pub struct ImportReceipt {
     pub tool_locks: Vec<PackageToolLock>,
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,
+    /// Owner-reviewed actions; no project grants are automatically applied during import.
+    pub plugin_grant_restore_plan: Vec<PackagePluginGrant>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
 }
