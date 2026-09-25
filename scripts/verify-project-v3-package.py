@@ -65,6 +65,10 @@ def verify(binary: Path, artifacts: Path):
         {"type": "mask.put", "sequence_id": "main", "mask": {"id": "half",
             "target_id": "clip", "shape": {"kind": "rectangle", "x": 0.0, "y": 0.0,
                 "width": 0.5, "height": 1.0}, "inverted": False, "feather": 0.0}},
+        {"type": "base.apply", "operation": {"type": "caption.insert", "sequence_id": "main",
+            "cue": {"id": "portable-font", "timeline_range": span, "text": "x",
+                "source_anchor": None, "style": {"font_family": "Arial", "font_size": 1.0,
+                    "color": "white", "background_color": None}}}},
     ]
     edited = call(origin, "opencut_edit_v3_apply", {"project_id": "source-v3",
         "expected_revision": created["revision"], "idempotency_key": "build-v3",
@@ -80,10 +84,11 @@ def verify(binary: Path, artifacts: Path):
     assert all(len(lock["binary_sha256"]) == 64 and lock["version"] for lock in manifest["tool_locks"])
     assert manifest["assets"][0]["content_hash"] == source_hash
     assert portable["tool_locks"] == manifest["tool_locks"]
-    assert portable["self_contained_media"] and portable["fully_reproducible"]
+    assert portable["self_contained_media"] and not portable["fully_reproducible"]
     linked_request = {"package_path": linked["package_path"], "target_project_id": "linked-v3",
         "expected_manifest_sha256": linked["manifest_sha256"], "idempotency_key": "import-linked-v3"}
-    call(target, "opencut_project_v3_package_import", linked_request)
+    linked_import = call(target, "opencut_project_v3_package_import", linked_request)
+    assert linked_import["font_environment_checked"] and not linked_import["fonts_missing"]
     shutil.rmtree(origin)
     call(target, "opencut_project_v3_package_import", {**linked_request,
         "target_project_id": "linked-v3-after-removal", "idempotency_key": "linked-after-removal"},
@@ -92,6 +97,7 @@ def verify(binary: Path, artifacts: Path):
         "expected_manifest_sha256": portable["manifest_sha256"], "idempotency_key": "import-portable-v3"}
     imported = call(target, "opencut_project_v3_package_import", request)
     assert imported["tool_environment_matches"] and not imported["tool_lock_mismatches"]
+    assert imported["font_environment_checked"] and not imported["fonts_missing"]
     snapshot = call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3", "revision": None})
     assert snapshot["revision"] == imported["revision"]
     assert snapshot["project"]["schema_version"] == 3
@@ -183,6 +189,33 @@ def verify(binary: Path, artifacts: Path):
     legacy_import = call(target, "opencut_project_v3_package_import", legacy_request)
     assert not legacy_import["tool_environment_matches"]
     assert legacy_import["tool_lock_mismatches"] == ["ffmpeg", "ffprobe"]
+
+    font_package = run / "font-missing.opencut"
+    shutil.copytree(portable["package_path"], font_package)
+    font_project_path = font_package / "project.json"
+    font_project = json.loads(font_project_path.read_text())
+    missing_family = "OpenCut Missing Package Font 4D27C9"
+    font_project["base"]["sequences"][0]["caption_cues"][0]["style"]["font_family"] = missing_family
+    font_project_bytes = json.dumps(font_project, separators=(",", ":"), ensure_ascii=False).encode()
+    font_project_path.write_bytes(font_project_bytes)
+    font_manifest_path = font_package / "manifest.json"
+    font_manifest = json.loads(font_manifest_path.read_text())
+    font_manifest["project_sha256"] = hashlib.sha256(font_project_bytes).hexdigest()
+    font_manifest["dependencies"]["fonts_not_bundled"] = [missing_family]
+    font_manifest_bytes = json.dumps(font_manifest, separators=(",", ":")).encode()
+    font_manifest_path.write_bytes(font_manifest_bytes)
+    font_request = {"package_path": str(font_package), "target_project_id": "restored-v3-font-missing",
+        "expected_manifest_sha256": hashlib.sha256(font_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-font-missing"}
+    font_import = call(target, "opencut_project_v3_package_import", font_request)
+    assert font_import["font_environment_checked"]
+    assert font_import["fonts_missing"] == [missing_family]
+    font_preflight = call(target, "opencut_render_v3_preflight", {
+        "project_id": "restored-v3-font-missing", "revision": font_import["revision"],
+        "sequence_id": "main", "container": "mp4", "video_codec": "h264"})
+    assert not font_preflight["ready"]
+    assert any(issue["cue_id"] == "portable-font" and "font family" in issue["message"]
+        for issue in font_preflight["issues"])
     shutil.rmtree(portable["package_path"])
     assert call(target, "opencut_project_v3_package_import", request) == imported
     report={"binary_sha256":hashlib.sha256(binary.read_bytes()).hexdigest(),
@@ -191,6 +224,9 @@ def verify(binary: Path, artifacts: Path):
         "tool_environment_checks": {"matching": imported["tool_environment_matches"],
             "mismatch_preserved_import": mismatch_import["tool_lock_mismatches"],
             "legacy_unlocked_import": legacy_import["tool_lock_mismatches"]},
+        "font_environment_checks": {"matching": imported["fonts_missing"],
+            "missing_import": font_import["fonts_missing"],
+            "render_preflight_ready": font_preflight["ready"]},
         "source_revision":revision,"imported_revision":imported["revision"],
         "render_sha256":render_hash,"pixels":{"masked_left":left,"masked_right":right,"blue":blue,"green":green},
         "checks":["schema3 manifest/document and visual graph validated",
@@ -202,7 +238,8 @@ def verify(binary: Path, artifacts: Path):
             "identical import replay succeeds after package removal",
             "exact FFmpeg and ffprobe binary locks are recorded and verified",
             "tool lock mismatch remains importable and is reported",
-            "schema 2 package compatibility remains explicit as unlocked"],"trace":trace}
+            "schema 2 package compatibility remains explicit as unlocked",
+            "missing font families are reported on import and block render preflight"],"trace":trace}
     (run/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     return {"status":"passed","report":str(run/"report.json"),"checks":report["checks"]}
 

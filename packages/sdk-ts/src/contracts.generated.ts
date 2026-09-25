@@ -13543,6 +13543,8 @@ export namespace OpencutProjectV3PackageImportOutput {
 }
   export interface ImportReceipt {
   dependencies: PackageDependencies;
+  font_environment_checked: boolean;
+  fonts_missing: string[];
   fully_reproducible: boolean;
   manifest_sha256: string;
   revision: string;

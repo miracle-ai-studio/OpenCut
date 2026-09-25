@@ -14,7 +14,7 @@
 | R5 素材分析 | 真实 Whisper 转写、三种 FFmpeg 分析、来源查询分页与取消重放动线已验；固定英语 Apollo 13 正例经 release CLI/Worker 检出 4 个说话人边界，且 EOF 之外标记被过滤（[正例收据](../qa/evidence/r5-speaker-turns-positive-boundaries-2026-09-25.json)） | 英语词级时间与固定模型 SHA 已验；统一 evidence query 已对转写、静音、镜头、波形、说话人边界做真实来源投影；此处对照的是 whisper.cpp 上游示例时间而非独立人工标注，TinyDiarize 本身为实验特性；多说话人精确率／召回率、重叠语音、多语言质量与真实访谈闭环未完成 |
 | R6-A 编辑语义 | 当前编辑操作、字幕人工修正与 SRT／ASS 交换后渲染已验；schema3 cubic Bezier v1 关键帧曲线已贯通计划／应用、校验、选择性撤销、剪辑拆分、持久化、composition、固定修订帧与完整导出；debug 与打包 release CLI 得到相同真实像素及工件哈希 | Classic v31 非空工程转换、明确损失接受与独立渲染已验；schema3 的图形、调色、硬蒙版/羽化模糊、交叉淡化及曲线在真实 FFmpeg 帧／片段路径通过像素验收；ASS 子集会拒绝无法表达的样式；本轮曲线端到端样本为 opacity 标量通道 |
 | R6-B 插件 | 受限 WASM planner 与 Plugin V2 声明式模板／字幕样式的安装、授权、计划、应用、真实渲染和篡改／撤销拒绝已验 | 声明式模板／样式包在 schema3 工程中完成授权、计划、应用、真实渲染、篡改和撤销拒绝验收；效果／转场仍由内核图节点表达；分析器、生成器、provider、导入导出插件等类别与完整兼容治理未完成 |
-| R6-C 工程包 | schema2/3 linked 与 self-contained 固定修订包均通过导入、源工作区删除、继续编辑和真实渲染；schema3 新清单锁定 FFmpeg／ffprobe 版本与二进制 SHA，导入回执标明本机匹配或差异，差异时仍能恢复编辑；旧 schema2 包及旧持久化回执显式兼容（[工具锁真实 CLI 验收](../qa/evidence/r6-v3-tool-locks-2026-09-25.json)） | 字体／插件依赖字节和版本仍未打包锁定；完整历史可复现归档与跨平台工具指纹验收仍未完成 |
+| R6-C 工程包 | schema2/3 linked 与 self-contained 固定修订包均通过导入、源工作区删除、继续编辑和真实渲染；schema3 新清单锁定 FFmpeg／ffprobe 版本与二进制 SHA，导入回执标明本机匹配或差异；导入还会报告目标机缺失字体族并在渲染预检中给出对应 cue 错误；差异时仍能恢复工程，旧 schema2 包及旧持久化回执显式兼容（[工具锁验收](../qa/evidence/r6-v3-tool-locks-2026-09-25.json)、[字体缺失诊断验收](../qa/evidence/r6-v3-font-availability-2026-09-25.json)） | 字体文件／版本与插件依赖仍未打包锁定；完整历史可复现归档与跨平台工具指纹验收仍未完成 |
 | R7 发行与平台 | 修复 R5 speaker-turn EOF 标记后的当前源码 x86_64 macOS development 包在仓库外完整通过 40 项验收，归档、manifest 和 CLI SHA 一致（[验收收据](../qa/evidence/r7-local-package-x86_64-apple-darwin-2026-09-25.json)） | 包 manifest 标记为 development；其他平台矩阵、签名/升级交付链和正式发行验收仍缺；Web/Desktop 页面开发暂缓 |
 
 此前完整本机集成验收候选为 SQLite schema23、127 个叶工具，binary SHA-256 `7a404e8984318356e18e3cf71e5aa7d8ad86cfaad1afc0fde9af6cc7136ab59f`。同一二进制通过旧 22 个工具兼容、contracts/core/application/composition 边界检查、TypeScript SDK 13 项测试、契约生成检查和 schema3 作业／预览／工程包公共动线。源码级 `cargo test --workspace --exclude opencut-desktop --offline` 全量回归通过；受影响 media 与 project-render 的 Clippy `-D warnings`、`cargo fmt --all -- --check` 也通过。完整 workspace 命令会尝试编译 GPUI Desktop，在此机器因 Apple `metal` utility 缺失而停在 shader 构建；页面和 Desktop 当前按用户范围暂缓。该候选仍未封装正式发行包或通过跨平台与升级恢复验收。
@@ -68,5 +68,6 @@
 - [R1 大产物上传、渲染、下载单机成本样本](../qa/evidence/r1-large-artifact-cost-2026-09-25.json)
 - [当前源码 macOS x86_64 本机开发包 40 项包外验收](../qa/evidence/r7-local-package-x86_64-apple-darwin-2026-09-25.json)
 - [Schema 3 FFmpeg／ffprobe 精确工具锁、迁移兼容与真实渲染验收](../qa/evidence/r6-v3-tool-locks-2026-09-25.json)
+- [Schema 3 目标机字体缺失诊断与渲染预检拒绝验收](../qa/evidence/r6-v3-font-availability-2026-09-25.json)
 
 执行原则：先关闭真实功能和执行路径缺口，再冻结二进制、生成契约并做整包发行验收；已验证的专项收据均记录二进制 SHA 与原始报告。页面端和 Desktop 暂缓，不降低内核、协议、执行、恢复与 SDK 的要求。

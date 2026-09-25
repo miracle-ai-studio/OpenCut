@@ -117,8 +117,7 @@ fn render_impl(
             "font family names must not be empty".into(),
         ));
     }
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    let mut db = system_font_database();
     for family in &families {
         if !db.faces().any(|f| {
             f.families
@@ -346,6 +345,28 @@ fn render_impl(
     })
 }
 
+pub(crate) fn missing_system_font_families(families: &[String]) -> Vec<String> {
+    let available: HashSet<String> = system_font_database()
+        .faces()
+        .flat_map(|face| {
+            face.families
+                .iter()
+                .map(|(name, _)| name.to_ascii_lowercase())
+        })
+        .collect();
+    families
+        .iter()
+        .filter(|family| !available.contains(&family.to_ascii_lowercase()))
+        .cloned()
+        .collect()
+}
+
+fn system_font_database() -> fontdb::Database {
+    let mut database = fontdb::Database::new();
+    database.load_system_fonts();
+    database
+}
+
 fn compact_font_source(source: &fontdb::Source) -> String {
     match source {
         fontdb::Source::File(path) | fontdb::Source::SharedFile(path, _) => {
@@ -434,6 +455,12 @@ mod tests {
         let report = render(caption, 400, 260, &output)?;
         let image = image::open(output).unwrap().into_rgba8();
         Ok((report, image))
+    }
+
+    #[test]
+    fn missing_system_font_inventory_reports_unavailable_family_names() {
+        let missing = vec!["OpenCut Missing Package Font 4D27C9".into()];
+        assert_eq!(missing_system_font_families(&missing), missing);
     }
 
     #[test]

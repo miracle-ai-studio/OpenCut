@@ -36,3 +36,8 @@ pub fn layout_caption(
 ) -> MediaResult<TextLayoutReport> {
     caption::layout(caption, width, height)
 }
+
+/// Returns requested families that are unavailable in the current host font database.
+pub fn missing_system_font_families(families: &[String]) -> Vec<String> {
+    caption::missing_system_font_families(families)
+}

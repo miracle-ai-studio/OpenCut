@@ -49,6 +49,9 @@ pub struct PreparedImportV3 {
     pub manifest_sha256: String,
     pub manifest: PackageManifestV3,
     pub document: ProjectDocumentV3,
+    /// Whether target-host family names were checked during native package inspection.
+    pub font_environment_checked: bool,
+    pub fonts_missing: Vec<String>,
     /// Target-host result. This is computed during native package inspection.
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,
@@ -84,6 +87,8 @@ pub struct ImportReceipt {
     pub source_project_id: String,
     pub source_revision: String,
     pub dependencies: PackageDependencies,
+    pub font_environment_checked: bool,
+    pub fonts_missing: Vec<String>,
     pub tool_locks: Vec<PackageToolLock>,
     pub tool_environment_matches: bool,
     pub tool_lock_mismatches: Vec<String>,

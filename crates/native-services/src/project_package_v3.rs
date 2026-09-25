@@ -197,6 +197,9 @@ pub fn read_package_v3(
     if document.base.id != manifest.source_project_id {
         return Err(common::invalid("Project identity differs from manifest"));
     }
+    let fonts_missing =
+        opencut_media::missing_system_font_families(&manifest.dependencies.fonts_not_bundled);
+    let font_environment_checked = true;
     let tool_lock_mismatches = match opencut_media::FfmpegBackend::discover()
         .and_then(|backend| backend.tool_fingerprints())
     {
@@ -231,6 +234,8 @@ pub fn read_package_v3(
         manifest_sha256,
         manifest,
         document,
+        font_environment_checked,
+        fonts_missing,
         tool_environment_matches,
         tool_lock_mismatches,
     })

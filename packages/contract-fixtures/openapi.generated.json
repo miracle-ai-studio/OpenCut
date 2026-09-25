@@ -3603,7 +3603,7 @@
     "/v1/tools/opencut_project_v3_package_import": {
       "post": {
         "operationId": "opencut_project_v3_package_import",
-        "description": "Owner-local: validate and import a schema 3 package, report whether its locked FFmpeg and ffprobe binaries match, and continue even when they differ. Replay uses the manifest hash and idempotency key.",
+        "description": "Owner-local: validate and import a schema 3 package, report missing font families and whether locked FFmpeg and ffprobe binaries match, and continue when these host dependencies differ. Replay uses the manifest hash and idempotency key.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -62861,6 +62861,15 @@
               "dependencies": {
                 "$ref": "#/components/schemas/OpencutProjectV3PackageImportOutput/$defs/PackageDependencies"
               },
+              "font_environment_checked": {
+                "type": "boolean"
+              },
+              "fonts_missing": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "fully_reproducible": {
                 "type": "boolean"
               },
@@ -62905,6 +62914,8 @@
               "source_project_id",
               "source_revision",
               "dependencies",
+              "font_environment_checked",
+              "fonts_missing",
               "tool_locks",
               "tool_environment_matches",
               "tool_lock_mismatches",

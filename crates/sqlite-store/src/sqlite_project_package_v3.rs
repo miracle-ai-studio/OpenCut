@@ -17,6 +17,8 @@ fn decode_import_receipt(raw: &str) -> Result<ImportReceipt, EditorError> {
         manifest_sha256: legacy.manifest_sha256,
         source_project_id: legacy.source_project_id,
         source_revision: legacy.source_revision,
+        font_environment_checked: false,
+        fonts_missing: Vec::new(),
         tool_lock_mismatches: legacy.dependencies.tools_not_locked.clone(),
         dependencies: legacy.dependencies,
         tool_locks: Vec::<PackageToolLock>::new(),
@@ -154,6 +156,8 @@ impl EditorApplication {
             source_project_id: prepared.manifest.source_project_id.clone(),
             source_revision: prepared.manifest.source_revision.clone(),
             dependencies: prepared.manifest.dependencies.clone(),
+            font_environment_checked: prepared.font_environment_checked,
+            fonts_missing: prepared.fonts_missing.clone(),
             tool_locks: prepared.manifest.tool_locks.clone(),
             tool_environment_matches: prepared.tool_environment_matches,
             tool_lock_mismatches: prepared.tool_lock_mismatches.clone(),
@@ -209,6 +213,8 @@ mod tests {
         };
         let raw = serde_json::to_string(&legacy).unwrap();
         let restored = decode_import_receipt(&raw).unwrap();
+        assert!(!restored.font_environment_checked);
+        assert!(restored.fonts_missing.is_empty());
         assert!(!restored.tool_environment_matches);
         assert_eq!(
             restored.tool_lock_mismatches,
