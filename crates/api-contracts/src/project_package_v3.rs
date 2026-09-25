@@ -1,4 +1,4 @@
-//! Additive schema 3 project packages; the schema 2 package contract is frozen.
+//! Schema 3 project packages with explicit native-tool locks and legacy schema 2 reads.
 use crate::project_package::{PackageAsset, PackageDependencies, PackageMode};
 use opencut_contracts::project_v3::ProjectDocumentV3;
 use schemars::JsonSchema;
@@ -36,6 +36,9 @@ pub struct PackageManifestV3 {
     pub project_sha256: String,
     pub assets: Vec<PackageAsset>,
     pub dependencies: PackageDependencies,
+    /// Exact FFmpeg tool identities. Empty only in legacy schema 2 manifests.
+    #[serde(default)]
+    pub tool_locks: Vec<PackageToolLock>,
     pub self_contained_media: bool,
     pub fully_reproducible: bool,
 }
@@ -46,6 +49,44 @@ pub struct PreparedImportV3 {
     pub manifest_sha256: String,
     pub manifest: PackageManifestV3,
     pub document: ProjectDocumentV3,
+    /// Target-host result. This is computed during native package inspection.
+    pub tool_environment_matches: bool,
+    pub tool_lock_mismatches: Vec<String>,
 }
 
-pub use crate::project_package::{ExportReceipt, ImportReceipt};
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PackageToolLock {
+    pub name: String,
+    pub version: String,
+    pub binary_sha256: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExportReceipt {
+    pub package_path: String,
+    pub manifest_sha256: String,
+    pub source_revision: String,
+    pub asset_count: usize,
+    pub dependencies: PackageDependencies,
+    pub tool_locks: Vec<PackageToolLock>,
+    pub self_contained_media: bool,
+    pub fully_reproducible: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ImportReceipt {
+    pub target_project_id: String,
+    pub revision: String,
+    pub manifest_sha256: String,
+    pub source_project_id: String,
+    pub source_revision: String,
+    pub dependencies: PackageDependencies,
+    pub tool_locks: Vec<PackageToolLock>,
+    pub tool_environment_matches: bool,
+    pub tool_lock_mismatches: Vec<String>,
+    pub self_contained_media: bool,
+    pub fully_reproducible: bool,
+}

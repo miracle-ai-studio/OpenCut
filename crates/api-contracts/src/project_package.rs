@@ -49,7 +49,7 @@ pub struct PackageDependencies {
     pub fonts_not_bundled: Vec<String>,
     /// Project plugin grants are reported, not installed in the target workspace.
     pub plugins_not_bundled: Vec<String>,
-    /// Native tool versions are not locked by this package format.
+    /// Required native tools without exact binary locks in this package.
     pub tools_not_locked: Vec<String>,
     pub unsupported: Vec<String>,
 }

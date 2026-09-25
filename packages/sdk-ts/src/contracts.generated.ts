@@ -13489,6 +13489,7 @@ export namespace OpencutProjectV3PackageExportOutput {
   package_path: string;
   self_contained_media: boolean;
   source_revision: string;
+  tool_locks: PackageToolLock[];
 }
   export interface PackageDependencies {
   /**
@@ -13500,10 +13501,15 @@ export namespace OpencutProjectV3PackageExportOutput {
    */
   plugins_not_bundled: string[];
   /**
-   * Native tool versions are not locked by this package format.
+   * Required native tools without exact binary locks in this package.
    */
   tools_not_locked: string[];
   unsupported: string[];
+}
+  export interface PackageToolLock {
+  binary_sha256: string;
+  name: string;
+  version: string;
 }
   export interface EditorError {
   code: string;
@@ -13544,6 +13550,9 @@ export namespace OpencutProjectV3PackageImportOutput {
   source_project_id: string;
   source_revision: string;
   target_project_id: string;
+  tool_environment_matches: boolean;
+  tool_lock_mismatches: string[];
+  tool_locks: PackageToolLock[];
 }
   export interface PackageDependencies {
   /**
@@ -13555,10 +13564,15 @@ export namespace OpencutProjectV3PackageImportOutput {
    */
   plugins_not_bundled: string[];
   /**
-   * Native tool versions are not locked by this package format.
+   * Required native tools without exact binary locks in this package.
    */
   tools_not_locked: string[];
   unsupported: string[];
+}
+  export interface PackageToolLock {
+  binary_sha256: string;
+  name: string;
+  version: string;
 }
   export interface EditorError {
   code: string;
@@ -13611,7 +13625,7 @@ export namespace OpencutProjectPackageExportOutput {
    */
   plugins_not_bundled: string[];
   /**
-   * Native tool versions are not locked by this package format.
+   * Required native tools without exact binary locks in this package.
    */
   tools_not_locked: string[];
   unsupported: string[];
@@ -13666,7 +13680,7 @@ export namespace OpencutProjectPackageImportOutput {
    */
   plugins_not_bundled: string[];
   /**
-   * Native tool versions are not locked by this package format.
+   * Required native tools without exact binary locks in this package.
    */
   tools_not_locked: string[];
   unsupported: string[];

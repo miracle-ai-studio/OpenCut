@@ -54812,7 +54812,7 @@
     "read_only": false
   },
   {
-    "description": "Owner-local: export one complete schema 3 revision including visual nodes and verified media. Reports external font, plugin and tool dependencies.",
+    "description": "Owner-local: export one complete schema 3 revision including visual nodes and verified media. Locks exact FFmpeg and ffprobe versions and binary hashes; reports external fonts and plugins.",
     "input_schema": {
       "$defs": {
         "PackageMode": {
@@ -54895,6 +54895,12 @@
             },
             "source_revision": {
               "type": "string"
+            },
+            "tool_locks": {
+              "items": {
+                "$ref": "#/$defs/PackageToolLock"
+              },
+              "type": "array"
             }
           },
           "required": [
@@ -54903,6 +54909,7 @@
             "source_revision",
             "asset_count",
             "dependencies",
+            "tool_locks",
             "self_contained_media",
             "fully_reproducible"
           ],
@@ -54926,7 +54933,7 @@
               "type": "array"
             },
             "tools_not_locked": {
-              "description": "Native tool versions are not locked by this package format.",
+              "description": "Required native tools without exact binary locks in this package.",
               "items": {
                 "type": "string"
               },
@@ -54944,6 +54951,26 @@
             "plugins_not_bundled",
             "tools_not_locked",
             "unsupported"
+          ],
+          "type": "object"
+        },
+        "PackageToolLock": {
+          "additionalProperties": false,
+          "properties": {
+            "binary_sha256": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "binary_sha256"
           ],
           "type": "object"
         }
@@ -54994,7 +55021,7 @@
     "read_only": false
   },
   {
-    "description": "Owner-local: verify a schema 3 package and its media, then atomically publish a new schema 3 project. Replay uses the manifest hash and idempotency key.",
+    "description": "Owner-local: validate and import a schema 3 package, report whether its locked FFmpeg and ffprobe binaries match, and continue even when they differ. Replay uses the manifest hash and idempotency key.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -55069,6 +55096,21 @@
             },
             "target_project_id": {
               "type": "string"
+            },
+            "tool_environment_matches": {
+              "type": "boolean"
+            },
+            "tool_lock_mismatches": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "tool_locks": {
+              "items": {
+                "$ref": "#/$defs/PackageToolLock"
+              },
+              "type": "array"
             }
           },
           "required": [
@@ -55078,6 +55120,9 @@
             "source_project_id",
             "source_revision",
             "dependencies",
+            "tool_locks",
+            "tool_environment_matches",
+            "tool_lock_mismatches",
             "self_contained_media",
             "fully_reproducible"
           ],
@@ -55101,7 +55146,7 @@
               "type": "array"
             },
             "tools_not_locked": {
-              "description": "Native tool versions are not locked by this package format.",
+              "description": "Required native tools without exact binary locks in this package.",
               "items": {
                 "type": "string"
               },
@@ -55119,6 +55164,26 @@
             "plugins_not_bundled",
             "tools_not_locked",
             "unsupported"
+          ],
+          "type": "object"
+        },
+        "PackageToolLock": {
+          "additionalProperties": false,
+          "properties": {
+            "binary_sha256": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "binary_sha256"
           ],
           "type": "object"
         }
@@ -55283,7 +55348,7 @@
               "type": "array"
             },
             "tools_not_locked": {
-              "description": "Native tool versions are not locked by this package format.",
+              "description": "Required native tools without exact binary locks in this package.",
               "items": {
                 "type": "string"
               },
@@ -55458,7 +55523,7 @@
               "type": "array"
             },
             "tools_not_locked": {
-              "description": "Native tool versions are not locked by this package format.",
+              "description": "Required native tools without exact binary locks in this package.",
               "items": {
                 "type": "string"
               },

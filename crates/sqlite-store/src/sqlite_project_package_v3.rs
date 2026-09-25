@@ -1,7 +1,30 @@
 //! Owner-only fixed schema 3 package source and atomic target publication.
 use super::*;
-use opencut_api_contracts::project_package_v3::{ImportPackageV3, ImportReceipt, PreparedImportV3};
+use opencut_api_contracts::project_package_v3::{
+    ImportPackageV3, ImportReceipt, PackageToolLock, PreparedImportV3,
+};
 use opencut_editor_application::project_package_v3::{self, PackageExportSourceV3};
+
+fn decode_import_receipt(raw: &str) -> Result<ImportReceipt, EditorError> {
+    if let Ok(receipt) = serde_json::from_str::<ImportReceipt>(raw) {
+        return Ok(receipt);
+    }
+    let legacy: opencut_api_contracts::project_package::ImportReceipt =
+        decode_json(raw, "legacy schema 3 package import receipt")?;
+    Ok(ImportReceipt {
+        target_project_id: legacy.target_project_id,
+        revision: legacy.revision,
+        manifest_sha256: legacy.manifest_sha256,
+        source_project_id: legacy.source_project_id,
+        source_revision: legacy.source_revision,
+        tool_lock_mismatches: legacy.dependencies.tools_not_locked.clone(),
+        dependencies: legacy.dependencies,
+        tool_locks: Vec::<PackageToolLock>::new(),
+        tool_environment_matches: false,
+        self_contained_media: legacy.self_contained_media,
+        fully_reproducible: legacy.fully_reproducible,
+    })
+}
 
 impl EditorApplication {
     pub fn package_v3_export_source(
@@ -83,7 +106,7 @@ impl EditorApplication {
             &identity,
             "package_import_v3",
         )?
-        .map(|stored| decode_json(&stored, "schema 3 package import receipt"))
+        .map(|stored| decode_import_receipt(&stored))
         .transpose()
     }
 
@@ -122,7 +145,7 @@ impl EditorApplication {
             &identity,
             "package_import_v3",
         )? {
-            return decode_json(&stored, "schema 3 package import receipt");
+            return decode_import_receipt(&stored);
         }
         let receipt = ImportReceipt {
             target_project_id: input.target_project_id.clone(),
@@ -131,6 +154,9 @@ impl EditorApplication {
             source_project_id: prepared.manifest.source_project_id.clone(),
             source_revision: prepared.manifest.source_revision.clone(),
             dependencies: prepared.manifest.dependencies.clone(),
+            tool_locks: prepared.manifest.tool_locks.clone(),
+            tool_environment_matches: prepared.tool_environment_matches,
+            tool_lock_mismatches: prepared.tool_lock_mismatches.clone(),
             self_contained_media: prepared.manifest.self_contained_media,
             fully_reproducible: prepared.manifest.fully_reproducible,
         };
@@ -156,5 +182,38 @@ impl EditorApplication {
         )?;
         tx.commit().map_err(storage_error)?;
         Ok(receipt)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opencut_api_contracts::project_package::PackageDependencies;
+
+    #[test]
+    fn old_persisted_schema3_receipt_replays_as_explicitly_unlocked() {
+        let legacy = opencut_api_contracts::project_package::ImportReceipt {
+            target_project_id: "restored".into(),
+            revision: "rev_new".into(),
+            manifest_sha256: "a".repeat(64),
+            source_project_id: "source".into(),
+            source_revision: "rev_source".into(),
+            dependencies: PackageDependencies {
+                fonts_not_bundled: Vec::new(),
+                plugins_not_bundled: Vec::new(),
+                tools_not_locked: vec!["ffmpeg".into(), "ffprobe".into()],
+                unsupported: Vec::new(),
+            },
+            self_contained_media: true,
+            fully_reproducible: false,
+        };
+        let raw = serde_json::to_string(&legacy).unwrap();
+        let restored = decode_import_receipt(&raw).unwrap();
+        assert!(!restored.tool_environment_matches);
+        assert_eq!(
+            restored.tool_lock_mismatches,
+            vec!["ffmpeg".to_string(), "ffprobe".to_string()]
+        );
+        assert!(restored.tool_locks.is_empty());
     }
 }

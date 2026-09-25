@@ -75,9 +75,12 @@ def verify(binary: Path, artifacts: Path):
     portable = call(origin, "opencut_project_v3_package_export", {"project_id": "source-v3",
         "revision": revision, "destination": str(run / "portable.opencut"), "mode": "self_contained"})
     manifest = json.loads((Path(portable["package_path"]) / "manifest.json").read_text())
-    assert manifest["schema_version"] == 2 and manifest["project_schema_version"] == 3
+    assert manifest["schema_version"] == 3 and manifest["project_schema_version"] == 3
+    assert [lock["name"] for lock in manifest["tool_locks"]] == ["ffmpeg", "ffprobe"]
+    assert all(len(lock["binary_sha256"]) == 64 and lock["version"] for lock in manifest["tool_locks"])
     assert manifest["assets"][0]["content_hash"] == source_hash
-    assert portable["self_contained_media"] and not portable["fully_reproducible"]
+    assert portable["tool_locks"] == manifest["tool_locks"]
+    assert portable["self_contained_media"] and portable["fully_reproducible"]
     linked_request = {"package_path": linked["package_path"], "target_project_id": "linked-v3",
         "expected_manifest_sha256": linked["manifest_sha256"], "idempotency_key": "import-linked-v3"}
     call(target, "opencut_project_v3_package_import", linked_request)
@@ -88,6 +91,7 @@ def verify(binary: Path, artifacts: Path):
     request = {"package_path": portable["package_path"], "target_project_id": "restored-v3",
         "expected_manifest_sha256": portable["manifest_sha256"], "idempotency_key": "import-portable-v3"}
     imported = call(target, "opencut_project_v3_package_import", request)
+    assert imported["tool_environment_matches"] and not imported["tool_lock_mismatches"]
     snapshot = call(target, "opencut_project_v3_inspect", {"project_id": "restored-v3", "revision": None})
     assert snapshot["revision"] == imported["revision"]
     assert snapshot["project"]["schema_version"] == 3
@@ -146,10 +150,47 @@ def verify(binary: Path, artifacts: Path):
     left, right, blue, green = pixel(5,24), pixel(58,24), pixel(32,24), pixel(12,36)
     assert max(left)-min(left)<35 and max(right)<30, (left,right)
     assert blue[2]>blue[0]+80 and green[1]>green[0]+80, (blue,green)
+
+    mismatch_package = run / "mismatch.opencut"
+    shutil.copytree(portable["package_path"], mismatch_package)
+    mismatch_manifest_path = mismatch_package / "manifest.json"
+    mismatch_manifest = json.loads(mismatch_manifest_path.read_text())
+    mismatch_manifest["tool_locks"][0]["version"] += "-different"
+    mismatch_manifest["tool_locks"][0]["binary_sha256"] = "0" * 64
+    mismatch_manifest_bytes = json.dumps(mismatch_manifest, separators=(",", ":")).encode()
+    mismatch_manifest_path.write_bytes(mismatch_manifest_bytes)
+    mismatch_request = {"package_path": str(mismatch_package),
+        "target_project_id": "restored-v3-tool-mismatch",
+        "expected_manifest_sha256": hashlib.sha256(mismatch_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-tool-mismatch"}
+    mismatch_import = call(target, "opencut_project_v3_package_import", mismatch_request)
+    assert not mismatch_import["tool_environment_matches"]
+    assert mismatch_import["tool_lock_mismatches"] == ["ffmpeg"]
+
+    legacy_package = run / "legacy-v2.opencut"
+    shutil.copytree(portable["package_path"], legacy_package)
+    legacy_manifest_path = legacy_package / "manifest.json"
+    legacy_manifest = json.loads(legacy_manifest_path.read_text())
+    legacy_manifest["schema_version"] = 2
+    legacy_manifest.pop("tool_locks")
+    legacy_manifest["dependencies"]["tools_not_locked"] = ["ffmpeg", "ffprobe"]
+    legacy_manifest["fully_reproducible"] = False
+    legacy_manifest_bytes = json.dumps(legacy_manifest, separators=(",", ":")).encode()
+    legacy_manifest_path.write_bytes(legacy_manifest_bytes)
+    legacy_request = {"package_path": str(legacy_package), "target_project_id": "restored-v3-legacy",
+        "expected_manifest_sha256": hashlib.sha256(legacy_manifest_bytes).hexdigest(),
+        "idempotency_key": "import-v3-legacy"}
+    legacy_import = call(target, "opencut_project_v3_package_import", legacy_request)
+    assert not legacy_import["tool_environment_matches"]
+    assert legacy_import["tool_lock_mismatches"] == ["ffmpeg", "ffprobe"]
     shutil.rmtree(portable["package_path"])
     assert call(target, "opencut_project_v3_package_import", request) == imported
     report={"binary_sha256":hashlib.sha256(binary.read_bytes()).hexdigest(),
         "source_sha256":source_hash,"manifest_sha256":portable["manifest_sha256"],
+        "tool_locks": manifest["tool_locks"],
+        "tool_environment_checks": {"matching": imported["tool_environment_matches"],
+            "mismatch_preserved_import": mismatch_import["tool_lock_mismatches"],
+            "legacy_unlocked_import": legacy_import["tool_lock_mismatches"]},
         "source_revision":revision,"imported_revision":imported["revision"],
         "render_sha256":render_hash,"pixels":{"masked_left":left,"masked_right":right,"blue":blue,"green":green},
         "checks":["schema3 manifest/document and visual graph validated",
@@ -158,7 +199,10 @@ def verify(binary: Path, artifacts: Path):
             "V3 visual graph survives relocation and accepts a new edit",
             "schema3 preflight resolves pinned assets and visual render dependencies",
             "render artifact download hash and actual mask/effect/shape pixels verified",
-            "identical import replay succeeds after package removal"],"trace":trace}
+            "identical import replay succeeds after package removal",
+            "exact FFmpeg and ffprobe binary locks are recorded and verified",
+            "tool lock mismatch remains importable and is reported",
+            "schema 2 package compatibility remains explicit as unlocked"],"trace":trace}
     (run/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     return {"status":"passed","report":str(run/"report.json"),"checks":report["checks"]}
 

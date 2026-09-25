@@ -1,8 +1,9 @@
 use crate::*;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::{
     cmp::Ordering,
-    fs,
+    env, fs,
     io::{BufRead, BufReader, Read},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -16,6 +17,13 @@ pub struct FfmpegBackend {
     ffmpeg: PathBuf,
     ffprobe: PathBuf,
     admission: Option<std::sync::Arc<dyn OutputAdmission>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaToolFingerprint {
+    pub name: String,
+    pub version: String,
+    pub binary_sha256: String,
 }
 
 #[derive(Default)]
@@ -72,6 +80,15 @@ impl FfmpegBackend {
             self.admission.as_deref(),
         )?;
         Ok(())
+    }
+
+    /// Identifies the exact native binaries used for media operations without
+    /// exposing host paths in portable project packages.
+    pub fn tool_fingerprints(&self) -> MediaResult<Vec<MediaToolFingerprint>> {
+        Ok(vec![
+            fingerprint_tool("ffmpeg", &self.ffmpeg)?,
+            fingerprint_tool("ffprobe", &self.ffprobe)?,
+        ])
     }
 
     pub fn supports_video_codec(&self, codec: VideoCodec) -> MediaResult<bool> {
@@ -1465,6 +1482,91 @@ impl FfmpegBackend {
     }
 }
 
+fn fingerprint_tool(name: &str, configured_path: &Path) -> MediaResult<MediaToolFingerprint> {
+    let executable =
+        resolve_executable(configured_path).map_err(|error| MediaError::ToolUnavailable {
+            tool: name.into(),
+            detail: error.to_string(),
+        })?;
+    let cancel = CancellationToken::new();
+    let output = process::checked_output_limited(
+        Command::new(&executable).arg("-version"),
+        name,
+        &cancel,
+        Duration::from_secs(10),
+        None,
+    )?;
+    let version = String::from_utf8_lossy(&output)
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    if version.is_empty() {
+        return Err(MediaError::InvalidToolOutput {
+            tool: name.into(),
+            detail: "version output is empty".into(),
+        });
+    }
+
+    let mut file = fs::File::open(&executable)?;
+    let mut hasher = Sha256::new();
+    let mut chunk = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut chunk)?;
+        if count == 0 {
+            break;
+        }
+        hasher.update(&chunk[..count]);
+    }
+    let binary_sha256 = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join("");
+    Ok(MediaToolFingerprint {
+        name: name.into(),
+        version,
+        binary_sha256,
+    })
+}
+
+fn resolve_executable(configured_path: &Path) -> std::io::Result<PathBuf> {
+    let has_directory = configured_path.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+                | std::path::Component::CurDir
+                | std::path::Component::ParentDir
+        )
+    });
+    if has_directory {
+        return fs::canonicalize(configured_path);
+    }
+    let mut candidates = vec![configured_path.to_path_buf()];
+    if !std::env::consts::EXE_SUFFIX.is_empty() && configured_path.extension().is_none() {
+        candidates.push(PathBuf::from(format!(
+            "{}{suffix}",
+            configured_path.to_string_lossy(),
+            suffix = std::env::consts::EXE_SUFFIX
+        )));
+    }
+    for directory in env::split_paths(&env::var_os("PATH").unwrap_or_default()) {
+        for candidate in &candidates {
+            let path = directory.join(candidate);
+            if path.is_file() {
+                return fs::canonicalize(path);
+            }
+        }
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        format!("{} was not found on PATH", configured_path.display()),
+    ))
+}
+
 fn parse_frame_pts(line: &str) -> Option<i64> {
     line.split(',').next()?.trim().parse().ok()
 }
@@ -2348,6 +2450,29 @@ fn parse_decimal_time(v: &str) -> Option<MediaTime> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn tool_fingerprint_records_version_and_exact_executable_bytes() {
+        use sha2::Digest;
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("ffmpeg-test");
+        let bytes = b"#!/bin/sh\nprintf 'ffmpeg version fixture-1\\n'\n";
+        fs::write(&executable, bytes).unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let fingerprint = fingerprint_tool("ffmpeg", &executable).unwrap();
+        let expected_hash = Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join("");
+        assert_eq!(fingerprint.version, "ffmpeg version fixture-1");
+        assert_eq!(fingerprint.binary_sha256, expected_hash);
+        assert_eq!(fingerprint.name, "ffmpeg");
+    }
 
     #[cfg(unix)]
     #[test]

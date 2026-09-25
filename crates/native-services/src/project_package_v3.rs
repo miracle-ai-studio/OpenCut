@@ -3,7 +3,8 @@ use crate::project_package as common;
 use opencut_api_contracts::{
     project_package::{PackageManifest, PackageMode},
     project_package_v3::{
-        ExportPackageV3, ExportReceipt, ImportPackageV3, PackageManifestV3, PreparedImportV3,
+        ExportPackageV3, ExportReceipt, ImportPackageV3, PackageManifestV3, PackageToolLock,
+        PreparedImportV3,
     },
 };
 use opencut_asset_store::AssetStore;
@@ -85,9 +86,25 @@ pub fn export_package_v3(
             ));
         }
         common::write_file(&staging.join("project.json"), &document_bytes)?;
-        let dependencies = project_package_v3::dependencies(source);
+        let mut dependencies = project_package_v3::dependencies(source);
+        let tool_locks = opencut_media::FfmpegBackend::discover()
+            .and_then(|backend| backend.tool_fingerprints())
+            .map_err(|error| {
+                EditorError::new(
+                    "PACKAGE_TOOL_UNAVAILABLE",
+                    format!("Could not fingerprint package render tools: {error}"),
+                )
+            })?
+            .into_iter()
+            .map(|tool| PackageToolLock {
+                name: tool.name,
+                version: tool.version,
+                binary_sha256: tool.binary_sha256,
+            })
+            .collect::<Vec<_>>();
+        dependencies.tools_not_locked.clear();
         let manifest = PackageManifestV3 {
-            schema_version: 2,
+            schema_version: 3,
             project_schema_version: 3,
             mode: input.mode.clone(),
             source_project_id: input.project_id.clone(),
@@ -96,6 +113,7 @@ pub fn export_package_v3(
             project_sha256: common::digest(&document_bytes),
             assets: inventory,
             dependencies: dependencies.clone(),
+            tool_locks: tool_locks.clone(),
             self_contained_media: input.mode == PackageMode::SelfContained,
             fully_reproducible: input.mode == PackageMode::SelfContained
                 && dependencies.fonts_not_bundled.is_empty()
@@ -126,6 +144,7 @@ pub fn export_package_v3(
             source_revision: input.revision.clone(),
             asset_count: document.base.assets.len(),
             dependencies,
+            tool_locks,
             self_contained_media: manifest.self_contained_media,
             fully_reproducible: manifest.fully_reproducible,
         })
@@ -178,6 +197,30 @@ pub fn read_package_v3(
     if document.base.id != manifest.source_project_id {
         return Err(common::invalid("Project identity differs from manifest"));
     }
+    let tool_lock_mismatches = match opencut_media::FfmpegBackend::discover()
+        .and_then(|backend| backend.tool_fingerprints())
+    {
+        Ok(_) if manifest.schema_version == 2 => manifest.dependencies.tools_not_locked.clone(),
+        Ok(actual) => manifest
+            .tool_locks
+            .iter()
+            .filter(|expected| {
+                !actual.iter().any(|found| {
+                    found.name == expected.name
+                        && found.version == expected.version
+                        && found.binary_sha256 == expected.binary_sha256
+                })
+            })
+            .map(|expected| expected.name.clone())
+            .collect::<Vec<_>>(),
+        Err(_) => manifest
+            .tool_locks
+            .iter()
+            .map(|expected| expected.name.clone())
+            .chain(manifest.dependencies.tools_not_locked.iter().cloned())
+            .collect(),
+    };
+    let tool_environment_matches = manifest.schema_version == 3 && tool_lock_mismatches.is_empty();
     common::capture_media(
         root,
         &common_manifest(&manifest),
@@ -188,5 +231,7 @@ pub fn read_package_v3(
         manifest_sha256,
         manifest,
         document,
+        tool_environment_matches,
+        tool_lock_mismatches,
     })
 }

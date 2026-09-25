@@ -163,9 +163,12 @@ job is accepted; their historical documents are not silently upgraded. Persisted
 older jobs without a media lock explicitly report `legacy_unlocked`.
 CAS garbage collection is available through owner-only plan, inspect, and execute
 operations, but full storage admission and platform acceptance remain incomplete.
-Font/plugin/tool dependency locking and source-only job media locking also need
-further work. See the implementation status for verification of the current
-asset-version integration; the full reproducibility contract is not complete.
+Schema 3 project packages now lock the exact FFmpeg and ffprobe versions and
+binary hashes; imports report host mismatches while preserving project recovery.
+Font and plugin dependency bytes and versions remain unlocked, and source-only
+job media locking still needs work. See the implementation status for
+verification of the current asset-version integration; the full reproducibility
+contract is not complete.
 
 ## Development
 

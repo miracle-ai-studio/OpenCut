@@ -19,7 +19,7 @@ pub use admission::{OutputAdmission, OutputProcess};
 pub use analysis::FfmpegAnalysisBackend;
 pub use speaker_turns::TinydiarizeBackend;
 
-pub use backend::FfmpegBackend;
+pub use backend::{FfmpegBackend, MediaToolFingerprint};
 pub use dto::*;
 pub use error::{MediaError, MediaResult};
 pub use preview_stream::{
