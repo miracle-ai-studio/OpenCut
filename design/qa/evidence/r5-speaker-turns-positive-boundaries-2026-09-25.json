@@ -1,0 +1,82 @@
+{
+  "status": "passed_with_remaining_scope",
+  "scope": "Pinned English Apollo 13 30-second positive speaker-turn fixture through public CLI, durable Worker, JobView and evidence query; upstream example timestamps are a regression reference, not independent human annotation",
+  "binary_sha256": "978d9657b32db170fb9f047e24aa7ea3cd8c5a13637f13601ed1e3809c0f3429",
+  "verifier_script": "scripts/verify-speaker-turns-journey.py",
+  "verifier_script_sha256": "850a597a3aa4e757df34462bd2677946f940fbbcab14609f8344a86f41248dc0",
+  "external_report": "/tmp/opencut-r5-positive-turn-release-20260925-fixed-boundaries/speaker-turns-1790335043558520000/report.json",
+  "external_report_sha256": "96c565f973ebfd71475b45f4d8215cb6fb1da3bbdb435c24ff3c752be706940a",
+  "source_audio": {
+    "description": "first 30 seconds converted to mono 16 kHz PCM from public Apollo 13 audio",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/transcoded/6/6f/Apollo13-wehaveaproblem.ogg/Apollo13-wehaveaproblem.ogg.mp3",
+    "sha256": "c73036a6beb0f7b391c09094ccfc298b213030d0cb703b789f719fad9111a08d"
+  },
+  "model": {
+    "name": "ggml-small.en-tdrz.bin",
+    "sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+    "provider": "whisper.cpp"
+  },
+  "speaker_turns": [
+    {
+      "at": {
+        "ticks": "3780",
+        "timebase": 1000
+      }
+    },
+    {
+      "at": {
+        "ticks": "6180",
+        "timebase": 1000
+      }
+    },
+    {
+      "at": {
+        "ticks": "11320",
+        "timebase": 1000
+      }
+    },
+    {
+      "at": {
+        "ticks": "13800",
+        "timebase": 1000
+      }
+    }
+  ],
+  "speaker_turn_count": 4,
+  "reference_evaluation": {
+    "source": "https://github.com/ggml-org/whisper.cpp#speaker-segmentation-via-tinydiarize",
+    "expected_turns_ms": [
+      3800,
+      6200,
+      11320,
+      13820
+    ],
+    "observed_turns_ms": [
+      3780,
+      6180,
+      11320,
+      13800
+    ],
+    "absolute_error_ms": [
+      20,
+      20,
+      0,
+      20
+    ],
+    "tolerance_ms": 50,
+    "terminal_out_of_range_marker_removed": true
+  },
+  "workflow_checks": [
+    "public schema rejects host model path",
+    "durable fixed-asset job survives source deletion",
+    "actual local model inference and public JobView provenance",
+    "replay preserves durable receipt",
+    "unified evidence query exposes only source turn times and pinned model provenance",
+    "turn boundaries only; no speaker identity or confidence fabricated"
+  ],
+  "remaining_scope": [
+    "upstream sample output is not independent human ground truth",
+    "Whisper TinyDiarize is experimental; broad precision/recall, overlap, multilingual and real interview evaluation remain open",
+    "speaker identity and confidence remain unavailable by contract"
+  ]
+}

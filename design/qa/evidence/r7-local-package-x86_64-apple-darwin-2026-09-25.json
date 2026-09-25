@@ -1,18 +1,25 @@
 {
   "status": "passed",
-  "archive": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz",
-  "archive_sha256": "3d9f8aac74a8c009c178a667f8ae452f92b270315f145af70e4bc6fb30b778ec",
-  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "archive": "/private/tmp/opencut-r7-speaker-fix-20260925/opencut-local.tar.gz/opencut-0.1.0-dev-6eecf43c516c-x86_64-apple-darwin.tar.gz",
+  "archive_sha256": "c73246f411f17b8619cc12502b26d2d636649a3a7edd201e62c4c3c44fb8ad78",
+  "binary_sha256": "978d9657b32db170fb9f047e24aa7ea3cd8c5a13637f13601ed1e3809c0f3429",
   "target": "x86_64-apple-darwin",
   "maturity": "development",
   "package_builder": "scripts/package-local.py",
   "package_builder_sha256": "f88816584a5d60d8bd973a0a8968c85686ba305a5508e2b759973761cccb1369",
   "acceptance_runner": "scripts/verify-local-package.py",
   "acceptance_runner_sha256": "6e51f15f02059a740361507b839e647ca8bc26e945fe47495f1dccb59e16c8fc",
-  "acceptance": "full 40-check package-outside-repository verification passed",
+  "acceptance": "full 40-check package-outside-repository verification passed after speaker-turn parser fix",
+  "previous_accepted_candidate": {
+    "archive": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz",
+    "archive_sha256": "3d9f8aac74a8c009c178a667f8ae452f92b270315f145af70e4bc6fb30b778ec",
+    "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+    "acceptance_report_sha256": "dce1eb0f86c52a71bac4cedc2e1a3d083222637e8e8f4be7b157993c86da69f4"
+  },
   "acceptance_checks": 40,
-  "acceptance_report": "/tmp/opencut-r7-final-source-v2-20260925/opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz.acceptance.json",
-  "acceptance_report_sha256": "dce1eb0f86c52a71bac4cedc2e1a3d083222637e8e8f4be7b157993c86da69f4",
-  "acceptance_evidence_directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-hq8359tl",
-  "acceptance_result": "all 40 checks passed; package, target and binary hashes match the delivered archive"
+  "acceptance_report": "/private/tmp/opencut-r7-speaker-fix-20260925/opencut-local.tar.gz/opencut-0.1.0-dev-6eecf43c516c-x86_64-apple-darwin.tar.gz.acceptance.json",
+  "acceptance_report_sha256": "45f706c397074a5b14cb9cccc1b9a58d1fe452a673ee1cdc89afe6ae01ff9ce6",
+  "acceptance_commands_sha256": "5dd96de346be0deb42a654b7041316f9c30a086cf0e3d8a37cb756f291cded9a",
+  "acceptance_evidence_directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-w1achksw",
+  "acceptance_result": "all 40 checks passed; archive, target, manifest and binary hashes match the delivered package"
 }

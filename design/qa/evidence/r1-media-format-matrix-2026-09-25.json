@@ -1,7 +1,7 @@
 {
   "status": "passed",
   "scope": "public HTTP upload and media read; synthetic fixtures; generated format matrix; FFmpeg 8.1.2 on macOS x86_64",
-  "binary_sha256": "dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b",
+  "binary_sha256": "978d9657b32db170fb9f047e24aa7ea3cd8c5a13637f13601ed1e3809c0f3429",
   "verifier_script": "scripts/verify-media-format-matrix.py",
   "verifier_script_sha256": "84065f0071c661614240b81c88b79bb14a736fba795bd8f55f99e630e1388b73",
   "ffmpeg_version": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
@@ -111,8 +111,8 @@
       "asset_kind": "video",
       "mime_type": "application/octet-stream",
       "size_bytes": 1444,
-      "content_sha256": "10b875e6f77d77d0043c39805355f4e223559b144e712da3277011a06bee0a3d",
-      "download_sha256": "10b875e6f77d77d0043c39805355f4e223559b144e712da3277011a06bee0a3d",
+      "content_sha256": "c9bffb82f452aa4c8a3d0097c9ae03dcd873fb4d70135b7af604c08a150f2cb8",
+      "download_sha256": "c9bffb82f452aa4c8a3d0097c9ae03dcd873fb4d70135b7af604c08a150f2cb8",
       "wrong_extension": "mp4"
     },
     {
@@ -120,8 +120,8 @@
       "asset_kind": "video",
       "mime_type": "application/octet-stream",
       "size_bytes": 784,
-      "content_sha256": "396e36eb3f976bdaae99198182193bcec2af79dd66f5b6f6bf0711a028c3361c",
-      "download_sha256": "396e36eb3f976bdaae99198182193bcec2af79dd66f5b6f6bf0711a028c3361c",
+      "content_sha256": "f2c4c2fc872681a563814d98774f1521d36cd356683572443f8e9a563b770f62",
+      "download_sha256": "f2c4c2fc872681a563814d98774f1521d36cd356683572443f8e9a563b770f62",
       "wrong_extension": "mp4"
     },
     {
@@ -183,8 +183,8 @@
       "asset_kind": "audio",
       "mime_type": "audio/ogg",
       "size_bytes": 2415,
-      "content_sha256": "f2986ec763f2da641c5a4b9696a015784db6ddb2376a5826e885c6afff01ff1d",
-      "download_sha256": "f2986ec763f2da641c5a4b9696a015784db6ddb2376a5826e885c6afff01ff1d",
+      "content_sha256": "d7bbc06db639f992926cc1b0dbf140877de4349bd3a288d5eaabd5dd096df62e",
+      "download_sha256": "d7bbc06db639f992926cc1b0dbf140877de4349bd3a288d5eaabd5dd096df62e",
       "wrong_extension": "mp3"
     },
     {
@@ -260,10 +260,10 @@
       "wrong_extension": "mp4"
     }
   ],
-  "run_directory": "/private/tmp/opencut-r1-formats-final-20260925/media-formats-1790332355328850000",
-  "external_report_sha256": "083234166bccfaabb0163d59d77e8a07227cf6cc4eb34cfc73f629443b81e2af",
-  "http_trace_sha256": "d87a4b1309279d506503582b89570f5d36336f50b9f6d9ddbec1f3d35e619358",
-  "external_trace_path": "/tmp/opencut-r1-formats-final-20260925/media-formats-1790332355328850000/trace.json",
+  "run_directory": "/private/tmp/opencut-r1-formats-speaker-fix-20260925/media-formats-1790335126162120000",
+  "external_report_sha256": "2794fbe99cd9d8bc17ad4fce2d2064b0e27836bb95a675050ea793f38bea5a66",
+  "http_trace_sha256": "9390ea88b9f2cc38bcea27bdede918807bdcdce5f355c68a872617ab02c4a467",
+  "external_trace_path": "/tmp/opencut-r1-formats-speaker-fix-20260925/media-formats-1790335126162120000/trace.json",
   "supported_demuxer_families_covered": [
     "mov/mp4/3gp/3g2",
     "matroska/webm",

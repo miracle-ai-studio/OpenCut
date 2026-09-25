@@ -221,7 +221,8 @@ fn parse_output(bytes: &[u8]) -> MediaResult<SpeakerTurnsResult> {
     }
     let mut previous_end = 0;
     let mut turns = Vec::new();
-    for segment in raw.transcription {
+    let segment_count = raw.transcription.len();
+    for (index, segment) in raw.transcription.into_iter().enumerate() {
         if segment.offsets.from < previous_end
             || segment.offsets.to <= segment.offsets.from
             || segment.offsets.to > 3_600_000
@@ -229,7 +230,10 @@ fn parse_output(bytes: &[u8]) -> MediaResult<SpeakerTurnsResult> {
             return Err(invalid());
         }
         previous_end = segment.offsets.to;
-        if segment.speaker_turn_next {
+        // `speaker_turn_next` describes a transition after this segment. A
+        // final marker without a following decoded segment is outside the
+        // observed media and must not be published as an in-clip boundary.
+        if segment.speaker_turn_next && index + 1 < segment_count {
             turns.push(SpeakerTurn {
                 at: MediaTime {
                     ticks: segment.offsets.to,
@@ -265,7 +269,11 @@ mod tests {
     use super::*;
     #[test]
     fn rejects_missing_flags_wrong_language_and_intervals() {
-        assert_eq!(parse_output(br#"{"result":{"language":"en"},"transcription":[{"offsets":{"from":0,"to":100},"speaker_turn_next":true}]}"#).unwrap().turns.len(), 1);
+        let parsed = parse_output(br#"{"result":{"language":"en"},"transcription":[{"offsets":{"from":0,"to":100},"speaker_turn_next":true},{"offsets":{"from":100,"to":200},"speaker_turn_next":false}]}"#).unwrap();
+        assert_eq!(parsed.turns.len(), 1);
+        assert_eq!(parsed.turns[0].at.ticks, 100);
+        let terminal_marker = parse_output(br#"{"result":{"language":"en"},"transcription":[{"offsets":{"from":0,"to":100},"speaker_turn_next":true}]}"#).unwrap();
+        assert!(terminal_marker.turns.is_empty());
         for bytes in [
             &br#"{"result":{"language":"en"},"transcription":[{"offsets":{"from":0,"to":100}}]}"#[..],
             &br#"{"result":{"language":"zh"},"transcription":[]}"#[..],

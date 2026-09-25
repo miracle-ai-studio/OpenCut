@@ -17,7 +17,14 @@ def sha(path):
     return digest.hexdigest()
 
 
+APOLLO_30S_SHA256='c73036a6beb0f7b391c09094ccfc298b213030d0cb703b789f719fad9111a08d'
+REFERENCE_TURNS_MS=[3800,6200,11320,13820]
+REFERENCE_TOLERANCE_MS=50
+
+
 def verify(binary,audio,model,artifacts):
+    audio_sha256=sha(audio)
+    assert audio_sha256==APOLLO_30S_SHA256, ('unexpected fixed speaker-turn fixture', audio_sha256)
     run=artifacts.resolve()/f'speaker-turns-{time.time_ns()}'
     run.mkdir(parents=True)
     source=run/'english-voices.wav'
@@ -58,12 +65,16 @@ def verify(binary,audio,model,artifacts):
     done=call('opencut_job_view',{'job_id':queued['job_id']})
     assert done['state']=='succeeded' and done['result'] is None,done
     result=done['extended_result']['data']['analysis']
+    assert result['turns'], 'the pinned positive-dialogue fixture must produce at least one speaker-turn boundary'
     assert result['language']=='en' and result['provider']=='whisper.cpp'
     assert result['method']=='tinydiarize_speaker_turn_next'
     assert result['model']=='ggml-small.en-tdrz.bin'
     assert result['model_sha256']==sha(model)
     assert result['confidence_known'] is False and result['speaker_identity_status']=='unavailable'
     assert all(int(turn['at']['ticks'])>0 for turn in result['turns'])
+    observed_turns_ms=[int(turn['at']['ticks']) for turn in result['turns']]
+    assert all(any(abs(actual-expected)<=REFERENCE_TOLERANCE_MS for actual in observed_turns_ms)
+        for expected in REFERENCE_TURNS_MS), (observed_turns_ms,REFERENCE_TURNS_MS)
     assert call('opencut_analysis_speaker_turns',request)['job_id']==queued['job_id']
     evidence=call('opencut_analysis_evidence_query',{'job_id':queued['job_id'],'limit':100})
     assert evidence['analysis_kind']=='analysis.speaker_turns'
@@ -71,8 +82,11 @@ def verify(binary,audio,model,artifacts):
     assert evidence['provenance']['speaker_identity_status']=='unavailable'
     assert all(item['kind']=='speaker_turn' for item in evidence['evidence'])
     assert len(evidence['evidence'])==len(result['turns'])
-    report={'binary_sha256':sha(binary),'audio_sha256':sha(audio),'model_sha256':sha(model),
+    report={'binary_sha256':sha(binary),'audio_sha256':audio_sha256,'model_sha256':sha(model),
         'revision':revision,'job_id':queued['job_id'],'result':result,
+        'speaker_turn_count':len(result['turns']),
+        'reference_evaluation':{'source':'upstream whisper.cpp README a13.wav example output; not an independent human transcript','expected_turns_ms':REFERENCE_TURNS_MS,
+            'observed_turns_ms':observed_turns_ms,'tolerance_ms':REFERENCE_TOLERANCE_MS},
         'checks':['public schema rejects host model path','durable fixed-asset job survives source deletion',
             'actual local model inference and public JobView provenance','replay preserves durable receipt','unified evidence query exposes only source turn times and pinned model provenance',
             'turn boundaries only; no speaker identity or confidence fabricated'],
