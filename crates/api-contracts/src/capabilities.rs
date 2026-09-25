@@ -20,6 +20,12 @@ pub struct Capabilities {
 /// Extended host discovery. The v1 tool retains its frozen, extension-tolerant DTO.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HostCapabilities {
+    #[serde(default)]
+    pub project_v3: Option<ProjectV3Capabilities>,
+    #[serde(default)]
+    pub analysis_evidence_query_tool: Option<String>,
+    #[serde(default)]
+    pub preview: Option<crate::preview::Capabilities>,
     #[serde(flatten)]
     pub api: Capabilities,
     pub mcp: McpCapabilities,
@@ -161,4 +167,38 @@ pub struct UploadStagingCapabilities {
     pub release_requires_terminal_job: bool,
     pub automatic_terminal_cleanup: bool,
     pub measures_filesystem_usage: bool,
+}
+
+/// Additive discovery for the explicit versioned project surface. The legacy
+/// project_schema_version remains 2 because legacy project tools keep that DTO.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProjectV3Capabilities {
+    pub schema_version: u32,
+    pub create_tool: String,
+    pub promote_tool: String,
+    pub list_tool: String,
+    pub inspect_tool: String,
+    pub plan_tool: String,
+    pub apply_tool: String,
+    pub preview_create_tool: String,
+    pub preset_plan_tool: String,
+    pub preflight_tool: String,
+    pub undo_plan_tool: String,
+    pub undo_apply_tool: String,
+    pub redo_plan_tool: String,
+    pub redo_apply_tool: String,
+    pub branch_tools: Vec<String>,
+    pub package_export_tool: String,
+    pub package_import_tool: String,
+    pub operations: Vec<String>,
+    pub shapes: Vec<String>,
+    pub effects: Vec<String>,
+    pub masks: Vec<String>,
+    pub transitions: Vec<String>,
+    pub base_operations_supported: bool,
+    pub selective_undo_redo: bool,
+    pub named_branches: bool,
+    pub promotion_reversible_by_undo: bool,
+    pub job_kinds: Vec<String>,
+    pub analysis_uses_fixed_base_assets: bool,
 }

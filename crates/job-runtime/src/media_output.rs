@@ -50,6 +50,14 @@ impl OutputProcess for Process {
     }
 }
 impl OutputAdmission for TaskOutput {
+    fn reserve_private_copy(&self, path: &Path, bytes: u64) -> MediaResult<Box<dyn Send>> {
+        self.check(path)?;
+        let reservation = self
+            .budget
+            .reserve("whisper_model_snapshot", bytes)
+            .map_err(admission)?;
+        Ok(Box::new(reservation))
+    }
     fn spawn(
         &self,
         command: Command,

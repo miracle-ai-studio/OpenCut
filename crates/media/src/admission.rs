@@ -13,6 +13,12 @@ pub trait OutputAdmission: Debug + Send + Sync {
     fn spawn(&self, command: Command, output: Option<&Path>)
     -> MediaResult<Box<dyn OutputProcess>>;
     fn write(&self, path: &Path, bytes: &[u8]) -> MediaResult<()>;
+    /// Hold quota for a private stream-copied input until the caller drops it.
+    fn reserve_private_copy(&self, _path: &Path, _bytes: u64) -> MediaResult<Box<dyn Send>> {
+        Err(crate::MediaError::Unsupported(
+            "Private input snapshots are unavailable".into(),
+        ))
+    }
 }
 pub(crate) struct UnmanagedProcess(pub Child);
 impl OutputProcess for UnmanagedProcess {

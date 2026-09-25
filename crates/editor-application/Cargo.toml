@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+opencut-time = { path = "../time" }
+opencut-composition = { path = "../composition" }
 semver = "1"
 opencut-job-execution = { path = "../job-execution" }
 opencut-job-contracts = { path = "../job-contracts" }

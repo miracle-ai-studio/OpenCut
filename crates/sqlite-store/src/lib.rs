@@ -1,20 +1,36 @@
+pub mod analysis;
 #[cfg(unix)]
 mod control_vfs;
 pub mod job_views;
 pub mod jobs;
+pub mod speaker_turns;
 mod sqlite_access;
 mod sqlite_artifact_gc;
 mod sqlite_artifact_publication;
 mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
 mod sqlite_audit;
+mod sqlite_branching;
+mod sqlite_classic_import;
+mod sqlite_collaboration;
 mod sqlite_denials;
+mod sqlite_edit_control;
 mod sqlite_gc;
 mod sqlite_jobs;
 mod sqlite_maintenance;
+mod sqlite_new_project;
+mod sqlite_plugin_v2;
+mod sqlite_project_package;
+mod sqlite_project_package_v3;
 mod sqlite_project_plugins;
+mod sqlite_project_v3;
+mod sqlite_project_v3_branching;
+mod sqlite_project_v3_collaboration;
+pub mod sqlite_project_v3_jobs;
 mod sqlite_projects;
 mod sqlite_queries;
+mod sqlite_render_v3;
+mod sqlite_resources;
 mod sqlite_upload_retention;
 mod sqlite_uploads;
 use std::{path::Path, time::Duration};
@@ -30,16 +46,24 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 19;
+const DATABASE_SCHEMA_VERSION: i64 = 23;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
     "preview.project_frame",
     "preview.composited_frame",
     "preview.project_range",
+    "preview.project_frame.v3",
+    "preview.project_range.v3",
     "render.export",
     "render.project",
+    "render.project.v3",
     "artifact.verify",
+    "analysis.transcribe",
+    "analysis.silence",
+    "analysis.shots",
+    "analysis.waveform",
+    "analysis.speaker_turns",
 ];
 type HistoryRow = (
     String,
@@ -379,6 +403,26 @@ impl EditorApplication {
                 [],
             )
             .map_err(storage_error)?;
+            version = 19;
+        }
+        if version == 19 {
+            tx.execute_batch(sqlite_branching::MIGRATION)
+                .map_err(storage_error)?;
+            version = 20;
+        }
+        if version == 20 {
+            tx.execute_batch(sqlite_edit_control::MIGRATION)
+                .map_err(storage_error)?;
+            version = 21;
+        }
+        if version == 21 {
+            tx.execute_batch(sqlite_plugin_v2::MIGRATION)
+                .map_err(storage_error)?;
+            version = 22;
+        }
+        if version == 22 {
+            tx.execute_batch(sqlite_project_v3::MIGRATION)
+                .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
@@ -920,7 +964,7 @@ fn load_snapshot(
             EditorError::new("NOT_FOUND", format!("project {project_id} was not found"))
         })?;
     Ok(ProjectSnapshot {
-        project: decode_json(&stored.0, "stored project document")?,
+        project: sqlite_project_v3::decode_legacy_project(&stored.0)?,
         revision: stored.1,
     })
 }
@@ -2113,7 +2157,7 @@ mod tests {
             .unwrap();
         connection
             .execute_batch(
-                "DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
+                "DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
              DROP TABLE access_grants;
@@ -2277,6 +2321,9 @@ mod tests {
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
+             DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
+             DROP TABLE project_merge_parents;
+             DROP TABLE project_branches;
              DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;
              DROP TABLE maintenance_publications;
              DROP TABLE job_projects;
@@ -2443,3 +2490,5 @@ mod project_plugin_tests;
 mod denial_tests;
 
 mod sqlite_database;
+
+mod sqlite_plugin_v3;

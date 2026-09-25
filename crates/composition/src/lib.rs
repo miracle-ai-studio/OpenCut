@@ -1,5 +1,6 @@
 //! Pure fixed-revision composition compiler. No files, codecs, processes or database.
 mod compiler;
+pub mod project_v3;
 mod selection;
 pub use compiler::compile;
 pub use selection::{select_project_frame_time, select_project_range};

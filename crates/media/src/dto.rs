@@ -63,6 +63,29 @@ pub struct TimelineRangeRenderRequest {
     pub sequence_duration: MediaTime,
 }
 
+/// Schema 3 visual graph; `base` retains the exact schema 2 media and audio timeline.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimelineExportRequestV3 {
+    pub base: TimelineExportRequest,
+    pub visual: opencut_media_contracts::composition_v3::CompiledVisualGraphV3,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimelineFrameRenderRequestV3 {
+    pub timeline: TimelineExportRequestV3,
+    pub sequence_time: MediaTime,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimelineRangeRenderRequestV3 {
+    pub timeline: TimelineExportRequestV3,
+    pub sequence_start: MediaTime,
+    pub sequence_duration: MediaTime,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct RenderedTimelineFrame {
     pub output: PathBuf,
@@ -76,6 +99,7 @@ pub struct RenderedTimelineFrame {
 pub use opencut_media_contracts::composition::{
     EvaluatedCurve, EvaluatedSegment, TimelineCaption, TimelineVisualCurves,
 };
+pub use opencut_media_contracts::composition_v3::*;
 pub type TimelineVideoClip = opencut_media_contracts::composition::TimelineVideoClip<PathBuf>;
 pub type TimelineImageClip = opencut_media_contracts::composition::TimelineImageClip<PathBuf>;
 pub type TimelineAudioClip = opencut_media_contracts::composition::TimelineAudioClip<PathBuf>;
@@ -111,3 +135,16 @@ pub type ExportSegment = opencut_media_contracts::ExportSegment<PathBuf>;
 pub type ExportResult = opencut_media_contracts::ExportResult<PathBuf>;
 pub type VerifyRequest = opencut_media_contracts::VerifyRequest<PathBuf>;
 pub type VerificationReport = opencut_media_contracts::VerificationReport<PathBuf>;
+pub type TranscribeRequest = opencut_media_contracts::TranscribeRequest<PathBuf>;
+pub use opencut_media_contracts::validate_public_transcription_result;
+pub use opencut_media_contracts::{
+    ShotBoundary, ShotsResult, SilenceInterval, SilenceResult, WaveformBucket, WaveformResult,
+};
+pub type SilenceRequest = opencut_media_contracts::SilenceRequest<PathBuf>;
+pub type ShotsRequest = opencut_media_contracts::ShotsRequest<PathBuf>;
+pub type WaveformRequest = opencut_media_contracts::WaveformRequest<PathBuf>;
+pub use opencut_media_contracts::{SpeakerTurn, SpeakerTurnsResult};
+pub use opencut_media_contracts::{
+    TranscriptionResult, TranscriptionSegment, TranscriptionWord, WordTimingStatus,
+};
+pub type SpeakerTurnsRequest = opencut_media_contracts::SpeakerTurnsRequest<PathBuf>;

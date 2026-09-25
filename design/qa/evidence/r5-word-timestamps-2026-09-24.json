@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "checks": [
+    "Scoped host advertises analysis.transcribe with a host-selected model",
+    "Project-scoped chunk upload, seal/import and whole audio clip bind are durable; edit.plan leaves head unchanged",
+    "Public fixed-version transcription is readable and hash-stable; replay, conflict, model injection and read-only access are enforced",
+    "Clamped transcription segments become source-anchored editable captions; a human correction persists",
+    "Fixed revision render downloads by artifact hash; ffprobe, PCM and visible subtitle glyphs independently decode",
+    "English real speech produces validated model-derived word intervals; legacy no-word replay keeps the original job",
+    "After host stop, separate CLI reopen retains corrected source-anchored captions"
+  ],
+  "evidence": "/private/tmp/opencut-transcription-words-journey-final-20260924",
+  "binary_sha256": "4266fe0883ea7d692fb0fed41727fa2cece9b8d53485cb31069a752be58892f0",
+  "model_sha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+  "audio_sha256": "38641790e47d5bf0ab899f66e22ccd1d97a2ac2e7c274ee52d8dd75a99e6bc65",
+  "model": "ggml-tiny.bin",
+  "audio": "/private/tmp/opencut-r5-transcription/chinese.wav",
+  "job_id": "job_2a41ce4dda8b4f23bf44775e4385a7e8",
+  "transcription_sha256": "efa7be7b3e7692cf1215c1a2ed35b57642d4dbb2bdd31b6f9b180f10913ecaf3",
+  "segment_count": 4,
+  "caption_count": 4,
+  "render_job_id": "job_f995c9929d8f4a4eb9a289092fc1d8e8",
+  "render_sha256": "d5bbc6aefa3b6da10146653d188914606122c69c698e8e183d5b98aaae1950ac",
+  "scope": "Real local model with Chinese TTS speech; not human interview quality"
+}

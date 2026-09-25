@@ -10,6 +10,7 @@ name = "opencut"
 path = "src/main.rs"
 
 [dependencies]
+opencut-sdk = { path = "../../crates/sdk-rust" }
 opencut-native-services = { path = "../../crates/native-services" }
 opencut-asset-store = { path = "../../crates/asset-store" }
 opencut-sqlite-store = { path = "../../crates/sqlite-store" }

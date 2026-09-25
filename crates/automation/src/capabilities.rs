@@ -3,6 +3,80 @@ use serde_json::Value;
 
 pub fn document() -> HostCapabilities {
     HostCapabilities {
+        analysis_evidence_query_tool: Some("opencut_analysis_evidence_query".into()),
+        project_v3: Some(ProjectV3Capabilities {
+            schema_version: 3,
+            create_tool: "opencut_project_v3_create".into(),
+            promote_tool: "opencut_project_v3_promote".into(),
+            list_tool: "opencut_project_v3_list".into(),
+            inspect_tool: "opencut_project_v3_inspect".into(),
+            plan_tool: "opencut_edit_v3_plan".into(),
+            apply_tool: "opencut_edit_v3_apply".into(),
+            preview_create_tool: "opencut_preview_v3_create".into(),
+            preset_plan_tool: "opencut_plugin_v2_preset_v3_plan".into(),
+            preflight_tool: "opencut_render_v3_preflight".into(),
+            undo_plan_tool: "opencut_edit_v3_undo_plan".into(),
+            undo_apply_tool: "opencut_edit_v3_undo_apply".into(),
+            redo_plan_tool: "opencut_edit_v3_redo_plan".into(),
+            redo_apply_tool: "opencut_edit_v3_redo_apply".into(),
+            branch_tools: [
+                "opencut_edit_v3_branch_create",
+                "opencut_edit_v3_branch_list",
+                "opencut_edit_v3_branch_apply",
+                "opencut_edit_v3_branch_compare",
+                "opencut_edit_v3_branch_merge",
+            ]
+            .map(str::to_owned)
+            .into(),
+            package_export_tool: "opencut_project_v3_package_export".into(),
+            package_import_tool: "opencut_project_v3_package_import".into(),
+            operations: [
+                "base.apply",
+                "shape.put",
+                "shape.delete",
+                "effect.put",
+                "effect.delete",
+                "mask.put",
+                "mask.delete",
+                "transition.put",
+                "transition.delete",
+            ]
+            .map(str::to_owned)
+            .into(),
+            shapes: ["rectangle", "ellipse"].map(str::to_owned).into(),
+            effects: ["color_adjust", "gaussian_blur"].map(str::to_owned).into(),
+            masks: ["rectangle", "ellipse"].map(str::to_owned).into(),
+            transitions: vec!["crossfade".into()],
+            base_operations_supported: true,
+            selective_undo_redo: true,
+            named_branches: true,
+            promotion_reversible_by_undo: false,
+            job_kinds: [
+                "render.project.v3",
+                "preview.project_frame.v3",
+                "preview.project_range.v3",
+            ]
+            .map(str::to_owned)
+            .into(),
+            analysis_uses_fixed_base_assets: true,
+        }),
+        preview: Some(opencut_api_contracts::preview::Capabilities {
+            backend: "ffmpeg_continuous_fmp4".into(),
+            control_transports: vec![
+                "http".into(),
+                "mcp_http".into(),
+                "cli_endpoint".into(),
+                "embedded".into(),
+            ],
+            stream_path: "/v1/preview/stream".into(),
+            restart_recoverable: false,
+            browser_presentation_verified: false,
+            max_sessions_per_process: 32,
+            max_width: 1920,
+            max_height: 1080,
+            owner_lease_ms: opencut_editor_application::preview::LEASE_MS,
+            presentation_freshness_ms: opencut_editor_application::preview::FRESH_MS,
+        }),
         database: Some(opencut_api_contracts::database::Capabilities {
             inspect_tool: "opencut_database_inspect".into(),
             checkpoint_tool: "opencut_database_checkpoint".into(),
@@ -157,7 +231,7 @@ pub fn document() -> HostCapabilities {
                 idempotent_writes: true,
                 edit_preview_plan: true,
                 durable_events: true,
-                multiple_branches: false,
+                multiple_branches: true,
                 persistent_jobs: true,
                 revision_history: true,
                 revision_restore: true,

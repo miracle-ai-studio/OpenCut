@@ -1,0 +1,1392 @@
+{
+  "binary_sha256": "b140dcb13e7eaa21098d8b52296b791e1e2eb6df17b10ac1d51cc7185d45edc0",
+  "source_content_id": "classic_b22e6aba81b0aa312e6d69d324d502875fc51f0c93cd48065df75a8c01c2ac99",
+  "imported_revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+  "accepted_loss_codes": [
+    "BACKGROUND_DEFAULT",
+    "TEXT_LAYOUT",
+    "TEXT_TRACK"
+  ],
+  "render_sha256": "8bf025d51dedc3a96b83342ffd7d5f177e75275210582e799128be238d018c39",
+  "white_caption_pixels": 585,
+  "audio_rms": 1024.4000180713592,
+  "checks": [
+    "Pinned existing media resolved after original files removed",
+    "Nonempty video/audio/text conversion creates one atomic new project",
+    "Explicit loss acknowledgement and exact replay",
+    "Effects block with JSON path",
+    "Rendered MP4 decodes visual caption and audio"
+  ],
+  "trace": [
+    {
+      "command": [
+        "call",
+        "opencut_project_create",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "4146f0c1-a364-48d5-b84b-c7934764fa80",
+        "data": {
+          "project": {
+            "assets": [],
+            "default_sequence_id": "main",
+            "id": "library",
+            "name": "Library",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [],
+                "width": 320
+              }
+            ]
+          },
+          "revision": "rev_24b0a50c52c95d8798eeb555d002d7ad94e3f70ad8d6bb9c1c46f320d4082f1f"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_edit_apply",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "48f8edd3-d450-49b1-bd65-6a9c0375aa9a",
+        "data": {
+          "base_revision": "rev_24b0a50c52c95d8798eeb555d002d7ad94e3f70ad8d6bb9c1c46f320d4082f1f",
+          "changed_ids": [],
+          "created_ids": [
+            "video",
+            "audio"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_c8c3ce21800da4974903ee0be32c56aab1c77cadf77fbede61435200787f1081",
+          "transaction_id": "txn_79c1c711057845a8bed9f589884d6d4a"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_classic_analyze",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "60f2b885-2a74-4f37-a788-c4ccfe4de969",
+        "data": {
+          "blockers": [],
+          "losses": [
+            {
+              "code": "BACKGROUND_DEFAULT",
+              "detail": "Classic black background relies on current renderer default",
+              "path": "$.settings.background"
+            },
+            {
+              "code": "TEXT_LAYOUT",
+              "detail": "Classic canvas-centered text becomes caption layout; inspect the render before accepting migration",
+              "path": "$.scenes[0].tracks.overlay[0].elements[0]"
+            },
+            {
+              "code": "TEXT_TRACK",
+              "detail": "Classic text track grouping is represented as sequence caption cues",
+              "path": "$.scenes[0].tracks.overlay[0]"
+            }
+          ],
+          "mapped": [
+            "$.scenes[0].tracks.main",
+            "$.scenes[0].tracks.audio[0]",
+            "$.scenes[0]",
+            "$.media_mappings.ma",
+            "$.media_mappings.mv"
+          ],
+          "proposed_project": {
+            "assets": [
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                "kind": "audio",
+                "metadata": {},
+                "name": "Audio",
+                "uri": "opencut-package://sha256/58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                "version": {
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "id": "av_58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                }
+              },
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                "kind": "video",
+                "metadata": {},
+                "name": "Video",
+                "uri": "opencut-package://sha256/e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                "version": {
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              }
+            ],
+            "default_sequence_id": "main",
+            "id": "converted",
+            "name": "Classic film",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [
+                  {
+                    "id": "caption",
+                    "source_anchor": null,
+                    "style": {
+                      "background_color": null,
+                      "color": "#ffffff",
+                      "font_family": "PingFang SC",
+                      "font_size": 28.0,
+                      "line_height": 33.599998474121094
+                    },
+                    "text": "Classic 字幕",
+                    "timeline_range": {
+                      "duration": {
+                        "ticks": "180000",
+                        "timebase": 120000
+                      },
+                      "start": {
+                        "ticks": "24000",
+                        "timebase": 120000
+                      }
+                    }
+                  }
+                ],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [
+                  {
+                    "clips": [
+                      {
+                        "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                        "channels": [],
+                        "id": "video-clip",
+                        "params": {
+                          "volume": 1.0
+                        },
+                        "source_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        },
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "enabled": true,
+                    "id": "video-track",
+                    "kind": "video",
+                    "locked": false,
+                    "muted": false,
+                    "name": "Video",
+                    "params": {}
+                  },
+                  {
+                    "clips": [
+                      {
+                        "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                        "channels": [],
+                        "id": "audio-clip",
+                        "params": {
+                          "volume": 0.5011872336272722
+                        },
+                        "source_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        },
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "enabled": true,
+                    "id": "audio-track",
+                    "kind": "audio",
+                    "locked": false,
+                    "muted": false,
+                    "name": "Audio",
+                    "params": {}
+                  }
+                ],
+                "width": 320
+              }
+            ]
+          },
+          "source_content_id": "classic_b22e6aba81b0aa312e6d69d324d502875fc51f0c93cd48065df75a8c01c2ac99",
+          "source_format": "classic-indexeddb-serialized-project",
+          "source_version": 31,
+          "target_project_id": "converted"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_classic_import",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "c62dfe95-dd61-47d0-a8d8-c0ce5adbbab9",
+        "data": null,
+        "error": {
+          "code": "INVALID_ARGUMENT",
+          "message": "Classic migration loss codes need exact acknowledgement",
+          "details": {
+            "required_loss_codes": [
+              "BACKGROUND_DEFAULT",
+              "TEXT_LAYOUT",
+              "TEXT_TRACK"
+            ]
+          }
+        },
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_classic_import",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "7ec8d63f-16e2-4cdb-ae1e-d3c89d0187dc",
+        "data": {
+          "asset_count": 2,
+          "losses": [
+            {
+              "code": "BACKGROUND_DEFAULT",
+              "detail": "Classic black background relies on current renderer default",
+              "path": "$.settings.background"
+            },
+            {
+              "code": "TEXT_LAYOUT",
+              "detail": "Classic canvas-centered text becomes caption layout; inspect the render before accepting migration",
+              "path": "$.scenes[0].tracks.overlay[0].elements[0]"
+            },
+            {
+              "code": "TEXT_TRACK",
+              "detail": "Classic text track grouping is represented as sequence caption cues",
+              "path": "$.scenes[0].tracks.overlay[0]"
+            }
+          ],
+          "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+          "source_content_id": "classic_b22e6aba81b0aa312e6d69d324d502875fc51f0c93cd48065df75a8c01c2ac99",
+          "target_project_id": "converted"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_classic_import",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "5182356d-35c2-4b88-a0da-0c12fee199d0",
+        "data": {
+          "asset_count": 2,
+          "losses": [
+            {
+              "code": "BACKGROUND_DEFAULT",
+              "detail": "Classic black background relies on current renderer default",
+              "path": "$.settings.background"
+            },
+            {
+              "code": "TEXT_LAYOUT",
+              "detail": "Classic canvas-centered text becomes caption layout; inspect the render before accepting migration",
+              "path": "$.scenes[0].tracks.overlay[0].elements[0]"
+            },
+            {
+              "code": "TEXT_TRACK",
+              "detail": "Classic text track grouping is represented as sequence caption cues",
+              "path": "$.scenes[0].tracks.overlay[0]"
+            }
+          ],
+          "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+          "source_content_id": "classic_b22e6aba81b0aa312e6d69d324d502875fc51f0c93cd48065df75a8c01c2ac99",
+          "target_project_id": "converted"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_project_inspect",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "5488dcdc-8519-4e9f-8b85-80137a557bc1",
+        "data": {
+          "project": {
+            "assets": [
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "video",
+                "kind": "video",
+                "metadata": {},
+                "name": "Video",
+                "uri": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/video.mp4",
+                "version": {
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              },
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "audio",
+                "kind": "audio",
+                "metadata": {},
+                "name": "Audio",
+                "uri": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/audio.wav",
+                "version": {
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "id": "av_58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                }
+              }
+            ],
+            "default_sequence_id": "main",
+            "id": "library",
+            "name": "Library",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [],
+                "width": 320
+              }
+            ]
+          },
+          "revision": "rev_c8c3ce21800da4974903ee0be32c56aab1c77cadf77fbede61435200787f1081"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_project_inspect",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "28b88bbc-259a-45ca-abef-2322c61be656",
+        "data": {
+          "project": {
+            "assets": [
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                "kind": "audio",
+                "metadata": {},
+                "name": "Audio",
+                "uri": "opencut-package://sha256/58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                "version": {
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "id": "av_58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                }
+              },
+              {
+                "duration": {
+                  "ticks": "240000",
+                  "timebase": 120000
+                },
+                "id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                "kind": "video",
+                "metadata": {},
+                "name": "Video",
+                "uri": "opencut-package://sha256/e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                "version": {
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              }
+            ],
+            "default_sequence_id": "main",
+            "id": "converted",
+            "name": "Classic film",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [
+                  {
+                    "id": "caption",
+                    "source_anchor": null,
+                    "style": {
+                      "background_color": null,
+                      "color": "#ffffff",
+                      "font_family": "PingFang SC",
+                      "font_size": 28.0,
+                      "line_height": 33.599998474121094
+                    },
+                    "text": "Classic 字幕",
+                    "timeline_range": {
+                      "duration": {
+                        "ticks": "180000",
+                        "timebase": 120000
+                      },
+                      "start": {
+                        "ticks": "24000",
+                        "timebase": 120000
+                      }
+                    }
+                  }
+                ],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [
+                  {
+                    "clips": [
+                      {
+                        "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                        "channels": [],
+                        "id": "video-clip",
+                        "params": {
+                          "volume": 1.0
+                        },
+                        "source_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        },
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "enabled": true,
+                    "id": "video-track",
+                    "kind": "video",
+                    "locked": false,
+                    "muted": false,
+                    "name": "Video",
+                    "params": {}
+                  },
+                  {
+                    "clips": [
+                      {
+                        "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                        "channels": [],
+                        "id": "audio-clip",
+                        "params": {
+                          "volume": 0.5011872336272722
+                        },
+                        "source_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        },
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "240000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "0",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "enabled": true,
+                    "id": "audio-track",
+                    "kind": "audio",
+                    "locked": false,
+                    "muted": false,
+                    "name": "Audio",
+                    "params": {}
+                  }
+                ],
+                "width": 320
+              }
+            ]
+          },
+          "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_classic_analyze",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "e7f77f35-b38f-4e17-9ba0-c8a6bf72ea7e",
+        "data": {
+          "blockers": [
+            {
+              "code": "UNSUPPORTED_DEPENDENCY",
+              "detail": "Effect, mask or animation cannot be silently dropped",
+              "path": "$.scenes[0].tracks.main.elements[0].effects"
+            }
+          ],
+          "losses": [
+            {
+              "code": "BACKGROUND_DEFAULT",
+              "detail": "Classic black background relies on current renderer default",
+              "path": "$.settings.background"
+            },
+            {
+              "code": "TEXT_LAYOUT",
+              "detail": "Classic canvas-centered text becomes caption layout; inspect the render before accepting migration",
+              "path": "$.scenes[0].tracks.overlay[0].elements[0]"
+            },
+            {
+              "code": "TEXT_TRACK",
+              "detail": "Classic text track grouping is represented as sequence caption cues",
+              "path": "$.scenes[0].tracks.overlay[0]"
+            }
+          ],
+          "mapped": [
+            "$.scenes[0].tracks.main",
+            "$.scenes[0].tracks.audio[0]",
+            "$.scenes[0]",
+            "$.media_mappings.ma",
+            "$.media_mappings.mv"
+          ],
+          "proposed_project": null,
+          "source_content_id": "classic_0d54a97e6240f6737f03332451d8c57a1c88e024a12a318339d1c075977f1030",
+          "source_format": "classic-indexeddb-serialized-project",
+          "source_version": 31,
+          "target_project_id": "blocked"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_job_start",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "81453f52-eaf3-4e01-8086-526bcea04bfa",
+        "data": {
+          "attempt": 0,
+          "cancel_requested": false,
+          "error": null,
+          "input": {
+            "asset_lock": {
+              "assets": [
+                {
+                  "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                },
+                {
+                  "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              ],
+              "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+              "sequence_id": "main",
+              "version": 1
+            },
+            "container": "mp4",
+            "sequence_id": "main",
+            "snapshot": {
+              "project": {
+                "assets": [
+                  {
+                    "duration": {
+                      "ticks": "240000",
+                      "timebase": 120000
+                    },
+                    "id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                    "kind": "audio",
+                    "metadata": {},
+                    "name": "Audio",
+                    "uri": "opencut-package://sha256/58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                    "version": {
+                      "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                      "id": "av_58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                      "size": 192078
+                    }
+                  },
+                  {
+                    "duration": {
+                      "ticks": "240000",
+                      "timebase": 120000
+                    },
+                    "id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                    "kind": "video",
+                    "metadata": {},
+                    "name": "Video",
+                    "uri": "opencut-package://sha256/e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "version": {
+                      "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "size": 2163
+                    }
+                  }
+                ],
+                "default_sequence_id": "main",
+                "id": "converted",
+                "name": "Classic film",
+                "schema_version": 2,
+                "sequences": [
+                  {
+                    "caption_cues": [
+                      {
+                        "id": "caption",
+                        "source_anchor": null,
+                        "style": {
+                          "background_color": null,
+                          "color": "#ffffff",
+                          "font_family": "PingFang SC",
+                          "font_size": 28.0,
+                          "line_height": 33.599998474121094
+                        },
+                        "text": "Classic 字幕",
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "180000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "24000",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "fps": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "height": 180,
+                    "id": "main",
+                    "name": "Main",
+                    "tracks": [
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                            "channels": [],
+                            "id": "video-clip",
+                            "params": {
+                              "volume": 1.0
+                            },
+                            "source_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "video-track",
+                        "kind": "video",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Video",
+                        "params": {}
+                      },
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                            "channels": [],
+                            "id": "audio-clip",
+                            "params": {
+                              "volume": 0.5011872336272722
+                            },
+                            "source_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "audio-track",
+                        "kind": "audio",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Audio",
+                        "params": {}
+                      }
+                    ],
+                    "width": 320
+                  }
+                ]
+              },
+              "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a"
+            },
+            "video_codec": "h264"
+          },
+          "job_id": "job_2f086e415302445cac2f24b4eb97c88f",
+          "kind": "render.project",
+          "lease_owner": null,
+          "lease_until": null,
+          "progress": null,
+          "result": null,
+          "state": "queued"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "command": [
+        "call",
+        "opencut_job_get",
+        "--input",
+        "-"
+      ],
+      "response": {
+        "api_version": "1",
+        "request_id": "2bd107ab-4b73-40a2-a0f3-5dd6fd0ff7b8",
+        "data": {
+          "attempt": 1,
+          "cancel_requested": false,
+          "error": null,
+          "input": {
+            "asset_lock": {
+              "assets": [
+                {
+                  "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                },
+                {
+                  "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              ],
+              "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+              "sequence_id": "main",
+              "version": 1
+            },
+            "container": "mp4",
+            "sequence_id": "main",
+            "snapshot": {
+              "project": {
+                "assets": [
+                  {
+                    "duration": {
+                      "ticks": "240000",
+                      "timebase": 120000
+                    },
+                    "id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                    "kind": "audio",
+                    "metadata": {},
+                    "name": "Audio",
+                    "uri": "opencut-package://sha256/58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                    "version": {
+                      "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                      "id": "av_58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                      "size": 192078
+                    }
+                  },
+                  {
+                    "duration": {
+                      "ticks": "240000",
+                      "timebase": 120000
+                    },
+                    "id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                    "kind": "video",
+                    "metadata": {},
+                    "name": "Video",
+                    "uri": "opencut-package://sha256/e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "version": {
+                      "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "size": 2163
+                    }
+                  }
+                ],
+                "default_sequence_id": "main",
+                "id": "converted",
+                "name": "Classic film",
+                "schema_version": 2,
+                "sequences": [
+                  {
+                    "caption_cues": [
+                      {
+                        "id": "caption",
+                        "source_anchor": null,
+                        "style": {
+                          "background_color": null,
+                          "color": "#ffffff",
+                          "font_family": "PingFang SC",
+                          "font_size": 28.0,
+                          "line_height": 33.599998474121094
+                        },
+                        "text": "Classic 字幕",
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "180000",
+                            "timebase": 120000
+                          },
+                          "start": {
+                            "ticks": "24000",
+                            "timebase": 120000
+                          }
+                        }
+                      }
+                    ],
+                    "fps": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "height": 180,
+                    "id": "main",
+                    "name": "Main",
+                    "tracks": [
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                            "channels": [],
+                            "id": "video-clip",
+                            "params": {
+                              "volume": 1.0
+                            },
+                            "source_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "video-track",
+                        "kind": "video",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Video",
+                        "params": {}
+                      },
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                            "channels": [],
+                            "id": "audio-clip",
+                            "params": {
+                              "volume": 0.5011872336272722
+                            },
+                            "source_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "240000",
+                                "timebase": 120000
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 120000
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "audio-track",
+                        "kind": "audio",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Audio",
+                        "params": {}
+                      }
+                    ],
+                    "width": 320
+                  }
+                ]
+              },
+              "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a"
+            },
+            "video_codec": "h264"
+          },
+          "job_id": "job_2f086e415302445cac2f24b4eb97c88f",
+          "kind": "render.project",
+          "lease_owner": null,
+          "lease_until": null,
+          "progress": {
+            "fraction": null,
+            "media_time": {
+              "ticks": "100000",
+              "timebase": 1000000
+            },
+            "stage": "verifying"
+          },
+          "result": {
+            "artifact": {
+              "content_hash": "8bf025d51dedc3a96b83342ffd7d5f177e75275210582e799128be238d018c39",
+              "mime_type": "video/mp4",
+              "path": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/artifacts/job_2f086e415302445cac2f24b4eb97c88f/attempt-1/render.mp4",
+              "size": 37913
+            },
+            "asset_lock": {
+              "assets": [
+                {
+                  "asset_id": "classic_asset_3c44c3e1b8b7844786724ac776d3d90ee7eac452bdbcb44495b77dec2ef73cfe",
+                  "content_hash": "58e2b5c4e6924adc5cf8522e3f670e9ec059431f43e6afcc04fb10e6be65dc7d",
+                  "size": 192078
+                },
+                {
+                  "asset_id": "classic_asset_d1829078fe03f2ec5f692c7a217859409b6822240625c10282bb022888657148",
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              ],
+              "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a",
+              "sequence_id": "main",
+              "version": 1
+            },
+            "asset_locking": "media_content_locked",
+            "media": {
+              "metadata": {
+                "bit_rate": 151652,
+                "duration": {
+                  "ticks": "2000000",
+                  "timebase": 1000000
+                },
+                "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                "input": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/artifacts/job_2f086e415302445cac2f24b4eb97c88f/attempt-1/render.mp4",
+                "streams": [
+                  {
+                    "average_frame_rate": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "channel_layout": null,
+                    "channels": null,
+                    "codec_name": "h264",
+                    "codec_type": "video",
+                    "color_primaries": null,
+                    "color_space": null,
+                    "color_transfer": null,
+                    "duration": {
+                      "ticks": "2000000",
+                      "timebase": 1000000
+                    },
+                    "height": 180,
+                    "index": 0,
+                    "pixel_format": "yuv420p",
+                    "sample_rate": null,
+                    "time_base": {
+                      "denominator": 10240,
+                      "numerator": 1
+                    },
+                    "width": 320
+                  },
+                  {
+                    "average_frame_rate": {
+                      "denominator": 0,
+                      "numerator": 0
+                    },
+                    "channel_layout": "stereo",
+                    "channels": 2,
+                    "codec_name": "aac",
+                    "codec_type": "audio",
+                    "color_primaries": null,
+                    "color_space": null,
+                    "color_transfer": null,
+                    "duration": {
+                      "ticks": "2000000",
+                      "timebase": 1000000
+                    },
+                    "height": null,
+                    "index": 1,
+                    "pixel_format": null,
+                    "sample_rate": 48000,
+                    "time_base": {
+                      "denominator": 48000,
+                      "numerator": 1
+                    },
+                    "width": null
+                  }
+                ]
+              },
+              "output": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/artifacts/job_2f086e415302445cac2f24b4eb97c88f/attempt-1/render.mp4",
+              "text_layouts": [
+                {
+                  "cluster_ranges": [
+                    {
+                      "end": 1,
+                      "rtl": false,
+                      "start": 0
+                    },
+                    {
+                      "end": 2,
+                      "rtl": false,
+                      "start": 1
+                    },
+                    {
+                      "end": 3,
+                      "rtl": false,
+                      "start": 2
+                    },
+                    {
+                      "end": 4,
+                      "rtl": false,
+                      "start": 3
+                    },
+                    {
+                      "end": 5,
+                      "rtl": false,
+                      "start": 4
+                    },
+                    {
+                      "end": 6,
+                      "rtl": false,
+                      "start": 5
+                    },
+                    {
+                      "end": 7,
+                      "rtl": false,
+                      "start": 6
+                    },
+                    {
+                      "end": 8,
+                      "rtl": false,
+                      "start": 7
+                    },
+                    {
+                      "end": 11,
+                      "rtl": false,
+                      "start": 8
+                    },
+                    {
+                      "end": 14,
+                      "rtl": false,
+                      "start": 11
+                    }
+                  ],
+                  "glyph_count": 10,
+                  "line_count": 1,
+                  "pixel_bounds": {
+                    "height": 27,
+                    "width": 158,
+                    "x": 81,
+                    "y": 113
+                  },
+                  "policy": {
+                    "mode": "strict"
+                  },
+                  "requested_family": "PingFang SC",
+                  "rtl_runs": 0,
+                  "used_faces": [
+                    {
+                      "face_index": 3,
+                      "family": "PingFang SC",
+                      "postscript_name": "PingFangSC-Regular",
+                      "source": "file:/System/Library/AssetsV2/com_apple_MobileAsset_Font8/86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc"
+                    }
+                  ]
+                }
+              ],
+              "verification": {
+                "checks": [
+                  {
+                    "detail": "expected 1, got 1",
+                    "name": "video_streams",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 1, got 1",
+                    "name": "audio_streams",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 320, got 320",
+                    "name": "width",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 180, got 180",
+                    "name": "height",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 2.000000s ± 0.200000s, got 2.000000s",
+                    "name": "duration",
+                    "passed": true
+                  },
+                  {
+                    "detail": "decoded 3/3 requested samples",
+                    "name": "sample_decode",
+                    "passed": true
+                  }
+                ],
+                "decoded_samples": [
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "500000",
+                      "timebase": 1000000
+                    }
+                  },
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "1000000",
+                      "timebase": 1000000
+                    }
+                  },
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "1500000",
+                      "timebase": 1000000
+                    }
+                  }
+                ],
+                "metadata": {
+                  "bit_rate": 151652,
+                  "duration": {
+                    "ticks": "2000000",
+                    "timebase": 1000000
+                  },
+                  "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                  "input": "/private/tmp/opencut-r6-classic-20260924/classic-1790255815936199000/artifacts/job_2f086e415302445cac2f24b4eb97c88f/attempt-1/render.mp4",
+                  "streams": [
+                    {
+                      "average_frame_rate": {
+                        "denominator": 1,
+                        "numerator": 10
+                      },
+                      "channel_layout": null,
+                      "channels": null,
+                      "codec_name": "h264",
+                      "codec_type": "video",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": 180,
+                      "index": 0,
+                      "pixel_format": "yuv420p",
+                      "sample_rate": null,
+                      "time_base": {
+                        "denominator": 10240,
+                        "numerator": 1
+                      },
+                      "width": 320
+                    },
+                    {
+                      "average_frame_rate": {
+                        "denominator": 0,
+                        "numerator": 0
+                      },
+                      "channel_layout": "stereo",
+                      "channels": 2,
+                      "codec_name": "aac",
+                      "codec_type": "audio",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": null,
+                      "index": 1,
+                      "pixel_format": null,
+                      "sample_rate": 48000,
+                      "time_base": {
+                        "denominator": 48000,
+                        "numerator": 1
+                      },
+                      "width": null
+                    }
+                  ]
+                },
+                "passed": true
+              }
+            },
+            "revision": "rev_44d8d9b89a66587684161699c70babe6ae99b701b8b29af7715799471e1acb7a"
+          },
+          "state": "succeeded"
+        },
+        "error": null,
+        "warnings": []
+      }
+    }
+  ]
+}

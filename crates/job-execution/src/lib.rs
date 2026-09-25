@@ -1,5 +1,6 @@
 //! Internal persisted worker inputs; never imported by a client SDK.
 use opencut_contracts::{AssetLockManifest, ProjectSnapshot, Time, TimeRange};
+pub mod project_v3;
 use opencut_media_contracts::{Container, FrameAlignment, VideoCodec};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,44 @@ pub struct PreparedProjectRangeInput {
     pub alignment: FrameAlignment,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_lock: Option<AssetLockManifest>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreparedTranscribeInput {
+    pub snapshot: ProjectSnapshot,
+    pub sequence_id: String,
+    pub asset_id: String,
+    pub language: Option<String>,
+    #[serde(default)]
+    pub word_timestamps: bool,
+    pub asset_lock: AssetLockManifest,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreparedAnalysisInput {
+    pub snapshot: ProjectSnapshot,
+    pub sequence_id: String,
+    pub asset_id: String,
+    pub options: AnalysisOptions,
+    pub asset_lock: AssetLockManifest,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreparedSpeakerTurnsInput {
+    pub snapshot: ProjectSnapshot,
+    pub sequence_id: String,
+    pub asset_id: String,
+    pub language: String,
+    pub asset_lock: AssetLockManifest,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AnalysisOptions {
+    Silence { noise_db: i16, min_duration_ms: u32 },
+    Shots { threshold: f32 },
+    Waveform { buckets: u16 },
 }
 
 #[cfg(test)]

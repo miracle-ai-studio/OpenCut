@@ -107,7 +107,7 @@ pub fn preflight(
 }
 /// Stable public explanations retain actionable codes and entity IDs, never
 /// backend diagnostics that may contain filesystem locations or command lines.
-fn public_issue_message(code: &str) -> &'static str {
+pub(crate) fn public_issue_message(code: &str) -> &'static str {
     match code {
         "SEQUENCE_NOT_FOUND" => "The requested sequence does not exist in this revision",
         "ASSET_LOCK_REQUIRED" => {

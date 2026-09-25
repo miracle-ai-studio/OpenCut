@@ -17,8 +17,18 @@ import urllib.error
 import urllib.request
 import uuid
 import wave
+from acceptance_runner import AcceptanceRunner, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
+
+SELECTABLE_CHECKS = {
+    'artifact-gc-download': ('verify-artifact-gc-download.py', 6, False),
+    'artifact-gc-full-volume': ('verify-artifact-gc-full-volume.py', 4, True),
+    'artifact-gc-permissions': ('verify-artifact-gc-permissions.py', 4, True),
+    'artifact-gc-mark-replacement': ('verify-artifact-gc-mark-replacement.py', 4, True),
+    'cas-gc': ('verify-cas-gc.py', None, False),
+    'artifact-publication-fence': ('verify-artifact-publication-fence.py', None, False),
+}
 
 
 def unpack(archive, destination):
@@ -32,26 +42,89 @@ def unpack(archive, destination):
         tar.extractall(destination, filter='data')
 
 
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_selected(archive, names):
+    """Run named independent checks against a verified delivery, never full acceptance."""
+    evidence = Path(tempfile.mkdtemp(prefix='opencut-package-check-')).resolve()
+    runner = AcceptanceRunner(evidence)
+    try:
+        expected = Path(str(archive) + '.sha256').read_text().split()[0]
+        assert file_sha256(archive) == expected, 'Delivery archive SHA-256 mismatch'
+        unpack(archive, evidence / 'unpacked')
+        bundle, = (evidence / 'unpacked').iterdir()
+        manifest = json.loads((bundle / 'manifest.json').read_text())
+        doctor = json.loads(runner.run(['python3', bundle / 'doctor.py']))
+        assert doctor['status'] == 'passed', doctor
+        binary = bundle / 'bin/opencut'
+        assert file_sha256(binary) == manifest['binary_sha256'], 'Delivered binary SHA-256 mismatch'
+        runner.checkpoint('archive, doctor and delivered binary identity verified',
+                          archive_sha256=expected, binary_sha256=manifest['binary_sha256'])
+        results = {}
+        for name in names:
+            script, expected_count, darwin_only = SELECTABLE_CHECKS[name]
+            assert not darwin_only or sys.platform == 'darwin', f'{name} requires macOS'
+            artifacts = evidence / name
+            command = ['python3', ROOT / 'scripts' / script, '--binary', binary]
+            if script != 'verify-artifact-publication-fence.py':
+                command += ['--artifacts-dir', artifacts]
+            output = json.loads(runner.run(command, name=name))
+            assert output['status'] == 'passed', output
+            if expected_count is not None:
+                assert output['checks'] == expected_count, output
+            report_path = Path(output['report']) if 'report' in output else artifacts / 'report.json'
+            detail = json.loads(report_path.read_text())
+            assert detail['status'] == 'passed', detail
+            assert detail['binary_sha256'] == manifest['binary_sha256'], name
+            local_report = evidence / f'{name}-report.json'
+            write_json(local_report, detail)
+            count = output.get('checks')
+            results[name] = {'checks': len(count) if isinstance(count, list) else count,
+                             'report': str(local_report)}
+            runner.checkpoint(f'{name} report verified', binary_sha256=manifest['binary_sha256'])
+        report = {'status': 'passed', 'mode': 'selected-checks', 'selected_checks': names,
+                  'results': results, 'archive': str(archive), 'archive_sha256': expected,
+                  'binary_sha256': manifest['binary_sha256'], 'evidence': str(evidence),
+                  'scope': 'Named checks only; not full local package acceptance'}
+        write_json(evidence / 'selected-report.json', report)
+        print(json.dumps({'status': 'passed', 'mode': 'selected-checks',
+                          'checks': names, 'report': str(evidence / 'selected-report.json')}, indent=2))
+    except Exception as error:
+        runner.failure(error)
+        write_json(evidence / 'failure.json', {'mode': 'selected-checks',
+                                               'selected_checks': names,
+                                               'error': repr(error), 'evidence': str(evidence)})
+        raise
+    finally:
+        runner.flush_commands()
+
+
 def verify(archive, mcp_sdk_root=None, component=None):
     evidence = Path(tempfile.mkdtemp(prefix='opencut-package-acceptance-')).resolve()
-    logs, checks = [], []
+    runner = AcceptanceRunner(evidence)
+    logs, checks = runner.commands, []
     host = None
     host_log = None
     def run(args, cwd=evidence, env=None):
-        value = subprocess.run([str(x) for x in args], cwd=cwd, env=env, text=True, capture_output=True, timeout=600)
-        logs.append({'command': [str(x) for x in args], 'cwd': str(cwd), 'exit_code': value.returncode, 'stdout': value.stdout, 'stderr': value.stderr})
-        assert value.returncode == 0, (args, value.stdout, value.stderr)
-        return value.stdout
+        return runner.run(args, cwd=cwd, env=env)
     try:
         expected = Path(str(archive)+'.sha256').read_text().split()[0]
-        assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected
+        assert file_sha256(archive) == expected
         unpack(archive, evidence / 'unpacked')
         bundle, = (evidence / 'unpacked').iterdir()
         manifest = json.loads((bundle / 'manifest.json').read_text())
         doctor = json.loads(run(['python3', bundle / 'doctor.py']))
         assert doctor['status'] == 'passed'
         binary = bundle / 'bin/opencut'
-        assert hashlib.sha256(binary.read_bytes()).hexdigest() == manifest['binary_sha256']
+        assert file_sha256(binary) == manifest['binary_sha256']
+        runner.checkpoint('archive, doctor and delivered binary identity verified',
+                          archive_sha256=expected, binary_sha256=manifest['binary_sha256'])
         for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
                          'storage-governance-contract.md', 'cas-gc-contract.md',
                          'storage-admission-contract.md', 'database-control-admission.md',
@@ -551,6 +624,19 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             '--binary', binary, '--artifacts-dir', evidence / 'artifact-gc-download']))
         assert gc_download['status'] == 'passed' and gc_download['checks'] == 6
         checks.append('delivered HTTP download lease excludes collection; file, directory and hardlink replacements remain untouched')
+        if sys.platform == 'darwin':
+            gc_full = json.loads(run(['python3', ROOT / 'scripts/verify-artifact-gc-full-volume.py',
+                '--binary', binary, '--artifacts-dir', evidence / 'artifact-gc-full-volume']))
+            assert gc_full['status'] == 'passed' and gc_full['checks'] == 4
+            checks.append('delivered collector survives real full-volume failure before intent and after unlink, then resumes the exact plans')
+            gc_permissions = json.loads(run(['python3', ROOT / 'scripts/verify-artifact-gc-permissions.py',
+                '--binary', binary, '--artifacts-dir', evidence / 'artifact-gc-permissions']))
+            assert gc_permissions['status'] == 'passed' and gc_permissions['checks'] == 4
+            checks.append('delivered collector preserves bytes through revoked attempt and file permissions, then resumes reviewed plans')
+            gc_replacement = json.loads(run(['python3', ROOT / 'scripts/verify-artifact-gc-mark-replacement.py',
+                '--binary', binary, '--artifacts-dir', evidence / 'artifact-gc-mark-replacement']))
+            assert gc_replacement['status'] == 'passed' and gc_replacement['checks'] == 4
+            checks.append('delivered collector rechecks file identity after durable intent and preserves new file or symlink names')
         final_before = json.loads(run([binary, '--database', database, '--json', 'call', 'opencut_project_inspect', '--input', input_file]))['data']
         assert final_before['revision'] == preflight_result['revision']
         host.terminate(); host.wait(timeout=10); host = None
@@ -561,12 +647,15 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
                   'target':manifest['target'],'checks':checks,'evidence':str(evidence),'doctor':doctor,
                   'component_sha256':component_sha256,
                   'scope':'local development package acceptance on current host; not full R0-R7 or cross-platform release'}
-        (evidence / 'report.json').write_text(json.dumps(report,indent=2))
-        Path(str(archive)+'.acceptance.json').write_text(json.dumps(report,indent=2))
-        Path(str(archive)+'.acceptance-commands.json').write_text(json.dumps(logs,indent=2))
+        runner.checkpoint('full local package acceptance completed', checks=len(checks))
+        write_json(evidence / 'report.json', report)
+        write_json(Path(str(archive)+'.acceptance.json'), report)
+        write_json(Path(str(archive)+'.acceptance-commands.json'), logs)
         print(json.dumps({'status':'passed','checks':len(checks),'report':str(evidence / 'report.json')},indent=2))
     except Exception as e:
-        (evidence / 'failure.json').write_text(json.dumps({'error':repr(e),'checks':checks},indent=2))
+        runner.failure(e)
+        write_json(evidence / 'failure.json', {'error':repr(e),'checks':checks,
+                                               'evidence':str(evidence)})
         raise
     finally:
         if host and host.poll() is None:
@@ -574,14 +663,30 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
             try:host.wait(timeout=10)
             except subprocess.TimeoutExpired:host.kill();host.wait()
         if host_log:host_log.close()
-        (evidence / 'commands.json').write_text(json.dumps(logs,indent=2))
+        runner.flush_commands()
 
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('archive',type=Path)
+    parser.add_argument('archive',type=Path,nargs='?')
+    parser.add_argument('--list-checks',action='store_true',help='List named independent package checks')
+    parser.add_argument('--check',action='append',choices=sorted(SELECTABLE_CHECKS),
+                        help='Run only this named check; repeat for multiple checks')
     parser.add_argument('--mcp-sdk-root',type=Path,help='External npm prefix containing @modelcontextprotocol/sdk for independent interop')
     parser.add_argument('--component',type=Path,help='Built wasm32-wasip2 planner component for plugin acceptance')
     args=parser.parse_args()
-    verify(args.archive.resolve(), args.mcp_sdk_root.resolve() if args.mcp_sdk_root else None,
-           args.component.resolve() if args.component else None)
+    if args.list_checks:
+        if args.archive or args.check or args.component or args.mcp_sdk_root:
+            parser.error('--list-checks cannot be combined with an archive or other options')
+        print(json.dumps({'checks': {name: {'script': script, 'macos_only': darwin_only}
+                                     for name, (script, _, darwin_only) in SELECTABLE_CHECKS.items()}}, indent=2))
+    else:
+        if not args.archive:
+            parser.error('archive is required unless --list-checks is used')
+        if args.check:
+            if args.component or args.mcp_sdk_root:
+                parser.error('--check cannot be combined with --component or --mcp-sdk-root')
+            verify_selected(args.archive.resolve(), list(dict.fromkeys(args.check)))
+        else:
+            verify(args.archive.resolve(), args.mcp_sdk_root.resolve() if args.mcp_sdk_root else None,
+                   args.component.resolve() if args.component else None)

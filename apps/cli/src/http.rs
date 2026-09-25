@@ -44,6 +44,12 @@ pub async fn serve(
     mcp_session_timeout_seconds: u64,
     tool_surface: crate::mcp::ToolSurface,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    struct PreviewShutdown(std::path::PathBuf);
+    impl Drop for PreviewShutdown {
+        fn drop(&mut self) {
+            let _ = opencut_native_services::preview::shutdown_workspace(&self.0);
+        }
+    }
     if !listen.ip().is_loopback() {
         return Err("This local host only accepts loopback addresses; remote authorization is not implemented".into());
     }
@@ -59,6 +65,8 @@ pub async fn serve(
         .join("artifacts");
     fs::create_dir_all(&artifact_root)?;
     drop(Automation::open(database)?);
+    opencut_native_services::preview::recover_workspace(database)?;
+    let _preview_shutdown_guard = PreviewShutdown(database.to_path_buf());
     let stop = Arc::new(AtomicBool::new(false));
     let mcp = crate::mcp_http::HttpMcp::new(mcp_session_timeout_seconds, tool_surface);
     let mcp_router = mcp.router(Arc::new(database.to_path_buf()), origins.clone());
@@ -107,6 +115,7 @@ pub async fn serve(
             post(apply),
         )
         .route("/v1/tools/{name}", post(tool))
+        .route("/v1/preview/stream", post(crate::preview_http::stream))
         .route("/v1/media/upload", post(crate::media_http::upload))
         .route(
             "/v1/uploads/{upload_id}/chunks/{offset}",
@@ -156,10 +165,15 @@ pub async fn serve(
         opencut_job_runtime::run(&worker_database, false, worker_stop)
     });
     let signal_stop = stop.clone();
+    let preview_database = database.to_path_buf();
     let server = axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = tokio::signal::ctrl_c().await;
+            termination_signal().await;
             signal_stop.store(true, Ordering::SeqCst);
+            let _ = tokio::task::spawn_blocking(move || {
+                opencut_native_services::preview::shutdown_workspace(&preview_database)
+            })
+            .await;
             mcp.shutdown().await;
         })
         .into_future();
@@ -180,6 +194,16 @@ pub async fn serve(
         }
     }
     Ok(())
+}
+
+async fn termination_signal() {
+    #[cfg(unix)]
+    if let Ok(mut term) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+    {
+        tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = term.recv() => {} }
+        return;
+    }
+    let _ = tokio::signal::ctrl_c().await;
 }
 
 fn read_or_create_token(path: &FsPath) -> Result<String, Box<dyn std::error::Error>> {

@@ -7,9 +7,86 @@ pub use opencut_job_contracts::{
 };
 use opencut_job_execution::{
     PreparedProjectFrameInput, PreparedProjectRangeInput, PreparedProjectRenderInput,
+    PreparedTranscribeInput,
 };
 use serde::Serialize;
 use serde_json::json;
+
+/// Accept a fixed-revision analysis job through the same durable receipt and queue.
+pub fn submit_transcribe(
+    app: &mut impl JobSubmissionStore,
+    assets: &impl JobAssetCapture,
+    input: opencut_job_contracts::TranscribeJobInput,
+) -> Result<JobRecord, EditorError> {
+    if let Some(language) = &input.language
+        && language != "auto"
+        && (!(2..=3).contains(&language.len()) || !language.bytes().all(|b| b.is_ascii_lowercase()))
+    {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Invalid language code",
+        ));
+    }
+    let snapshot = app.fixed_analysis_snapshot(&input.project_id, &input.revision)?;
+    let asset = snapshot
+        .project
+        .assets
+        .iter()
+        .find(|asset| asset.id == input.asset_id)
+        .ok_or_else(|| {
+            EditorError::new(
+                "NOT_FOUND",
+                "Asset does not exist in the requested revision",
+            )
+        })?;
+    if !matches!(
+        asset.kind,
+        opencut_contracts::AssetKind::Audio | opencut_contracts::AssetKind::Video
+    ) {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Asset must contain audio",
+        ));
+    }
+    let sequence_id = snapshot.project.default_sequence_id.clone();
+    let mut identity = json!({
+        "snapshot": snapshot,
+        "sequence_id": sequence_id,
+        "asset_id": input.asset_id,
+        "language": input.language,
+    });
+    if input.word_timestamps {
+        identity["word_timestamps"] = json!(true);
+    }
+    let request = JobRequest {
+        idempotency_key: input.idempotency_key,
+        kind: "analysis.transcribe".into(),
+        input: identity.clone(),
+    };
+    if let Some(existing) = app.find_accepted_job(&request)? {
+        return Ok(existing);
+    }
+    let lock = assets.capture(
+        &snapshot,
+        &sequence_id,
+        std::slice::from_ref(&input.asset_id),
+    )?;
+    if lock.assets.len() != 1 || lock.assets[0].asset_id != input.asset_id {
+        return Err(EditorError::new(
+            "ASSET_LOCK_INVALID",
+            "Analysis asset capture did not match request",
+        ));
+    }
+    let prepared = PreparedTranscribeInput {
+        snapshot,
+        sequence_id,
+        asset_id: input.asset_id,
+        language: input.language,
+        word_timestamps: input.word_timestamps,
+        asset_lock: lock,
+    };
+    app.accept_job(request, serialize_prepared(&prepared)?)
+}
 
 /// All persistence methods must meet the atomicity requirements of JobSubmissionStore.
 /// Asset capture occurs outside the store transaction and may leave unreferenced CAS
@@ -147,6 +224,15 @@ pub trait JobSubmissionStore {
         project_id: &str,
         revision: &str,
     ) -> Result<ProjectSnapshot, EditorError>;
+    /// Analysis may read the base media layer of a schema 3 revision. Render and
+    /// edit callers continue to use fixed_snapshot and retain version isolation.
+    fn fixed_analysis_snapshot(
+        &self,
+        project_id: &str,
+        revision: &str,
+    ) -> Result<ProjectSnapshot, EditorError> {
+        self.fixed_snapshot(project_id, revision)
+    }
     /// Check the public identity before expensive preparation. A receipt must
     /// return the current record of the original task; key reuse must fail.
     fn find_accepted_job(&self, request: &JobRequest) -> Result<Option<JobRecord>, EditorError>;

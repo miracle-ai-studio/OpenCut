@@ -1,4 +1,5 @@
 //! Transport-neutral contracts for durable native media jobs.
+pub mod project_v3;
 
 use opencut_contracts::AssetLockManifest;
 use opencut_contracts::{EditorError, Time, TimeRange};
@@ -59,6 +60,81 @@ pub struct ProjectRangeInput {
     pub requested_range: TimeRange,
     pub alignment: FrameAlignment,
 }
+
+/// Public analysis request. The host chooses the executable, model and source path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TranscribeJobInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub word_timestamps: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct TranscribeJobResult {
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    pub asset_version: opencut_contracts::LockedAsset,
+    pub transcription: opencut_media_contracts::TranscriptionResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SilenceJobInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    pub noise_db: i16,
+    pub min_duration_ms: u32,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ShotsJobInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    pub threshold: f32,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WaveformJobInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    pub buckets: u16,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AnalysisJobResult<R> {
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    pub asset_version: opencut_contracts::LockedAsset,
+    pub analysis: R,
+}
+pub type SilenceJobResult = AnalysisJobResult<opencut_media_contracts::SilenceResult>;
+pub type ShotsJobResult = AnalysisJobResult<opencut_media_contracts::ShotsResult>;
+pub type WaveformJobResult = AnalysisJobResult<opencut_media_contracts::WaveformResult>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpeakerTurnsJobInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub asset_id: String,
+    /// Only English is supported by the verified local tinydiarize model.
+    pub language: String,
+}
+pub type SpeakerTurnsJobResult = AnalysisJobResult<opencut_media_contracts::SpeakerTurnsResult>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -501,6 +577,14 @@ job_kinds! {
     RenderProject: (ProjectExportInput, ProjectRenderJobResult, "render.project"),
     ArtifactVerify: (VerifyRequest, VerificationReport, "artifact.verify"),
     MediaImport: (MediaImportInput, MediaImportJobResult, "media.import"),
+    AnalysisTranscribe: (TranscribeJobInput, TranscribeJobResult, "analysis.transcribe"),
+    AnalysisSilence: (SilenceJobInput, SilenceJobResult, "analysis.silence"),
+    AnalysisShots: (ShotsJobInput, ShotsJobResult, "analysis.shots"),
+    AnalysisWaveform: (WaveformJobInput, WaveformJobResult, "analysis.waveform"),
+    AnalysisSpeakerTurns: (SpeakerTurnsJobInput, SpeakerTurnsJobResult, "analysis.speaker_turns"),
+    RenderProjectV3: (project_v3::SubmitV3Render, ProjectRenderJobResult, "render.project.v3"),
+    PreviewProjectFrameV3: (project_v3::SubmitV3Frame, CompositedProjectFrameJobResult, "preview.project_frame.v3"),
+    PreviewProjectRangeV3: (project_v3::SubmitV3Range, ProjectRangeJobResult, "preview.project_range.v3"),
 }
 
 fn descriptor<I: JsonSchema, O: JsonSchema>(name: &str) -> JobKindDescriptor {
@@ -515,6 +599,27 @@ fn descriptor<I: JsonSchema, O: JsonSchema>(name: &str) -> JobKindDescriptor {
 mod tests {
     use super::*;
     use serde_json::{Value, json};
+
+    #[test]
+    fn transcription_request_exposes_only_project_asset_and_bounded_options() {
+        let request = json!({
+            "idempotency_key":"analysis-1", "project_id":"project-1",
+            "revision":"rev-1", "asset_id":"asset-1", "language":"en"
+        });
+        assert!(serde_json::from_value::<TranscribeJobInput>(request.clone()).is_ok());
+        for injected in ["input", "path", "executable", "model", "ffmpeg"] {
+            let mut attempt = request.clone();
+            attempt[injected] = json!("/private/tool");
+            assert!(serde_json::from_value::<TranscribeJobInput>(attempt).is_err());
+        }
+        let old = serde_json::to_string(&schemars::schema_for!(JobStartInput)).unwrap();
+        assert!(!old.contains("analysis.transcribe"));
+        assert!(
+            job_kind_descriptors()
+                .iter()
+                .any(|kind| kind.name == "analysis.transcribe")
+        );
+    }
 
     fn artifact_json() -> Value {
         json!({
@@ -692,7 +797,7 @@ mod tests {
         assert_eq!(time["type"], "string");
 
         let descriptors = job_kind_descriptors();
-        assert_eq!(descriptors.len(), 9);
+        assert_eq!(descriptors.len(), 17);
         assert_eq!(descriptors[2].name, "preview.project_frame");
         assert!(
             descriptors[2]

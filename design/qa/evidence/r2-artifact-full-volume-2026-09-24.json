@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "binary_sha256": "ad0ffa140ca0fdea946ceee1a1eb6454663343551d20bff7432c730bface20b0",
+  "volume_capacity_bytes": 67067904,
+  "available_after_unlink_bytes": 0,
+  "available_before_mark_bytes": 0,
+  "after_unlink_error_code": "DATABASE_CAPACITY_EXHAUSTED",
+  "before_mark_error_code": "DATABASE_CAPACITY_EXHAUSTED",
+  "filler_after_unlink_bytes": 56635392,
+  "filler_before_mark_bytes": 56680448,
+  "checks": [
+    "At physical ENOSPC after unlink, final receipt fails and the durable removing fence remains",
+    "After external capacity returns, the same plan records absent once and restores publication",
+    "At physical ENOSPC before durable intent, the original bytes and audit remain unchanged",
+    "After external capacity returns, the exact original plan removes bytes and database integrity is ok"
+  ]
+}

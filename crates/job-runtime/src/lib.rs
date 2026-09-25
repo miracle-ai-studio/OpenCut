@@ -1,7 +1,9 @@
 #[cfg(unix)]
 mod media_output;
+mod project_v3;
 use opencut_job_execution::{
-    PreparedProjectFrameInput, PreparedProjectRangeInput, PreparedProjectRenderInput,
+    AnalysisOptions, PreparedAnalysisInput, PreparedProjectFrameInput, PreparedProjectRangeInput,
+    PreparedProjectRenderInput, PreparedSpeakerTurnsInput, PreparedTranscribeInput,
 };
 use std::{
     fs,
@@ -20,12 +22,13 @@ use opencut_job_contracts::{
     ArtifactDescriptor, AssetLockingMode, CompositedProjectFrameJobResult,
     CompositedProjectFrameQuality, ExportJobInput, FrameJobInput, MediaExportJobResult,
     MediaFrameJobResult, ProjectFrameJobResult, ProjectFrameQuality, ProjectRangeJobResult,
-    ProjectRangeQuality, ProjectRenderJobResult,
+    ProjectRangeQuality, ProjectRenderJobResult, SpeakerTurnsJobResult, TranscribeJobResult,
 };
 use opencut_media::{
-    CancellationToken, Container, ExportRequest, FfmpegBackend, FrameAlignment,
-    FrameExtractRequest, MediaTime, ProbeRequest, ProgressStage, ProgressUpdate, VerifyRequest,
-    VideoCodec,
+    CancellationToken, Container, ExportRequest, FfmpegAnalysisBackend, FfmpegBackend,
+    FrameAlignment, FrameExtractRequest, MediaTime, ProbeRequest, ProgressStage, ProgressUpdate,
+    ShotsRequest, SilenceRequest, SpeakerTurnsRequest, TinydiarizeBackend, TranscribeRequest,
+    VerifyRequest, VideoCodec, WaveformRequest, WhisperBackend,
 };
 use opencut_project_render::{
     ProjectRenderAdapter, ResolvedProjectFrameRequest, ResolvedProjectRangeRequest,
@@ -684,10 +687,10 @@ fn execute(
     let directory = fs::canonicalize(directory).map_err(io_error)?;
     let backend = FfmpegBackend::discover().map_err(media_error)?;
     #[cfg(unix)]
-    let backend = {
+    let admission = {
         let attempt =
             opencut_storage_budget::AttemptLease::acquire(&directory).map_err(io_error)?;
-        backend.with_output_admission(std::sync::Arc::new(media_output::TaskOutput {
+        std::sync::Arc::new(media_output::TaskOutput {
             budget: opencut_storage_budget::Budget::new(
                 root.parent().unwrap_or_else(|| Path::new(".")),
             ),
@@ -697,9 +700,263 @@ fn execute(
                 job_id: job.job_id.clone(),
                 attempt: job.attempt,
             },
-        }))
+        })
     };
+    #[cfg(unix)]
+    let backend = backend.with_output_admission(admission.clone());
     match job.kind.as_str() {
+        "render.project.v3" | "preview.project_frame.v3" | "preview.project_range.v3" => {
+            project_v3::execute(root, &directory, &backend, job, cancel, progress)
+        }
+        "analysis.silence" | "analysis.shots" | "analysis.waveform" => {
+            let input: PreparedAnalysisInput = parse(job.input.clone())?;
+            let matching = matches!(
+                (&input.options, job.kind.as_str()),
+                (AnalysisOptions::Silence { .. }, "analysis.silence")
+                    | (AnalysisOptions::Shots { .. }, "analysis.shots")
+                    | (AnalysisOptions::Waveform { .. }, "analysis.waveform")
+            );
+            if !matching
+                || input.asset_lock.assets.len() != 1
+                || input.asset_lock.assets[0].asset_id != input.asset_id
+            {
+                return Err(EditorError::new(
+                    "ASSET_LOCK_INVALID",
+                    "Analysis options or asset lock are invalid",
+                ));
+            }
+            let private = PrivateInputs(directory.join("inputs"));
+            let store = AssetStore::open_managed(
+                root.parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join("asset-store"),
+            )?;
+            let snapshot = store.materialize(
+                &input.snapshot,
+                &input.sequence_id,
+                &input.asset_lock,
+                std::slice::from_ref(&input.asset_id),
+                &private.0,
+                &|| cancel.is_cancelled(),
+            )?;
+            let source = snapshot
+                .project
+                .assets
+                .iter()
+                .find(|asset| asset.id == input.asset_id)
+                .ok_or_else(|| EditorError::new("ASSET_LOCK_INVALID", "Analysis asset missing"))?;
+            let ffmpeg = std::env::var_os("OPENCUT_FFMPEG")
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "ffmpeg".into());
+            let ffprobe = std::env::var_os("OPENCUT_FFPROBE")
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "ffprobe".into());
+            let engine = FfmpegAnalysisBackend::new(ffmpeg, ffprobe);
+            #[cfg(unix)]
+            let engine = engine.with_output_admission(admission.clone(), directory.clone());
+            let source = PathBuf::from(&source.uri);
+            let analysis = match input.options {
+                AnalysisOptions::Silence {
+                    noise_db,
+                    min_duration_ms,
+                } => json!(
+                    engine
+                        .silence(
+                            &SilenceRequest {
+                                input: source,
+                                noise_db,
+                                min_duration_ms
+                            },
+                            cancel
+                        )
+                        .map_err(media_error)?
+                ),
+                AnalysisOptions::Shots { threshold } => json!(
+                    engine
+                        .shots(
+                            &ShotsRequest {
+                                input: source,
+                                threshold
+                            },
+                            cancel
+                        )
+                        .map_err(media_error)?
+                ),
+                AnalysisOptions::Waveform { buckets } => json!(
+                    engine
+                        .waveform(
+                            &WaveformRequest {
+                                input: source,
+                                buckets
+                            },
+                            cancel
+                        )
+                        .map_err(media_error)?
+                ),
+            };
+            if cancel.is_cancelled() {
+                return Err(EditorError::new("JOB_CANCELLED", "Analysis was cancelled"));
+            }
+            Ok(json!({
+                "project_id": input.snapshot.project.id,
+                "revision": input.snapshot.revision,
+                "asset_id": input.asset_id,
+                "asset_version": input.asset_lock.assets.into_iter().next().expect("checked above"),
+                "analysis": analysis,
+            }))
+        }
+        "analysis.speaker_turns" => {
+            let input: PreparedSpeakerTurnsInput = parse(job.input.clone())?;
+            if input.language != "en"
+                || input.asset_lock.assets.len() != 1
+                || input.asset_lock.assets[0].asset_id != input.asset_id
+                || input.asset_lock.revision != input.snapshot.revision
+                || input.asset_lock.sequence_id != input.sequence_id
+            {
+                return Err(EditorError::new(
+                    "ASSET_LOCK_INVALID",
+                    "Speaker-turn asset lock is invalid",
+                ));
+            }
+            let private = PrivateInputs(directory.join("inputs"));
+            let store = AssetStore::open_managed(
+                root.parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join("asset-store"),
+            )?;
+            let snapshot = store.materialize(
+                &input.snapshot,
+                &input.sequence_id,
+                &input.asset_lock,
+                std::slice::from_ref(&input.asset_id),
+                &private.0,
+                &|| cancel.is_cancelled(),
+            )?;
+            let source = snapshot
+                .project
+                .assets
+                .iter()
+                .find(|asset| asset.id == input.asset_id)
+                .ok_or_else(|| {
+                    EditorError::new("ASSET_LOCK_INVALID", "Speaker-turn asset missing")
+                })?;
+            let model = std::env::var_os("OPENCUT_WHISPER_TDRZ_MODEL")
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    EditorError::new(
+                        "CAPABILITY_UNAVAILABLE",
+                        "Host English speaker-turn model is not configured",
+                    )
+                })?;
+            let executable = std::env::var_os("OPENCUT_WHISPER_CLI")
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "whisper-cli".into());
+            let ffmpeg = std::env::var_os("OPENCUT_FFMPEG")
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "ffmpeg".into());
+            let engine = TinydiarizeBackend::new(executable, model, ffmpeg).map_err(media_error)?;
+            #[cfg(unix)]
+            let engine = engine.with_output_admission(admission.clone(), directory.clone());
+            let analysis = engine
+                .speaker_turns(
+                    &SpeakerTurnsRequest {
+                        input: PathBuf::from(&source.uri),
+                    },
+                    cancel,
+                )
+                .map_err(media_error)?;
+            if cancel.is_cancelled() {
+                return Err(EditorError::new(
+                    "JOB_CANCELLED",
+                    "Speaker-turn analysis was cancelled",
+                ));
+            }
+            Ok(json!(SpeakerTurnsJobResult {
+                project_id: input.snapshot.project.id,
+                revision: input.snapshot.revision,
+                asset_id: input.asset_id,
+                asset_version: input
+                    .asset_lock
+                    .assets
+                    .into_iter()
+                    .next()
+                    .expect("checked above"),
+                analysis,
+            }))
+        }
+        "analysis.transcribe" => {
+            let input: PreparedTranscribeInput = parse(job.input.clone())?;
+            if input.asset_lock.assets.len() != 1
+                || input.asset_lock.assets[0].asset_id != input.asset_id
+            {
+                return Err(EditorError::new(
+                    "ASSET_LOCK_INVALID",
+                    "Analysis asset lock is invalid",
+                ));
+            }
+            let private = PrivateInputs(directory.join("inputs"));
+            let store = AssetStore::open_managed(
+                root.parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join("asset-store"),
+            )?;
+            let snapshot = store.materialize(
+                &input.snapshot,
+                &input.sequence_id,
+                &input.asset_lock,
+                std::slice::from_ref(&input.asset_id),
+                &private.0,
+                &|| cancel.is_cancelled(),
+            )?;
+            let source = snapshot
+                .project
+                .assets
+                .iter()
+                .find(|asset| asset.id == input.asset_id)
+                .ok_or_else(|| EditorError::new("ASSET_LOCK_INVALID", "Analysis asset missing"))?;
+            let model = std::env::var_os("OPENCUT_WHISPER_MODEL")
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    EditorError::new(
+                        "CAPABILITY_UNAVAILABLE",
+                        "Host transcription model is not configured",
+                    )
+                })?;
+            let executable = std::env::var_os("OPENCUT_WHISPER_CLI")
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "whisper-cli".into());
+            let ffmpeg = std::env::var_os("OPENCUT_FFMPEG")
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| "ffmpeg".into());
+            let engine = WhisperBackend::new(executable, model, ffmpeg).map_err(media_error)?;
+            #[cfg(unix)]
+            let engine = engine.with_output_admission(admission.clone(), directory.clone());
+            let transcription = engine
+                .transcribe(
+                    &TranscribeRequest {
+                        input: PathBuf::from(&source.uri),
+                        language: input.language,
+                        word_timestamps: input.word_timestamps,
+                    },
+                    cancel,
+                )
+                .map_err(media_error)?;
+            if cancel.is_cancelled() {
+                return Err(EditorError::new("JOB_CANCELLED", "Analysis was cancelled"));
+            }
+            Ok(json!(TranscribeJobResult {
+                project_id: input.snapshot.project.id,
+                revision: input.snapshot.revision,
+                asset_id: input.asset_id,
+                asset_version: input
+                    .asset_lock
+                    .assets
+                    .into_iter()
+                    .next()
+                    .expect("checked above"),
+                transcription,
+            }))
+        }
         "media.import" => {
             use opencut_editor_application::uploads::{self, PreparedMediaImportInput};
             let input: PreparedMediaImportInput = parse(job.input.clone())?;

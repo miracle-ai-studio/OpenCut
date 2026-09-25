@@ -1,17 +1,30 @@
 //! Version 1 wire contracts; no database, native paths, codecs, or plugin runtime.
 pub mod access;
+pub mod analysis_evidence;
+pub mod analysis_query;
 pub mod artifact_gc;
 pub mod artifact_retention;
 pub mod audit;
+pub mod branching;
 pub mod capabilities;
+pub mod classic_import;
+pub mod collaboration;
 pub mod context;
+pub mod edit_control;
 pub mod event_stream;
 pub mod job_views;
 pub mod maintenance;
 pub mod media;
 pub mod plugin_publication;
+pub mod plugin_v2;
 pub mod plugins;
+pub mod preview;
+pub mod project_package;
+pub mod project_package_v3;
+pub mod project_v3_collaboration;
+pub mod project_v3_jobs;
 pub mod render;
+pub mod subtitle_exchange;
 pub mod tools;
 use opencut_contracts::{CreateProject, EditorError, TransactionRequest};
 pub use opencut_job_contracts as jobs;
@@ -211,3 +224,5 @@ pub mod gc;
 pub mod budget;
 
 pub mod database;
+
+pub mod plugin_v3;

@@ -233,6 +233,18 @@ pub(crate) fn checked_output_limited(
     timeout: Duration,
     admission: Option<&dyn crate::OutputAdmission>,
 ) -> MediaResult<Vec<u8>> {
+    checked_output_file_limited(command, tool, cancel, timeout, admission, None)
+}
+
+/// Also bounds a tool-created file while the child is alive (whisper JSON output).
+pub(crate) fn checked_output_file_limited(
+    command: &mut Command,
+    tool: &str,
+    cancel: &CancellationToken,
+    timeout: Duration,
+    admission: Option<&dyn crate::OutputAdmission>,
+    output_file: Option<(&std::path::Path, u64)>,
+) -> MediaResult<Vec<u8>> {
     if cancel.is_cancelled() {
         return Err(MediaError::Cancelled);
     }
@@ -240,7 +252,15 @@ pub(crate) fn checked_output_limited(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut owned = spawn_command(command, tool, admission, None)?;
+    let mut owned = spawn_command(command, tool, admission, output_file.map(|(path, _)| path))?;
+    let output_file = output_file.map(|(path, ceiling)| {
+        (
+            path,
+            owned
+                .output_limit()
+                .map_or(ceiling, |admitted| admitted.min(ceiling)),
+        )
+    });
     let child = owned.child();
     let stdout = child.stdout.take().expect("piped stdout");
     let stderr = child.stderr.take().expect("piped stderr");
@@ -262,6 +282,11 @@ pub(crate) fn checked_output_limited(
     let outcome = loop {
         if cancel.is_cancelled() {
             break Err(MediaError::Cancelled);
+        }
+        if let Some((path, limit_bytes)) = output_file
+            && std::fs::metadata(path).is_ok_and(|metadata| metadata.len() >= limit_bytes)
+        {
+            break Err(MediaError::OutputLimit { limit_bytes });
         }
         if started.elapsed() >= timeout {
             break Err(MediaError::InvalidToolOutput {
@@ -302,6 +327,12 @@ pub(crate) fn checked_output_limited(
         match child.try_wait() {
             Ok(Some(status)) if stdout.is_some() && stderr.is_some() => {
                 if status.success() {
+                    if let Some((path, limit_bytes)) = output_file
+                        && std::fs::metadata(path)
+                            .is_ok_and(|metadata| metadata.len() >= limit_bytes)
+                    {
+                        break Err(MediaError::OutputLimit { limit_bytes });
+                    }
                     break Ok(stdout.take().unwrap());
                 }
                 break Err(MediaError::ProcessFailed {

@@ -99,6 +99,21 @@ test("public extension results require matching successful kind and supported ve
     assert.throws(()=>publicJobResult(changed,"media.import"),TypeError);
 });
 
+test("transcription results remain typed versioned extensions and reject unavailable or mismatched data", async () => {
+  const { publicJobResult } = await import("../dist/index.js");
+  const data = {project_id:"p",revision:"r",asset_id:"a",asset_version:{asset_id:"a",content_hash:"a".repeat(64),size:12},
+    transcription:{language:"zh",provider:"whisper.cpp",model:"tiny",segments:[{start:{ticks:"0",timebase:1000},end:{ticks:"1000",timebase:1000},text:"你好",words:[]}]}};
+  const job = {state:"succeeded",kind:"analysis.transcribe",result:null,result_unavailable:null,
+    extended_result:{kind:"analysis.transcribe",schema_version:1,data}};
+  assert.deepEqual(publicJobResult(job,"analysis.transcribe"),data);
+  for (const changed of [ {...job,state:"failed"}, {...job,result_unavailable:{code:"INVALID_STORED_RESULT"}},
+    {...job,extended_result:{...job.extended_result,schema_version:2}},
+    {...job,extended_result:{...job.extended_result,kind:"media.import"}},
+    {...job,extended_result:{...job.extended_result,data:null}},
+    {...job,result:{kind:"media.probe",data:{}}} ])
+    assert.throws(()=>publicJobResult(changed,"analysis.transcribe"),TypeError);
+});
+
 
 test("audit degradation header survives early refusal and deduplicates envelope warning", async () => {
   for (const warnings of [[], ["DENIAL_AUDIT_UNAVAILABLE"]]) {
@@ -135,4 +150,17 @@ test("public job wait reads the public projection, never the raw job record", as
   const job = await client.waitForPublicJob("job_a", { timeoutMs: 100 });
   assert.equal(job.job_id, "job_a");
   assert.deepEqual(paths, ["/v1/tools/opencut_job_view"]);
+});
+
+
+test("V3 render and speaker turns decode only explicit successful public extensions", async () => {
+  const { publicJobResult } = await import("../dist/index.js");
+  for (const kind of ["render.project.v3", "preview.project_frame.v3", "preview.project_range.v3", "analysis.speaker_turns"]) {
+    const data = {revision:"fixed",width:64};
+    const job = {state:"succeeded",kind,result:null,result_unavailable:null,
+      extended_result:{kind,schema_version:1,data}};
+    assert.deepEqual(publicJobResult(job,kind),data);
+    assert.throws(()=>publicJobResult({...job,extended_result:{...job.extended_result,schema_version:2}},kind),TypeError);
+    assert.throws(()=>publicJobResult({...job,result_unavailable:{code:"INVALID_STORED_RESULT"}},kind),TypeError);
+  }
 });

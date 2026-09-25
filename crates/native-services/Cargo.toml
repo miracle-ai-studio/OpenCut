@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+opencut-time = { path = "../time" }
+opencut-composition = { path = "../composition" }
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
 opencut-storage-budget = { path = "../storage-budget" }
 opencut-editor-application = { path = "../editor-application" }
 opencut-api-contracts = { path = "../api-contracts" }
@@ -14,6 +18,7 @@ opencut-asset-store = { path = "../asset-store" }
 opencut-project-render = { path = "../project-render" }
 opencut-plugin-host = { path = "../plugin-host" }
 serde_json = "1"
+sha2 = "0.10.9"
 
 [dev-dependencies]
 opencut-sqlite-store = { path = "../sqlite-store" }

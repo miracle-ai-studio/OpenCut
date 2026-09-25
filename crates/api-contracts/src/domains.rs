@@ -68,6 +68,14 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
     let suffix = operation.strip_prefix("opencut_")?;
     let (domain, action) = if suffix == "capabilities" {
         ("system", "capabilities".to_owned())
+    } else if suffix.starts_with("analysis_") {
+        ("media", suffix.replace('_', "."))
+    } else if suffix.starts_with("preview_") {
+        ("task", suffix.replace('_', "."))
+    } else if suffix.starts_with("subtitle_") {
+        ("edit", suffix.replace('_', "."))
+    } else if suffix.starts_with("classic_") {
+        ("project", suffix.replace('_', "."))
     } else if suffix.starts_with("project_media_")
         || suffix.starts_with("upload_")
         || suffix.starts_with("media_")
@@ -89,6 +97,8 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
         ("edit", rest.replace('_', "."))
     } else if let Some(rest) = suffix.strip_prefix("job_") {
         ("task", rest.replace('_', "."))
+    } else if suffix == "render_v3_preflight" {
+        ("task", "render.v3.preflight".to_owned())
     } else if suffix == "render_preflight" {
         ("task", "render.preflight".to_owned())
     } else if suffix.starts_with("event_")

@@ -79,6 +79,22 @@ owner 可通过 `opencut_maintenance_query` 读取媒体文件发布的 prepared
 
 完整上传后调用 `opencut_upload_seal({upload_id})`，使用返回的 job_id 调用 `waitForPublicJob`，再 `publicJobResult(job, 'media.import')` 取得项目素材。该任务由封存入口接受，不能通过旧 `submitJob` 输入枚举启动。结果检查成功状态、kind 和 schema_version=1；未知版本拒绝。导入不修改工程 head。`opencut_project_media_query` 使用返回的 next_cursor 分页，查询期间新导入的素材不加入原分页范围。
 
+已绑定到工程修订的音频／视频可提交本地转写。宿主需安装 whisper.cpp，并设置 `OPENCUT_WHISPER_MODEL`（模型路径）；`OPENCUT_WHISPER_CLI` 可选，默认 `whisper-cli`。这些是宿主配置，不属于客户端请求：
+
+```ts
+const accepted = await client.call("opencut_analysis_transcribe", {
+  idempotency_key: "transcribe-source-v1",
+  project_id: "interview", revision: snapshot.revision, asset_id: "source",
+  language: "zh",
+});
+const finished = await client.waitForPublicJob(accepted.job_id);
+const analysis = publicJobResult(finished, "analysis.transcribe");
+// analysis.asset_version 固定内容哈希；segment.start/end 是素材时间，不是时间线位置。
+for (const segment of analysis.transcription.segments) console.log(segment.text);
+```
+
+紧凑入口为 `client.callDomain("media", "analysis.transcribe", input)`。新任务复用既有 Job 观察／取消，通过 `extended_result` 版本 1 返回段级时间和来源；旧 `submitJob` 枚举保持不变。Rust 使用 `tools::AnalysisTranscribe` 和 `extended_job_result::<jobs::kinds::AnalysisTranscribe>`。转写不会修改工程；Agent 将素材时间映射到剪辑时间线、提交 `edit_plan` 后再显式 `edit_apply`。当前 `words` 为空，无说话人识别；长素材、识别精度和真人访谈需单独验收。等待超时只停止观察，不取消服务器任务。
+
 `opencut_upload_abort` 只取消 receiving 会话并清除私有分块；返回 UPLOAD_CLEANUP_PENDING 时状态已经 aborted，应重试 abort 完成清理。sealed 任务需显式请求 Job 取消，已完成素材保持可读。终态暂存可通过 opencut_upload_release 显式释放，上传预留量受项目／工作区配额约束；显式 CAS 孤儿回收见下文；统一物理配额、产物保留和其他类别回收仍待实现。
 
 

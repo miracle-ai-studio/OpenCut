@@ -92,3 +92,14 @@ pub fn reconcile(
     opencut_editor_application::maintenance::validate_object(&input.object)?;
     MediaCatalog::open_managed(root)?.reconcile(input.object, journal)
 }
+/// Verify immutable media before publishing an owner-authorized project conversion.
+pub fn verify_asset_versions(
+    root: &std::path::Path,
+    assets: &[opencut_contracts::Asset],
+) -> Result<(), opencut_contracts::EditorError> {
+    let store = opencut_asset_store::AssetStore::read_only(root)?;
+    for asset in assets {
+        let _verified = store.open_verified(asset)?;
+    }
+    Ok(())
+}

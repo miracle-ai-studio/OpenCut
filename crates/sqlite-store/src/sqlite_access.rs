@@ -139,12 +139,50 @@ pub(super) fn verified_target(
     kind: &str,
     input: &Value,
 ) -> Result<Option<(String, String)>, EditorError> {
+    if matches!(
+        kind,
+        "preview.project_frame.v3" | "preview.project_range.v3" | "render.project.v3"
+    ) {
+        let Some(snapshot) = input.get("snapshot") else {
+            return Ok(None);
+        };
+        let Ok(snapshot) = serde_json::from_value::<opencut_contracts::project_v3::ProjectSnapshotV3>(
+            snapshot.clone(),
+        ) else {
+            return Ok(None);
+        };
+        let stored = sqlite_project_v3::load_v3_snapshot(
+            connection,
+            &snapshot.project.base.id,
+            Some(&snapshot.revision),
+        );
+        return match stored {
+            Ok(stored) if stored == snapshot => {
+                Ok(Some((snapshot.project.base.id, snapshot.revision)))
+            }
+            Ok(_) => Ok(None),
+            Err(error)
+                if matches!(
+                    error.code.as_str(),
+                    "NOT_FOUND" | "UNSUPPORTED_PROJECT_VERSION"
+                ) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        };
+    }
     if !matches!(
         kind,
         "preview.project_frame"
             | "preview.composited_frame"
             | "preview.project_range"
             | "render.project"
+            | "analysis.transcribe"
+            | "analysis.silence"
+            | "analysis.shots"
+            | "analysis.waveform"
+            | "analysis.speaker_turns"
     ) {
         return Ok(None);
     }
@@ -165,7 +203,14 @@ pub(super) fn verified_target(
     let Some(stored) = stored else {
         return Ok(None);
     };
-    let stored: opencut_contracts::ProjectDocument = decode_json(&stored, "stored project")?;
+    let stored = if kind.starts_with("analysis.") {
+        match sqlite_project_v3::decode_versioned_project(&stored)? {
+            sqlite_project_v3::VersionedProjectDocument::Legacy(project) => project,
+            sqlite_project_v3::VersionedProjectDocument::V3(project) => project.base,
+        }
+    } else {
+        sqlite_project_v3::decode_legacy_project(&stored)?
+    };
     if stored != snapshot.project {
         return Ok(None);
     }
@@ -303,7 +348,7 @@ impl EditorApplication {
             ));
         }
         for grant in &policy.grants {
-            load_snapshot(&tx, &grant.project_id)?;
+            sqlite_project_v3::project_head_revision(&tx, &grant.project_id)?;
         }
         let revision = expected + 1;
         tx.execute("INSERT INTO access_principals(principal_id,revision,enabled) VALUES (?1,?2,?3) ON CONFLICT(principal_id) DO UPDATE SET revision=excluded.revision,enabled=excluded.enabled",params![policy.principal_id,revision,policy.enabled]).map_err(storage_error)?;

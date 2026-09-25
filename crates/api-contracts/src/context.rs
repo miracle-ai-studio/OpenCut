@@ -31,6 +31,7 @@ pub enum ResourcePayload {
     OperationSchema(OperationSchema),
     ProjectSummary(ProjectSummary),
     Timeline(RevisionTimeline),
+    TimelineV3(RevisionTimelineV3),
     Job(Box<JobView>),
     Artifact(ArtifactReference),
 }
@@ -66,4 +67,13 @@ pub struct RevisionTimeline {
     pub project_id: String,
     pub revision: String,
     pub sequence: Sequence,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct RevisionTimelineV3 {
+    pub project_id: String,
+    pub revision: String,
+    pub schema_version: u32,
+    pub sequence: Sequence,
+    pub visual: opencut_contracts::project_v3::SequenceVisualV3,
 }

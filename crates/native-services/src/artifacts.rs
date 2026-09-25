@@ -336,6 +336,20 @@ impl ArtifactCandidate {
         if !still_unreferenced()? {
             return Ok(Removal::Retained);
         }
+        // The durable-intent callback can take time. A process outside the
+        // attempt-lock protocol may replace the name while SQLite commits.
+        // Reopen it from the locked directory before unlinking that name.
+        let current = match guard.open_readonly_child(&self.name) {
+            Ok(file) => file,
+            Err(_) => return Ok(Removal::Changed),
+        };
+        let current_metadata = current.metadata().map_err(|_| unavailable())?;
+        if !current_metadata.is_file()
+            || current_metadata.nlink() != 1
+            || FileIdentity::of(&current_metadata) != self.identity
+        {
+            return Ok(Removal::Changed);
+        }
         if !guard
             .still_names(&self.directory)
             .map_err(|_| unavailable())?
@@ -573,6 +587,72 @@ mod tests {
         symlink(&outside, &output).unwrap();
         assert_eq!(next.remove_if(|| Ok(true)).unwrap(), Removal::Changed);
         assert_eq!(fs::read(outside).unwrap(), b"outside");
+    }
+
+    #[test]
+    fn candidate_preserves_name_replaced_during_durable_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let artifacts = root.path().join("artifacts");
+        let attempt = artifacts.join("job_1").join("attempt-1");
+        fs::create_dir_all(&attempt).unwrap();
+        let output = attempt.join("frame.png");
+        let displaced = root.path().join("displaced.png");
+        fs::write(&output, b"published").unwrap();
+        let candidate = ArtifactCandidate::observe(&artifacts, "job_1", 1, &output).unwrap();
+        let outcome = candidate
+            .remove_if(|| {
+                fs::rename(&output, &displaced).unwrap();
+                fs::write(&output, b"unrelated replacement").unwrap();
+                Ok(true)
+            })
+            .unwrap();
+        assert_eq!(outcome, Removal::Changed);
+        assert_eq!(fs::read(&output).unwrap(), b"unrelated replacement");
+        assert_eq!(fs::read(&displaced).unwrap(), b"published");
+    }
+
+    #[test]
+    fn candidate_preserves_symlink_installed_during_durable_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let artifacts = root.path().join("artifacts");
+        let attempt = artifacts.join("job_1").join("attempt-1");
+        fs::create_dir_all(&attempt).unwrap();
+        let output = attempt.join("frame.png");
+        let displaced = root.path().join("displaced.png");
+        let outside = root.path().join("outside.png");
+        fs::write(&output, b"published").unwrap();
+        fs::write(&outside, b"outside").unwrap();
+        let candidate = ArtifactCandidate::observe(&artifacts, "job_1", 1, &output).unwrap();
+        let outcome = candidate
+            .remove_if(|| {
+                fs::rename(&output, &displaced).unwrap();
+                symlink(&outside, &output).unwrap();
+                Ok(true)
+            })
+            .unwrap();
+        assert_eq!(outcome, Removal::Changed);
+        assert!(output.is_symlink());
+        assert_eq!(fs::read(&outside).unwrap(), b"outside");
+        assert_eq!(fs::read(&displaced).unwrap(), b"published");
+    }
+
+    #[test]
+    fn candidate_preserves_in_place_change_during_durable_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let artifacts = root.path().join("artifacts");
+        let attempt = artifacts.join("job_1").join("attempt-1");
+        fs::create_dir_all(&attempt).unwrap();
+        let output = attempt.join("frame.png");
+        fs::write(&output, b"published").unwrap();
+        let candidate = ArtifactCandidate::observe(&artifacts, "job_1", 1, &output).unwrap();
+        let outcome = candidate
+            .remove_if(|| {
+                fs::write(&output, b"modified published bytes").unwrap();
+                Ok(true)
+            })
+            .unwrap();
+        assert_eq!(outcome, Removal::Changed);
+        assert_eq!(fs::read(&output).unwrap(), b"modified published bytes");
     }
 
     #[test]

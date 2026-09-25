@@ -76,6 +76,7 @@ const expectedPaths = [
   "/v1/projects/{project}/media/{media_id}/content",
   "/v1/artifacts/{artifact}",
   "/v1/changes/stream",
+  "/v1/preview/stream",
 ];
 assert.deepEqual(Object.keys(openapi.paths).sort(), expectedPaths.sort());
 assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");

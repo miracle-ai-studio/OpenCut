@@ -54,6 +54,8 @@ target/debug/opencut --database .opencut/workspace.sqlite mcp serve
 target/debug/opencut --database .opencut/workspace.sqlite --json job events --limit 100
 ```
 
+Local speech transcription is available through `opencut_analysis_transcribe` (media action `analysis.transcribe`). Configure `OPENCUT_WHISPER_MODEL` on the worker host and install `whisper-cli`; clients reference a fixed project revision and asset, and receive segment timings through the existing public Job view. See the [transcription contract](design/architecture/transcription-contract.md) and [SDK example](packages/sdk-ts/README.md). Word alignment and speaker identification are not implemented.
+
 MCP advertises nine domain tools by default (`system`, `project`, `edit`,
 `media`, `task`, `observe`, `plugin`, `access`, `workspace`). Read
 `opencut://schemas/domains` and then `opencut://schemas/domains/{domain}`

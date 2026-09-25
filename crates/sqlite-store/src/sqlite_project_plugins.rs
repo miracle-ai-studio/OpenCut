@@ -37,7 +37,8 @@ impl ProjectPluginStore for EditorApplication {
         )? {
             return decode_json(&result, "plugin grant receipt");
         }
-        let snapshot = load_snapshot(&tx, &input.target.project_id)?;
+        let head_revision =
+            sqlite_project_v3::project_head_revision(&tx, &input.target.project_id)?;
         let previous = read(&tx, &input.target)?;
         let revision = previous.as_ref().map_or("0", |g| g.revision.as_str());
         if revision != input.expected_revision {
@@ -76,14 +77,14 @@ impl ProjectPluginStore for EditorApplication {
         let result = encode_json(&grant, "plugin grant")?;
         tx.execute("INSERT INTO project_plugin_grants(project_id,plugin_id,version,revision,grant_json) VALUES (?1,?2,?3,?4,?5) ON CONFLICT(project_id,plugin_id,version) DO UPDATE SET revision=excluded.revision,grant_json=excluded.grant_json",params![input.target.project_id,input.target.id,input.target.version,next,result]).map_err(storage_error)?;
         tx.execute("INSERT INTO idempotency(operation_family,scope,idempotency_key,request_hash,result_kind,result_json) VALUES ('project_plugin_grant',?1,?2,?3,'plugin_grant',?4)",params![scope,input.idempotency_key,identity.current_digest(),result]).map_err(idempotency_insert_error)?;
-        tx.execute("INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json) VALUES (?1,?2,?3,'project.plugin_grant.updated',?4)",params![format!("evt_{}",Uuid::new_v4().simple()),input.target.project_id,snapshot.revision,result]).map_err(storage_error)?;
+        tx.execute("INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json) VALUES (?1,?2,?3,'project.plugin_grant.updated',?4)",params![format!("evt_{}",Uuid::new_v4().simple()),input.target.project_id,head_revision,result]).map_err(storage_error)?;
         sqlite_audit::insert(
             &tx,
             &context,
             "project.plugin_grant.updated",
             sqlite_audit::Links {
                 project_id: Some(&input.target.project_id),
-                revision: Some(&snapshot.revision),
+                revision: Some(&head_revision),
                 ..Default::default()
             },
         )?;
@@ -96,7 +97,7 @@ impl ProjectPluginStore for EditorApplication {
             .unchecked_transaction()
             .map_err(storage_error)?;
         sqlite_access::require(&tx, &self.connection.1, project, ProjectAction::Read)?;
-        load_snapshot(&tx, project)?;
+        sqlite_project_v3::project_head_revision(&tx, project)?;
         let mut statement=tx.prepare("SELECT grant_json FROM project_plugin_grants WHERE project_id=?1 ORDER BY plugin_id,version LIMIT 64").map_err(storage_error)?;
         statement
             .query_map([project], |r| r.get::<_, String>(0))

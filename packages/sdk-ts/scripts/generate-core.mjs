@@ -333,6 +333,20 @@ paths["/v1/changes/stream"] = { post: {
     default: transportError,
   },
 } };
+paths["/v1/preview/stream"] = { post: {
+  operationId: "opencut_preview_stream",
+  description: "Claim the current owner generation's single bounded fMP4 stream. Requires bearer authorization plus owner lease. Disconnect cancels that generation. Host restart ends all preview sessions.",
+  requestBody: { required: true, content: { "application/json": { schema: {
+    type: "object", additionalProperties: false,
+    required: ["session_id", "generation", "owner_id", "lease_id"],
+    properties: Object.fromEntries(["session_id", "generation", "owner_id", "lease_id"].map(key => [key, { type: "string" }]))
+  } } } },
+  responses: {
+    "200": { description: "One H.264/AAC fragmented MP4 generation. Encoding progress does not establish client presentation.",
+      content: { "video/mp4": { schema: { type: "string", format: "binary" } } } },
+    default: transportError,
+  },
+} };
 const openapi = {
   openapi: "3.1.0",
   jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema",

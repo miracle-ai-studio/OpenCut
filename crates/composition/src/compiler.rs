@@ -17,6 +17,15 @@ pub fn compile(
     sequence_id: &str,
     scope: CompositionScope,
 ) -> Result<Composition, CompositionError> {
+    compile_with_min_end(snapshot, sequence_id, scope, None)
+}
+
+pub(crate) fn compile_with_min_end(
+    snapshot: &ProjectSnapshot,
+    sequence_id: &str,
+    scope: CompositionScope,
+    minimum_end: Option<RationalTime>,
+) -> Result<Composition, CompositionError> {
     opencut_editor_core::validate_project(&snapshot.project)
         .map_err(|e| error("INVALID_PROJECT", e.to_string()))?;
     let sequence = snapshot
@@ -33,6 +42,11 @@ pub fn compile(
         .collect();
     let (video_clips, image_clips, mut audio_clips, mut end) =
         compile_visual_clips(sequence, &assets, scope == CompositionScope::AudioVisual)?;
+    if let Some(minimum_end) = minimum_end
+        && end.is_none_or(|current| current.cmp_exact(minimum_end).is_lt())
+    {
+        end = Some(minimum_end);
+    }
     for track in sequence
         .tracks
         .iter()

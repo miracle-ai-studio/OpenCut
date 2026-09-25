@@ -175,6 +175,7 @@ impl ProjectStore for SqliteConnection {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
         authorize_edit(&tx, &context, project_id, intent)?;
+        sqlite_edit_control::require_writable(&tx, &context, project_id)?;
         // Authorization precedes receipt reads; idempotency still precedes head checks.
         if let Some(result) = load_idempotent(
             &tx,
@@ -301,15 +302,12 @@ fn load_revision(
         .optional()
         .map_err(storage_error)?;
     Ok(ProjectSnapshot {
-        project: decode_json(
-            &document.ok_or_else(|| {
-                EditorError::new(
-                    "NOT_FOUND",
-                    "Target revision does not belong to this project",
-                )
-            })?,
-            "stored project revision",
-        )?,
+        project: sqlite_project_v3::decode_legacy_project(&document.ok_or_else(|| {
+            EditorError::new(
+                "NOT_FOUND",
+                "Target revision does not belong to this project",
+            )
+        })?)?,
         revision: revision.into(),
     })
 }

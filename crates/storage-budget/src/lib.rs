@@ -289,7 +289,15 @@ mod unix {
     // Give that control reservation time to outlive a short independent budget
     // operation instead of returning BUSY from xWrite with SQLite locks held.
     const DATABASE_CONTROL_GATE_WAIT: Duration = Duration::from_secs(15);
-    const ROOTS: [&str; 5] = ["asset-store", "media", "uploads", "artifacts", "plugins"];
+    const ROOTS: [&str; 7] = [
+        "asset-store",
+        "media",
+        "uploads",
+        "artifacts",
+        "plugins",
+        "plugin-packages-v2",
+        "previews",
+    ];
     #[track_caller]
     fn failure() -> EditorError {
         if std::env::var_os("OPENCUT_TRACE_SQLITE").is_some() {
@@ -1022,6 +1030,8 @@ mod unix {
             "artifact_download",
             "media_output",
             "media_caption",
+            "preview_caption",
+            "whisper_model_snapshot",
         ]
         .into_iter()
         .map(String::from)

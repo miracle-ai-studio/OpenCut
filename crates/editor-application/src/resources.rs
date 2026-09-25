@@ -1,10 +1,22 @@
 //! URI resolution and projections over the same project/job read ports as tools.
-use crate::{projects::ProjectRead, queries::JobRead};
+use crate::queries::JobRead;
 use opencut_api_contracts::{
     capabilities::HostCapabilities, context::*, domains, tools::tool_specs,
 };
 use opencut_contracts::EditorError;
 use serde_json::json;
+
+pub enum ContextSnapshot {
+    Legacy(opencut_contracts::ProjectSnapshot),
+    V3(opencut_contracts::project_v3::ProjectSnapshotV3),
+}
+pub trait ProjectContextRead {
+    fn project_context(
+        &self,
+        project: &str,
+        revision: Option<&str>,
+    ) -> Result<ContextSnapshot, EditorError>;
+}
 
 pub const STATIC_RESOURCES: &[(&str, &str)] = &[
     ("opencut://system/capabilities", "capabilities"),
@@ -167,7 +179,7 @@ pub fn target(uri: &str) -> Result<Target, EditorError> {
     }
 }
 pub fn read(
-    store: &(impl ProjectRead + JobRead),
+    store: &(impl ProjectContextRead + JobRead),
     input: ResourceReadInput,
     capabilities: impl FnOnce() -> HostCapabilities,
 ) -> Result<ResourceView, EditorError> {
@@ -210,12 +222,14 @@ pub fn read(
             ResourcePayload::OperationSchema(OperationSchema { descriptor, schema })
         }
         Target::Summary { project, revision } => {
-            let snapshot = if let Some(revision) = revision {
-                store.revision(&project, &revision)?
-            } else {
-                store.head(&project)?
-            };
-            let p = snapshot.project;
+            let (p, revision, schema_version) =
+                match store.project_context(&project, revision.as_deref())? {
+                    ContextSnapshot::Legacy(s) => {
+                        let version = s.project.schema_version;
+                        (s.project, s.revision, version)
+                    }
+                    ContextSnapshot::V3(s) => (s.project.base, s.revision, 3),
+                };
             let sequences = p
                 .sequences
                 .into_iter()
@@ -234,8 +248,8 @@ pub fn read(
                 project_id: p.id,
                 name: p.name,
                 branch: "main".into(),
-                revision: snapshot.revision,
-                schema_version: p.schema_version,
+                revision,
+                schema_version,
                 default_sequence_id: p.default_sequence_id,
                 sequences,
                 asset_count: p.assets.len(),
@@ -245,20 +259,49 @@ pub fn read(
             project,
             revision,
             sequence,
-        } => {
-            let snapshot = store.revision(&project, &revision)?;
-            let sequence = snapshot
-                .project
-                .sequences
-                .into_iter()
-                .find(|s| s.id == sequence)
-                .ok_or_else(missing)?;
-            ResourcePayload::Timeline(RevisionTimeline {
-                project_id: project,
-                revision: snapshot.revision,
-                sequence,
-            })
-        }
+        } => match store.project_context(&project, Some(&revision))? {
+            ContextSnapshot::Legacy(snapshot) => {
+                let sequence = snapshot
+                    .project
+                    .sequences
+                    .into_iter()
+                    .find(|s| s.id == sequence)
+                    .ok_or_else(missing)?;
+                ResourcePayload::Timeline(RevisionTimeline {
+                    project_id: project,
+                    revision: snapshot.revision,
+                    sequence,
+                })
+            }
+            ContextSnapshot::V3(snapshot) => {
+                let visual = snapshot
+                    .project
+                    .visual
+                    .into_iter()
+                    .find(|v| v.sequence_id == sequence)
+                    .unwrap_or(opencut_contracts::project_v3::SequenceVisualV3 {
+                        sequence_id: sequence.clone(),
+                        shapes: vec![],
+                        effects: vec![],
+                        masks: vec![],
+                        transitions: vec![],
+                    });
+                let sequence = snapshot
+                    .project
+                    .base
+                    .sequences
+                    .into_iter()
+                    .find(|s| s.id == sequence)
+                    .ok_or_else(missing)?;
+                ResourcePayload::TimelineV3(RevisionTimelineV3 {
+                    project_id: project,
+                    revision: snapshot.revision,
+                    schema_version: 3,
+                    sequence,
+                    visual,
+                })
+            }
+        },
         Target::Job(job) => ResourcePayload::Job(Box::new(crate::queries::job_view(store, &job)?)),
         Target::Artifact(artifact) => {
             let (job, _) = crate::job_views::parse_artifact_id(&artifact)?;

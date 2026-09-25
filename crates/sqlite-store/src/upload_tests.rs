@@ -329,7 +329,7 @@ fn upload_migration_rolls_back_all_tables_on_collision() {
     let conn = Connection::open(&path).unwrap();
     conn.execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
         .unwrap();
-    conn.execute_batch("DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
+    conn.execute_batch("DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
     assert!(EditorApplication::open(&path).is_err());
     assert_eq!(
         conn.query_row::<String, _, _>(

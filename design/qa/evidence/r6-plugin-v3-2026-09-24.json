@@ -1,0 +1,1798 @@
+{
+  "binary_sha256": "96dd5ae009ef35bc49a5696c89db9816f4ffded16e1c3306de597fd89cc086d4",
+  "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+  "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643",
+  "render_sha256": "611266de7f296115565c61795b9857de25c8b0dade560359e2f2b63c2a65fb5b",
+  "yellow_caption_pixels": 859,
+  "project_schema_version": 3,
+  "checks": [
+    "v1 catalog isolation",
+    "exact grant and fixed pinned asset binding",
+    "normal apply of template and style",
+    "render after original media removal",
+    "tamper rejection",
+    "revoked grant and stale replay do not authorize"
+  ],
+  "trace": [
+    {
+      "tool": "opencut_project_create",
+      "response": {
+        "api_version": "1",
+        "request_id": "96106880-5bb9-45e6-8df0-acfbbc80726d",
+        "data": {
+          "project": {
+            "assets": [],
+            "default_sequence_id": "main",
+            "id": "preset-film",
+            "name": "Preset film",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [],
+                "width": 320
+              }
+            ]
+          },
+          "revision": "rev_b6c2e6d072b83daaa388f492786fdd59f38d81510e9e6f2d41618d14c78709c4"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_edit_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "f658190e-8e89-4673-93c3-ba86677eb9ab",
+        "data": {
+          "base_revision": "rev_b6c2e6d072b83daaa388f492786fdd59f38d81510e9e6f2d41618d14c78709c4",
+          "changed_ids": [],
+          "created_ids": [
+            "red"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_7380739a4d1a960e5bd7c56f276cfdc416cc36132022244331be9fe4e7b70742",
+          "transaction_id": "txn_ad706c2eb50346d09fc69170ac19c6c7"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_project_inspect",
+      "response": {
+        "api_version": "1",
+        "request_id": "8a145d34-a2fa-4e01-a761-5c4ee11d9235",
+        "data": {
+          "project": {
+            "assets": [
+              {
+                "duration": {
+                  "ticks": "20",
+                  "timebase": 10
+                },
+                "id": "red",
+                "kind": "video",
+                "metadata": {},
+                "name": "Red",
+                "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                "version": {
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              }
+            ],
+            "default_sequence_id": "main",
+            "id": "preset-film",
+            "name": "Preset film",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 10
+                },
+                "height": 180,
+                "id": "main",
+                "name": "Main",
+                "tracks": [],
+                "width": 320
+              }
+            ]
+          },
+          "revision": "rev_7380739a4d1a960e5bd7c56f276cfdc416cc36132022244331be9fe4e7b70742"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_project_v3_promote",
+      "response": {
+        "api_version": "1",
+        "request_id": "2361be15-e931-411f-b5c8-d152d0e9a891",
+        "data": {
+          "project": {
+            "base": {
+              "assets": [
+                {
+                  "duration": {
+                    "ticks": "20",
+                    "timebase": 10
+                  },
+                  "id": "red",
+                  "kind": "video",
+                  "metadata": {},
+                  "name": "Red",
+                  "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                  "version": {
+                    "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "size": 2163
+                  }
+                }
+              ],
+              "default_sequence_id": "main",
+              "id": "preset-film",
+              "name": "Preset film",
+              "schema_version": 2,
+              "sequences": [
+                {
+                  "caption_cues": [],
+                  "fps": {
+                    "denominator": 1,
+                    "numerator": 10
+                  },
+                  "height": 180,
+                  "id": "main",
+                  "name": "Main",
+                  "tracks": [],
+                  "width": 320
+                }
+              ]
+            },
+            "schema_version": 3,
+            "visual": []
+          },
+          "revision": "rev_b96932a66303a65e9808e20fe64fc7169dd3b07683afbd4b43f9be64a5b1319e"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_install",
+      "response": {
+        "api_version": "1",
+        "request_id": "240e609c-6b82-483f-bdf8-c4e7e98a5665",
+        "data": {
+          "manifest": {
+            "display_name": "Example preset",
+            "id": "example.preset",
+            "manifest_version": 2,
+            "presets": [
+              {
+                "name": "movie",
+                "spec_path": "specs/movie.json",
+                "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643"
+              },
+              {
+                "name": "yellow",
+                "spec_path": "specs/yellow.json",
+                "spec_sha256": "340961489043586f3029a3d632d7426283119f73d39877a3313254ec4031fdc8"
+              }
+            ],
+            "version": "1.0.0"
+          },
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_list",
+      "response": {
+        "api_version": "1",
+        "request_id": "6a88edfb-1d88-4dc5-9af7-082ed736b753",
+        "data": [
+          {
+            "manifest": {
+              "display_name": "Example preset",
+              "id": "example.preset",
+              "manifest_version": 2,
+              "presets": [
+                {
+                  "name": "movie",
+                  "spec_path": "specs/movie.json",
+                  "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643"
+                },
+                {
+                  "name": "yellow",
+                  "spec_path": "specs/yellow.json",
+                  "spec_sha256": "340961489043586f3029a3d632d7426283119f73d39877a3313254ec4031fdc8"
+                }
+              ],
+              "version": "1.0.0"
+            },
+            "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a"
+          }
+        ],
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_list",
+      "response": {
+        "api_version": "1",
+        "request_id": "8db2c1f6-4459-4e04-882e-eec2e90efe5b",
+        "data": [],
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "814de12a-ccdc-4c46-bd18-0b24b20d5c49",
+        "data": null,
+        "error": {
+          "code": "NOT_AUTHORIZED",
+          "message": "The current credential is not authorized for this resource or action",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "50eff823-d71b-441d-9192-a3420935eb4a",
+        "data": {
+          "enabled": true,
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "preset_names": [
+            "movie",
+            "yellow"
+          ],
+          "revision": "1",
+          "target": {
+            "id": "example.preset",
+            "project_id": "preset-film",
+            "version": "1.0.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "a3d92980-83a9-4144-b4df-50b52e950f55",
+        "data": {
+          "enabled": true,
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "preset_names": [
+            "movie",
+            "yellow"
+          ],
+          "revision": "1",
+          "target": {
+            "id": "example.preset",
+            "project_id": "preset-film",
+            "version": "1.0.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_grants",
+      "response": {
+        "api_version": "1",
+        "request_id": "45494569-12c6-4836-b533-c988d4162667",
+        "data": [
+          {
+            "enabled": true,
+            "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+            "preset_names": [
+              "movie",
+              "yellow"
+            ],
+            "revision": "1",
+            "target": {
+              "id": "example.preset",
+              "project_id": "preset-film",
+              "version": "1.0.0"
+            }
+          }
+        ],
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_inspect",
+      "response": {
+        "api_version": "1",
+        "request_id": "ff8cd536-f9cb-41bd-b400-a0a6e2a19d2e",
+        "data": {
+          "grant": {
+            "enabled": true,
+            "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+            "preset_names": [
+              "movie",
+              "yellow"
+            ],
+            "revision": "1",
+            "target": {
+              "id": "example.preset",
+              "project_id": "preset-film",
+              "version": "1.0.0"
+            }
+          },
+          "package": {
+            "manifest": {
+              "display_name": "Example preset",
+              "id": "example.preset",
+              "manifest_version": 2,
+              "presets": [
+                {
+                  "name": "movie",
+                  "spec_path": "specs/movie.json",
+                  "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643"
+                },
+                {
+                  "name": "yellow",
+                  "spec_path": "specs/yellow.json",
+                  "spec_sha256": "340961489043586f3029a3d632d7426283119f73d39877a3313254ec4031fdc8"
+                }
+              ],
+              "version": "1.0.0"
+            },
+            "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a"
+          },
+          "preset": {
+            "name": "movie",
+            "spec_path": "specs/movie.json",
+            "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "83b8b463-6d45-470c-a319-2a39547583a5",
+        "data": {
+          "grant_revision": "1",
+          "operations": [
+            {
+              "operation": {
+                "sequence_id": "main",
+                "track": {
+                  "clips": [],
+                  "enabled": true,
+                  "id": "preset-v",
+                  "kind": "video",
+                  "locked": false,
+                  "muted": false,
+                  "name": "Preset Video",
+                  "params": {}
+                },
+                "type": "track.create"
+              },
+              "type": "base.apply"
+            },
+            {
+              "operation": {
+                "clip": {
+                  "asset_id": "red",
+                  "channels": [],
+                  "id": "preset-c",
+                  "params": {},
+                  "source_range": {
+                    "duration": {
+                      "ticks": "20",
+                      "timebase": 10
+                    },
+                    "start": {
+                      "ticks": "0",
+                      "timebase": 10
+                    }
+                  },
+                  "timeline_range": {
+                    "duration": {
+                      "ticks": "20",
+                      "timebase": 10
+                    },
+                    "start": {
+                      "ticks": "0",
+                      "timebase": 10
+                    }
+                  }
+                },
+                "sequence_id": "main",
+                "track_id": "preset-v",
+                "type": "clip.insert"
+              },
+              "type": "base.apply"
+            },
+            {
+              "operation": {
+                "cue": {
+                  "id": "preset-caption",
+                  "source_anchor": null,
+                  "style": {
+                    "background_color": null,
+                    "color": "#ffffff",
+                    "font_family": "Arial",
+                    "font_policy": {
+                      "families": [
+                        "Helvetica"
+                      ],
+                      "mode": "explicit_fallback"
+                    },
+                    "font_size": 30.0
+                  },
+                  "text": "Preset QA",
+                  "timeline_range": {
+                    "duration": {
+                      "ticks": "15",
+                      "timebase": 10
+                    },
+                    "start": {
+                      "ticks": "2",
+                      "timebase": 10
+                    }
+                  }
+                },
+                "sequence_id": "main",
+                "type": "caption.insert"
+              },
+              "type": "base.apply"
+            }
+          ],
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "plan": {
+            "changed_ids": [
+              "main"
+            ],
+            "created_ids": [
+              "preset-c",
+              "preset-caption",
+              "preset-v"
+            ],
+            "deleted_ids": [],
+            "proposed_project": {
+              "base": {
+                "assets": [
+                  {
+                    "duration": {
+                      "ticks": "20",
+                      "timebase": 10
+                    },
+                    "id": "red",
+                    "kind": "video",
+                    "metadata": {},
+                    "name": "Red",
+                    "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                    "version": {
+                      "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "size": 2163
+                    }
+                  }
+                ],
+                "default_sequence_id": "main",
+                "id": "preset-film",
+                "name": "Preset film",
+                "schema_version": 2,
+                "sequences": [
+                  {
+                    "caption_cues": [
+                      {
+                        "id": "preset-caption",
+                        "source_anchor": null,
+                        "style": {
+                          "background_color": null,
+                          "color": "#ffffff",
+                          "font_family": "Arial",
+                          "font_policy": {
+                            "families": [
+                              "Helvetica"
+                            ],
+                            "mode": "explicit_fallback"
+                          },
+                          "font_size": 30.0
+                        },
+                        "text": "Preset QA",
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "15",
+                            "timebase": 10
+                          },
+                          "start": {
+                            "ticks": "2",
+                            "timebase": 10
+                          }
+                        }
+                      }
+                    ],
+                    "fps": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "height": 180,
+                    "id": "main",
+                    "name": "Main",
+                    "tracks": [
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "red",
+                            "channels": [],
+                            "id": "preset-c",
+                            "params": {},
+                            "source_range": {
+                              "duration": {
+                                "ticks": "20",
+                                "timebase": 10
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 10
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "20",
+                                "timebase": 10
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 10
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "preset-v",
+                        "kind": "video",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Preset Video",
+                        "params": {}
+                      }
+                    ],
+                    "width": 320
+                  }
+                ]
+              },
+              "schema_version": 3,
+              "visual": []
+            }
+          },
+          "spec_sha256": "a6ecda119970964748d030d90f183d7554d0dd3655852a77b2c65a36b94e7643"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_edit_v3_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "ad2624a4-fbff-4d47-a24e-83731dc88e94",
+        "data": {
+          "base_revision": "rev_b96932a66303a65e9808e20fe64fc7169dd3b07683afbd4b43f9be64a5b1319e",
+          "changed_ids": [
+            "main"
+          ],
+          "created_ids": [
+            "preset-c",
+            "preset-caption",
+            "preset-v"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_8ead343e7d8bb9b67b302a3be4714a1339ffb24dea450d0a76fce981760f07c5",
+          "transaction_id": "txn_7c07586faa61472f8da51901dbffcc76"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "f984d71a-01c0-4df7-9ac0-bfa03a449d3b",
+        "data": {
+          "grant_revision": "1",
+          "operations": [
+            {
+              "operation": {
+                "cue": {
+                  "id": "preset-caption",
+                  "source_anchor": null,
+                  "style": {
+                    "background_color": null,
+                    "color": "#ffff00",
+                    "font_family": "Arial",
+                    "font_policy": {
+                      "families": [
+                        "Helvetica"
+                      ],
+                      "mode": "explicit_fallback"
+                    },
+                    "font_size": 34.0
+                  },
+                  "text": "Preset QA",
+                  "timeline_range": {
+                    "duration": {
+                      "ticks": "15",
+                      "timebase": 10
+                    },
+                    "start": {
+                      "ticks": "2",
+                      "timebase": 10
+                    }
+                  }
+                },
+                "sequence_id": "main",
+                "type": "caption.update"
+              },
+              "type": "base.apply"
+            }
+          ],
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "plan": {
+            "changed_ids": [
+              "preset-caption"
+            ],
+            "created_ids": [],
+            "deleted_ids": [],
+            "proposed_project": {
+              "base": {
+                "assets": [
+                  {
+                    "duration": {
+                      "ticks": "20",
+                      "timebase": 10
+                    },
+                    "id": "red",
+                    "kind": "video",
+                    "metadata": {},
+                    "name": "Red",
+                    "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                    "version": {
+                      "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                      "size": 2163
+                    }
+                  }
+                ],
+                "default_sequence_id": "main",
+                "id": "preset-film",
+                "name": "Preset film",
+                "schema_version": 2,
+                "sequences": [
+                  {
+                    "caption_cues": [
+                      {
+                        "id": "preset-caption",
+                        "source_anchor": null,
+                        "style": {
+                          "background_color": null,
+                          "color": "#ffff00",
+                          "font_family": "Arial",
+                          "font_policy": {
+                            "families": [
+                              "Helvetica"
+                            ],
+                            "mode": "explicit_fallback"
+                          },
+                          "font_size": 34.0
+                        },
+                        "text": "Preset QA",
+                        "timeline_range": {
+                          "duration": {
+                            "ticks": "15",
+                            "timebase": 10
+                          },
+                          "start": {
+                            "ticks": "2",
+                            "timebase": 10
+                          }
+                        }
+                      }
+                    ],
+                    "fps": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "height": 180,
+                    "id": "main",
+                    "name": "Main",
+                    "tracks": [
+                      {
+                        "clips": [
+                          {
+                            "asset_id": "red",
+                            "channels": [],
+                            "id": "preset-c",
+                            "params": {},
+                            "source_range": {
+                              "duration": {
+                                "ticks": "20",
+                                "timebase": 10
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 10
+                              }
+                            },
+                            "timeline_range": {
+                              "duration": {
+                                "ticks": "20",
+                                "timebase": 10
+                              },
+                              "start": {
+                                "ticks": "0",
+                                "timebase": 10
+                              }
+                            }
+                          }
+                        ],
+                        "enabled": true,
+                        "id": "preset-v",
+                        "kind": "video",
+                        "locked": false,
+                        "muted": false,
+                        "name": "Preset Video",
+                        "params": {}
+                      }
+                    ],
+                    "width": 320
+                  }
+                ]
+              },
+              "schema_version": 3,
+              "visual": []
+            }
+          },
+          "spec_sha256": "340961489043586f3029a3d632d7426283119f73d39877a3313254ec4031fdc8"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_edit_v3_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "ee0e9f4a-cd6a-4695-9899-9d2ec81b36e0",
+        "data": {
+          "base_revision": "rev_8ead343e7d8bb9b67b302a3be4714a1339ffb24dea450d0a76fce981760f07c5",
+          "changed_ids": [
+            "preset-caption"
+          ],
+          "created_ids": [],
+          "deleted_ids": [],
+          "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+          "transaction_id": "txn_0be6def3f51040d6a699543fb6be8816"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_project_v3_inspect",
+      "response": {
+        "api_version": "1",
+        "request_id": "c2362b89-1370-4401-900f-b475dd0fc0ed",
+        "data": {
+          "project": {
+            "base": {
+              "assets": [
+                {
+                  "duration": {
+                    "ticks": "20",
+                    "timebase": 10
+                  },
+                  "id": "red",
+                  "kind": "video",
+                  "metadata": {},
+                  "name": "Red",
+                  "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                  "version": {
+                    "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "size": 2163
+                  }
+                }
+              ],
+              "default_sequence_id": "main",
+              "id": "preset-film",
+              "name": "Preset film",
+              "schema_version": 2,
+              "sequences": [
+                {
+                  "caption_cues": [
+                    {
+                      "id": "preset-caption",
+                      "source_anchor": null,
+                      "style": {
+                        "background_color": null,
+                        "color": "#ffff00",
+                        "font_family": "Arial",
+                        "font_policy": {
+                          "families": [
+                            "Helvetica"
+                          ],
+                          "mode": "explicit_fallback"
+                        },
+                        "font_size": 34.0
+                      },
+                      "text": "Preset QA",
+                      "timeline_range": {
+                        "duration": {
+                          "ticks": "15",
+                          "timebase": 10
+                        },
+                        "start": {
+                          "ticks": "2",
+                          "timebase": 10
+                        }
+                      }
+                    }
+                  ],
+                  "fps": {
+                    "denominator": 1,
+                    "numerator": 10
+                  },
+                  "height": 180,
+                  "id": "main",
+                  "name": "Main",
+                  "tracks": [
+                    {
+                      "clips": [
+                        {
+                          "asset_id": "red",
+                          "channels": [],
+                          "id": "preset-c",
+                          "params": {},
+                          "source_range": {
+                            "duration": {
+                              "ticks": "20",
+                              "timebase": 10
+                            },
+                            "start": {
+                              "ticks": "0",
+                              "timebase": 10
+                            }
+                          },
+                          "timeline_range": {
+                            "duration": {
+                              "ticks": "20",
+                              "timebase": 10
+                            },
+                            "start": {
+                              "ticks": "0",
+                              "timebase": 10
+                            }
+                          }
+                        }
+                      ],
+                      "enabled": true,
+                      "id": "preset-v",
+                      "kind": "video",
+                      "locked": false,
+                      "muted": false,
+                      "name": "Preset Video",
+                      "params": {}
+                    }
+                  ],
+                  "width": 320
+                }
+              ]
+            },
+            "schema_version": 3,
+            "visual": []
+          },
+          "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_job_v3_render",
+      "response": {
+        "api_version": "1",
+        "request_id": "dce148e6-1e6d-4473-aa97-fa3962e63b8b",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": null,
+          "failure": null,
+          "job_id": "job_b4f94267e106443e94e0ddb11ce3acf7",
+          "kind": "render.project.v3",
+          "progress": null,
+          "resource_target": null,
+          "result": null,
+          "result_unavailable": null,
+          "state": "queued",
+          "target": {
+            "project_id": "preset-film",
+            "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_job_get",
+      "response": {
+        "api_version": "1",
+        "request_id": "9d8425d8-ea19-401a-979a-783feaa75ca7",
+        "data": {
+          "attempt": 1,
+          "cancel_requested": false,
+          "error": null,
+          "input": {
+            "asset_lock": {
+              "assets": [
+                {
+                  "asset_id": "red",
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              ],
+              "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+              "sequence_id": "main",
+              "version": 1
+            },
+            "container": "mp4",
+            "sequence_id": "main",
+            "snapshot": {
+              "project": {
+                "base": {
+                  "assets": [
+                    {
+                      "duration": {
+                        "ticks": "20",
+                        "timebase": 10
+                      },
+                      "id": "red",
+                      "kind": "video",
+                      "metadata": {},
+                      "name": "Red",
+                      "uri": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/red.mp4",
+                      "version": {
+                        "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                        "id": "av_e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                        "size": 2163
+                      }
+                    }
+                  ],
+                  "default_sequence_id": "main",
+                  "id": "preset-film",
+                  "name": "Preset film",
+                  "schema_version": 2,
+                  "sequences": [
+                    {
+                      "caption_cues": [
+                        {
+                          "id": "preset-caption",
+                          "source_anchor": null,
+                          "style": {
+                            "background_color": null,
+                            "color": "#ffff00",
+                            "font_family": "Arial",
+                            "font_policy": {
+                              "families": [
+                                "Helvetica"
+                              ],
+                              "mode": "explicit_fallback"
+                            },
+                            "font_size": 34.0
+                          },
+                          "text": "Preset QA",
+                          "timeline_range": {
+                            "duration": {
+                              "ticks": "15",
+                              "timebase": 10
+                            },
+                            "start": {
+                              "ticks": "2",
+                              "timebase": 10
+                            }
+                          }
+                        }
+                      ],
+                      "fps": {
+                        "denominator": 1,
+                        "numerator": 10
+                      },
+                      "height": 180,
+                      "id": "main",
+                      "name": "Main",
+                      "tracks": [
+                        {
+                          "clips": [
+                            {
+                              "asset_id": "red",
+                              "channels": [],
+                              "id": "preset-c",
+                              "params": {},
+                              "source_range": {
+                                "duration": {
+                                  "ticks": "20",
+                                  "timebase": 10
+                                },
+                                "start": {
+                                  "ticks": "0",
+                                  "timebase": 10
+                                }
+                              },
+                              "timeline_range": {
+                                "duration": {
+                                  "ticks": "20",
+                                  "timebase": 10
+                                },
+                                "start": {
+                                  "ticks": "0",
+                                  "timebase": 10
+                                }
+                              }
+                            }
+                          ],
+                          "enabled": true,
+                          "id": "preset-v",
+                          "kind": "video",
+                          "locked": false,
+                          "muted": false,
+                          "name": "Preset Video",
+                          "params": {}
+                        }
+                      ],
+                      "width": 320
+                    }
+                  ]
+                },
+                "schema_version": 3,
+                "visual": []
+              },
+              "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397"
+            },
+            "video_codec": "h264"
+          },
+          "job_id": "job_b4f94267e106443e94e0ddb11ce3acf7",
+          "kind": "render.project.v3",
+          "lease_owner": null,
+          "lease_until": null,
+          "progress": {
+            "fraction": null,
+            "media_time": {
+              "ticks": "100000",
+              "timebase": 1000000
+            },
+            "stage": "verifying"
+          },
+          "result": {
+            "artifact": {
+              "content_hash": "611266de7f296115565c61795b9857de25c8b0dade560359e2f2b63c2a65fb5b",
+              "mime_type": "video/mp4",
+              "path": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/artifacts/job_b4f94267e106443e94e0ddb11ce3acf7/attempt-1/render.mp4",
+              "size": 6527
+            },
+            "asset_lock": {
+              "assets": [
+                {
+                  "asset_id": "red",
+                  "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                  "size": 2163
+                }
+              ],
+              "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+              "sequence_id": "main",
+              "version": 1
+            },
+            "asset_locking": "media_content_locked",
+            "media": {
+              "metadata": {
+                "bit_rate": 26108,
+                "duration": {
+                  "ticks": "2000000",
+                  "timebase": 1000000
+                },
+                "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                "input": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/artifacts/job_b4f94267e106443e94e0ddb11ce3acf7/attempt-1/render.mp4",
+                "streams": [
+                  {
+                    "average_frame_rate": {
+                      "denominator": 1,
+                      "numerator": 10
+                    },
+                    "channel_layout": null,
+                    "channels": null,
+                    "codec_name": "h264",
+                    "codec_type": "video",
+                    "color_primaries": null,
+                    "color_space": null,
+                    "color_transfer": null,
+                    "duration": {
+                      "ticks": "2000000",
+                      "timebase": 1000000
+                    },
+                    "height": 180,
+                    "index": 0,
+                    "pixel_format": "yuv420p",
+                    "sample_rate": null,
+                    "time_base": {
+                      "denominator": 10240,
+                      "numerator": 1
+                    },
+                    "width": 320
+                  },
+                  {
+                    "average_frame_rate": {
+                      "denominator": 0,
+                      "numerator": 0
+                    },
+                    "channel_layout": "stereo",
+                    "channels": 2,
+                    "codec_name": "aac",
+                    "codec_type": "audio",
+                    "color_primaries": null,
+                    "color_space": null,
+                    "color_transfer": null,
+                    "duration": {
+                      "ticks": "2000000",
+                      "timebase": 1000000
+                    },
+                    "height": null,
+                    "index": 1,
+                    "pixel_format": null,
+                    "sample_rate": 48000,
+                    "time_base": {
+                      "denominator": 48000,
+                      "numerator": 1
+                    },
+                    "width": null
+                  }
+                ]
+              },
+              "output": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/artifacts/job_b4f94267e106443e94e0ddb11ce3acf7/attempt-1/render.mp4",
+              "text_layouts": [
+                {
+                  "cluster_ranges": [
+                    {
+                      "end": 1,
+                      "rtl": false,
+                      "start": 0
+                    },
+                    {
+                      "end": 2,
+                      "rtl": false,
+                      "start": 1
+                    },
+                    {
+                      "end": 3,
+                      "rtl": false,
+                      "start": 2
+                    },
+                    {
+                      "end": 4,
+                      "rtl": false,
+                      "start": 3
+                    },
+                    {
+                      "end": 5,
+                      "rtl": false,
+                      "start": 4
+                    },
+                    {
+                      "end": 6,
+                      "rtl": false,
+                      "start": 5
+                    },
+                    {
+                      "end": 7,
+                      "rtl": false,
+                      "start": 6
+                    },
+                    {
+                      "end": 8,
+                      "rtl": false,
+                      "start": 7
+                    },
+                    {
+                      "end": 9,
+                      "rtl": false,
+                      "start": 8
+                    }
+                  ],
+                  "glyph_count": 9,
+                  "line_count": 1,
+                  "pixel_bounds": {
+                    "height": 27,
+                    "width": 155,
+                    "x": 84,
+                    "y": 113
+                  },
+                  "policy": {
+                    "families": [
+                      "Helvetica"
+                    ],
+                    "mode": "explicit_fallback"
+                  },
+                  "requested_family": "Arial",
+                  "rtl_runs": 0,
+                  "used_faces": [
+                    {
+                      "face_index": 0,
+                      "family": "Arial",
+                      "postscript_name": "ArialMT",
+                      "source": "file:/System/Library/Fonts/Supplemental/Arial.ttf"
+                    }
+                  ]
+                }
+              ],
+              "verification": {
+                "checks": [
+                  {
+                    "detail": "expected 1, got 1",
+                    "name": "video_streams",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 1, got 1",
+                    "name": "audio_streams",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 320, got 320",
+                    "name": "width",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 180, got 180",
+                    "name": "height",
+                    "passed": true
+                  },
+                  {
+                    "detail": "expected 2.000000s ± 0.200000s, got 2.000000s",
+                    "name": "duration",
+                    "passed": true
+                  },
+                  {
+                    "detail": "decoded 3/3 requested samples",
+                    "name": "sample_decode",
+                    "passed": true
+                  }
+                ],
+                "decoded_samples": [
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "500000",
+                      "timebase": 1000000
+                    }
+                  },
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "1000000",
+                      "timebase": 1000000
+                    }
+                  },
+                  {
+                    "decoded": true,
+                    "requested_time": {
+                      "ticks": "1500000",
+                      "timebase": 1000000
+                    }
+                  }
+                ],
+                "metadata": {
+                  "bit_rate": 26108,
+                  "duration": {
+                    "ticks": "2000000",
+                    "timebase": 1000000
+                  },
+                  "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                  "input": "/private/tmp/opencut-plugin-v3-fixed-20260924/plugin-v2-1790258621872274000/artifacts/job_b4f94267e106443e94e0ddb11ce3acf7/attempt-1/render.mp4",
+                  "streams": [
+                    {
+                      "average_frame_rate": {
+                        "denominator": 1,
+                        "numerator": 10
+                      },
+                      "channel_layout": null,
+                      "channels": null,
+                      "codec_name": "h264",
+                      "codec_type": "video",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": 180,
+                      "index": 0,
+                      "pixel_format": "yuv420p",
+                      "sample_rate": null,
+                      "time_base": {
+                        "denominator": 10240,
+                        "numerator": 1
+                      },
+                      "width": 320
+                    },
+                    {
+                      "average_frame_rate": {
+                        "denominator": 0,
+                        "numerator": 0
+                      },
+                      "channel_layout": "stereo",
+                      "channels": 2,
+                      "codec_name": "aac",
+                      "codec_type": "audio",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": null,
+                      "index": 1,
+                      "pixel_format": null,
+                      "sample_rate": 48000,
+                      "time_base": {
+                        "denominator": 48000,
+                        "numerator": 1
+                      },
+                      "width": null
+                    }
+                  ]
+                },
+                "passed": true
+              }
+            },
+            "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397"
+          },
+          "state": "succeeded"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_job_view",
+      "response": {
+        "api_version": "1",
+        "request_id": "8ac6faee-ab2a-4be5-b278-fd42eb3d4652",
+        "data": {
+          "artifacts": [
+            {
+              "artifact_id": "artifact:job_b4f94267e106443e94e0ddb11ce3acf7:611266de7f296115565c61795b9857de25c8b0dade560359e2f2b63c2a65fb5b",
+              "availability": "unchecked",
+              "content_hash": "611266de7f296115565c61795b9857de25c8b0dade560359e2f2b63c2a65fb5b",
+              "job_id": "job_b4f94267e106443e94e0ddb11ce3acf7",
+              "mime_type": "video/mp4",
+              "role": "primary",
+              "size_bytes": "6527"
+            }
+          ],
+          "cancel_requested": false,
+          "extended_result": {
+            "data": {
+              "asset_lock": {
+                "assets": [
+                  {
+                    "asset_id": "red",
+                    "content_hash": "e55b001e4ec2bb2d01ababe1835c2aea269cbc8d99a240a293243db8d1f622a4",
+                    "size": 2163
+                  }
+                ],
+                "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+                "sequence_id": "main",
+                "version": 1
+              },
+              "asset_locking": "media_content_locked",
+              "media": {
+                "metadata": {
+                  "bit_rate": 26108,
+                  "duration": {
+                    "ticks": "2000000",
+                    "timebase": 1000000
+                  },
+                  "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                  "streams": [
+                    {
+                      "average_frame_rate": {
+                        "denominator": 1,
+                        "numerator": 10
+                      },
+                      "channel_layout": null,
+                      "channels": null,
+                      "codec_name": "h264",
+                      "codec_type": "video",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": 180,
+                      "index": 0,
+                      "pixel_format": "yuv420p",
+                      "sample_rate": null,
+                      "time_base": {
+                        "denominator": 10240,
+                        "numerator": 1
+                      },
+                      "width": 320
+                    },
+                    {
+                      "average_frame_rate": {
+                        "denominator": 0,
+                        "numerator": 0
+                      },
+                      "channel_layout": "stereo",
+                      "channels": 2,
+                      "codec_name": "aac",
+                      "codec_type": "audio",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "2000000",
+                        "timebase": 1000000
+                      },
+                      "height": null,
+                      "index": 1,
+                      "pixel_format": null,
+                      "sample_rate": 48000,
+                      "time_base": {
+                        "denominator": 48000,
+                        "numerator": 1
+                      },
+                      "width": null
+                    }
+                  ]
+                },
+                "text_layouts": [
+                  {
+                    "cluster_ranges": [
+                      {
+                        "end": 1,
+                        "rtl": false,
+                        "start": 0
+                      },
+                      {
+                        "end": 2,
+                        "rtl": false,
+                        "start": 1
+                      },
+                      {
+                        "end": 3,
+                        "rtl": false,
+                        "start": 2
+                      },
+                      {
+                        "end": 4,
+                        "rtl": false,
+                        "start": 3
+                      },
+                      {
+                        "end": 5,
+                        "rtl": false,
+                        "start": 4
+                      },
+                      {
+                        "end": 6,
+                        "rtl": false,
+                        "start": 5
+                      },
+                      {
+                        "end": 7,
+                        "rtl": false,
+                        "start": 6
+                      },
+                      {
+                        "end": 8,
+                        "rtl": false,
+                        "start": 7
+                      },
+                      {
+                        "end": 9,
+                        "rtl": false,
+                        "start": 8
+                      }
+                    ],
+                    "glyph_count": 9,
+                    "line_count": 1,
+                    "pixel_bounds": {
+                      "height": 27,
+                      "width": 155,
+                      "x": 84,
+                      "y": 113
+                    },
+                    "policy": {
+                      "families": [
+                        "Helvetica"
+                      ],
+                      "mode": "explicit_fallback"
+                    },
+                    "requested_family": "Arial",
+                    "rtl_runs": 0,
+                    "used_faces": [
+                      {
+                        "face_index": 0,
+                        "family": "Arial",
+                        "postscript_name": "ArialMT"
+                      }
+                    ]
+                  }
+                ],
+                "verification": {
+                  "checks": [
+                    {
+                      "name": "video_streams",
+                      "passed": true
+                    },
+                    {
+                      "name": "audio_streams",
+                      "passed": true
+                    },
+                    {
+                      "name": "width",
+                      "passed": true
+                    },
+                    {
+                      "name": "height",
+                      "passed": true
+                    },
+                    {
+                      "name": "duration",
+                      "passed": true
+                    },
+                    {
+                      "name": "sample_decode",
+                      "passed": true
+                    }
+                  ],
+                  "decoded_samples": [
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "500000",
+                        "timebase": 1000000
+                      }
+                    },
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "1000000",
+                        "timebase": 1000000
+                      }
+                    },
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "1500000",
+                        "timebase": 1000000
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "bit_rate": 26108,
+                    "duration": {
+                      "ticks": "2000000",
+                      "timebase": 1000000
+                    },
+                    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                    "streams": [
+                      {
+                        "average_frame_rate": {
+                          "denominator": 1,
+                          "numerator": 10
+                        },
+                        "channel_layout": null,
+                        "channels": null,
+                        "codec_name": "h264",
+                        "codec_type": "video",
+                        "color_primaries": null,
+                        "color_space": null,
+                        "color_transfer": null,
+                        "duration": {
+                          "ticks": "2000000",
+                          "timebase": 1000000
+                        },
+                        "height": 180,
+                        "index": 0,
+                        "pixel_format": "yuv420p",
+                        "sample_rate": null,
+                        "time_base": {
+                          "denominator": 10240,
+                          "numerator": 1
+                        },
+                        "width": 320
+                      },
+                      {
+                        "average_frame_rate": {
+                          "denominator": 0,
+                          "numerator": 0
+                        },
+                        "channel_layout": "stereo",
+                        "channels": 2,
+                        "codec_name": "aac",
+                        "codec_type": "audio",
+                        "color_primaries": null,
+                        "color_space": null,
+                        "color_transfer": null,
+                        "duration": {
+                          "ticks": "2000000",
+                          "timebase": 1000000
+                        },
+                        "height": null,
+                        "index": 1,
+                        "pixel_format": null,
+                        "sample_rate": 48000,
+                        "time_base": {
+                          "denominator": 48000,
+                          "numerator": 1
+                        },
+                        "width": null
+                      }
+                    ]
+                  },
+                  "passed": true
+                }
+              },
+              "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397"
+            },
+            "kind": "render.project.v3",
+            "schema_version": 1
+          },
+          "failure": null,
+          "job_id": "job_b4f94267e106443e94e0ddb11ce3acf7",
+          "kind": "render.project.v3",
+          "progress": {
+            "fraction": null,
+            "media_time": {
+              "ticks": "100000",
+              "timebase": 1000000
+            },
+            "stage": "verifying"
+          },
+          "resource_target": null,
+          "result": null,
+          "result_unavailable": null,
+          "state": "succeeded",
+          "target": {
+            "project_id": "preset-film",
+            "revision": "rev_91f6cd7a91e59363f2cbaca0a7ef272cab44b67c275caeae804ab5cdb195f397",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "1923210a-68c0-4e26-ba79-f2c8ef9c6c73",
+        "data": null,
+        "error": {
+          "code": "INVALID_PLUGIN",
+          "message": "Preset spec digest differs",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "e1ad45c4-8d10-4a71-b755-561fe78853a6",
+        "data": {
+          "enabled": false,
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "preset_names": [
+            "movie",
+            "yellow"
+          ],
+          "revision": "2",
+          "target": {
+            "id": "example.preset",
+            "project_id": "preset-film",
+            "version": "1.0.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "76a8c6e4-1b30-4fcd-a88e-456e13307ab4",
+        "data": null,
+        "error": {
+          "code": "NOT_AUTHORIZED",
+          "message": "The current credential is not authorized for this resource or action",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_grant",
+      "response": {
+        "api_version": "1",
+        "request_id": "809ee471-a085-4074-bfca-8d76211cc2d3",
+        "data": {
+          "enabled": true,
+          "package_sha256": "5c0feebbee941314ea744d07d3a6d068bdec7ceef438d8927a30eb113838819a",
+          "preset_names": [
+            "movie",
+            "yellow"
+          ],
+          "revision": "1",
+          "target": {
+            "id": "example.preset",
+            "project_id": "preset-film",
+            "version": "1.0.0"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_plugin_v2_preset_v3_plan",
+      "response": {
+        "api_version": "1",
+        "request_id": "77b70663-9560-4281-8718-40ac3ce180b5",
+        "data": null,
+        "error": {
+          "code": "NOT_AUTHORIZED",
+          "message": "The current credential is not authorized for this resource or action",
+          "details": {}
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

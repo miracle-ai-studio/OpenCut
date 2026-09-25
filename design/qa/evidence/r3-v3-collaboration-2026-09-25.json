@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "checks": [
+    "Agent first shape undo preserves later independent owner shape; causal redo and retry persist",
+    "Versioned branch merge keeps independent base edit, enforces CAS and permits DAG-selective undo",
+    "Persistent owner hold blocks scoped V3 writes but permits planning and owner writes; release and revoke apply",
+    "Schema 2-to-3 promotion cannot be selectively undone through V3 history"
+  ],
+  "binary_sha256": "b221587127c67a14e53af5b04661a476c4dc307c00565386becc6d74d02c4415"
+}

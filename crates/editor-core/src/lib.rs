@@ -1,4 +1,6 @@
+pub mod collaboration;
 pub mod dependencies;
+pub mod project_v3;
 use std::cmp::Ordering;
 
 use opencut_contracts::*;

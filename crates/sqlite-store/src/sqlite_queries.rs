@@ -6,6 +6,15 @@ impl JobRead for SqliteConnection {
         sqlite_access::require_job(self, &self.1, id, ProjectAction::Read)?;
         load_job(self, id)
     }
+    fn read_job_for_cursor(&self, id: &str) -> Result<(JobRecord, String), EditorError> {
+        let tx = self.unchecked_transaction().map_err(storage_error)?;
+        sqlite_access::require_job(&tx, &self.1, id, ProjectAction::Read)?;
+        let principal =
+            sqlite_access::principal(&tx, &self.1)?.unwrap_or_else(|| "local-owner".into());
+        let record = load_job(&tx, id)?;
+        tx.commit().map_err(storage_error)?;
+        Ok((record, principal))
+    }
     fn read_jobs(&self) -> Result<Vec<JobRecord>, EditorError> {
         let principal = sqlite_access::principal(self, &self.1)?;
         let mut statement = self
@@ -154,14 +163,16 @@ impl WorkspaceRead for SqliteConnection {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
             })
             .map_err(storage_error)?;
-        rows.map(|row| {
+        let mut projects = Vec::new();
+        for row in rows {
             let (document, revision) = row.map_err(storage_error)?;
-            Ok(ProjectSnapshot {
-                project: decode_json(&document, "stored project document")?,
-                revision,
-            })
-        })
-        .collect()
+            match sqlite_project_v3::decode_legacy_project(&document) {
+                Ok(project) => projects.push(ProjectSnapshot { project, revision }),
+                Err(error) if error.code == "UNSUPPORTED_PROJECT_VERSION" => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(projects)
     }
 
     fn read_revision_summary(
@@ -290,7 +301,7 @@ impl opencut_editor_application::events::ProjectEventRead for SqliteConnection {
         let principal = sqlite_access::principal(&tx, &self.1)?;
         if let Some(id) = project_id {
             sqlite_access::require(&tx, &self.1, id, ProjectAction::Read)?;
-            load_snapshot(&tx, id)?;
+            sqlite_project_v3::project_head_revision(&tx, id)?;
         }
         let after = if let Some(anchor) = anchor {
             let row: Option<(String, String)> = tx

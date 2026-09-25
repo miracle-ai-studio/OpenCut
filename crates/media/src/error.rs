@@ -7,6 +7,7 @@ pub enum MediaError {
     NotFound(String),
     OutputExists(String),
     Cancelled,
+    Backpressure(String),
     Admission {
         code: String,
         message: String,
@@ -49,6 +50,7 @@ impl MediaError {
             Self::NotFound(_) => "MEDIA_NOT_FOUND",
             Self::OutputExists(_) => "MEDIA_OUTPUT_EXISTS",
             Self::Cancelled => "JOB_CANCELLED",
+            Self::Backpressure(_) => "MEDIA_BACKPRESSURE",
             Self::ProcessFailed { .. } => "MEDIA_PROCESS_FAILED",
             Self::InvalidToolOutput { .. } => "MEDIA_INVALID_TOOL_OUTPUT",
             Self::VerificationFailed(_) => "ARTIFACT_VERIFICATION_FAILED",
@@ -70,6 +72,7 @@ impl fmt::Display for MediaError {
             Self::NotFound(v) => write!(f, "media input not found: {v}"),
             Self::OutputExists(v) => write!(f, "output already exists: {v}"),
             Self::Cancelled => f.write_str("media operation cancelled"),
+            Self::Backpressure(detail) => write!(f, "media stream backpressure: {detail}"),
             Self::ToolUnavailable { tool, detail } => write!(f, "{tool} unavailable: {detail}"),
             Self::ProcessFailed {
                 tool,

@@ -1,8 +1,8 @@
 # 连续预览实施计划
 
-状态：**设计，尚未实现**。
+状态（2026-09-24）：**非 UI 后端已实现并完成真实 HTTP 动线验收；浏览器／Desktop UI 暂缓**。当前执行契约以 [Session 契约](preview-session-contract.md) 为准，本文保留最初实施设计。
 
-2026-09-21 前置进展：共享纯合成描述已实现并接入现有离线 full/direct/range 链路，见 [合成契约](composition-contract.md)。本文的连续 Session/producer/telemetry 仍未实现；后续须消费同一描述，不能重新解释工程时间或以离线 Job 循环代替。
+2026-09-21 前置进展：共享纯合成描述已实现并接入现有离线 full/direct/range 链路，见 [合成契约](composition-contract.md)。这是前置阶段的历史状态；后续连续 Session/producer/telemetry 已接入同一描述，实际结果见 [崩溃恢复与多宿主验收](../qa/evidence/r4-preview-crash-recovery-2026-09-24.json)。
 
 本文定义固定工程修订的连续音视频预览最小完整垂直切片。它不是现有
 `preview.project_frame`、`preview.composited_frame` 或

@@ -231,7 +231,18 @@ impl ReferenceStore for EditorApplication {
                 // Resolve only authoritative legacy source locations, never arbitrary
                 // user metadata keys. Pinned versions/manifests use their CAS hashes.
                 let assets = if sql == "SELECT document_json FROM revisions" {
-                    value.get("assets")
+                    let assets = if value.get("schema_version").and_then(Value::as_u64) == Some(3) {
+                        value.get("base").and_then(|base| base.get("assets"))
+                    } else {
+                        value.get("assets")
+                    };
+                    if !assets.is_some_and(Value::is_array) {
+                        return Err(EditorError::new(
+                            "STORAGE_ERROR",
+                            "Revision asset roots are malformed",
+                        ));
+                    }
+                    assets
                 } else if sql == "SELECT input_json FROM jobs" {
                     if let Some(Value::String(path)) = value.get("input") {
                         native_paths.insert(path.clone());

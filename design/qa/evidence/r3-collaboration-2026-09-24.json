@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "checks": [
+    "Agent volume undo preserves later human caption; exact retry shares transaction",
+    "Causal redo restores Agent volume while retaining caption",
+    "Independent branch merge preserves main name and caption; source head stays fixed",
+    "Second merge uses recorded branch ancestry and carries only its new change",
+    "Same-property divergence reports conflict and leaves main intact",
+    "Merged branch transaction is a causal ancestor; selective undo retains later main edits",
+    "Persistent owner hold permits read/plan and owner edits, fences Agent writes, then release restores Agent edits"
+  ],
+  "binary_sha256": "b140dcb13e7eaa21098d8b52296b791e1e2eb6df17b10ac1d51cc7185d45edc0"
+}

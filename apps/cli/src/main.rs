@@ -11,6 +11,7 @@ mod mcp_http;
 mod mcp_replay;
 mod mcp_sessions;
 mod media_http;
+mod preview_http;
 mod storage_recovery;
 mod upload_cli;
 mod upload_http;
@@ -37,6 +38,9 @@ struct Cli {
     /// Use a restricted principal credential; default local invocation is OS-owner authority.
     #[arg(long, global = true)]
     credential_file: Option<PathBuf>,
+    /// Send call/domain requests to a long-lived HTTP host; --credential-file supplies its bearer token.
+    #[arg(long, global = true)]
+    endpoint: Option<String>,
     /// Emit a single JSON envelope. Progress and diagnostics never use stdout.
     #[arg(long, global = true)]
     json: bool,
@@ -313,6 +317,10 @@ async fn main() {
             error.exit();
         }
     };
+    if let Some(endpoint) = &cli.endpoint {
+        emit_response(remote_call(&cli, endpoint), cli.json);
+        return;
+    }
     if let Command::Storage { command } = &cli.command {
         // Ordinary authentication and denial journaling both open SQLite. A
         // recovery entry must remain reachable when SQLite cannot allocate.
@@ -762,6 +770,76 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
         .with_source(opencut_automation::CallSource::Cli)
         .with_caller(caller);
     Ok(automation.call(name, arguments))
+}
+
+fn remote_call(cli: &Cli, endpoint: &str) -> Response {
+    let prepared = (|| {
+        let (name, input) = match &cli.command {
+            Command::Call { name, input } => (name.clone(), read_json(input)?),
+            Command::Domain {
+                domain,
+                action,
+                input,
+            } => (
+                format!("opencut_{domain}"),
+                json!({"action":action,"input":read_json(input)?}),
+            ),
+            _ => {
+                return Err(EditorError::new(
+                    "INVALID_ARGUMENT",
+                    "--endpoint supports call and domain commands",
+                ));
+            }
+        };
+        let path = cli.credential_file.as_ref().ok_or_else(|| {
+            EditorError::new(
+                "INVALID_ARGUMENT",
+                "--endpoint requires --credential-file for the host bearer token",
+            )
+        })?;
+        if std::fs::metadata(path)
+            .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Could not read credential file"))?
+            .len()
+            > 16_384
+        {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "Credential file is too large",
+            ));
+        }
+        let token = std::fs::read_to_string(path)
+            .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Could not read credential file"))?;
+        if token.trim().is_empty() {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "Credential file is empty",
+            ));
+        }
+        let client = opencut_sdk::Client::new(endpoint, token.trim())
+            .map_err(|e| EditorError::new("INVALID_ARGUMENT", e.to_string()))?;
+        Ok((client, name, input))
+    })();
+    let (client, name, input) = match prepared {
+        Ok(value) => value,
+        Err(error) => return opencut_automation::response(Err(error)),
+    };
+    match client.call_registered(&name, &input) {
+        Ok(result) => {
+            let mut response = Response::from_result_with_id(result.request_id, Ok(result.data));
+            response.warnings = result.warnings;
+            response
+        }
+        Err(opencut_sdk::Error::Api(failure)) => {
+            let mut response =
+                Response::from_result_with_id(failure.request_id, Err(failure.error));
+            response.warnings = failure.warnings;
+            response
+        }
+        Err(error) => opencut_automation::response(Err(EditorError::new(
+            "TRANSPORT_ERROR",
+            error.to_string(),
+        ))),
+    }
 }
 
 fn read_json(path: &PathBuf) -> Result<Value, EditorError> {

@@ -1,7 +1,17 @@
 //! Portable media wire types. Default location values are UTF-8 strings.
 //! Native backends instantiate the location parameter with their own path type.
 
+pub mod analysis;
 pub mod composition;
+pub mod composition_v3;
+pub use analysis::*;
+pub mod speaker_turns;
+pub mod transcription;
+pub use speaker_turns::*;
+pub use transcription::{
+    TranscribeRequest, TranscriptionResult, TranscriptionSegment, TranscriptionWord,
+    WordTimingStatus, validate_public_transcription_result,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

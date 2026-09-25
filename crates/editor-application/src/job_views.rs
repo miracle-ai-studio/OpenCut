@@ -336,6 +336,46 @@ fn result(
     };
     Ok((result, vec![artifact(job_id, file)?]))
 }
+fn analysis_result<R: DeserializeOwned + serde::Serialize>(
+    input: &opencut_job_execution::PreparedAnalysisInput,
+    kind: &str,
+    value: Value,
+    validate: impl FnOnce(&R) -> bool,
+) -> Result<ExtendedJobResult, EditorError> {
+    let result: jobs::AnalysisJobResult<R> = decode(value)?;
+    let locked = input.asset_lock.assets.first().ok_or_else(bad_result)?;
+    let options_match = matches!(
+        (kind, &input.options),
+        (
+            "analysis.silence",
+            opencut_job_execution::AnalysisOptions::Silence { .. }
+        ) | (
+            "analysis.shots",
+            opencut_job_execution::AnalysisOptions::Shots { .. }
+        ) | (
+            "analysis.waveform",
+            opencut_job_execution::AnalysisOptions::Waveform { .. }
+        )
+    );
+    if !options_match
+        || input.asset_lock.assets.len() != 1
+        || input.asset_lock.revision != input.snapshot.revision
+        || input.asset_lock.sequence_id != input.sequence_id
+        || locked.asset_id != input.asset_id
+        || result.project_id != input.snapshot.project.id
+        || result.revision != input.snapshot.revision
+        || result.asset_id != input.asset_id
+        || &result.asset_version != locked
+        || !validate(&result.analysis)
+    {
+        return Err(bad_result());
+    }
+    Ok(ExtendedJobResult {
+        kind: kind.into(),
+        schema_version: 1,
+        data: serde_json::to_value(result).map_err(|_| bad_result())?,
+    })
+}
 pub fn project(record: JobRecord) -> JobView {
     // Public intent identity is useful even before a result exists; only these three
     // fields are selected from the legacy prepared input, never its snapshot or URIs.
@@ -345,12 +385,24 @@ pub fn project(record: JobRecord) -> JobView {
             | "preview.project_frame"
             | "preview.composited_frame"
             | "preview.project_range"
+            | "render.project.v3"
+            | "preview.project_frame.v3"
+            | "preview.project_range.v3"
+            | "analysis.speaker_turns"
+            | "analysis.transcribe"
+            | "analysis.silence"
+            | "analysis.shots"
+            | "analysis.waveform"
     ) {
         (|| {
             Some(ProjectTaskTarget {
                 project_id: record
                     .input
-                    .pointer("/snapshot/project/id")?
+                    .pointer(if record.kind.ends_with(".v3") {
+                        "/snapshot/project/base/id"
+                    } else {
+                        "/snapshot/project/id"
+                    })?
                     .as_str()?
                     .into(),
                 revision: record.input.pointer("/snapshot/revision")?.as_str()?.into(),
@@ -367,11 +419,59 @@ pub fn project(record: JobRecord) -> JobView {
     } else {
         None
     };
-    let resource_target = import.as_ref().map(|v| JobResourceTarget {
-        project_id: v.project_id.clone(),
-        resource_kind: "upload".into(),
-        resource_id: v.upload_id.clone(),
-    });
+    let analysis = if record.kind == "analysis.transcribe" {
+        serde_json::from_value::<opencut_job_execution::PreparedTranscribeInput>(
+            record.input.clone(),
+        )
+        .ok()
+    } else {
+        None
+    };
+    let speaker = if record.kind == "analysis.speaker_turns" {
+        serde_json::from_value::<opencut_job_execution::PreparedSpeakerTurnsInput>(
+            record.input.clone(),
+        )
+        .ok()
+    } else {
+        None
+    };
+    let measured = if matches!(
+        record.kind.as_str(),
+        "analysis.silence" | "analysis.shots" | "analysis.waveform"
+    ) {
+        serde_json::from_value::<opencut_job_execution::PreparedAnalysisInput>(record.input.clone())
+            .ok()
+    } else {
+        None
+    };
+    let resource_target = import
+        .as_ref()
+        .map(|v| JobResourceTarget {
+            project_id: v.project_id.clone(),
+            resource_kind: "upload".into(),
+            resource_id: v.upload_id.clone(),
+        })
+        .or_else(|| {
+            analysis.as_ref().map(|v| JobResourceTarget {
+                project_id: v.snapshot.project.id.clone(),
+                resource_kind: "asset".into(),
+                resource_id: v.asset_id.clone(),
+            })
+        })
+        .or_else(|| {
+            speaker.as_ref().map(|v| JobResourceTarget {
+                project_id: v.snapshot.project.id.clone(),
+                resource_kind: "asset".into(),
+                resource_id: v.asset_id.clone(),
+            })
+        })
+        .or_else(|| {
+            measured.as_ref().map(|v| JobResourceTarget {
+                project_id: v.snapshot.project.id.clone(),
+                resource_kind: "asset".into(),
+                resource_id: v.asset_id.clone(),
+            })
+        });
     let mut view = JobView {
         job_id: record.job_id.clone(),
         kind: record.kind,
@@ -386,7 +486,227 @@ pub fn project(record: JobRecord) -> JobView {
         failure: None,
         artifacts: vec![],
     };
-    if record.state == JobState::Succeeded && view.kind == "media.import" {
+    if record.state == JobState::Succeeded && view.kind.ends_with(".v3") {
+        let projected = (|| {
+            use opencut_job_execution::project_v3::{
+                PreparedV3Frame, PreparedV3Range, PreparedV3Render,
+            };
+            let (legacy_kind, snapshot, sequence_id, lock) = match view.kind.as_str() {
+                "render.project.v3" => {
+                    let input: PreparedV3Render = decode(record.input.clone())?;
+                    (
+                        "render.project",
+                        input.snapshot,
+                        input.sequence_id,
+                        input.asset_lock,
+                    )
+                }
+                "preview.project_frame.v3" => {
+                    let input: PreparedV3Frame = decode(record.input.clone())?;
+                    (
+                        "preview.composited_frame",
+                        input.snapshot,
+                        input.sequence_id,
+                        input.asset_lock,
+                    )
+                }
+                "preview.project_range.v3" => {
+                    let input: PreparedV3Range = decode(record.input.clone())?;
+                    (
+                        "preview.project_range",
+                        input.snapshot,
+                        input.sequence_id,
+                        input.asset_lock,
+                    )
+                }
+                _ => return Err(bad_result()),
+            };
+            opencut_editor_core::project_v3::validate_project_v3(&snapshot.project)
+                .map_err(|_| bad_result())?;
+            let base = opencut_contracts::ProjectSnapshot {
+                project: snapshot.project.base.clone(),
+                revision: snapshot.revision.clone(),
+            };
+            let scope = if view.kind == "preview.project_frame.v3" {
+                opencut_editor_core::dependencies::AssetScope::Visual
+            } else {
+                opencut_editor_core::dependencies::AssetScope::All
+            };
+            let required =
+                opencut_editor_core::dependencies::required_asset_ids(&base, &sequence_id, scope)
+                    .map_err(|_| bad_result())?;
+            let required: std::collections::BTreeSet<_> =
+                required.iter().map(String::as_str).collect();
+            let observed: std::collections::BTreeSet<_> = lock
+                .assets
+                .iter()
+                .map(|item| item.asset_id.as_str())
+                .collect();
+            if lock.version != 1
+                || lock.revision != snapshot.revision
+                || lock.sequence_id != sequence_id
+                || lock.assets.len() != observed.len()
+                || required != observed
+                || lock.assets.iter().any(|item| {
+                    match snapshot
+                        .project
+                        .base
+                        .assets
+                        .iter()
+                        .find(|asset| asset.id == item.asset_id)
+                    {
+                        Some(asset) => asset.version.as_ref().is_some_and(|version| {
+                            version.content_hash != item.content_hash || version.size != item.size
+                        }),
+                        None => true,
+                    }
+                })
+            {
+                return Err(bad_result());
+            }
+            let (legacy, artifacts) = result(
+                &view.job_id,
+                legacy_kind,
+                record.result.unwrap_or(Value::Null),
+            )?;
+            let data = match legacy {
+                JobResultView::ProjectRender(data)
+                    if data.revision == snapshot.revision
+                        && data.asset_lock.as_ref() == Some(&lock) =>
+                {
+                    serde_json::to_value(data)
+                }
+                JobResultView::CompositedFrame(data)
+                    if data.revision == snapshot.revision
+                        && data.sequence_id == sequence_id
+                        && data.asset_lock.as_ref() == Some(&lock)
+                        && record.input.get("requested_time")
+                            == serde_json::to_value(&data.requested_time).ok().as_ref()
+                        && record.input.get("alignment")
+                            == serde_json::to_value(data.alignment).ok().as_ref() =>
+                {
+                    serde_json::to_value(data)
+                }
+                JobResultView::ProjectRange(data)
+                    if data.revision == snapshot.revision
+                        && data.sequence_id == sequence_id
+                        && data.asset_lock.as_ref() == Some(&lock)
+                        && record.input.get("requested_range")
+                            == serde_json::to_value(&data.requested_range).ok().as_ref()
+                        && record.input.get("alignment")
+                            == serde_json::to_value(data.alignment).ok().as_ref() =>
+                {
+                    serde_json::to_value(data)
+                }
+                _ => return Err(bad_result()),
+            }
+            .map_err(|_| bad_result())?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data,
+                },
+                artifacts,
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded
+        && matches!(
+            view.kind.as_str(),
+            "analysis.silence" | "analysis.shots" | "analysis.waveform"
+        )
+    {
+        let projected = (|| {
+            let input = measured.ok_or_else(bad_result)?;
+            let value = record.result.unwrap_or(Value::Null);
+            match view.kind.as_str() {
+                "analysis.silence" => analysis_result(
+                    &input,
+                    &view.kind,
+                    value,
+                    media::validate_public_silence_result,
+                ),
+                "analysis.shots" => analysis_result(
+                    &input,
+                    &view.kind,
+                    value,
+                    media::validate_public_shots_result,
+                ),
+                _ => analysis_result(
+                    &input,
+                    &view.kind,
+                    value,
+                    media::validate_public_waveform_result,
+                ),
+            }
+        })();
+        match projected {
+            Ok(result) => view.extended_result = Some(result),
+            Err(e) => view.result_unavailable = Some(public_failure(&view.job_id, &e.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "analysis.speaker_turns" {
+        let projected = (|| {
+            let input = speaker.ok_or_else(bad_result)?;
+            let result: jobs::SpeakerTurnsJobResult = decode(record.result.unwrap_or(Value::Null))?;
+            let locked = input.asset_lock.assets.first().ok_or_else(bad_result)?;
+            if input.language != "en"
+                || input.asset_lock.assets.len() != 1
+                || input.asset_lock.revision != input.snapshot.revision
+                || input.asset_lock.sequence_id != input.sequence_id
+                || locked.asset_id != input.asset_id
+                || result.project_id != input.snapshot.project.id
+                || result.revision != input.snapshot.revision
+                || result.asset_id != input.asset_id
+                || &result.asset_version != locked
+                || !media::validate_public_speaker_turns_result(&result.analysis)
+            {
+                return Err(bad_result());
+            }
+            Ok::<_, EditorError>(ExtendedJobResult {
+                kind: "analysis.speaker_turns".into(),
+                schema_version: 1,
+                data: serde_json::to_value(result).map_err(|_| bad_result())?,
+            })
+        })();
+        match projected {
+            Ok(result) => view.extended_result = Some(result),
+            Err(e) => view.result_unavailable = Some(public_failure(&view.job_id, &e.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "analysis.transcribe" {
+        let projected = (|| {
+            let input = analysis.ok_or_else(bad_result)?;
+            let result: jobs::TranscribeJobResult = decode(record.result.unwrap_or(Value::Null))?;
+            let locked = input.asset_lock.assets.first().ok_or_else(bad_result)?;
+            if input.asset_lock.assets.len() != 1
+                || input.asset_lock.revision != input.snapshot.revision
+                || input.asset_lock.sequence_id != input.sequence_id
+                || locked.asset_id != input.asset_id
+                || result.project_id != input.snapshot.project.id
+                || result.revision != input.snapshot.revision
+                || result.asset_id != input.asset_id
+                || &result.asset_version != locked
+                || !media::validate_public_transcription_result(&result.transcription)
+            {
+                return Err(bad_result());
+            }
+            Ok::<_, EditorError>(ExtendedJobResult {
+                kind: "analysis.transcribe".into(),
+                schema_version: 1,
+                data: serde_json::to_value(result).map_err(|_| bad_result())?,
+            })
+        })();
+        match projected {
+            Ok(result) => view.extended_result = Some(result),
+            Err(e) => view.result_unavailable = Some(public_failure(&view.job_id, &e.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "media.import" {
         let projected = (|| {
             let input = import.ok_or_else(bad_result)?;
             let result: jobs::MediaImportJobResult = decode(record.result.unwrap_or(Value::Null))?;
@@ -427,6 +747,7 @@ pub fn project(record: JobRecord) -> JobView {
     }
     view
 }
+
 pub fn change(e: crate::JobEvent) -> JobChange {
     let kind = match e.event_type.as_str() {
         "queued" => JobChangeKind::Queued,
@@ -553,5 +874,56 @@ mod tests {
         let public = public_error(EditorError::new("DATABASE_BUSY", "/private/secret"));
         assert_eq!(public.code, "DATABASE_BUSY");
         assert!(!public.message.contains("/private/secret"));
+    }
+
+    #[test]
+    fn transcription_result_is_bound_to_the_prepared_asset_and_filters_private_fields() {
+        let mut stored = record();
+        stored.kind = "analysis.transcribe".into();
+        let hash = "b".repeat(64);
+        stored.input = json!({
+            "snapshot": {"revision":"rev-1","project":{
+                "id":"project-1","name":"Fixture","schema_version":2,
+                "default_sequence_id":"sequence-1","assets":[{
+                    "id":"asset-1","name":"Voice","kind":"audio","uri":"/private/secret.wav",
+                    "duration":null,"metadata":{}
+                }],"sequences":[{"id":"sequence-1","name":"Main","width":1920,
+                    "height":1080,"fps":{"numerator":24,"denominator":1},
+                    "tracks":[],"caption_cues":[]}]}
+            },
+            "sequence_id":"sequence-1","asset_id":"asset-1","language":"en",
+            "asset_lock":{"version":1,"revision":"rev-1","sequence_id":"sequence-1",
+                "assets":[{"asset_id":"asset-1","content_hash":hash,"size":16}]}
+        });
+        stored.result = Some(json!({
+            "project_id":"project-1","revision":"rev-1","asset_id":"asset-1",
+            "asset_version":{"asset_id":"asset-1","content_hash":hash,"size":16},
+            "transcription":{"language":"en","provider":"whisper.cpp","model":"ggml-tiny.bin",
+                "segments":[{"start":{"ticks":"0","timebase":1000},
+                    "end":{"ticks":"250","timebase":1000},"text":"Hello","words":[]}]},
+            "private_path":"/private/secret.wav"
+        }));
+        serde_json::from_value::<opencut_job_execution::PreparedTranscribeInput>(
+            stored.input.clone(),
+        )
+        .unwrap();
+        let view = project(stored.clone());
+        assert_eq!(
+            view.extended_result.as_ref().unwrap().kind,
+            "analysis.transcribe"
+        );
+        assert_eq!(view.target.as_ref().unwrap().project_id, "project-1");
+        assert!(
+            !serde_json::to_string(&view)
+                .unwrap()
+                .contains("/private/secret")
+        );
+        stored.result.as_mut().unwrap()["asset_version"]["content_hash"] = json!("c".repeat(64));
+        let invalid = project(stored);
+        assert!(invalid.extended_result.is_none());
+        assert_eq!(
+            invalid.result_unavailable.unwrap().code,
+            "INVALID_STORED_RESULT"
+        );
     }
 }

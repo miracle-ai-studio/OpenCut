@@ -1,0 +1,307 @@
+{
+  "binary_sha256": "b221587127c67a14e53af5b04661a476c4dc307c00565386becc6d74d02c4415",
+  "audio_sha256": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+  "model_sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+  "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+  "job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+  "result": {
+    "confidence_known": false,
+    "language": "en",
+    "method": "tinydiarize_speaker_turn_next",
+    "model": "ggml-small.en-tdrz.bin",
+    "model_sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+    "provider": "whisper.cpp",
+    "speaker_identity_status": "unavailable",
+    "turns": []
+  },
+  "checks": [
+    "public schema rejects host model path",
+    "durable fixed-asset job survives source deletion",
+    "actual local model inference and public JobView provenance",
+    "replay preserves durable receipt",
+    "unified evidence query exposes only source turn times and pinned model provenance",
+    "turn boundaries only; no speaker identity or confidence fabricated"
+  ],
+  "positive_turn_detection_proven": false,
+  "trace": [
+    {
+      "tool": "opencut_project_create",
+      "response": {
+        "api_version": "1",
+        "request_id": "fbcf6774-e95b-444c-a2c7-5343e79f86ab",
+        "data": {
+          "project": {
+            "assets": [],
+            "default_sequence_id": "main",
+            "id": "speaker-fixture",
+            "name": "Speaker turns fixture",
+            "schema_version": 2,
+            "sequences": [
+              {
+                "caption_cues": [],
+                "fps": {
+                  "denominator": 1,
+                  "numerator": 25
+                },
+                "height": 360,
+                "id": "main",
+                "name": "Main",
+                "tracks": [],
+                "width": 640
+              }
+            ]
+          },
+          "revision": "rev_0d50cf52920a7d14140cc7e3cf17b2a931a7d64afa45f3512be118d0b2d606b6"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_edit_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "43493b74-3e14-48a6-abd5-5a26432cd15e",
+        "data": {
+          "base_revision": "rev_0d50cf52920a7d14140cc7e3cf17b2a931a7d64afa45f3512be118d0b2d606b6",
+          "changed_ids": [],
+          "created_ids": [
+            "voices"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+          "transaction_id": "txn_d5ee1a2ceefe42ecbaf23aae143b7b94"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_analysis_speaker_turns",
+      "response": {
+        "api_version": "1",
+        "request_id": "f75e9dae-cce3-45c2-a75e-40e194e19844",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": null,
+          "failure": null,
+          "job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+          "kind": "analysis.speaker_turns",
+          "progress": null,
+          "resource_target": {
+            "project_id": "speaker-fixture",
+            "resource_id": "voices",
+            "resource_kind": "asset"
+          },
+          "result": null,
+          "result_unavailable": null,
+          "state": "queued",
+          "target": {
+            "project_id": "speaker-fixture",
+            "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_analysis_speaker_turns",
+      "response": {
+        "api_version": "1",
+        "request_id": "2ef14b6c-622d-4e99-9c72-bc94bffda2d0",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": null,
+          "failure": null,
+          "job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+          "kind": "analysis.speaker_turns",
+          "progress": null,
+          "resource_target": {
+            "project_id": "speaker-fixture",
+            "resource_id": "voices",
+            "resource_kind": "asset"
+          },
+          "result": null,
+          "result_unavailable": null,
+          "state": "queued",
+          "target": {
+            "project_id": "speaker-fixture",
+            "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_analysis_speaker_turns",
+      "response": {
+        "api_version": "1",
+        "request_id": "178c7574-01b6-486d-b3b7-f4a46df2e6f5",
+        "data": null,
+        "error": {
+          "code": "INVALID_ARGUMENT",
+          "message": "unknown field `model_path`, expected one of `idempotency_key`, `project_id`, `revision`, `asset_id`, `language`",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_job_view",
+      "response": {
+        "api_version": "1",
+        "request_id": "b485503e-d563-47a4-9ee5-3edd4e7bbbce",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": {
+            "data": {
+              "analysis": {
+                "confidence_known": false,
+                "language": "en",
+                "method": "tinydiarize_speaker_turn_next",
+                "model": "ggml-small.en-tdrz.bin",
+                "model_sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+                "provider": "whisper.cpp",
+                "speaker_identity_status": "unavailable",
+                "turns": []
+              },
+              "asset_id": "voices",
+              "asset_version": {
+                "asset_id": "voices",
+                "content_hash": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+                "size": 352078
+              },
+              "project_id": "speaker-fixture",
+              "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a"
+            },
+            "kind": "analysis.speaker_turns",
+            "schema_version": 1
+          },
+          "failure": null,
+          "job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+          "kind": "analysis.speaker_turns",
+          "progress": {
+            "fraction": null,
+            "media_time": null,
+            "stage": "probing"
+          },
+          "resource_target": {
+            "project_id": "speaker-fixture",
+            "resource_id": "voices",
+            "resource_kind": "asset"
+          },
+          "result": null,
+          "result_unavailable": null,
+          "state": "succeeded",
+          "target": {
+            "project_id": "speaker-fixture",
+            "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_analysis_speaker_turns",
+      "response": {
+        "api_version": "1",
+        "request_id": "f9fb47a2-db33-4195-bff2-5384f1890cb9",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": {
+            "data": {
+              "analysis": {
+                "confidence_known": false,
+                "language": "en",
+                "method": "tinydiarize_speaker_turn_next",
+                "model": "ggml-small.en-tdrz.bin",
+                "model_sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+                "provider": "whisper.cpp",
+                "speaker_identity_status": "unavailable",
+                "turns": []
+              },
+              "asset_id": "voices",
+              "asset_version": {
+                "asset_id": "voices",
+                "content_hash": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+                "size": 352078
+              },
+              "project_id": "speaker-fixture",
+              "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a"
+            },
+            "kind": "analysis.speaker_turns",
+            "schema_version": 1
+          },
+          "failure": null,
+          "job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+          "kind": "analysis.speaker_turns",
+          "progress": {
+            "fraction": null,
+            "media_time": null,
+            "stage": "probing"
+          },
+          "resource_target": {
+            "project_id": "speaker-fixture",
+            "resource_id": "voices",
+            "resource_kind": "asset"
+          },
+          "result": null,
+          "result_unavailable": null,
+          "state": "succeeded",
+          "target": {
+            "project_id": "speaker-fixture",
+            "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "tool": "opencut_analysis_evidence_query",
+      "response": {
+        "api_version": "1",
+        "request_id": "fba0b7c1-86f6-4dc5-b7c6-362a578ededb",
+        "data": {
+          "analysis_job_id": "job_33b63078132c49d8b81e8f0091970f4d",
+          "analysis_kind": "analysis.speaker_turns",
+          "asset_id": "voices",
+          "asset_version": {
+            "asset_id": "voices",
+            "content_hash": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+            "size": 352078
+          },
+          "evidence": [],
+          "next_cursor": null,
+          "project_id": "speaker-fixture",
+          "provenance": {
+            "confidence_known": false,
+            "method": "tinydiarize_speaker_turn_next",
+            "model": "ggml-small.en-tdrz.bin",
+            "model_sha256": "ceac3ec06d1d98ef71aec665283564631055fd6129b79d8e1be4f9cc33cc54b4",
+            "parameters": {
+              "kind": "speaker_turns",
+              "language": "en"
+            },
+            "provider": "whisper.cpp",
+            "speaker_identity_status": "unavailable"
+          },
+          "revision": "rev_c6c6ae4bdfc1ff9a59e565a995483c37dde803a12115eb30def1239475c3489a"
+        },
+        "error": null,
+        "warnings": []
+      }
+    }
+  ]
+}

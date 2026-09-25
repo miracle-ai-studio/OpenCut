@@ -17,14 +17,29 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "STORAGE_BUDGET_BUSY"
         | "DATABASE_BUSY" => (429, 7),
         "UPLOAD_TIMEOUT" => (408, 124),
-        "INVALID_PLUGIN" => (422, 2),
+        "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" => (403, 3),
         "NOT_FOUND" => (404, 4),
-        "CURSOR_EXPIRED" => (410, 4),
+        "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" => (410, 4),
         "STORAGE_POLICY_CONFLICT"
         | "GC_PLAN_CONFLICT"
         | "ARTIFACT_ALREADY_RELEASED"
         | "REVISION_CONFLICT"
+        | "PREVIEW_GENERATION_CONFLICT"
+        | "PREVIEW_TELEMETRY_ORDER"
+        | "PREVIEW_STREAM_CLAIMED"
+        | "PREVIEW_NOT_PLAYING"
+        | "PREVIEW_STOPPED"
+        | "PREVIEW_OWNER_ACTIVE"
+        | "EDIT_HELD_BY_OWNER"
+        | "CAUSAL_CONFLICT"
+        | "BRANCH_MERGE_CONFLICT"
+        | "SELECTIVE_CONFLICT"
+        | "UNDO_UNAVAILABLE"
+        | "REDO_UNAVAILABLE"
+        | "NO_EFFECT"
+        | "COLLABORATION_CONFLICT"
+        | "ANALYSIS_NOT_READY"
         | "IDEMPOTENCY_KEY_REUSED"
         | "ALREADY_EXISTS"
         | "PLUGIN_VERSION_CONFLICT"
@@ -45,6 +60,13 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "CONSTRAINT_VIOLATION"
         | "CAPABILITY_UNAVAILABLE"
         | "UNSUPPORTED_OPERATION"
+        | "UNSUPPORTED_PROJECT_VERSION"
+        | "PREVIEW_LIMIT"
+        | "PREVIEW_VIEWPORT_LIMIT"
+        | "UNSUPPORTED_ANALYSIS_QUERY"
+        | "SUBTITLE_INVALID"
+        | "PACKAGE_INVALID"
+        | "PACKAGE_DEPENDENCY_UNSUPPORTED"
         | "UNSUPPORTED_JOB_KIND"
         | "MISSING_ASSET"
         | "ASSET_LOCK_REQUIRED"

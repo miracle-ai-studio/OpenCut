@@ -166,18 +166,58 @@ impl GuardedFile {
         if required == 0 {
             return Ok(());
         }
+        if self
+            .reservation
+            .as_ref()
+            .is_some_and(|r| required <= r.reserved_bytes())
+        {
+            return Ok(());
+        }
         let identity = self.identity.as_ref().ok_or_else(admission_storage_error)?;
+        // Admit bounded growth ahead of SQLite's page writes. Persisting and
+        // fsyncing the reservation ledger for every 4 KiB page makes a large
+        // edit spend most of its time in admission rather than SQLite. These
+        // bytes remain fully reserved; every actual write still holds the
+        // repair gate. Near a quota boundary, retry the exact requirement so
+        // the optimization cannot turn an otherwise admissible write away.
+        const GROWTH_QUANTUM: u64 = 256 * 1024;
+        let preferred = if identity.repair {
+            required
+        } else {
+            required
+                .checked_add(GROWTH_QUANTUM - 1)
+                .map(|n| n / GROWTH_QUANTUM * GROWTH_QUANTUM)
+                .filter(|n| *n <= i64::MAX as u64)
+                .unwrap_or(required)
+        };
+        let capacity = |error: &EditorError| {
+            matches!(
+                error.code.as_str(),
+                "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
+            )
+        };
         if let Some(reservation) = &mut self.reservation {
-            reservation.ensure(required)
+            match reservation.ensure(preferred) {
+                Err(error) if preferred != required && capacity(&error) => {
+                    reservation.ensure(required)
+                }
+                result => result,
+            }
         } else {
             self.reservation = Some(if identity.repair {
                 identity
                     .budget
                     .reserve_database_control_repair(&identity.database_name, required)?
             } else {
-                identity
+                match identity
                     .budget
-                    .reserve_database_control(&identity.database_name, required)?
+                    .reserve_database_control(&identity.database_name, preferred)
+                {
+                    Err(error) if preferred != required && capacity(&error) => identity
+                        .budget
+                        .reserve_database_control(&identity.database_name, required)?,
+                    result => result?,
+                }
             });
             Ok(())
         }
@@ -554,7 +594,31 @@ macro_rules! forward_int {
 }
 
 forward_int!(io_read(buffer: *mut c_void, amount: c_int, offset: i64) => xRead);
-forward_int!(io_sync(flags: c_int) => xSync);
+unsafe extern "C" fn io_sync(file: *mut ffi::sqlite3_file, flags: c_int) -> c_int {
+    let guarded = unsafe { &mut *file.cast::<GuardedFile>() };
+    let result = unsafe { (*guarded.inner_methods).xSync }
+        .map(|callback| unsafe { callback(guarded.inner, flags) })
+        .unwrap_or(ffi::SQLITE_IOERR);
+    if result == ffi::SQLITE_OK {
+        let size = guarded.file_size();
+        let shm = guarded
+            .identity
+            .as_ref()
+            .map(|identity| shm_bytes(&identity.database_path))
+            .unwrap_or(Ok(0));
+        if let (Ok(size), Ok(shm)) = (size, shm) {
+            // Synced bytes are now covered by physical usage observation.
+            // Release unused headroom at this durability boundary so a later
+            // transaction cannot consume slack admitted before a policy change.
+            guarded.file_floor = size;
+            guarded.shm_floor = shm;
+            guarded.file_required = 0;
+            guarded.shm_required = 0;
+            guarded.reservation.take();
+        }
+    }
+    result
+}
 forward_int!(io_file_size(size: *mut i64) => xFileSize);
 forward_int!(io_lock(level: c_int) => xLock);
 forward_int!(io_unlock(level: c_int) => xUnlock);

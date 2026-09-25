@@ -1,4 +1,5 @@
 //! Shared typed automation entry points. Transports must not implement editing rules.
+pub use opencut_api_contracts::preview;
 pub use opencut_api_contracts::{context, event_stream};
 pub use opencut_editor_application::access::Caller;
 pub use opencut_editor_application::audit::{CallSource, ExecutionContext};
@@ -118,6 +119,96 @@ impl Automation {
     pub fn authenticate(&self, secret: &str) -> Result<Caller, EditorError> {
         self.app.authenticate(secret)
     }
+    fn analyze_classic(
+        &self,
+        input: &opencut_api_contracts::classic_import::ClassicAnalyze,
+    ) -> Result<opencut_api_contracts::classic_import::ClassicAnalysis, EditorError> {
+        if input.media_mappings.len() > 256 {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "Classic import supports at most 256 media mappings",
+            ));
+        }
+        let mut assets = std::collections::BTreeMap::new();
+        for mapping in &input.media_mappings {
+            let source = self
+                .app
+                .snapshot_at(&mapping.source_project_id, &mapping.source_revision)?;
+            let asset = source
+                .project
+                .assets
+                .iter()
+                .find(|a| a.id == mapping.asset_id)
+                .ok_or_else(|| {
+                    EditorError::new("NOT_FOUND", "Mapped Classic media asset was not found")
+                })?;
+            if asset.version.is_none() {
+                return Err(EditorError::new(
+                    "ASSET_LOCK_REQUIRED",
+                    "Classic mappings require immutable imported media versions",
+                ));
+            }
+            if assets
+                .insert(mapping.classic_media_id.clone(), asset.clone())
+                .is_some()
+            {
+                return Err(EditorError::new(
+                    "INVALID_ARGUMENT",
+                    "Duplicate Classic media mapping",
+                ));
+            }
+        }
+        opencut_native_services::media::verify_asset_versions(
+            self.app.asset_store_root(),
+            &assets.values().cloned().collect::<Vec<_>>(),
+        )?;
+        Ok(opencut_editor_application::classic_import::analyze(
+            input, &assets,
+        ))
+    }
+
+    pub fn authorize_preview(&mut self, session: &str, run: bool) -> Result<(), EditorError> {
+        self.app.set_execution_context(ExecutionContext::for_caller(
+            self.source,
+            self.caller.clone(),
+        ));
+        self.app.access_view()?;
+        let (project, revision) =
+            opencut_native_services::preview::target(&self.database, session)?;
+        if opencut_native_services::preview::is_v3(&self.database, session)? {
+            if run {
+                self.app.execution_snapshot_v3(&project, &revision)?;
+            } else {
+                self.app.inspect_v3_project(
+                    &opencut_contracts::project_v3_ops::InspectV3Project {
+                        project_id: project,
+                        revision: Some(revision),
+                    },
+                )?;
+            }
+        } else if run {
+            opencut_editor_application::access::ProjectExecutionRead::execution_snapshot(
+                &self.app, &project, &revision,
+            )?;
+        } else {
+            self.app.snapshot_at(&project, &revision)?;
+        }
+        Ok(())
+    }
+    pub fn preview_stream(
+        &mut self,
+        input: opencut_api_contracts::preview::StreamInput,
+    ) -> Result<opencut_native_services::preview::Stream, EditorError> {
+        self.authorize_preview(&input.session_id, true)?;
+        opencut_native_services::preview::stream(
+            &self.database,
+            self.caller.principal_id(),
+            &input.session_id,
+            &input.generation,
+            &input.owner_id,
+            &input.lease_id,
+        )
+    }
 
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value, EditorError> {
         // Re-check revocation even for discovery and malformed domain calls.
@@ -134,6 +225,155 @@ impl Automation {
         // name never grants access to its owner-only leaf operations.
         opencut_editor_application::access::authorize_tool(&self.caller, name)?;
         match name {
+            "opencut_job_v3_render" | "opencut_job_v3_frame" | "opencut_job_v3_range" => {
+                use opencut_sqlite_store::sqlite_project_v3_jobs as v3_jobs;
+                let result = match name {
+                    "opencut_job_v3_render" => {
+                        v3_jobs::start_v3_render(&mut self.app, parse(arguments)?)
+                    }
+                    "opencut_job_v3_frame" => {
+                        v3_jobs::start_v3_frame(&mut self.app, parse(arguments)?)
+                    }
+                    _ => v3_jobs::start_v3_range(&mut self.app, parse(arguments)?),
+                }
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_project_v3_list" => to_value(self.app.list_v3_projects(&parse(arguments)?)?),
+            "opencut_project_v3_create" => {
+                to_value(self.app.create_v3_project(&parse(arguments)?)?)
+            }
+            "opencut_project_v3_promote" => {
+                to_value(self.app.promote_v3_project(&parse(arguments)?)?)
+            }
+            "opencut_project_v3_inspect" => {
+                to_value(self.app.inspect_v3_project(&parse(arguments)?)?)
+            }
+            "opencut_edit_v3_plan" => to_value(self.app.plan_v3_project(&parse(arguments)?)?),
+            "opencut_edit_v3_apply" => to_value(self.app.apply_v3_project(&parse(arguments)?)?),
+            "opencut_classic_analyze" => to_value(self.analyze_classic(&parse(arguments)?)?),
+            "opencut_classic_import" => {
+                let input: opencut_api_contracts::classic_import::ClassicImport = parse(arguments)?;
+                if let Some(receipt) = self.app.classic_import_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let analysis = self.analyze_classic(&input.source)?;
+                to_value(self.app.classic_import_commit(&input, &analysis)?)
+            }
+            "opencut_subtitle_import" => {
+                let input: opencut_api_contracts::subtitle_exchange::SubtitleImport =
+                    parse(arguments)?;
+                let snapshot = self
+                    .app
+                    .snapshot_at(&input.project_id, &input.expected_revision)?;
+                let request = opencut_editor_application::subtitle_exchange::import_transaction(
+                    &snapshot, &input,
+                )?;
+                let cue_count = request.operations.len();
+                let transaction = self.app.apply(&input.project_id, &request)?;
+                to_value(
+                    opencut_api_contracts::subtitle_exchange::SubtitleImportReceipt {
+                        transaction,
+                        cue_count,
+                        warnings: vec![],
+                    },
+                )
+            }
+            "opencut_subtitle_export" => {
+                let input: opencut_api_contracts::subtitle_exchange::SubtitleExport =
+                    parse(arguments)?;
+                let snapshot = self.app.snapshot_at(&input.project_id, &input.revision)?;
+                to_value(
+                    opencut_editor_application::subtitle_exchange::export_subtitles(
+                        &snapshot, &input,
+                    )?,
+                )
+            }
+            "opencut_preview_v3_create" => {
+                if matches!(self.source, CallSource::Cli | CallSource::McpStdio) {
+                    return Err(EditorError::new(
+                        "CAPABILITY_UNAVAILABLE",
+                        "Preview media requires an HTTP host; use CLI --endpoint or Streamable HTTP MCP for session control",
+                    ));
+                }
+                let input: opencut_api_contracts::preview::Create = parse(arguments)?;
+                let authorized = self
+                    .app
+                    .execution_snapshot_v3(&input.project_id, &input.revision)?;
+                to_value(opencut_native_services::preview::create_v3(
+                    &self.database,
+                    self.app.asset_store_root(),
+                    self.caller.principal_id(),
+                    &input,
+                    authorized.snapshot,
+                    authorized.sources,
+                    || {
+                        self.app
+                            .execution_snapshot_v3(&input.project_id, &input.revision)
+                            .map(|_| ())
+                    },
+                )?)
+            }
+            "opencut_preview_create" => {
+                if matches!(self.source, CallSource::Cli | CallSource::McpStdio) {
+                    return Err(EditorError::new(
+                        "CAPABILITY_UNAVAILABLE",
+                        "Preview media requires an HTTP host; use CLI --endpoint or Streamable HTTP MCP for session control",
+                    ));
+                }
+                let input: opencut_api_contracts::preview::Create = parse(arguments)?;
+                let authorized =
+                    opencut_editor_application::access::ProjectExecutionRead::execution_snapshot(
+                        &self.app,
+                        &input.project_id,
+                        &input.revision,
+                    )?;
+                to_value(opencut_native_services::preview::create(
+                    &self.database,
+                    self.app.asset_store_root(),
+                    self.caller.principal_id(),
+                    &input,
+                    authorized.snapshot,
+                    authorized.sources,
+                    || {
+                        opencut_editor_application::access::ProjectExecutionRead::execution_snapshot(&self.app, &input.project_id, &input.revision).map(|_| ())
+                    },
+                )?)
+            }
+            "opencut_preview_acquire" => {
+                let input: opencut_api_contracts::preview::Acquire = parse(arguments)?;
+                self.authorize_preview(&input.session_id, true)?;
+                to_value(opencut_native_services::preview::acquire(
+                    &self.database,
+                    self.caller.principal_id(),
+                    &input,
+                )?)
+            }
+            "opencut_preview_inspect" => {
+                let input: opencut_api_contracts::preview::SessionInput = parse(arguments)?;
+                self.authorize_preview(&input.session_id, false)?;
+                to_value(opencut_native_services::preview::inspect(
+                    &self.database,
+                    &input.session_id,
+                )?)
+            }
+            "opencut_preview_events" => {
+                let input: opencut_api_contracts::preview::EventsInput = parse(arguments)?;
+                self.authorize_preview(&input.session_id, false)?;
+                to_value(opencut_native_services::preview::events(
+                    &self.database,
+                    &input,
+                )?)
+            }
+            "opencut_preview_control" => {
+                let input: opencut_api_contracts::preview::Control = parse(arguments)?;
+                self.authorize_preview(&input.session_id, true)?;
+                to_value(opencut_native_services::preview::control(
+                    &self.database,
+                    self.caller.principal_id(),
+                    &input,
+                )?)
+            }
             "opencut_database_inspect" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(opencut_editor_application::database::inspect(
@@ -369,6 +609,140 @@ impl Automation {
                     .map_err(opencut_editor_application::job_views::public_error)?;
                 to_value(opencut_editor_application::job_views::project(record))
             }
+            "opencut_analysis_speaker_turns" => {
+                let root = self.app.asset_store_root().to_path_buf();
+                let record = opencut_sqlite_store::speaker_turns::start(
+                    &mut self.app,
+                    &root,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(record))
+            }
+            "opencut_analysis_transcribe" => {
+                let asset_store_root = self.app.asset_store_root().to_path_buf();
+                let record = opencut_sqlite_store::jobs::start_transcribe(
+                    &mut self.app,
+                    &asset_store_root,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(record))
+            }
+            "opencut_analysis_query" => to_value(self.app.analysis_query(parse(arguments)?)?),
+            "opencut_analysis_evidence_query" => {
+                to_value(self.app.analysis_evidence_query(parse(arguments)?)?)
+            }
+            "opencut_analysis_silence" | "opencut_analysis_shots" | "opencut_analysis_waveform" => {
+                let root = self.app.asset_store_root().to_path_buf();
+                let record = match name {
+                    "opencut_analysis_silence" => opencut_sqlite_store::analysis::start_silence(
+                        &mut self.app,
+                        &root,
+                        parse(arguments)?,
+                    ),
+                    "opencut_analysis_shots" => opencut_sqlite_store::analysis::start_shots(
+                        &mut self.app,
+                        &root,
+                        parse(arguments)?,
+                    ),
+                    _ => opencut_sqlite_store::analysis::start_waveform(
+                        &mut self.app,
+                        &root,
+                        parse(arguments)?,
+                    ),
+                }
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(record))
+            }
+            "opencut_edit_v3_undo_plan" => to_value(self.app.plan_v3_undo(&parse(arguments)?)?),
+            "opencut_edit_v3_undo_apply" => to_value(self.app.apply_v3_undo(&parse(arguments)?)?),
+            "opencut_edit_v3_redo_plan" => to_value(self.app.plan_v3_redo(&parse(arguments)?)?),
+            "opencut_edit_v3_redo_apply" => to_value(self.app.apply_v3_redo(&parse(arguments)?)?),
+            "opencut_edit_v3_branch_create" => {
+                to_value(self.app.create_v3_branch(&parse(arguments)?)?)
+            }
+            "opencut_edit_v3_branch_list" => {
+                to_value(self.app.list_v3_branches(&parse(arguments)?)?)
+            }
+            "opencut_edit_v3_branch_apply" => {
+                to_value(self.app.apply_v3_branch_edit(&parse(arguments)?)?)
+            }
+            "opencut_edit_v3_branch_compare" => {
+                to_value(self.app.compare_v3_branches(&parse(arguments)?)?)
+            }
+            "opencut_edit_v3_branch_merge" => {
+                to_value(self.app.merge_v3_branches(&parse(arguments)?)?)
+            }
+            "opencut_edit_undo_plan" => to_value(self.app.plan_undo(&parse(arguments)?)?),
+            "opencut_edit_undo_apply" => to_value(self.app.apply_undo(&parse(arguments)?)?),
+            "opencut_edit_redo_plan" => to_value(self.app.plan_redo(&parse(arguments)?)?),
+            "opencut_edit_redo_apply" => to_value(self.app.apply_redo(&parse(arguments)?)?),
+            "opencut_edit_branch_create" => to_value(self.app.create_branch(&parse(arguments)?)?),
+            "opencut_edit_branch_list" => to_value(self.app.list_branches(&parse(arguments)?)?),
+            "opencut_edit_branch_apply" => {
+                to_value(self.app.apply_branch_edit(&parse(arguments)?)?)
+            }
+            "opencut_edit_branch_compare" => {
+                to_value(self.app.compare_branches(&parse(arguments)?)?)
+            }
+            "opencut_edit_branch_merge" => to_value(self.app.merge_branches(&parse(arguments)?)?),
+            "opencut_edit_control_get" => to_value(self.app.get_edit_control(&parse(arguments)?)?),
+            "opencut_edit_control_set" => to_value(self.app.set_edit_control(&parse(arguments)?)?),
+            "opencut_project_v3_package_export" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package_v3::ExportPackageV3 =
+                    parse(arguments)?;
+                let source = self
+                    .app
+                    .package_v3_export_source(&input.project_id, &input.revision)?;
+                to_value(
+                    opencut_native_services::project_package_v3::export_package_v3(
+                        &input,
+                        &source,
+                        self.app.asset_store_root(),
+                    )?,
+                )
+            }
+            "opencut_project_v3_package_import" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package_v3::ImportPackageV3 =
+                    parse(arguments)?;
+                if let Some(receipt) = self.app.package_v3_import_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let prepared = opencut_native_services::project_package_v3::read_package_v3(
+                    &input,
+                    self.app.asset_store_root(),
+                )?;
+                to_value(self.app.package_v3_import_commit(&input, &prepared)?)
+            }
+            "opencut_project_package_export" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package::ExportPackage =
+                    parse(arguments)?;
+                let source = self
+                    .app
+                    .package_export_source(&input.project_id, &input.revision)?;
+                to_value(opencut_native_services::project_package::export_package(
+                    &input,
+                    &source,
+                    self.app.asset_store_root(),
+                )?)
+            }
+            "opencut_project_package_import" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package::ImportPackage =
+                    parse(arguments)?;
+                if let Some(receipt) = self.app.package_import_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let prepared = opencut_native_services::project_package::read_package(
+                    &input,
+                    self.app.asset_store_root(),
+                )?;
+                to_value(self.app.package_import_commit(&input, &prepared)?)
+            }
             "opencut_job_request_cancel" => {
                 let input: jobs::JobInput = parse(arguments)?;
                 let record = self
@@ -449,6 +823,55 @@ impl Automation {
                     .map_err(scoped::public_error)?,
                 )
             }
+            "opencut_plugin_v2_preset_v3_plan" => {
+                let workspace = self
+                    .app
+                    .asset_store_root()
+                    .parent()
+                    .expect("managed workspace");
+                let catalog = opencut_native_services::plugin_v2::PresetPackages::new(workspace);
+                to_value(opencut_editor_application::plugin_v3::plan(
+                    &self.app,
+                    &catalog,
+                    parse(arguments)?,
+                )?)
+            }
+            "opencut_plugin_v2_install"
+            | "opencut_plugin_v2_list"
+            | "opencut_plugin_v2_grant"
+            | "opencut_plugin_v2_grants"
+            | "opencut_plugin_v2_inspect"
+            | "opencut_plugin_v2_preset_plan" => {
+                use opencut_editor_application::plugin_v2::{self as presets, PresetGrantStore};
+                let workspace = self
+                    .app
+                    .asset_store_root()
+                    .parent()
+                    .expect("managed workspace");
+                let catalog = opencut_native_services::plugin_v2::PresetPackages::new(workspace);
+                match name {
+                    "opencut_plugin_v2_install" => {
+                        to_value(presets::install(&catalog, &parse(arguments)?)?)
+                    }
+                    "opencut_plugin_v2_list" => {
+                        let _: EmptyInput = parse(arguments)?;
+                        to_value(presets::list(&catalog)?)
+                    }
+                    "opencut_plugin_v2_grant" => to_value(presets::set_grant(
+                        &mut self.app,
+                        &catalog,
+                        &parse(arguments)?,
+                    )?),
+                    "opencut_plugin_v2_grants" => {
+                        let input: ProjectInput = parse(arguments)?;
+                        to_value(self.app.preset_grants(&input.project_id)?)
+                    }
+                    "opencut_plugin_v2_inspect" => {
+                        to_value(presets::inspect(&self.app, &catalog, parse(arguments)?)?)
+                    }
+                    _ => to_value(presets::plan(&self.app, &catalog, parse(arguments)?)?),
+                }
+            }
             "opencut_plugin_list" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(plugins::list(&self.plugin_root)?)
@@ -471,6 +894,13 @@ impl Automation {
                 to_value(jobs::start(
                     &mut self.app,
                     &asset_store_root,
+                    parse(arguments)?,
+                )?)
+            }
+            "opencut_render_v3_preflight" => {
+                to_value(opencut_native_services::render_v3::preflight(
+                    &self.app,
+                    self.app.asset_store_root(),
                     parse(arguments)?,
                 )?)
             }

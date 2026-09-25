@@ -1,0 +1,748 @@
+{
+  "binary_sha256": "7a404e8984318356e18e3cf71e5aa7d8ad86cfaad1afc0fde9af6cc7136ab59f",
+  "source_sha256": "038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
+  "manifest_sha256": "93d4e2b3fff4f7eb6ced9ac3835b1fe6b09601b54ca55286fbed4fc78f7089a3",
+  "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06",
+  "imported_revision": "rev_befebc17b77db2d78db65a83e853136576678ce3c6f77939197029e93d8817c2",
+  "render_sha256": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
+  "pixels": {
+    "masked_left": [
+      73,
+      75,
+      72
+    ],
+    "masked_right": [
+      0,
+      0,
+      0
+    ],
+    "blue": [
+      0,
+      19,
+      251
+    ],
+    "green": [
+      0,
+      255,
+      0
+    ]
+  },
+  "checks": [
+    "schema3 manifest/document and visual graph validated",
+    "linked package requires original CAS after source workspace removal",
+    "self-contained package imports after origin workspace removal",
+    "V3 visual graph survives relocation and accepts a new edit",
+    "schema3 preflight resolves pinned assets and visual render dependencies",
+    "render artifact download hash and actual mask/effect/shape pixels verified",
+    "identical import replay succeeds after package removal"
+  ],
+  "trace": [
+    {
+      "workspace": "origin",
+      "tool": "opencut_project_v3_create",
+      "response": {
+        "api_version": "1",
+        "request_id": "794fe84f-f08d-40b5-87f9-a5c267d6bbce",
+        "data": {
+          "project": {
+            "base": {
+              "assets": [],
+              "default_sequence_id": "main",
+              "id": "source-v3",
+              "name": "Portable V3",
+              "schema_version": 2,
+              "sequences": [
+                {
+                  "caption_cues": [],
+                  "fps": {
+                    "denominator": 1,
+                    "numerator": 10
+                  },
+                  "height": 48,
+                  "id": "main",
+                  "name": "Main",
+                  "tracks": [],
+                  "width": 64
+                }
+              ]
+            },
+            "schema_version": 3,
+            "visual": []
+          },
+          "revision": "rev_69131791dc0cc7da250fac367b13c4c8ab3c2b400b9336cf5698b5ae0fade042"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "origin",
+      "tool": "opencut_edit_v3_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "fd2cfc80-07ba-40a6-9af7-c31b9eda490a",
+        "data": {
+          "base_revision": "rev_69131791dc0cc7da250fac367b13c4c8ab3c2b400b9336cf5698b5ae0fade042",
+          "changed_ids": [
+            "main"
+          ],
+          "created_ids": [
+            "blue",
+            "clip",
+            "grade",
+            "graphics",
+            "half",
+            "red",
+            "video"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06",
+          "transaction_id": "txn_0a64ca58a7034fad8b8752b07c945d80"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "origin",
+      "tool": "opencut_project_v3_package_export",
+      "response": {
+        "api_version": "1",
+        "request_id": "f5f5ba27-f966-4e7b-9fe9-4e85de73091a",
+        "data": {
+          "asset_count": 1,
+          "dependencies": {
+            "fonts_not_bundled": [],
+            "plugins_not_bundled": [],
+            "tools_not_locked": [
+              "ffmpeg",
+              "ffprobe"
+            ],
+            "unsupported": []
+          },
+          "fully_reproducible": false,
+          "manifest_sha256": "25329c234ae698c6727350656946379b04b78390be9cbd08bc4c5a6227f03ab9",
+          "package_path": "/private/tmp/opencut-v3-package-audiofix-final-20260925/package-v3-1790311389801266000/linked.opencut",
+          "self_contained_media": false,
+          "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "origin",
+      "tool": "opencut_project_v3_package_export",
+      "response": {
+        "api_version": "1",
+        "request_id": "f586c9d9-b6da-469f-9911-bdf16e5d247d",
+        "data": {
+          "asset_count": 1,
+          "dependencies": {
+            "fonts_not_bundled": [],
+            "plugins_not_bundled": [],
+            "tools_not_locked": [
+              "ffmpeg",
+              "ffprobe"
+            ],
+            "unsupported": []
+          },
+          "fully_reproducible": false,
+          "manifest_sha256": "93d4e2b3fff4f7eb6ced9ac3835b1fe6b09601b54ca55286fbed4fc78f7089a3",
+          "package_path": "/private/tmp/opencut-v3-package-audiofix-final-20260925/package-v3-1790311389801266000/portable.opencut",
+          "self_contained_media": true,
+          "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_v3_package_import",
+      "response": {
+        "api_version": "1",
+        "request_id": "91b61d16-f472-4337-9d10-af237080121d",
+        "data": {
+          "dependencies": {
+            "fonts_not_bundled": [],
+            "plugins_not_bundled": [],
+            "tools_not_locked": [
+              "ffmpeg",
+              "ffprobe"
+            ],
+            "unsupported": []
+          },
+          "fully_reproducible": false,
+          "manifest_sha256": "25329c234ae698c6727350656946379b04b78390be9cbd08bc4c5a6227f03ab9",
+          "revision": "rev_ff1800d041f71b1bde7bb4e6e728dc8d8d4239b8c1f6f94cd5f4241b63652d50",
+          "self_contained_media": false,
+          "source_project_id": "source-v3",
+          "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06",
+          "target_project_id": "linked-v3"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_v3_package_import",
+      "response": {
+        "api_version": "1",
+        "request_id": "5c74dc23-b5a7-44e9-b619-3aa7ac066546",
+        "data": null,
+        "error": {
+          "code": "PACKAGE_IO_ERROR",
+          "message": "No such file or directory (os error 2)",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_v3_package_import",
+      "response": {
+        "api_version": "1",
+        "request_id": "c5ed12d7-e17e-48ca-a81c-59996d8509b8",
+        "data": {
+          "dependencies": {
+            "fonts_not_bundled": [],
+            "plugins_not_bundled": [],
+            "tools_not_locked": [
+              "ffmpeg",
+              "ffprobe"
+            ],
+            "unsupported": []
+          },
+          "fully_reproducible": false,
+          "manifest_sha256": "93d4e2b3fff4f7eb6ced9ac3835b1fe6b09601b54ca55286fbed4fc78f7089a3",
+          "revision": "rev_befebc17b77db2d78db65a83e853136576678ce3c6f77939197029e93d8817c2",
+          "self_contained_media": true,
+          "source_project_id": "source-v3",
+          "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06",
+          "target_project_id": "restored-v3"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_v3_inspect",
+      "response": {
+        "api_version": "1",
+        "request_id": "9de8a953-e048-4f37-8bd5-0d5e01c1ed73",
+        "data": {
+          "project": {
+            "base": {
+              "assets": [
+                {
+                  "duration": {
+                    "ticks": "10",
+                    "timebase": 10
+                  },
+                  "id": "red",
+                  "kind": "video",
+                  "metadata": {},
+                  "name": "Red",
+                  "uri": "opencut-package://sha256/038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
+                  "version": {
+                    "content_hash": "038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
+                    "id": "av_038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
+                    "size": 1852
+                  }
+                }
+              ],
+              "default_sequence_id": "main",
+              "id": "restored-v3",
+              "name": "Portable V3",
+              "schema_version": 2,
+              "sequences": [
+                {
+                  "caption_cues": [],
+                  "fps": {
+                    "denominator": 1,
+                    "numerator": 10
+                  },
+                  "height": 48,
+                  "id": "main",
+                  "name": "Main",
+                  "tracks": [
+                    {
+                      "clips": [
+                        {
+                          "asset_id": "red",
+                          "channels": [],
+                          "id": "clip",
+                          "params": {},
+                          "source_range": {
+                            "duration": {
+                              "ticks": "10",
+                              "timebase": 10
+                            },
+                            "start": {
+                              "ticks": "0",
+                              "timebase": 10
+                            }
+                          },
+                          "timeline_range": {
+                            "duration": {
+                              "ticks": "10",
+                              "timebase": 10
+                            },
+                            "start": {
+                              "ticks": "0",
+                              "timebase": 10
+                            }
+                          }
+                        }
+                      ],
+                      "enabled": true,
+                      "id": "video",
+                      "kind": "video",
+                      "locked": false,
+                      "muted": false,
+                      "name": "Video",
+                      "params": {}
+                    },
+                    {
+                      "clips": [],
+                      "enabled": true,
+                      "id": "graphics",
+                      "kind": "graphic",
+                      "locked": false,
+                      "muted": false,
+                      "name": "Graphics",
+                      "params": {}
+                    }
+                  ],
+                  "width": 64
+                }
+              ]
+            },
+            "schema_version": 3,
+            "visual": [
+              {
+                "effects": [
+                  {
+                    "effect": {
+                      "contrast": 1.0,
+                      "exposure_ev": 0.0,
+                      "kind": "color_adjust",
+                      "saturation": 0.0
+                    },
+                    "id": "grade",
+                    "target_id": "clip"
+                  }
+                ],
+                "masks": [
+                  {
+                    "feather": 0.0,
+                    "id": "half",
+                    "inverted": false,
+                    "shape": {
+                      "height": 1.0,
+                      "kind": "rectangle",
+                      "width": 0.5,
+                      "x": 0.0,
+                      "y": 0.0
+                    },
+                    "target_id": "clip"
+                  }
+                ],
+                "sequence_id": "main",
+                "shapes": [
+                  {
+                    "fill": {
+                      "alpha": 255,
+                      "blue": 255,
+                      "green": 20,
+                      "red": 0
+                    },
+                    "id": "blue",
+                    "opacity": 1.0,
+                    "position_x": 0.0,
+                    "position_y": 0.0,
+                    "primitive": {
+                      "height_px": 16.0,
+                      "kind": "rectangle",
+                      "width_px": 20.0
+                    },
+                    "rotation_degrees": 0.0,
+                    "timeline_range": {
+                      "duration": {
+                        "ticks": "10",
+                        "timebase": 10
+                      },
+                      "start": {
+                        "ticks": "0",
+                        "timebase": 10
+                      }
+                    },
+                    "track_id": "graphics"
+                  }
+                ],
+                "transitions": []
+              }
+            ]
+          },
+          "revision": "rev_befebc17b77db2d78db65a83e853136576678ce3c6f77939197029e93d8817c2"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_inspect",
+      "response": {
+        "api_version": "1",
+        "request_id": "cef38833-9fb6-4c7f-b8bc-d4182a1fad9e",
+        "data": null,
+        "error": {
+          "code": "UNSUPPORTED_PROJECT_VERSION",
+          "message": "Schema 3 projects require versioned project tools",
+          "details": {}
+        },
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_edit_v3_apply",
+      "response": {
+        "api_version": "1",
+        "request_id": "e19800e5-08af-493e-a41c-f29179aafd42",
+        "data": {
+          "base_revision": "rev_befebc17b77db2d78db65a83e853136576678ce3c6f77939197029e93d8817c2",
+          "changed_ids": [],
+          "created_ids": [
+            "green"
+          ],
+          "deleted_ids": [],
+          "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388",
+          "transaction_id": "txn_c1df4ab26d3d46e79ea8925230a393c2"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_render_v3_preflight",
+      "response": {
+        "api_version": "1",
+        "request_id": "a7d34855-a50d-4aa2-bed4-b97fedf68463",
+        "data": {
+          "issues": [],
+          "ready": true,
+          "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388",
+          "sequence_id": "main"
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_job_v3_render",
+      "response": {
+        "api_version": "1",
+        "request_id": "27c6c32d-3dc0-4979-ae36-5cbd384e2ec6",
+        "data": {
+          "artifacts": [],
+          "cancel_requested": false,
+          "extended_result": null,
+          "failure": null,
+          "job_id": "job_1b5a186827ac49e1b0c84149759a97e6",
+          "kind": "render.project.v3",
+          "progress": null,
+          "resource_target": null,
+          "result": null,
+          "result_unavailable": null,
+          "state": "queued",
+          "target": {
+            "project_id": "restored-v3",
+            "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_job_view",
+      "response": {
+        "api_version": "1",
+        "request_id": "18979b76-cbc0-4ce2-8bd0-acb9f47b1512",
+        "data": {
+          "artifacts": [
+            {
+              "artifact_id": "artifact:job_1b5a186827ac49e1b0c84149759a97e6:3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
+              "availability": "unchecked",
+              "content_hash": "3f0d479cfec0bbafeb08447e0e1ce796e72f6c8288908e12ca867fa2aab238de",
+              "job_id": "job_1b5a186827ac49e1b0c84149759a97e6",
+              "mime_type": "video/mp4",
+              "role": "primary",
+              "size_bytes": "3327"
+            }
+          ],
+          "cancel_requested": false,
+          "extended_result": {
+            "data": {
+              "asset_lock": {
+                "assets": [
+                  {
+                    "asset_id": "red",
+                    "content_hash": "038091050bb04257966272746128968770f0ecd420f236624c4c658d13f8cf9b",
+                    "size": 1852
+                  }
+                ],
+                "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388",
+                "sequence_id": "main",
+                "version": 1
+              },
+              "asset_locking": "media_content_locked",
+              "media": {
+                "metadata": {
+                  "bit_rate": 26616,
+                  "duration": {
+                    "ticks": "1000000",
+                    "timebase": 1000000
+                  },
+                  "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                  "streams": [
+                    {
+                      "average_frame_rate": {
+                        "denominator": 1,
+                        "numerator": 10
+                      },
+                      "channel_layout": null,
+                      "channels": null,
+                      "codec_name": "h264",
+                      "codec_type": "video",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "1000000",
+                        "timebase": 1000000
+                      },
+                      "height": 48,
+                      "index": 0,
+                      "pixel_format": "yuv420p",
+                      "sample_rate": null,
+                      "time_base": {
+                        "denominator": 10240,
+                        "numerator": 1
+                      },
+                      "width": 64
+                    },
+                    {
+                      "average_frame_rate": {
+                        "denominator": 0,
+                        "numerator": 0
+                      },
+                      "channel_layout": "stereo",
+                      "channels": 2,
+                      "codec_name": "aac",
+                      "codec_type": "audio",
+                      "color_primaries": null,
+                      "color_space": null,
+                      "color_transfer": null,
+                      "duration": {
+                        "ticks": "1000000",
+                        "timebase": 1000000
+                      },
+                      "height": null,
+                      "index": 1,
+                      "pixel_format": null,
+                      "sample_rate": 48000,
+                      "time_base": {
+                        "denominator": 48000,
+                        "numerator": 1
+                      },
+                      "width": null
+                    }
+                  ]
+                },
+                "text_layouts": [],
+                "verification": {
+                  "checks": [
+                    {
+                      "name": "video_streams",
+                      "passed": true
+                    },
+                    {
+                      "name": "audio_streams",
+                      "passed": true
+                    },
+                    {
+                      "name": "width",
+                      "passed": true
+                    },
+                    {
+                      "name": "height",
+                      "passed": true
+                    },
+                    {
+                      "name": "duration",
+                      "passed": true
+                    },
+                    {
+                      "name": "sample_decode",
+                      "passed": true
+                    }
+                  ],
+                  "decoded_samples": [
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "250000",
+                        "timebase": 1000000
+                      }
+                    },
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "500000",
+                        "timebase": 1000000
+                      }
+                    },
+                    {
+                      "decoded": true,
+                      "requested_time": {
+                        "ticks": "750000",
+                        "timebase": 1000000
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "bit_rate": 26616,
+                    "duration": {
+                      "ticks": "1000000",
+                      "timebase": 1000000
+                    },
+                    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                    "streams": [
+                      {
+                        "average_frame_rate": {
+                          "denominator": 1,
+                          "numerator": 10
+                        },
+                        "channel_layout": null,
+                        "channels": null,
+                        "codec_name": "h264",
+                        "codec_type": "video",
+                        "color_primaries": null,
+                        "color_space": null,
+                        "color_transfer": null,
+                        "duration": {
+                          "ticks": "1000000",
+                          "timebase": 1000000
+                        },
+                        "height": 48,
+                        "index": 0,
+                        "pixel_format": "yuv420p",
+                        "sample_rate": null,
+                        "time_base": {
+                          "denominator": 10240,
+                          "numerator": 1
+                        },
+                        "width": 64
+                      },
+                      {
+                        "average_frame_rate": {
+                          "denominator": 0,
+                          "numerator": 0
+                        },
+                        "channel_layout": "stereo",
+                        "channels": 2,
+                        "codec_name": "aac",
+                        "codec_type": "audio",
+                        "color_primaries": null,
+                        "color_space": null,
+                        "color_transfer": null,
+                        "duration": {
+                          "ticks": "1000000",
+                          "timebase": 1000000
+                        },
+                        "height": null,
+                        "index": 1,
+                        "pixel_format": null,
+                        "sample_rate": 48000,
+                        "time_base": {
+                          "denominator": 48000,
+                          "numerator": 1
+                        },
+                        "width": null
+                      }
+                    ]
+                  },
+                  "passed": true
+                }
+              },
+              "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388"
+            },
+            "kind": "render.project.v3",
+            "schema_version": 1
+          },
+          "failure": null,
+          "job_id": "job_1b5a186827ac49e1b0c84149759a97e6",
+          "kind": "render.project.v3",
+          "progress": {
+            "fraction": null,
+            "media_time": {
+              "ticks": "200000",
+              "timebase": 1000000
+            },
+            "stage": "verifying"
+          },
+          "resource_target": null,
+          "result": null,
+          "result_unavailable": null,
+          "state": "succeeded",
+          "target": {
+            "project_id": "restored-v3",
+            "revision": "rev_a040bfa5f0c71c8be4bd33d8a1a8eb6c9d3fbb0517f30533c7e243298e8e2388",
+            "sequence_id": "main"
+          }
+        },
+        "error": null,
+        "warnings": []
+      }
+    },
+    {
+      "workspace": "target",
+      "tool": "opencut_project_v3_package_import",
+      "response": {
+        "api_version": "1",
+        "request_id": "0cf66d58-4f39-477c-b2c8-cb49162b639e",
+        "data": {
+          "dependencies": {
+            "fonts_not_bundled": [],
+            "plugins_not_bundled": [],
+            "tools_not_locked": [
+              "ffmpeg",
+              "ffprobe"
+            ],
+            "unsupported": []
+          },
+          "fully_reproducible": false,
+          "manifest_sha256": "93d4e2b3fff4f7eb6ced9ac3835b1fe6b09601b54ca55286fbed4fc78f7089a3",
+          "revision": "rev_befebc17b77db2d78db65a83e853136576678ce3c6f77939197029e93d8817c2",
+          "self_contained_media": true,
+          "source_project_id": "source-v3",
+          "source_revision": "rev_fccee473d0f4844e3c4bf2a8c4c18ad07acb344e66c712f60acbd1af1f20fd06",
+          "target_project_id": "restored-v3"
+        },
+        "error": null,
+        "warnings": []
+      }
+    }
+  ]
+}

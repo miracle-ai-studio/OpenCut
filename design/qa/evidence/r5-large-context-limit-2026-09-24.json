@@ -1,0 +1,10 @@
+{
+  "status": "performance_limit_unresolved",
+  "binary_sha256": "a319617da05d70be06a0bfb907ee4818bd81a598f82216a1adc62ab40dc07a29",
+  "fixture": "single track name containing 1100000 ASCII characters",
+  "original_cli_timeout_seconds": 20,
+  "isolated_elapsed_seconds": 38.491255515953526,
+  "isolated_exit_code": 0,
+  "isolated_error": null,
+  "scope": "Debug build stress fixture, not a real long-video performance baseline; full MCP context suite did not pass"
+}

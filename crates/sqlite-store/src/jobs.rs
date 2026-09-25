@@ -2,6 +2,7 @@
 use crate::{EditorApplication, JobRecord, JobRequest};
 use opencut_contracts::{AssetLockManifest, EditorError, ProjectSnapshot};
 pub use opencut_editor_application::jobs::*;
+use rusqlite::{OptionalExtension, params};
 use std::path::Path;
 /// Application entry used by native hosts. The pure orchestration below depends
 /// on a transaction-level store and asset capture ports, not on a transport.
@@ -20,9 +21,30 @@ pub fn start(
     )
 }
 
+pub fn start_transcribe(
+    app: &mut EditorApplication,
+    asset_store_root: &Path,
+    request: opencut_job_contracts::TranscribeJobInput,
+) -> Result<JobRecord, EditorError> {
+    submit_transcribe(
+        app,
+        &NativeJobAssets {
+            root: asset_store_root,
+            store: std::cell::RefCell::new(None),
+        },
+        request,
+    )
+}
+
 struct NativeJobAssets<'a> {
     root: &'a Path,
     store: std::cell::RefCell<Option<opencut_asset_store::AssetStore>>,
+}
+pub(super) fn native_assets(root: &Path) -> impl JobAssetCapture + '_ {
+    NativeJobAssets {
+        root,
+        store: std::cell::RefCell::new(None),
+    }
 }
 impl JobAssetCapture for NativeJobAssets<'_> {
     fn capture(
@@ -54,6 +76,60 @@ impl JobSubmissionStore for EditorApplication {
             crate::ProjectAction::RunJobs,
         )?;
         self.snapshot_at(project_id, revision)
+    }
+    fn fixed_analysis_snapshot(
+        &self,
+        project_id: &str,
+        revision: &str,
+    ) -> Result<ProjectSnapshot, EditorError> {
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(crate::storage_error)?;
+        crate::sqlite_access::require(
+            &tx,
+            &self.connection.1,
+            project_id,
+            crate::ProjectAction::RunJobs,
+        )?;
+        let raw: String = tx
+            .query_row(
+                "SELECT document_json FROM revisions WHERE project_id=?1 AND revision=?2",
+                params![project_id, revision],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(crate::storage_error)?
+            .ok_or_else(|| EditorError::new("NOT_FOUND", "Project revision does not exist"))?;
+        let project = match crate::sqlite_project_v3::decode_versioned_project(&raw)? {
+            crate::sqlite_project_v3::VersionedProjectDocument::Legacy(project) => project,
+            crate::sqlite_project_v3::VersionedProjectDocument::V3(project) => {
+                if !self.connection.1.caller().is_owner()
+                    && project
+                        .base
+                        .assets
+                        .iter()
+                        .any(|asset| asset.version.is_none())
+                {
+                    return Err(EditorError::new(
+                        "NOT_AUTHORIZED",
+                        "Schema 3 analysis requires pinned project content",
+                    ));
+                }
+                project.base
+            }
+        };
+        if project.id != project_id {
+            return Err(EditorError::new(
+                "STORAGE_ERROR",
+                "Project identity differs from revision scope",
+            ));
+        }
+        tx.commit().map_err(crate::storage_error)?;
+        Ok(ProjectSnapshot {
+            project,
+            revision: revision.into(),
+        })
     }
     fn find_accepted_job(&self, request: &JobRequest) -> Result<Option<JobRecord>, EditorError> {
         self.find_existing_job(request)
@@ -430,6 +506,55 @@ mod tests {
         let retry = start(&mut app, &asset_store, request).unwrap();
         assert_eq!(retry.job_id, job.job_id);
         assert_eq!(retry.input, job.input);
+    }
+
+    #[test]
+    fn transcription_submission_pins_one_asset_and_reuses_the_durable_receipt() {
+        let directory = tempfile::tempdir().unwrap();
+        let asset_store = directory.path().join("asset-store");
+        let source = directory.path().join("source.wav");
+        std::fs::write(&source, b"fixed audio bytes").unwrap();
+        let mut app = EditorApplication::open(directory.path().join("workspace.sqlite")).unwrap();
+        let original = project(&mut app);
+        let edit: TransactionRequest = serde_json::from_value(json!({
+            "expected_revision": original.revision,
+            "idempotency_key": "bind-audio",
+            "label": "bind audio",
+            "operations": [{"type":"asset.bind","asset":{
+                "id":"asset-1","name":"Voice","kind":"audio","uri":source,
+                "duration":{"ticks":"1","timebase":1},"metadata":{}
+            }}]
+        }))
+        .unwrap();
+        let revision = app.apply("project-1", &edit).unwrap().revision;
+        let request = opencut_job_contracts::TranscribeJobInput {
+            idempotency_key: "transcribe-1".into(),
+            project_id: "project-1".into(),
+            revision,
+            asset_id: "asset-1".into(),
+            language: Some("en".into()),
+            word_timestamps: false,
+        };
+        let job = start_transcribe(&mut app, &asset_store, request.clone()).unwrap();
+        assert_eq!(job.kind, "analysis.transcribe");
+        assert_eq!(job.input["asset_lock"]["assets"][0]["asset_id"], "asset-1");
+        assert_eq!(job.input["language"], "en");
+        // JobRecord.input is the prepared execution payload. Only the public
+        // request identity omits false to preserve pre-word-timing replay.
+        assert_eq!(job.input["word_timestamps"], false);
+        assert!(job.input.get("executable").is_none());
+        std::fs::remove_file(&source).unwrap();
+        let retry = start_transcribe(&mut app, &asset_store, request.clone()).unwrap();
+        assert_eq!(retry.job_id, job.job_id);
+        assert_eq!(app.list_jobs().unwrap().len(), 1);
+        let mut invalid = request;
+        invalid.language = Some("en-US".into());
+        assert_eq!(
+            start_transcribe(&mut app, &asset_store, invalid)
+                .unwrap_err()
+                .code,
+            "INVALID_ARGUMENT"
+        );
     }
     #[test]
     fn submission_port_rolls_back_all_queue_writes_when_event_publication_fails() {

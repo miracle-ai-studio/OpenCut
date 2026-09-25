@@ -1,5 +1,7 @@
 # 实现与验收状态
 
+> 当前非 UI 实现、已验收范围和待办以 [非 UI 交付台账](headless-completion-ledger.md) 为准；下文保留历史记录，旧包结果不代表当前源码已完成发行验收。
+
 2026-09-24 R2 物理修复预留增量：管理型工作区的原生账本 v3 和 8 MiB 实际分配／同步预留已接通；本机 owner CLI 在停掉管理型连接后可进入有限 repair 状态，经专用 VFS 取消排队 Job、释放终态上传暂存，再补足预留。64 MiB 真盘满卷、原键回放、SQLite 完整性与受影响测试已通过；Worker 的瞬时 SQLite BUSY 不再直接取消任务或终止内嵌 HTTP 宿主。最终 macOS x86_64 debug 开发包在仓库外通过 34 项验收，详见[物理修复预留 QA](../qa/r2-physical-repair-reserve-2026-09-24.md)。全工作区写入准入仍为 false，运行中任务、SQLite 临时文件、完整资源保留、跨平台发行与 R3–R7 仍未完成。下方各段按日期保留历史增量，不代表最新完整状态。
 
 2026-09-23 恢复后的当前源码增量：纯 Rust 的 `contracts/time/editor-core/composition` 已构成精确时间、工程校验／编辑计划和固定修订合成语义内核；`editor-application` 通过端口编排原子提交，SQLite／CAS／FFmpeg／Worker 位于适配层。五个相关 crate 的 37 项测试与依赖边界门禁通过，具体责任及不足见 [Rust 内核核对](../qa/r0-r7-current-audit-2026-09-23.md#rust-内核与外层适配)。默认 MCP 入口按 `system/project/edit/media/task/observe/plugin/access/workspace` 九个领域发现，61 个原操作作为可调用兼容层；CLI、HTTP、MCP 共用同一动作解析、叶操作鉴权与审计。生成 OpenAPI 已覆盖 75 条控制／数据面路径。独立安装的 TS SDK 13 项、Rust SDK 12 项及官方 MCP SDK 5 项真实互通通过，v1–v15 × 两种摘要的 30 格历史兼容通过；详见 [最新数据面验收](../qa/r2-data-plane-openapi-2026-09-23.md)与 [恢复状态](../../RECOVERY_STATUS.md)。当前 debug 二进制已打成 macOS x86_64 本地开发包并在仓库外通过 21 项验收，相同二进制 Worker 输出准入另过 4 项；当前恢复源码由本地检查点封存，该包不是 release／跨平台发行或 R0–R7 整体放行。R2 的全工作区写入准入／保留治理及 R3–R7 目标仍未完成。下方 2026-09-21 各段是历史迭代记录。
@@ -263,3 +265,6 @@ python3 scripts/verify-render-job.py --caption-font Arial --caption-fallback-fon
 ```
 
 该场景同时检查实际字体报告、独立解码后的字幕像素，以及严格模式缺字体时失败且不发布产物。
+# 2026-09-24 非 UI 全功能推进
+
+用户已将页面端与 Desktop 界面暂缓，其他功能继续完成。最新范围、实际动线收据与剩余缺口见[非 UI 交付台账](headless-completion-ledger.md)；下方旧版本计数与记录保留用于追溯。

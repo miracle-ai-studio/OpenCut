@@ -13,9 +13,8 @@ schemars = "1"
 cosmic-text = { version = "0.19", default-features = false, features = ["std", "swash"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 unicode-script = "0.5"
-
-[dev-dependencies]
 tempfile = "3"
+sha2 = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -90,6 +90,37 @@ impl FfmpegBackend {
             .any(|line| line.split_whitespace().any(|field| field == encoder)))
     }
 
+    /// Host-side capability probe for the fixed filters used by schema 3.
+    pub fn missing_v3_filters(&self, needed: &[&str]) -> MediaResult<Vec<String>> {
+        if needed.iter().any(|name| {
+            !matches!(
+                *name,
+                "geq" | "eq" | "gblur" | "overlay" | "color" | "fps" | "pad"
+            )
+        }) {
+            return Err(MediaError::InvalidRequest(
+                "unknown filter capability probe".into(),
+            ));
+        }
+        let cancel = CancellationToken::new();
+        let output = process::checked_output_limited(
+            Command::new(&self.ffmpeg).args(["-hide_banner", "-filters"]),
+            "ffmpeg",
+            &cancel,
+            Duration::from_secs(30),
+            self.admission.as_deref(),
+        )?;
+        let installed: std::collections::HashSet<String> = String::from_utf8_lossy(&output)
+            .lines()
+            .filter_map(|line| line.split_whitespace().nth(1).map(str::to_owned))
+            .collect();
+        Ok(needed
+            .iter()
+            .filter(|name| !installed.contains(**name))
+            .map(|name| (*name).to_owned())
+            .collect())
+    }
+
     pub fn probe(&self, request: &ProbeRequest) -> MediaResult<MediaMetadata> {
         self.probe_cancellable(request, &CancellationToken::new())
     }
@@ -429,7 +460,17 @@ impl FfmpegBackend {
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<ExportResult> {
-        self.render_timeline_inner(request, None, cancel, progress)
+        self.render_timeline_inner(request, None, None, cancel, progress)
+    }
+
+    pub fn render_timeline_v3(
+        &self,
+        request: &TimelineExportRequestV3,
+        cancel: &CancellationToken,
+        progress: &mut dyn FnMut(ProgressUpdate),
+    ) -> MediaResult<ExportResult> {
+        self.validate_v3_handles(&request.base, &request.visual)?;
+        self.render_timeline_inner(&request.base, Some(&request.visual), None, cancel, progress)
     }
 
     pub fn render_timeline_range(
@@ -441,15 +482,242 @@ impl FfmpegBackend {
         validate_timeline_range(request)?;
         self.render_timeline_inner(
             &request.timeline,
+            None,
             Some((request.sequence_start, request.sequence_duration)),
             cancel,
             progress,
         )
     }
 
+    pub fn render_timeline_range_v3(
+        &self,
+        request: &TimelineRangeRenderRequestV3,
+        cancel: &CancellationToken,
+        progress: &mut dyn FnMut(ProgressUpdate),
+    ) -> MediaResult<ExportResult> {
+        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        validate_timeline_range(&TimelineRangeRenderRequest {
+            timeline: request.timeline.base.clone(),
+            sequence_start: request.sequence_start,
+            sequence_duration: request.sequence_duration,
+        })?;
+        self.render_timeline_inner(
+            &request.timeline.base,
+            Some(&request.timeline.visual),
+            Some((request.sequence_start, request.sequence_duration)),
+            cancel,
+            progress,
+        )
+    }
+
+    /// One ongoing FFmpeg process for a fixed project range. The returned
+    /// producer owns its stdout stream and is cancelled when dropped.
+    pub fn start_timeline_stream(
+        &self,
+        request: &TimelineRangeRenderRequest,
+        cancel: CancellationToken,
+        limits: crate::PreviewStreamLimits,
+    ) -> MediaResult<crate::ContinuousPreviewProducer> {
+        self.start_timeline_stream_inner(request, None, cancel, limits)
+    }
+
+    pub fn start_timeline_stream_v3(
+        &self,
+        request: &TimelineRangeRenderRequestV3,
+        cancel: CancellationToken,
+        limits: crate::PreviewStreamLimits,
+    ) -> MediaResult<crate::ContinuousPreviewProducer> {
+        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        let base = TimelineRangeRenderRequest {
+            timeline: request.timeline.base.clone(),
+            sequence_start: request.sequence_start,
+            sequence_duration: request.sequence_duration,
+        };
+        self.start_timeline_stream_inner(&base, Some(&request.timeline.visual), cancel, limits)
+    }
+
+    fn start_timeline_stream_inner(
+        &self,
+        request: &TimelineRangeRenderRequest,
+        visual: Option<&CompiledVisualGraphV3>,
+        cancel: CancellationToken,
+        limits: crate::PreviewStreamLimits,
+    ) -> MediaResult<crate::ContinuousPreviewProducer> {
+        validate_timeline_export(&request.timeline)?;
+        validate_range_times(
+            request.sequence_start,
+            request.sequence_duration,
+            request.timeline.duration,
+            request.timeline.video.frame_rate,
+            true,
+        )?;
+        if cancel.is_cancelled() {
+            return Err(MediaError::Cancelled);
+        }
+        let mut resolved = request.timeline.clone();
+        for path in request
+            .timeline
+            .video_clips
+            .iter()
+            .map(|clip| &clip.input)
+            .chain(request.timeline.image_clips.iter().map(|clip| &clip.input))
+            .chain(request.timeline.audio_clips.iter().map(|clip| &clip.input))
+        {
+            require_input(path)?;
+        }
+        for clip in &resolved.video_clips {
+            self.validate_source_range(
+                &clip.input,
+                clip.source_start,
+                clip.source_duration,
+                StreamKind::Video,
+                clip.stream,
+            )?;
+        }
+        for clip in &resolved.image_clips {
+            self.validate_source_range(
+                &clip.input,
+                MediaTime {
+                    ticks: 0,
+                    timebase: 1,
+                },
+                MediaTime {
+                    ticks: 0,
+                    timebase: 1,
+                },
+                StreamKind::Video,
+                clip.stream,
+            )?;
+        }
+        let mut source_error = None;
+        resolved.audio_clips.retain(|clip| {
+            match self.validate_source_range(
+                &clip.input,
+                clip.source_start,
+                clip.source_duration,
+                StreamKind::Audio,
+                clip.stream,
+            ) {
+                Ok(()) => true,
+                Err(MediaError::Unsupported(_)) if clip.optional => false,
+                Err(error) => {
+                    source_error = Some(error);
+                    false
+                }
+            }
+        });
+        if let Some(error) = source_error {
+            return Err(error);
+        }
+        let base = request.timeline.output.parent().ok_or_else(|| {
+            MediaError::InvalidRequest("preview attempt output must have a parent directory".into())
+        })?;
+        fs::create_dir_all(base)?;
+        let mut temporary = TemporaryArtifacts::default();
+        let mut command = Command::new(&self.ffmpeg);
+        command.args(["-hide_banner", "-loglevel", "error", "-nostdin"]);
+        let duration = request.timeline.duration.seconds();
+        command.args([
+            "-f",
+            "lavfi",
+            "-t",
+            &format!("{duration:.9}"),
+            "-i",
+            &format!(
+                "color=c=black:s={}x{}:r={}/{}",
+                request.timeline.video.width,
+                request.timeline.video.height,
+                request.timeline.video.frame_rate.numerator,
+                request.timeline.video.frame_rate.denominator
+            ),
+        ]);
+        for clip in &resolved.video_clips {
+            command.arg("-i").arg(&clip.input);
+        }
+        for clip in &resolved.image_clips {
+            command.args(["-loop", "1", "-i"]).arg(&clip.input);
+        }
+        for clip in &resolved.audio_clips {
+            command.arg("-i").arg(&clip.input);
+        }
+        let name = request
+            .timeline
+            .output
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        for (index, caption) in resolved.captions.iter().enumerate() {
+            let path = base.join(format!(".{name}.stream-caption-{index}.png"));
+            temporary.track(path.clone());
+            crate::caption::render_admitted(
+                caption,
+                request.timeline.video.width,
+                request.timeline.video.height,
+                &path,
+                self.admission.as_deref(),
+            )?;
+            command.args(["-loop", "1", "-i"]).arg(&path);
+        }
+        let filter = build_timeline_filter_inner(
+            &resolved,
+            None,
+            Some((request.sequence_start, request.sequence_duration)),
+            visual,
+        )?;
+        command.args([
+            "-filter_complex",
+            &filter,
+            "-map",
+            "[vout]",
+            "-map",
+            "[aout]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-pix_fmt",
+            "yuv420p",
+            "-g",
+            "25",
+            "-c:a",
+            "aac",
+            "-ar",
+            "48000",
+            "-ac",
+            "2",
+            "-f",
+            "mp4",
+            "-movflags",
+            "+frag_keyframe+empty_moov+default_base_moof",
+            "-frag_duration",
+            "500000",
+            "-t",
+            &format!("{:.9}", request.sequence_duration.seconds()),
+            "-progress",
+            "pipe:2",
+            "-nostats",
+            "pipe:1",
+        ]);
+        let caption_paths = std::mem::take(&mut temporary.paths);
+        let producer = crate::preview_stream::spawn(
+            command,
+            cancel,
+            limits,
+            self.admission.clone(),
+            caption_paths.clone(),
+        );
+        if producer.is_err() {
+            for path in &caption_paths {
+                let _ = fs::remove_file(path);
+            }
+        }
+        producer
+    }
+
     fn render_timeline_inner(
         &self,
         request: &TimelineExportRequest,
+        visual: Option<&CompiledVisualGraphV3>,
         range: Option<(MediaTime, MediaTime)>,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
@@ -578,7 +846,7 @@ impl FfmpegBackend {
             .into_iter()
             .map(|(_, report)| report)
             .collect();
-        let filter = build_timeline_filter(&resolved, range)?;
+        let filter = build_timeline_filter_inner(&resolved, None, range, visual)?;
         command.args([
             "-filter_complex",
             &filter,
@@ -672,6 +940,30 @@ impl FfmpegBackend {
     pub fn render_timeline_frame(
         &self,
         request: &TimelineFrameRenderRequest,
+        cancel: &CancellationToken,
+        progress: &mut dyn FnMut(ProgressUpdate),
+    ) -> MediaResult<RenderedTimelineFrame> {
+        self.render_timeline_frame_inner(request, None, cancel, progress)
+    }
+
+    pub fn render_timeline_frame_v3(
+        &self,
+        request: &TimelineFrameRenderRequestV3,
+        cancel: &CancellationToken,
+        progress: &mut dyn FnMut(ProgressUpdate),
+    ) -> MediaResult<RenderedTimelineFrame> {
+        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        let base = TimelineFrameRenderRequest {
+            timeline: request.timeline.base.clone(),
+            sequence_time: request.sequence_time,
+        };
+        self.render_timeline_frame_inner(&base, Some(&request.timeline.visual), cancel, progress)
+    }
+
+    fn render_timeline_frame_inner(
+        &self,
+        request: &TimelineFrameRenderRequest,
+        visual: Option<&CompiledVisualGraphV3>,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<RenderedTimelineFrame> {
@@ -793,16 +1085,17 @@ impl FfmpegBackend {
                 }
             }
         }
-        let filter = match build_timeline_filter_inner(&timeline, Some(request.sequence_time), None)
-        {
-            Ok(filter) => filter,
-            Err(problem) => {
-                for path in &caption_files {
-                    let _ = fs::remove_file(path);
+        let filter =
+            match build_timeline_filter_inner(&timeline, Some(request.sequence_time), None, visual)
+            {
+                Ok(filter) => filter,
+                Err(problem) => {
+                    for path in &caption_files {
+                        let _ = fs::remove_file(path);
+                    }
+                    return Err(problem);
                 }
-                return Err(problem);
-            }
-        };
+            };
         command.args([
             "-filter_complex",
             &filter,
@@ -908,6 +1201,30 @@ impl FfmpegBackend {
                 input.display(),
                 actual.seconds()
             )));
+        }
+        Ok(())
+    }
+
+    fn validate_v3_handles(
+        &self,
+        timeline: &TimelineExportRequest,
+        visual: &CompiledVisualGraphV3,
+    ) -> MediaResult<()> {
+        for (index, source_start, source_duration) in
+            crate::composition_v3::transition_source_handles(timeline, visual)?
+        {
+            let clip = &timeline.video_clips[index];
+            let metadata = self.probe(&ProbeRequest {
+                input: clip.input.clone(),
+            })?;
+            let actual = metadata.duration.ok_or_else(|| {
+                MediaError::InvalidRequest("crossfade requires a source with known duration".into())
+            })?;
+            if source_start < 0.0 || source_start + source_duration > actual.seconds() + 0.000_001 {
+                return Err(MediaError::InvalidRequest(
+                    "crossfade source handle exceeds media duration".into(),
+                ));
+            }
         }
         Ok(())
     }
@@ -1320,6 +1637,7 @@ fn validate_timeline_range(request: &TimelineRangeRenderRequest) -> MediaResult<
         request.sequence_duration,
         request.timeline.duration,
         request.timeline.video.frame_rate,
+        false,
     )
 }
 
@@ -1328,6 +1646,7 @@ fn validate_range_times(
     duration: MediaTime,
     timeline_duration: MediaTime,
     frame_rate: FrameRate,
+    allow_final_tail: bool,
 ) -> MediaResult<()> {
     if duration.timebase == 0 || duration.ticks <= 0 {
         return Err(MediaError::InvalidRequest(
@@ -1353,17 +1672,20 @@ fn validate_range_times(
     let frame_grid_denominator = end_timebase
         .checked_mul(frame_rate.denominator as i128)
         .ok_or_else(overflow)?;
-    if frame_grid_denominator <= 0 || frame_grid_numerator.rem_euclid(frame_grid_denominator) != 0 {
-        return Err(MediaError::InvalidRequest(
-            "sequence range end must be aligned to the sequence frame rate".into(),
-        ));
-    }
     let range_end_scaled = end_ticks
         .checked_mul(timeline_duration.timebase as i128)
         .ok_or_else(overflow)?;
     let timeline_end_scaled = (timeline_duration.ticks as i128)
         .checked_mul(end_timebase)
         .ok_or_else(overflow)?;
+    if frame_grid_denominator <= 0
+        || (frame_grid_numerator.rem_euclid(frame_grid_denominator) != 0
+            && !(allow_final_tail && range_end_scaled == timeline_end_scaled))
+    {
+        return Err(MediaError::InvalidRequest(
+            "sequence range end must be aligned to the sequence frame rate".into(),
+        ));
+    }
     if range_end_scaled > timeline_end_scaled {
         return Err(MediaError::InvalidRequest(
             "sequence range ends after the timeline duration".into(),
@@ -1388,18 +1710,15 @@ fn validate_frame_grid_time(time: MediaTime, fps: FrameRate, name: &str) -> Medi
     Ok(())
 }
 
-fn build_timeline_filter(
-    r: &TimelineExportRequest,
-    range: Option<(MediaTime, MediaTime)>,
-) -> MediaResult<String> {
-    build_timeline_filter_inner(r, None, range)
-}
-
 fn build_timeline_filter_inner(
     r: &TimelineExportRequest,
     frame_time: Option<MediaTime>,
     range: Option<(MediaTime, MediaTime)>,
+    visual: Option<&CompiledVisualGraphV3>,
 ) -> MediaResult<String> {
+    if let Some(visual) = visual {
+        return crate::composition_v3::build_filter(r, visual, frame_time, range);
+    }
     let mut chains = vec![format!("[0:v]format=yuv420p[base0]")];
     let mut base = "base0".to_string();
     let mut visuals: Vec<(i32, bool, usize)> = r
@@ -1535,6 +1854,16 @@ fn build_timeline_filter_inner(
         chains.push(format!("[{base}][{label}]overlay=x='{overlay_x}':y='{overlay_y}':eval=frame:eof_action=pass:enable='gte(t,{:.9})*lt(t,{:.9})'[{next}]",timeline_start.seconds(),timeline_start.seconds()+timeline_duration.seconds()));
         base = next;
     }
+    finish_timeline_filter(r, frame_time, range, chains, base)
+}
+
+pub(crate) fn finish_timeline_filter(
+    r: &TimelineExportRequest,
+    frame_time: Option<MediaTime>,
+    range: Option<(MediaTime, MediaTime)>,
+    mut chains: Vec<String>,
+    base: String,
+) -> MediaResult<String> {
     let mut caption_base = base;
     let caption_offset = 1
         + r.video_clips.len()
@@ -1571,6 +1900,7 @@ fn build_timeline_filter_inner(
         .map_or((0.0, r.duration.seconds()), |(start, duration)| {
             (start.seconds(), duration.seconds())
         });
+    let padded_end = output_start + output_duration;
     let audio_reset = if range.is_some() {
         ",asetpts=PTS-STARTPTS"
     } else {
@@ -1581,8 +1911,8 @@ fn build_timeline_filter_inner(
     ));
     if r.audio_clips.is_empty() {
         chains.push(format!(
-            "anullsrc=r=48000:cl=stereo,atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]"
-        ));
+        "anullsrc=r=48000:cl=stereo:d={padded_end:.9},atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]"
+    ));
     } else {
         let offset = 1 + r.video_clips.len() + r.image_clips.len();
         let mut labels = String::new();
@@ -1621,11 +1951,11 @@ fn build_timeline_filter_inner(
         }
         if r.audio_clips.len() == 1 {
             chains.push(format!(
-                "[a0]apad,atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]"
+                "[a0]apad=whole_dur={padded_end:.9},atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]"
             ));
         } else {
             chains.push(format!(
-                "{labels}amix=inputs={}:duration=longest:normalize=0,apad,atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]",
+                "{labels}amix=inputs={}:duration=longest:normalize=0,apad=whole_dur={padded_end:.9},atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]",
                 r.audio_clips.len()
             ));
         }
@@ -1635,7 +1965,7 @@ fn build_timeline_filter_inner(
 
 /// Maps an exact rational time to the nearest output sample. Half-sample ties
 /// select the later sample, matching timeline frame-alignment semantics.
-fn time_to_sample_index(time: MediaTime, sample_rate: u32) -> MediaResult<u64> {
+pub(crate) fn time_to_sample_index(time: MediaTime, sample_rate: u32) -> MediaResult<u64> {
     if time.timebase == 0 {
         return Err(MediaError::InvalidRequest(
             "audio timeline timebase must be greater than zero".into(),
@@ -1654,7 +1984,7 @@ fn time_to_sample_index(time: MediaTime, sample_rate: u32) -> MediaResult<u64> {
     })
 }
 
-fn curve_expr(curve: &EvaluatedCurve, fallback: f64, time: &str) -> MediaResult<String> {
+pub(crate) fn curve_expr(curve: &EvaluatedCurve, fallback: f64, time: &str) -> MediaResult<String> {
     if curve.segments.is_empty() {
         return Ok(format!("{fallback:.12}"));
     }
@@ -1981,6 +2311,7 @@ mod tests {
                     timebase: 120_000,
                 },
                 rate,
+                false,
             )
             .is_ok()
         );
@@ -2005,6 +2336,7 @@ mod tests {
                 numerator: u32::MAX,
                 denominator: 1,
             },
+            false,
         );
         assert!(
             matches!(&result, Err(MediaError::InvalidRequest(message)) if message.contains("overflow")),

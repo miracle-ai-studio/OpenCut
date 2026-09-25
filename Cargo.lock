@@ -4532,6 +4532,7 @@ dependencies = [
  "opencut-job-runtime",
  "opencut-media",
  "opencut-native-services",
+ "opencut-sdk",
  "opencut-sqlite-store",
  "rmcp",
  "serde",
@@ -4577,11 +4578,13 @@ name = "opencut-editor-application"
 version = "0.1.0"
 dependencies = [
  "opencut-api-contracts",
+ "opencut-composition",
  "opencut-contracts",
  "opencut-editor-core",
  "opencut-job-contracts",
  "opencut-job-execution",
  "opencut-media-contracts",
+ "opencut-time",
  "schemars",
  "semver",
  "serde",
@@ -4654,6 +4657,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "unicode-script",
 ]
@@ -4674,6 +4678,7 @@ dependencies = [
  "libc",
  "opencut-api-contracts",
  "opencut-asset-store",
+ "opencut-composition",
  "opencut-contracts",
  "opencut-editor-application",
  "opencut-media",
@@ -4681,9 +4686,12 @@ dependencies = [
  "opencut-project-render",
  "opencut-sqlite-store",
  "opencut-storage-budget",
+ "opencut-time",
  "rustix 1.1.4",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
+ "uuid",
 ]
 
 [[package]]

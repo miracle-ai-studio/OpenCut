@@ -19,6 +19,8 @@ pub struct EventAnchor {
 /// task states are observations at the individual page's read time.
 pub trait JobRead {
     fn read_job(&self, job_id: &str) -> Result<JobRecord, EditorError>;
+    /// Read one authorized job and the cursor scope identity in one storage snapshot.
+    fn read_job_for_cursor(&self, job_id: &str) -> Result<(JobRecord, String), EditorError>;
     fn read_jobs(&self) -> Result<Vec<JobRecord>, EditorError>;
     fn read_job_page(
         &self,

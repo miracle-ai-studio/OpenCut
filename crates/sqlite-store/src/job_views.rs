@@ -4,6 +4,18 @@ use opencut_api_contracts::job_views::*;
 use opencut_contracts::EditorError;
 pub use opencut_editor_application::job_views::*;
 impl EditorApplication {
+    pub fn analysis_query(
+        &self,
+        input: opencut_api_contracts::analysis_query::AnalysisQueryInput,
+    ) -> Result<opencut_api_contracts::analysis_query::AnalysisPage, EditorError> {
+        opencut_editor_application::analysis_query::query(&self.connection, input)
+    }
+    pub fn analysis_evidence_query(
+        &self,
+        input: opencut_api_contracts::analysis_evidence::AnalysisEvidenceInput,
+    ) -> Result<opencut_api_contracts::analysis_evidence::AnalysisEvidencePage, EditorError> {
+        opencut_editor_application::analysis_evidence::query(&self.connection, input)
+    }
     pub fn job_view(&self, id: &str) -> Result<JobView, EditorError> {
         queries::job_view(&self.connection, id)
     }

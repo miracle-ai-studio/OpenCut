@@ -1,9 +1,15 @@
 //! Portable application use cases and ports; native storage and host I/O are adapters.
 pub mod access;
 pub mod access_audit;
+pub mod analysis;
+pub mod analysis_evidence;
+pub mod analysis_query;
 pub mod artifact_gc;
 pub mod artifact_retention;
 pub mod audit;
+pub mod branching;
+pub mod classic_import;
+pub mod collaboration;
 pub mod events;
 pub mod identity;
 pub mod job_views;
@@ -11,11 +17,21 @@ pub mod jobs;
 pub mod lifecycle;
 pub mod maintenance;
 pub mod media;
+pub mod plugin_v2;
 pub mod plugins;
+pub mod preview;
+pub mod project_package;
+pub mod project_package_v3;
+pub mod project_v3;
+pub mod project_v3_collaboration;
+pub mod project_v3_jobs;
 pub mod projects;
 pub mod queries;
 pub mod render;
+pub mod render_v3;
 pub mod resources;
+pub mod speaker_turns;
+pub mod subtitle_exchange;
 use identity::content_id;
 pub use opencut_api_contracts::{
     JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
@@ -79,3 +95,5 @@ pub mod gc;
 pub mod budget;
 
 pub mod database;
+
+pub mod plugin_v3;

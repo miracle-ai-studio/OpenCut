@@ -16,12 +16,21 @@ export type HostCapabilities = Extract<ToolOutput<"opencut_resource_read">["payl
 export type ArtifactReference = PublicJob["artifacts"][number];
 export type PublicJobResult = NonNullable<PublicJob["result"]>;
 type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
-export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap, "media.import">;
+export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
+  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns"> & {
+  "render.project.v3": LegacyPublicResultMap["render.project"];
+  "preview.project_frame.v3": LegacyPublicResultMap["preview.composited_frame"];
+  "preview.project_range.v3": LegacyPublicResultMap["preview.project_range"];
+};
+const extendedPublicKinds = new Set<string>([
+  "media.import", "analysis.transcribe", "analysis.silence", "analysis.shots", "analysis.waveform", "analysis.speaker_turns",
+  "render.project.v3", "preview.project_frame.v3", "preview.project_range.v3",
+]);
 export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
   if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {
     if (job.result?.kind === kind && !job.extended_result) return job.result.data as PublicResultMap[K];
     const result = job.extended_result;
-    if (kind === "media.import" && !job.result && result?.kind === kind &&
+    if (extendedPublicKinds.has(kind) && !job.result && result?.kind === kind &&
       result.schema_version === 1 && object(result.data)) return result.data as PublicResultMap[K];
   }
   throw new TypeError(`Expected an available successful ${kind} result.`);
@@ -255,11 +264,19 @@ export class OpenCutClient {
   downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
     return this.#downloadBytes(this.artifactUrl(reference), "artifact", options);
   }
-  async #downloadBytes(url: string, kind: string, options: CallOptions): Promise<Response> {
+  /** Claim the current owner generation's continuous fMP4 stream. Cancel the response body to disconnect. */
+  openPreviewStream(session: Pick<ToolOutput<"opencut_preview_create">, "session_id" | "generation" | "owner_id" | "lease_id">, options: CallOptions = {}): Promise<Response> {
+    const { session_id, generation, owner_id, lease_id } = session;
+    return this.#downloadBytes(`${this.baseUrl}/v1/preview/stream`, "preview stream", options,
+      JSON.stringify({ session_id, generation, owner_id, lease_id }));
+  }
+  async #downloadBytes(url: string, kind: string, options: CallOptions, body?: string): Promise<Response> {
     options.signal?.throwIfAborted();
     let response: Response;
     try {
-      response = await this.#fetch(url, { redirect: "error", signal: options.signal, headers: { Authorization: `Bearer ${this.#token}` } });
+      response = await this.#fetch(url, { redirect: "error", signal: options.signal,
+        method: body === undefined ? "GET" : "POST", body,
+        headers: { Authorization: `Bearer ${this.#token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) } });
     } catch (cause) {
       if (options.signal?.aborted) throw options.signal.reason;
       throw new OpenCutTransportError(cause);
