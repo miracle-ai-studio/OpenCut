@@ -154,3 +154,72 @@ fn disabled_and_muted_tracks_have_explicit_duration_and_audio_semantics() {
     assert!(visual.timeline.video_clips.is_empty());
     assert_eq!(visual.timeline.duration.seconds(), 2.0);
 }
+
+#[test]
+fn independent_audit_rejects_lost_audio_captions_curves_and_changed_source_identity() {
+    use opencut_composition::semantic_coverage::audit;
+    let source = fixture();
+    let good = compile(&source, "main", CompositionScope::AudioVisual).unwrap();
+    let rejected = |candidate: Composition| {
+        assert_eq!(
+            audit(&source, &candidate, &[]).unwrap_err().code,
+            "COMPOSITION_COVERAGE_MISMATCH"
+        );
+    };
+    let mut bad = good.clone();
+    bad.timeline.audio_clips.pop();
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.audio_clips[0].gain = 0.0;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.audio_clips[1].source_start.ticks += 1;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.captions[0].text.clear();
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.captions[0].font_size += 1.0;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.video_clips[0]
+        .curves
+        .position_x
+        .segments
+        .clear();
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.video_clips[0].curves.position_x.segments[0].end_value += 1.0;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.video_clips[0].input.version = None;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.image_clips[0].scale_x = 2.0;
+    rejected(bad);
+    let mut bad = good.clone();
+    bad.timeline.width += 1;
+    rejected(bad);
+    assert!(audit(&source, &good, &[]).is_ok());
+    let visual = compile(&source, "main", CompositionScope::Visual).unwrap();
+    let receipt = audit(&source, &visual, &[]).unwrap();
+    assert_eq!(
+        receipt
+            .entries
+            .iter()
+            .filter(|e| e.semantic == "audio" && e.disposition == "visual_scope")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn duration_audit_detects_truncated_audio_tail() {
+    let source = fixture();
+    let mut compiled = compile(&source, "main", CompositionScope::Visual).unwrap();
+    opencut_composition::semantic_coverage::audit_duration(&source, &compiled, None).unwrap();
+    compiled.timeline.duration.ticks -= 1;
+    assert!(
+        opencut_composition::semantic_coverage::audit_duration(&source, &compiled, None).is_err()
+    );
+}

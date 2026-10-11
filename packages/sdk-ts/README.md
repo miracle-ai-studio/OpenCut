@@ -46,7 +46,7 @@ console.log(plan, committed.revision, metadata.streams);
 
 ## 契约
 
-- `callDomain(domain, action, input)` 对九个领域中的 61 个动作提供类型化输入／结果；`callDomainEnvelope` 额外保留 API 版本、request ID 和 warnings。`call`／`callEnvelope` 保留原 61 个叶操作的完整兼容调用。两种形式源于同一 Rust registry，不维护手写的第二套编辑模型。
+- `callDomain(domain, action, input)` 对领域注册表中的动作提供类型化输入／结果；`callDomainEnvelope` 额外保留 API 版本、request ID 和 warnings。`call`／`callEnvelope` 保留叶操作的完整兼容调用。两种形式源于同一 Rust registry，不维护手写的第二套编辑模型。
 - 编辑使用明确 project/object ID、expected_revision 和稳定幂等键；SDK 不持有当前选区、工程 head 或第二份可写状态，不进行自动重试或自动刷新 revision。
 - `OpenCutApiError` 保留 code、details、status、requestId、warnings。网络异常为 `OpenCutTransportError`；无效／不兼容响应为 `OpenCutProtocolError`。后两者均可能发生在服务端已提交后，`outcome` 为 `unknown`。
 - `AbortSignal` 只中止调用方的传输／观察，不能证明服务端未执行。`waitForPublicJob` / `waitForJob` 的本地超时覆盖请求与轮询时间，并抛出 `JobWaitTimeoutError`；后台持久任务继续执行。只有显式 `cancelPublicJob` / `cancelJob` 才请求任务取消。
@@ -74,6 +74,8 @@ owner 可通过 `opencut_maintenance_query` 读取媒体文件发布的 prepared
 
 项目范围预检使用现有 `opencut_render_preflight`（Rust：`tools::RenderPreflight`），要求 read + run_jobs；能力资源 access.scoped_preflight 默认 false，新宿主为 true。受限调用只读取固定修订中的锁定内容；ASSET_LOCK_REQUIRED 需要 owner 固定素材，其他失败保留问题 code／实体 ID，去除原生路径。预检不会创建 Job，之后提交仍独立鉴权与验证内容。
 
+
+Web 的单次读取导入使用 `opencut_upload_stream_begin`（不要求整文件摘要），以 `uploadStreamChunk` 顺序发送分块，同时累计整文件 SHA-256；最后 `opencut_upload_stream_complete({upload_id, content_hash})` 原子封存并接受导入任务。Rust 对应 `upload_stream_chunk` 与生成的 `tools::UploadStreamBegin/UploadStreamComplete`。会话的 `content_hash` 在封存前为 null，worker 在发布素材前独立验证全文件。使用 stream_inspect/query/abort 查状态、发现会话和取消；旧 query 不显示未定摘要会话，分页仍须跟随 next_cursor。断线时仍先检查已确认偏移，再发送相同块；摘要必须覆盖整文件，不能仅累计重连后的后缀。旧协议继续可用：
 
 项目上传先调用 `opencut_upload_create`（project_id、显示 name、规范字符串 size_bytes、完整 SHA-256 content_hash、稳定 idempotency_key），再 `uploadChunk(uploadId, offset, bytes, {signal})` 顺序发送 1 byte–4 MiB 的 Uint8Array。助手复制字节后计算每块 SHA-256，使用认证 PUT；不把本地路径交给服务端。确认偏移来自 `opencut_upload_inspect`，传输失败先查询，再重试相同块；SDK 不自动重试或封存。
 

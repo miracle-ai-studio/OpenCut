@@ -1,8 +1,78 @@
 //! Upload rules and transactional ports. Native byte storage is a separate adapter.
+pub use opencut_api_contracts::stream_uploads::*;
 pub use opencut_api_contracts::uploads::*;
 use opencut_contracts::EditorError;
-pub const MAX_UPLOAD_BYTES: u64 = 1_073_741_824;
-pub const MAX_CHUNK_BYTES: u64 = 4_194_304;
+
+/// In-process receiving state. An undeclared full digest is never forged into a legacy DTO.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UploadSession {
+    pub upload_id: String,
+    pub project_id: String,
+    pub name: String,
+    pub size_bytes: String,
+    pub content_hash: Option<String>,
+    pub next_offset: String,
+    pub state: UploadState,
+    pub job_id: Option<String>,
+}
+impl UploadSession {
+    pub fn legacy(self) -> Result<UploadView, EditorError> {
+        Ok(UploadView {
+            upload_id: self.upload_id,
+            project_id: self.project_id,
+            name: self.name,
+            size_bytes: self.size_bytes,
+            content_hash: self.content_hash.ok_or_else(|| {
+                EditorError::new(
+                    "UPLOAD_HASH_REQUIRED",
+                    "Use the streaming upload operations until its complete digest is declared",
+                )
+            })?,
+            next_offset: self.next_offset,
+            state: self.state,
+            job_id: self.job_id,
+        })
+    }
+    pub fn stream(self) -> StreamUploadView {
+        StreamUploadView {
+            upload_id: self.upload_id,
+            project_id: self.project_id,
+            name: self.name,
+            size_bytes: self.size_bytes,
+            content_hash: self.content_hash,
+            next_offset: self.next_offset,
+            state: self.state,
+            job_id: self.job_id,
+        }
+    }
+}
+impl From<UploadView> for UploadSession {
+    fn from(view: UploadView) -> Self {
+        Self {
+            upload_id: view.upload_id,
+            project_id: view.project_id,
+            name: view.name,
+            size_bytes: view.size_bytes,
+            content_hash: Some(view.content_hash),
+            next_offset: view.next_offset,
+            state: view.state,
+            job_id: view.job_id,
+        }
+    }
+}
+pub trait StreamUploadStore {
+    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadSession, EditorError>;
+    fn inspect_stream_upload(&self, id: &str) -> Result<UploadSession, EditorError>;
+    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadSession, EditorError>;
+}
+pub fn validate_begin(input: &BeginUpload) -> Result<(), EditorError> {
+    validate_metadata(
+        &input.project_id,
+        &input.name,
+        &input.size_bytes,
+        &input.idempotency_key,
+    )
+}
 /// Bounds database/event growth independently from the byte quota.
 pub const MAX_UPLOAD_CHUNKS: i64 = 4096;
 fn invalid(message: &str) -> EditorError {
@@ -40,20 +110,34 @@ pub fn validate_id(id: &str) -> Result<(), EditorError> {
     }
     Ok(())
 }
-pub fn validate_create(input: &CreateUpload) -> Result<(), EditorError> {
-    if input.project_id.is_empty()
-        || input.project_id.len() > 1024
-        || input.project_id.chars().any(char::is_control)
-        || input.name.trim().is_empty()
-        || input.name.len() > 512
-        || input.name.chars().any(char::is_control)
+fn validate_metadata(
+    project_id: &str,
+    name: &str,
+    size_bytes: &str,
+    key: &str,
+) -> Result<(), EditorError> {
+    if project_id.is_empty()
+        || project_id.len() > 1024
+        || project_id.chars().any(char::is_control)
+        || name.trim().is_empty()
+        || name.len() > 512
+        || name.chars().any(char::is_control)
     {
         return Err(invalid("Invalid upload project or display name"));
     }
-    crate::require_idempotency_key(&input.idempotency_key)?;
-    if !(1..=MAX_UPLOAD_BYTES).contains(&decimal(&input.size_bytes)?) {
-        return Err(invalid("Upload size must be between 1 byte and 1 GiB"));
+    crate::require_idempotency_key(key)?;
+    if !(1..=MAX_UPLOAD_BYTES).contains(&decimal(size_bytes)?) {
+        return Err(invalid("Upload size must be between 1 byte and 16 GiB"));
     }
+    Ok(())
+}
+pub fn validate_create(input: &CreateUpload) -> Result<(), EditorError> {
+    validate_metadata(
+        &input.project_id,
+        &input.name,
+        &input.size_bytes,
+        &input.idempotency_key,
+    )?;
     validate_hash(&input.content_hash)
 }
 pub fn validate_chunk(input: &ChunkDescriptor) -> Result<(), EditorError> {
@@ -77,7 +161,7 @@ pub enum ChunkPosition {
 }
 /// A storage transaction still checks the exact replay's stored length and digest.
 pub fn chunk_position(
-    upload: &UploadView,
+    upload: &UploadSession,
     chunk: &ChunkDescriptor,
 ) -> Result<ChunkPosition, EditorError> {
     validate_chunk(chunk)?;
@@ -113,9 +197,9 @@ pub fn chunk_position(
 pub trait UploadStore {
     fn create_upload(&mut self, input: &CreateUpload) -> Result<UploadView, EditorError>;
     fn inspect_upload(&self, id: &str) -> Result<UploadView, EditorError>;
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError>;
-    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadView, EditorError>;
-    fn abort_upload(&mut self, id: &str) -> Result<UploadView, EditorError>;
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError>;
+    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError>;
+    fn abort_upload(&mut self, id: &str) -> Result<UploadSession, EditorError>;
 }
 pub fn create(
     store: &mut impl UploadStore,
@@ -130,7 +214,8 @@ pub fn inspect(store: &impl UploadStore, input: UploadInput) -> Result<UploadVie
 }
 pub fn abort(store: &mut impl UploadStore, input: UploadInput) -> Result<UploadView, EditorError> {
     validate_id(&input.upload_id)?;
-    store.abort_upload(&input.upload_id)
+    store.inspect_upload(&input.upload_id)?;
+    store.abort_upload(&input.upload_id)?.legacy()
 }
 
 pub use opencut_job_execution::{PreparedMediaImportInput, PreparedUploadChunk};
@@ -324,6 +409,10 @@ pub fn public_error(error: EditorError) -> EditorError {
         "CURSOR_EXPIRED" => "A cursor anchor is unavailable; start a new query",
         "IDEMPOTENCY_KEY_REUSED" => "Upload key was used with different parameters",
         "RESOURCE_TOO_LARGE" => "Upload or page exceeds an advertised resource limit",
+        "UPLOAD_HASH_REQUIRED" => {
+            "Use the streaming upload operations before declaring the complete digest"
+        }
+        "UPLOAD_HASH_CONFLICT" => "The complete upload digest is already fixed to different bytes",
         "UPLOAD_INCOMPLETE" => "Upload all declared bytes before sealing",
         "UPLOAD_STATE_CONFLICT" => "Upload state does not allow this operation",
         "UPLOAD_OFFSET_CONFLICT" => "Query the confirmed upload offset before retrying",
@@ -373,9 +462,10 @@ pub fn abort_with_cleanup(
     store: &mut (impl UploadStore + UploadRetentionStore),
     cleanup: &impl UploadCleanup,
     input: UploadInput,
-) -> Result<UploadView, EditorError> {
+) -> Result<UploadSession, EditorError> {
     let expected_id = input.upload_id.clone();
-    let view = abort(store, input)?;
+    validate_id(&input.upload_id)?;
+    let view = store.abort_upload(&input.upload_id)?;
     if view.upload_id != expected_id || view.state != UploadState::Aborted {
         return Err(EditorError::new(
             "INTERNAL_ERROR",
@@ -402,8 +492,8 @@ pub fn abort_with_cleanup(
 }
 
 /// Logical source-byte reservations, not a quota on CAS, outputs or filesystem blocks.
-pub const PROJECT_UPLOAD_RESERVATION_LIMIT: u64 = 8 * MAX_UPLOAD_BYTES;
-pub const WORKSPACE_UPLOAD_RESERVATION_LIMIT: u64 = 32 * MAX_UPLOAD_BYTES;
+pub const PROJECT_UPLOAD_RESERVATION_LIMIT: u64 = 32 * 1024 * 1024 * 1024;
+pub const WORKSPACE_UPLOAD_RESERVATION_LIMIT: u64 = 64 * 1024 * 1024 * 1024;
 pub trait UploadRetentionStore {
     fn read_upload_page(
         &self,
@@ -469,15 +559,19 @@ pub fn release_upload(
     })
 }
 
+pub struct UploadSessionEntry {
+    pub upload: UploadSession,
+    pub retention: UploadRetentionView,
+}
 pub struct UploadPageSlice {
-    pub records: Vec<UploadEntry>,
+    pub records: Vec<UploadSessionEntry>,
     pub upper_id: Option<String>,
     pub has_more: bool,
 }
-pub fn query_uploads(
+fn query_sessions(
     store: &impl UploadRetentionStore,
     input: UploadQuery,
-) -> Result<UploadPage, EditorError> {
+) -> Result<(Vec<UploadSessionEntry>, Option<String>), EditorError> {
     if !(1..=100).contains(&input.limit) {
         return Err(invalid("Upload page size must be 1 to 100"));
     }
@@ -519,8 +613,81 @@ pub fn query_uploads(
     } else {
         None
     };
+    Ok((page.records, next_cursor))
+}
+
+pub fn query_uploads(
+    store: &impl UploadRetentionStore,
+    input: UploadQuery,
+) -> Result<UploadPage, EditorError> {
+    let (records, next_cursor) = query_sessions(store, input)?;
+    // Pending streaming sessions are exposed by their own versioned projection.
+    let uploads = records
+        .into_iter()
+        .filter(|entry| entry.upload.content_hash.is_some())
+        .map(|entry| {
+            Ok(UploadEntry {
+                upload: entry.upload.legacy()?,
+                retention: entry.retention,
+            })
+        })
+        .collect::<Result<_, EditorError>>()?;
     Ok(UploadPage {
-        uploads: page.records,
+        uploads,
         next_cursor,
     })
+}
+pub fn query_stream_uploads(
+    store: &impl UploadRetentionStore,
+    input: UploadQuery,
+) -> Result<StreamUploadPage, EditorError> {
+    let (records, next_cursor) = query_sessions(store, input)?;
+    Ok(StreamUploadPage {
+        uploads: records
+            .into_iter()
+            .map(|entry| StreamUploadEntry {
+                upload: entry.upload.stream(),
+                retention: entry.retention,
+            })
+            .collect(),
+        next_cursor,
+    })
+}
+
+#[cfg(test)]
+mod long_media_tests {
+    use super::*;
+    #[test]
+    fn long_media_boundary_and_final_chunk_are_consistent() {
+        let input = CreateUpload {
+            project_id: "p".into(),
+            name: "4k.mov".into(),
+            idempotency_key: "long-import".into(),
+            size_bytes: MAX_UPLOAD_BYTES.to_string(),
+            content_hash: "a".repeat(64),
+        };
+        validate_create(&input).unwrap();
+        let final_chunk = ChunkDescriptor {
+            upload_id: format!("upload_{}", "a".repeat(32)),
+            offset: (MAX_UPLOAD_BYTES - MAX_CHUNK_BYTES).to_string(),
+            size_bytes: MAX_CHUNK_BYTES.to_string(),
+            content_hash: "b".repeat(64),
+        };
+        validate_chunk(&final_chunk).unwrap();
+        assert_eq!(MAX_UPLOAD_BYTES / MAX_CHUNK_BYTES, MAX_UPLOAD_CHUNKS as u64);
+        assert!(
+            validate_create(&CreateUpload {
+                size_bytes: (MAX_UPLOAD_BYTES + 1).to_string(),
+                ..input
+            })
+            .is_err()
+        );
+        assert!(
+            validate_chunk(&ChunkDescriptor {
+                offset: MAX_UPLOAD_BYTES.to_string(),
+                ..final_chunk
+            })
+            .is_err()
+        );
+    }
 }

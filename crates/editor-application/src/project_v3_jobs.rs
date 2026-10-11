@@ -138,6 +138,46 @@ fn valid_range(value: &TimeRange) -> Result<(), EditorError> {
     valid_time(&value.start)
 }
 
+pub fn submit_sequence_transcribe(
+    store: &mut impl V3JobSubmissionStore,
+    assets: &impl JobAssetCapture,
+    input: opencut_job_contracts::SequenceTranscribeInput,
+) -> Result<JobRecord, EditorError> {
+    if input.language.as_ref().is_some_and(|language| {
+        language != "auto"
+            && (!(2..=3).contains(&language.len())
+                || !language.bytes().all(|byte| byte.is_ascii_lowercase()))
+    }) {
+        return Err(invalid("Invalid transcription language"));
+    }
+    let authorized = fixed(
+        store,
+        &input.project_id,
+        &input.revision,
+        &input.sequence_id,
+    )?;
+    let request = JobRequest {
+        idempotency_key: input.idempotency_key,
+        kind: "analysis.sequence_transcribe".into(),
+        input: serialize(&serde_json::json!({"snapshot": authorized.snapshot,
+            "sequence_id": input.sequence_id, "language": input.language}))?,
+    };
+    accept(
+        store,
+        assets,
+        request,
+        authorized,
+        input.sequence_id.clone(),
+        AssetScope::All,
+        |snapshot, asset_lock| opencut_job_execution::project_v3::PreparedSequenceTranscribe {
+            snapshot,
+            asset_lock,
+            sequence_id: input.sequence_id,
+            language: input.language,
+        },
+    )
+}
+
 pub fn submit_render(
     store: &mut impl V3JobSubmissionStore,
     assets: &impl JobAssetCapture,

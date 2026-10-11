@@ -8,18 +8,23 @@ pub mod artifact_gc;
 pub mod artifact_retention;
 pub mod audit;
 pub mod branching;
+pub mod caption_generation;
 pub mod classic_import;
 pub mod collaboration;
 pub mod events;
+pub mod history_navigation;
 pub mod identity;
 pub mod job_views;
 pub mod jobs;
 pub mod lifecycle;
 pub mod maintenance;
 pub mod media;
+pub mod media_library;
 pub mod plugin_v2;
 pub mod plugins;
 pub mod preview;
+pub mod project_edit;
+pub mod project_library;
 pub mod project_package;
 pub mod project_package_v3;
 pub mod project_v3;
@@ -32,6 +37,7 @@ pub mod render_v3;
 pub mod resources;
 pub mod speaker_turns;
 pub mod subtitle_exchange;
+pub mod timeline_edit;
 use identity::content_id;
 pub use opencut_api_contracts::{
     JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
@@ -97,3 +103,8 @@ pub mod budget;
 pub mod database;
 
 pub mod plugin_v3;
+pub mod reproducibility;
+
+pub mod tool_execution;
+
+pub mod workspace_port;

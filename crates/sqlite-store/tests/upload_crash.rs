@@ -32,10 +32,10 @@ impl UploadStore for Paused {
     fn inspect_upload(&self, id: &str) -> Result<UploadView, EditorError> {
         self.app.inspect_upload(id)
     }
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
         self.app.authorize_chunk(input)
     }
-    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
+    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
         if self.mode == "before" {
             self.pause();
         }
@@ -45,7 +45,7 @@ impl UploadStore for Paused {
         }
         Ok(view)
     }
-    fn abort_upload(&mut self, id: &str) -> Result<UploadView, EditorError> {
+    fn abort_upload(&mut self, id: &str) -> Result<UploadSession, EditorError> {
         self.app.abort_upload(id)
     }
 }
@@ -123,7 +123,7 @@ fn upload_child() {
                 upload_id: id.clone(),
             },
         )
-        .map(|_| store.inspect_upload(&id).unwrap())
+        .map(|_| UploadSession::from(store.inspect_upload(&id).unwrap()))
     } else if mode == "abort" {
         abort_with_cleanup(
             &mut store,
@@ -137,7 +137,7 @@ fn upload_child() {
     };
     std::fs::write(
         root.join(format!("{mode}-result.json")),
-        serde_json::to_vec(&result).unwrap(),
+        serde_json::to_vec(&result.and_then(UploadSession::legacy)).unwrap(),
     )
     .unwrap();
 }

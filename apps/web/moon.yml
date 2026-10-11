@@ -5,44 +5,49 @@ layer: 'application'
 
 tasks:
   dev:
-    command: 'bun run dev'
+    command: 'npm run dev'
     options:
       runInCI: false  # dev server: skipped in CI, never cached
 
   build:
-    command: 'bun run build'
+    command: 'npm run build'
     inputs:
       - 'src/**/*'
       - 'public/**/*'
+      - 'index.html'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - 'package.json'
-      - '/packages/sdk-ts/src/contracts.generated.ts'
+      - 'package-lock.json'
+      - '/packages/sdk-ts/src/**/*'
     outputs:
       - 'dist'
 
   test:
-    command: 'bun run test'
+    command: 'npm run test'
     inputs:
       - 'src/**/*'
+      - 'scripts/**/*'
+      - 'package.json'
+      - 'package-lock.json'
       - 'tsconfig.json'
-      - '/packages/sdk-ts/src/contracts.generated.ts'
+      - '/packages/sdk-ts/src/**/*'
 
   contracts-check:
-    command: 'bun run contracts:check'
+    command: 'npm run contracts:check'
     inputs:
       - 'src/editor/generate-contracts.mjs'
       - 'src/lib/editor-contracts.generated.ts'
       - 'package.json'
+      - 'package-lock.json'
       - '/Cargo.toml'
       - '/Cargo.lock'
       - '/crates/**/*'
       - '/apps/cli/**/*'
       - '/packages/sdk-ts/scripts/**/*'
-      - '/packages/sdk-ts/src/contracts.generated.ts'
+      - '/packages/sdk-ts/src/**/*'
       - '/packages/contract-fixtures/**/*'
 
-  deploy:
-    command: 'bun run deploy'
-    deps:
-      - '~:build'
+  boundaries-check:
+    command: 'npm run boundaries:check'
+    inputs: ['src/**/*', 'scripts/**/*', 'package.json']

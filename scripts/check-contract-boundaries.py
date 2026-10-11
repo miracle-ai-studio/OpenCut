@@ -13,7 +13,7 @@ nodes = {n["id"]: n for n in metadata["resolve"]["nodes"]}
 forbidden = {
     "opencut-media", "opencut-asset-store", "opencut-editor-application", "opencut-automation",
     "opencut-job-runtime", "opencut-job-execution", "opencut-plugin-host", "opencut-project-render",
-    "opencut-sqlite-store", "opencut-native-services", "opencut-storage-budget", "rusqlite", "wasmtime", "cosmic-text", "image", "gpui",
+    "opencut-host-runtime", "opencut-sqlite-store", "opencut-native-services", "opencut-storage-budget", "rusqlite", "wasmtime", "cosmic-text", "image", "gpui",
 }
 contracts = ["opencut-contracts", "opencut-media-contracts", "opencut-job-contracts", "opencut-api-contracts"]
 checked = {}
@@ -68,4 +68,20 @@ while pending:
 assert not ({packages[i]["name"] for i in composition_reached} & forbidden), "Composition must be independent of native execution and application storage"
 for path in (root / "crates/composition/src").rglob("*.rs"):
     assert not re.search(r'\bPathBuf\b|\bstd::(?:fs|process|net|path)::', path.read_text()), path
-print(json.dumps({"status": "passed", "dependency_closure_sizes": checked, "application_native_execution_boundary": "passed", "application_storage_boundary": "passed", "application_dependency_closure_size": len(reached), "composition_pure_boundary": "passed", "composition_dependency_closure_size": len(composition_reached)}, indent=2))
+
+# Dispatcher/scheduler boundaries must stay independently instantiable, including
+# transitive dependencies; moving a forbidden edge to another adapter cannot bypass this.
+for boundary in ["opencut-automation", "opencut-job-runtime"]:
+    package_id = next(i for i,p in packages.items() if p["name"] == boundary)
+    pending, seen = [package_id], set()
+    while pending:
+        current = pending.pop()
+        if current in seen: continue
+        seen.add(current)
+        pending.extend(nodes[current]["dependencies"])
+    banned = {"opencut-host-runtime", "opencut-sqlite-store", "opencut-native-services", "opencut-media", "opencut-asset-store", "opencut-project-render", "opencut-storage-budget", "rusqlite"}
+    assert not ({packages[i]["name"] for i in seen} & banned), f"{boundary} must use injected ports"
+
+cli = next(p for p in packages.values() if p["name"] == "opencut-cli")
+assert not ({"opencut-media", "opencut-asset-store", "opencut-native-services", "opencut-sqlite-store", "opencut-job-runtime"} & {d["name"] for d in cli["dependencies"]}), "CLI must construct the host and use typed workspace ports"
+print(json.dumps({"status": "passed", "dispatcher_and_scheduler_ports": "passed", "cli_host_boundary": "passed", "dependency_closure_sizes": checked, "application_native_execution_boundary": "passed", "application_storage_boundary": "passed", "application_dependency_closure_size": len(reached), "composition_pure_boundary": "passed", "composition_dependency_closure_size": len(composition_reached)}, indent=2))

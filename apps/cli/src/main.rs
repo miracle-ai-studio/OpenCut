@@ -12,13 +12,17 @@ mod mcp_replay;
 mod mcp_sessions;
 mod media_http;
 mod preview_http;
+mod server;
+mod signals;
 mod storage_recovery;
 mod upload_cli;
 mod upload_http;
+mod web_host;
 
 use clap::{Parser, Subcommand};
-use opencut_automation::{Automation, Response, capabilities, exit_code, tool_specs};
+use opencut_automation::{Response, capabilities, exit_code, tool_specs};
 use opencut_contracts::EditorError;
+use opencut_host_runtime::Automation;
 use serde_json::{Value, json};
 use std::{
     fs::File,
@@ -50,6 +54,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Manage an independent local HTTP/MCP service and its worker.
+    Server {
+        /// Runtime files; defaults to ~/.opencut/server, independent of the current directory.
+        #[arg(long, global = true)]
+        directory: Option<PathBuf>,
+        #[command(subcommand)]
+        command: server::Command,
+    },
     /// Local owner recovery of durable storage policy without opening SQLite.
     Storage {
         #[command(subcommand)]
@@ -85,6 +97,9 @@ enum Command {
         listen: std::net::SocketAddr,
         #[arg(long, default_value = ".opencut/api-token")]
         token_file: PathBuf,
+        /// Serve the built Web application from this directory.
+        #[arg(long)]
+        web_root: Option<PathBuf>,
         #[arg(long)]
         allow_origin: Vec<String>,
         #[arg(long, default_value_t=300, value_parser=clap::value_parser!(u64).range(1..=3600))]
@@ -264,6 +279,9 @@ enum EditCommand {
 #[derive(Subcommand)]
 enum McpCommand {
     Serve {
+        /// Run a local durable Worker with this stdio host (owner only).
+        #[arg(long)]
+        with_worker: bool,
         #[arg(long, default_value = "stdio", value_parser = ["stdio","streamable-http"])]
         transport: String,
         #[arg(long)]
@@ -321,6 +339,24 @@ async fn main() {
         emit_response(remote_call(&cli, endpoint), cli.json);
         return;
     }
+    if let Command::Server { directory, command } = &cli.command {
+        // Service administration is local OS-owner authority, never a scoped API credential.
+        let result = if cli.credential_file.is_some() {
+            Err(EditorError::new(
+                "PERMISSION_DENIED",
+                "Service administration requires local OS-owner authority; omit --credential-file",
+            ))
+        } else {
+            server::execute(&cli.database, directory.as_deref(), command).await
+        };
+        let unhealthy = matches!(command, server::Command::Status)
+            && result.as_ref().is_ok_and(|value| value["ready"] != true);
+        emit_response(opencut_automation::response(result), cli.json);
+        if unhealthy {
+            std::process::exit(1);
+        }
+        return;
+    }
     if let Command::Storage { command } = &cli.command {
         // Ordinary authentication and denial journaling both open SQLite. A
         // recovery entry must remain reachable when SQLite cannot allocate.
@@ -351,7 +387,7 @@ async fn main() {
     };
     if !caller.is_owner()
         && (matches!(&cli.command, Command::Worker { .. } | Command::Serve { .. })
-            || matches!(&cli.command, Command::Mcp {command:McpCommand::Serve {transport,..}} if transport == "streamable-http"))
+            || matches!(&cli.command, Command::Mcp {command:McpCommand::Serve {transport,with_worker,..}} if transport == "streamable-http" || *with_worker))
     {
         // The network host still uses the separately configured owner bearer.
         println!(
@@ -427,7 +463,7 @@ async fn main() {
         let database = cli.database.clone();
         let once = *once;
         let mut worker = tokio::task::spawn_blocking(move || {
-            opencut_job_runtime::run(&database, once, worker_stop)
+            opencut_host_runtime::worker::run(&database, once, worker_stop)
         });
         let outcome = tokio::select! {
             result=&mut worker=>result,
@@ -450,15 +486,20 @@ async fn main() {
         allow_origin,
         mcp_session_timeout_seconds,
         tool_surface,
+        web_root,
     } = &cli.command
     {
         if let Err(error) = http::serve(
             &cli.database,
             *listen,
             token_file,
-            allow_origin.clone(),
-            *mcp_session_timeout_seconds,
-            *tool_surface,
+            http::Options {
+                origins: allow_origin.clone(),
+                mcp_session_timeout_seconds: *mcp_session_timeout_seconds,
+                tool_surface: *tool_surface,
+                web_root: web_root.clone(),
+            },
+            None,
         )
         .await
         {
@@ -470,6 +511,7 @@ async fn main() {
     if let Command::Mcp {
         command:
             McpCommand::Serve {
+                with_worker,
                 transport,
                 listen,
                 token_file,
@@ -506,13 +548,17 @@ async fn main() {
                 token_file
                     .as_deref()
                     .unwrap_or(std::path::Path::new(".opencut/api-token")),
-                allow_origin.clone(),
-                session_timeout_seconds.unwrap_or(300),
-                *tool_surface,
+                http::Options {
+                    origins: allow_origin.clone(),
+                    mcp_session_timeout_seconds: session_timeout_seconds.unwrap_or(300),
+                    tool_surface: *tool_surface,
+                    web_root: None,
+                },
+                None,
             )
             .await
         } else {
-            mcp::serve(&cli.database, caller.clone(), *tool_surface).await
+            mcp::serve(&cli.database, caller.clone(), *tool_surface, *with_worker).await
         };
         if let Err(error) = result {
             eprintln!("{error}");

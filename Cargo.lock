@@ -4508,12 +4508,7 @@ dependencies = [
  "opencut-editor-application",
  "opencut-editor-core",
  "opencut-job-contracts",
- "opencut-native-services",
- "opencut-sqlite-store",
- "schemars",
- "serde",
  "serde_json",
- "tempfile",
  "uuid",
 ]
 
@@ -4525,15 +4520,11 @@ dependencies = [
  "axum",
  "clap",
  "futures-util",
- "opencut-asset-store",
  "opencut-automation",
  "opencut-contracts",
  "opencut-editor-application",
- "opencut-job-runtime",
- "opencut-media",
- "opencut-native-services",
+ "opencut-host-runtime",
  "opencut-sdk",
- "opencut-sqlite-store",
  "rmcp",
  "serde",
  "serde_json",
@@ -4603,6 +4594,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencut-host-runtime"
+version = "0.1.0"
+dependencies = [
+ "opencut-api-contracts",
+ "opencut-asset-store",
+ "opencut-automation",
+ "opencut-composition",
+ "opencut-contracts",
+ "opencut-editor-application",
+ "opencut-job-contracts",
+ "opencut-job-execution",
+ "opencut-job-runtime",
+ "opencut-media",
+ "opencut-native-services",
+ "opencut-project-render",
+ "opencut-sqlite-store",
+ "opencut-storage-budget",
+ "opencut-time",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "uuid",
+]
+
+[[package]]
 name = "opencut-job-contracts"
 version = "0.1.0"
 dependencies = [
@@ -4628,21 +4646,9 @@ dependencies = [
 name = "opencut-job-runtime"
 version = "0.1.0"
 dependencies = [
- "opencut-asset-store",
  "opencut-contracts",
  "opencut-editor-application",
- "opencut-job-contracts",
- "opencut-job-execution",
- "opencut-media",
- "opencut-project-render",
- "opencut-sqlite-store",
- "opencut-storage-budget",
- "opencut-time",
- "rusqlite",
- "serde",
  "serde_json",
- "sha2 0.10.9",
- "tempfile",
  "uuid",
 ]
 

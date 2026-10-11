@@ -90,7 +90,8 @@ pub(super) fn require(
     project: &str,
     action: ProjectAction,
 ) -> Result<(), EditorError> {
-    access::require(&Read(connection), context.caller(), project, action)
+    access::require(&Read(connection), context.caller(), project, action)?;
+    sqlite_project_library::require_live(connection, project)
 }
 pub(super) fn principal(
     connection: &Connection,
@@ -141,7 +142,10 @@ pub(super) fn verified_target(
 ) -> Result<Option<(String, String)>, EditorError> {
     if matches!(
         kind,
-        "preview.project_frame.v3" | "preview.project_range.v3" | "render.project.v3"
+        "preview.project_frame.v3"
+            | "preview.project_range.v3"
+            | "render.project.v3"
+            | "analysis.sequence_transcribe"
     ) {
         let Some(snapshot) = input.get("snapshot") else {
             return Ok(None);
@@ -232,12 +236,27 @@ pub(super) fn bind_job(
     }
     Ok(())
 }
+pub(super) fn require_live_input(
+    connection: &Connection,
+    input: &Value,
+) -> Result<(), EditorError> {
+    if let Some(project) = input.get("snapshot").and_then(|s| s.get("project"))
+        && let Some(id) = project
+            .get("id")
+            .or_else(|| project.get("base").and_then(|p| p.get("id")))
+            .and_then(Value::as_str)
+    {
+        sqlite_project_library::require_live(connection, id)?;
+    }
+    Ok(())
+}
 pub(super) fn require_submission(
     connection: &Connection,
     context: &ExecutionContext,
     request: &JobRequest,
 ) -> Result<(), EditorError> {
     if context.caller().is_owner() {
+        require_live_input(connection, &request.input)?;
         return Ok(());
     }
     let (project, _) =

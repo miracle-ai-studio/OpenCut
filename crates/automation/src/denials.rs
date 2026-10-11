@@ -1,12 +1,6 @@
-//! Native reporting facade. No request arguments, tokens or paths enter a record.
+//! Shared refusal reporting. Request arguments, tokens and paths stay out of records.
 use crate::{CallSource, Caller, Response};
-use opencut_contracts::EditorError;
 pub use opencut_editor_application::denials::*;
-use opencut_sqlite_store::EditorApplication;
-use std::path::Path;
-pub fn record_at(database: &Path, denial: &Denial<'_>) -> Result<(), EditorError> {
-    EditorApplication::open_managed(database)?.record_denial(denial)
-}
 pub fn observe_response<T>(
     store: &impl DenialStore,
     caller: Option<&Caller>,

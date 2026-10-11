@@ -44,6 +44,7 @@ impl ProjectRead for SqliteConnection {
         key: &str,
     ) -> Result<Option<ProjectSnapshot>, EditorError> {
         sqlite_access::owner(&self.1)?;
+        sqlite_project_library::require_live(self, &input.id)?;
         let identity = request_hash("create_project", &input.id, input)?;
         load_idempotent(
             self,
@@ -90,6 +91,7 @@ impl ProjectStore for SqliteConnection {
             .map_err(storage_error)?;
 
         sqlite_access::owner(&context)?;
+        sqlite_project_library::require_live(&tx, &input.id)?;
 
         if let Some(snapshot) = load_idempotent(
             &tx,

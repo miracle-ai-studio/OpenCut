@@ -17,8 +17,27 @@ use std::{
 
 pub(super) const MAX_DOCUMENT_BYTES: u64 = 16 * 1024 * 1024;
 pub(super) const MAX_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
-pub(super) const MAX_ASSET_BYTES: u64 = 1024 * 1024 * 1024;
-pub(super) const MAX_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+pub(super) const MAX_ASSET_BYTES: u64 = opencut_api_contracts::uploads::MAX_UPLOAD_BYTES;
+// Directory packages are streamed in 1 MiB blocks, not loaded into memory.
+// A short multi-clip 4K project already exceeds 4 GiB. Keep a bounded project
+// budget while retaining the independent per-asset and document limits.
+pub(super) const MAX_TOTAL_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
+fn validate_media_sizes(sizes: impl IntoIterator<Item = u64>) -> Result<(), EditorError> {
+    let mut total = 0_u64;
+    for size in sizes {
+        if size > MAX_ASSET_BYTES {
+            return Err(invalid("Asset exceeds package size limit"));
+        }
+        total = total
+            .checked_add(size)
+            .ok_or_else(|| invalid("Package media overflow"))?;
+        if total > MAX_TOTAL_BYTES {
+            return Err(invalid("Package media exceeds total limit"));
+        }
+    }
+    Ok(())
+}
 
 pub(super) fn invalid(message: &str) -> EditorError {
     EditorError::new("PACKAGE_INVALID", message)
@@ -198,25 +217,31 @@ pub(super) fn export_media(
     }
     let mut inventory = Vec::new();
     let mut copied = BTreeSet::new();
-    let mut total = 0_u64;
+    let pinned_assets = document
+        .assets
+        .iter()
+        .map(|asset| store.pin_asset(asset))
+        .collect::<Result<Vec<_>, _>>()?;
+    let sizes = pinned_assets
+        .iter()
+        .map(|asset| {
+            asset
+                .version
+                .as_ref()
+                .map(|version| version.size)
+                .ok_or_else(|| invalid("Asset could not be pinned"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    // Reject oversized inventories before copying any payload into staging.
+    validate_media_sizes(sizes)?;
     if *mode == PackageMode::SelfContained {
         fs::create_dir(staging.join("media")).map_err(io)?;
     }
-    for asset in &mut document.assets {
-        let pinned = store.pin_asset(asset)?;
+    for (asset, pinned) in document.assets.iter_mut().zip(pinned_assets) {
         let version = pinned
             .version
             .clone()
             .ok_or_else(|| invalid("Asset could not be pinned"))?;
-        if version.size > MAX_ASSET_BYTES {
-            return Err(invalid("Asset exceeds package size limit"));
-        }
-        total = total
-            .checked_add(version.size)
-            .ok_or_else(|| invalid("Package media overflow"))?;
-        if total > MAX_TOTAL_BYTES {
-            return Err(invalid("Package media exceeds total limit"));
-        }
         let (mut bytes, verified_size) = store.open_verified(&pinned)?;
         if verified_size != version.size {
             return Err(invalid("Asset version size changed"));
@@ -420,7 +445,7 @@ pub(super) fn capture_media_with_plugins(
 ) -> Result<(), EditorError> {
     let mut permitted = BTreeSet::from(["manifest.json".to_string(), "project.json".to_string()]);
     let mut seen = BTreeSet::new();
-    let mut total = 0_u64;
+    validate_media_sizes(manifest.assets.iter().map(|asset| asset.size))?;
     let store = AssetStore::open_managed(asset_store_root)?;
     for asset in &manifest.assets {
         if !seen.insert(asset.asset_id.clone())
@@ -428,12 +453,6 @@ pub(super) fn capture_media_with_plugins(
             || asset.size > MAX_ASSET_BYTES
         {
             return Err(invalid("Package asset inventory is invalid"));
-        }
-        total = total
-            .checked_add(asset.size)
-            .ok_or_else(|| invalid("Package media overflow"))?;
-        if total > MAX_TOTAL_BYTES {
-            return Err(invalid("Package media exceeds total limit"));
         }
         let source = match &manifest.mode {
             PackageMode::SelfContained => {
@@ -563,6 +582,17 @@ mod tests {
     use super::*;
     use opencut_contracts::{CreateProject, FrameRate, TransactionRequest};
     use opencut_sqlite_store::EditorApplication;
+
+    #[test]
+    fn multi_clip_4k_inventory_keeps_bounded_package_limits() {
+        // Ten individually supported camera clips can exceed the old 4 GiB
+        // project ceiling without requiring any single large allocation.
+        assert!(validate_media_sizes([512 * 1024 * 1024; 10]).is_ok());
+        assert!(validate_media_sizes([MAX_ASSET_BYTES; 4]).is_ok());
+        assert!(validate_media_sizes([MAX_ASSET_BYTES; 5]).is_err());
+        assert!(validate_media_sizes([MAX_ASSET_BYTES + 1]).is_err());
+        assert!(validate_media_sizes([u64::MAX]).is_err());
+    }
     use serde_json::json;
 
     #[test]

@@ -218,12 +218,24 @@ pub fn compile_v3(
                 .filter(|mask| indices.contains_key(mask.target_id.as_str()))
                 .cloned(),
         );
+        graph.transitions.extend(
+            visual
+                .transitions
+                .iter()
+                .filter(|transition| {
+                    indices.contains_key(transition.outgoing_clip_id.as_str())
+                        && indices.contains_key(transition.incoming_clip_id.as_str())
+                })
+                .cloned(),
+        );
     }
-    Ok(CompositionV3 {
+    let compiled = CompositionV3 {
         format: CompositionV3Format::V3,
         base,
         visual: graph,
-    })
+    };
+    crate::coverage_v3::audit_visual_coverage(snapshot, &compiled)?;
+    Ok(compiled)
 }
 
 #[cfg(test)]
@@ -331,6 +343,112 @@ mod tests {
         assert_eq!(visual.visual.targets[0].kind, VisualTargetKind::Shape);
         assert_eq!(visual.visual.effects[0].target_id, "shape");
         assert_eq!(visual.visual.masks[0].target_id, "shape");
+    }
+
+    #[test]
+    fn coverage_rejects_lost_injected_or_changed_nodes() {
+        use crate::coverage_v3::audit_visual_coverage;
+        let source = fixture();
+        let original = compile_v3(&source, "main", CompositionScope::Visual).unwrap();
+        let mutations: [fn(&mut CompositionV3); 9] = [
+            |c| c.visual.effects.clear(),
+            |c| c.visual.masks.clear(),
+            |c| c.visual.shapes.clear(),
+            |c| c.visual.targets.clear(),
+            |c| c.visual.targets[0].index = 99,
+            |c| c.visual.masks[0].inverted = true,
+            |c| c.visual.effects.push(c.visual.effects[0].clone()),
+            |c| c.visual.shapes[0].opacity = 0.5,
+            |c| c.base.revision = "wrong-revision".into(),
+        ];
+        for mutate in mutations {
+            let mut broken = original.clone();
+            mutate(&mut broken);
+            assert_eq!(
+                audit_visual_coverage(&source, &broken).unwrap_err().code,
+                "COMPOSITION_COVERAGE_MISMATCH"
+            );
+        }
+    }
+
+    #[test]
+    fn enabled_clip_transitions_reach_both_render_scopes() {
+        let mut source = fixture();
+        source.project.base.assets.push(Asset {
+            id: "footage".into(),
+            name: "Footage".into(),
+            kind: AssetKind::Video,
+            uri: "asset://footage".into(),
+            duration: Some(time(3000)),
+            version: None,
+            metadata: Default::default(),
+        });
+        source.project.base.sequences[0].tracks.push(Track {
+            id: "video".into(),
+            name: "Video".into(),
+            kind: TrackKind::Video,
+            enabled: true,
+            muted: true,
+            locked: false,
+            clips: ["out", "in"]
+                .into_iter()
+                .enumerate()
+                .map(|(index, id)| Clip {
+                    id: id.into(),
+                    asset_id: Some("footage".into()),
+                    timeline_range: TimeRange {
+                        start: time(index as i64 * 1000),
+                        duration: time(1000),
+                    },
+                    source_range: Some(TimeRange {
+                        start: time(500 + index as i64 * 1000),
+                        duration: time(1000),
+                    }),
+                    params: Default::default(),
+                    channels: vec![],
+                })
+                .collect(),
+            params: Default::default(),
+        });
+        let transition = TransitionNode {
+            id: "crossfade".into(),
+            outgoing_clip_id: "out".into(),
+            incoming_clip_id: "in".into(),
+            duration: time(600),
+            transition: Transition::Crossfade,
+        };
+        source.project.visual[0]
+            .transitions
+            .push(transition.clone());
+        for scope in [CompositionScope::Visual, CompositionScope::AudioVisual] {
+            let compiled = compile_v3(&source, "main", scope).unwrap();
+            assert_eq!(compiled.visual.transitions, vec![transition.clone()]);
+            let mut lost = compiled.clone();
+            lost.visual.transitions.clear();
+            assert_eq!(
+                crate::coverage_v3::audit_visual_coverage(&source, &lost)
+                    .unwrap_err()
+                    .code,
+                "COMPOSITION_COVERAGE_MISMATCH"
+            );
+        }
+        source.project.base.sequences[0].tracks[1].enabled = false;
+        for scope in [CompositionScope::Visual, CompositionScope::AudioVisual] {
+            let compiled = compile_v3(&source, "main", scope).unwrap();
+            assert!(compiled.visual.transitions.is_empty());
+            let receipt = crate::coverage_v3::audit_visual_coverage(&source, &compiled).unwrap();
+            assert!(
+                receipt
+                    .entries
+                    .iter()
+                    .any(|entry| entry.source_id == "crossfade"
+                        && entry.disposition
+                            == crate::coverage_v3::VisualDisposition::DisabledTrack)
+            );
+            let mut injected = compiled;
+            injected.visual.transitions.push(transition.clone());
+            assert!(crate::coverage_v3::audit_visual_coverage(&source, &injected).is_err());
+        }
     }
 
     #[test]

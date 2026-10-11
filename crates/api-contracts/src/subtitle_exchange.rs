@@ -52,3 +52,16 @@ pub struct SubtitleExportReceipt {
     /// Interchange limitations, never hidden from the caller.
     pub losses: Vec<String>,
 }
+
+/// Commit timeline-time captions from an authorized successful scene transcription.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateCaptions {
+    pub project_id: String,
+    pub expected_revision: String,
+    pub sequence_id: String,
+    pub analysis_job_id: String,
+    pub idempotency_key: String,
+    pub words_per_caption: u8,
+    pub style: Option<CaptionStyle>,
+}

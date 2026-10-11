@@ -20,14 +20,16 @@ use axum::{
     },
     routing::{get, post, put},
 };
-use opencut_automation::{Automation, Response, capabilities, domains, tool_specs};
+use opencut_automation::{Response, capabilities, domains, tool_specs};
 use opencut_contracts::EditorError;
+use opencut_host_runtime::Automation;
 use serde_json::{Value, json};
 
 #[derive(Clone)]
 pub(super) struct Host {
     pub database: Arc<std::path::PathBuf>,
     token: Arc<String>,
+    browser_session: Option<crate::web_host::BrowserSession>,
     origins: Arc<Vec<String>>,
     pub media_root: Arc<std::path::PathBuf>,
     pub artifact_root: Arc<std::path::PathBuf>,
@@ -36,22 +38,44 @@ pub(super) struct Host {
     pub upload_slots: Arc<tokio::sync::Semaphore>,
 }
 
+pub struct Options {
+    pub origins: Vec<String>,
+    pub mcp_session_timeout_seconds: u64,
+    pub tool_surface: crate::mcp::ToolSurface,
+    pub web_root: Option<std::path::PathBuf>,
+}
+
 pub async fn serve(
     database: &FsPath,
     listen: SocketAddr,
     token_path: &FsPath,
-    origins: Vec<String>,
-    mcp_session_timeout_seconds: u64,
-    tool_surface: crate::mcp::ToolSurface,
+    options: Options,
+    service: Option<&crate::server::Runtime>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let Options {
+        mut origins,
+        mcp_session_timeout_seconds,
+        tool_surface,
+        web_root,
+    } = options;
+    let web_root = web_root.map(crate::web_host::validate_root).transpose()?;
     struct PreviewShutdown(std::path::PathBuf);
     impl Drop for PreviewShutdown {
         fn drop(&mut self) {
-            let _ = opencut_native_services::preview::shutdown_workspace(&self.0);
+            let _ = opencut_host_runtime::transport_io::shutdown_previews(&self.0);
         }
     }
     if !listen.ip().is_loopback() {
         return Err("This local host only accepts loopback addresses; remote authorization is not implemented".into());
+    }
+    // Bind before workspace initialization so a port collision has no workspace side effects.
+    let listener = tokio::net::TcpListener::bind(listen).await?;
+    if web_root.is_some() {
+        origins.push(format!("http://{}", listener.local_addr()?));
+        origins.push(format!(
+            "http://localhost:{}",
+            listener.local_addr()?.port()
+        ));
     }
     let token = read_or_create_token(token_path)?;
     let media_root = database
@@ -65,15 +89,19 @@ pub async fn serve(
         .join("artifacts");
     fs::create_dir_all(&artifact_root)?;
     drop(Automation::open(database)?);
-    opencut_native_services::preview::recover_workspace(database)?;
+    opencut_host_runtime::transport_io::recover_previews(database)?;
     let _preview_shutdown_guard = PreviewShutdown(database.to_path_buf());
     let stop = Arc::new(AtomicBool::new(false));
     let mcp = crate::mcp_http::HttpMcp::new(mcp_session_timeout_seconds, tool_surface);
     let mcp_router = mcp.router(Arc::new(database.to_path_buf()), origins.clone());
     let _mcp_shutdown_guard = mcp.cancellation.clone().drop_guard();
+    let browser_session = web_root
+        .as_ref()
+        .map(|_| crate::web_host::BrowserSession::new());
     let host = Host {
         database: Arc::new(database.to_path_buf()),
         token: Arc::new(token),
+        browser_session: browser_session.clone(),
         origins: Arc::new(origins),
         media_root: Arc::new(media_root),
         artifact_root: Arc::new(artifact_root),
@@ -118,6 +146,10 @@ pub async fn serve(
         .route("/v1/preview/stream", post(crate::preview_http::stream))
         .route("/v1/media/upload", post(crate::media_http::upload))
         .route(
+            "/v1/stream-uploads/{upload_id}/chunks/{offset}",
+            put(crate::upload_http::put_stream_chunk),
+        )
+        .route(
             "/v1/uploads/{upload_id}/chunks/{offset}",
             put(crate::upload_http::put_chunk),
         )
@@ -140,7 +172,6 @@ pub async fn serve(
         .route("/v1/job-events/stream", get(job_event_stream))
         .route("/v1/changes/stream", post(changes_stream))
         .merge(mcp_router.with_state(()))
-        .fallback(|| async { error_response("NOT_FOUND", "Unknown API route") })
         .method_not_allowed_fallback(|| async {
             (
                 StatusCode::METHOD_NOT_ALLOWED,
@@ -153,7 +184,10 @@ pub async fn serve(
         .layer(DefaultBodyLimit::max(2_097_152))
         .layer(middleware::from_fn_with_state(host.clone(), authorize))
         .with_state(host);
-    let listener = tokio::net::TcpListener::bind(listen).await?;
+    let router = crate::web_host::attach(router, web_root, listener.local_addr()?, browser_session);
+    if let Some(service) = service {
+        service.publish(listener.local_addr()?)?;
+    }
     eprintln!(
         "OpenCut API listening on http://{}; bearer token file: {}",
         listener.local_addr()?,
@@ -162,16 +196,20 @@ pub async fn serve(
     let worker_stop = stop.clone();
     let worker_database = database.to_path_buf();
     let mut worker = tokio::task::spawn_blocking(move || {
-        opencut_job_runtime::run(&worker_database, false, worker_stop)
+        opencut_host_runtime::worker::run(&worker_database, false, worker_stop)
     });
     let signal_stop = stop.clone();
     let preview_database = database.to_path_buf();
+    let service_shutdown = crate::server::shutdown_requested(service);
     let server = axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            termination_signal().await;
+            tokio::select! {
+                _ = crate::signals::termination() => {},
+                _ = service_shutdown => {},
+            }
             signal_stop.store(true, Ordering::SeqCst);
             let _ = tokio::task::spawn_blocking(move || {
-                opencut_native_services::preview::shutdown_workspace(&preview_database)
+                opencut_host_runtime::transport_io::shutdown_previews(&preview_database)
             })
             .await;
             mcp.shutdown().await;
@@ -194,16 +232,6 @@ pub async fn serve(
         }
     }
     Ok(())
-}
-
-async fn termination_signal() {
-    #[cfg(unix)]
-    if let Ok(mut term) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-    {
-        tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = term.recv() => {} }
-        return;
-    }
-    let _ = tokio::signal::ctrl_c().await;
 }
 
 fn read_or_create_token(path: &FsPath) -> Result<String, Box<dyn std::error::Error>> {
@@ -291,11 +319,16 @@ async fn authorize(
         add_cors(response.headers_mut(), origin.as_ref());
         return response;
     }
+    let browser_authorized = host
+        .browser_session
+        .as_ref()
+        .is_some_and(|session| session.accepts(&request));
     let Some(secret) = request
         .headers()
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
+        .or_else(|| browser_authorized.then_some(host.token.as_str()))
     else {
         return crate::denials::refuse(
             &host,
@@ -669,7 +702,7 @@ async fn job_event_stream(
                 let path = database.clone();
                 let filter = job_id.clone();
                 let page = tokio::task::spawn_blocking(move || {
-                    opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?
+                    opencut_host_runtime::workspace::Workspace::open_managed(path.as_ref())?
                         .job_events_after(cursor, limit, filter.as_deref())
                 })
                 .await;
@@ -753,7 +786,7 @@ async fn events(
                 let identity = caller.clone();
                 let page = tokio::task::spawn_blocking(move || {
                     let mut app =
-                        opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?;
+                        opencut_host_runtime::workspace::Workspace::open_managed(path.as_ref())?;
                     app.set_caller(identity);
                     app.events_after(cursor, 100)
                 })
@@ -885,7 +918,7 @@ async fn read_changes(
     let path = host.database.clone();
     let caller = host.identity.caller.clone();
     tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open_managed(path.as_ref())?;
+        let mut app = opencut_host_runtime::workspace::Workspace::open_managed(path.as_ref())?;
         app.set_caller(caller);
         app.event_changes(input)
     })

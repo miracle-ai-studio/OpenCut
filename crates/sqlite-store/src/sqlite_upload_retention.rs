@@ -15,7 +15,7 @@ UPDATE metadata SET value='9' WHERE key='schema_version' AND value='8';
 fn used(c: &Connection, project: Option<&str>) -> Result<u64, EditorError> {
     c.query_row("SELECT COALESCE(SUM(r.reserved_bytes),0) FROM upload_retention r JOIN upload_sessions u USING(upload_id) WHERE r.released=0 AND (?1 IS NULL OR u.project_id=?1)", [project], |r|r.get(0)).map_err(storage_error)
 }
-pub(super) fn reserve(c: &Connection, input: &CreateUpload, id: &str) -> Result<(), EditorError> {
+pub(super) fn reserve(c: &Connection, input: &BeginUpload, id: &str) -> Result<(), EditorError> {
     let size = decimal(&input.size_bytes)?;
     if used(c, Some(&input.project_id))?
         .checked_add(size)
@@ -36,7 +36,7 @@ pub(super) fn reserve(c: &Connection, input: &CreateUpload, id: &str) -> Result<
     .map_err(storage_error)?;
     Ok(())
 }
-fn view(c: &Connection, upload: &UploadView) -> Result<UploadRetentionView, EditorError> {
+fn view(c: &Connection, upload: &UploadSession) -> Result<UploadRetentionView, EditorError> {
     let (size, released): (u64, bool) = c
         .query_row(
             "SELECT reserved_bytes,released FROM upload_retention WHERE upload_id=?1",
@@ -96,6 +96,18 @@ fn require_eligible(view: &UploadRetentionView) -> Result<(), EditorError> {
         ));
     }
     Ok(())
+}
+fn retained_upload(
+    c: &Connection,
+    context: &opencut_editor_application::audit::ExecutionContext,
+    id: &str,
+    write: bool,
+) -> Result<UploadSession, EditorError> {
+    if context.caller().is_owner() {
+        return sqlite_uploads::read(c, id)?
+            .ok_or_else(|| EditorError::new("NOT_FOUND", "Upload was not found"));
+    }
+    authorized(c, context, id, write)
 }
 impl UploadRetentionStore for EditorApplication {
     fn read_upload_page(
@@ -172,7 +184,7 @@ impl UploadRetentionStore for EditorApplication {
                     EditorError::new("STORAGE_ERROR", "Upload disappeared in read snapshot")
                 })?;
                 let retention = view(&tx, &upload)?;
-                Ok(UploadEntry { upload, retention })
+                Ok(UploadSessionEntry { upload, retention })
             })
             .collect::<Result<_, EditorError>>()?;
         tx.commit().map_err(storage_error)?;
@@ -189,7 +201,7 @@ impl UploadRetentionStore for EditorApplication {
             .connection
             .unchecked_transaction()
             .map_err(storage_error)?;
-        let upload = authorized(&tx, &self.connection.1, id, false)?;
+        let upload = retained_upload(&tx, &self.connection.1, id, false)?;
         let result = view(&tx, &upload)?;
         tx.commit().map_err(storage_error)?;
         Ok(result)
@@ -225,7 +237,7 @@ impl UploadRetentionStore for EditorApplication {
             .connection
             .unchecked_transaction()
             .map_err(storage_error)?;
-        let upload = authorized(&tx, &self.connection.1, id, true)?;
+        let upload = retained_upload(&tx, &self.connection.1, id, true)?;
         let result = view(&tx, &upload)?;
         require_eligible(&result)?;
         tx.commit().map_err(storage_error)?;
@@ -238,7 +250,7 @@ impl UploadRetentionStore for EditorApplication {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
-        let upload = authorized(&tx, &ctx, id, true)?;
+        let upload = retained_upload(&tx, &ctx, id, true)?;
         let before = view(&tx, &upload)?;
         require_eligible(&before)?;
         if before.state == UploadRetentionState::Released {

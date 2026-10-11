@@ -11,11 +11,12 @@ use axum::{
 };
 use futures_util::StreamExt;
 use opencut_automation::{
-    Automation, CallSource, ExecutionContext,
-    uploads::{self, ChunkDescriptor, UploadStore},
+    CallSource, ExecutionContext,
+    uploads::{self, ChunkDescriptor},
 };
 use opencut_contracts::EditorError;
-use opencut_sqlite_store::EditorApplication;
+use opencut_host_runtime::Automation;
+use opencut_host_runtime::workspace::Workspace as EditorApplication;
 use serde::Deserialize;
 use std::time::Duration;
 #[derive(Deserialize)]
@@ -48,6 +49,26 @@ pub(super) async fn put_chunk(
     query: Result<Query<ChunkQuery>, QueryRejection>,
     headers: HeaderMap,
     body: Body,
+) -> Response {
+    put_chunk_inner(host, upload_id, offset, query, headers, body, false).await
+}
+pub(super) async fn put_stream_chunk(
+    AuthorizedHost(host): AuthorizedHost,
+    Path((upload_id, offset)): Path<(String, String)>,
+    query: Result<Query<ChunkQuery>, QueryRejection>,
+    headers: HeaderMap,
+    body: Body,
+) -> Response {
+    put_chunk_inner(host, upload_id, offset, query, headers, body, true).await
+}
+async fn put_chunk_inner(
+    host: Host,
+    upload_id: String,
+    offset: String,
+    query: Result<Query<ChunkQuery>, QueryRejection>,
+    headers: HeaderMap,
+    body: Body,
+    streaming: bool,
 ) -> Response {
     let Query(query) = match query {
         Ok(v) => v,
@@ -158,12 +179,14 @@ pub(super) async fn put_chunk(
         let _permit = permit;
         let mut app = EditorApplication::open_managed(task_host.database.as_ref())?;
         task_host.identity.validate(&mut app)?;
-        Ok::<_, EditorError>(
-            Automation::open(task_host.database.as_ref())?
-                .with_source(CallSource::Http)
-                .with_caller(task_host.identity.caller)
-                .put_upload_chunk(&input, &bytes),
-        )
+        let mut automation = Automation::open(task_host.database.as_ref())?
+            .with_source(CallSource::Http)
+            .with_caller(task_host.identity.caller);
+        Ok::<_, EditorError>(if streaming {
+            automation.put_stream_upload_chunk(&input, &bytes)
+        } else {
+            automation.put_upload_chunk(&input, &bytes)
+        })
     })
     .await;
     match result {

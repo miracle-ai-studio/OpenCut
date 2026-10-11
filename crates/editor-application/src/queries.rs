@@ -42,6 +42,8 @@ pub trait JobRead {
     ) -> Result<Vec<JobEvent>, EditorError>;
 }
 pub trait WorkspaceRead: ProjectRead {
+    /// Authorized head identity without projecting a document into a legacy schema.
+    fn read_head_revision(&self, project_id: &str) -> Result<String, EditorError>;
     fn read_projects(&self) -> Result<Vec<ProjectSnapshot>, EditorError>;
     fn read_revision_summary(
         &self,
@@ -138,7 +140,7 @@ pub fn history(
     if !(1..=100).contains(&limit) {
         return Err(error("INVALID_ARGUMENT", "History limit must be 1..100"));
     }
-    let head = store.head(project_id)?.revision;
+    let head = store.read_head_revision(project_id)?;
     let mut cursor = Some(from.unwrap_or(&head).to_owned());
     let mut revisions = Vec::new();
     while let Some(revision) = cursor.take() {

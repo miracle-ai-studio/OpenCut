@@ -148,13 +148,17 @@ impl JobRead for SqliteConnection {
     }
 }
 impl WorkspaceRead for SqliteConnection {
+    fn read_head_revision(&self, project_id: &str) -> Result<String, EditorError> {
+        sqlite_access::require(self, &self.1, project_id, ProjectAction::Read)?;
+        sqlite_project_v3::project_head_revision(self, project_id)
+    }
     fn read_projects(&self) -> Result<Vec<ProjectSnapshot>, EditorError> {
         let principal = sqlite_access::principal(self, &self.1)?;
         let mut statement = self
             .prepare(
                 "SELECT r.document_json, p.head_revision
                  FROM projects p JOIN revisions r ON r.revision = p.head_revision
-                 WHERE (?1 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.principal_id=?1 AND g.project_id=p.project_id AND g.action_mask & 1 != 0))
+                 WHERE NOT EXISTS(SELECT 1 FROM deleted_projects d WHERE d.project_id=p.project_id) AND (?1 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.principal_id=?1 AND g.project_id=p.project_id AND g.action_mask & 1 != 0))
                  ORDER BY p.project_id",
             )
             .map_err(storage_error)?;
@@ -194,7 +198,12 @@ impl WorkspaceRead for SqliteConnection {
         let label = request
             .map(|s| decode_json::<Value>(&s, "stored transaction request"))
             .transpose()?
-            .and_then(|v| v.get("label").and_then(Value::as_str).map(str::to_owned));
+            .and_then(|v| {
+                v.get("label")
+                    .or_else(|| v.get("request").and_then(|r| r.get("label")))
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            });
         Ok(RevisionSummary {
             revision,
             parent_revision,

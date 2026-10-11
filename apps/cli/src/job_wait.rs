@@ -10,7 +10,8 @@ async fn observe(
     timeout_seconds: u64,
     caller: opencut_automation::Caller,
 ) -> Result<Response, EditorError> {
-    use opencut_sqlite_store::{EditorApplication, JobState};
+    use opencut_editor_application::JobState;
+    use opencut_host_runtime::workspace::Workspace as EditorApplication;
     let started = std::time::Instant::now();
     loop {
         let path = database.to_path_buf();
@@ -69,7 +70,7 @@ pub async fn run(
                 let identity = caller.clone();
                 Some(tokio::task::spawn_blocking(move || {
                     let tool = if identity.is_owner() {"opencut_job_cancel"} else {"opencut_job_request_cancel"};
-                    opencut_automation::Automation::open(path).map(|app|app.with_source(opencut_automation::CallSource::Cli).with_caller(identity).call(tool, json!({"job_id":id})))
+                    opencut_host_runtime::Automation::open(path).map(|app|app.with_source(opencut_automation::CallSource::Cli).with_caller(identity).call(tool, json!({"job_id":id})))
                 }).await.map_err(|error|EditorError::new("INTERNAL_ERROR",error.to_string()))?
                     .unwrap_or_else(|error|opencut_automation::response(Err(error))))
             } else {None};

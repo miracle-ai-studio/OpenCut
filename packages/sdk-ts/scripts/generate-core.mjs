@@ -294,6 +294,18 @@ if (uploads) {
       default: transportError,
     },
   } };
+  if (envelope.data.some(tool => tool.name === "opencut_upload_stream_inspect")) {
+    const chunk = paths[uploads.chunk_path_template].put;
+    paths["/v1/stream-uploads/{upload_id}/chunks/{offset}"] = { put: {
+      ...chunk,
+      operationId: "opencut_upload_stream_chunk",
+      description: `Transfer one verified chunk of a streaming upload. The complete file digest can remain unset until opencut_upload_stream_complete. ${chunk.description}`,
+      responses: {
+        "200": { description: "Confirmed streaming upload state and next_offset.", content: { "application/json": { schema: { $ref: "#/components/schemas/OpencutUploadStreamInspectOutput" } } } },
+        default: transportError,
+      },
+    } };
+  }
 }
 paths["/v1/projects/{project}/media/{media_id}/content"] = { get: {
   operationId: "opencut_project_media_content",

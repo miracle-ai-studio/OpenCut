@@ -7,8 +7,7 @@ use axum::{
 };
 use futures_util::StreamExt;
 use opencut_contracts::{Asset, EditorError};
-use opencut_media::{FfmpegBackend, ProbeRequest};
-use opencut_native_services::budget::AdmittedFile;
+use opencut_host_runtime::transport_io::AdmittedFile;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -95,7 +94,7 @@ async fn upload_inner(
         if size > MAX_UPLOAD_BYTES {
             return Err(EditorError::new(
                 "INVALID_ARGUMENT",
-                "Upload exceeds 1 GiB limit",
+                "Upload exceeds 16 GiB limit",
             ));
         }
         hash.update(&chunk);
@@ -136,26 +135,15 @@ async fn upload_inner(
     let (_file, result) = file
         .run(move |file| {
             file.sync()?;
-            let metadata = FfmpegBackend::discover()
-                .and_then(|backend| {
-                    backend.probe(&ProbeRequest {
-                        input: staging.clone(),
-                    })
-                })
-                .map_err(|e| EditorError::new("INVALID_ARGUMENT", e.to_string()))?;
-            let canonical = std::fs::canonicalize(root.as_ref())
-                .map_err(io_error)?
-                .join(&hash);
-            let asset = opencut_automation::media::describe(
-                &metadata,
-                &canonical,
+            let asset = opencut_host_runtime::transport_io::import_uploaded_media(
+                &database,
+                context,
+                &root,
+                &staging,
                 &query.name,
                 &hash,
                 size,
             )?;
-            let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
-            app.set_execution_context(context);
-            opencut_automation::media::import_observed(&root, &staging, &hash, &asset, &app)?;
             Ok(json!({"asset":asset,"media_url":format!("/v1/media/{hash}")}))
         })
         .await?;
@@ -174,7 +162,7 @@ fn declared_upload_length(headers: &HeaderMap) -> Result<Option<u64>, EditorErro
     if !(1..=MAX_UPLOAD_BYTES).contains(&size) {
         return Err(EditorError::new(
             "INVALID_ARGUMENT",
-            "Upload must be between 1 byte and 1 GiB",
+            "Upload must be between 1 byte and 16 GiB",
         ));
     }
     Ok(Some(size))
@@ -193,7 +181,15 @@ mod upload_length_tests {
         headers.insert(CONTENT_LENGTH, HeaderValue::from_static("4194304"));
         assert_eq!(declared_upload_length(&headers).unwrap(), Some(4_194_304));
 
-        for value in ["0", "1073741825", "not-a-number"] {
+        headers.insert(
+            CONTENT_LENGTH,
+            HeaderValue::from_str(&MAX_UPLOAD_BYTES.to_string()).unwrap(),
+        );
+        assert_eq!(
+            declared_upload_length(&headers).unwrap(),
+            Some(MAX_UPLOAD_BYTES)
+        );
+        for value in ["0", "17179869185", "not-a-number"] {
             headers.insert(CONTENT_LENGTH, HeaderValue::from_str(value).unwrap());
             assert_eq!(
                 declared_upload_length(&headers).unwrap_err().code,
@@ -253,12 +249,12 @@ pub(super) async fn read(
 pub(super) async fn read_project(
     AuthorizedHost(host): AuthorizedHost,
     Path((project, media_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
 ) -> Response {
-    use opencut_editor_application::uploads::ImportStore;
     let database = host.database.clone();
     let identity = host.identity.clone();
     let opened = tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
+        let mut app = opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref())?;
         identity.validate(&mut app)?;
         app.set_caller(identity.caller);
         let imported = app
@@ -273,22 +269,8 @@ pub(super) async fn read_project(
             .get("mime_type")
             .and_then(|value| value.as_str())
             .map(str::to_owned);
-        let root = database
-            .parent()
-            .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing workspace root"))?
-            .join("asset-store");
-        let store = opencut_asset_store::AssetStore::read_only(root).map_err(|_| {
-            EditorError::new(
-                "ARTIFACT_VERIFICATION_FAILED",
-                "Project media is unavailable",
-            )
-        })?;
-        let (file, size) = store.open_verified(&imported.asset).map_err(|_| {
-            EditorError::new(
-                "ARTIFACT_VERIFICATION_FAILED",
-                "Project media content is missing or corrupt",
-            )
-        })?;
+        let (file, size) =
+            opencut_host_runtime::transport_io::open_verified_media(&database, &imported.asset)?;
         Ok::<_, EditorError>((file, size, mime))
     })
     .await;
@@ -297,18 +279,56 @@ pub(super) async fn read_project(
         Ok(Err(error)) => return into_http(opencut_automation::response(Err(error))),
         Err(_) => return error_response("INTERNAL_ERROR", "Cannot read project media"),
     };
+    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+    let range = match headers.get("range") {
+        Some(value) => match value
+            .to_str()
+            .ok()
+            .and_then(|value| byte_range(value, size))
+        {
+            Some(range) => Some(range),
+            None => {
+                let mut response = StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+                response.headers_mut().insert(
+                    "content-range",
+                    HeaderValue::from_str(&format!("bytes */{size}")).unwrap(),
+                );
+                return response;
+            }
+        },
+        None => None,
+    };
+    let (start, end) = range.unwrap_or((0, size.saturating_sub(1)));
+    let length = if size == 0 { 0 } else { end - start + 1 };
+    let mut file = tokio::fs::File::from_std(file);
+    if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
+        return error_response("STORAGE_ERROR", "Cannot seek media");
+    }
     let mut response = (
-        StatusCode::OK,
-        Body::from_stream(ReaderStream::new(tokio::fs::File::from_std(file))),
+        if range.is_some() {
+            StatusCode::PARTIAL_CONTENT
+        } else {
+            StatusCode::OK
+        },
+        Body::from_stream(ReaderStream::new(file.take(length))),
     )
         .into_response();
+    response
+        .headers_mut()
+        .insert("accept-ranges", HeaderValue::from_static("bytes"));
+    if range.is_some() {
+        response.headers_mut().insert(
+            "content-range",
+            HeaderValue::from_str(&format!("bytes {start}-{end}/{size}")).unwrap(),
+        );
+    }
     response
         .extensions_mut()
         .insert(crate::http_identity::RevalidateStream);
     if let Some(mime) = mime.and_then(|value| HeaderValue::from_str(&value).ok()) {
         response.headers_mut().insert("content-type", mime);
     }
-    if let Ok(size) = HeaderValue::from_str(&size.to_string()) {
+    if let Ok(size) = HeaderValue::from_str(&length.to_string()) {
         response.headers_mut().insert("content-length", size);
     }
     response.headers_mut().insert(
@@ -346,7 +366,7 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
     let database = host.database.clone();
     let caller = host.identity.caller.clone();
     let data = match tokio::task::spawn_blocking(move || {
-        let mut app = opencut_sqlite_store::EditorApplication::open_managed(database.as_ref())?;
+        let mut app = opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref())?;
         app.set_caller(caller);
         app.artifact_job(&job).map(|record| json!(record))
     })
@@ -411,7 +431,7 @@ async fn serve_artifact(host: Host, job: String, requested_hash: Option<String>)
     let cancelled = Cancellation::default();
     let signal = cancelled.0.clone();
     let verified = match BlockingOwned::create(move || {
-        let mut source = opencut_native_services::artifacts::ArtifactSource::open(
+        let mut source = opencut_host_runtime::transport_io::ArtifactReader::open(
             artifact_root.as_ref(),
             &job_id,
             attempt,
@@ -512,5 +532,45 @@ struct Cancellation(std::sync::Arc<std::sync::atomic::AtomicBool>);
 impl Drop for Cancellation {
     fn drop(&mut self) {
         self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+fn byte_range(value: &str, size: u64) -> Option<(u64, u64)> {
+    if size == 0 {
+        return None;
+    }
+    let (start, end) = value.strip_prefix("bytes=")?.split_once('-')?;
+    if start.is_empty() {
+        let suffix = end.parse::<u64>().ok()?;
+        return (suffix > 0).then_some((size.saturating_sub(suffix), size - 1));
+    }
+    let start = start.parse::<u64>().ok()?;
+    let end = if end.is_empty() {
+        size - 1
+    } else {
+        end.parse::<u64>().ok()?.min(size - 1)
+    };
+    (start < size && start <= end).then_some((start, end))
+}
+#[cfg(test)]
+mod range_tests {
+    use super::byte_range;
+    #[test]
+    fn media_ranges_are_bounded_and_reject_ambiguous_requests() {
+        assert_eq!(byte_range("bytes=2-4", 10), Some((2, 4)));
+        assert_eq!(byte_range("bytes=2-", 10), Some((2, 9)));
+        assert_eq!(byte_range("bytes=-3", 10), Some((7, 9)));
+        assert_eq!(byte_range("bytes=-30", 10), Some((0, 9)));
+        assert_eq!(byte_range("bytes=2-40", 10), Some((2, 9)));
+        for value in [
+            "bytes=10-",
+            "bytes=4-2",
+            "bytes=-0",
+            "bytes=0-1,4-5",
+            "bytes=a-b",
+        ] {
+            assert_eq!(byte_range(value, 10), None);
+        }
+        assert_eq!(byte_range("bytes=0-", 0), None);
     }
 }

@@ -1,3 +1,5 @@
+export { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
+import { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
 export * from "./contracts.generated.js";
 import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap } from "./contracts.generated.js";
 
@@ -42,42 +44,6 @@ export function jobResult<K extends keyof JobResultMap>(job: Job, kind: K): JobR
   }
   return job.result as JobResultMap[K];
 }
-export interface Envelope<T> {
-  api_version: "1";
-  request_id: string;
-  data: T;
-  error: null;
-  warnings: string[];
-}
-
-/** The server rejected the request; details and request ID are preserved. */
-export class OpenCutApiError extends Error {
-  readonly name = "OpenCutApiError";
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly details: unknown,
-    readonly status: number,
-    readonly requestId: string,
-    readonly warnings: readonly string[],
-  ) { super(message); }
-}
-
-/** A transport failure does not establish whether a mutation committed. */
-export class OpenCutTransportError extends Error {
-  readonly name = "OpenCutTransportError";
-  readonly outcome = "unknown";
-  constructor(cause: unknown) {
-    super("OpenCut request could not be completed; inspect state or retry the identical idempotent request.", { cause });
-  }
-}
-
-export class OpenCutProtocolError extends Error {
-  readonly name = "OpenCutProtocolError";
-  readonly outcome = "unknown";
-  constructor(message: string, readonly status: number) { super(message); }
-}
-
 export class JobWaitTimeoutError extends Error {
   readonly name = "JobWaitTimeoutError";
   readonly code = "JOB_WAIT_TIMEOUT";
@@ -120,11 +86,6 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /** No automatic retries, revision refreshes, implicit job cancellation or UI state. */
-function auditWarnings(response: Response, warnings: string[]): string[] {
-  const warning = "DENIAL_AUDIT_UNAVAILABLE";
-  return response.headers.get("x-opencut-audit-warning") === warning && !warnings.includes(warning)
-    ? [...warnings, warning] : warnings;
-}
 
 export class OpenCutClient {
   readonly baseUrl: string;
@@ -179,51 +140,34 @@ export class OpenCutClient {
   }
 
   /** Send one raw chunk. On an unknown outcome, inspect the confirmed offset before retrying. */
-  async uploadChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_inspect">> {
+  uploadChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_inspect">> {
+    return this.#putUploadChunk("uploads", uploadId, offset, bytes, options);
+  }
+
+  /** Same durable chunk protocol; the complete digest may still be undeclared. */
+  uploadStreamChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_stream_inspect">> {
+    return this.#putUploadChunk("stream-uploads", uploadId, offset, bytes, options);
+  }
+
+  async #putUploadChunk<T>(route: "uploads" | "stream-uploads", uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions): Promise<T> {
     options.signal?.throwIfAborted();
-    if (!/^upload_[a-f0-9]{32}$/.test(uploadId) || !/^(0|[1-9][0-9]{0,9})$/.test(offset) ||
+    if (!/^upload_[a-f0-9]{32}$/.test(uploadId) || !/^(0|[1-9][0-9]{0,10})$/.test(offset) ||
       bytes.byteLength < 1 || bytes.byteLength > 4194304 ||
-      BigInt(offset) + BigInt(bytes.byteLength) > 1073741824n) throw new TypeError("Invalid upload identity or chunk range.");
+      BigInt(offset) + BigInt(bytes.byteLength) > 17179869184n) throw new TypeError("Invalid upload identity or chunk range.");
     const body = new Uint8Array(bytes);
     const hash = Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", body)),
       b => b.toString(16).padStart(2, "0")).join("");
     const query = new URLSearchParams({ size_bytes: String(body.byteLength), content_hash: hash });
-    return (await this.#request<ToolOutput<"opencut_upload_inspect">>(
-      `/v1/uploads/${uploadId}/chunks/${offset}?${query}`, "PUT", body, "application/octet-stream", options,
+    return (await this.#request<T>(
+      `/v1/${route}/${uploadId}/chunks/${offset}?${query}`, "PUT", body, "application/octet-stream", options,
     )).data;
   }
 
-  async #request<T>(path: string, method: string, body: BodyInit, contentType: string,
+  #request<T>(path: string, method: string, body: BodyInit, contentType: string,
     options: CallOptions): Promise<Envelope<T>> {
-    options.signal?.throwIfAborted();
-    let response: Response;
-    let value: unknown;
-    try {
-      response = await this.#fetch(`${this.baseUrl}${path}`, {
-        method, redirect: "error", signal: options.signal,
-        headers: { Authorization: `Bearer ${this.#token}`, "Content-Type": contentType, Accept: "application/json" },
-        body,
-      });
-      const raw = await response.text();
-      try { value = JSON.parse(raw); }
-      catch { throw new OpenCutProtocolError("OpenCut returned a non-JSON response.", response.status); }
-    } catch (cause) {
-      if (options.signal?.aborted) throw options.signal.reason;
-      if (cause instanceof OpenCutProtocolError) throw cause;
-      throw new OpenCutTransportError(cause);
-    }
-    if (!object(value) || value.api_version !== "1" || typeof value.request_id !== "string"
-      || !Array.isArray(value.warnings) || !value.warnings.every(w => typeof w === "string")) {
-      throw new OpenCutProtocolError("Invalid or incompatible OpenCut response envelope.", response.status);
-    }
-    if (object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string") {
-      throw new OpenCutApiError(value.error.code, value.error.message, value.error.details,
-        response.status, value.request_id, auditWarnings(response, value.warnings));
-    }
-    if (!response.ok || value.error !== null || value.data === null || value.data === undefined) {
-      throw new OpenCutProtocolError("Inconsistent OpenCut response status or payload.", response.status);
-    }
-    return value as unknown as Envelope<T>;
+    return requestEnvelope(this.#fetch, this.baseUrl, this.#token, path, {
+      method, body, signal: options.signal, headers: { "Content-Type": contentType },
+    });
   }
 
   /** Explicit durable cancellation; terminal state may still require waiting. */

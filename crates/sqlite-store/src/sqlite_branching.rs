@@ -891,7 +891,7 @@ mod tests {
         let path = directory.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&path).unwrap();
         let root = project(&mut app, "p");
-        app.connection.execute_batch("DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; UPDATE metadata SET value='19' WHERE key='schema_version';").unwrap();
+        app.connection.execute_batch("DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; UPDATE metadata SET value='19' WHERE key='schema_version';").unwrap();
         drop(app);
         let mut upgraded = EditorApplication::open(&path).unwrap();
         let branch = create(&mut upgraded, &root.revision, "agent");

@@ -1,0 +1,241 @@
+{
+  "date": "2026-09-30",
+  "scope": "Single-pass streaming Web import; not full Classic functionality parity",
+  "status": "verified",
+  "binary_sha256": "09f84c49b613c8d48378e70db571767adb6f242221cb05f9f63da325bd27d324",
+  "tests": {
+    "rust_workspace_excluding_desktop": 412,
+    "ignored_child_fixtures": 6,
+    "web": 25,
+    "web_boundaries": 7,
+    "typescript_sdk": 20,
+    "python": 23,
+    "browser": 20,
+    "architecture_modules": 22,
+    "temporary_exceptions": 0,
+    "frozen_tools_unchanged": 22,
+    "all_prior_tool_declarations_unchanged": 132,
+    "current_tools": 137,
+    "fmt": "passed",
+    "clippy": "passed",
+    "generated_contracts": "passed"
+  },
+  "browser": {
+    "report": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-dr9lg2tr/browser-report.json",
+    "checks": [
+      "built Web page connects to detached authenticated service",
+      "create project opens full editor",
+      "browser chunks and hashes media, import job finishes, fixed asset binds and inserts",
+      "composited frame artifact displays in browser",
+      "continuous MSE video decodes and media clock advances",
+      "split at playhead commits two clips",
+      "server selective undo and redo preserve edit history",
+      "subtitle import uses shared service and appears on the timeline",
+      "browser reload retains project and background export",
+      "render preflight and durable export complete with downloadable artifact",
+      "streamed browser download independently contains four seconds of video and audio",
+      "independently decoded PCM retains the synthetic reference tone",
+      "authorized original source preview opens",
+      "authorized source thumbnail appears in the media library",
+      "duplicate shortcut and timeline undo commit through the shared application",
+      "Classic curve editor writes the chosen easing to the fixed project snapshot",
+      "property keyframe update preserves the existing curve anchor",
+      "canvas drag commits shape position in canvas coordinates",
+      "imported audio displays waveform measured by the native analysis job",
+      "Chinese and English, light and dark themes switch live and survive reload without credential prompts"
+    ],
+    "web_files": {
+      "assets/index-BLM3xA_N.css": "13b5e14fdaa575ce870e10a25d93f6683a99bd0d951e85af2b7c201058b51be2",
+      "assets/index-DOhmhUHb.js": "af766dcc369934e0775f33d976612c611279d1d6f243a92ea10f7adce371ebac",
+      "assets/preview-CzerCX24.jpg": "b318cede7bbe27bfbf1b8b94d41f65b6f52d5f2650ce3a153d03b76c2a1c0190",
+      "favicon.ico": "ec3400f57e441cee3161a41e78adbff0fcf1a2876757970c9be951c70b2fc4c7",
+      "index.html": "e01dd2a2782204c8d50c12bc5b4668c049d2165ceb22938a08a7e1625fab5c08",
+      "manifest.json": "f4861620f9abaff5faa6e44cc0202c22b99bf54ea7ff2048afe99dd5bd472138",
+      "robots.txt": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2"
+    },
+    "failed_requests": [],
+    "page_errors": []
+  },
+  "performance": {
+    "report": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-upload-5KML4x/report.json",
+    "bytes": 67108908,
+    "runs": [
+      {
+        "label": "before",
+        "round": 0,
+        "binarySha256": "b618d92517833e052175affdc1635f273006f3c5ab9c575220d8b2ed46242109",
+        "readBytes": 134217816,
+        "readCalls": 34,
+        "chunks": 17,
+        "firstChunkMs": 1437,
+        "transferMs": 10985.10000000894,
+        "preparationMs": 6321.399999991059,
+        "totalMs": 17306.5
+      },
+      {
+        "label": "after",
+        "round": 0,
+        "binarySha256": "09f84c49b613c8d48378e70db571767adb6f242221cb05f9f63da325bd27d324",
+        "readBytes": 67108908,
+        "readCalls": 17,
+        "chunks": 17,
+        "firstChunkMs": 101.19999998807907,
+        "transferMs": 6946.5999999940395,
+        "preparationMs": 3460.5999999940395,
+        "totalMs": 10407.199999988079
+      },
+      {
+        "label": "before",
+        "round": 1,
+        "binarySha256": "b618d92517833e052175affdc1635f273006f3c5ab9c575220d8b2ed46242109",
+        "readBytes": 134217816,
+        "readCalls": 34,
+        "chunks": 17,
+        "firstChunkMs": 1505.9000000059605,
+        "transferMs": 8590.90000000596,
+        "preparationMs": 3382,
+        "totalMs": 11972.90000000596
+      },
+      {
+        "label": "after",
+        "round": 1,
+        "binarySha256": "09f84c49b613c8d48378e70db571767adb6f242221cb05f9f63da325bd27d324",
+        "readBytes": 67108908,
+        "readCalls": 17,
+        "chunks": 17,
+        "firstChunkMs": 93.79999999701977,
+        "transferMs": 6905.0999999940395,
+        "preparationMs": 3889.7999999970198,
+        "totalMs": 10794.89999999106
+      },
+      {
+        "label": "before",
+        "round": 2,
+        "binarySha256": "b618d92517833e052175affdc1635f273006f3c5ab9c575220d8b2ed46242109",
+        "readBytes": 134217816,
+        "readCalls": 34,
+        "chunks": 17,
+        "firstChunkMs": 1501,
+        "transferMs": 8330.40000000596,
+        "preparationMs": 3500.0999999940395,
+        "totalMs": 11830.5
+      },
+      {
+        "label": "after",
+        "round": 2,
+        "binarySha256": "09f84c49b613c8d48378e70db571767adb6f242221cb05f9f63da325bd27d324",
+        "readBytes": 67108908,
+        "readCalls": 17,
+        "chunks": 17,
+        "firstChunkMs": 103.19999998807907,
+        "transferMs": 6607.29999999702,
+        "preparationMs": 3450.0999999940395,
+        "totalMs": 10057.39999999106
+      }
+    ],
+    "median": {
+      "before": {
+        "readBytes": 134217816,
+        "firstChunkMs": 1501,
+        "transferMs": 8590.90000000596,
+        "preparationMs": 3500.0999999940395,
+        "totalMs": 11972.90000000596
+      },
+      "after": {
+        "readBytes": 67108908,
+        "firstChunkMs": 101.19999998807907,
+        "transferMs": 6905.0999999940395,
+        "preparationMs": 3460.5999999940395,
+        "totalMs": 10407.199999988079
+      }
+    },
+    "checks": [
+      "complete replay accepts one job; conflicting digest returns 409; independent worker rejects wrong whole-file digest; terminal staging releases"
+    ],
+    "limitations": "Three paired local Chromium trials with synthetic 64 MiB PCM WAV. First pair overlapped the tail of other checks; median is a small-sample observation, not a controlled throughput guarantee or 4K/long-media acceptance."
+  },
+  "live": {
+    "backup": "/Users/vincent/.opencut/backups/before-stream-upload-20260930-002828",
+    "before": {
+      "schema": "23",
+      "projects": 1,
+      "media": 1
+    },
+    "after": {
+      "schema": "24",
+      "projects": 1,
+      "media": 1
+    },
+    "web_files": {
+      "favicon.ico": "ec3400f57e441cee3161a41e78adbff0fcf1a2876757970c9be951c70b2fc4c7",
+      "index.html": "e01dd2a2782204c8d50c12bc5b4668c049d2165ceb22938a08a7e1625fab5c08",
+      "manifest.json": "f4861620f9abaff5faa6e44cc0202c22b99bf54ea7ff2048afe99dd5bd472138",
+      "robots.txt": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2",
+      "assets/index-DOhmhUHb.js": "af766dcc369934e0775f33d976612c611279d1d6f243a92ea10f7adce371ebac",
+      "assets/preview-CzerCX24.jpg": "b318cede7bbe27bfbf1b8b94d41f65b6f52d5f2650ce3a153d03b76c2a1c0190",
+      "assets/index-BLM3xA_N.css": "13b5e14fdaa575ce870e10a25d93f6683a99bd0d951e85af2b7c201058b51be2"
+    },
+    "service": {
+      "database": "/Users/vincent/.opencut/workspace.sqlite",
+      "diagnostic": null,
+      "directory": "/Users/vincent/.opencut/server",
+      "endpoint": "http://127.0.0.1:8788",
+      "executable": "/Users/vincent/Desktop/OpenCut/target/release/opencut",
+      "instance": "4700d31b-b8a9-44b0-91f0-cf00261db230",
+      "log_file": "/Users/vincent/.opencut/server/server.log",
+      "pid": 83040,
+      "ready": true,
+      "started_at_unix_ms": 1790699314967,
+      "state": "running",
+      "token_file": "/Users/vincent/.opencut/server/api-token",
+      "version": 1,
+      "web_url": "http://127.0.0.1:8788/editor"
+    },
+    "browser_smoke": "passed: page ready, HttpOnly SameSite Strict session, no page errors"
+  },
+  "remaining": "Server assembly/integrity verification, probing and immutable capture remain; original feature migration remains incomplete.",
+  "package": {
+    "status": "manifest_and_tested_binary_web_identity_verified",
+    "archive": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-fa3d7efa0132-x86_64-apple-darwin.tar.gz",
+    "sha256": "6ab005e650742e6155dadeb506d28764cf6afaa5906164dde696ca035a4f9f47",
+    "binary_sha256": "09f84c49b613c8d48378e70db571767adb6f242221cb05f9f63da325bd27d324",
+    "target": "x86_64-apple-darwin",
+    "extracted": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-stream-delivery-xcbyk5uq/opencut-0.1.0-x86_64-apple-darwin",
+    "verified_files": 27,
+    "full_package_suite": "not run for this incremental artifact"
+  },
+  "test_logs": {
+    "workspace-tests": {
+      "path": "/tmp/opencut-stream-workspace-tests.log",
+      "sha256": "4fb98ee21850554ccc19932c2fe8aab9fa1675c77bbdd7a9b0c5f9fd6d5c3111"
+    },
+    "web-tests": {
+      "path": "/tmp/opencut-stream-web-tests.log",
+      "sha256": "fb21b71420ca3f135ef17b966f626b26e4e3d2fe8ee074dea1cce04bf6ecbf0a"
+    },
+    "sdk-tests": {
+      "path": "/tmp/opencut-stream-sdk-tests.log",
+      "sha256": "01e93e239e59f5e1006479d79dd39e4d766626ac4ca299347d47feac03241fe9"
+    },
+    "sdk-rust": {
+      "path": "/tmp/opencut-stream-sdk-rust.log",
+      "sha256": "55fbb0080906a0e78ce0b8a1281bca43fc3c9ac62fce1b7e252657d56b4f106a"
+    },
+    "python-tests": {
+      "path": "/tmp/opencut-stream-python-tests.log",
+      "sha256": "46163b0de49ce98d3231e865ddb5113f0f3da137c71b739fb0411e2d861b8f10"
+    },
+    "clippy": {
+      "path": "/tmp/opencut-stream-clippy.log",
+      "sha256": "8789b4979a38c5c823cf3c0222c0ce5afc74d035777066175c7a66267b734737"
+    },
+    "browser-final": {
+      "path": "/tmp/opencut-stream-browser-final.log",
+      "sha256": "58d43260d3f0b626aae1972f2661e960286a1d48af92342c97152cf680e50211"
+    },
+    "performance-final": {
+      "path": "/tmp/opencut-stream-performance-final.log",
+      "sha256": "ceca358a09efea63db4c42123b025ba35cef43ef64d8868c1eb0da5a73400229"
+    }
+  }
+}

@@ -21,6 +21,14 @@ pub fn start_v3_render(
     let root = app.asset_store_root().to_path_buf();
     project_v3_jobs::submit_render(app, &crate::jobs::native_assets(&root), input)
 }
+
+pub fn start_sequence_transcribe(
+    app: &mut EditorApplication,
+    input: opencut_job_contracts::SequenceTranscribeInput,
+) -> Result<JobRecord, EditorError> {
+    let root = app.asset_store_root().to_path_buf();
+    project_v3_jobs::submit_sequence_transcribe(app, &crate::jobs::native_assets(&root), input)
+}
 pub fn start_v3_frame(
     app: &mut EditorApplication,
     input: SubmitV3Frame,

@@ -67,6 +67,7 @@ pub(super) fn project_head_revision(
     connection: &Connection,
     project: &str,
 ) -> Result<String, EditorError> {
+    sqlite_project_library::require_live(connection, project)?;
     let row: Option<(String, String)> = connection
         .query_row(
             "SELECT r.document_json,p.head_revision
@@ -106,6 +107,7 @@ pub(super) fn load_v3_snapshot(
     project: &str,
     revision: Option<&str>,
 ) -> Result<ProjectSnapshotV3, EditorError> {
+    sqlite_project_library::require_live(connection, project)?;
     let (document, revision): (String, String) = if let Some(revision) = revision {
         connection
             .query_row(
@@ -241,6 +243,7 @@ impl EditorApplication {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
         sqlite_access::owner(&context)?;
+        sqlite_project_library::require_live(&tx, &input.project.id)?;
         if let Some(value) = load_idempotent(
             &tx,
             "project_v3_create",
@@ -432,6 +435,7 @@ impl EditorApplication {
             JOIN revisions r ON r.revision=p.head_revision
             WHERE (?1 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.principal_id=?1
               AND g.project_id=p.project_id AND g.action_mask & 1 != 0))
+              AND NOT EXISTS(SELECT 1 FROM deleted_projects d WHERE d.project_id=p.project_id)
               AND p.project_id>?2 AND json_extract(r.document_json,'$.schema_version')=3
             ORDER BY p.project_id LIMIT ?3",
             )
@@ -562,67 +566,114 @@ impl EditorApplication {
             ));
         }
         let plan = opencut_editor_application::project_v3::plan_apply(&current.project, &prepared)?;
-        let transaction_id = format!("txn_{}", Uuid::new_v4().simple());
-        let revision = revision_id(
-            &plan.proposed_project,
-            Some(&current.revision),
-            Some(&transaction_id),
-        )?;
-        let result = opencut_contracts::TransactionResult {
-            transaction_id: transaction_id.clone(),
-            base_revision: current.revision.clone(),
-            revision: revision.clone(),
-            created_ids: plan.created_ids,
-            changed_ids: plan.changed_ids,
-            deleted_ids: plan.deleted_ids,
-        };
-        tx.execute("INSERT INTO revisions(revision,project_id,parent_revision,transaction_id,document_json)
-            VALUES (?1,?2,?3,?4,?5)",params![revision,input.project_id,current.revision,transaction_id,
-                encode_json(&plan.proposed_project,"schema 3 edit document")?]).map_err(storage_error)?;
-        let updated = tx
-            .execute(
-                "UPDATE projects SET head_revision=?1 WHERE project_id=?2 AND head_revision=?3",
-                params![revision, input.project_id, current.revision],
-            )
-            .map_err(storage_error)?;
-        if updated != 1 {
-            return Err(EditorError::new(
-                "REVISION_CONFLICT",
-                "Project head moved during schema 3 edit",
-            ));
-        }
-        let receipt = encode_json(&result, "schema 3 edit receipt")?;
-        tx.execute("INSERT INTO editor_transactions(transaction_id,project_id,base_revision,revision,request_json,result_json)
-            VALUES (?1,?2,?3,?4,?5,?6)",params![transaction_id,input.project_id,current.revision,revision,
-                encode_json(&json!({"kind":"project_v3.apply","request":prepared}),"schema 3 edit journal")?,receipt]).map_err(storage_error)?;
-        tx.execute("INSERT INTO idempotency(operation_family,scope,idempotency_key,request_hash,result_kind,result_json)
-            VALUES ('project_v3_apply',?1,?2,?3,'transaction',?4)",
-            params![input.project_id,input.idempotency_key,identity.current_digest(),receipt]).map_err(idempotency_insert_error)?;
-        tx.execute(
-            "INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json)
-            VALUES (?1,?2,?3,'project.v3_applied',?4)",
-            params![
-                format!("evt_{}", Uuid::new_v4().simple()),
-                input.project_id,
-                revision,
-                receipt
-            ],
-        )
-        .map_err(storage_error)?;
-        sqlite_audit::insert(
+        let result = commit_edit(
             &tx,
             &context,
-            "project.v3_applied",
-            sqlite_audit::Links {
-                project_id: Some(&input.project_id),
-                revision: Some(&revision),
-                transaction_id: Some(&transaction_id),
-                ..Default::default()
+            &current,
+            plan,
+            EditCommit {
+                project_id: &input.project_id,
+                idempotency_key: &input.idempotency_key,
+                identity: &identity,
+                family: "project_v3_apply",
+                event: "project.v3_applied",
+                request: json!({"kind":"project_v3.apply","request":prepared}),
             },
         )?;
         tx.commit().map_err(storage_error)?;
         Ok(result)
     }
+}
+
+pub(super) struct EditCommit<'a> {
+    pub project_id: &'a str,
+    pub idempotency_key: &'a str,
+    pub identity: &'a RequestIdentity,
+    pub family: &'a str,
+    pub event: &'a str,
+    pub request: Value,
+}
+pub(super) fn commit_edit(
+    tx: &rusqlite::Transaction<'_>,
+    context: &opencut_editor_application::audit::ExecutionContext,
+    current: &ProjectSnapshotV3,
+    plan: opencut_contracts::project_v3_ops::VisualPlan,
+    edit: EditCommit<'_>,
+) -> Result<opencut_contracts::TransactionResult, EditorError> {
+    let transaction_id = format!("txn_{}", Uuid::new_v4().simple());
+    let revision = revision_id(
+        &plan.proposed_project,
+        Some(&current.revision),
+        Some(&transaction_id),
+    )?;
+    let result = opencut_contracts::TransactionResult {
+        transaction_id: transaction_id.clone(),
+        base_revision: current.revision.clone(),
+        revision: revision.clone(),
+        created_ids: plan.created_ids,
+        changed_ids: plan.changed_ids,
+        deleted_ids: plan.deleted_ids,
+    };
+    tx.execute(
+        "INSERT INTO revisions(revision,project_id,parent_revision,transaction_id,document_json)
+        VALUES (?1,?2,?3,?4,?5)",
+        params![
+            revision,
+            edit.project_id,
+            current.revision,
+            transaction_id,
+            encode_json(&plan.proposed_project, "schema 3 edit document")?
+        ],
+    )
+    .map_err(storage_error)?;
+    let updated = tx
+        .execute(
+            "UPDATE projects SET head_revision=?1,name=?4 WHERE project_id=?2 AND head_revision=?3",
+            params![
+                revision,
+                edit.project_id,
+                current.revision,
+                plan.proposed_project.base.name
+            ],
+        )
+        .map_err(storage_error)?;
+    if updated != 1 {
+        return Err(EditorError::new(
+            "REVISION_CONFLICT",
+            "Project head moved during schema 3 edit",
+        ));
+    }
+    let receipt = encode_json(&result, "schema 3 edit receipt")?;
+    tx.execute("INSERT INTO editor_transactions(transaction_id,project_id,base_revision,revision,request_json,result_json)
+        VALUES (?1,?2,?3,?4,?5,?6)",params![transaction_id,edit.project_id,current.revision,revision,
+            encode_json(&edit.request,"project edit journal")?,receipt]).map_err(storage_error)?;
+    tx.execute("INSERT INTO idempotency(operation_family,scope,idempotency_key,request_hash,result_kind,result_json)
+        VALUES (?5,?1,?2,?3,'transaction',?4)",
+        params![edit.project_id,edit.idempotency_key,edit.identity.current_digest(),receipt,edit.family]).map_err(idempotency_insert_error)?;
+    tx.execute(
+        "INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json)
+        VALUES (?1,?2,?3,?5,?4)",
+        params![
+            format!("evt_{}", Uuid::new_v4().simple()),
+            edit.project_id,
+            revision,
+            receipt,
+            edit.event
+        ],
+    )
+    .map_err(storage_error)?;
+    sqlite_audit::insert(
+        tx,
+        context,
+        edit.event,
+        sqlite_audit::Links {
+            project_id: Some(edit.project_id),
+            revision: Some(&revision),
+            transaction_id: Some(&transaction_id),
+            ..Default::default()
+        },
+    )?;
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -683,6 +734,36 @@ mod tests {
         }))
         .unwrap()
     }
+    #[test]
+    fn visual_history_reads_metadata_without_legacy_document_projection() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut app = EditorApplication::open(directory.path().join("workspace.sqlite")).unwrap();
+        let initial = app.create_v3_project(&create()).unwrap();
+        let applied = app
+            .apply_v3_project(&keyframe_curve_request(&initial.revision))
+            .unwrap();
+        let page = app.history("v3", None, 1).unwrap();
+        assert_eq!(page.head_revision, applied.revision);
+        assert_eq!(
+            page.revisions[0].transaction_id.as_deref(),
+            Some(applied.transaction_id.as_str())
+        );
+        assert_eq!(page.next_cursor.as_deref(), Some(initial.revision.as_str()));
+        let older = app.history("v3", page.next_cursor.as_deref(), 1).unwrap();
+        assert_eq!(older.revisions[0].revision, initial.revision);
+        assert!(older.next_cursor.is_none());
+        assert_eq!(
+            app.snapshot("v3").unwrap_err().code,
+            "UNSUPPORTED_PROJECT_VERSION"
+        );
+        assert_eq!(
+            app.history("absent", Some(&initial.revision), 1)
+                .unwrap_err()
+                .code,
+            "NOT_FOUND"
+        );
+    }
+
     #[test]
     fn v3_create_apply_fixed_revision_reopen_and_legacy_rejection() {
         let dir = tempfile::tempdir().unwrap();

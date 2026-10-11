@@ -133,7 +133,7 @@ pub(crate) fn compile_with_min_end_and_curves(
             "sequence has no renderable duration",
         ));
     }
-    Ok(Composition {
+    let compiled = Composition {
         format: CompositionFormat::V1,
         revision: snapshot.revision.clone(),
         sequence_id: sequence.id.clone(),
@@ -154,7 +154,10 @@ pub(crate) fn compile_with_min_end_and_curves(
             audio_clips,
             captions,
         },
-    })
+    };
+    crate::semantic_coverage::audit(snapshot, &compiled, keyframe_curves)?;
+    crate::semantic_coverage::audit_duration(snapshot, &compiled, minimum_end)?;
+    Ok(compiled)
 }
 pub fn map_font_policy(
     policy: &opencut_contracts::FontResolutionPolicy,

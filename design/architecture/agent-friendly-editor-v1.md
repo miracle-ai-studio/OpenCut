@@ -2,6 +2,8 @@
 
 状态：完整目标设计，部分已实现；逐项验收见 `implementation-status.md`。版本：design-v1。日期：2026-09-19。
 
+2026-09-27 增补：[整体架构整治与剪辑能力实施方案](architecture-renewal-plan.md) 规定后续模块归属、协议边界、治理门禁和 W0–W6 迁移顺序。完整产品目标继续保留；当前完成度以 [非 UI 交付台账](headless-completion-ledger.md) 为准。已发布协议不因目标设计更新而自动改变。
+
 本文以当前 OpenCut 主项目与 `tmp/opencut-classic` 的本地源码为依据。源码存在不等于运行验证通过。文中的 MUST／必须是新系统的设计约束，不表示现有代码已经满足。
 
 ## 1. 产品定义与设计边界

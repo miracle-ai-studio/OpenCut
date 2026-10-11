@@ -1,0 +1,310 @@
+{
+  "status": "passed_scoped_delivery",
+  "recorded_at": "2026-09-27T12:23:17.537829+00:00",
+  "scope": "Shared editorial planning and managed external-Agent stdio integration; the complete capability audit remains open",
+  "delivery": {
+    "status": "accepted_local_development",
+    "archive": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz",
+    "sha256": "6c3d9abe5c49644350315393be0ec08443525e1108d6477f975d57f86b4f38d8",
+    "binary_sha256": "64e58d163a51b465b08d2a6674f503394e79d2f9b9970842ce6955740769df53",
+    "target": "x86_64-apple-darwin"
+  },
+  "editorial_acceptance": {
+    "status": "passed",
+    "binary_sha256": "64e58d163a51b465b08d2a6674f503394e79d2f9b9970842ce6955740769df53",
+    "checks": [
+      "Delivered generator produces matching Codex/Claude configurations used for the actual MCP process",
+      "Read-only planning is denied; scoped editing agrees with owner; restricted credentials cannot launch a Worker",
+      "CLI, HTTP and compact MCP produce the same read-only editorial transaction",
+      "One idempotent commit shortens video and audio together; stale planning is rejected",
+      "Selective undo and redo recover the exact pre/post edit documents including masks",
+      "Managed stdio Worker renders independent red, blue and masked black pixel oracles after ripple edit",
+      "Export is three seconds and independent PCM excludes the removed 440 Hz interval",
+      "EOF stops the managed host cleanly; a new host executes a persisted queued task",
+      "SIGTERM stops the managed host even while the peer keeps stdin open"
+    ],
+    "artifact": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-editorial-1790511118042867000/artifacts/job_7b2681fda36a45488fe82bb7de2c4d38/attempt-1/render.mp4",
+    "artifact_sha256": "0d3a6cd315c2a6aeb383697701385c8cc66a8c94c8939c93519ff1d966360caf",
+    "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-editorial-1790511118042867000"
+  },
+  "checks": {
+    "rust_tests_passed": 72,
+    "python_tests_passed": 22,
+    "typescript_sdk_tests_passed": 19,
+    "clippy": "passed",
+    "format": "passed",
+    "architecture_modules": 22,
+    "temporary_dependency_exceptions": 0,
+    "generated_contracts": "passed",
+    "unchanged_existing_tool_schemas": 131,
+    "current_tools": 132,
+    "new_editorial_end_to_end_checks": 9
+  },
+  "agent_hosts": {
+    "codex": {
+      "status": "generated configuration parsed by installed CLI; no model-driven editing session tested",
+      "report": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-agent-config-jkdc5r2q/codex-report.json",
+      "sha256": "64a40d47edcf244b48c2bfc42be3f6fc0bd24adb12f64d2958ac364ebd2dd942"
+    },
+    "claude_code": {
+      "status": "Connected via isolated local configuration; no model-driven editing session tested",
+      "log": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-agent-config-jkdc5r2q/claude-connect.log",
+      "sha256": "5c14ac90d4c0bae85b864a5175f3e357583dde9cd7805deea164953f3099448d"
+    }
+  },
+  "source_files": [
+    {
+      "path": "crates/contracts/src/timeline_edit.rs",
+      "sha256": "9696022d9ff4110505c9884d293d54f316b39d91a51a0668403d7fcea9e7c702"
+    },
+    {
+      "path": "crates/contracts/src/lib.rs",
+      "sha256": "c58e1e7a0f8d1bac2bb0527b017d46ba53177efef6e8ebcdf477e04d398b6aa1"
+    },
+    {
+      "path": "crates/editor-application/src/timeline_edit.rs",
+      "sha256": "1eb958ed3620c2702ec7b05489b9be841c216c168ed1410cc7d4aa41a3707d94"
+    },
+    {
+      "path": "crates/editor-application/src/timeline_edit/tests.rs",
+      "sha256": "8aa2005f1ef9462abd6b42ffce8ca1bea4bf82a97bacd80985617e1e39c25da8"
+    },
+    {
+      "path": "crates/editor-application/src/access.rs",
+      "sha256": "677c10f09dcfa162b61b7e5aca892e388e6252c19880091c6a6678f769f15987"
+    },
+    {
+      "path": "crates/editor-application/src/lib.rs",
+      "sha256": "c7ea6494a071cd839b1bcab7b6aace2d769f78d397b4ec62c1a75fe5b9d6e22e"
+    },
+    {
+      "path": "crates/api-contracts/src/tools.rs",
+      "sha256": "91e0f31e7f5aa3a59e5a92ae86050f2c3369e8c750a3b558f71e277d5b1c753d"
+    },
+    {
+      "path": "crates/host-runtime/src/lib.rs",
+      "sha256": "07ab8d1f4f44b57ed888e0e26f531a3513997f3b1728871a49f6b628d1f752bb"
+    },
+    {
+      "path": "apps/cli/src/main.rs",
+      "sha256": "8f0d819ea2908cf9ba6ccc148032ba812f249103b7761f20a12025311212547c"
+    },
+    {
+      "path": "apps/cli/src/mcp.rs",
+      "sha256": "34b7b6343c6a5197e72ce621ee7e189471c62a23489378b75ac31978096ea80e"
+    },
+    {
+      "path": "apps/cli/src/http.rs",
+      "sha256": "5ea8aa3d3370cd1919bb125b7befa74a4d9ba985eee14ce743fe165597704972"
+    },
+    {
+      "path": "apps/cli/src/signals.rs",
+      "sha256": "0e327233c29c59ccb0306f382730d5128f1a7cd1e3f4a8f9e6c7553db30a0b82"
+    },
+    {
+      "path": "scripts/distribution/agent-config.py",
+      "sha256": "b2d6c81bf2ac6b4c94f80a7077fe422ac9d4a5b33d469dfb5dae836aad1f68f5"
+    },
+    {
+      "path": "scripts/distribution/doctor.py",
+      "sha256": "466030fef051189e97dc6a9e4e178ea94834fce069cbabbdd199f078a644cf9b"
+    },
+    {
+      "path": "scripts/package-local.py",
+      "sha256": "363397f6614ec84fb0a598053ad5837c3f1a91966b2200d0edc127732e911197"
+    },
+    {
+      "path": "scripts/verify-local-package.py",
+      "sha256": "1ecd2ba79a7bb340b70ea356cdd7d5f86c0a36cc5fcdc5f1d78adb0d8500519b"
+    },
+    {
+      "path": "scripts/verify-editorial.py",
+      "sha256": "850b177a65d731482b385e4d2b4e3a6d175c82c7ae440b9a622887520868a2af"
+    },
+    {
+      "path": "scripts/tests/test_agent_distribution.py",
+      "sha256": "50f1410bb3f28ce18f7191b22e95404e4496c97952297e02b8dfb81659b5686f"
+    },
+    {
+      "path": "packages/contract-fixtures/tools.generated.json",
+      "sha256": "6b6aa176ce2344d1390fb403eeafe4360bf8cce6895729b30a5e746ad63de39d"
+    },
+    {
+      "path": "packages/contract-fixtures/openapi.generated.json",
+      "sha256": "0c949ff453e390a24654a0c3d7a599bbe7c5e3529aeb56343b98fd11940e959a"
+    },
+    {
+      "path": "packages/sdk-ts/src/contracts.generated.ts",
+      "sha256": "c8921d174456b6b2d49ae6b66a9b12452263b0c8a77d0de453f749887275309f"
+    }
+  ],
+  "verification_logs": [
+    {
+      "path": "/tmp/opencut-editorial-rust-tests.log",
+      "sha256": "49971edb00849c15ad76989ba477d18e4ef2911c498b07c1ffa7507724754f48"
+    },
+    {
+      "path": "/tmp/opencut-editorial-python.log",
+      "sha256": "6a51b2da69a0c20e7776f18b0f3e409d328cc471b6cceffa6cd4dd42c44bd8c8"
+    },
+    {
+      "path": "/tmp/opencut-editorial-sdk.log",
+      "sha256": "c7d9786d004d06749e66eacf6756110d704c0beb34394389e358bed0fa4fd63e"
+    },
+    {
+      "path": "/tmp/opencut-editorial-clippy.log",
+      "sha256": "ee72c9ca08cfd418f5f36a75b058fa3d5decf4533ed9e2a51a3473032992765f"
+    },
+    {
+      "path": "/tmp/opencut-editorial-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/opencut-editorial-generated-check.log",
+      "sha256": "ef19d0e7c3797dc1dc10b471d4c2ecc55251e51816ed37b36a28a300034fad92"
+    },
+    {
+      "path": "/tmp/opencut-editorial-wire.log",
+      "sha256": "c804be6b19f6ef922ae023343ccaa9a6336e6ed59aeb1dddd6d34645ecd42748"
+    },
+    {
+      "path": "/tmp/opencut-editorial-final-acceptance.log",
+      "sha256": "fbc29ef79867abb6b1cd27d98d7bddb7da1efc83caca06296aa1dc5a9a6bc655"
+    }
+  ],
+  "corrections_during_validation": [
+    "Initial tests exposed transient track overlaps; shrink before growth and shift later clips first when inserting time",
+    "Source windows now reject negative starts before applying",
+    "Track reorder now recreates empty tracks before inserting retained clips",
+    "A graphic shape fixture initially used a video track; corrected the invalid fixture and reran application tests"
+  ],
+  "limitations": [
+    "Plans lower to at most 128 existing atomic operations",
+    "Roll/slide extensions require bounded media source ranges; they do not add animated retiming",
+    "MoveGroup is an explicit selection, not persistent linked groups",
+    "Existing crossfade and rectangle/ellipse masks are preserved; no new transition or mask families added",
+    "Doctor covers baseline runtime, not project fonts or cross-backend equivalence"
+  ],
+  "remaining_audit": [
+    "Persistent sync groups and J/L workflows",
+    "Timeline markers, BeatGrid, automatic beat/downbeat/phrase analysis",
+    "Advanced transitions, freeform/animated/tracked masks",
+    "Stabilization with crop/residual reports and variable speed curves",
+    "People, shaky intervals and duplicate-content selection analysis",
+    "Professional color management and audio bus/EQ/dynamics/loudness",
+    "Proxy/cache governance and measured long-media seek/playback performance",
+    "Portable font assets, globally atomic project restore and strict original-renderer reproduction",
+    "Full Classic feature migration, cross-platform binaries, signing and upgrade delivery"
+  ],
+  "package_acceptance": {
+    "status": "passed",
+    "checks": 41,
+    "receipt": {
+      "path": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz.acceptance.json",
+      "sha256": "01e0bf971d84597db6d8d18c276529da5957ffa1473a9326f3cad8f9cfbc9cb9"
+    },
+    "commands": {
+      "path": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz.acceptance-commands.json",
+      "sha256": "9823c84bb35e1759dabe3a0cb2c61e9d6b0697f7bc86a0ed91f09f8a6739dbb4"
+    },
+    "scope": "local development package acceptance on current host; not full R0-R7 or cross-platform release"
+  },
+  "supplementary_acceptance": {
+    "status": "passed",
+    "binary_sha256": "64e58d163a51b465b08d2a6674f503394e79d2f9b9970842ce6955740769df53",
+    "component_sha256": "42217d77989b6b03162542f4ab88d3d2f20aa8888da7bb04f49bc2ed802c3201",
+    "results": [
+      {
+        "name": "mcp-client",
+        "status": "passed",
+        "checks": 5,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/mcp-client-report.json",
+        "report_sha256": "20233ccdf1eea200a90b3eded309eafcf8aa664497b1e911dd9e7192b8006d01"
+      },
+      {
+        "name": "plugin",
+        "status": "passed",
+        "checks": 14,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/plugin-report.json",
+        "report_sha256": "c4c15383a0510045a57871e5496a9a2cb96b444bfe3abccf1852c5bec794d559"
+      },
+      {
+        "name": "plugin-publication",
+        "status": "passed",
+        "checks": 8,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/plugin-publication-report.json",
+        "report_sha256": "182082268f161ae7c9fc17504e840a3cb10f8aeb8a51b831eb2c119f4f735aa4"
+      },
+      {
+        "name": "project-plugins",
+        "status": "passed",
+        "checks": 6,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/project-plugins-report.json",
+        "report_sha256": "3d95a9b5f760431ce76f13ac08669c69c4227f1fc034c4493041da7714421d31"
+      },
+      {
+        "name": "budget-writers",
+        "status": "passed",
+        "checks": 5,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/budget-writers-report.json",
+        "report_sha256": "021562034ebf1fd3f7cca7e632a84d3ac127ad9c21a884857ab70cc29c9ae8b6"
+      },
+      {
+        "name": "scoped-preflight",
+        "status": "passed",
+        "checks": 8,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/scoped-preflight-report.json",
+        "report_sha256": "604365cc44580980f1dbd195199f18f5f22bb79cd7215aa31273e614839f14be"
+      },
+      {
+        "name": "denials",
+        "status": "passed",
+        "checks": 7,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/denials-report.json",
+        "report_sha256": "8d5e4d2e4ab1cef4fe48ddc2468e8fa4b6222182b6ae234f2f33f5ad4872b289"
+      },
+      {
+        "name": "storage",
+        "status": "passed",
+        "checks": 6,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/storage-report.json",
+        "report_sha256": "98d378c9ec11c67b10073381fd5bc01044ad09ad445b5735f28a071791f0af62"
+      },
+      {
+        "name": "budget",
+        "status": "passed",
+        "checks": 6,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/budget-report.json",
+        "report_sha256": "fbccba0df93d9aa77c19def1685a370b6a1332ed12af7482d9f8758f041ede29"
+      },
+      {
+        "name": "cas-gc",
+        "status": "passed",
+        "checks": 10,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/cas-gc-report.json",
+        "report_sha256": "6bda77832a3a19cb0cddf88651b7c05c0f3d7224557eca8d3353563792237725"
+      },
+      {
+        "name": "project-import",
+        "status": "passed",
+        "checks": 15,
+        "report": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/project-import-report.json",
+        "report_sha256": "a668534da8d6c150d0984bbc424948b376b1f1f493f69a303b285446dc063162"
+      }
+    ],
+    "scope": "Supplementary official MCP SDK branches and WASM plugin checks against the same delivered binary",
+    "receipt": {
+      "path": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-package-acceptance-mkzwkd9i/sdk-plugin-supplement/report.json",
+      "sha256": "f9681f90229c68dea900db4ba62d632e162ec5894cb3b700e30a8eb077caaa03"
+    }
+  },
+  "reproduce_complete_matrix": [
+    "python3",
+    "scripts/verify-local-package.py",
+    "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz",
+    "--mcp-sdk-root",
+    "/private/tmp/opencut-delivery-cleanup-1790506240532302000/mcp-sdk",
+    "--component",
+    "/Users/vincent/Desktop/OpenCut/crates/plugin-host/examples/planner-guest/target/wasm32-wasip2/release/opencut_example_planner_guest.wasm"
+  ]
+}

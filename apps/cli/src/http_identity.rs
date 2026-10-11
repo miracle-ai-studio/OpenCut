@@ -7,7 +7,7 @@ use axum::{
 use futures_util::StreamExt;
 use opencut_automation::Caller;
 use opencut_contracts::EditorError;
-use opencut_sqlite_store::EditorApplication;
+use opencut_host_runtime::workspace::Workspace as EditorApplication;
 use std::{path::Path, time::Duration};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

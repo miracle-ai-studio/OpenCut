@@ -46,6 +46,9 @@ impl Drop for TemporaryArtifacts {
 }
 
 impl FfmpegBackend {
+    pub fn output_admission(&self) -> Option<std::sync::Arc<dyn OutputAdmission>> {
+        self.admission.clone()
+    }
     pub fn with_output_admission(mut self, admission: std::sync::Arc<dyn OutputAdmission>) -> Self {
         self.admission = Some(admission);
         self
@@ -653,7 +656,9 @@ impl FfmpegBackend {
             ),
         ]);
         for clip in &resolved.video_clips {
-            command.arg("-i").arg(&clip.input);
+            // Many timeline decoders coexist. Bound frame threading per input
+            // so 4K buffers do not multiply by every core for every clip.
+            command.args(["-threads", "2", "-i"]).arg(&clip.input);
         }
         for clip in &resolved.image_clips {
             command.args(["-loop", "1", "-i"]).arg(&clip.input);
@@ -677,7 +682,7 @@ impl FfmpegBackend {
                 &path,
                 self.admission.as_deref(),
             )?;
-            command.args(["-loop", "1", "-i"]).arg(&path);
+            command.arg("-i").arg(&path);
         }
         let filter = build_timeline_filter_inner(
             &resolved,
@@ -836,7 +841,7 @@ impl FfmpegBackend {
             ),
         ]);
         for clip in &request.video_clips {
-            command.arg("-i").arg(&clip.input);
+            command.args(["-threads", "2", "-i"]).arg(&clip.input);
         }
         for clip in &request.image_clips {
             command.args(["-loop", "1", "-i"]).arg(&clip.input);
@@ -859,7 +864,7 @@ impl FfmpegBackend {
                     &path,
                     self.admission.as_deref(),
                 )?;
-                command.args(["-loop", "1", "-i"]).arg(&path);
+                command.arg("-i").arg(&path);
                 Ok((path, report))
             })
             .collect::<MediaResult<Vec<_>>>()?;
@@ -956,6 +961,137 @@ impl FfmpegBackend {
             verification,
             text_layouts,
         })
+    }
+
+    /// Render the same sample-domain mix as video export, without decoding picture
+    /// layers or rasterizing captions. Used by local scene transcription.
+    pub fn render_timeline_audio(
+        &self,
+        request: &TimelineExportRequest,
+        cancel: &CancellationToken,
+        progress: &mut dyn FnMut(ProgressUpdate),
+    ) -> MediaResult<()> {
+        validate_timeline_export(request)?;
+        if request.duration.timebase == 0 || request.duration.ticks <= 0 {
+            return Err(MediaError::InvalidRequest(
+                "Audio duration must be positive with a valid timebase".into(),
+            ));
+        }
+        if cancel.is_cancelled() {
+            return Err(MediaError::Cancelled);
+        }
+        if request.duration.seconds() > 3600.0 {
+            return Err(MediaError::InvalidRequest(
+                "Transcription scenes are limited to one hour".into(),
+            ));
+        }
+        let mut resolved = request.clone();
+        let mut failure = None;
+        resolved.audio_clips.retain(|clip| {
+            let result = require_input(&clip.input)
+                .and_then(|_| validate_output(&clip.input, &request.output, request.overwrite))
+                .and_then(|_| {
+                    self.validate_source_range(
+                        &clip.input,
+                        clip.source_start,
+                        clip.source_duration,
+                        StreamKind::Audio,
+                        clip.stream,
+                    )
+                });
+            match result {
+                Ok(()) => true,
+                Err(MediaError::Unsupported(_)) if clip.optional => false,
+                Err(error) => {
+                    failure = Some(error);
+                    false
+                }
+            }
+        });
+        if let Some(error) = failure {
+            return Err(error);
+        }
+        if resolved.audio_clips.is_empty() {
+            return Err(MediaError::Unsupported(
+                "The scene has no audible audio streams".into(),
+            ));
+        }
+        if let Some(parent) = request.output.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let staging = staging_path(&request.output);
+        let mut temporary = TemporaryArtifacts::default();
+        temporary.track(staging.clone());
+        let mut command = Command::new(&self.ffmpeg);
+        command.args(["-v", "error", if request.overwrite { "-y" } else { "-n" }]);
+        for clip in &resolved.audio_clips {
+            command.arg("-i").arg(&clip.input);
+        }
+        command
+            .args([
+                "-filter_complex",
+                &timeline_audio_filter(&resolved, 0, None)?,
+                "-map",
+                "[aout]",
+                "-vn",
+                "-c:a",
+                "pcm_s16le",
+                "-ar",
+                "48000",
+                "-ac",
+                "2",
+                "-t",
+                &format!("{:.9}", request.duration.seconds()),
+                "-f",
+                "wav",
+                "-progress",
+                "pipe:1",
+                "-nostats",
+            ])
+            .arg(&staging);
+        process::run_ffmpeg(
+            command,
+            cancel,
+            Some(request.duration.seconds()),
+            ProgressStage::Encoding,
+            progress,
+            self.admission
+                .as_deref()
+                .map(|admission| (Some(staging.as_path()), admission)),
+        )?;
+        let verification = self.verify(
+            &VerifyRequest {
+                input: staging.clone(),
+                expected_width: None,
+                expected_height: None,
+                expected_duration: Some(request.duration),
+                duration_tolerance: Some(MediaTime {
+                    ticks: 1,
+                    timebase: 48000,
+                }),
+                expected_video_streams: Some(0),
+                expected_audio_streams: Some(1),
+                decode_samples: 3,
+            },
+            cancel,
+            progress,
+        )?;
+        if !verification.passed {
+            return Err(MediaError::VerificationFailed(
+                verification
+                    .checks
+                    .iter()
+                    .filter(|check| !check.passed)
+                    .map(|check| check.detail.as_str())
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            ));
+        }
+        if cancel.is_cancelled() {
+            return Err(MediaError::Cancelled);
+        }
+        fs::rename(staging, &request.output)?;
+        Ok(())
     }
 
     pub fn render_timeline_frame(
@@ -1068,7 +1204,7 @@ impl FfmpegBackend {
             ),
         ]);
         for clip in &timeline.video_clips {
-            command.arg("-i").arg(&clip.input);
+            command.args(["-threads", "2", "-i"]).arg(&clip.input);
         }
         for clip in &timeline.image_clips {
             command.args(["-loop", "1", "-i"]).arg(&clip.input);
@@ -1093,7 +1229,7 @@ impl FfmpegBackend {
                 self.admission.as_deref(),
             ) {
                 Ok(report) => {
-                    command.args(["-loop", "1", "-i"]).arg(&path);
+                    command.arg("-i").arg(&path);
                     caption_files.push(path);
                     text_layouts.push(report);
                 }
@@ -1343,8 +1479,22 @@ impl FfmpegBackend {
             let mut command = Command::new(&self.ffmpeg);
             command
                 .args(["-v", "error", "-ss", &format!("{seconds:.6}"), "-i"])
-                .arg(&request.input)
-                .args([
+                .arg(&request.input);
+            if videos.is_empty() && audios > 0 {
+                command.args([
+                    "-map",
+                    "0:a:0",
+                    "-t",
+                    "0.05",
+                    "-f",
+                    "null",
+                    "-",
+                    "-progress",
+                    "pipe:1",
+                    "-nostats",
+                ]);
+            } else {
+                command.args([
                     "-map",
                     "0:v:0",
                     "-frames:v",
@@ -1356,6 +1506,7 @@ impl FfmpegBackend {
                     "pipe:1",
                     "-nostats",
                 ]);
+            }
             let decoded = process::run_ffmpeg(
                 command,
                 cancel,
@@ -1365,6 +1516,9 @@ impl FfmpegBackend {
                 self.admission.as_deref().map(|admission| (None, admission)),
             )
             .is_ok();
+            if cancel.is_cancelled() {
+                return Err(MediaError::Cancelled);
+            }
             decoded_samples.push(DecodedSample {
                 requested_time,
                 decoded,
@@ -1985,7 +2139,9 @@ pub(crate) fn finish_timeline_filter(
     for (i, caption) in r.captions.iter().enumerate() {
         let next = format!("caption{i}");
         chains.push(format!(
-            "[{caption_base}][{}:v]overlay=eof_action=pass:enable='gte(t,{:.9})*lt(t,{:.9})'[{next}]",
+            // A generated caption PNG is one immutable frame. Repeat that
+            // decoded frame; the timeline enable expression owns its lifetime.
+            "[{caption_base}][{}:v]overlay=eof_action=repeat:enable='gte(t,{:.9})*lt(t,{:.9})'[{next}]",
             caption_offset + i,
             caption.start.seconds(),
             caption.start.seconds() + caption.duration.seconds()
@@ -2009,21 +2165,38 @@ pub(crate) fn finish_timeline_filter(
         .map_or((0.0, r.duration.seconds()), |(start, duration)| {
             (start.seconds(), duration.seconds())
         });
+    chains.push(format!(
+        "[{caption_base}]trim=start={output_start:.9}:duration={output_duration:.9},setpts=PTS-STARTPTS[vout]"
+    ));
+    chains.push(timeline_audio_filter(
+        r,
+        1 + r.video_clips.len() + r.image_clips.len(),
+        range,
+    )?);
+    Ok(chains.join(";"))
+}
+
+fn timeline_audio_filter(
+    r: &TimelineExportRequest,
+    offset: usize,
+    range: Option<(MediaTime, MediaTime)>,
+) -> MediaResult<String> {
+    let mut chains = Vec::new();
+    let (output_start, output_duration) = range
+        .map_or((0.0, r.duration.seconds()), |(start, duration)| {
+            (start.seconds(), duration.seconds())
+        });
     let padded_end = output_start + output_duration;
     let audio_reset = if range.is_some() {
         ",asetpts=PTS-STARTPTS"
     } else {
         ""
     };
-    chains.push(format!(
-        "[{caption_base}]trim=start={output_start:.9}:duration={output_duration:.9},setpts=PTS-STARTPTS[vout]"
-    ));
     if r.audio_clips.is_empty() {
         chains.push(format!(
         "anullsrc=r=48000:cl=stereo:d={padded_end:.9},atrim=start={output_start:.9}:duration={output_duration:.9}{audio_reset}[aout]"
     ));
     } else {
-        let offset = 1 + r.video_clips.len() + r.image_clips.len();
         let mut labels = String::new();
         for (i, clip) in r.audio_clips.iter().enumerate() {
             let input = offset + i;

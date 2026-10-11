@@ -1,243 +1,130 @@
-<table width="100%">
-  <tr>
-    <td align="left" width="120">
-      <img src="https://assets.opencut.app/branding/symbol.svg" alt="OpenCut Logo" width="100" />
-    </td>
-    <td align="right">
-      <h1>OpenCut</h1>
-      <h3 style="margin-top: -10px;">A free and open source video editor for web, desktop, and mobile.</h3>
-    </td>
-  </tr>
-</table>
+# OpenCut
 
-[![Discord](https://img.shields.io/discord/1386309140057690133?label=Discord&logo=discord&logoColor=fff&color=5865F2&style=flat)](https://discord.gg/zmR9N35cjK)
-[![X](https://img.shields.io/badge/follow-%40opencutapp-000?logo=x&logoColor=fff&style=flat)](https://x.com/opencutapp)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat)](LICENSE)
+OpenCut 是供外部 Agent 和应用调用的剪辑工具与媒体执行系统。CLI、HTTP、MCP 和 SDK 共用 Rust 编辑内核、应用服务与任务系统；需求理解和创作决策由外部调用方负责。
 
-## Status
+当前可用于本地开发与集成验证，尚未完成全部专业剪辑能力、跨平台发行和升级验收。当前状态以[交付台账](design/architecture/headless-completion-ledger.md)为准。
 
-**OpenCut is being rewritten from the ground up.** What's coming:
+## 构建与启动
 
-- An Editor API
-- First-class third party plugins (made possible by a plugin-first architecture)
-- Desktop, mobile, and browser from one codebase (Rust core)
-- MCP server (for AI agents)
-- Headless mode (automation, batch rendering)
-- A scripting tab directly in the editor
-
-You can still find the previous version at [opencut-app/opencut-classic](https://github.com/opencut-app/opencut-classic), which is the one to reach for today. [opencut.app](https://opencut.app) still runs the classic version. The rewrite will live at [new.opencut.app](https://new.opencut.app) until it's ready to take over.
-
-## Local editor and Agent host (in development)
-
-The working implementation shares project transactions, revision history, jobs,
-and schemas across the CLI, HTTP API, and stdio/Streamable HTTP MCP server. The Web editor connects
-to the local HTTP host; the GPUI shell is not connected to these services yet.
+需要 Rust 工具链；媒体任务另需 `ffmpeg`、`ffprobe`。Web 构建与 TypeScript SDK 使用 Node 22.12+ 与 npm。
 
 ```sh
-cargo build -p opencut-cli
-target/debug/opencut --json system domains
-target/debug/opencut --json system domains --domain edit --schemas
-target/debug/opencut --database .opencut/workspace.sqlite serve \
-  --listen 127.0.0.1:8788 \
-  --token-file .opencut/api-token \
-  --allow-origin http://localhost:5173
+cargo build --locked --release -p opencut-cli
+target/release/opencut --json system capabilities
+target/release/opencut --json system domains
 ```
 
-Start the Web app with `moon run web:dev`, open `/editor`, and connect using the
-host URL and the token in `.opencut/api-token`. Media jobs require `ffmpeg` and
-`ffprobe`. The HTTP host starts a worker; standalone CLI/MCP users can run
-`opencut worker run` against the same database. All processes stopping also stops
-computation; a subsequent worker recovers unfinished jobs after their lease expires.
+Agent 可通过 CLI 启动独立后台服务、检查状态和按需停止；HTTP、MCP 与 Worker 一起运行：
 
 ```sh
-target/debug/opencut --database .opencut/workspace.sqlite mcp serve
-target/debug/opencut --database .opencut/workspace.sqlite --json job events --limit 100
+npm ci --prefix apps/web
+npm run build --prefix apps/web
+target/release/opencut --database .opencut/workspace.sqlite --json server start --web-root "$PWD/apps/web/dist"
+target/release/opencut --json server status
+target/release/opencut --json server stop
 ```
 
-Local speech transcription is available through `opencut_analysis_transcribe` (media action `analysis.transcribe`). Configure `OPENCUT_WHISPER_MODEL` on the worker host and install `whisper-cli`; clients reference a fixed project revision and asset, and receive model-derived timings through the public Job view. Word-level intervals are available for supported model output and have been verified with English speech. Speaker identity assignment is unavailable, and positive multi-speaker boundary accuracy has not been established. See the [transcription contract](design/architecture/transcription-contract.md) and [SDK example](packages/sdk-ts/README.md).
+浏览器打开状态输出中的 `web_url`（默认 http://127.0.0.1:8788/editor）即可使用，无需输入服务地址或 Access token。页面与 API 同源，会话通过 HttpOnly Cookie 自动建立；Agent 继续使用独立 Bearer 凭证。页眉提供中英文和亮暗主题，偏好保存在本机浏览器。项目地址支持直接打开和刷新恢复。
 
-MCP advertises nine domain tools by default (`system`, `project`, `edit`,
-`media`, `task`, `observe`, `plugin`, `access`, `workspace`). Read
-`opencut://schemas/domains` and then `opencut://schemas/domains/{domain}`
-for the exact action contracts. For example, the CLI form is
-`opencut --json domain edit plan --input request.json`; the MCP form calls
-`opencut_edit` with `{"action":"plan","input":{...}}`. The current leaf
-operation inventory is published by `system capabilities`; versioned operations
-remain available through `opencut call` and the HTTP API. Existing MCP clients
-may call their old tool names directly, or start the host with
-`--tool-surface legacy` to advertise the old list.
-Domain calls resolve to the same leaf operation before authorization,
-validation and execution. Media bytes use the separate upload data endpoint.
-
-The HTTP host also serves Streamable HTTP MCP at `/mcp`; `mcp serve --transport
-streamable-http` starts the same host. Network clients use the host bearer token,
-then retain the negotiated `Mcp-Session-Id` and `Mcp-Protocol-Version: 2025-11-25`.
-Tools, resources, prompts and subscriptions share the stdio implementation.
-See the [MCP transport contract](design/architecture/mcp-http-contract.md) for
-session limits, bounded replay, expiry and disconnect behavior.
-
-`opencut --json system capabilities` includes the current `job_kinds` inventory
-with each native job's public input payload and successful result JSON Schemas.
-The Web contract generator emits their concrete TypeScript input and result types.
-Automation and workers share typed task contracts; stored job records retain
-their JSON extension boundary. Legacy results without media-lock fields remain
-readable as unlocked results.
-
-See the [architecture and contracts](design/architecture/agent-friendly-editor-v1.md)
-and [implementation and verification status](design/architecture/implementation-status.md)
-for the supported scope, reproducible checks, and remaining work. Source previews,
-rendered project artifacts, and job-backed project frame previews use distinct
-interfaces. A native continuous project-preview session backend is available.
-Browser presentation, audible playback, and low-latency behavior have not been
-accepted. Host restart ends ephemeral preview sessions under the current contract;
-complete Classic feature parity is also still in development.
-
-`preview.project_frame` accepts a fixed revision and a sequence time through the
-same job API as exports:
+服务连接在本机 `~/.opencut/server/config.json` 管理，也可通过 `server start --config /absolute/path/server.json` 指定配置。配置存在时使用其中的连接设置，`web_root` 相对配置文件解析：
 
 ```json
 {
-  "kind": "preview.project_frame",
-  "idempotency_key": "preview-a-1",
-  "input": {
-    "project_id": "project-a",
-    "revision": "<revision from project inspect>",
-    "sequence_id": "main",
-    "requested_time": { "ticks": "125", "timebase": 100 },
-    "alignment": "nearest"
-  }
+  "listen": "127.0.0.1:8788",
+  "web_root": "/absolute/path/OpenCut/apps/web/dist",
+  "allow_origin": []
 }
 ```
 
-Save the request as `frame.json` and run `opencut job start --input frame.json`
-with the same `--database` used by the host. A successful job returns a PNG
-artifact, its fixed revision, and `actual_sequence_time`. This mode renders the
-whole sequence before extracting the frame; `quality: encoded_project_frame`
-identifies that cost and fidelity boundary. It is not low-latency timeline playback.
+开发时 `npm run dev --prefix apps/web` 使用本地 Vite 代理，`OPENCUT_SERVER_URL` 可配置开发服务目标；后台服务仍独立运行。
 
-`preview.composited_frame` accepts the same public input and outputs a PNG directly,
-with `quality: composited_project_frame`. It resolves visual media only and does
-not encode an intermediate movie or process audio. Audio clips still contribute
-to the sequence duration, so an audio-only tail can produce a black frame. The
-current implementation may decode the source prefix to reach the requested frame;
-it is not continuous or real-time playback. Direct PNG pixels can differ from
-frames decoded from a lossy export. The Web editor exposes both preview modes.
+`start` 等待认证 API 与数据库读取成功，`status` 只有 `ready=true` 时退出 0。默认运行目录为 `~/.opencut/server`，凭证在其 `api-token`，日志在 `server.log`。CLI 退出不停止后台服务；不安装开机启动或崩溃自动拉起。多实例、Agent 调用及 Web/Desktop 开发顺序见[独立服务与客户端优先级](design/architecture/service-and-client-priority.md)。
 
-`preview.project_range` previews a fixed audiovisual sequence interval as an
-H.264/MP4 artifact. Its input contains `project_id`, `revision`, `sequence_id`,
-`requested_range: {start, duration}`, and `alignment`; times use the same exact
-`{ticks, timebase}` representation. The result returns the requested range and
-`actual_sequence_range`, plus `quality: encoded_project_range`. Both interval
-endpoints are aligned on the sequence frame grid; collapsed or out-of-bounds
-intervals are rejected. The output plays from zero while its content retains the
-absolute sequence animation and audio timing. This path encodes the selected
-interval but may decode the prefix, and currently locks all required audiovisual
-assets in the sequence. It is a bounded preview job, separate from continuous
-playback. The continuous session API is available through the preview create,
-inspect, control, events, and acquire operations; the HTTP media stream is
-`/v1/preview/stream`. The [preview session contract](design/architecture/preview-session-contract.md)
-documents ownership and playback observation. Browser presentation is unverified;
-host restart terminates the ephemeral session by contract.
-
-Before submitting a project render, `opencut render preflight --input render.json`
-checks a fixed revision. Its input contains `project_id`, `revision`, `sequence_id`,
-`container`, and `video_codec`; HTTP exposes the same check at
-`POST /v1/render/preflight`. The report lists object-linked issues and creates no
-job. Readiness describes the checked environment, not a guarantee of later success.
-
-New `asset.bind` and `asset.replace` transactions pin media into the local
-content-addressed store and save its SHA-256 and size as `Asset.version` in the
-revision. Replacement keeps the logical asset ID and existing clip references;
-historical revisions keep their old content. `edit.plan` remains read-only and
-reports `unresolved_asset_ids` for bindings without a version.
-
-Project export and project-frame jobs lock their required inputs before
-acceptance. Their `asset_lock` records hashes, sizes, revision, and sequence.
-Workers verify and privately copy those bytes. New jobs from a versioned revision
-reuse its pinned content even after the provenance file changes or disappears;
-missing or corrupt CAS objects fail without falling back to that file. Retries
-with the same idempotency key return the accepted result.
-
-Legacy unversioned assets are still supported and are captured when a project
-job is accepted; their historical documents are not silently upgraded. Persisted
-older jobs without a media lock explicitly report `legacy_unlocked`.
-CAS garbage collection is available through owner-only plan, inspect, and execute
-operations, but full storage admission and platform acceptance remain incomplete.
-Schema 3 project packages now lock the exact FFmpeg and ffprobe versions and
-binary hashes; imports report tool mismatches and unavailable font families
-while preserving project recovery. Font files and versions and plugin
-dependencies remain unlocked, and source-only job media locking still needs
-work. See the implementation status for verification of the current asset-version
-integration; the full reproducibility contract is not complete.
-
-## Development
-
-The standalone [TypeScript SDK](packages/sdk-ts/README.md) exposes the registered
-automation tools without depending on the Web application. Its types, tool schemas,
-and [OpenAPI document](packages/contract-fixtures/openapi.generated.json) are generated
-from the Rust registry. Run `npm ci` in `packages/sdk-ts`, then
-`node scripts/verify-sdk.mjs` from the repository root to build a package, install it
-in an external consumer, and verify real HTTP calls with independent CLI readback.
-This does not replace the remaining R2 architecture or full-product acceptance work.
-
-The [Rust SDK](crates/sdk-rust/README.md) uses the same typed tool and job registry.
-Run `python3 scripts/verify-rust-sdk.py` to compile it outside the repository and
-verify real calls, including replay of the same transaction from the TS package.
-The [contract boundary gate](scripts/check-contract-boundaries.py) rejects native
-execution dependencies in the public contract crates and client dependency tree.
-
-Install [proto](https://moonrepo.dev/proto) if you haven't already:
-
-**Linux, macOS, WSL:**
+需要前台运行或交给系统进程管理器时，仍可使用原入口：
 
 ```sh
-bash <(curl -fsSL https://moonrepo.dev/install/proto.sh)
+target/release/opencut --database .opencut/workspace.sqlite serve \
+  --listen 127.0.0.1:8788 \
+  --token-file .opencut/api-token
 ```
 
-**Windows (PowerShell):**
-
-```powershell
-irm https://moonrepo.dev/install/proto.ps1 | iex
-```
-
-If shims fail to run, allow local scripts for your user:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-From the repo root:
+通过标准输入输出接入 MCP 时，分别启动 MCP 与 Worker，并使用同一个数据库路径：
 
 ```sh
-proto use    # installs the tools pinned in .prototools
+target/release/opencut --database .opencut/workspace.sqlite mcp serve
+target/release/opencut --database .opencut/workspace.sqlite worker run
 ```
+
+这些是持续运行的独立命令。MCP 会话本身不会启动 Worker；所有执行进程停止后任务暂停计算，Worker 重启后恢复符合条件的任务。
+
+## 调用边界
+
+- 普通工具操作使用同一注册表和分派器。相同工程、权限和输入执行相同业务规则。
+- MCP 按 `system`、`project`、`edit`、`media`、`task`、`observe`、`plugin`、`access`、`workspace` 发现工具。操作详情可通过领域查询或资源读取获取。
+- 编辑前读取工程快照，先检查变更计划，再提交。请求超时后查询状态；重试写入使用原幂等键，不重复创建操作。
+- 分析、预览和导出返回任务标识。任务成功后检查产物与执行结果，不把“已接受”视为“已完成”。
+- 大文件通过媒体数据接口传输，工具请求传递参数和资源引用。单素材上限为 16 GiB，实际限制以宿主能力和存储策略为准。
+- HTTP 使用 Bearer 凭证；CLI 和标准输入输出 MCP 可使用 `--credential-file`。外部调用方应使用所需项目范围的权限。
+- 服务启动、Worker 管理和本地故障恢复是宿主操作；各入口的流式传输与通知形式不同。
 
 ```sh
-moon run web:dev       # localhost:5173
-moon run api:dev       # localhost:8787
-moon run desktop:dev   # see apps/desktop/README.md
+target/release/opencut --json system domains --domain edit --schemas
+target/release/opencut --database .opencut/workspace.sqlite --json domain edit plan --input request.json
 ```
 
-## Local development delivery
+## 模块
 
-The Rust CLI/HTTP/MCP host and standalone SDKs can be packaged with `python3 scripts/package-local.py` and verified outside the repository with `python3 scripts/verify-local-package.py <archive>`. See [installation and upgrade instructions](design/architecture/local-distribution.md) and the [R2 completion audit](design/architecture/r2-completion-audit.md). These are local development bundles, not a complete R0–R7 product release.
+| 模块 | 职责 |
+|---|---|
+| `contracts` / `api-contracts` / 媒体与任务契约 | 公共数据、操作、结果和错误；生成 SDK 类型 |
+| `editor-core` / `time` / `composition` | 编辑规则、精确时间、工程合成编译 |
+| `editor-application` | 用例、权限、幂等、事务和能力接口 |
+| `automation` | 工具解析、授权顺序与类型化分派 |
+| `host-runtime` | 装配数据库、原生媒体、插件与 Worker |
+| `job-runtime` | 任务领取、恢复和结果发布检查 |
+| 存储与媒体适配器 | SQLite、素材固定、资源预算、FFmpeg 和插件执行 |
 
-CLI and stdio MCP accept project-scoped credentials through `--credential-file`; REST and Streamable HTTP accept the same credential as a bearer. Local owner administration remains under `access`. MCP sessions bind a credential and policy revision; streams and artifact downloads recheck authorization. Project-scoped media upload/read, render preflight, and read-only plugin discovery/planning are available; plugin grant changes remain owner-only. See the [permission contract](design/architecture/access-control-contract.md) and [network acceptance](design/qa/r2-network-access-2026-09-21.md). Owner administration history is available through `opencut_access_audit_query` or `access events --input FILE`.
+依赖边界由[架构政策](design/architecture/dependency-policy.json)和自动检查约束。Web 由工程状态、素材、时间线、预览、属性、任务和历史模块组成，通过共享 SDK 接入唯一 Rust 服务；Desktop 尚未接入完整服务。Web 边界和复查证据见[迁移审查](design/qa/web-migration-review.md)。
 
-## Contributing
+## 开发检查
 
-We're not set up to take outside contributions yet while the architecture is being designed. If you want to follow along, ask questions, or just hang out, [join the Discord](https://discord.gg/zmR9N35cjK) or [open an issue](https://github.com/opencut-app/opencut/issues).
+```sh
+python3 scripts/check-architecture.py
+python3 scripts/check-contract-boundaries.py
+python3 -m unittest discover -s scripts/tests
+cargo test --workspace --exclude opencut-desktop --locked
+cargo clippy --workspace --exclude opencut-desktop --all-targets --locked -- -D warnings
+npm ci --prefix packages/sdk-ts
+npm test --prefix packages/sdk-ts
+npm run boundaries:check --prefix packages/sdk-ts
+npm test --prefix apps/web
+npm run boundaries:check --prefix apps/web
+npm run build --prefix apps/web
+```
 
-## Sponsors
+媒体、权限、崩溃恢复与仓库外接入验收见[验收脚本说明](scripts/README.md)。Desktop 需要单独具备图形构建环境。
 
-OpenCut is supported by companies that believe in open source creator tools.
+## 打包与验收
 
-- [**fal.ai**](https://fal.ai?utm_source=github-opencut&utm_campaign=oss): Generative image, video, and audio models all in one place.
+```sh
+python3 scripts/package-local.py
+python3 scripts/verify-local-package.py /path/to/package.tar.gz
+```
 
-Want your logo here? Reach out at [sponsor@opencut.app](mailto:sponsor@opencut.app).
+交付包包含可执行程序、独立 SDK、公共契约、环境诊断和操作说明。构建缓存、测试运行现场、历史恢复副本和开发脚本不进入运行包。Rust SDK 以源码交付，保留编译所需模块和自身回归测试。
 
-## License
+打包成功不等于验收通过。验收必须针对实际解包文件执行，并绑定程序与产物哈希；本地开发包不作为已签名的跨平台发行包。
 
-[MIT](LICENSE)
+## 使用资料
 
-Media upload and repair now journal native publication before changing managed files. `opencut_maintenance_query` and `opencut_maintenance_reconcile` expose owner-only provenance and locked reconciliation; an unknown outcome must be inspected before retrying. See the [native publication contract](design/architecture/native-publication-contract.md). Plugin installation is not yet connected to this journal.
+- [安装、凭证、维护与升级](design/architecture/local-distribution.md)
+- [MCP 接入](design/architecture/mcp-http-contract.md)
+- [权限控制](design/architecture/access-control-contract.md)
+- [TypeScript SDK](packages/sdk-ts/README.md) / [Rust SDK](crates/sdk-rust/README.md)
+- [宿主装配与 Rust 嵌入](crates/host-runtime/README.md)
+- [预览会话](design/architecture/preview-session-contract.md)
+- [转写](design/architecture/transcription-contract.md) / [项目插件](design/architecture/project-plugin-contract.md)
+- [原生文件发布与故障恢复](design/architecture/native-publication-contract.md)
+- [当前实现与待办](design/architecture/headless-completion-ledger.md)
+
+[MIT License](LICENSE)。项目沿用 OpenCut 开源代码；历史对照源码保存在本地隔离目录中，不属于运行依赖。

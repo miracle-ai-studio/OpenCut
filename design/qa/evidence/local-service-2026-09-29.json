@@ -1,0 +1,106 @@
+{
+  "date": "2026-09-29",
+  "status": "passed",
+  "scope": "Independent local server lifecycle and client-priority assessment; no UI completion claim",
+  "service_acceptance": {
+    "binary_sha256": "fd8c35678b26b8d8ea286e560e92f28a2053b9ec261f9c61b9e058cde2d626af",
+    "scope": "local detached service, synthetic media, not UI or rendering performance",
+    "workspace": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-service-3ihu7oqx",
+    "checks": [
+      "start returned ready after launcher exited",
+      "repeat start retained the same instance",
+      "independent CLI authenticated over HTTP",
+      "background worker completed real FFmpeg frame job after submitter exit",
+      "authenticated artifact download matched hash and independently expected blue pixels",
+      "ten separate status clients found service ready",
+      "graceful stop released service lock",
+      "restart obtained a fresh instance"
+    ],
+    "start_ms": 1010.62,
+    "instance": "41bc1d2e-a31f-414a-98a1-f3a345ae6878",
+    "artifact_sha256": "a2a4df1b7d0237c9bc9b34d9cc90f1d3e7e005faa71efd7fc8f4ff200a1d3e5a",
+    "center_rgb": [
+      0,
+      0,
+      254
+    ],
+    "job_id": "job_b59cea6384f34189ba6074d7c2ee9219",
+    "status_cli_ms": {
+      "samples": [
+        71.83,
+        76.23,
+        86.66,
+        83.56,
+        82.17,
+        72.27,
+        74.99,
+        77.08,
+        73.29,
+        71.54
+      ],
+      "median": 75.61,
+      "max": 86.66
+    },
+    "status": "passed"
+  },
+  "service_report_sha256": "699dc1d8aeede230550922801614cedd5a0ef4043fdd1e1e19bc10e3c9ac2178",
+  "mcp_regression": {
+    "status": "passed",
+    "binary_sha256": "fd8c35678b26b8d8ea286e560e92f28a2053b9ec261f9c61b9e058cde2d626af",
+    "checks": [
+      "Bearer/Origin/Host on all methods, browser preflight/header exposure, mandatory initialization",
+      "Session initialization, newer-version negotiation, discovery parity, version/Accept/body bounds",
+      "Actual create/CLI persistence, resource parity and immutable prompt via Streamable HTTP",
+      "Disconnected POST still commits; replay returns only its original response; cross-session/unknown cursors rejected",
+      "Resource notifications survive GET disconnect; bounded stream replay explicitly expires after retention overflow",
+      "DELETE closes active SSE and invalidates one session while another remains usable",
+      "MCP CLI transport alias and real idle-session expiry",
+      "32-session admission bound and released slot reuse",
+      "SIGINT shuts down active HTTP/SSE sessions and the shared host"
+    ],
+    "evidence": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-mcp-http-vjcikbg5"
+  },
+  "mcp_report_sha256": "df5b20a993866a063a78b6631682d1aa462b1cc1cd4edb35e1ae99363d8612f5",
+  "checks": {
+    "cargo_test_opencut_cli": {
+      "unit": 4,
+      "existing_cli": 5,
+      "service_integration": 6
+    },
+    "architecture_tests": 14,
+    "architecture_gate": {
+      "modules": 22,
+      "temporary_exception_edges": 0
+    },
+    "contract_boundary_gate": "passed",
+    "clippy_cli_all_targets": "passed",
+    "generated_contracts_release": "current",
+    "wire_compatibility_release": {
+      "unchanged_legacy_tools": 22,
+      "current_tools": 132
+    },
+    "cargo_fmt_and_git_diff_check": "passed"
+  },
+  "running_service_at_verification": {
+    "database": "/Users/vincent/.opencut/workspace.sqlite",
+    "diagnostic": null,
+    "directory": "/Users/vincent/.opencut/server",
+    "endpoint": "http://127.0.0.1:8788",
+    "executable": "/Users/vincent/Desktop/OpenCut/target/release/opencut",
+    "instance": "570a1e6e-a627-4ef2-aa8d-61b273370267",
+    "log_file": "/Users/vincent/.opencut/server/server.log",
+    "pid": 65215,
+    "ready": true,
+    "started_at_unix_ms": 1790687860300,
+    "state": "running",
+    "token_file": "/Users/vincent/.opencut/server/api-token",
+    "version": 1
+  },
+  "limitations": [
+    "No automatic OS startup or crash restart installed",
+    "No log rotation",
+    "Cross-platform daemon behavior not verified",
+    "No Web/Desktop interaction or playback performance acceptance",
+    "Readiness checks API and storage; it is not a continuous worker heartbeat or a render performance benchmark"
+  ]
+}

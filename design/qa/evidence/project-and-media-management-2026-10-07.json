@@ -1,0 +1,228 @@
+{
+  "date": "2026-10-07",
+  "status": "verified",
+  "scope": "Project deletion, shared media removal and Classic library interactions; full migration remains incomplete",
+  "binary_sha256": "5d5fc589c4919f60f15eb6d931dbef3a2c2095026646ea112de66e68446d2201",
+  "tests": {
+    "rust_workspace_excluding_desktop": 433,
+    "ignored_child_fixtures": 6,
+    "sqlite_store": 142,
+    "media_removal_pure_application": 2,
+    "project_library_storage": 8,
+    "web": 34,
+    "web_boundaries": 8,
+    "typescript_sdk": 20,
+    "python_architecture": 14,
+    "browser": 30,
+    "agent_editorial": 11,
+    "architecture_modules": 22,
+    "temporary_exceptions": 0,
+    "all_prior_tool_declarations_unchanged": 142,
+    "frozen_tools_unchanged": 22,
+    "current_tools": 144,
+    "clippy": "passed",
+    "fmt": "passed",
+    "generated_contracts": "passed"
+  },
+  "browser": {
+    "browser": "153.0.8010.12",
+    "endpoint": "http://127.0.0.1:53557",
+    "checks": [
+      "built Web page connects to detached authenticated service",
+      "create project opens full editor",
+      "browser chunks and hashes media, import job finishes, fixed asset binds and inserts",
+      "composited frame artifact displays in browser",
+      "continuous MSE video decodes and media clock advances",
+      "split at playhead commits two clips",
+      "server selective undo and redo preserve edit history",
+      "subtitle import uses shared service and appears on the timeline",
+      "browser reload retains project and background export",
+      "render preflight and durable export complete with downloadable artifact",
+      "streamed browser download independently contains four seconds of video and audio",
+      "independently decoded PCM retains the synthetic reference tone",
+      "authorized original source preview opens",
+      "authorized source thumbnail appears in the media library",
+      "duplicate shortcut and timeline undo commit through the shared application",
+      "Classic curve editor writes the chosen easing to the fixed project snapshot",
+      "property keyframe update preserves the existing curve anchor",
+      "canvas drag commits shape position in canvas coordinates",
+      "imported audio displays waveform measured by the native analysis job",
+      "project library rename persists through the shared revision and reopens",
+      "non-main scene preview independently renders a white center and black corner after reload",
+      "scenes create, rename, refresh selection, batch delete and exact content undo/redo preserve the main scene",
+      "scene management uses Chinese and English labels and both themes",
+      "consecutive undo/redo restores exact documents after reload, undo works again after redo, and new edits invalidate redo",
+      "Chinese and English, light and dark themes switch live and survive reload without credential prompts",
+      "replacement keeps its original media binding while a concurrent file paste is ignored, permits one replacement file and restores exact content with undo",
+      "media grid/list and all sort choices, Shift batch selection, cancellable atomic media removal across scenes with effect/mask cleanup, exact undo, file clipboard import and single removal",
+      "project duplicate preserves the full document, independently previews shared media and exports four seconds of video with the reference audio tone",
+      "single and batch project deletion, guarded confirmation and cancellation, Shift selection, saved library preferences and surviving copy media/render after original deletion",
+      "project library batch duplicate, original numbered naming, search, sort, list layout, bilingual information and both themes persist correctly"
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "decodedAudio": {
+      "samples": 48000,
+      "rms": 0.08817349404558221,
+      "frequency": 439
+    },
+    "status": "passed",
+    "binary_sha256": "5d5fc589c4919f60f15eb6d931dbef3a2c2095026646ea112de66e68446d2201",
+    "web_files": {
+      "assets/index-BJ-U_rq_.js": "df599cc908461073f7b8c990e8919363be111997751f62f893fd3062be6a7f61",
+      "assets/index-DWBKJhfd.css": "d8ce410125f318a67027bff0b335fadcb672c8a7818a89fe4d3b8e739364ef23",
+      "assets/preview-CzerCX24.jpg": "b318cede7bbe27bfbf1b8b94d41f65b6f52d5f2650ce3a153d03b76c2a1c0190",
+      "favicon.ico": "ec3400f57e441cee3161a41e78adbff0fcf1a2876757970c9be951c70b2fc4c7",
+      "index.html": "d1ce773b5fd6a74f271610f4d0bda33b702ce627d642c642deb41847b602584e",
+      "manifest.json": "f4861620f9abaff5faa6e44cc0202c22b99bf54ea7ff2048afe99dd5bd472138",
+      "robots.txt": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2"
+    },
+    "workspace": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-67ncrums",
+    "report": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-67ncrums/browser-report.json",
+    "visual_review": "Final English light media list with rendered preview and Chinese dark project information reviewed"
+  },
+  "agent": {
+    "status": "passed",
+    "binary_sha256": "5d5fc589c4919f60f15eb6d931dbef3a2c2095026646ea112de66e68446d2201",
+    "checks": [
+      "Agent streams two videos and one audio through MCP upload sessions and CLI byte transport, waits for actual imports, binds scoped immutable media and releases staging",
+      "Read-only planning is denied; scoped editing agrees with owner; restricted credentials cannot launch a Worker",
+      "CLI, HTTP and compact MCP produce the same read-only editorial transaction",
+      "One idempotent commit shortens video and audio together; stale planning is rejected",
+      "Selective undo and redo recover the exact pre/post edit documents including masks",
+      "Managed stdio Worker renders independent red, blue and masked black pixel oracles after ripple edit",
+      "Export is three seconds and independent PCM excludes the removed 440 Hz interval",
+      "EOF stops the managed host cleanly; a new host executes a persisted queued task",
+      "Agent duplicates the full edit, deletes its original idempotently, releases actual unfinished upload bytes and reservation, rejects old revision access and independently verifies surviving copy pixels",
+      "Shared media-removal use case clears assets, clips and masks in one edit; Agent undo restores the exact document, then exports the surviving copy with independently verified duration and PCM",
+      "SIGTERM stops the managed host even while the peer keeps stdin open"
+    ],
+    "artifact": "/private/tmp/opencut-migration-editorial-shared-20261007/artifacts/job_125a0781e2cf465ca48ea35b8c610f20/attempt-1/render.mp4",
+    "artifact_sha256": "0d3a6cd315c2a6aeb383697701385c8cc66a8c94c8939c93519ff1d966360caf",
+    "copy_artifact": "/private/tmp/opencut-migration-editorial-shared-20261007/artifacts/job_c64e6f9b574c426880941c0bce06a3ea/attempt-1/render.mp4",
+    "copy_artifact_sha256": "0d3a6cd315c2a6aeb383697701385c8cc66a8c94c8939c93519ff1d966360caf",
+    "evidence": "/private/tmp/opencut-migration-editorial-shared-20261007",
+    "report": "/tmp/opencut-migration-editorial-shared-20261007/report.json",
+    "trace": {
+      "path": "/tmp/opencut-migration-editorial-shared-20261007/trace.json",
+      "sha256": "24fe61e32f0ec29698a9395a3e91e37a3f82cb59615b979f3209db6d0e460074"
+    },
+    "interpretation": "External CLI/HTTP/MCP automation exercises real shared use cases; synthetic local media, not a claim of autonomous model editing quality"
+  },
+  "live": {
+    "backup": "/Users/vincent/.opencut/backups/before-project-deletion-20261007-032559",
+    "before": {
+      "schema": "25",
+      "projects": 1,
+      "media": 1,
+      "active_jobs": 0
+    },
+    "after": {
+      "schema": "26",
+      "projects": 1,
+      "media": 1,
+      "active_jobs": 0
+    },
+    "service": {
+      "database": "/Users/vincent/.opencut/workspace.sqlite",
+      "diagnostic": null,
+      "directory": "/Users/vincent/.opencut/server",
+      "endpoint": "http://127.0.0.1:8788",
+      "executable": "/Users/vincent/Desktop/OpenCut/target/release/opencut",
+      "instance": "ded31c9d-30ee-4766-895e-bf52ca34974a",
+      "log_file": "/Users/vincent/.opencut/server/server.log",
+      "pid": 33147,
+      "ready": true,
+      "started_at_unix_ms": 1791314760253,
+      "state": "running",
+      "token_file": "/Users/vincent/.opencut/server/api-token",
+      "version": 1,
+      "web_url": "http://127.0.0.1:8788/editor"
+    },
+    "http_web_hashes": "all matched",
+    "library_read": "passed"
+  },
+  "limits": [
+    "Project removal is irreversible in the public project library; immutable history/audit/media retention roots remain. It is not secure erasure.",
+    "Owner-only deletion: 1..64 projects, fixed heads, atomic receipt; active jobs block deletion, receiving uploads abort. Cleanup pending IDs can retry the original request.",
+    "Media removal: 1..64 assets, at most128 expanded edit operations; excess rejects the entire request. Related visual nodes are removed; captions retain text and detach the media source.",
+    "Current file-paste test dispatches ClipboardEvent with real File bytes; OS clipboard permission/UI and other browsers were not verified.",
+    "Cross-platform signed release, 4K/large-project performance and remaining Classic pages/features remain unverified or incomplete."
+  ],
+  "review": {
+    "application": "Pure base/visual media planning and deletion cleanup port; shared host dispatch, no internal CLI invocation",
+    "sqlite": "Transactional schema25 to26 with collision rollback; fixed heads, atomic batch and audit rollback, exact receipt replay, centralized live-project access/submission checks; copy media roots protected",
+    "retention": "Deletion stores staging IDs before revoking project access; owner retention/cleanup remains possible and audited after deletion, reservation releases only after byte removal",
+    "ui": "View preferences persist only layout/sort; explicit fixed-key AST exception in one UI module. Shift selection follows Classic anchors. Only the active Media/Sounds panel listens for file paste. Replacement target captured before upload."
+  },
+  "preliminary_findings": [
+    {
+      "finding": "Archived-project live check originally blocked upload staging cleanup",
+      "resolution": "Owner retention/release path remains authorized and emits archived-project audit; actual unfinished bytes and reservation removed in Agent flow"
+    },
+    {
+      "finding": "Removing clips before their effects/masks broke target lock checks",
+      "resolution": "Pure planner orders visual dependency deletion first; two application tests plus actual browser and MCP removal/undo pass"
+    },
+    {
+      "finding": "CLI put requires an up-front digest for known-hash sessions",
+      "resolution": "Independent stream-put byte adapter added; old command response unchanged; actual MCP stream imports use it"
+    },
+    {
+      "finding": "Paste during replacement could clear the target; cancelled file picker could leave replacement intent on drop",
+      "resolution": "Capture replacement before await, single-file replacement chooser, normal file drops clear replacement intent; gated byte-transport concurrency browser flow passes"
+    },
+    {
+      "finding": "Five-second browser assertions timed out while running full native regressions in parallel",
+      "resolution": "Final browser verification run independently after heavy regression; new real replacement import has bounded90-second wait; all30 flows passed"
+    }
+  ],
+  "test_logs": {
+    "workspace": {
+      "path": "/tmp/opencut-media-workspace-final-tests.log",
+      "sha256": "488751380e8931c094ebbc74152d19ffd4d69ccf6dc98e0a64fa730be86c5efe"
+    },
+    "clippy": {
+      "path": "/tmp/opencut-media-clippy-final.log",
+      "sha256": "cd0de85f173232b343d8ea50686c112267234689001557ba9f4b54acd6750b7d"
+    },
+    "web": {
+      "path": "/tmp/opencut-media-web-tests-final.log",
+      "sha256": "64f66f2f85e3a477e95f5a9aaeb35b9c95414d3b78bb2d7919822177c8336687"
+    },
+    "sdk": {
+      "path": "/tmp/opencut-media-sdk-tests.log",
+      "sha256": "1c0cfb05cd16e25ed7c525746e13e5891a189a4437c5626dd1ac8edad4cc67e6"
+    },
+    "architecture": {
+      "path": "/tmp/opencut-media-boundaries-final.log",
+      "sha256": "d1d06f7501ab1da78f0037984bb3696dd28675009f68725f8fa7544549b4e9e7"
+    },
+    "wire": {
+      "path": "/tmp/opencut-media-wire-final.log",
+      "sha256": "d3d01eebac30a7ada234211755b895dde7be6bcdfbaaa44efc2b8c9d3263124c"
+    },
+    "web_build": {
+      "path": "/tmp/opencut-media-web-build-verified.log",
+      "sha256": "7db8675974bb1740ea007da138121ba9b8c433f7010677f083d5cc2636fd8036"
+    }
+  },
+  "remaining_audit": "classic-parity-audit-2026-10-07.json",
+  "package": {
+    "archive": "dist/local/opencut-0.1.0-dev-8c4b181ff822-x86_64-apple-darwin.tar.gz",
+    "sha256": "b073dac3591d5acb0746555ca9415c1431381717419eeb118241629527b755f9",
+    "extracted": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-media-delivery-zvwovyx6/opencut-0.1.0-x86_64-apple-darwin",
+    "manifest": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-media-delivery-zvwovyx6/opencut-0.1.0-x86_64-apple-darwin/manifest.json",
+    "identity_check": "all files/size/hashes and tested binary/Web matched",
+    "maturity": "development",
+    "full_release_matrix_retested": false,
+    "agent_editorial": {
+      "report": "/tmp/opencut-migration-package-agent-20261007/report.json",
+      "checks": 12,
+      "status": "passed",
+      "config_generator": "Codex/Claude package configuration actually used to launch the MCP process",
+      "artifact_sha256": "0d3a6cd315c2a6aeb383697701385c8cc66a8c94c8939c93519ff1d966360caf",
+      "copy_artifact_sha256": "0d3a6cd315c2a6aeb383697701385c8cc66a8c94c8939c93519ff1d966360caf"
+    }
+  }
+}

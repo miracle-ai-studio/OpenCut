@@ -1,0 +1,476 @@
+{
+  "schema_version": 1,
+  "description": "2026-09-27 reviewed baseline, not a claim that target boundaries are complete. Any dependency addition requires an architecture review; unused allowances must be removed. See architecture-renewal-plan.md.",
+  "modules": {
+    "opencut-api-contracts": {
+      "path": "crates/api-contracts",
+      "layer": "contracts",
+      "owner": "Protocol",
+      "responsibility": "公共工具、传输 DTO 与 Schema 的唯一来源",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-job-contracts",
+          "opencut-media-contracts",
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-asset-store": {
+      "path": "crates/asset-store",
+      "layer": "adapter",
+      "owner": "Storage",
+      "responsibility": "素材固定、CAS 和文件发布适配",
+      "dependencies": {
+        "normal": [
+          "fs2",
+          "libc",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-storage-budget",
+          "schemars",
+          "serde",
+          "serde_json",
+          "sha2",
+          "uuid"
+        ],
+        "build": [],
+        "dev": [
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-automation": {
+      "path": "crates/automation",
+      "layer": "adapter",
+      "owner": "Protocol",
+      "responsibility": "纯工具分派、参数解码与授权顺序；由类型化 ToolExecution 端口注入宿主",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-editor-core",
+          "opencut-job-contracts",
+          "serde_json",
+          "uuid"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-cli": {
+      "path": "apps/cli",
+      "layer": "host",
+      "owner": "Host",
+      "responsibility": "CLI/HTTP/MCP 传输；只构造 host-runtime 不接触数据库、媒体、CAS 实现，工作区通过 WorkspacePort 调用",
+      "dependencies": {
+        "normal": [
+          "async-trait",
+          "axum",
+          "clap",
+          "futures-util",
+          "opencut-automation",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-sdk",
+          "rmcp",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tokio",
+          "tokio-util",
+          "uuid",
+          "opencut-host-runtime"
+        ],
+        "build": [],
+        "dev": [
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-composition": {
+      "path": "crates/composition",
+      "layer": "domain",
+      "owner": "Composition",
+      "responsibility": "固定修订到后端无关合成描述的纯编译",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-editor-core",
+          "opencut-media-contracts",
+          "opencut-time",
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-contracts": {
+      "path": "crates/contracts",
+      "layer": "contracts",
+      "owner": "Domain",
+      "responsibility": "工程、操作、身份与错误的纯数据契约",
+      "dependencies": {
+        "normal": [
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-desktop": {
+      "path": "apps/desktop",
+      "layer": "client",
+      "owner": "Desktop",
+      "responsibility": "GPUI 客户端；当前界面仍暂缓",
+      "dependencies": {
+        "normal": [
+          "gpui"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-editor-application": {
+      "path": "crates/editor-application",
+      "layer": "application",
+      "owner": "Application",
+      "responsibility": "用例、事务与能力端口；不装配原生实现",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-composition",
+          "opencut-contracts",
+          "opencut-editor-core",
+          "opencut-job-contracts",
+          "opencut-job-execution",
+          "opencut-media-contracts",
+          "opencut-time",
+          "schemars",
+          "semver",
+          "serde",
+          "serde_json",
+          "sha2",
+          "uuid"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-editor-core": {
+      "path": "crates/editor-core",
+      "layer": "domain",
+      "owner": "Domain",
+      "responsibility": "工程不变量、编辑计划与操作语义",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-time",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-job-contracts": {
+      "path": "crates/job-contracts",
+      "layer": "contracts",
+      "owner": "Execution",
+      "responsibility": "公开任务请求、状态与结果",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-media-contracts",
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-job-execution": {
+      "path": "crates/job-execution",
+      "layer": "contracts",
+      "owner": "Execution",
+      "responsibility": "内部固定任务输入；不向 SDK 暴露",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-media-contracts",
+          "schemars",
+          "serde"
+        ],
+        "build": [],
+        "dev": [
+          "serde_json"
+        ]
+      }
+    },
+    "opencut-job-runtime": {
+      "path": "crates/job-runtime",
+      "layer": "runtime",
+      "owner": "Execution",
+      "responsibility": "通过 JobStoreFactory 与 ExecutorPort 领取、执行和租约围栏发布；不包含数据库和媒体实现",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts",
+          "opencut-editor-application",
+          "serde_json",
+          "uuid"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-media": {
+      "path": "crates/media",
+      "layer": "adapter",
+      "owner": "Media",
+      "responsibility": "FFmpeg、字体与原生媒体执行",
+      "dependencies": {
+        "normal": [
+          "cosmic-text",
+          "image",
+          "libc",
+          "opencut-media-contracts",
+          "schemars",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "unicode-script"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-media-contracts": {
+      "path": "crates/media-contracts",
+      "layer": "contracts",
+      "owner": "Media",
+      "responsibility": "媒体描述、合成原语与后端无关结果",
+      "dependencies": {
+        "normal": [
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-native-services": {
+      "path": "crates/native-services",
+      "layer": "assembly",
+      "owner": "Host",
+      "responsibility": "实现应用能力端口并组合原生适配器",
+      "dependencies": {
+        "normal": [
+          "libc",
+          "opencut-api-contracts",
+          "opencut-asset-store",
+          "opencut-composition",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-media",
+          "opencut-plugin-host",
+          "opencut-project-render",
+          "opencut-storage-budget",
+          "opencut-time",
+          "rustix",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "uuid"
+        ],
+        "build": [],
+        "dev": [
+          "opencut-sqlite-store",
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-plugin-host": {
+      "path": "crates/plugin-host",
+      "layer": "adapter",
+      "owner": "Plugins",
+      "responsibility": "插件 ABI、权限与受限执行",
+      "dependencies": {
+        "normal": [
+          "fs2",
+          "jsonschema",
+          "opencut-api-contracts",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-storage-budget",
+          "schemars",
+          "semver",
+          "serde",
+          "serde_json",
+          "sha2",
+          "wasmtime",
+          "wasmtime-wasi"
+        ],
+        "build": [],
+        "dev": [
+          "opencut-editor-core",
+          "opencut-sqlite-store",
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-project-render": {
+      "path": "crates/project-render",
+      "layer": "adapter",
+      "owner": "Composition",
+      "responsibility": "合成输入身份解析与原生资源绑定",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-composition",
+          "opencut-contracts",
+          "opencut-editor-core",
+          "opencut-media",
+          "opencut-time",
+          "schemars",
+          "serde",
+          "serde_json"
+        ],
+        "build": [],
+        "dev": [
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-sdk": {
+      "path": "crates/sdk-rust",
+      "layer": "client",
+      "owner": "SDK",
+      "responsibility": "Rust 客户端与公共协议消费",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-contracts",
+          "opencut-job-contracts",
+          "opencut-media-contracts",
+          "serde",
+          "serde_json",
+          "sha2",
+          "ureq",
+          "url"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-sqlite-store": {
+      "path": "crates/sqlite-store",
+      "layer": "adapter",
+      "owner": "Storage",
+      "responsibility": "SQL 原子存储、迁移及既有 workspace facade",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-asset-store",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-editor-core",
+          "opencut-job-contracts",
+          "opencut-job-execution",
+          "opencut-media-contracts",
+          "opencut-storage-budget",
+          "rusqlite",
+          "schemars",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "url",
+          "uuid"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-storage-budget": {
+      "path": "crates/storage-budget",
+      "layer": "adapter",
+      "owner": "Storage",
+      "responsibility": "原生存储预留与配额适配",
+      "dependencies": {
+        "normal": [
+          "fs2",
+          "libc",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "rustix",
+          "serde",
+          "serde_json",
+          "uuid"
+        ],
+        "build": [],
+        "dev": [
+          "tempfile"
+        ]
+      }
+    },
+    "opencut-time": {
+      "path": "crates/time",
+      "layer": "domain",
+      "owner": "Domain",
+      "responsibility": "精确有理数时间与帧格点",
+      "dependencies": {
+        "normal": [
+          "opencut-contracts"
+        ],
+        "build": [],
+        "dev": []
+      }
+    },
+    "opencut-host-runtime": {
+      "path": "crates/host-runtime",
+      "layer": "assembly",
+      "owner": "Host",
+      "responsibility": "装配 SQLite/native 能力端口；本地工具会话、原生执行器及监控/进度适配；调度由 job-runtime 负责",
+      "dependencies": {
+        "normal": [
+          "opencut-api-contracts",
+          "opencut-asset-store",
+          "opencut-automation",
+          "opencut-contracts",
+          "opencut-editor-application",
+          "opencut-job-contracts",
+          "opencut-job-execution",
+          "opencut-job-runtime",
+          "opencut-media",
+          "opencut-native-services",
+          "opencut-project-render",
+          "opencut-sqlite-store",
+          "opencut-storage-budget",
+          "opencut-time",
+          "serde",
+          "serde_json",
+          "sha2",
+          "opencut-composition"
+        ],
+        "build": [],
+        "dev": [
+          "rusqlite",
+          "tempfile",
+          "uuid"
+        ]
+      }
+    }
+  },
+  "exceptions": []
+}

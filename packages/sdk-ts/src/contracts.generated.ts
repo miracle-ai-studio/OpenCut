@@ -1,5 +1,1187 @@
 // Generated from the Rust automation registry. Do not edit.
 
+export namespace OpencutProjectEditPlanInput {
+  export type ProjectEdit =
+  | {
+      name: string;
+      type: 'rename_project';
+    }
+  | {
+      name: string;
+      sequence_id: string;
+      type: 'create_scene';
+      video_track_id: string;
+    }
+  | {
+      name: string;
+      sequence_id: string;
+      type: 'rename_scene';
+    }
+  | {
+      sequence_id: string;
+      type: 'delete_scene';
+    };
+
+  export interface ProjectEditRequest {
+  expected_revision: string;
+  idempotency_key: string;
+  label: string;
+  operations: ProjectEdit[];
+  project_id: string;
+}
+
+}
+
+export namespace OpencutProjectEditPlanOutput {
+  export type AssetKind = 'video' | 'audio' | 'image' | 'text' | 'subtitle' | 'graphic';
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type TextAlign = 'left' | 'center' | 'right';
+  export type KeyframeInterpolation = 'hold' | 'linear';
+  export type TrackKind = 'video' | 'audio' | 'caption' | 'graphic';
+  export type VisualEffect =
+  | {
+      contrast: number;
+      exposure_ev: number;
+      kind: 'color_adjust';
+      saturation: number;
+    }
+  | {
+      kind: 'gaussian_blur';
+      radius_px: number;
+    };
+  export type ShapePrimitive =
+  | {
+      height_px: number;
+      kind: 'rectangle';
+      width_px: number;
+    }
+  | {
+      kind: 'ellipse';
+      radius_x_px: number;
+      radius_y_px: number;
+    };
+  export type Transition = {
+  kind: 'crossfade';
+};
+
+  export interface Response {
+  api_version: string;
+  data?: VisualPlan | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface VisualPlan {
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  proposed_project: ProjectDocumentV3;
+}
+  export interface ProjectDocumentV3 {
+  base: ProjectDocument;
+  /**
+   * Versioned easing overrides for existing base keyframe channels.
+   */
+  keyframe_curves?: KeyframeCurveV1[];
+  schema_version: number;
+  visual: SequenceVisualV3[];
+}
+/**
+ * The schema 2 project remains the single authority for assets, tracks,
+ * clip timing, audio and captions. Visual nodes refer to its stable IDs.
+ */
+  export interface ProjectDocument {
+  assets: Asset[];
+  default_sequence_id: string;
+  id: string;
+  name: string;
+  schema_version: number;
+  sequences: Sequence[];
+}
+  export interface Asset {
+  duration?: Time | null;
+  id: string;
+  kind: AssetKind;
+  metadata?: {
+    [k: string]: any;
+  };
+  name: string;
+  uri: string;
+  version?: AssetVersion | null;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface AssetVersion {
+  content_hash: string;
+  id: string;
+  size: number;
+}
+  export interface Sequence {
+  caption_cues?: CaptionCue[];
+  fps: FrameRate;
+  height: number;
+  id: string;
+  name: string;
+  tracks: Track[];
+  width: number;
+}
+  export interface CaptionCue {
+  id: string;
+  source_anchor?: CaptionSourceAnchor | null;
+  style: CaptionStyle;
+  text: string;
+  timeline_range: TimeRange;
+}
+  export interface CaptionSourceAnchor {
+  asset_id: string;
+  source_range: TimeRange;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface CaptionStyle {
+  background_color?: string | null;
+  color: string;
+  font_family: string;
+  font_policy?: FontResolutionPolicy;
+  font_size: number;
+  /**
+   * Line height in canvas pixels. None derives it from font_size.
+   */
+  line_height?: number | null;
+  /**
+   * Maximum layout width in canvas pixels. None uses the backend's canvas margin.
+   */
+  max_width?: number | null;
+  text_align?: TextAlign;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface Track {
+  clips: Clip[];
+  enabled: boolean;
+  id: string;
+  kind: TrackKind;
+  locked: boolean;
+  muted: boolean;
+  name: string;
+  params?: {
+    [k: string]: any;
+  };
+}
+  export interface Clip {
+  asset_id?: string | null;
+  channels?: KeyframeChannel[];
+  id: string;
+  params?: {
+    [k: string]: any;
+  };
+  source_range?: TimeRange | null;
+  timeline_range: TimeRange;
+}
+  export interface KeyframeChannel {
+  keyframes: Keyframe[];
+  parameter: string;
+}
+  export interface Keyframe {
+  id: string;
+  interpolation: KeyframeInterpolation;
+  time: Time;
+  value: any;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+  export interface SequenceVisualV3 {
+  effects: EffectNode[];
+  masks: MaskNode[];
+  sequence_id: string;
+  shapes: ShapeClip[];
+  transitions: TransitionNode[];
+}
+  export interface EffectNode {
+  effect: VisualEffect;
+  id: string;
+  /**
+   * A base video/image clip ID or a schema 3 shape ID.
+   */
+  target_id: string;
+}
+  export interface MaskNode {
+  feather: number;
+  id: string;
+  inverted: boolean;
+  /**
+   * Coordinates are normalized to the canvas, from its top-left corner.
+   */
+  shape:
+    | {
+        height: number;
+        kind: 'rectangle';
+        width: number;
+        x: number;
+        y: number;
+      }
+    | {
+        height: number;
+        kind: 'ellipse';
+        width: number;
+        x: number;
+        y: number;
+      };
+  target_id: string;
+}
+  export interface ShapeClip {
+  fill: Rgba;
+  id: string;
+  opacity: number;
+  /**
+   * Canvas pixel offset from center, positive right/down.
+   */
+  position_x: number;
+  position_y: number;
+  primitive: ShapePrimitive;
+  rotation_degrees: number;
+  timeline_range: TimeRange;
+  track_id: string;
+}
+  export interface Rgba {
+  alpha: number;
+  blue: number;
+  green: number;
+  red: number;
+}
+  export interface TransitionNode {
+  duration: Time1;
+  id: string;
+  incoming_clip_id: string;
+  outgoing_clip_id: string;
+  transition: Transition;
+}
+/**
+ * The outgoing end must equal the incoming start. Each source must have
+ * half this duration of real media outside its visible source range.
+ */
+  export interface Time1 {
+  ticks: string;
+  timebase: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectEditApplyInput {
+  export type ProjectEdit =
+  | {
+      name: string;
+      type: 'rename_project';
+    }
+  | {
+      name: string;
+      sequence_id: string;
+      type: 'create_scene';
+      video_track_id: string;
+    }
+  | {
+      name: string;
+      sequence_id: string;
+      type: 'rename_scene';
+    }
+  | {
+      sequence_id: string;
+      type: 'delete_scene';
+    };
+
+  export interface ProjectEditRequest {
+  expected_revision: string;
+  idempotency_key: string;
+  label: string;
+  operations: ProjectEdit[];
+  project_id: string;
+}
+
+}
+
+export namespace OpencutProjectEditApplyOutput {
+  export interface Response {
+  api_version: string;
+  data?: TransactionResult | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutUploadStreamBeginInput {
+  export interface BeginUpload {
+  idempotency_key: string;
+  name: string;
+  project_id: string;
+  size_bytes: string;
+}
+
+}
+
+export namespace OpencutUploadStreamBeginOutput {
+  export type UploadState = 'receiving' | 'sealed' | 'aborted';
+
+  export interface Response {
+  api_version: string;
+  data?: StreamUploadView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface StreamUploadView {
+  content_hash?: string | null;
+  job_id?: string | null;
+  name: string;
+  next_offset: string;
+  project_id: string;
+  size_bytes: string;
+  state: UploadState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutUploadStreamInspectInput {
+  export interface UploadInput {
+  upload_id: string;
+}
+
+}
+
+export namespace OpencutUploadStreamInspectOutput {
+  export type UploadState = 'receiving' | 'sealed' | 'aborted';
+
+  export interface Response {
+  api_version: string;
+  data?: StreamUploadView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface StreamUploadView {
+  content_hash?: string | null;
+  job_id?: string | null;
+  name: string;
+  next_offset: string;
+  project_id: string;
+  size_bytes: string;
+  state: UploadState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutUploadStreamCompleteInput {
+  export interface CompleteUpload {
+  content_hash: string;
+  upload_id: string;
+}
+
+}
+
+export namespace OpencutUploadStreamCompleteOutput {
+  export type UploadState = 'receiving' | 'sealed' | 'aborted';
+
+  export interface Response {
+  api_version: string;
+  data?: StreamUploadView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface StreamUploadView {
+  content_hash?: string | null;
+  job_id?: string | null;
+  name: string;
+  next_offset: string;
+  project_id: string;
+  size_bytes: string;
+  state: UploadState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutUploadStreamAbortInput {
+  export interface UploadInput {
+  upload_id: string;
+}
+
+}
+
+export namespace OpencutUploadStreamAbortOutput {
+  export type UploadState = 'receiving' | 'sealed' | 'aborted';
+
+  export interface Response {
+  api_version: string;
+  data?: StreamUploadView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface StreamUploadView {
+  content_hash?: string | null;
+  job_id?: string | null;
+  name: string;
+  next_offset: string;
+  project_id: string;
+  size_bytes: string;
+  state: UploadState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutUploadStreamQueryInput {
+  export interface UploadQuery {
+  cursor?: string | null;
+  limit?: number;
+  project_id: string;
+  retained_only?: boolean;
+}
+
+}
+
+export namespace OpencutUploadStreamQueryOutput {
+  export type UploadRetentionState = 'retained' | 'released';
+  export type UploadState = 'receiving' | 'sealed' | 'aborted';
+
+  export interface Response {
+  api_version: string;
+  data?: StreamUploadPage | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface StreamUploadPage {
+  next_cursor?: string | null;
+  uploads: StreamUploadEntry[];
+  [k: string]: any;
+}
+  export interface StreamUploadEntry {
+  retention: UploadRetentionView;
+  upload: StreamUploadView;
+  [k: string]: any;
+}
+  export interface UploadRetentionView {
+  project_id: string;
+  /**
+   * Observation only. Release rechecks authorization and terminal state.
+   */
+  release_eligible: boolean;
+  reserved_bytes: string;
+  state: UploadRetentionState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface StreamUploadView {
+  content_hash?: string | null;
+  job_id?: string | null;
+  name: string;
+  next_offset: string;
+  project_id: string;
+  size_bytes: string;
+  state: UploadState;
+  upload_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutEditTimelinePlanInput {
+  export type TimelineCommand =
+  | {
+      kind: 'ripple_delete';
+      range: TimeRange;
+    }
+  | {
+      at: Time;
+      duration: Time;
+      kind: 'insert_gap';
+    }
+  | {
+      clip_id: string;
+      kind: 'slip';
+      source_delta: Time;
+    }
+  | {
+      delta: Time;
+      incoming_clip_id: string;
+      kind: 'roll';
+      outgoing_clip_id: string;
+    }
+  | {
+      clip_id: string;
+      delta: Time;
+      kind: 'slide';
+    }
+  | {
+      caption_ids: string[];
+      clip_ids: string[];
+      delta: Time;
+      kind: 'move_group';
+      shape_ids: string[];
+    }
+  | {
+      kind: 'reorder_tracks';
+      track_ids: string[];
+    };
+
+  export interface TimelineEditRequest {
+  command: TimelineCommand;
+  expected_revision: string;
+  idempotency_key: string;
+  label: string;
+  project_id: string;
+  sequence_id: string;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+
+}
+
+export namespace OpencutEditTimelinePlanOutput {
+  export type VisualOperation =
+  | {
+      operation: Operation;
+      type: 'base.apply';
+    }
+  | {
+      sequence_id: string;
+      shape: ShapeClip;
+      type: 'shape.put';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'shape.delete';
+    }
+  | {
+      effect: EffectNode;
+      sequence_id: string;
+      type: 'effect.put';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'effect.delete';
+    }
+  | {
+      mask: MaskNode;
+      sequence_id: string;
+      type: 'mask.put';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'mask.delete';
+    }
+  | {
+      sequence_id: string;
+      transition: TransitionNode;
+      type: 'transition.put';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'transition.delete';
+    }
+  | {
+      curve: KeyframeCurveV1;
+      sequence_id: string;
+      type: 'keyframe.curve_set';
+    }
+  | {
+      id: string;
+      sequence_id: string;
+      type: 'keyframe.curve_delete';
+    };
+  export type Operation =
+  | {
+      fps?: FrameRate | null;
+      height?: number | null;
+      name?: string | null;
+      sequence_id: string;
+      type: 'sequence.update_settings';
+      width?: number | null;
+    }
+  | {
+      sequence_id: string;
+      track: Track;
+      type: 'track.create';
+    }
+  | {
+      sequence_id: string;
+      track_id: string;
+      type: 'track.delete';
+    }
+  | {
+      asset: Asset;
+      type: 'asset.bind';
+    }
+  | {
+      asset: Asset;
+      type: 'asset.replace';
+    }
+  | {
+      asset_id: string;
+      type: 'asset.unbind';
+    }
+  | {
+      clip: Clip;
+      sequence_id: string;
+      track_id: string;
+      type: 'clip.insert';
+    }
+  | {
+      at: Time;
+      clip_id: string;
+      right_clip_id: string;
+      sequence_id: string;
+      track_id: string;
+      type: 'clip.split';
+    }
+  | {
+      clip_id: string;
+      destination_track_id: string;
+      sequence_id: string;
+      start: Time;
+      track_id: string;
+      type: 'clip.move';
+    }
+  | {
+      clip_id: string;
+      sequence_id: string;
+      source_range?: TimeRange | null;
+      timeline_range: TimeRange;
+      track_id: string;
+      type: 'clip.trim';
+    }
+  | {
+      clip_id: string;
+      sequence_id: string;
+      track_id: string;
+      type: 'clip.delete';
+    }
+  | {
+      clip_id: string;
+      params: {
+        [k: string]: any;
+      };
+      sequence_id: string;
+      track_id: string;
+      type: 'parameter.set_clip';
+    }
+  | {
+      params: {
+        [k: string]: any;
+      };
+      sequence_id: string;
+      track_id: string;
+      type: 'parameter.set_track';
+    }
+  | {
+      enabled?: boolean | null;
+      locked?: boolean | null;
+      muted?: boolean | null;
+      name?: string | null;
+      sequence_id: string;
+      track_id: string;
+      type: 'track.update';
+    }
+  | {
+      clip_id: string;
+      sequence_id: string;
+      timeline_duration: Time;
+      track_id: string;
+      type: 'clip.retime';
+    }
+  | {
+      channel: KeyframeChannel;
+      clip_id: string;
+      sequence_id: string;
+      track_id: string;
+      type: 'keyframe.channel_set';
+    }
+  | {
+      clip_id: string;
+      parameter: string;
+      sequence_id: string;
+      track_id: string;
+      type: 'keyframe.channel_delete';
+    }
+  | {
+      cue: CaptionCue;
+      sequence_id: string;
+      type: 'caption.insert';
+    }
+  | {
+      cue: CaptionCue;
+      sequence_id: string;
+      type: 'caption.update';
+    }
+  | {
+      cue_id: string;
+      sequence_id: string;
+      type: 'caption.delete';
+    };
+  export type KeyframeInterpolation = 'hold' | 'linear';
+  export type TrackKind = 'video' | 'audio' | 'caption' | 'graphic';
+  export type AssetKind = 'video' | 'audio' | 'image' | 'text' | 'subtitle' | 'graphic';
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type TextAlign = 'left' | 'center' | 'right';
+  export type ShapePrimitive =
+  | {
+      height_px: number;
+      kind: 'rectangle';
+      width_px: number;
+    }
+  | {
+      kind: 'ellipse';
+      radius_x_px: number;
+      radius_y_px: number;
+    };
+  export type VisualEffect =
+  | {
+      contrast: number;
+      exposure_ev: number;
+      kind: 'color_adjust';
+      saturation: number;
+    }
+  | {
+      kind: 'gaussian_blur';
+      radius_px: number;
+    };
+  export type Transition = {
+  kind: 'crossfade';
+};
+
+  export interface Response {
+  api_version: string;
+  data?: TimelineEditPlan | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface TimelineEditPlan {
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  /**
+   * Explicit consequences to review, including transitions removed at a cut.
+   */
+  notes: string[];
+  transaction: ApplyV3Project;
+}
+/**
+ * Submit unchanged through the shared visual edit apply operation.
+ */
+  export interface ApplyV3Project {
+  expected_revision: string;
+  idempotency_key: string;
+  label: string;
+  operations: VisualOperation[];
+  project_id: string;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface Track {
+  clips: Clip[];
+  enabled: boolean;
+  id: string;
+  kind: TrackKind;
+  locked: boolean;
+  muted: boolean;
+  name: string;
+  params?: {
+    [k: string]: any;
+  };
+}
+  export interface Clip {
+  asset_id?: string | null;
+  channels?: KeyframeChannel[];
+  id: string;
+  params?: {
+    [k: string]: any;
+  };
+  source_range?: TimeRange | null;
+  timeline_range: TimeRange;
+}
+  export interface KeyframeChannel {
+  keyframes: Keyframe[];
+  parameter: string;
+}
+  export interface Keyframe {
+  id: string;
+  interpolation: KeyframeInterpolation;
+  time: Time;
+  value: any;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface Asset {
+  duration?: Time | null;
+  id: string;
+  kind: AssetKind;
+  metadata?: {
+    [k: string]: any;
+  };
+  name: string;
+  uri: string;
+  version?: AssetVersion | null;
+}
+  export interface AssetVersion {
+  content_hash: string;
+  id: string;
+  size: number;
+}
+  export interface CaptionCue {
+  id: string;
+  source_anchor?: CaptionSourceAnchor | null;
+  style: CaptionStyle;
+  text: string;
+  timeline_range: TimeRange;
+}
+  export interface CaptionSourceAnchor {
+  asset_id: string;
+  source_range: TimeRange;
+}
+  export interface CaptionStyle {
+  background_color?: string | null;
+  color: string;
+  font_family: string;
+  font_policy?: FontResolutionPolicy;
+  font_size: number;
+  /**
+   * Line height in canvas pixels. None derives it from font_size.
+   */
+  line_height?: number | null;
+  /**
+   * Maximum layout width in canvas pixels. None uses the backend's canvas margin.
+   */
+  max_width?: number | null;
+  text_align?: TextAlign;
+}
+  export interface ShapeClip {
+  fill: Rgba;
+  id: string;
+  opacity: number;
+  /**
+   * Canvas pixel offset from center, positive right/down.
+   */
+  position_x: number;
+  position_y: number;
+  primitive: ShapePrimitive;
+  rotation_degrees: number;
+  timeline_range: TimeRange;
+  track_id: string;
+}
+  export interface Rgba {
+  alpha: number;
+  blue: number;
+  green: number;
+  red: number;
+}
+  export interface EffectNode {
+  effect: VisualEffect;
+  id: string;
+  /**
+   * A base video/image clip ID or a schema 3 shape ID.
+   */
+  target_id: string;
+}
+  export interface MaskNode {
+  feather: number;
+  id: string;
+  inverted: boolean;
+  /**
+   * Coordinates are normalized to the canvas, from its top-left corner.
+   */
+  shape:
+    | {
+        height: number;
+        kind: 'rectangle';
+        width: number;
+        x: number;
+        y: number;
+      }
+    | {
+        height: number;
+        kind: 'ellipse';
+        width: number;
+        x: number;
+        y: number;
+      };
+  target_id: string;
+}
+  export interface TransitionNode {
+  duration: Time1;
+  id: string;
+  incoming_clip_id: string;
+  outgoing_clip_id: string;
+  transition: Transition;
+}
+/**
+ * The outgoing end must equal the incoming start. Each source must have
+ * half this duration of real media outside its visible source range.
+ */
+  export interface Time1 {
+  ticks: string;
+  timebase: number;
+}
+  export interface KeyframeCurveV1 {
+  clip_id: string;
+  curve: CubicBezierV1;
+  id: string;
+  /**
+   * The outgoing keyframe controls the segment to the next keyframe.
+   */
+  keyframe_id: string;
+  parameter: string;
+  schema_version: number;
+  sequence_id: string;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutJobExecutionReceiptV1Input {
+  export interface InspectExecutionV1 {
+  job_id: string;
+}
+
+}
+
+export namespace OpencutJobExecutionReceiptV1Output {
+  export interface Response {
+  api_version: string;
+  data?: ExecutionReceiptV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface ExecutionReceiptV1 {
+  artifact_sha256: string;
+  artifact_size: number;
+  attempt: number;
+  composition_sha256: string;
+  covered_semantics: string[];
+  execution: ExecutionIdentityV1;
+  job_id: string;
+  kind: string;
+  request_sha256: string;
+  schema_version: number;
+  /**
+   * Receipt records compilation coverage and output identity, not a perceptual
+   * oracle or a claim that another platform will produce identical bytes.
+   */
+  semantic_output_verified: boolean;
+  sequence_id: string;
+  source_revision: string;
+}
+  export interface ExecutionIdentityV1 {
+  native_tools: PackageToolLock[];
+  platform: string;
+  /**
+   * Hash of this running host executable, including its statically linked engine.
+   * This is an observation of the current host, not the package's original engine.
+   */
+  process_binary_sha256: string;
+}
+  export interface PackageToolLock {
+  binary_sha256: string;
+  name: string;
+  version: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectPackageReproducibilityV1Input {
+  export interface InspectV1 {
+  expected_manifest_sha256: string;
+  /**
+   * Owner-local canonical package directory. No import or installation occurs.
+   */
+  package_path: string;
+}
+
+}
+
+export namespace OpencutProjectPackageReproducibilityV1Output {
+  export type VerificationStatus = 'verified' | 'not_verified' | 'mismatch';
+
+  export interface Response {
+  api_version: string;
+  data?: ReportV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface ReportV1 {
+  bit_exact_verified: VerificationStatus;
+  current_execution: ExecutionIdentityV1;
+  execution_environment_locked: VerificationStatus;
+  legacy_fully_reproducible_claim: boolean;
+  manifest_sha256: string;
+  /**
+   * Inspection verifies manifest and project bytes, not all media or plugin bytes.
+   */
+  media_contents_verified: 'verified' | 'not_verified' | 'mismatch';
+  media_self_contained_declared: boolean;
+  native_tool_environment: VerificationStatus;
+  package_schema_version: number;
+  reasons: string[];
+  schema_version: number;
+  semantic_output_verified: VerificationStatus;
+  source_revision: string;
+  strictly_reproducible: boolean;
+}
+  export interface ExecutionIdentityV1 {
+  native_tools: PackageToolLock[];
+  platform: string;
+  /**
+   * Hash of this running host executable, including its statically linked engine.
+   * This is an observation of the current host, not the package's original engine.
+   */
+  process_binary_sha256: string;
+}
+  export interface PackageToolLock {
+  binary_sha256: string;
+  name: string;
+  version: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutDatabaseInspectInput {
   export interface EmptyInput {}
 
@@ -7899,6 +9081,320 @@ export namespace OpencutAnalysisTranscribeOutput {
 
 }
 
+export namespace OpencutAnalysisSequenceTranscribeInput {
+/**
+ * Transcribe the audible mix of one fixed visual-project scene.
+ */
+  export interface SequenceTranscribeInput {
+  idempotency_key: string;
+  language?: string | null;
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+}
+
+}
+
+export namespace OpencutAnalysisSequenceTranscribeOutput {
+  export type ArtifactAvailability = 'unchecked';
+  export type ArtifactRole = 'primary';
+  export type PublicJobStage =
+  'resolving_assets' | 'probing' | 'selecting_frame' | 'decoding' | 'encoding' | 'verifying' | 'unknown';
+  export type JobResultView =
+  | {
+      data: MediaInfo;
+      kind: 'media.probe';
+      [k: string]: any;
+    }
+  | {
+      data: SourceFrameView;
+      kind: 'preview.frame';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectFrameView;
+      kind: 'preview.project_frame';
+      [k: string]: any;
+    }
+  | {
+      data: CompositedFrameView;
+      kind: 'preview.composited_frame';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectRangeView;
+      kind: 'preview.project_range';
+      [k: string]: any;
+    }
+  | {
+      data: ExportView;
+      kind: 'render.export';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectRenderView;
+      kind: 'render.project';
+      [k: string]: any;
+    }
+  | {
+      data: VerificationView;
+      kind: 'artifact.verify';
+      [k: string]: any;
+    };
+  export type StreamKind = 'video' | 'audio' | 'subtitle' | 'data' | 'attachment' | 'unknown';
+  export type FrameAlignment = 'exact' | 'nearest' | 'floor' | 'ceil';
+  export type FrameQuality = 'accurate_source_frame';
+  export type AssetLockingMode = 'media_content_locked' | 'legacy_unlocked';
+  export type ProjectFrameQuality = 'encoded_project_frame';
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type CompositedProjectFrameQuality = 'composited_project_frame';
+  export type ProjectRangeQuality = 'encoded_project_range';
+  export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+
+  export interface Response {
+  api_version: string;
+  data?: JobView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface JobView {
+  artifacts: ArtifactReference[];
+  cancel_requested: boolean;
+  /**
+   * New task kinds use the open registry envelope; legacy result variants stay frozen.
+   */
+  extended_result?: ExtendedJobResult | null;
+  failure?: PublicJobFailure | null;
+  job_id: string;
+  kind: string;
+  progress?: ProgressView | null;
+  resource_target?: JobResourceTarget | null;
+  result?: JobResultView | null;
+  result_unavailable?: PublicJobFailure | null;
+  state: JobState;
+  target?: ProjectTaskTarget | null;
+  [k: string]: any;
+}
+  export interface ArtifactReference {
+  artifact_id: string;
+  availability: ArtifactAvailability;
+  content_hash: string;
+  job_id: string;
+  mime_type: string;
+  role: ArtifactRole;
+  size_bytes: string;
+  [k: string]: any;
+}
+  export interface ExtendedJobResult {
+  data: any;
+  kind: string;
+  schema_version: number;
+  [k: string]: any;
+}
+  export interface PublicJobFailure {
+  code: string;
+  diagnostic_job_id: string;
+  message: string;
+  [k: string]: any;
+}
+  export interface ProgressView {
+  fraction?: number | null;
+  media_time?: Time | null;
+  stage: PublicJobStage;
+  [k: string]: any;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface JobResourceTarget {
+  project_id: string;
+  resource_id: string;
+  resource_kind: string;
+  [k: string]: any;
+}
+  export interface MediaInfo {
+  bit_rate?: number | null;
+  duration?: MediaTime | null;
+  format_brand?: string | null;
+  format_name?: string | null;
+  streams: MediaStream[];
+  [k: string]: any;
+}
+  export interface MediaTime {
+  ticks: string;
+  timebase: number;
+}
+  export interface MediaStream {
+  average_frame_rate?: FrameRate | null;
+  channel_layout?: string | null;
+  channels?: number | null;
+  codec_name?: string | null;
+  codec_type: StreamKind;
+  color_primaries?: string | null;
+  color_space?: string | null;
+  color_transfer?: string | null;
+  duration?: MediaTime | null;
+  height?: number | null;
+  index: number;
+  pixel_format?: string | null;
+  sample_rate?: number | null;
+  time_base?: FrameRate | null;
+  width?: number | null;
+  [k: string]: any;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface SourceFrameView {
+  actual_time: MediaTime;
+  alignment: FrameAlignment;
+  exact: boolean;
+  quality: FrameQuality;
+  requested_time: MediaTime;
+  source_pts: string;
+  source_time_base: FrameRate;
+  [k: string]: any;
+}
+  export interface ProjectFrameView {
+  actual_sequence_time: Time;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  height: number;
+  quality: ProjectFrameQuality;
+  requested_time: Time;
+  revision: string;
+  sequence_id: string;
+  text_layouts: TextLayoutView[];
+  width: number;
+  [k: string]: any;
+}
+  export interface AssetLockManifest {
+  assets: LockedAsset[];
+  revision: string;
+  sequence_id: string;
+  version: number;
+}
+  export interface LockedAsset {
+  asset_id: string;
+  content_hash: string;
+  size: number;
+}
+  export interface TextLayoutView {
+  cluster_ranges: TextClusterRange[];
+  glyph_count: number;
+  line_count: number;
+  pixel_bounds: PixelBounds;
+  policy: FontResolutionPolicy;
+  requested_family: string;
+  rtl_runs: number;
+  used_faces: FontFaceView[];
+  [k: string]: any;
+}
+  export interface TextClusterRange {
+  end: number;
+  rtl: boolean;
+  start: number;
+  [k: string]: any;
+}
+  export interface PixelBounds {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+  [k: string]: any;
+}
+  export interface FontFaceView {
+  face_index: number;
+  family: string;
+  postscript_name: string;
+  [k: string]: any;
+}
+  export interface CompositedFrameView {
+  actual_sequence_time: Time;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  height: number;
+  quality: CompositedProjectFrameQuality;
+  requested_time: Time;
+  revision: string;
+  sequence_id: string;
+  text_layouts: TextLayoutView[];
+  width: number;
+  [k: string]: any;
+}
+  export interface ProjectRangeView {
+  actual_sequence_range: TimeRange;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  media: ExportView;
+  quality: ProjectRangeQuality;
+  requested_range: TimeRange;
+  revision: string;
+  sequence_id: string;
+  [k: string]: any;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface ExportView {
+  metadata: MediaInfo;
+  text_layouts: TextLayoutView[];
+  verification: VerificationView;
+  [k: string]: any;
+}
+  export interface VerificationView {
+  checks: VerificationCheckView[];
+  decoded_samples: DecodedSample[];
+  metadata: MediaInfo;
+  passed: boolean;
+  [k: string]: any;
+}
+  export interface VerificationCheckView {
+  name: string;
+  passed: boolean;
+  [k: string]: any;
+}
+  export interface DecodedSample {
+  decoded: boolean;
+  requested_time: MediaTime;
+  [k: string]: any;
+}
+  export interface ProjectRenderView {
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  media: ExportView;
+  revision: string;
+  [k: string]: any;
+}
+  export interface ProjectTaskTarget {
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutAnalysisQueryInput {
   export interface AnalysisQueryInput {
   cursor?: string | null;
@@ -9318,6 +10814,224 @@ export namespace OpencutMediaRepairOutput {
   content_hash: string;
   id: string;
   size: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectLibraryInput {
+  export interface LibraryInput {
+  cursor?: string | null;
+  limit: number;
+}
+
+}
+
+export namespace OpencutProjectLibraryOutput {
+  export type ProjectFormat = 'base' | 'visual';
+
+  export interface Response {
+  api_version: string;
+  data?: LibraryPage | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface LibraryPage {
+  items: LibraryProject[];
+  next_cursor?: string | null;
+  [k: string]: any;
+}
+  export interface LibraryProject {
+  asset_count: number;
+  created_at: string;
+  duration: Time;
+  format: ProjectFormat;
+  fps: FrameRate;
+  height: number;
+  modified_at: string;
+  name: string;
+  project_id: string;
+  revision: string;
+  scene_count: number;
+  width: number;
+  [k: string]: any;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectDuplicateInput {
+  export interface DuplicateProjects {
+  idempotency_key: string;
+  projects: CopyProject[];
+}
+  export interface CopyProject {
+  expected_revision: string;
+  name: string;
+  source_project_id: string;
+  target_project_id: string;
+}
+
+}
+
+export namespace OpencutProjectDuplicateOutput {
+  export interface Response {
+  api_version: string;
+  data?: DuplicateReceipt | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DuplicateReceipt {
+  projects: ProjectCopy[];
+  [k: string]: any;
+}
+  export interface ProjectCopy {
+  project_id: string;
+  revision: string;
+  source_project_id: string;
+  source_revision: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectDeleteInput {
+  export interface DeleteProjects {
+  idempotency_key: string;
+  projects: DeleteProject[];
+}
+  export interface DeleteProject {
+  expected_revision: string;
+  project_id: string;
+}
+
+}
+
+export namespace OpencutProjectDeleteOutput {
+  export interface Response {
+  api_version: string;
+  data?: DeleteOutcome | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DeleteOutcome {
+  cleanup_pending: string[];
+  receipt: DeleteReceipt;
+  [k: string]: any;
+}
+  export interface DeleteReceipt {
+  projects: DeleteProject[];
+  staging_upload_ids: string[];
+  [k: string]: any;
+}
+  export interface DeleteProject {
+  expected_revision: string;
+  project_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectMediaRemoveInput {
+  export interface RemoveMedia {
+  asset_ids: string[];
+  expected_revision: string;
+  idempotency_key: string;
+  project_id: string;
+}
+
+}
+
+export namespace OpencutProjectMediaRemoveOutput {
+  export interface Response {
+  api_version: string;
+  data?: TransactionResult | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectHistoryNavigationInput {
+  export interface HistoryNavigationInput {
+  project_id: string;
+  revision?: string | null;
+}
+
+}
+
+export namespace OpencutProjectHistoryNavigationOutput {
+  export interface Response {
+  api_version: string;
+  data?: HistoryNavigation | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface HistoryNavigation {
+  project_id: string;
+  redo?: RedoTarget | null;
+  revision: string;
+  undo?: UndoTarget | null;
+  [k: string]: any;
+}
+  export interface RedoTarget {
+  label?: string | null;
+  transaction_id: string;
+  undo_transaction_id: string;
+  [k: string]: any;
+}
+  export interface UndoTarget {
+  label?: string | null;
+  transaction_id: string;
+  [k: string]: any;
 }
   export interface EditorError {
   code: string;
@@ -14260,6 +15974,78 @@ export namespace OpencutSubtitleImportOutput {
 
 }
 
+export namespace OpencutSubtitleGenerateInput {
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type TextAlign = 'left' | 'center' | 'right';
+
+/**
+ * Commit timeline-time captions from an authorized successful scene transcription.
+ */
+  export interface GenerateCaptions {
+  analysis_job_id: string;
+  expected_revision: string;
+  idempotency_key: string;
+  project_id: string;
+  sequence_id: string;
+  style?: CaptionStyle | null;
+  words_per_caption: number;
+}
+  export interface CaptionStyle {
+  background_color?: string | null;
+  color: string;
+  font_family: string;
+  font_policy?: FontResolutionPolicy;
+  font_size: number;
+  /**
+   * Line height in canvas pixels. None derives it from font_size.
+   */
+  line_height?: number | null;
+  /**
+   * Maximum layout width in canvas pixels. None uses the backend's canvas margin.
+   */
+  max_width?: number | null;
+  text_align?: TextAlign;
+}
+
+}
+
+export namespace OpencutSubtitleGenerateOutput {
+  export interface Response {
+  api_version: string;
+  data?: SubtitleImportReceipt | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface SubtitleImportReceipt {
+  cue_count: number;
+  transaction: TransactionResult;
+  warnings: string[];
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutSubtitleExportInput {
   export type SubtitleFormat = 'srt' | 'ass';
 
@@ -18135,6 +19921,76 @@ export namespace JobAnalysisTranscribeResult {
 
 }
 
+export namespace JobAnalysisSequenceTranscribeInput {
+/**
+ * Transcribe the audible mix of one fixed visual-project scene.
+ */
+  export interface SequenceTranscribeInput {
+  idempotency_key: string;
+  language?: string | null;
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+}
+
+}
+
+export namespace JobAnalysisSequenceTranscribeResult {
+  export interface SequenceTranscribeResult {
+  asset_lock: AssetLockManifest;
+  duration: Time;
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+  transcription: TranscriptionResult;
+}
+  export interface AssetLockManifest {
+  assets: LockedAsset[];
+  revision: string;
+  sequence_id: string;
+  version: number;
+}
+  export interface LockedAsset {
+  asset_id: string;
+  content_hash: string;
+  size: number;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface TranscriptionResult {
+  language?: string | null;
+  model: string;
+  /**
+   * SHA-256 of the exact host model bytes used for inference, when available.
+   */
+  model_sha256?: string | null;
+  provider: string;
+  segments: TranscriptionSegment[];
+  word_timing_status?: 'not_requested' | 'available' | 'unavailable';
+}
+  export interface TranscriptionSegment {
+  end: MediaTime;
+  start: MediaTime;
+  text: string;
+  /**
+   * Empty unless the configured engine actually returns validated word intervals.
+   */
+  words?: TranscriptionWord[];
+}
+  export interface MediaTime {
+  ticks: string;
+  timebase: number;
+}
+  export interface TranscriptionWord {
+  end: MediaTime;
+  start: MediaTime;
+  text: string;
+}
+
+}
+
 export namespace JobAnalysisSilenceInput {
   export interface SilenceJobInput {
   asset_id: string;
@@ -18758,6 +20614,16 @@ export namespace JobPreviewProjectRangeV3Result {
 }
 
 export interface ToolMap {
+  opencut_project_edit_plan: { input: OpencutProjectEditPlanInput.ProjectEditRequest; output: NonNullable<OpencutProjectEditPlanOutput.Response["data"]> };
+  opencut_project_edit_apply: { input: OpencutProjectEditApplyInput.ProjectEditRequest; output: NonNullable<OpencutProjectEditApplyOutput.Response["data"]> };
+  opencut_upload_stream_begin: { input: OpencutUploadStreamBeginInput.BeginUpload; output: NonNullable<OpencutUploadStreamBeginOutput.Response["data"]> };
+  opencut_upload_stream_inspect: { input: OpencutUploadStreamInspectInput.UploadInput; output: NonNullable<OpencutUploadStreamInspectOutput.Response["data"]> };
+  opencut_upload_stream_complete: { input: OpencutUploadStreamCompleteInput.CompleteUpload; output: NonNullable<OpencutUploadStreamCompleteOutput.Response["data"]> };
+  opencut_upload_stream_abort: { input: OpencutUploadStreamAbortInput.UploadInput; output: NonNullable<OpencutUploadStreamAbortOutput.Response["data"]> };
+  opencut_upload_stream_query: { input: OpencutUploadStreamQueryInput.UploadQuery; output: NonNullable<OpencutUploadStreamQueryOutput.Response["data"]> };
+  opencut_edit_timeline_plan: { input: OpencutEditTimelinePlanInput.TimelineEditRequest; output: NonNullable<OpencutEditTimelinePlanOutput.Response["data"]> };
+  opencut_job_execution_receipt_v1: { input: OpencutJobExecutionReceiptV1Input.InspectExecutionV1; output: NonNullable<OpencutJobExecutionReceiptV1Output.Response["data"]> };
+  opencut_project_package_reproducibility_v1: { input: OpencutProjectPackageReproducibilityV1Input.InspectV1; output: NonNullable<OpencutProjectPackageReproducibilityV1Output.Response["data"]> };
   opencut_database_inspect: { input: OpencutDatabaseInspectInput.EmptyInput; output: NonNullable<OpencutDatabaseInspectOutput.Response["data"]> };
   opencut_database_checkpoint: { input: OpencutDatabaseCheckpointInput.CheckpointInput; output: NonNullable<OpencutDatabaseCheckpointOutput.Response["data"]> };
   opencut_storage_budget_inspect: { input: OpencutStorageBudgetInspectInput.EmptyInput; output: NonNullable<OpencutStorageBudgetInspectOutput.Response["data"]> };
@@ -18812,6 +20678,7 @@ export interface ToolMap {
   opencut_analysis_evidence_query: { input: OpencutAnalysisEvidenceQueryInput.AnalysisQueryInput; output: NonNullable<OpencutAnalysisEvidenceQueryOutput.Response["data"]> };
   opencut_analysis_speaker_turns: { input: OpencutAnalysisSpeakerTurnsInput.SpeakerTurnsJobInput; output: NonNullable<OpencutAnalysisSpeakerTurnsOutput.Response["data"]> };
   opencut_analysis_transcribe: { input: OpencutAnalysisTranscribeInput.TranscribeJobInput; output: NonNullable<OpencutAnalysisTranscribeOutput.Response["data"]> };
+  opencut_analysis_sequence_transcribe: { input: OpencutAnalysisSequenceTranscribeInput.SequenceTranscribeInput; output: NonNullable<OpencutAnalysisSequenceTranscribeOutput.Response["data"]> };
   opencut_analysis_query: { input: OpencutAnalysisQueryInput.AnalysisQueryInput; output: NonNullable<OpencutAnalysisQueryOutput.Response["data"]> };
   opencut_analysis_silence: { input: OpencutAnalysisSilenceInput.SilenceJobInput; output: NonNullable<OpencutAnalysisSilenceOutput.Response["data"]> };
   opencut_analysis_shots: { input: OpencutAnalysisShotsInput.ShotsJobInput; output: NonNullable<OpencutAnalysisShotsOutput.Response["data"]> };
@@ -18819,6 +20686,11 @@ export interface ToolMap {
   opencut_job_request_cancel: { input: OpencutJobRequestCancelInput.JobInput; output: NonNullable<OpencutJobRequestCancelOutput.Response["data"]> };
   opencut_media_inspect: { input: OpencutMediaInspectInput.InspectMediaInput; output: NonNullable<OpencutMediaInspectOutput.Response["data"]> };
   opencut_media_repair: { input: OpencutMediaRepairInput.RepairMediaInput; output: NonNullable<OpencutMediaRepairOutput.Response["data"]> };
+  opencut_project_library: { input: OpencutProjectLibraryInput.LibraryInput; output: NonNullable<OpencutProjectLibraryOutput.Response["data"]> };
+  opencut_project_duplicate: { input: OpencutProjectDuplicateInput.DuplicateProjects; output: NonNullable<OpencutProjectDuplicateOutput.Response["data"]> };
+  opencut_project_delete: { input: OpencutProjectDeleteInput.DeleteProjects; output: NonNullable<OpencutProjectDeleteOutput.Response["data"]> };
+  opencut_project_media_remove: { input: OpencutProjectMediaRemoveInput.RemoveMedia; output: NonNullable<OpencutProjectMediaRemoveOutput.Response["data"]> };
+  opencut_project_history_navigation: { input: OpencutProjectHistoryNavigationInput.HistoryNavigationInput; output: NonNullable<OpencutProjectHistoryNavigationOutput.Response["data"]> };
   opencut_project_history: { input: OpencutProjectHistoryInput.HistoryInput; output: NonNullable<OpencutProjectHistoryOutput.Response["data"]> };
   opencut_revision_inspect: { input: OpencutRevisionInspectInput.RevisionInput; output: NonNullable<OpencutRevisionInspectOutput.Response["data"]> };
   opencut_revision_restore: { input: OpencutRevisionRestoreInput.RestoreInput; output: NonNullable<OpencutRevisionRestoreOutput.Response["data"]> };
@@ -18859,6 +20731,7 @@ export interface ToolMap {
   opencut_preview_events: { input: OpencutPreviewEventsInput.EventsInput; output: NonNullable<OpencutPreviewEventsOutput.Response["data"]> };
   opencut_preview_acquire: { input: OpencutPreviewAcquireInput.Acquire; output: NonNullable<OpencutPreviewAcquireOutput.Response["data"]> };
   opencut_subtitle_import: { input: OpencutSubtitleImportInput.SubtitleImport; output: NonNullable<OpencutSubtitleImportOutput.Response["data"]> };
+  opencut_subtitle_generate: { input: OpencutSubtitleGenerateInput.GenerateCaptions; output: NonNullable<OpencutSubtitleGenerateOutput.Response["data"]> };
   opencut_subtitle_export: { input: OpencutSubtitleExportInput.SubtitleExport; output: NonNullable<OpencutSubtitleExportOutput.Response["data"]> };
   opencut_classic_analyze: { input: OpencutClassicAnalyzeInput.ClassicAnalyze; output: NonNullable<OpencutClassicAnalyzeOutput.Response["data"]> };
   opencut_classic_import: { input: OpencutClassicImportInput.ClassicImport; output: NonNullable<OpencutClassicImportOutput.Response["data"]> };
@@ -18893,10 +20766,17 @@ export interface DomainMap {
     "capabilities": ToolMap["opencut_capabilities"];
   };
   "project": {
+    "edit.plan": ToolMap["opencut_project_edit_plan"];
+    "edit.apply": ToolMap["opencut_project_edit_apply"];
+    "package.reproducibility.v1": ToolMap["opencut_project_package_reproducibility_v1"];
     "v3.list": ToolMap["opencut_project_v3_list"];
     "v3.create": ToolMap["opencut_project_v3_create"];
     "v3.promote": ToolMap["opencut_project_v3_promote"];
     "v3.inspect": ToolMap["opencut_project_v3_inspect"];
+    "library": ToolMap["opencut_project_library"];
+    "duplicate": ToolMap["opencut_project_duplicate"];
+    "delete": ToolMap["opencut_project_delete"];
+    "history.navigation": ToolMap["opencut_project_history_navigation"];
     "history": ToolMap["opencut_project_history"];
     "revision.inspect": ToolMap["opencut_revision_inspect"];
     "revision.restore": ToolMap["opencut_revision_restore"];
@@ -18911,6 +20791,7 @@ export interface DomainMap {
     "classic.import": ToolMap["opencut_classic_import"];
   };
   "edit": {
+    "timeline.plan": ToolMap["opencut_edit_timeline_plan"];
     "v3.plan": ToolMap["opencut_edit_v3_plan"];
     "v3.apply": ToolMap["opencut_edit_v3_apply"];
     "plan": ToolMap["opencut_edit_plan"];
@@ -18936,9 +20817,15 @@ export interface DomainMap {
     "control.get": ToolMap["opencut_edit_control_get"];
     "control.set": ToolMap["opencut_edit_control_set"];
     "subtitle.import": ToolMap["opencut_subtitle_import"];
+    "subtitle.generate": ToolMap["opencut_subtitle_generate"];
     "subtitle.export": ToolMap["opencut_subtitle_export"];
   };
   "media": {
+    "upload.stream.begin": ToolMap["opencut_upload_stream_begin"];
+    "upload.stream.inspect": ToolMap["opencut_upload_stream_inspect"];
+    "upload.stream.complete": ToolMap["opencut_upload_stream_complete"];
+    "upload.stream.abort": ToolMap["opencut_upload_stream_abort"];
+    "upload.stream.query": ToolMap["opencut_upload_stream_query"];
     "upload.create": ToolMap["opencut_upload_create"];
     "upload.inspect": ToolMap["opencut_upload_inspect"];
     "upload.abort": ToolMap["opencut_upload_abort"];
@@ -18952,14 +20839,17 @@ export interface DomainMap {
     "analysis.evidence.query": ToolMap["opencut_analysis_evidence_query"];
     "analysis.speaker.turns": ToolMap["opencut_analysis_speaker_turns"];
     "analysis.transcribe": ToolMap["opencut_analysis_transcribe"];
+    "analysis.sequence.transcribe": ToolMap["opencut_analysis_sequence_transcribe"];
     "analysis.query": ToolMap["opencut_analysis_query"];
     "analysis.silence": ToolMap["opencut_analysis_silence"];
     "analysis.shots": ToolMap["opencut_analysis_shots"];
     "analysis.waveform": ToolMap["opencut_analysis_waveform"];
     "media.inspect": ToolMap["opencut_media_inspect"];
     "media.repair": ToolMap["opencut_media_repair"];
+    "project.media.remove": ToolMap["opencut_project_media_remove"];
   };
   "task": {
+    "execution.receipt.v1": ToolMap["opencut_job_execution_receipt_v1"];
     "view": ToolMap["opencut_job_view"];
     "query": ToolMap["opencut_job_query"];
     "changes": ToolMap["opencut_job_changes"];
@@ -19053,10 +20943,17 @@ export const domainActions = {
     "capabilities"
   ],
   "project": [
+    "edit.plan",
+    "edit.apply",
+    "package.reproducibility.v1",
     "v3.list",
     "v3.create",
     "v3.promote",
     "v3.inspect",
+    "library",
+    "duplicate",
+    "delete",
+    "history.navigation",
     "history",
     "revision.inspect",
     "revision.restore",
@@ -19071,6 +20968,7 @@ export const domainActions = {
     "classic.import"
   ],
   "edit": [
+    "timeline.plan",
     "v3.plan",
     "v3.apply",
     "plan",
@@ -19096,9 +20994,15 @@ export const domainActions = {
     "control.get",
     "control.set",
     "subtitle.import",
+    "subtitle.generate",
     "subtitle.export"
   ],
   "media": [
+    "upload.stream.begin",
+    "upload.stream.inspect",
+    "upload.stream.complete",
+    "upload.stream.abort",
+    "upload.stream.query",
     "upload.create",
     "upload.inspect",
     "upload.abort",
@@ -19112,14 +21016,17 @@ export const domainActions = {
     "analysis.evidence.query",
     "analysis.speaker.turns",
     "analysis.transcribe",
+    "analysis.sequence.transcribe",
     "analysis.query",
     "analysis.silence",
     "analysis.shots",
     "analysis.waveform",
     "media.inspect",
-    "media.repair"
+    "media.repair",
+    "project.media.remove"
   ],
   "task": [
+    "execution.receipt.v1",
     "view",
     "query",
     "changes",
@@ -19208,6 +21115,7 @@ export interface JobResultMap {
   "artifact.verify": JobArtifactVerifyResult.VerificationReport;
   "media.import": JobMediaImportResult.MediaImportJobResult;
   "analysis.transcribe": JobAnalysisTranscribeResult.TranscribeJobResult;
+  "analysis.sequence_transcribe": JobAnalysisSequenceTranscribeResult.SequenceTranscribeResult;
   "analysis.silence": JobAnalysisSilenceResult.AnalysisJobResult;
   "analysis.shots": JobAnalysisShotsResult.AnalysisJobResult;
   "analysis.waveform": JobAnalysisWaveformResult.AnalysisJobResult;
@@ -19217,6 +21125,16 @@ export interface JobResultMap {
   "preview.project_range.v3": JobPreviewProjectRangeV3Result.ProjectRangeJobResult;
 }
 export const toolNames = [
+  "opencut_project_edit_plan",
+  "opencut_project_edit_apply",
+  "opencut_upload_stream_begin",
+  "opencut_upload_stream_inspect",
+  "opencut_upload_stream_complete",
+  "opencut_upload_stream_abort",
+  "opencut_upload_stream_query",
+  "opencut_edit_timeline_plan",
+  "opencut_job_execution_receipt_v1",
+  "opencut_project_package_reproducibility_v1",
   "opencut_database_inspect",
   "opencut_database_checkpoint",
   "opencut_storage_budget_inspect",
@@ -19271,6 +21189,7 @@ export const toolNames = [
   "opencut_analysis_evidence_query",
   "opencut_analysis_speaker_turns",
   "opencut_analysis_transcribe",
+  "opencut_analysis_sequence_transcribe",
   "opencut_analysis_query",
   "opencut_analysis_silence",
   "opencut_analysis_shots",
@@ -19278,6 +21197,11 @@ export const toolNames = [
   "opencut_job_request_cancel",
   "opencut_media_inspect",
   "opencut_media_repair",
+  "opencut_project_library",
+  "opencut_project_duplicate",
+  "opencut_project_delete",
+  "opencut_project_media_remove",
+  "opencut_project_history_navigation",
   "opencut_project_history",
   "opencut_revision_inspect",
   "opencut_revision_restore",
@@ -19318,6 +21242,7 @@ export const toolNames = [
   "opencut_preview_events",
   "opencut_preview_acquire",
   "opencut_subtitle_import",
+  "opencut_subtitle_generate",
   "opencut_subtitle_export",
   "opencut_classic_analyze",
   "opencut_classic_import",

@@ -1,7 +1,7 @@
 //! Private resumable upload chunks. Confirmed offsets live in the application store.
 use fs2::FileExt;
 use opencut_contracts::{EditorError, LockedAsset};
-use opencut_editor_application::uploads::{self, ChunkDescriptor, UploadStore, UploadView};
+use opencut_editor_application::uploads::{self, ChunkDescriptor, UploadSession, UploadStore};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File, OpenOptions},
@@ -91,7 +91,7 @@ impl UploadChunks {
         store: &mut impl UploadStore,
         input: &ChunkDescriptor,
         bytes: &[u8],
-    ) -> Result<UploadView, EditorError> {
+    ) -> Result<UploadSession, EditorError> {
         uploads::validate_chunk(input)?;
         if bytes.len() as u64 != uploads::decimal(&input.size_bytes)?
             || format!("{:x}", Sha256::digest(bytes)) != input.content_hash

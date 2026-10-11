@@ -84,6 +84,28 @@ pub struct TranscribeJobResult {
     pub transcription: opencut_media_contracts::TranscriptionResult,
 }
 
+/// Transcribe the audible mix of one fixed visual-project scene.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SequenceTranscribeInput {
+    pub idempotency_key: String,
+    pub project_id: String,
+    pub revision: String,
+    pub sequence_id: String,
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SequenceTranscribeResult {
+    pub project_id: String,
+    pub revision: String,
+    pub sequence_id: String,
+    pub duration: Time,
+    pub asset_lock: opencut_contracts::AssetLockManifest,
+    pub transcription: opencut_media_contracts::TranscriptionResult,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SilenceJobInput {
@@ -578,6 +600,7 @@ job_kinds! {
     ArtifactVerify: (VerifyRequest, VerificationReport, "artifact.verify"),
     MediaImport: (MediaImportInput, MediaImportJobResult, "media.import"),
     AnalysisTranscribe: (TranscribeJobInput, TranscribeJobResult, "analysis.transcribe"),
+    AnalysisSequenceTranscribe: (SequenceTranscribeInput, SequenceTranscribeResult, "analysis.sequence_transcribe"),
     AnalysisSilence: (SilenceJobInput, SilenceJobResult, "analysis.silence"),
     AnalysisShots: (ShotsJobInput, ShotsJobResult, "analysis.shots"),
     AnalysisWaveform: (WaveformJobInput, WaveformJobResult, "analysis.waveform"),
@@ -797,7 +820,7 @@ mod tests {
         assert_eq!(time["type"], "string");
 
         let descriptors = job_kind_descriptors();
-        assert_eq!(descriptors.len(), 17);
+        assert_eq!(descriptors.len(), 18);
         assert_eq!(descriptors[2].name, "preview.project_frame");
         assert!(
             descriptors[2]

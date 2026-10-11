@@ -46,7 +46,7 @@ impl<T: Send + 'static> Drop for BlockingOwned<T> {
 mod tests {
     use super::*;
     use opencut_editor_application::budget::BudgetNative;
-    use opencut_native_services::budget::{AdmittedFile, NativeBudget};
+    use opencut_host_runtime::transport_io::{AdmittedFile, WorkspaceBudget as NativeBudget};
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn cancelled_waiter_keeps_real_file_and_reservation_until_native_write_finishes() {

@@ -1,6 +1,6 @@
 # R2 SQLite/WAL 控制写入准入：当前缺口实测（2026-09-24）
 
-本轮使用已通过 36 项仓库外验收的 macOS x86_64 debug 二进制（SHA-256 `9e2d2f717e88a1005c4e1f8e1194fa5572a978bc08b86c7050475c4aecd94d91`），从公共 CLI 工具创建工程、设置 payload 准入余量为零，由独立 SQLite 连接固定一个读视图，再连续提交实际工程编辑。脚本为 `scripts/audit-database-control-gap.py`，原始摘要与请求／错误序列见[受控审计](evidence/r2-database-control-gap-2026-09-24.json)和[运行 trace](evidence/r2-database-control-gap-trace-2026-09-24.json)。
+本轮使用已通过 36 项仓库外验收的 macOS x86_64 debug 二进制（SHA-256 `9e2d2f717e88a1005c4e1f8e1194fa5572a978bc08b86c7050475c4aecd94d91`），从公共 CLI 工具创建工程、设置 payload 准入余量为零，由独立 SQLite 连接固定一个读视图，再连续提交实际工程编辑。当时使用一次性审计脚本；该脚本已在交付清理中移除，当前回归由 [control VFS 验收](../../scripts/verify-control-vfs.py) 和 [预算政策验收](../../scripts/verify-control-budget-policy.py) 承担，原始摘要与请求／错误序列见[受控审计](evidence/r2-database-control-gap-2026-09-24.json)和[运行 trace](evidence/r2-database-control-gap-trace-2026-09-24.json)。
 
 结果：`opencut_storage_budget_inspect.admission_headroom_bytes="0"`，但四次编辑都提交；固定读者使 WAL 从 0 增至 **4,021,152 字节／976 帧**。`opencut_database_checkpoint(TRUNCATE)` 返回 `blocked`，未虚报回收；读者释放后再次调用返回 `complete`，观察到 WAL 为 0。这里没有把 payload 额度当作数据库额度：当前公开契约本来只保护十二类 payload 文件，`enforces_all_workspace_writes=false` 和 `enforces_total_storage_limit=false` 均准确说明此边界。
 

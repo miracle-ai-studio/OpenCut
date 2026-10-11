@@ -1,5 +1,4657 @@
 [
   {
+    "description": "Plan project renaming and scene creation, renaming or deletion at an exact visual-project revision. Main scene deletion is rejected. No write occurs.",
+    "input_schema": {
+      "$defs": {
+        "ProjectEdit": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "rename_project",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "name"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "create_scene",
+                  "type": "string"
+                },
+                "video_track_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "name",
+                "video_track_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "rename_scene",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "name"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "delete_scene",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/ProjectEdit"
+          },
+          "type": "array"
+        },
+        "project_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "label",
+        "operations"
+      ],
+      "title": "ProjectEditRequest",
+      "type": "object"
+    },
+    "name": "opencut_project_edit_plan",
+    "output_schema": {
+      "$defs": {
+        "Asset": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/AssetKind"
+            },
+            "metadata": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uri": {
+              "type": "string"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetVersion"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "uri"
+          ],
+          "type": "object"
+        },
+        "AssetKind": {
+          "enum": [
+            "video",
+            "audio",
+            "image",
+            "text",
+            "subtitle",
+            "graphic"
+          ],
+          "type": "string"
+        },
+        "AssetVersion": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "content_hash",
+            "size"
+          ],
+          "type": "object"
+        },
+        "CaptionCue": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "source_anchor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CaptionSourceAnchor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "style": {
+              "$ref": "#/$defs/CaptionStyle"
+            },
+            "text": {
+              "type": "string"
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "id",
+            "timeline_range",
+            "text",
+            "style"
+          ],
+          "type": "object"
+        },
+        "CaptionSourceAnchor": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "source_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "asset_id",
+            "source_range"
+          ],
+          "type": "object"
+        },
+        "CaptionStyle": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color": {
+              "type": "string"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_policy": {
+              "$ref": "#/$defs/FontResolutionPolicy"
+            },
+            "font_size": {
+              "format": "double",
+              "type": "number"
+            },
+            "line_height": {
+              "description": "Line height in canvas pixels. None derives it from font_size.",
+              "format": "float",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_width": {
+              "description": "Maximum layout width in canvas pixels. None uses the backend's canvas margin.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "text_align": {
+              "$ref": "#/$defs/TextAlign"
+            }
+          },
+          "required": [
+            "font_family",
+            "font_size",
+            "color"
+          ],
+          "type": "object"
+        },
+        "Clip": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channels": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/KeyframeChannel"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "source_range": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TimeRange"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "id",
+            "timeline_range"
+          ],
+          "type": "object"
+        },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "EffectNode": {
+          "additionalProperties": false,
+          "properties": {
+            "effect": {
+              "$ref": "#/$defs/VisualEffect"
+            },
+            "id": {
+              "type": "string"
+            },
+            "target_id": {
+              "description": "A base video/image clip ID or a schema 3 shape ID.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "target_id",
+            "effect"
+          ],
+          "type": "object"
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "Keyframe": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interpolation": {
+              "$ref": "#/$defs/KeyframeInterpolation"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "value": true
+          },
+          "required": [
+            "id",
+            "time",
+            "value",
+            "interpolation"
+          ],
+          "type": "object"
+        },
+        "KeyframeChannel": {
+          "additionalProperties": false,
+          "properties": {
+            "keyframes": {
+              "items": {
+                "$ref": "#/$defs/Keyframe"
+              },
+              "type": "array"
+            },
+            "parameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter",
+            "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
+          ],
+          "type": "object"
+        },
+        "KeyframeInterpolation": {
+          "enum": [
+            "hold",
+            "linear"
+          ],
+          "type": "string"
+        },
+        "MaskNode": {
+          "additionalProperties": false,
+          "properties": {
+            "feather": {
+              "format": "double",
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "inverted": {
+              "type": "boolean"
+            },
+            "shape": {
+              "$ref": "#/$defs/MaskShape",
+              "description": "Coordinates are normalized to the canvas, from its top-left corner."
+            },
+            "target_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "target_id",
+            "shape",
+            "inverted",
+            "feather"
+          ],
+          "type": "object"
+        },
+        "MaskShape": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "ProjectDocument": {
+          "additionalProperties": false,
+          "properties": {
+            "assets": {
+              "items": {
+                "$ref": "#/$defs/Asset"
+              },
+              "type": "array"
+            },
+            "default_sequence_id": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequences": {
+              "items": {
+                "$ref": "#/$defs/Sequence"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "schema_version",
+            "default_sequence_id",
+            "sequences",
+            "assets"
+          ],
+          "type": "object"
+        },
+        "ProjectDocumentV3": {
+          "additionalProperties": false,
+          "properties": {
+            "base": {
+              "$ref": "#/$defs/ProjectDocument",
+              "description": "The schema 2 project remains the single authority for assets, tracks,\nclip timing, audio and captions. Visual nodes refer to its stable IDs."
+            },
+            "keyframe_curves": {
+              "default": [],
+              "description": "Versioned easing overrides for existing base keyframe channels.",
+              "items": {
+                "$ref": "#/$defs/KeyframeCurveV1"
+              },
+              "type": "array"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "visual": {
+              "items": {
+                "$ref": "#/$defs/SequenceVisualV3"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "base",
+            "visual"
+          ],
+          "type": "object"
+        },
+        "Rgba": {
+          "additionalProperties": false,
+          "properties": {
+            "alpha": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "blue": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "green": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "red": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "red",
+            "green",
+            "blue",
+            "alpha"
+          ],
+          "type": "object"
+        },
+        "Sequence": {
+          "additionalProperties": false,
+          "properties": {
+            "caption_cues": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/CaptionCue"
+              },
+              "type": "array"
+            },
+            "fps": {
+              "$ref": "#/$defs/FrameRate"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "tracks": {
+              "items": {
+                "$ref": "#/$defs/Track"
+              },
+              "type": "array"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "width",
+            "height",
+            "fps",
+            "tracks"
+          ],
+          "type": "object"
+        },
+        "SequenceVisualV3": {
+          "additionalProperties": false,
+          "properties": {
+            "effects": {
+              "items": {
+                "$ref": "#/$defs/EffectNode"
+              },
+              "type": "array"
+            },
+            "masks": {
+              "items": {
+                "$ref": "#/$defs/MaskNode"
+              },
+              "type": "array"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "shapes": {
+              "items": {
+                "$ref": "#/$defs/ShapeClip"
+              },
+              "type": "array"
+            },
+            "transitions": {
+              "items": {
+                "$ref": "#/$defs/TransitionNode"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "sequence_id",
+            "shapes",
+            "effects",
+            "masks",
+            "transitions"
+          ],
+          "type": "object"
+        },
+        "ShapeClip": {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "$ref": "#/$defs/Rgba"
+            },
+            "id": {
+              "type": "string"
+            },
+            "opacity": {
+              "format": "double",
+              "type": "number"
+            },
+            "position_x": {
+              "description": "Canvas pixel offset from center, positive right/down.",
+              "format": "double",
+              "type": "number"
+            },
+            "position_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "primitive": {
+              "$ref": "#/$defs/ShapePrimitive"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "track_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "track_id",
+            "timeline_range",
+            "primitive",
+            "fill",
+            "position_x",
+            "position_y",
+            "rotation_degrees",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        "ShapePrimitive": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                },
+                "width_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "width_px",
+                "height_px"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                },
+                "radius_x_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "radius_y_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_x_px",
+                "radius_y_px"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "TextAlign": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "type": "string"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "Track": {
+          "additionalProperties": false,
+          "properties": {
+            "clips": {
+              "items": {
+                "$ref": "#/$defs/Clip"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/TrackKind"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "muted": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "enabled",
+            "muted",
+            "locked",
+            "clips"
+          ],
+          "type": "object"
+        },
+        "TrackKind": {
+          "enum": [
+            "video",
+            "audio",
+            "caption",
+            "graphic"
+          ],
+          "type": "string"
+        },
+        "Transition": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "crossfade",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "TransitionNode": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time",
+              "description": "The outgoing end must equal the incoming start. Each source must have\nhalf this duration of real media outside its visible source range."
+            },
+            "id": {
+              "type": "string"
+            },
+            "incoming_clip_id": {
+              "type": "string"
+            },
+            "outgoing_clip_id": {
+              "type": "string"
+            },
+            "transition": {
+              "$ref": "#/$defs/Transition"
+            }
+          },
+          "required": [
+            "id",
+            "outgoing_clip_id",
+            "incoming_clip_id",
+            "duration",
+            "transition"
+          ],
+          "type": "object"
+        },
+        "VisualEffect": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "contrast": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "exposure_ev": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "color_adjust",
+                  "type": "string"
+                },
+                "saturation": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "exposure_ev",
+                "contrast",
+                "saturation"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "gaussian_blur",
+                  "type": "string"
+                },
+                "radius_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_px"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "VisualPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "proposed_project": {
+              "$ref": "#/$defs/ProjectDocumentV3"
+            }
+          },
+          "required": [
+            "proposed_project",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisualPlan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Atomically apply project and scene structure changes with fixed revision, idempotency, edit control, history and audit. Scene removal also removes its visual nodes and curves; shared media remain available.",
+    "input_schema": {
+      "$defs": {
+        "ProjectEdit": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "rename_project",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "name"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "create_scene",
+                  "type": "string"
+                },
+                "video_track_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "name",
+                "video_track_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "rename_scene",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "name"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "delete_scene",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/ProjectEdit"
+          },
+          "type": "array"
+        },
+        "project_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "label",
+        "operations"
+      ],
+      "title": "ProjectEditRequest",
+      "type": "object"
+    },
+    "name": "opencut_project_edit_apply",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransactionResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Begin a project-scoped streaming upload without pre-reading the full file. PUT authenticated raw chunks to /v1/stream-uploads/{upload_id}/chunks/{offset}, then complete with the SHA-256 computed during that same pass. Requires read+edit+run_jobs and durable byte reservations.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "idempotency_key",
+        "name",
+        "size_bytes"
+      ],
+      "title": "BeginUpload",
+      "type": "object"
+    },
+    "name": "opencut_upload_stream_begin",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "StreamUploadView": {
+          "properties": {
+            "content_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_offset": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "name",
+            "size_bytes",
+            "next_offset",
+            "state"
+          ],
+          "type": "object"
+        },
+        "UploadState": {
+          "enum": [
+            "receiving",
+            "sealed",
+            "aborted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamUploadView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Inspect confirmed byte offset and optional full-file digest of a streaming upload. Requires project read permission.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "upload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id"
+      ],
+      "title": "UploadInput",
+      "type": "object"
+    },
+    "name": "opencut_upload_stream_inspect",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "StreamUploadView": {
+          "properties": {
+            "content_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_offset": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "name",
+            "size_bytes",
+            "next_offset",
+            "state"
+          ],
+          "type": "object"
+        },
+        "UploadState": {
+          "enum": [
+            "receiving",
+            "sealed",
+            "aborted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamUploadView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Atomically fix the complete SHA-256, seal all acknowledged chunks and accept one durable media.import job. The worker independently verifies full bytes before publication; replay requires the same digest.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "type": "string"
+        },
+        "upload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id",
+        "content_hash"
+      ],
+      "title": "CompleteUpload",
+      "type": "object"
+    },
+    "name": "opencut_upload_stream_complete",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "StreamUploadView": {
+          "properties": {
+            "content_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_offset": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "name",
+            "size_bytes",
+            "next_offset",
+            "state"
+          ],
+          "type": "object"
+        },
+        "UploadState": {
+          "enum": [
+            "receiving",
+            "sealed",
+            "aborted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamUploadView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Abort a receiving streaming upload and release its private staging under the shared native lifetime lock. Sealed jobs require explicit cancellation.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "upload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id"
+      ],
+      "title": "UploadInput",
+      "type": "object"
+    },
+    "name": "opencut_upload_stream_abort",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "StreamUploadView": {
+          "properties": {
+            "content_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_offset": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "name",
+            "size_bytes",
+            "next_offset",
+            "state"
+          ],
+          "type": "object"
+        },
+        "UploadState": {
+          "enum": [
+            "receiving",
+            "sealed",
+            "aborted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamUploadView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Discover project uploads including sessions whose complete digest is not yet declared, with existing bounded cursor and retention semantics.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "default": 50,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "retained_only": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "UploadQuery",
+      "type": "object"
+    },
+    "name": "opencut_upload_stream_query",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "StreamUploadEntry": {
+          "properties": {
+            "retention": {
+              "$ref": "#/$defs/UploadRetentionView"
+            },
+            "upload": {
+              "$ref": "#/$defs/StreamUploadView"
+            }
+          },
+          "required": [
+            "upload",
+            "retention"
+          ],
+          "type": "object"
+        },
+        "StreamUploadPage": {
+          "properties": {
+            "next_cursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "uploads": {
+              "items": {
+                "$ref": "#/$defs/StreamUploadEntry"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "uploads"
+          ],
+          "type": "object"
+        },
+        "StreamUploadView": {
+          "properties": {
+            "content_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_offset": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "name",
+            "size_bytes",
+            "next_offset",
+            "state"
+          ],
+          "type": "object"
+        },
+        "UploadRetentionState": {
+          "enum": [
+            "retained",
+            "released"
+          ],
+          "type": "string"
+        },
+        "UploadRetentionView": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "release_eligible": {
+              "description": "Observation only. Release rechecks authorization and terminal state.",
+              "type": "boolean"
+            },
+            "reserved_bytes": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/UploadRetentionState"
+            },
+            "upload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "upload_id",
+            "project_id",
+            "state",
+            "reserved_bytes",
+            "release_eligible"
+          ],
+          "type": "object"
+        },
+        "UploadState": {
+          "enum": [
+            "receiving",
+            "sealed",
+            "aborted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamUploadPage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Plan ripple delete, gap insertion, slip, roll, slide, sync-selection movement or track reordering at an exact revision. Returns a reviewed atomic visual transaction with linked caption, curve, mask and transition changes; no writes occur. Submit the unchanged transaction through visual edit apply.",
+    "input_schema": {
+      "$defs": {
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "TimelineCommand": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Remove a sequence interval across all tracks, captions and shapes.",
+              "properties": {
+                "kind": {
+                  "const": "ripple_delete",
+                  "type": "string"
+                },
+                "range": {
+                  "$ref": "#/$defs/TimeRange"
+                }
+              },
+              "required": [
+                "kind",
+                "range"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Insert sequence time across all tracks, splitting clips at the boundary.",
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/Time"
+                },
+                "duration": {
+                  "$ref": "#/$defs/Time"
+                },
+                "kind": {
+                  "const": "insert_gap",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "at",
+                "duration"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Shift the source window without moving the clip or its animation clock.",
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "slip",
+                  "type": "string"
+                },
+                "source_delta": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "clip_id",
+                "source_delta"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Move the cut between adjacent clips, preserving their outside boundaries.",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/Time"
+                },
+                "incoming_clip_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "roll",
+                  "type": "string"
+                },
+                "outgoing_clip_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "outgoing_clip_id",
+                "incoming_clip_id",
+                "delta"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Move a clip between adjacent neighbors while trimming both neighbors.",
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "delta": {
+                  "$ref": "#/$defs/Time"
+                },
+                "kind": {
+                  "const": "slide",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "clip_id",
+                "delta"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Move an explicit sync selection in one commit; locked tracks reject it.",
+              "properties": {
+                "caption_ids": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "clip_ids": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "delta": {
+                  "$ref": "#/$defs/Time"
+                },
+                "kind": {
+                  "const": "move_group",
+                  "type": "string"
+                },
+                "shape_ids": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "clip_ids",
+                "caption_ids",
+                "shape_ids",
+                "delta"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "A complete permutation of the sequence's track IDs, back to front.",
+              "properties": {
+                "kind": {
+                  "const": "reorder_tracks",
+                  "type": "string"
+                },
+                "track_ids": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kind",
+                "track_ids"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/TimelineCommand"
+        },
+        "expected_revision": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "sequence_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "sequence_id",
+        "idempotency_key",
+        "label",
+        "command"
+      ],
+      "title": "TimelineEditRequest",
+      "type": "object"
+    },
+    "name": "opencut_edit_timeline_plan",
+    "output_schema": {
+      "$defs": {
+        "ApplyV3Project": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "type": "string"
+            },
+            "idempotency_key": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "operations": {
+              "items": {
+                "$ref": "#/$defs/VisualOperation"
+              },
+              "type": "array"
+            },
+            "project_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision",
+            "idempotency_key",
+            "label",
+            "operations"
+          ],
+          "type": "object"
+        },
+        "Asset": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/AssetKind"
+            },
+            "metadata": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "uri": {
+              "type": "string"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetVersion"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "uri"
+          ],
+          "type": "object"
+        },
+        "AssetKind": {
+          "enum": [
+            "video",
+            "audio",
+            "image",
+            "text",
+            "subtitle",
+            "graphic"
+          ],
+          "type": "string"
+        },
+        "AssetVersion": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "content_hash",
+            "size"
+          ],
+          "type": "object"
+        },
+        "CaptionCue": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "source_anchor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CaptionSourceAnchor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "style": {
+              "$ref": "#/$defs/CaptionStyle"
+            },
+            "text": {
+              "type": "string"
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "id",
+            "timeline_range",
+            "text",
+            "style"
+          ],
+          "type": "object"
+        },
+        "CaptionSourceAnchor": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "source_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "asset_id",
+            "source_range"
+          ],
+          "type": "object"
+        },
+        "CaptionStyle": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color": {
+              "type": "string"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_policy": {
+              "$ref": "#/$defs/FontResolutionPolicy"
+            },
+            "font_size": {
+              "format": "double",
+              "type": "number"
+            },
+            "line_height": {
+              "description": "Line height in canvas pixels. None derives it from font_size.",
+              "format": "float",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_width": {
+              "description": "Maximum layout width in canvas pixels. None uses the backend's canvas margin.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "text_align": {
+              "$ref": "#/$defs/TextAlign"
+            }
+          },
+          "required": [
+            "font_family",
+            "font_size",
+            "color"
+          ],
+          "type": "object"
+        },
+        "Clip": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channels": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/KeyframeChannel"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "source_range": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TimeRange"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "id",
+            "timeline_range"
+          ],
+          "type": "object"
+        },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "EffectNode": {
+          "additionalProperties": false,
+          "properties": {
+            "effect": {
+              "$ref": "#/$defs/VisualEffect"
+            },
+            "id": {
+              "type": "string"
+            },
+            "target_id": {
+              "description": "A base video/image clip ID or a schema 3 shape ID.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "target_id",
+            "effect"
+          ],
+          "type": "object"
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "Keyframe": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interpolation": {
+              "$ref": "#/$defs/KeyframeInterpolation"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "value": true
+          },
+          "required": [
+            "id",
+            "time",
+            "value",
+            "interpolation"
+          ],
+          "type": "object"
+        },
+        "KeyframeChannel": {
+          "additionalProperties": false,
+          "properties": {
+            "keyframes": {
+              "items": {
+                "$ref": "#/$defs/Keyframe"
+              },
+              "type": "array"
+            },
+            "parameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter",
+            "keyframes"
+          ],
+          "type": "object"
+        },
+        "KeyframeCurveV1": {
+          "additionalProperties": false,
+          "properties": {
+            "clip_id": {
+              "type": "string"
+            },
+            "curve": {
+              "$ref": "#/$defs/CubicBezierV1"
+            },
+            "id": {
+              "type": "string"
+            },
+            "keyframe_id": {
+              "description": "The outgoing keyframe controls the segment to the next keyframe.",
+              "type": "string"
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "schema_version",
+            "sequence_id",
+            "clip_id",
+            "parameter",
+            "keyframe_id",
+            "curve"
+          ],
+          "type": "object"
+        },
+        "KeyframeInterpolation": {
+          "enum": [
+            "hold",
+            "linear"
+          ],
+          "type": "string"
+        },
+        "MaskNode": {
+          "additionalProperties": false,
+          "properties": {
+            "feather": {
+              "format": "double",
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "inverted": {
+              "type": "boolean"
+            },
+            "shape": {
+              "$ref": "#/$defs/MaskShape",
+              "description": "Coordinates are normalized to the canvas, from its top-left corner."
+            },
+            "target_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "target_id",
+            "shape",
+            "inverted",
+            "feather"
+          ],
+          "type": "object"
+        },
+        "MaskShape": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "Operation": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "fps": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/FrameRate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "sequence.update_settings",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track": {
+                  "$ref": "#/$defs/Track"
+                },
+                "type": {
+                  "const": "track.create",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "track.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset": {
+                  "$ref": "#/$defs/Asset"
+                },
+                "type": {
+                  "const": "asset.bind",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "asset"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset": {
+                  "$ref": "#/$defs/Asset"
+                },
+                "type": {
+                  "const": "asset.replace",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "asset"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "asset.unbind",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip": {
+                  "$ref": "#/$defs/Clip"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.insert",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/Time"
+                },
+                "clip_id": {
+                  "type": "string"
+                },
+                "right_clip_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.split",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "at",
+                "right_clip_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "destination_track_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "start": {
+                  "$ref": "#/$defs/Time"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.move",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "destination_track_id",
+                "start"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "source_range": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/TimeRange"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "timeline_range": {
+                  "$ref": "#/$defs/TimeRange"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.trim",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "timeline_range"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "params": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "parameter.set_clip",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "params"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "params": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "parameter.set_track",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "params"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "locked": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "muted": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "track.update",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "timeline_duration": {
+                  "$ref": "#/$defs/Time"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "clip.retime",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "timeline_duration"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "channel": {
+                  "$ref": "#/$defs/KeyframeChannel"
+                },
+                "clip_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.channel_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "channel"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "clip_id": {
+                  "type": "string"
+                },
+                "parameter": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.channel_delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "track_id",
+                "clip_id",
+                "parameter"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cue": {
+                  "$ref": "#/$defs/CaptionCue"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "caption.insert",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "cue"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cue": {
+                  "$ref": "#/$defs/CaptionCue"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "caption.update",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "cue"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cue_id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "caption.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "cue_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "Rgba": {
+          "additionalProperties": false,
+          "properties": {
+            "alpha": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "blue": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "green": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "red": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "red",
+            "green",
+            "blue",
+            "alpha"
+          ],
+          "type": "object"
+        },
+        "ShapeClip": {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "$ref": "#/$defs/Rgba"
+            },
+            "id": {
+              "type": "string"
+            },
+            "opacity": {
+              "format": "double",
+              "type": "number"
+            },
+            "position_x": {
+              "description": "Canvas pixel offset from center, positive right/down.",
+              "format": "double",
+              "type": "number"
+            },
+            "position_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "primitive": {
+              "$ref": "#/$defs/ShapePrimitive"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "track_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "track_id",
+            "timeline_range",
+            "primitive",
+            "fill",
+            "position_x",
+            "position_y",
+            "rotation_degrees",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        "ShapePrimitive": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                },
+                "width_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "width_px",
+                "height_px"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                },
+                "radius_x_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "radius_y_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_x_px",
+                "radius_y_px"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "TextAlign": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "type": "string"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "TimelineEditPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "notes": {
+              "description": "Explicit consequences to review, including transitions removed at a cut.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "transaction": {
+              "$ref": "#/$defs/ApplyV3Project",
+              "description": "Submit unchanged through the shared visual edit apply operation."
+            }
+          },
+          "required": [
+            "transaction",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids",
+            "notes"
+          ],
+          "type": "object"
+        },
+        "Track": {
+          "additionalProperties": false,
+          "properties": {
+            "clips": {
+              "items": {
+                "$ref": "#/$defs/Clip"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/TrackKind"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "muted": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "params": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "enabled",
+            "muted",
+            "locked",
+            "clips"
+          ],
+          "type": "object"
+        },
+        "TrackKind": {
+          "enum": [
+            "video",
+            "audio",
+            "caption",
+            "graphic"
+          ],
+          "type": "string"
+        },
+        "Transition": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "crossfade",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "TransitionNode": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time",
+              "description": "The outgoing end must equal the incoming start. Each source must have\nhalf this duration of real media outside its visible source range."
+            },
+            "id": {
+              "type": "string"
+            },
+            "incoming_clip_id": {
+              "type": "string"
+            },
+            "outgoing_clip_id": {
+              "type": "string"
+            },
+            "transition": {
+              "$ref": "#/$defs/Transition"
+            }
+          },
+          "required": [
+            "id",
+            "outgoing_clip_id",
+            "incoming_clip_id",
+            "duration",
+            "transition"
+          ],
+          "type": "object"
+        },
+        "VisualEffect": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "contrast": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "exposure_ev": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "color_adjust",
+                  "type": "string"
+                },
+                "saturation": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "exposure_ev",
+                "contrast",
+                "saturation"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "gaussian_blur",
+                  "type": "string"
+                },
+                "radius_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_px"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "VisualOperation": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Apply an existing typed base edit inside this schema 3 revision batch.",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/Operation"
+                },
+                "type": {
+                  "const": "base.apply",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "operation"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "shape": {
+                  "$ref": "#/$defs/ShapeClip"
+                },
+                "type": {
+                  "const": "shape.put",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "shape"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "shape.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "effect": {
+                  "$ref": "#/$defs/EffectNode"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "effect.put",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "effect"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "effect.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mask": {
+                  "$ref": "#/$defs/MaskNode"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "mask.put",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "mask"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "mask.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "sequence_id": {
+                  "type": "string"
+                },
+                "transition": {
+                  "$ref": "#/$defs/TransitionNode"
+                },
+                "type": {
+                  "const": "transition.put",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "transition"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "transition.delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/KeyframeCurveV1"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "curve"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sequence_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "keyframe.curve_delete",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "sequence_id",
+                "id"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimelineEditPlan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Inspect provenance of a published project-render attempt: source revision, compiled graph hash, observed engine and tools, output identity. Does not certify perceptual or bit-exact reproduction; historical jobs without a receipt cannot be verified.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "title": "InspectExecutionV1",
+      "type": "object"
+    },
+    "name": "opencut_job_execution_receipt_v1",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExecutionIdentityV1": {
+          "additionalProperties": false,
+          "properties": {
+            "native_tools": {
+              "items": {
+                "$ref": "#/$defs/PackageToolLock"
+              },
+              "type": "array"
+            },
+            "platform": {
+              "type": "string"
+            },
+            "process_binary_sha256": {
+              "description": "Hash of this running host executable, including its statically linked engine.\nThis is an observation of the current host, not the package's original engine.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "process_binary_sha256",
+            "platform",
+            "native_tools"
+          ],
+          "type": "object"
+        },
+        "ExecutionReceiptV1": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_sha256": {
+              "type": "string"
+            },
+            "artifact_size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "attempt": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "composition_sha256": {
+              "type": "string"
+            },
+            "covered_semantics": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "execution": {
+              "$ref": "#/$defs/ExecutionIdentityV1"
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "request_sha256": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "semantic_output_verified": {
+              "description": "Receipt records compilation coverage and output identity, not a perceptual\noracle or a claim that another platform will produce identical bytes.",
+              "type": "boolean"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema_version",
+            "job_id",
+            "attempt",
+            "kind",
+            "request_sha256",
+            "source_revision",
+            "sequence_id",
+            "composition_sha256",
+            "execution",
+            "artifact_sha256",
+            "artifact_size",
+            "covered_semantics",
+            "semantic_output_verified"
+          ],
+          "type": "object"
+        },
+        "PackageToolLock": {
+          "additionalProperties": false,
+          "properties": {
+            "binary_sha256": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "binary_sha256"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionReceiptV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Owner-local read-only verification view for schema 2-5 packages. Checks manifest and project bytes, observes the current host executable and native tools, and separates legacy reproducibility claims from verified evidence. Does not import, install, render, verify media bytes or certify exact reproduction.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_manifest_sha256": {
+          "type": "string"
+        },
+        "package_path": {
+          "description": "Owner-local canonical package directory. No import or installation occurs.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "package_path",
+        "expected_manifest_sha256"
+      ],
+      "title": "InspectV1",
+      "type": "object"
+    },
+    "name": "opencut_project_package_reproducibility_v1",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExecutionIdentityV1": {
+          "additionalProperties": false,
+          "properties": {
+            "native_tools": {
+              "items": {
+                "$ref": "#/$defs/PackageToolLock"
+              },
+              "type": "array"
+            },
+            "platform": {
+              "type": "string"
+            },
+            "process_binary_sha256": {
+              "description": "Hash of this running host executable, including its statically linked engine.\nThis is an observation of the current host, not the package's original engine.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "process_binary_sha256",
+            "platform",
+            "native_tools"
+          ],
+          "type": "object"
+        },
+        "PackageToolLock": {
+          "additionalProperties": false,
+          "properties": {
+            "binary_sha256": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "binary_sha256"
+          ],
+          "type": "object"
+        },
+        "ReportV1": {
+          "additionalProperties": false,
+          "properties": {
+            "bit_exact_verified": {
+              "$ref": "#/$defs/VerificationStatus"
+            },
+            "current_execution": {
+              "$ref": "#/$defs/ExecutionIdentityV1"
+            },
+            "execution_environment_locked": {
+              "$ref": "#/$defs/VerificationStatus"
+            },
+            "legacy_fully_reproducible_claim": {
+              "type": "boolean"
+            },
+            "manifest_sha256": {
+              "type": "string"
+            },
+            "media_contents_verified": {
+              "$ref": "#/$defs/VerificationStatus",
+              "description": "Inspection verifies manifest and project bytes, not all media or plugin bytes."
+            },
+            "media_self_contained_declared": {
+              "type": "boolean"
+            },
+            "native_tool_environment": {
+              "$ref": "#/$defs/VerificationStatus"
+            },
+            "package_schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "reasons": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "semantic_output_verified": {
+              "$ref": "#/$defs/VerificationStatus"
+            },
+            "source_revision": {
+              "type": "string"
+            },
+            "strictly_reproducible": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schema_version",
+            "manifest_sha256",
+            "source_revision",
+            "package_schema_version",
+            "legacy_fully_reproducible_claim",
+            "media_self_contained_declared",
+            "media_contents_verified",
+            "native_tool_environment",
+            "execution_environment_locked",
+            "semantic_output_verified",
+            "bit_exact_verified",
+            "strictly_reproducible",
+            "current_execution",
+            "reasons"
+          ],
+          "type": "object"
+        },
+        "VerificationStatus": {
+          "enum": [
+            "verified",
+            "not_verified",
+            "mismatch"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReportV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
     "description": "Owner-only live SQLite page/freelist and database/WAL/SHM file observations. Reports whether this managed connection uses the control-admitted VFS; whole-workspace physical enforcement and repair remain unavailable. File sizes and connection-local settings are non-atomic observations, not reserved space.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -32123,6 +36775,1334 @@
     "read_only": false
   },
   {
+    "description": "Transcribe the complete audible mix of one fixed schema 3 scene locally. Honors trims, timing, volume, mute, disabled tracks and constant speed. Pins source content; no user media leaves the host. Returns a durable cancellable job with timeline-time segments.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Transcribe the audible mix of one fixed visual-project scene.",
+      "properties": {
+        "idempotency_key": {
+          "type": "string"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sequence_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "idempotency_key",
+        "project_id",
+        "revision",
+        "sequence_id"
+      ],
+      "title": "SequenceTranscribeInput",
+      "type": "object"
+    },
+    "name": "opencut_analysis_sequence_transcribe",
+    "output_schema": {
+      "$defs": {
+        "ArtifactAvailability": {
+          "enum": [
+            "unchecked"
+          ],
+          "type": "string"
+        },
+        "ArtifactReference": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "availability": {
+              "$ref": "#/$defs/ArtifactAvailability"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "mime_type": {
+              "type": "string"
+            },
+            "role": {
+              "$ref": "#/$defs/ArtifactRole"
+            },
+            "size_bytes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "job_id",
+            "role",
+            "content_hash",
+            "size_bytes",
+            "mime_type",
+            "availability"
+          ],
+          "type": "object"
+        },
+        "ArtifactRole": {
+          "enum": [
+            "primary"
+          ],
+          "type": "string"
+        },
+        "AssetLockManifest": {
+          "additionalProperties": false,
+          "properties": {
+            "assets": {
+              "items": {
+                "$ref": "#/$defs/LockedAsset"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "version",
+            "revision",
+            "sequence_id",
+            "assets"
+          ],
+          "type": "object"
+        },
+        "AssetLockingMode": {
+          "enum": [
+            "media_content_locked",
+            "legacy_unlocked"
+          ],
+          "type": "string"
+        },
+        "CompositedFrameView": {
+          "properties": {
+            "actual_sequence_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "quality": {
+              "$ref": "#/$defs/CompositedProjectFrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_time",
+            "actual_sequence_time",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "width",
+            "height",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "CompositedProjectFrameQuality": {
+          "enum": [
+            "composited_project_frame"
+          ],
+          "type": "string"
+        },
+        "DecodedSample": {
+          "properties": {
+            "decoded": {
+              "type": "boolean"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/MediaTime"
+            }
+          },
+          "required": [
+            "requested_time",
+            "decoded"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExportView": {
+          "properties": {
+            "metadata": {
+              "$ref": "#/$defs/MediaInfo"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "verification": {
+              "$ref": "#/$defs/VerificationView"
+            }
+          },
+          "required": [
+            "metadata",
+            "verification",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "ExtendedJobResult": {
+          "properties": {
+            "data": true,
+            "kind": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "schema_version",
+            "data"
+          ],
+          "type": "object"
+        },
+        "FontFaceView": {
+          "properties": {
+            "face_index": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "family": {
+              "type": "string"
+            },
+            "postscript_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "family",
+            "postscript_name",
+            "face_index"
+          ],
+          "type": "object"
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FrameAlignment": {
+          "enum": [
+            "exact",
+            "nearest",
+            "floor",
+            "ceil"
+          ],
+          "type": "string"
+        },
+        "FrameQuality": {
+          "enum": [
+            "accurate_source_frame"
+          ],
+          "type": "string"
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "JobResourceTarget": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "resource_id": {
+              "type": "string"
+            },
+            "resource_kind": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "resource_kind",
+            "resource_id"
+          ],
+          "type": "object"
+        },
+        "JobResultView": {
+          "oneOf": [
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/MediaInfo"
+                },
+                "kind": {
+                  "const": "media.probe",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/SourceFrameView"
+                },
+                "kind": {
+                  "const": "preview.frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectFrameView"
+                },
+                "kind": {
+                  "const": "preview.project_frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/CompositedFrameView"
+                },
+                "kind": {
+                  "const": "preview.composited_frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectRangeView"
+                },
+                "kind": {
+                  "const": "preview.project_range",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ExportView"
+                },
+                "kind": {
+                  "const": "render.export",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectRenderView"
+                },
+                "kind": {
+                  "const": "render.project",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/VerificationView"
+                },
+                "kind": {
+                  "const": "artifact.verify",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "JobState": {
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        "JobView": {
+          "properties": {
+            "artifacts": {
+              "items": {
+                "$ref": "#/$defs/ArtifactReference"
+              },
+              "type": "array"
+            },
+            "cancel_requested": {
+              "type": "boolean"
+            },
+            "extended_result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ExtendedJobResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "New task kinds use the open registry envelope; legacy result variants stay frozen."
+            },
+            "failure": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PublicJobFailure"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "progress": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProgressView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "resource_target": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/JobResourceTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/JobResultView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "result_unavailable": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PublicJobFailure"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "$ref": "#/$defs/JobState"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectTaskTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "job_id",
+            "kind",
+            "state",
+            "cancel_requested",
+            "artifacts"
+          ],
+          "type": "object"
+        },
+        "LockedAsset": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "asset_id",
+            "content_hash",
+            "size"
+          ],
+          "type": "object"
+        },
+        "MediaInfo": {
+          "properties": {
+            "bit_rate": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MediaTime"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "format_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "streams": {
+              "items": {
+                "$ref": "#/$defs/MediaStream"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "streams"
+          ],
+          "type": "object"
+        },
+        "MediaStream": {
+          "properties": {
+            "average_frame_rate": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FrameRate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "channel_layout": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channels": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "codec_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "codec_type": {
+              "$ref": "#/$defs/StreamKind"
+            },
+            "color_primaries": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_space": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_transfer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MediaTime"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "index": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pixel_format": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sample_rate": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "time_base": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FrameRate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "index",
+            "codec_type"
+          ],
+          "type": "object"
+        },
+        "MediaTime": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "PixelBounds": {
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "x": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "y": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "ProgressView": {
+          "properties": {
+            "fraction": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "media_time": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stage": {
+              "$ref": "#/$defs/PublicJobStage"
+            }
+          },
+          "required": [
+            "stage"
+          ],
+          "type": "object"
+        },
+        "ProjectFrameQuality": {
+          "enum": [
+            "encoded_project_frame"
+          ],
+          "type": "string"
+        },
+        "ProjectFrameView": {
+          "properties": {
+            "actual_sequence_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "quality": {
+              "$ref": "#/$defs/ProjectFrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_time",
+            "actual_sequence_time",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "width",
+            "height",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "ProjectRangeQuality": {
+          "enum": [
+            "encoded_project_range"
+          ],
+          "type": "string"
+        },
+        "ProjectRangeView": {
+          "properties": {
+            "actual_sequence_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "media": {
+              "$ref": "#/$defs/ExportView"
+            },
+            "quality": {
+              "$ref": "#/$defs/ProjectRangeQuality"
+            },
+            "requested_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_range",
+            "actual_sequence_range",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "media"
+          ],
+          "type": "object"
+        },
+        "ProjectRenderView": {
+          "properties": {
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "media": {
+              "$ref": "#/$defs/ExportView"
+            },
+            "revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "revision",
+            "asset_locking",
+            "media"
+          ],
+          "type": "object"
+        },
+        "ProjectTaskTarget": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "revision",
+            "sequence_id"
+          ],
+          "type": "object"
+        },
+        "PublicJobFailure": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "diagnostic_job_id": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "diagnostic_job_id"
+          ],
+          "type": "object"
+        },
+        "PublicJobStage": {
+          "enum": [
+            "resolving_assets",
+            "probing",
+            "selecting_frame",
+            "decoding",
+            "encoding",
+            "verifying",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "SourceFrameView": {
+          "properties": {
+            "actual_time": {
+              "$ref": "#/$defs/MediaTime"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "exact": {
+              "type": "boolean"
+            },
+            "quality": {
+              "$ref": "#/$defs/FrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/MediaTime"
+            },
+            "source_pts": {
+              "type": "string"
+            },
+            "source_time_base": {
+              "$ref": "#/$defs/FrameRate"
+            }
+          },
+          "required": [
+            "requested_time",
+            "actual_time",
+            "source_pts",
+            "source_time_base",
+            "alignment",
+            "exact",
+            "quality"
+          ],
+          "type": "object"
+        },
+        "StreamKind": {
+          "enum": [
+            "video",
+            "audio",
+            "subtitle",
+            "data",
+            "attachment",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "TextClusterRange": {
+          "properties": {
+            "end": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rtl": {
+              "type": "boolean"
+            },
+            "start": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "start",
+            "end",
+            "rtl"
+          ],
+          "type": "object"
+        },
+        "TextLayoutView": {
+          "properties": {
+            "cluster_ranges": {
+              "items": {
+                "$ref": "#/$defs/TextClusterRange"
+              },
+              "type": "array"
+            },
+            "glyph_count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "line_count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pixel_bounds": {
+              "$ref": "#/$defs/PixelBounds"
+            },
+            "policy": {
+              "$ref": "#/$defs/FontResolutionPolicy"
+            },
+            "requested_family": {
+              "type": "string"
+            },
+            "rtl_runs": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "used_faces": {
+              "items": {
+                "$ref": "#/$defs/FontFaceView"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "requested_family",
+            "policy",
+            "used_faces",
+            "line_count",
+            "glyph_count",
+            "rtl_runs",
+            "cluster_ranges",
+            "pixel_bounds"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "VerificationCheckView": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "passed"
+          ],
+          "type": "object"
+        },
+        "VerificationView": {
+          "properties": {
+            "checks": {
+              "items": {
+                "$ref": "#/$defs/VerificationCheckView"
+              },
+              "type": "array"
+            },
+            "decoded_samples": {
+              "items": {
+                "$ref": "#/$defs/DecodedSample"
+              },
+              "type": "array"
+            },
+            "metadata": {
+              "$ref": "#/$defs/MediaInfo"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "passed",
+            "checks",
+            "metadata",
+            "decoded_samples"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JobView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
     "description": "Search and paginate source-linked transcript evidence from one successful analysis job. Text is a case-insensitive literal substring; source_range uses original media time. Does not edit the project.",
     "input_schema": {
       "$defs": {
@@ -38136,6 +44116,842 @@
       "type": "object"
     },
     "read_only": false
+  },
+  {
+    "description": "Read authorized project library metadata, exact main-scene duration, canvas, scene and asset counts, and UTC creation/modification dates. Cursor is bound to the caller; page limit 1..100.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "limit"
+      ],
+      "title": "LibraryInput",
+      "type": "object"
+    },
+    "name": "opencut_project_library",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "LibraryPage": {
+          "properties": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/LibraryProject"
+              },
+              "type": "array"
+            },
+            "next_cursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "type": "object"
+        },
+        "LibraryProject": {
+          "properties": {
+            "asset_count": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "format": {
+              "$ref": "#/$defs/ProjectFormat"
+            },
+            "fps": {
+              "$ref": "#/$defs/FrameRate"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "modified_at": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "scene_count": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "project_id",
+            "name",
+            "revision",
+            "format",
+            "created_at",
+            "modified_at",
+            "duration",
+            "width",
+            "height",
+            "fps",
+            "scene_count",
+            "asset_count"
+          ],
+          "type": "object"
+        },
+        "ProjectFormat": {
+          "enum": [
+            "base",
+            "visual"
+          ],
+          "type": "string"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LibraryPage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Owner-only atomic copy of 1..64 fixed-head projects. Copies complete current documents, project plugin grants and scoped immutable media references without rereading media bytes. Does not copy branch histories, user credentials, edit holds or jobs. All copies roll back on any failure; retries return the original receipt.",
+    "input_schema": {
+      "$defs": {
+        "CopyProject": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "target_project_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_project_id",
+            "expected_revision",
+            "target_project_id",
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "type": "string"
+        },
+        "projects": {
+          "items": {
+            "$ref": "#/$defs/CopyProject"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "projects",
+        "idempotency_key"
+      ],
+      "title": "DuplicateProjects",
+      "type": "object"
+    },
+    "name": "opencut_project_duplicate",
+    "output_schema": {
+      "$defs": {
+        "DuplicateReceipt": {
+          "properties": {
+            "projects": {
+              "items": {
+                "$ref": "#/$defs/ProjectCopy"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "projects"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ProjectCopy": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_project_id",
+            "source_revision",
+            "project_id",
+            "revision"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DuplicateReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Owner-only permanently remove 1..64 fixed-head projects from discovery and project access. Atomic, idempotent deletion receipt, revokes grants and prevents project inspection or resurrection. Active project jobs must finish or be cancelled first; receiving uploads are aborted. Then releases eligible staging through native deletion fences. cleanup_pending lists upload IDs to retry with this same request or opencut_upload_release; retries return the original deletion receipt and updated cleanup observations. Immutable audit/history and media referenced by copies or retained tasks remain protected; this operation is not secure media erasure.",
+    "input_schema": {
+      "$defs": {
+        "DeleteProject": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "type": "string"
+        },
+        "projects": {
+          "items": {
+            "$ref": "#/$defs/DeleteProject"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "projects",
+        "idempotency_key"
+      ],
+      "title": "DeleteProjects",
+      "type": "object"
+    },
+    "name": "opencut_project_delete",
+    "output_schema": {
+      "$defs": {
+        "DeleteOutcome": {
+          "properties": {
+            "cleanup_pending": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "receipt": {
+              "$ref": "#/$defs/DeleteReceipt"
+            }
+          },
+          "required": [
+            "receipt",
+            "cleanup_pending"
+          ],
+          "type": "object"
+        },
+        "DeleteProject": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision"
+          ],
+          "type": "object"
+        },
+        "DeleteReceipt": {
+          "properties": {
+            "projects": {
+              "items": {
+                "$ref": "#/$defs/DeleteProject"
+              },
+              "type": "array"
+            },
+            "staging_upload_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "projects",
+            "staging_upload_ids"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeleteOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Atomically remove 1..64 project asset bindings and their clips across all scenes at a fixed revision. Removes attached visual effects, masks and transitions, and detaches caption source anchors while preserving caption text. Honors track locks, project access and edit holds. Uses the shared edit journal, idempotency, audit and outbox, including its 128-operation bound after expanding references; undo restores the complete edit. Immutable media needed by revisions, copies or retained jobs remains protected.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "asset_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "expected_revision": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "asset_ids",
+        "idempotency_key"
+      ],
+      "title": "RemoveMedia",
+      "type": "object"
+    },
+    "name": "opencut_project_media_remove",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransactionResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Resolve durable editor undo and redo targets at a fixed revision (or current head). Follows first-parent history, treating a merge as one action; new edits invalidate editor redo. Targets are advisory: existing selective apply tools revalidate revision, permissions and conflicts.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "HistoryNavigationInput",
+      "type": "object"
+    },
+    "name": "opencut_project_history_navigation",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "HistoryNavigation": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "redo": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RedoTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "type": "string"
+            },
+            "undo": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/UndoTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "project_id",
+            "revision"
+          ],
+          "type": "object"
+        },
+        "RedoTarget": {
+          "properties": {
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "transaction_id": {
+              "type": "string"
+            },
+            "undo_transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "undo_transaction_id"
+          ],
+          "type": "object"
+        },
+        "UndoTarget": {
+          "properties": {
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HistoryNavigation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
   },
   {
     "description": "Read immutable revision ancestry newest first. Pass next_cursor as from_revision to continue without page shifts after new edits.",
@@ -57553,6 +64369,286 @@
       "type": "object"
     },
     "name": "opencut_subtitle_import",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "SubtitleImportReceipt": {
+          "additionalProperties": false,
+          "properties": {
+            "cue_count": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "transaction": {
+              "$ref": "#/$defs/TransactionResult"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "transaction",
+            "cue_count",
+            "warnings"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SubtitleImportReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Atomically insert timeline-time captions from an authorized successful scene-transcription job at its original fixed revision. Deterministic IDs, same-key replay, ordinary undo and edit holds. Splits segments by 1..20 whitespace words without fabricating word timing. Bounded to 5000 cues; larger transcripts are rejected before any edit.",
+    "input_schema": {
+      "$defs": {
+        "CaptionStyle": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color": {
+              "type": "string"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_policy": {
+              "$ref": "#/$defs/FontResolutionPolicy"
+            },
+            "font_size": {
+              "format": "double",
+              "type": "number"
+            },
+            "line_height": {
+              "description": "Line height in canvas pixels. None derives it from font_size.",
+              "format": "float",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_width": {
+              "description": "Maximum layout width in canvas pixels. None uses the backend's canvas margin.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "text_align": {
+              "$ref": "#/$defs/TextAlign"
+            }
+          },
+          "required": [
+            "font_family",
+            "font_size",
+            "color"
+          ],
+          "type": "object"
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "TextAlign": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Commit timeline-time captions from an authorized successful scene transcription.",
+      "properties": {
+        "analysis_job_id": {
+          "type": "string"
+        },
+        "expected_revision": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "sequence_id": {
+          "type": "string"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CaptionStyle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "words_per_caption": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "sequence_id",
+        "analysis_job_id",
+        "idempotency_key",
+        "words_per_caption"
+      ],
+      "title": "GenerateCaptions",
+      "type": "object"
+    },
+    "name": "opencut_subtitle_generate",
     "output_schema": {
       "$defs": {
         "EditorError": {

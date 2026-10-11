@@ -1,0 +1,2132 @@
+{
+  "format": "opencut.classic-migration-plan.v1",
+  "date": "2026-10-07",
+  "state": "planning_only_not_execution_authorization",
+  "source_audit": {
+    "path": "design/qa/evidence/classic-parity-audit-2026-10-07.json",
+    "sha256": "eeb1a9cfc4362b017268ed751ec58bb29be9db9394a64e3ceddd93a552c39dcf",
+    "criterion": "全部原版非占位页面和功能需有同等用户入口、共享应用语义和针对性行为/媒体验收；基础测试通过不代表全量迁移完成。",
+    "date": "2026-10-07"
+  },
+  "counts": {
+    "feature_groups": 57,
+    "statuses": {
+      "指定动线已验": 16,
+      "未迁移": 23,
+      "部分迁移": 14,
+      "已实现待等价验收": 3,
+      "原版占位": 1
+    },
+    "remaining_feature_groups": 40,
+    "scoped_verified_regression_groups": 16,
+    "excluded_classic_placeholder_groups": 1,
+    "routes": 13,
+    "route_statuses": {
+      "已实现待外部验收": 3,
+      "指定动线已验": 8,
+      "部分迁移": 2
+    },
+    "extra_work_items_outside_57": 2,
+    "scope_decisions_outside_57": 1
+  },
+  "counting_rules": [
+    "F01–F57严格按源features数组位置编号，名称/分类/发现/源码路径原样保留；ID用于本计划，非重新评估状态。",
+    "每个剩余F项只归属一个主要交付阶段；depends_on和页面映射是引用，不重复计人日或缺口。",
+    "16已验组仅计集成回归，F35原版占位不计缺失；本机外部Agent插件第一阶段从本清单排除。",
+    "X01/X02补足13页面和辅助路由中的独立缺口，不改57组分母；X03是范围决策，不冒充已批准的账户开发。"
+  ],
+  "stages": [
+    {
+      "id": "S1",
+      "name": "选择、工程恢复与素材基础",
+      "primary_feature_ids": [
+        "F05",
+        "F06",
+        "F08",
+        "F10",
+        "F12",
+        "F16",
+        "F17",
+        "F40",
+        "F41",
+        "F42",
+        "F44"
+      ],
+      "estimated_engineering_person_days": [
+        26,
+        40
+      ],
+      "completion_requires_stages": [],
+      "sequence_and_overlap": "先完成 F40 选择/跨轨与坐标基础，再并行迁移恢复、媒体和音频操作；F12/F16/F41 等在 F40 后收口。",
+      "owner_roles": "前端负责选择/交互，全栈负责迁移/缓存，Rust工程师审查批次事务和音频语义。"
+    },
+    {
+      "id": "S2",
+      "name": "自由文字、字体与字幕等价",
+      "primary_feature_ids": [
+        "F19",
+        "F20",
+        "F21",
+        "F23",
+        "F47"
+      ],
+      "estimated_engineering_person_days": [
+        22,
+        34
+      ],
+      "completion_requires_stages": [
+        "S1"
+      ],
+      "sequence_and_overlap": "先冻结独立文字/排版契约；F19→F20→F21，随后 F47 原位编辑及 F23 字幕差距验收。",
+      "owner_roles": "Rust工程师主责文字渲染，全栈主责字体获取，前端主责文字与字幕界面。"
+    },
+    {
+      "id": "S3",
+      "name": "参数化图形、复杂蒙版与合成",
+      "primary_feature_ids": [
+        "F24",
+        "F25",
+        "F26",
+        "F28",
+        "F30",
+        "F31",
+        "F32",
+        "F33",
+        "F34",
+        "F51"
+      ],
+      "estimated_engineering_person_days": [
+        36,
+        58
+      ],
+      "completion_requires_stages": [
+        "S1",
+        "S2"
+      ],
+      "sequence_and_overlap": "F25 图形骨架与基础 F30 可在 S2 期间准备；文字蒙版在 S2 后完成；F31→F32；混合、效果栈和背景共用合成契约。",
+      "owner_roles": "Rust工程师主责IR/后端，前端主责几何/路径控件，全栈负责资源目录及独立渲染夹具。"
+    },
+    {
+      "id": "S4",
+      "name": "动画、变速及全元素交互收口",
+      "primary_feature_ids": [
+        "F27",
+        "F29",
+        "F37",
+        "F38",
+        "F39",
+        "F43",
+        "F46",
+        "F50"
+      ],
+      "estimated_engineering_person_days": [
+        28,
+        44
+      ],
+      "completion_requires_stages": [
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "sequence_and_overlap": "F37 新版过冲曲线及 F29 音频变速可提前设计；F38/F39/F43/F46 待选择与新元素落地后统一验收。",
+      "owner_roles": "Rust工程师负责求值/PCM，前端负责关键帧/命中，全栈负责跨元素矩阵和性能。"
+    },
+    {
+      "id": "S5",
+      "name": "导出格式与可靠交付",
+      "primary_feature_ids": [
+        "F52",
+        "F53"
+      ],
+      "estimated_engineering_person_days": [
+        10,
+        16
+      ],
+      "completion_requires_stages": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "sequence_and_overlap": "F53 WebM/质量/音轨开关可提前实现和用旧元素验证；F52 全配置与取消发布窗口要在新增渲染元素稳定后收口。",
+      "owner_roles": "全栈主责导出配置和任务界面，Rust工程师负责媒体编码与发布围栏，QA执行恢复/取消矩阵。"
+    },
+    {
+      "id": "S6",
+      "name": "资源、公共页面与最终对照验收",
+      "primary_feature_ids": [
+        "F18",
+        "F54",
+        "F55",
+        "F57"
+      ],
+      "estimated_engineering_person_days": [
+        16,
+        26
+      ],
+      "completion_requires_stages": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "sequence_and_overlap": "音效/公共上游访问与产品决策从 S1 即可并行准备；完整快捷动作依赖 S4；最后复核13页面、57组以及独立辅助项。",
+      "owner_roles": "全栈负责provider/公共页，前端负责快捷键与反馈，QA贯穿并主导全量对照。"
+    }
+  ],
+  "features": [
+    {
+      "id": "F01",
+      "audit_pointer": "/features/0",
+      "audit_line": 89,
+      "area": "项目库",
+      "feature": "新建、打开、服务持久保存",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/app/projects/page.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/browser.tsx"
+      ],
+      "finding": "已有真实浏览器新建、打开及刷新恢复；不是整页完整等价。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F02",
+      "audit_pointer": "/features/1",
+      "audit_line": 101,
+      "area": "项目库",
+      "feature": "单个与批量复制",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/core/managers/project-manager.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/browser.tsx"
+      ],
+      "finding": "完整文档复制、独立素材预览、四秒声画导出、批量命名与刷新恢复的最终浏览器流程已验。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F03",
+      "audit_pointer": "/features/2",
+      "audit_line": 113,
+      "area": "项目库",
+      "feature": "搜索、四种排序、网格/列表、信息",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/app/projects/page.tsx",
+        "tmp/opencut-classic/apps/web/src/app/projects/store.ts",
+        "tmp/opencut-classic/apps/web/src/project/components/project-info-dialog.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/browser.tsx",
+        "apps/web/src/editor/projects/info.tsx",
+        "apps/web/src/editor/shared/view-preferences.ts"
+      ],
+      "finding": "四种排序、网格/列表及信息保留；布局/排序偏好刷新恢复与 Classic Shift 范围选择通过实际浏览器验收。",
+      "evidence": "project-and-media-management-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F04",
+      "audit_pointer": "/features/3",
+      "audit_line": 130,
+      "area": "项目库",
+      "feature": "单个与批量删除",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/project/components/delete-project-dialog.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/delete.tsx",
+        "crates/editor-application/src/project_library.rs",
+        "crates/sqlite-store/src/sqlite_project_library.rs"
+      ],
+      "finding": "单个/批量删除通过 owner 共享用例：固定 head、批次原子回执、任务保护、接收上传中止与暂存释放；副本实际素材/渲染不受影响。不是安全擦除。",
+      "evidence": "project-and-media-management-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F05",
+      "audit_pointer": "/features/4",
+      "audit_line": 145,
+      "area": "项目库",
+      "feature": "工程封面",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/core/managers/project-manager.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/browser.tsx"
+      ],
+      "finding": "当前卡片是 Film 图标，无原版工程缩略图生成和更新。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F49"
+      ],
+      "key_dependencies": "固定场景/修订帧、封面失效规则、项目列表缓存",
+      "acceptance_criteria": [
+        "新建/修改/切换主场景后封面更新；失败有回退；刷新和复制后关联正确；删除原工程不破坏副本，封面无跨项目串用。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F06",
+      "audit_pointer": "/features/5",
+      "audit_line": 157,
+      "area": "项目库",
+      "feature": "Classic 工程迁移对话框",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/project/components/migration-dialog.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/browser.tsx"
+      ],
+      "finding": "原对话框用于打开旧IndexedDB工程时的自动版本升级进度，不是JSON文件导入；当前服务初始化升级与后端Classic导入存在，Web尚缺等价的旧浏览器工程发现、升级进度和恢复动线。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F01",
+        "F11",
+        "F13"
+      ],
+      "key_dependencies": "旧 IndexedDB 版本夹具、同源访问边界、现有 Classic 导入、进度/恢复状态机",
+      "acceptance_criteria": [
+        "合成旧版浏览器工程可发现并显示升级进度；成功后文档和素材可打开/渲染；损坏/中断可重试且旧库不被销毁；跨源明确提供旧源导出桥接，不能以单独 JSON 导入冒充自动升级。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F07",
+      "audit_pointer": "/features/6",
+      "audit_line": 169,
+      "area": "工程状态",
+      "feature": "时间线缩放/滚动/播放头恢复",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/project/types.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/shared/view-preferences.ts",
+        "apps/web/src/editor/model/view.ts",
+        "apps/web/src/editor/workspace/controller.ts",
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "项目/场景分别保存缩放、横向滚动和精确播放头；刷新/重开恢复、新项目隔离、内容不变和自动预览已验。基于当前文档安全约束有效帧，历史浏览不覆盖当前视图。",
+      "evidence": "timeline-view-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F08",
+      "audit_pointer": "/features/7",
+      "audit_line": 185,
+      "area": "工程状态",
+      "feature": "导入后自动提高工程帧率",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/core/managers/project-manager.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx"
+      ],
+      "finding": "没有对照原版 getRaisedProjectFpsForImportedMedia 的页面流程。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F07",
+        "F13"
+      ],
+      "key_dependencies": "素材帧率元数据、精确时间模型、原版提高帧率决策规则",
+      "acceptance_criteria": [
+        "混合低/高/分数帧率导入逐例对照原版；只在应提高时提高；现有片段、播放头、关键帧的实际时间不漂移；刷新、撤销和导出帧率正确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F09",
+      "audit_pointer": "/features/8",
+      "audit_line": 197,
+      "area": "场景",
+      "feature": "创建、重命名、切换、删除、主场景保护",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/scenes-view.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/scenes.tsx"
+      ],
+      "finding": "指定真实浏览器流程和精确文档撤销/重做已验。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F10",
+      "audit_pointer": "/features/9",
+      "audit_line": 209,
+      "area": "场景",
+      "feature": "书签位置、颜色、注释及画布叠层",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/scene/toggle-bookmark.ts",
+        "tmp/opencut-classic/apps/web/src/commands/scene/update-bookmark.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/projects/scenes.tsx"
+      ],
+      "finding": "场景书签没有 Web 入口。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F07",
+        "F09",
+        "F11"
+      ],
+      "key_dependencies": "场景标记持久化、视口坐标、颜色/注释协议",
+      "acceptance_criteria": [
+        "位置/颜色/注释可新增修改删除并持久恢复；切场景隔离；时间线和画布叠层与标记一致；撤销恢复；辅助叠层不混入导出。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F11",
+      "audit_pointer": "/features/10",
+      "audit_line": 222,
+      "area": "历史",
+      "feature": "连续撤销、重做、新编辑清空重做",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/core/managers/commands.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/workspace/controller.ts"
+      ],
+      "finding": "服务重建导航，刷新后连续操作按完整文档验证。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F12",
+      "audit_pointer": "/features/11",
+      "audit_line": 234,
+      "area": "历史",
+      "feature": "撤销删除后恢复活动场景和选择",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/preview-tracker.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/workspace/controller.ts"
+      ],
+      "finding": "当前恢复文档，未恢复原版视图选择行为。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F09",
+        "F11",
+        "F40"
+      ],
+      "key_dependencies": "多选状态和历史视图快照、活动场景有效性",
+      "acceptance_criteria": [
+        "删除所选片段或活动场景再撤销，恢复有效场景与原选择；重做、新编辑和刷新无悬空 ID；视图恢复不额外修改项目文档。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F13",
+      "audit_pointer": "/features/12",
+      "audit_line": 246,
+      "area": "素材",
+      "feature": "上传、源预览、插入、替换",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/assets/views/assets.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx"
+      ],
+      "finding": "指定导入→插入→预览→导出链路已验；原版所有拖放组合未验。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F14",
+      "audit_pointer": "/features/13",
+      "audit_line": 258,
+      "area": "素材",
+      "feature": "素材网格/列表、类型/时长/大小排序",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/assets/views/assets.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx",
+        "apps/web/src/editor/model/media-library.ts"
+      ],
+      "finding": "素材网格/列表、名称/类型/时长/大小排序与方向切换通过指定浏览器动线。",
+      "evidence": "project-and-media-management-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F15",
+      "audit_pointer": "/features/14",
+      "audit_line": 272,
+      "area": "素材",
+      "feature": "多选、范围选择与批量移除",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/media/remove-media-asset.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx",
+        "crates/editor-application/src/media_library.rs",
+        "crates/sqlite-store/src/sqlite_project_library.rs"
+      ],
+      "finding": "多选/Shift 范围与单个/批量移除调用共享应用规划及原子编辑；跨场景片段、效果/蒙版/转场关联清理、字幕来源解除及完整撤销已验。每批64项、展开128操作上限。",
+      "evidence": "project-and-media-management-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F16",
+      "audit_pointer": "/features/15",
+      "audit_line": 287,
+      "area": "素材",
+      "feature": "剪贴板粘贴文件与选定轨道拖放",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/media/use-paste-media.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx"
+      ],
+      "finding": "实际 File 字节粘贴导入已验；仅活动素材/音频面板处理，替换上传并发粘贴不会更改替换目标。现有时间线已有选定轨道拖放入口，其全部组合及系统剪贴板操作仍待验。",
+      "evidence": "project-and-media-management-2026-10-07.json",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F13",
+        "F15",
+        "F40"
+      ],
+      "key_dependencies": "统一导入入口、目标轨道命中、平台剪贴板权限/焦点",
+      "acceptance_criteria": [
+        "真实系统剪贴板与拖放覆盖视频/音频/图片、空/已有兼容轨道、多文件、取消及失败；不兼容轨道显式拒绝；并发替换上传不被粘贴改靶；落点和撤销正确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F17",
+      "audit_pointer": "/features/16",
+      "audit_line": 300,
+      "area": "素材",
+      "feature": "缩略图和波形缓存",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/media/thumbnail.ts",
+        "tmp/opencut-classic/apps/web/src/media/waveform-summary.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/workspace/media-preview.ts"
+      ],
+      "finding": "已有有界缩略图与波形；原版多级缓存和全时间线密度策略不等价。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F13",
+        "F45"
+      ],
+      "key_dependencies": "内容哈希缓存键、缩放密度分级、内存/磁盘预算和淘汰",
+      "acceptance_criteria": [
+        "长短素材、密集时间线和快速缩放下图/波形无错位旧帧；刷新可复用缓存；预算内淘汰后可重建；100片段/5轨/5分钟合成夹具记录冷/热成本与峰值，按阶段冻结预算验收。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F18",
+      "audit_pointer": "/features/17",
+      "audit_line": 313,
+      "area": "音效",
+      "feature": "远程搜索、试听、分类、下载插入",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/sounds/components/assets-view.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/panel.tsx"
+      ],
+      "finding": "Sounds 目前为本地音频素材过滤，非原版音效库。",
+      "disposition": "remaining",
+      "primary_stage": "S6",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F13"
+      ],
+      "key_dependencies": "可替换音效 provider、授权来源/署名、搜索分页、下载导入",
+      "acceptance_criteria": [
+        "真实获准上游完成搜索/分类/试听/下载并插入剪辑导出；404/429/超时/取消和重复下载可恢复；保留来源/署名；本地音频过滤不能算完成。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F19",
+      "audit_pointer": "/features/18",
+      "audit_line": 325,
+      "area": "文字",
+      "feature": "独立自由文字元素",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/text/components/assets-view.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/titles.tsx"
+      ],
+      "finding": "当前 Add text 创建 caption；文字元素的空间/排版模型不同。",
+      "disposition": "remaining",
+      "primary_stage": "S2",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F11"
+      ],
+      "key_dependencies": "独立文字领域元素、排版测量、版本化编辑/IR/原生渲染",
+      "acceptance_criteria": [
+        "创建的自由文字不是 caption 替身；位置/尺寸/持续时间及多行排版可编辑，复制/拆分/撤销/持久恢复正确；固定字体下独立字形布局/像素夹具验证预览和导出。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F20",
+      "audit_pointer": "/features/19",
+      "audit_line": 337,
+      "area": "文字",
+      "feature": "字体浏览与字体加载",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/fonts/google-fonts.ts",
+        "tmp/opencut-classic/apps/web/src/fonts/system-fonts.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/titles.tsx"
+      ],
+      "finding": "当前输入字体名称，缺浏览/加载/可用性选择流程。",
+      "disposition": "remaining",
+      "primary_stage": "S2",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19"
+      ],
+      "key_dependencies": "系统/可下载字体目录、宿主解析与渲染字体身份、来源许可策略 D2",
+      "acceptance_criteria": [
+        "可浏览/搜索/预览并加载字体；浏览器和 Worker 使用同一可验证字体；离线、缺字和缺字体明确回退/拒绝；中文/拉丁字体夹具可稳定重开和导出。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F21",
+      "audit_pointer": "/features/20",
+      "audit_line": 350,
+      "area": "文字",
+      "feature": "字重、斜体、装饰、字距、行距和背景参数",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/params/registry.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/panel.tsx"
+      ],
+      "finding": "字幕有部分字体/颜色属性；缺完整文字样式和背景圆角/边距/偏移。",
+      "disposition": "remaining",
+      "primary_stage": "S2",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F20"
+      ],
+      "key_dependencies": "文字样式版本契约、字体度量、背景几何",
+      "acceptance_criteria": [
+        "逐项覆盖字重/斜体/装饰/字距/行距、背景圆角/边距/偏移；组合渲染有独立预期，不能只验证控件值；撤销/复制/导入与旧字幕兼容。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F22",
+      "audit_pointer": "/features/21",
+      "audit_line": 362,
+      "area": "字幕",
+      "feature": "字幕文件交换、文本编辑与定位",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/subtitles/components/assets-view.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/subtitles.tsx"
+      ],
+      "finding": "当前 SRT/ASS 指定动线已验；不代表自动字幕流程。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F23",
+      "audit_pointer": "/features/22",
+      "audit_line": 374,
+      "area": "字幕",
+      "feature": "选择语言并自动生成转写字幕",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/subtitles/components/assets-view.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/automatic-captions.tsx",
+        "crates/editor-application/src/caption_generation.rs",
+        "crates/sqlite-store/src/sqlite_caption_generation.rs",
+        "crates/host-runtime/src/worker/project_v3.rs"
+      ],
+      "finding": "语言选择、本机场景混音/真实ASR、固定修订字幕原子生成、刷新任务恢复/取消与精确撤销重做已验。语音模型来自宿主配置，不要求用户输入路径；英文合成语音已验，不声明其他语言识别质量。当前生成CaptionCue，原版自由文字/字体和诊断明细仍非完整等价；分词时序为估算。",
+      "evidence": "auto-captions-and-preview-2026-10-07.json",
+      "disposition": "remaining",
+      "primary_stage": "S2",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F20",
+        "F21",
+        "F22"
+      ],
+      "key_dependencies": "既有本机 ASR/任务与字幕原子生成、文字表示兼容、语言质量夹具",
+      "acceptance_criteria": [
+        "保留已有混音/取消/修订锁与撤销链；补齐原版字体/编辑/诊断入口；中英固定人工标注语音检查语言选择与文字准确率阈值，明确估算词时序；其他语言逐一标记待验，不能泛称已验。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F24",
+      "audit_pointer": "/features/23",
+      "audit_line": 390,
+      "area": "贴纸",
+      "feature": "图形、国旗、品牌分类与搜索",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/stickers/providers/index.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/titles.tsx"
+      ],
+      "finding": "只复用少数本地图形；旗帜和品牌 provider 未迁入。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F13"
+      ],
+      "key_dependencies": "分类索引与可替换旗帜/品牌资源 provider、资产许可策略 D2",
+      "acceptance_criteria": [
+        "三类均有可追溯资源和搜索结果；正确插入、缩放、透明显示及导出；离线/缺项有状态，不能用几枚本地图形替代全部分类。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F25",
+      "audit_pointer": "/features/24",
+      "audit_line": 402,
+      "area": "图形",
+      "feature": "矩形/椭圆/多边形/星形参数化元素",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/graphics/definitions/index.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/assets/titles.tsx"
+      ],
+      "finding": "只有矩形/椭圆原生节点；其他 SVG 是图片，不能视为参数化图形等价。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F11",
+        "F36"
+      ],
+      "key_dependencies": "参数化图形领域/IR、几何生成和抗锯齿",
+      "acceptance_criteria": [
+        "矩形/椭圆/多边形/星形均为可编辑参数节点；参数变更、复制、撤销和保存可恢复；不同边数/星角的轮廓与独立几何预期匹配，SVG 图片不计等价。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F26",
+      "audit_pointer": "/features/25",
+      "audit_line": 414,
+      "area": "图形",
+      "feature": "描边、对齐、圆角、边数和图形关键帧",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/graphics/components/graphic-tab.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/visual-properties.tsx"
+      ],
+      "finding": "缺原版 Graphic 属性页及动态参数完整契约。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F25",
+        "F36"
+      ],
+      "key_dependencies": "图形参数类型/范围、描边对齐、可动画参数声明",
+      "acceptance_criteria": [
+        "描边内/中/外对齐、圆角、边数和允许参数关键帧可编辑；开始/中间/末帧几何正确；超界拒绝、撤销精确，非连续参数的插值规则明确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F27",
+      "audit_pointer": "/features/26",
+      "audit_line": 426,
+      "area": "属性",
+      "feature": "基础变换、透明度、音量",
+      "status": "已实现待等价验收",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/properties/registry.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/panel.tsx"
+      ],
+      "finding": "已有服务参数编辑；未对每种元素和参数组合做 Classic 等价验收。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25",
+        "F34",
+        "F39"
+      ],
+      "key_dependencies": "基础属性既有应用语义、新元素能力矩阵与统一单位",
+      "acceptance_criteria": [
+        "对视频/音频/图片/文字/字幕/图形/效果适用属性逐格验收位置/尺寸/旋转/透明度/音量；数值输入与画布操作结果一致，边界值/撤销/持久恢复正确；独立像素及PCM验证属性确实生效。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F28",
+      "audit_pointer": "/features/27",
+      "audit_line": 438,
+      "area": "属性",
+      "feature": "17 种混合模式",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/params/registry.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/panel.tsx"
+      ],
+      "finding": "Classic Blend Mode 已注册，当前无混合模式控件。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25"
+      ],
+      "key_dependencies": "混合模式显式契约、色彩/alpha规则、后端支持矩阵",
+      "acceptance_criteria": [
+        "按原版注册表逐一覆盖17种模式，含半透明/黑白/彩色边界；用独立公式/参考像素验收顺序和alpha，不支持不能静默降级；预览/导出与历史保持一致。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F29",
+      "audit_pointer": "/features/28",
+      "audit_line": 450,
+      "area": "变速",
+      "feature": "速度属性和 Change pitch",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/speed/components/speed-tab.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/panel.tsx"
+      ],
+      "finding": "已有修改时长的恒速 retime；缺原版 Speed 比率控件与 Change pitch 开关完整流程。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F08",
+        "F42"
+      ],
+      "key_dependencies": "有理数速度映射、源时间范围、音频重采样/保音高策略",
+      "acceptance_criteria": [
+        "速度比率控件和 Change pitch 两种语义可用；1/2倍、2倍、分数比率后时长/切点/字幕/曲线同步；已知频率与脉冲 PCM 验证保音高和变调，不能只改变尾点。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F30",
+      "audit_pointer": "/features/29",
+      "audit_line": 462,
+      "area": "蒙版",
+      "feature": "矩形/椭圆与羽化",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/masks/components/masks-tab.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/visual-properties.tsx"
+      ],
+      "finding": "已有固定比例基础蒙版；缺原版尺寸/位置/旋转与画布控制完整流程。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F36",
+        "F40"
+      ],
+      "key_dependencies": "蒙版局部/画布坐标、尺寸/位置/旋转与羽化单位",
+      "acceptance_criteria": [
+        "矩形/椭圆位置尺寸旋转羽化可在属性和画布操作；变换/裁剪后坐标正确；边缘/内外像素有独立预期；保存和撤销恢复。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F31",
+      "audit_pointer": "/features/30",
+      "audit_line": 474,
+      "area": "蒙版",
+      "feature": "Split、电影黑边、心形、菱形、星形、文字、钢笔",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/masks/builtin/definitions/index.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/visual-properties.tsx"
+      ],
+      "finding": "这些注册蒙版及钢笔路径编辑未迁入。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F20",
+        "F25",
+        "F30"
+      ],
+      "key_dependencies": "复杂形状和路径契约、文字轮廓、路径填充规则",
+      "acceptance_criteria": [
+        "Split/电影黑边/心形/菱形/星形/文字/钢笔逐一可创建编辑；复杂路径与孔洞/闭合规则显式；独立几何和透明度夹具覆盖形状边界及实际渲染。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F32",
+      "audit_pointer": "/features/31",
+      "audit_line": 486,
+      "area": "蒙版",
+      "feature": "叠层、反转、点增删、手柄与动画",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/timeline/element/masks/index.ts",
+        "tmp/opencut-classic/apps/web/src/preview/components/mask-handles.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/preview/transform-overlay.tsx"
+      ],
+      "finding": "当前画布手柄仅基本对象变换，没有蒙版交互。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F30",
+        "F31",
+        "F36",
+        "F40"
+      ],
+      "key_dependencies": "蒙版栈次序、控制点/切线和命中、基础动画通道",
+      "acceptance_criteria": [
+        "多层次序和反转正确；钢笔点增删/拖动/手柄可撤销；动画起中末帧与独立预期一致；对象变换框不能代替蒙版手柄；快速操作不残留旧修订。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F33",
+      "audit_pointer": "/features/32",
+      "audit_line": 499,
+      "area": "效果",
+      "feature": "模糊效果及参数",
+      "status": "已实现待等价验收",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/effects/definitions/blur.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/effects/panel.tsx"
+      ],
+      "finding": "已有实际服务效果；原版所有参数/对象/开关组合未做等价验收。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25"
+      ],
+      "key_dependencies": "既有模糊效果、统一参数/对象支持矩阵",
+      "acceptance_criteria": [
+        "按原版全部参数、对象类别、启停和叠加组合补等价验收；已知边缘扩散/alpha夹具核验实际像素；失败报告对象/参数，不能只断言任务成功。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F34",
+      "audit_pointer": "/features/33",
+      "audit_line": 511,
+      "area": "效果",
+      "feature": "效果重排、动态参数、独立效果轨道",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/timeline/element/effects/reorder-effect.ts",
+        "tmp/opencut-classic/apps/web/src/effects/components/effects-tab.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/effects/panel.tsx"
+      ],
+      "finding": "独立 EffectElement、顺序重排和效果参数关键帧不等价。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25",
+        "F36"
+      ],
+      "key_dependencies": "独立效果元素/轨道、作用范围、效果栈顺序和动态参数",
+      "acceptance_criteria": [
+        "可重排效果、创建独立效果轨道并对支持参数设关键帧；用不可交换的效果组合证明顺序有效；范围/叠层/静音或禁用语义明确，撤销和工程恢复正确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F35",
+      "audit_pointer": "/features/34",
+      "audit_line": 524,
+      "area": "转场/调整",
+      "feature": "原版两个工具标签",
+      "status": "原版占位",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/assets/index.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/effects/panel.tsx"
+      ],
+      "finding": "Classic 中明确 coming soon；当前已新增交叉淡化与调色，不能把这些页算原版成熟功能。",
+      "disposition": "excluded_classic_placeholder",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "无原版成熟行为基准",
+      "acceptance_criteria": [
+        "保留原版占位说明；当前新增交叉淡化/调色不作剩余Classic迁移计数。"
+      ],
+      "planning_state": "not_a_migration_gap"
+    },
+    {
+      "id": "F36",
+      "audit_pointer": "/features/35",
+      "audit_line": 536,
+      "area": "动画",
+      "feature": "标量关键帧和基本 Bézier 曲线",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/timeline/components/graph-editor/bezier-graph.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/keyframes.tsx"
+      ],
+      "finding": "指定曲线写入/锚点保留与像素相关动线已验。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F37",
+      "audit_pointer": "/features/36",
+      "audit_line": 548,
+      "area": "动画",
+      "feature": "Y 轴过冲、Pop 与自定义曲线预设",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/timeline/components/graph-editor/easing-presets.ts",
+        "tmp/opencut-classic/apps/web/src/timeline/components/graph-editor/custom-presets-store.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/bezier-graph.tsx"
+      ],
+      "finding": "Classic Y 范围 -0.5..1.5；当前合同/UI 仅 0..1，自定义预设未迁入。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F36"
+      ],
+      "key_dependencies": "新版本曲线契约、求值/限制策略、自定义预设存储",
+      "acceptance_criteria": [
+        "原版Y=-0.5..1.5、Pop和自定义预设保存/载入可用；旧0..1契约保持不变；独立数值oracle检查过冲样本，位置可过冲、受限参数按明确规则处理，渲染不能静默裁成原曲线。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F38",
+      "audit_pointer": "/features/37",
+      "audit_line": 561,
+      "area": "动画",
+      "feature": "关键帧拖动、多选及复制粘贴",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/timeline/clipboard/paste-keyframes.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/keyframes.tsx"
+      ],
+      "finding": "只有属性页列表编辑，没有完整时间线图形关键帧交互。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F36",
+        "F37",
+        "F40"
+      ],
+      "key_dependencies": "关键帧选择集、坐标/吸附、时间空间和剪贴板格式",
+      "acceptance_criteria": [
+        "拖动/框选/多选/复制粘贴、跨片段时间偏移和边界拒绝可用；批次原子提交，撤销恢复；重复时间点规则明确，曲线切线不丢失。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F39",
+      "audit_pointer": "/features/38",
+      "audit_line": 573,
+      "area": "时间线",
+      "feature": "单选裁剪、移动、分割、复制与删除",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/timeline/components/index.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "指定单视频操作已验；不同元素类型操作不完全等价。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25",
+        "F34",
+        "F40"
+      ],
+      "key_dependencies": "通用元素编辑能力矩阵、新文字/图形/效果节点",
+      "acceptance_criteria": [
+        "视频/音频/图片/文字/字幕/图形/效果各类支持的裁剪、移动、分割、复制、删除逐格验收；不适用操作禁用并说明；源范围、曲线/蒙版/字幕关联及撤销保持正确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F40",
+      "audit_pointer": "/features/39",
+      "audit_line": 585,
+      "area": "时间线",
+      "feature": "多选、框选和跨轨拖动",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/timeline/components/selection-hit-testing.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "当前单对象 selection；拖动保存仍限定原轨道。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F07",
+        "F11",
+        "F15"
+      ],
+      "key_dependencies": "选择集合、跨轨目标规划、坐标/吸附和原子批次编辑",
+      "acceptance_criteria": [
+        "单击修饰键/范围/框选以及多片段跨轨拖动有入口；相对时间/轨距和锁定轨保护正确；一次拖动一个原子事务，取消不写入、修订冲突不部分提交，撤销恢复。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F41",
+      "audit_pointer": "/features/40",
+      "audit_line": 597,
+      "area": "时间线",
+      "feature": "Split left/right 与 ripple 模式",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/actions/definitions.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/commands.tsx"
+      ],
+      "finding": "已有手动高级编辑事务，不等于原版快捷动作与常驻 ripple 模式。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F40",
+        "F11"
+      ],
+      "key_dependencies": "既有 timeline plan、动作路由、常驻 ripple 模式状态",
+      "acceptance_criteria": [
+        "Split left/right 在边界和中间点准确；ripple开/关下后续片段位移、锁轨/多轨关联符合原版；快捷/菜单入口共用规划；模式可辨识，撤销无残留。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F42",
+      "audit_pointer": "/features/41",
+      "audit_line": 609,
+      "area": "时间线",
+      "feature": "源音频分离/恢复",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/timeline/element/toggle-source-audio-separation.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "没有对应页面动作。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F13",
+        "F11"
+      ],
+      "key_dependencies": "音视频同源绑定、独立音频轨道、来源与恢复关联",
+      "acceptance_criteria": [
+        "分离音频后不重复出声且时间对齐，单独编辑和撤销/恢复可靠；无音轨素材显式拒绝；裁剪后分离的已知脉冲位置和 PCM 与预期一致。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F43",
+      "audit_pointer": "/features/42",
+      "audit_line": 621,
+      "area": "时间线",
+      "feature": "轨道显示、静音、锁定与增删",
+      "status": "已实现待等价验收",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/commands/timeline/track/index.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "部分控件/共享语义已实现；完整轨道类型和增删组合未验。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F34",
+        "F40",
+        "F42"
+      ],
+      "key_dependencies": "轨道类型矩阵、效果轨道、跨轨选择和编辑保护",
+      "acceptance_criteria": [
+        "各轨道类型的新增/删除/显示/静音/锁定逐格验收；锁定拒绝批次写入，隐藏/静音在真实像素和 PCM中生效；删轨关联清理和撤销精确。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F44",
+      "audit_pointer": "/features/43",
+      "audit_line": 633,
+      "area": "时间线",
+      "feature": "直接拖动音量线",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/timeline/components/audio-volume-line.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/timeline/panel.tsx"
+      ],
+      "finding": "目前音量从属性页编辑，没有原版音量线。",
+      "disposition": "remaining",
+      "primary_stage": "S1",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F36",
+        "F42"
+      ],
+      "key_dependencies": "音量参数与可视几何映射、pointer会话提交",
+      "acceptance_criteria": [
+        "音频和带音频视频的音量线拖动可预览，松手一次原子写入；取消不写；静音、上下限和缩放下命中正确；既有音量曲线不丢，PCM增益对照通过。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F45",
+      "audit_pointer": "/features/44",
+      "audit_line": 645,
+      "area": "预览",
+      "feature": "连续播放、定帧、全屏与静音",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/preview/components/index.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/preview/panel.tsx"
+      ],
+      "finding": "实际浏览器解码和媒体时钟已验；不是低延迟性能等价证据。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F46",
+      "audit_pointer": "/features/45",
+      "audit_line": 657,
+      "area": "预览",
+      "feature": "实时内容变换、精确命中与多选",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/preview/components/preview-interaction-overlay.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/preview/transform-overlay.tsx"
+      ],
+      "finding": "当前拖动辅助框，松手后服务重新渲染。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25",
+        "F30",
+        "F32",
+        "F40"
+      ],
+      "key_dependencies": "统一命中/坐标、可取消本地交互预览与权威修订回读",
+      "acceptance_criteria": [
+        "拖动期间显示实际内容变换而非仅辅助框；透明区域/旋转对象命中准确，多选保持相对变换；撤销/取消/冲突可回退，旧异步帧不覆盖新姿态；松手后的服务渲染与交互结果一致。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F47",
+      "audit_pointer": "/features/46",
+      "audit_line": 669,
+      "area": "预览",
+      "feature": "文字画布内编辑",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/preview/components/text-edit-overlay.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/preview/transform-overlay.tsx"
+      ],
+      "finding": "没有原版原位文字编辑层。",
+      "disposition": "remaining",
+      "primary_stage": "S2",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F19",
+        "F20",
+        "F21",
+        "F40"
+      ],
+      "key_dependencies": "文字叠层、光标/IME、排版与画布坐标共用",
+      "acceptance_criteria": [
+        "双击画布原位编辑，中文输入法/换行/选区可用；缩放旋转后的编辑位置正确；Esc取消/提交/撤销一致，时间线快捷键不抢文本输入；最终原生渲染匹配排版。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F48",
+      "audit_pointer": "/features/47",
+      "audit_line": 681,
+      "area": "预览",
+      "feature": "视口平移/缩放、网格及平台安全区",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/preview/components/preview-viewport.tsx",
+        "tmp/opencut-classic/apps/web/src/preview/components/guide-popover.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/model/viewport.ts",
+        "apps/web/src/editor/preview/viewport.tsx",
+        "apps/web/src/editor/preview/guides.tsx",
+        "apps/web/src/editor/preview/tiktok-layout.svg",
+        "apps/web/src/editor/shared/view-preferences.ts"
+      ],
+      "finding": "Fit/实际画布百分比、边界平移、中键/空格拖动、Grid数量与精确位置、原版TikTok SVG、Custom增删编辑/刷新恢复及中英明暗通过。只保存构图视图，工程完整文档不变，不进入原生快照/导出。Classic其他平台/Custom布局仅null定义，原工具栏Guide入口原本注释；未虚列成熟渲染。",
+      "evidence": "auto-captions-and-preview-2026-10-07.json",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F49",
+      "audit_pointer": "/features/48",
+      "audit_line": 699,
+      "area": "预览",
+      "feature": "保存与复制快照",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/preview/components/context-menu.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/preview/panel.tsx",
+        "apps/web/src/editor/preview/snapshot-actions.tsx"
+      ],
+      "finding": "工具栏和原版右键菜单复用原生固定场景/修订帧；完整画布PNG、实际图像剪贴板、独立中心白/角落黑RGB、取消保存和文档不变通过。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F50",
+      "audit_pointer": "/features/49",
+      "audit_line": 712,
+      "area": "设置",
+      "feature": "画布尺寸与帧率",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/assets/views/settings/index.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/sequence-settings.tsx"
+      ],
+      "finding": "已有尺寸/帧率；原版自定义尺寸记忆和原始尺寸回退未完整迁入。",
+      "disposition": "remaining",
+      "primary_stage": "S4",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F08",
+        "F13"
+      ],
+      "key_dependencies": "工程/视图偏好分离、自定义尺寸和来源元数据",
+      "acceptance_criteria": [
+        "自定义尺寸记忆刷新保持、原始尺寸回退有准确来源；跨项目隔离；尺寸/帧率修改可撤销并正确导出，视图偏好不意外成为内容事务。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F51",
+      "audit_pointer": "/features/50",
+      "audit_line": 724,
+      "area": "设置",
+      "feature": "纯色与模糊工程背景",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/panels/assets/views/settings/background.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/inspector/sequence-settings.tsx"
+      ],
+      "finding": "当前未提供背景完整设置与渲染链。Classic 类型没有渐变背景，本次不虚列渐变缺口。",
+      "disposition": "remaining",
+      "primary_stage": "S3",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F30"
+      ],
+      "key_dependencies": "场景背景契约、内容适配和模糊采样规则",
+      "acceptance_criteria": [
+        "纯色和模糊背景在横竖/方形、多片段、透明内容下可设置；独立颜色/模糊参考样本验证真实画面；保存/撤销一致；不额外增加原版没有的渐变。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F52",
+      "audit_pointer": "/features/51",
+      "audit_line": 736,
+      "area": "导出",
+      "feature": "持久导出、进度、下载及取消",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/export-button.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/tasks/export-dialog.tsx"
+      ],
+      "finding": "MP4 指定导出/下载已验，取消有任务控件；未覆盖所有配置和取消窗口。",
+      "disposition": "remaining",
+      "primary_stage": "S5",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F19",
+        "F25",
+        "F28",
+        "F29",
+        "F34",
+        "F37",
+        "F51",
+        "F53"
+      ],
+      "key_dependencies": "固定修订任务、发布围栏/取消、下载和终态恢复",
+      "acceptance_criteria": [
+        "队列/渲染中/产物发布前后取消逐窗口验收；进度/断连重连/刷新任务恢复准确；失败无成功下载、取消无迟到发布；完整新增元素组合输出实际解码/声画基准通过。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F53",
+      "audit_pointer": "/features/52",
+      "audit_line": 748,
+      "area": "导出",
+      "feature": "WebM、四档质量、Include audio",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/export/index.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/tasks/export-dialog.tsx"
+      ],
+      "finding": "当前 MP4/Matroska + codec；没有 WebM 和原版质量/音频开关等价流程。",
+      "disposition": "remaining",
+      "primary_stage": "S5",
+      "priority": "P0",
+      "depends_on_feature_ids": [
+        "F29",
+        "F51"
+      ],
+      "key_dependencies": "WebM容器/编码能力、四档质量映射、音频include契约",
+      "acceptance_criteria": [
+        "WebM真实封装与兼容编码可播放；四档质量配置实际传递至后端且非四个同值；Include audio开/关分别有/无音轨；MP4回归、错误组合拒绝、metadata/像素/PCM验证。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F54",
+      "audit_pointer": "/features/53",
+      "audit_line": 760,
+      "area": "快捷键",
+      "feature": "基本快捷键与帮助",
+      "status": "部分迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/actions/components/shortcuts-dialog.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/shared/shortcuts.tsx"
+      ],
+      "finding": "当前固定少量快捷键，原版完整动作列表未迁完。",
+      "disposition": "remaining",
+      "primary_stage": "S6",
+      "priority": "P1",
+      "depends_on_feature_ids": [
+        "F10",
+        "F12",
+        "F38",
+        "F39",
+        "F40",
+        "F41",
+        "F42",
+        "F43",
+        "F47"
+      ],
+      "key_dependencies": "原版30个注册动作/53个命令源文件映射、焦点路由",
+      "acceptance_criteria": [
+        "逐项登记动作入口/菜单/帮助/快捷键；文本输入、弹窗和时间线焦点互不抢键；macOS修饰键、禁用状态、按住重复和撤销行为实测；不按命令文件数新增功能计数。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F55",
+      "audit_pointer": "/features/54",
+      "audit_line": 772,
+      "area": "快捷键",
+      "feature": "自定义/重置/冲突和持久化",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/actions/keybindings-store.ts"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/shared/shortcuts.tsx"
+      ],
+      "finding": "无自定义配置入口。",
+      "disposition": "remaining",
+      "primary_stage": "S6",
+      "priority": "P2",
+      "depends_on_feature_ids": [
+        "F54"
+      ],
+      "key_dependencies": "快捷键配置schema、冲突检测和偏好存储",
+      "acceptance_criteria": [
+        "可改键/清除/重置，冲突实时提示且不静默覆盖；刷新恢复、导入坏配置回退；系统保留键给出说明；不向内容历史添加偏好事务。"
+      ],
+      "planning_state": "planned_not_started"
+    },
+    {
+      "id": "F56",
+      "audit_pointer": "/features/55",
+      "audit_line": 784,
+      "area": "外壳",
+      "feature": "面板尺寸记忆、新手引导、变更通知",
+      "status": "指定动线已验",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/editor/panel-store.ts",
+        "tmp/opencut-classic/apps/web/src/components/editor/onboarding.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/shared/editor-guide.tsx",
+        "apps/web/src/editor/shared/view-preferences.ts",
+        "apps/web/src/editor/editor-workspace.tsx"
+      ],
+      "finding": "真实横/纵拖动后刷新恢复且文档不变；三步双语引导、返回/完成/重开/Esc，原版已发布动态提示和去重通过；更新提示不宣称本地功能等价。",
+      "disposition": "verified_scoped_regression_only",
+      "primary_stage": null,
+      "priority": null,
+      "depends_on_feature_ids": [],
+      "key_dependencies": "保持审计所列已验动线",
+      "acceptance_criteria": [
+        "在S6回归原有指定动线；不将局部已验扩大为所有组合等价。"
+      ],
+      "planning_state": "retain_existing_evidence"
+    },
+    {
+      "id": "F57",
+      "audit_pointer": "/features/56",
+      "audit_line": 799,
+      "area": "外壳",
+      "feature": "反馈提交",
+      "status": "未迁移",
+      "classic_sources": [
+        "tmp/opencut-classic/apps/web/src/components/editor/editor-header.tsx"
+      ],
+      "current_sources": [
+        "apps/web/src/editor/editor-workspace.tsx"
+      ],
+      "finding": "缺 Feedback 页内表单和 API。",
+      "disposition": "remaining",
+      "primary_stage": "S6",
+      "priority": "P2",
+      "depends_on_feature_ids": [],
+      "key_dependencies": "反馈接收方/隐私范围 D3、表单/API、超时及错误反馈",
+      "acceptance_criteria": [
+        "用户显式提交后获可验证接收回执；校验/超时/重复/服务失败可辨识；不会自动附带素材/凭据；无接收方时明确未配置，不能将本地草稿当提交成功。"
+      ],
+      "planning_state": "planned_not_started"
+    }
+  ],
+  "routes": [
+    {
+      "id": "R01",
+      "audit_pointer": "/routes/0",
+      "route": "/blog/[slug]",
+      "status": "已实现待外部验收",
+      "source": "tmp/opencut-classic/apps/web/src/app/blog/[slug]/page.tsx",
+      "finding": "公开数据适配、列表/详情/分页与失败重试已实现并通过明确夹具验收；本机上游分别429/403限流，实时成功未验。",
+      "primary_stage": "S6",
+      "work_item_refs": [
+        "X01"
+      ],
+      "acceptance": "真实上游成功+失败恢复，直接访问/刷新/分页与详情正确；按X01留证据。"
+    },
+    {
+      "id": "R02",
+      "audit_pointer": "/routes/1",
+      "route": "/blog",
+      "status": "已实现待外部验收",
+      "source": "tmp/opencut-classic/apps/web/src/app/blog/page.tsx",
+      "finding": "公开数据适配、列表/详情/分页与失败重试已实现并通过明确夹具验收；本机上游分别429/403限流，实时成功未验。",
+      "primary_stage": "S6",
+      "work_item_refs": [
+        "X01"
+      ],
+      "acceptance": "真实上游成功+失败恢复，直接访问/刷新/分页与详情正确；按X01留证据。"
+    },
+    {
+      "id": "R03",
+      "audit_pointer": "/routes/2",
+      "route": "/brand",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/brand/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R04",
+      "audit_pointer": "/routes/3",
+      "route": "/changelog/[version]",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/changelog/[version]/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R05",
+      "audit_pointer": "/routes/4",
+      "route": "/changelog",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/changelog/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R06",
+      "audit_pointer": "/routes/5",
+      "route": "/contributors",
+      "status": "已实现待外部验收",
+      "source": "tmp/opencut-classic/apps/web/src/app/contributors/page.tsx",
+      "finding": "公开数据适配、列表/详情/分页与失败重试已实现并通过明确夹具验收；本机上游分别429/403限流，实时成功未验。",
+      "primary_stage": "S6",
+      "work_item_refs": [
+        "X01"
+      ],
+      "acceptance": "真实上游成功+失败恢复，直接访问/刷新/分页与详情正确；按X01留证据。"
+    },
+    {
+      "id": "R07",
+      "audit_pointer": "/routes/6",
+      "route": "/editor/[project_id]",
+      "status": "部分迁移",
+      "source": "tmp/opencut-classic/apps/web/src/app/editor/[project_id]/page.tsx",
+      "finding": "编辑/项目库有改造后的入口，但未全功能等价",
+      "primary_stage": "S6",
+      "work_item_refs": [
+        "F08",
+        "F10",
+        "F12",
+        "F16",
+        "F17",
+        "F18",
+        "F19",
+        "F20",
+        "F21",
+        "F23",
+        "F24",
+        "F25",
+        "F26",
+        "F27",
+        "F28",
+        "F29",
+        "F30",
+        "F31",
+        "F32",
+        "F33",
+        "F34",
+        "F37",
+        "F38",
+        "F39",
+        "F40",
+        "F41",
+        "F42",
+        "F43",
+        "F44",
+        "F46",
+        "F47",
+        "F50",
+        "F51",
+        "F52",
+        "F53",
+        "F54",
+        "F55",
+        "F57"
+      ],
+      "acceptance": "S1–S5编辑器相关剩余组、S6资源/快捷/反馈通过；原指定预览/快照/外壳动线回归，直接链接与刷新恢复。"
+    },
+    {
+      "id": "R08",
+      "audit_pointer": "/routes/7",
+      "route": "/",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R09",
+      "audit_pointer": "/routes/8",
+      "route": "/privacy",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/privacy/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R10",
+      "audit_pointer": "/routes/9",
+      "route": "/projects",
+      "status": "部分迁移",
+      "source": "tmp/opencut-classic/apps/web/src/app/projects/page.tsx",
+      "finding": "编辑/项目库有改造后的入口，但未全功能等价",
+      "primary_stage": "S1",
+      "work_item_refs": [
+        "F05",
+        "F06"
+      ],
+      "acceptance": "完成工程封面与旧浏览器工程升级/恢复动线；回归F01–F04，不能将列表页已有能力重算为缺失。"
+    },
+    {
+      "id": "R11",
+      "audit_pointer": "/routes/10",
+      "route": "/roadmap",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/roadmap/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R12",
+      "audit_pointer": "/routes/11",
+      "route": "/sponsors",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/sponsors/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    },
+    {
+      "id": "R13",
+      "audit_pointer": "/routes/12",
+      "route": "/terms",
+      "status": "指定动线已验",
+      "source": "tmp/opencut-classic/apps/web/src/app/terms/page.tsx",
+      "finding": "独立站点装配已还原指定界面与交互，真实浏览器直接访问/刷新及中英明暗通过；法律和历史信息按本机事实调整。见 public-pages-and-presentation 收据。",
+      "primary_stage": null,
+      "work_item_refs": [],
+      "acceptance": "保留指定动线已验状态，S6回归直接访问/刷新、中英明暗和页面原有交互；法律/历史内容仍按本机真实行为。"
+    }
+  ],
+  "extra_work_items": [
+    {
+      "id": "X01",
+      "name": "博客/文章/贡献者真实外部数据验收",
+      "primary_stage": "S6",
+      "priority": "P1",
+      "kind": "acceptance_gap_outside_57",
+      "routes": [
+        "/blog",
+        "/blog/[slug]",
+        "/contributors"
+      ],
+      "depends_on_feature_ids": [],
+      "key_dependencies": "固定公开上游可访问、限流策略和授权；仅记录真实结果，不绕过403/429",
+      "acceptance_criteria": [
+        "在允许环境取得真实列表/详情/分页成功响应并在浏览器呈现，记录上游URL/时间/响应状态及内容摘要；同时保留429/403/空列表/超时/重试夹具通过证据；上游不可达仍标待验。"
+      ]
+    },
+    {
+      "id": "X02",
+      "name": "RSS、sitemap与服务端分享元数据",
+      "primary_stage": "S6",
+      "priority": "P2",
+      "kind": "implementation_gap_outside_57",
+      "routes": [
+        "/rss.xml",
+        "sitemap",
+        "分享元数据"
+      ],
+      "depends_on_feature_ids": [],
+      "key_dependencies": "公共域名/规范URL、公共内容映射、服务端静态/动态输出方式；最终真实内容复核依赖X01",
+      "acceptance_criteria": [
+        "RSS/XML和sitemap解析有效，条目/规范URL/时间与内容一致；文章首个HTML响应具备正确标题/摘要/分享图而非只靠客户端脚本；无内容及未知slug有正确响应；不暴露本机工程ID或路径。"
+      ]
+    },
+    {
+      "id": "X03",
+      "name": "原账户系统与本机身份替代的范围决策",
+      "primary_stage": "S6",
+      "priority": "P0",
+      "kind": "scope_decision_not_counted_as_feature_gap",
+      "routes": [
+        "/api/auth/[...all]"
+      ],
+      "depends_on_feature_ids": [],
+      "key_dependencies": "产品决定D1，现有HttpOnly本机会话/Agent凭证；不是默认新增云账户系统",
+      "acceptance_criteria": [
+        "默认保留本机身份、明确记录与Classic账户系统不同；本机会话隔离/退出/过期/拒绝按既有契约验证。若坚持账户逐项等价，另行定义注册/登录/恢复/迁移及服务依赖并重新估算，不能声明账户已等价。"
+      ]
+    }
+  ],
+  "auxiliary_route_mapping": [
+    {
+      "classic": "/api/auth/[...all]",
+      "status": "行为替换，原版账户等价未验",
+      "finding": "当前同源 HttpOnly 本机会话与 Agent 凭证不等于原版账户/会话系统。",
+      "work_item_refs": [
+        "X03"
+      ],
+      "counting": "范围决策，不重复添加F组"
+    },
+    {
+      "classic": "/api/health",
+      "status": "服务健康入口替代",
+      "finding": "独立服务有健康/状态查询，未要求复制 Next route。",
+      "work_item_refs": [],
+      "counting": "已有健康入口替代，S6兼容回归，不新增开发组"
+    },
+    {
+      "classic": "/api/feedback",
+      "status": "未迁移",
+      "finding": "缺反馈表单与提交链。",
+      "work_item_refs": [
+        "F57"
+      ],
+      "counting": "已计F57，不重复"
+    },
+    {
+      "classic": "/api/sounds/search",
+      "status": "未迁移",
+      "finding": "缺远程音效搜索。",
+      "work_item_refs": [
+        "F18"
+      ],
+      "counting": "已计F18，不重复"
+    },
+    {
+      "classic": "/rss.xml、sitemap",
+      "status": "未迁移",
+      "finding": "内容页面已接入；对应 RSS/站点地图与服务端分享元数据仍未迁移。",
+      "work_item_refs": [
+        "X02"
+      ],
+      "counting": "57组外独立项X02"
+    }
+  ],
+  "product_decisions": [
+    {
+      "id": "D1",
+      "question": "是否要求Classic云账户/登录逐项等价？",
+      "default": "维持本机服务身份替代，公开注明差异；不默认建设云账户系统。",
+      "effect": "不阻塞编辑迁移；不批准范围替代时，账户等价保持未决，云账户工作需另估，不在当前人日中。",
+      "refs": [
+        "X03"
+      ]
+    },
+    {
+      "id": "D2",
+      "question": "在线字体、旗帜/品牌贴纸和音效采用哪些许可与来源？",
+      "default": "优先原版可继续使用且许可允许的来源；provider可替换，下载到本机并保留来源/署名，字体由宿主验证；离线保留已缓存资源。",
+      "effect": "资源许可/接口不可用可能增加适配工作和等待；不把旧provider的商标或版权状态假定为授权。",
+      "refs": [
+        "F18",
+        "F20",
+        "F24"
+      ]
+    },
+    {
+      "id": "D3",
+      "question": "反馈发往哪个接收端，允许附带哪些信息？",
+      "default": "自有可配置接收端，仅用户明确输入的文本和经确认的诊断字段；不自动附带素材、账号或凭据。",
+      "effect": "接收端未配置时F57不得验收为可提交；外部上线/费用需单独授权，不因本规划自动执行。",
+      "refs": [
+        "F57"
+      ]
+    },
+    {
+      "id": "D4",
+      "question": "旧Classic浏览器工程来自哪些源站与版本？",
+      "default": "保留同源旧库自动检测/升级；跨源采用用户在旧源发起的导出桥接并显示进度/恢复，不尝试跨源直读。",
+      "effect": "按原审计固定旧版格式实现；额外历史版本/无法访问的旧源需补样本和估算。",
+      "refs": [
+        "F06"
+      ]
+    }
+  ],
+  "common_acceptance_gates": [
+    "G1：每项同时具备等价用户入口、共享应用语义和对应证据；代码存在/构建成功/预览等于导出均不能单独判完成。",
+    "G2：新能力必须从源文档→版本契约→IR→后端→Web/CLI/HTTP/MCP/SDK贯通；不把域规则放进Web，旧wire schema冻结，新不兼容字段/范围走新版本并生成类型。",
+    "G3：每次内容修改验证expected_revision、原子性、幂等重放、冲突拒绝和完整文档撤销/重做；临时交互、选择与偏好不误写内容历史。",
+    "G4：视觉使用独立几何/颜色/alpha/字体度量参考；音频使用已知频率/增益/时间脉冲PCM参考；保留固定修订、执行身份、产物哈希和解码证据。",
+    "G5：架构变更运行architecture负向测试与两项边界门禁；公共协议变更执行生成契约/旧wire兼容/SDK门禁；运行受影响行为测试及独立临时数据库浏览器旅程。",
+    "G6：S6逐行核对57组和13页面及X01–X03，不重复加总页面/接口与功能；53命令源文件、30注册动作是覆盖基准，不再扩充功能总数；全量回归后更新实际完成台账。",
+    "G7：外部请求仅在获准环境验收，不绕过权限/限流；素材保持本机、合成夹具进入测试。部署、真实数据迁移和持续凭证变更需要独立执行范围。"
+  ],
+  "estimate": {
+    "kind": "rough_planning_estimate_not_calendar_commitment",
+    "unit": "工程人日（含开发与测试人员工作量）",
+    "phase_implementation_and_feature_tests_person_days": [
+      138,
+      218
+    ],
+    "cross_feature_integration_and_regression_person_days": [
+      22,
+      44
+    ],
+    "risk_buffer_person_days": [
+      32,
+      66
+    ],
+    "total_person_days": [
+      192,
+      328
+    ],
+    "budget_communication_range": "约190–330工程人日",
+    "team_assumption": "3名熟悉项目的工程师（前端、Rust内核/渲染、全栈/媒体各1）+0.5名专职QA；共享代码评审，Rust/IR同一负责人避免冲突。",
+    "effective_capacity_person_days_per_work_week": [
+      12,
+      14
+    ],
+    "conditional_elapsed_work_weeks": [
+      14,
+      28
+    ],
+    "integration_notes": "阶段人日已含各功能测试/契约生成/针对性媒体测试；额外22–44人日仅用于跨阶段组合、跨入口兼容、13页最终回归与证据整理，不把每个功能单测重复计入。风险另按基准与集成合计约20–25%取整。",
+    "basis": "按审计所示纯UI补齐、跨端状态、领域/IR新增、原生渲染与外部provider复杂度分层；不是实测工时或承诺。没有用户deadline，不设置日期。",
+    "assumptions": [
+      "优先当前macOS本机服务+既有Web栈；目标浏览器与FFmpeg版本在S1冻结，移动端/全平台正式发行不在此预算。",
+      "沿用现有模块/事务/Worker/SDK，不重写架构或引入新微服务；以Classic原有能力为边界。",
+      "每阶段入口前先确认依赖契约、样本和独立oracle，阶段完成不是按文件数量打勾。",
+      "允许外部provider准备并行；同一渲染/IR改动不能按3人无冲突全并行计算。",
+      "云账户新增、购买字体/素材费用、新媒体provider商业接入、不可访问上游等待、额外历史工程格式和远程部署不包含；发生时重估。",
+      "14–28工作周只是在约12–14人日/周有效投入下的容量换算，还要满足依赖；不是从今天起算的交付日期，上游等待另记。"
+    ],
+    "reestimate_at": [
+      "S1选择/升级/缓存样本跑通后",
+      "S2字体与文字排版真实渲染后",
+      "S3复杂路径/混合模式/效果栈的原生样本后"
+    ]
+  },
+  "planning_verification": {
+    "status": "passed",
+    "checks": [
+      "57组原始字段/顺序/分类逐项一致",
+      "40剩余组均唯一分配阶段且具有优先级/依赖/验收条件",
+      "16已验+1占位不纳入剩余计数",
+      "13页面无遗漏/重复",
+      "所有feature依赖存在且无环、无反向阶段阻塞",
+      "6阶段估算加总138–218人日正确",
+      "2项独立辅助工作与1范围决策单列，不重复F18/F57"
+    ],
+    "runtime_tests_run": false
+  },
+  "limits": [
+    "沿用已核实审计快照，本轮未重做源码审计、未新增运行测试、未修改业务代码、数据库或部署。",
+    "计划中的验收条件是未来完成门槛，不是本轮通过声明；所列当前状态严格来自原审计。",
+    "默认产品方案帮助继续排期，不等于用户已确认所有取舍；未决账户等价不能从全量声明中隐去。"
+  ]
+}

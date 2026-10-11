@@ -11,15 +11,19 @@ mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
 mod sqlite_audit;
 mod sqlite_branching;
+mod sqlite_caption_generation;
 mod sqlite_classic_import;
 mod sqlite_collaboration;
 mod sqlite_denials;
 mod sqlite_edit_control;
 mod sqlite_gc;
+mod sqlite_history_navigation;
 mod sqlite_jobs;
 mod sqlite_maintenance;
 mod sqlite_new_project;
 mod sqlite_plugin_v2;
+mod sqlite_project_edit;
+mod sqlite_project_library;
 mod sqlite_project_package;
 mod sqlite_project_package_v3;
 mod sqlite_project_plugins;
@@ -46,7 +50,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 23;
+const DATABASE_SCHEMA_VERSION: i64 = 26;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -60,6 +64,7 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project.v3",
     "artifact.verify",
     "analysis.transcribe",
+    "analysis.sequence_transcribe",
     "analysis.silence",
     "analysis.shots",
     "analysis.waveform",
@@ -423,6 +428,26 @@ impl EditorApplication {
         if version == 22 {
             tx.execute_batch(sqlite_project_v3::MIGRATION)
                 .map_err(storage_error)?;
+            version = 23;
+        }
+        if version == 23 {
+            // Deferred upload digests are a new write protocol. Older hosts must
+            // not expose pending sessions as legacy known-hash uploads.
+            tx.execute(
+                "UPDATE metadata SET value='24' WHERE key='schema_version' AND value='23'",
+                [],
+            )
+            .map_err(storage_error)?;
+            version = 24;
+        }
+        if version == 24 {
+            tx.execute_batch(sqlite_project_library::MIGRATION)
+                .map_err(storage_error)?;
+            version = 25;
+        }
+        if version == 25 {
+            tx.execute_batch(sqlite_project_library::DELETE_MIGRATION)
+                .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
@@ -572,6 +597,9 @@ impl EditorApplication {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
         sqlite_access::require_submission(&tx, &context, &request)?;
+        if context.caller().is_owner() {
+            sqlite_access::require_live_input(&tx, &execution_input)?;
+        }
         if !context.caller().is_owner()
             && sqlite_access::verified_target(&tx, &request.kind, &execution_input)?
                 != sqlite_access::verified_target(&tx, &request.kind, &request.input)?
@@ -950,6 +978,7 @@ fn load_snapshot(
     connection: &Connection,
     project_id: &str,
 ) -> Result<ProjectSnapshot, EditorError> {
+    sqlite_project_library::require_live(connection, project_id)?;
     let stored = connection
         .query_row(
             "SELECT r.document_json, p.head_revision
@@ -2157,7 +2186,7 @@ mod tests {
             .unwrap();
         connection
             .execute_batch(
-                "DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
+                "DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
              DROP TABLE access_grants;
@@ -2321,7 +2350,7 @@ mod tests {
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
-             DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
+             DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
              DROP TABLE project_merge_parents;
              DROP TABLE project_branches;
              DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;

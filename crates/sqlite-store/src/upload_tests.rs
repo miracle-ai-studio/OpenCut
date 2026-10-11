@@ -329,7 +329,7 @@ fn upload_migration_rolls_back_all_tables_on_collision() {
     let conn = Connection::open(&path).unwrap();
     conn.execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
         .unwrap();
-    conn.execute_batch("DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
+    conn.execute_batch("DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
     assert!(EditorApplication::open(&path).is_err());
     assert_eq!(
         conn.query_row::<String, _, _>(
@@ -403,7 +403,7 @@ fn untrusted_upload_parameters_are_rejected_before_native_storage() {
         "-1",
         "+1",
         "1.0",
-        "1073741825",
+        "17179869185",
         "18446744073709551616",
     ] {
         let mut request = input(size);
@@ -633,7 +633,7 @@ fn reservations_survive_abort_until_durable_release_and_quota_is_atomic() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
     let mut first = None;
-    for index in 0..8 {
+    for index in 0..(PROJECT_UPLOAD_RESERVATION_LIMIT / MAX_UPLOAD_BYTES) {
         let request = CreateUpload {
             size_bytes: MAX_UPLOAD_BYTES.to_string(),
             ..input(&format!("quota-{index}"))
@@ -791,10 +791,11 @@ fn workspace_reservations_serialize_competing_projects_at_the_last_slot() {
     let root = tempfile::tempdir().unwrap();
     let db = root.path().join("db");
     let mut app = EditorApplication::open(&db).unwrap();
-    for i in 0..33 {
+    let slots = WORKSPACE_UPLOAD_RESERVATION_LIMIT / MAX_UPLOAD_BYTES;
+    for i in 0..slots + 1 {
         let id = format!("p{i}");
         project(&mut app, &id);
-        if i < 31 {
+        if i < slots - 1 {
             app.create_upload(&CreateUpload {
                 project_id: id,
                 size_bytes: MAX_UPLOAD_BYTES.to_string(),
@@ -804,7 +805,7 @@ fn workspace_reservations_serialize_competing_projects_at_the_last_slot() {
         }
     }
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
-    let threads: Vec<_> = (31..33)
+    let threads: Vec<_> = (slots - 1..slots + 1)
         .map(|i| {
             let db = db.clone();
             let barrier = barrier.clone();
@@ -910,4 +911,225 @@ fn release_rechecks_after_lock_and_before_committing_a_freed_reservation() {
         .unwrap();
         assert_eq!(app.upload_quota("a").unwrap().project_reserved_bytes, "0");
     }
+}
+
+#[test]
+fn streaming_upload_fixes_hash_only_with_atomic_seal_and_preserves_legacy_projection() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = EditorApplication::open(dir.path().join("workspace.sqlite")).unwrap();
+    project(&mut app, "a");
+    let begin = BeginUpload {
+        project_id: "a".into(),
+        idempotency_key: "stream".into(),
+        name: "sample.wav".into(),
+        size_bytes: "6".into(),
+    };
+    let session = app.begin_upload(&begin).unwrap();
+    assert_eq!(session.content_hash, None);
+    assert_eq!(app.begin_upload(&begin).unwrap(), session);
+    assert_eq!(
+        app.inspect_upload(&session.upload_id).unwrap_err().code,
+        "UPLOAD_HASH_REQUIRED"
+    );
+    let chunks = UploadChunks::new(dir.path().join("chunks"));
+    chunks
+        .put(&mut app, &chunk(&session.upload_id, "0", b"abc"), b"abc")
+        .unwrap();
+    let finish = CompleteUpload {
+        upload_id: session.upload_id.clone(),
+        content_hash: input("unused").content_hash,
+    };
+    assert_eq!(
+        app.complete_upload(&finish).unwrap_err().code,
+        "UPLOAD_INCOMPLETE"
+    );
+    assert_eq!(
+        app.inspect_stream_upload(&session.upload_id)
+            .unwrap()
+            .content_hash,
+        None
+    );
+    assert!(
+        query_uploads(
+            &app,
+            UploadQuery {
+                project_id: "a".into(),
+                cursor: None,
+                limit: 100,
+                retained_only: true
+            }
+        )
+        .unwrap()
+        .uploads
+        .is_empty()
+    );
+    assert_eq!(
+        query_stream_uploads(
+            &app,
+            UploadQuery {
+                project_id: "a".into(),
+                cursor: None,
+                limit: 100,
+                retained_only: true
+            }
+        )
+        .unwrap()
+        .uploads
+        .len(),
+        1
+    );
+    chunks
+        .put(&mut app, &chunk(&session.upload_id, "3", b"def"), b"def")
+        .unwrap();
+    let sealed = app.complete_upload(&finish).unwrap();
+    assert_eq!(sealed.state, UploadState::Sealed);
+    assert_eq!(
+        sealed.content_hash.as_deref(),
+        Some(finish.content_hash.as_str())
+    );
+    assert_eq!(app.complete_upload(&finish).unwrap(), sealed);
+    assert_eq!(
+        app.seal_upload(&session.upload_id).unwrap().job_id,
+        sealed.job_id
+    );
+    let conflicting = CompleteUpload {
+        content_hash: "b".repeat(64),
+        ..finish
+    };
+    assert_eq!(
+        app.complete_upload(&conflicting).unwrap_err().code,
+        "UPLOAD_HASH_CONFLICT"
+    );
+    assert_eq!(
+        app.create_upload(&input("stream")).unwrap_err().code,
+        "IDEMPOTENCY_KEY_REUSED"
+    );
+    let record = app.get_job(sealed.job_id.as_deref().unwrap()).unwrap();
+    let prepared: PreparedMediaImportInput = serde_json::from_value(record.input).unwrap();
+    assert_eq!(prepared.content_hash, sealed.content_hash.unwrap());
+    assert_eq!(prepared.chunks.len(), 2);
+}
+
+#[test]
+fn streaming_abort_cleans_chunks_and_releases_the_existing_quota() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = EditorApplication::open(dir.path().join("workspace.sqlite")).unwrap();
+    project(&mut app, "a");
+    let session = app
+        .begin_upload(&BeginUpload {
+            project_id: "a".into(),
+            idempotency_key: "abort-stream".into(),
+            name: "sample.wav".into(),
+            size_bytes: "6".into(),
+        })
+        .unwrap();
+    let chunks = UploadChunks::new(dir.path().join("chunks"));
+    chunks
+        .put(&mut app, &chunk(&session.upload_id, "0", b"abc"), b"abc")
+        .unwrap();
+    let aborted = abort_with_cleanup(
+        &mut app,
+        &chunks,
+        UploadInput {
+            upload_id: session.upload_id.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(aborted.state, UploadState::Aborted);
+    assert_eq!(app.upload_quota("a").unwrap().project_reserved_bytes, "0");
+    assert_eq!(
+        app.complete_upload(&CompleteUpload {
+            upload_id: session.upload_id,
+            content_hash: "a".repeat(64)
+        })
+        .unwrap_err()
+        .code,
+        "UPLOAD_STATE_CONFLICT"
+    );
+}
+
+#[test]
+fn streaming_completion_rechecks_revoked_credentials_before_hash_or_job_mutation() {
+    let mut app = EditorApplication::open(":memory:").unwrap();
+    project(&mut app, "a");
+    let session = app
+        .begin_upload(&BeginUpload {
+            project_id: "a".into(),
+            idempotency_key: "stream".into(),
+            name: "a.wav".into(),
+            size_bytes: "6".into(),
+        })
+        .unwrap();
+    app.acknowledge_chunk(&chunk(&session.upload_id, "0", b"abcdef"))
+        .unwrap();
+    app.set_principal_policy(policy(all(), "0")).unwrap();
+    let credential = app.issue_credential("uploader").unwrap();
+    let caller = app.authenticate(&credential.secret).unwrap();
+    app.revoke_credential(&credential.credential_id).unwrap();
+    let before = counts(&app);
+    app.set_caller(caller);
+    code(
+        app.complete_upload(&CompleteUpload {
+            upload_id: session.upload_id.clone(),
+            content_hash: input("x").content_hash,
+        }),
+        "NOT_AUTHORIZED",
+    );
+    assert_eq!(counts(&app), before);
+    app.set_caller(Caller::LocalOwner);
+    assert_eq!(
+        app.inspect_stream_upload(&session.upload_id)
+            .unwrap()
+            .content_hash,
+        None
+    );
+}
+
+#[test]
+fn streaming_schema_migration_preserves_legacy_uploads_and_pending_hashes_survive_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("db");
+    let mut app = EditorApplication::open(&db).unwrap();
+    project(&mut app, "a");
+    let legacy = app.create_upload(&input("legacy")).unwrap();
+    app.connection
+        .execute_batch("DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings")
+        .unwrap();
+    app.connection
+        .execute(
+            "UPDATE metadata SET value='23' WHERE key='schema_version'",
+            [],
+        )
+        .unwrap();
+    drop(app);
+    let mut app = EditorApplication::open(&db).unwrap();
+    assert_eq!(app.inspect_upload(&legacy.upload_id).unwrap(), legacy);
+    let stream = app
+        .begin_upload(&BeginUpload {
+            project_id: "a".into(),
+            idempotency_key: "stream".into(),
+            name: "s.wav".into(),
+            size_bytes: "6".into(),
+        })
+        .unwrap();
+    drop(app);
+    let app = EditorApplication::open(&db).unwrap();
+    assert_eq!(
+        app.inspect_stream_upload(&stream.upload_id).unwrap(),
+        stream
+    );
+    code(
+        app.inspect_upload(&stream.upload_id),
+        "UPLOAD_HASH_REQUIRED",
+    );
+    assert_eq!(
+        app.connection
+            .query_row::<String, _, _>(
+                "SELECT value FROM metadata WHERE key='schema_version'",
+                [],
+                |r| r.get(0)
+            )
+            .unwrap(),
+        "26"
+    );
 }

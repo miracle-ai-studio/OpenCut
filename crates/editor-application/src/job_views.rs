@@ -391,6 +391,7 @@ pub fn project(record: JobRecord) -> JobView {
             | "preview.project_range.v3"
             | "analysis.speaker_turns"
             | "analysis.transcribe"
+            | "analysis.sequence_transcribe"
             | "analysis.silence"
             | "analysis.shots"
             | "analysis.waveform"
@@ -399,11 +400,15 @@ pub fn project(record: JobRecord) -> JobView {
             Some(ProjectTaskTarget {
                 project_id: record
                     .input
-                    .pointer(if record.kind.ends_with(".v3") {
-                        "/snapshot/project/base/id"
-                    } else {
-                        "/snapshot/project/id"
-                    })?
+                    .pointer(
+                        if record.kind.ends_with(".v3")
+                            || record.kind == "analysis.sequence_transcribe"
+                        {
+                            "/snapshot/project/base/id"
+                        } else {
+                            "/snapshot/project/id"
+                        },
+                    )?
                     .as_str()?
                     .into(),
                 revision: record.input.pointer("/snapshot/revision")?.as_str()?.into(),
@@ -679,6 +684,81 @@ pub fn project(record: JobRecord) -> JobView {
         match projected {
             Ok(result) => view.extended_result = Some(result),
             Err(e) => view.result_unavailable = Some(public_failure(&view.job_id, &e.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "analysis.sequence_transcribe" {
+        let projected = (|| {
+            let input: opencut_job_execution::project_v3::PreparedSequenceTranscribe =
+                decode(record.input.clone())?;
+            let result: jobs::SequenceTranscribeResult =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let composition = opencut_composition::project_v3::compile_v3(
+                &input.snapshot,
+                &input.sequence_id,
+                opencut_composition::CompositionScope::AudioVisual,
+            )
+            .map_err(|_| bad_result())?;
+            let duration = composition.base.timeline.duration;
+            let expected = opencut_editor_core::dependencies::required_asset_ids(
+                &opencut_contracts::ProjectSnapshot {
+                    project: input.snapshot.project.base.clone(),
+                    revision: input.snapshot.revision.clone(),
+                },
+                &input.sequence_id,
+                opencut_editor_core::dependencies::AssetScope::All,
+            )
+            .map_err(|_| bad_result())?;
+            let observed: std::collections::BTreeSet<_> = input
+                .asset_lock
+                .assets
+                .iter()
+                .map(|asset| asset.asset_id.as_str())
+                .collect();
+            let expected: std::collections::BTreeSet<_> =
+                expected.iter().map(String::as_str).collect();
+            if observed != expected
+                || input.asset_lock.assets.len() != expected.len()
+                || input.asset_lock.assets.iter().any(|locked| {
+                    input
+                        .snapshot
+                        .project
+                        .base
+                        .assets
+                        .iter()
+                        .find(|asset| asset.id == locked.asset_id)
+                        .and_then(|asset| asset.version.as_ref())
+                        .is_some_and(|version| {
+                            version.content_hash != locked.content_hash
+                                || version.size != locked.size
+                        })
+                })
+            {
+                return Err(bad_result());
+            }
+            if input.asset_lock.version != 1
+                || input.asset_lock.revision != input.snapshot.revision
+                || input.asset_lock.sequence_id != input.sequence_id
+                || result.project_id != input.snapshot.project.base.id
+                || result.revision != input.snapshot.revision
+                || result.sequence_id != input.sequence_id
+                || result.asset_lock != input.asset_lock
+                || result.duration
+                    != (opencut_contracts::Time {
+                        ticks: duration.ticks.to_string(),
+                        timebase: duration.timebase,
+                    })
+                || !media::validate_public_transcription_result(&result.transcription)
+            {
+                return Err(bad_result());
+            }
+            Ok::<_, EditorError>(ExtendedJobResult {
+                kind: "analysis.sequence_transcribe".into(),
+                schema_version: 1,
+                data: serde_json::to_value(result).map_err(|_| bad_result())?,
+            })
+        })();
+        match projected {
+            Ok(result) => view.extended_result = Some(result),
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
         }
     } else if record.state == JobState::Succeeded && view.kind == "analysis.transcribe" {
         let projected = (|| {

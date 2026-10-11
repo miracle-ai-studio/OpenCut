@@ -64,7 +64,35 @@ pub fn selective_merge_v3(
         serde_json::to_value(normalize_v3(to)).expect("schema 3 project serializes"),
         serde_json::to_value(normalize_v3(head)).expect("schema 3 project serializes"),
     );
-    let project = result.and_then(|value| serde_json::from_value(value).ok());
+    let mut project: Option<ProjectDocumentV3> =
+        result.and_then(|value| serde_json::from_value(value).ok());
+    if let Some(project) = &mut project {
+        // Empty sequence entries are synthesized only for property-level merging.
+        // Restore their actual presence so unrelated structure edits do not add nodes.
+        project.visual.retain(|visual| {
+            if !visual.shapes.is_empty()
+                || !visual.effects.is_empty()
+                || !visual.masks.is_empty()
+                || !visual.transitions.is_empty()
+            {
+                return true;
+            }
+            let present = |document: &ProjectDocumentV3| {
+                document
+                    .visual
+                    .iter()
+                    .any(|v| v.sequence_id == visual.sequence_id)
+            };
+            let before = present(from);
+            let desired = present(to);
+            let current = present(head);
+            if before != desired && current == before {
+                desired
+            } else {
+                current
+            }
+        });
+    }
     MergeV3 {
         project,
         changes,

@@ -1,0 +1,30 @@
+[package]
+name = "opencut-host-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opencut-composition = { path = "../composition" }
+opencut-job-runtime = { path = "../job-runtime" }
+opencut-storage-budget = { path = "../storage-budget" }
+opencut-job-execution = { path = "../job-execution" }
+opencut-asset-store = { path = "../asset-store" }
+opencut-media = { path = "../media" }
+opencut-project-render = { path = "../project-render" }
+opencut-time = { path = "../time" }
+sha2 = "0.10"
+opencut-automation = { path = "../automation" }
+opencut-native-services = { path = "../native-services" }
+opencut-sqlite-store = { path = "../sqlite-store" }
+opencut-api-contracts = { path = "../api-contracts" }
+opencut-contracts = { path = "../contracts" }
+opencut-editor-application = { path = "../editor-application" }
+opencut-job-contracts = { path = "../job-contracts" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+tempfile = "3"

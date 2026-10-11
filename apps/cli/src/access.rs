@@ -3,7 +3,7 @@ use clap::Subcommand;
 use opencut_automation::{CallSource, Caller, ExecutionContext, Response};
 use opencut_contracts::EditorError;
 use opencut_editor_application::access::{PrincipalPolicy, denied};
-use opencut_sqlite_store::EditorApplication;
+use opencut_host_runtime::workspace::Workspace as EditorApplication;
 use serde_json::json;
 use std::{
     io::{Read, Write},

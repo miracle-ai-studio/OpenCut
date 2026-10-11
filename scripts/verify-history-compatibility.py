@@ -83,9 +83,9 @@ def verify(binary):
                     for t in ['projects', 'revisions', 'editor_transactions', 'idempotency', 'outbox']}
 
     try:
-        current = fixture('current-version')
-        assert call(current, 'opencut_project_list', {}) == []
-        with sqlite3.connect(current) as c:
+        current_database = fixture('current-version')
+        assert call(current_database, 'opencut_project_list', {}) == []
+        with sqlite3.connect(current_database) as c:
             target_version = int(c.execute("SELECT value FROM metadata WHERE key='schema_version'").fetchone()[0])
         assert all((FIXTURES / f'db-v{version}.sql').is_file() for version in range(1, target_version + 1)), 'A frozen historical database fixture is missing'
         for version in range(1, target_version + 1):
@@ -165,10 +165,14 @@ def verify(binary):
             assert call(broken7, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
             checks.append('Plugin publication DDL collision rolls back v6 migration with all original data intact; corrected retry succeeds')
         if target_version >= 9:
+            # Historical sessions retain their original 1 GiB sizes. Seed enough
+            # records to exceed the live quota, even when today's limit grows.
+            project_limit = int(call(current_database, 'opencut_capabilities', {})['uploads']['staging']['project_reservation_limit_bytes'])
+            retained_count = project_limit // 1073741824 + 2
             retained = fixture('retention-migration')
             seed(retained, 8, 'v2', probe)
             with sqlite3.connect(retained) as c:
-                for i in range(10):
+                for i in range(retained_count):
                     c.execute("INSERT INTO upload_sessions(upload_id,project_id,idempotency_key,request_hash,name,size_bytes,content_hash,state) VALUES (?,'history',?,'legacy','old',1073741824,?,'aborted')",(f'upload_{i:032x}',str(i),'a'*64))
                 c.execute('CREATE TABLE upload_retention(sentinel TEXT)')
                 c.execute("INSERT INTO upload_retention VALUES ('preserve')")
@@ -178,7 +182,7 @@ def verify(binary):
                 assert list(c.iterdump())==before
                 c.execute('DROP TABLE upload_retention')
             quota=call(retained,'opencut_upload_quota',{'project_id':'history'})
-            assert quota['project_reserved_bytes']==str(10*1073741824)
+            assert quota['project_reserved_bytes']==str(retained_count*1073741824)
             assert int(quota['project_reserved_bytes'])>int(quota['project_limit_bytes'])
             call(retained,'opencut_upload_create',{'project_id':'history','idempotency_key':'blocked','name':'new','size_bytes':'1','content_hash':'a'*64},'UPLOAD_QUOTA_EXCEEDED')
             for i in range(3):

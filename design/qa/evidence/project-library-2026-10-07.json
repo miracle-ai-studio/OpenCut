@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-07",
+  "scope": "Project library metadata and atomic single/batch duplication; not full Classic parity",
+  "status": "verified",
+  "binary_sha256": "35388f75c8da968a8fb644106c854cdbb72746fb7f4def1b70f5bac4f0fcfa70",
+  "tests": {
+    "rust_workspace_excluding_desktop": 428,
+    "ignored_child_fixtures": 6,
+    "sqlite_store": 139,
+    "new_project_library_storage_tests": 5,
+    "web": 32,
+    "web_boundaries": 7,
+    "typescript_sdk": 20,
+    "python_architecture": 14,
+    "browser": 27,
+    "architecture_modules": 22,
+    "temporary_exceptions": 0,
+    "all_prior_tool_declarations_unchanged": 140,
+    "frozen_tools_unchanged": 22,
+    "current_tools": 142,
+    "clippy": "passed",
+    "fmt": "passed",
+    "generated_contracts": "passed"
+  },
+  "browser": {
+    "browser": "153.0.8010.12",
+    "endpoint": "http://127.0.0.1:49494",
+    "checks": [
+      "built Web page connects to detached authenticated service",
+      "create project opens full editor",
+      "browser chunks and hashes media, import job finishes, fixed asset binds and inserts",
+      "composited frame artifact displays in browser",
+      "continuous MSE video decodes and media clock advances",
+      "split at playhead commits two clips",
+      "server selective undo and redo preserve edit history",
+      "subtitle import uses shared service and appears on the timeline",
+      "browser reload retains project and background export",
+      "render preflight and durable export complete with downloadable artifact",
+      "streamed browser download independently contains four seconds of video and audio",
+      "independently decoded PCM retains the synthetic reference tone",
+      "authorized original source preview opens",
+      "authorized source thumbnail appears in the media library",
+      "duplicate shortcut and timeline undo commit through the shared application",
+      "Classic curve editor writes the chosen easing to the fixed project snapshot",
+      "property keyframe update preserves the existing curve anchor",
+      "canvas drag commits shape position in canvas coordinates",
+      "imported audio displays waveform measured by the native analysis job",
+      "project library rename persists through the shared revision and reopens",
+      "non-main scene preview independently renders a white center and black corner after reload",
+      "scenes create, rename, refresh selection, batch delete and exact content undo/redo preserve the main scene",
+      "scene management uses Chinese and English labels and both themes",
+      "consecutive undo/redo restores exact documents after reload, undo works again after redo, and new edits invalidate redo",
+      "Chinese and English, light and dark themes switch live and survive reload without credential prompts",
+      "project duplicate preserves the full document, independently previews shared media and exports four seconds of video with the reference audio tone",
+      "project library batch duplicate, original numbered naming, search, sort, list layout, bilingual information and both themes persist correctly"
+    ],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "decodedAudio": {
+      "samples": 48000,
+      "rms": 0.08817349404558221,
+      "frequency": 439
+    },
+    "status": "passed",
+    "binary_sha256": "35388f75c8da968a8fb644106c854cdbb72746fb7f4def1b70f5bac4f0fcfa70",
+    "web_files": {
+      "assets/index-79W3JMSj.css": "9e731f2922fdc045fe3c68f75a253d4444aee264b189ca7c267ee86b79583d82",
+      "assets/index-Dw6SF8kH.js": "b556d80b40661d8ee58f21b39b8e8b85881e1506b324ba1f2e6e07847913b6af",
+      "assets/preview-CzerCX24.jpg": "b318cede7bbe27bfbf1b8b94d41f65b6f52d5f2650ce3a153d03b76c2a1c0190",
+      "favicon.ico": "ec3400f57e441cee3161a41e78adbff0fcf1a2876757970c9be951c70b2fc4c7",
+      "index.html": "2b5f4e89ea36636fb0600b1f48b124bcf0a728d59954876abbe240c5e0802ee7",
+      "manifest.json": "f4861620f9abaff5faa6e44cc0202c22b99bf54ea7ff2048afe99dd5bd472138",
+      "robots.txt": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2"
+    },
+    "workspace": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-hdkf8pfr",
+    "report": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-hdkf8pfr/browser-report.json",
+    "visual_review": "English light project list, list action menu and Chinese dark project information screenshots reviewed after animation completion"
+  },
+  "live": {
+    "backup": "/Users/vincent/.opencut/backups/before-project-library-20261007-021946",
+    "before": {
+      "schema": "24",
+      "projects": 1,
+      "media": 1,
+      "active_jobs": 0
+    },
+    "after": {
+      "schema": "25",
+      "projects": 1,
+      "media": 1,
+      "active_jobs": 0
+    },
+    "service": {
+      "database": "/Users/vincent/.opencut/workspace.sqlite",
+      "diagnostic": null,
+      "directory": "/Users/vincent/.opencut/server",
+      "endpoint": "http://127.0.0.1:8788",
+      "executable": "/Users/vincent/Desktop/OpenCut/target/release/opencut",
+      "instance": "03429aa5-15c1-4982-805e-8bfbd77a7069",
+      "log_file": "/Users/vincent/.opencut/server/server.log",
+      "pid": 18387,
+      "ready": true,
+      "started_at_unix_ms": 1791310787300,
+      "state": "running",
+      "token_file": "/Users/vincent/.opencut/server/api-token",
+      "version": 1,
+      "web_url": "http://127.0.0.1:8788/editor"
+    },
+    "http_web_hashes": "all matched",
+    "library_read": "passed",
+    "browser_smoke": "passed: existing project library and metadata; HttpOnly SameSite Strict session; no project mutations or page errors"
+  },
+  "review": {
+    "application": "Pure complete document copy and exact main-scene duration; shared application semantics used by host dispatch",
+    "storage": "Single IMMEDIATE batch with fixed source heads, independent first revisions, scoped immutable media bindings, typed project plugin grants, audit/outbox and one exact replay receipt; failure rolls back all copies",
+    "media": "Original import records are retained once, copies receive scoped references; copy-of-copy retains access without inheriting user credentials; export and decoded reference tone verified",
+    "compatibility": "Schema24 to25 is transactional and rejects migration collisions; all prior140 tool declarations preserved, generated declarations shared by Web/SDK",
+    "ui": "Classic numbered copy naming, sort, selection and information; rename dialog moved outside collapsible menu via portal; list menu position repaired; English light, Chinese dark and menu screenshots reviewed"
+  },
+  "preliminary_failures": [
+    {
+      "finding": "Curve save assertion exceeded five seconds during concurrent regression",
+      "resolution": "Persisted source checked correct; bounded 30-second polling; final release browser passed"
+    },
+    {
+      "finding": "Rename dialog was hidden when nested details lost focus",
+      "resolution": "Portal mounts rename dialog in document body; real rename/reopen flow passed"
+    }
+  ],
+  "remaining": [
+    "Project single/batch deletion and shared-media/job lifecycle",
+    "Project cover thumbnails, Shift range selection and persistent library view preferences",
+    "All missing Classic pages and feature groups in classic-parity-audit-2026-10-07.json",
+    "Cross-browser and large-project performance, signed cross-platform release"
+  ],
+  "test_logs": {
+    "store-tests": {
+      "path": "/tmp/opencut-library-store-tests.log",
+      "sha256": "93499993c6a9a757e6e9b6579c1a72e6d04dd94929da929ba9899bd90f6d668b"
+    },
+    "workspace-tests": {
+      "path": "/tmp/opencut-library-workspace-tests.log",
+      "sha256": "38c32b81e4233f439a5a3cdc2afd8b700d41fed1c2c1c15a0f1dd37037ede48e"
+    },
+    "clippy": {
+      "path": "/tmp/opencut-library-clippy.log",
+      "sha256": "1dde1f84858836be976933a4e3ac718927e281bf1c1abd46312b8cd5810b14d1"
+    },
+    "release": {
+      "path": "/tmp/opencut-library-release.log",
+      "sha256": "a8c02d189dd24ac20a662d0f024dd8fa4856927ec1b99ac33e00f565be5f2984"
+    },
+    "web-tests": {
+      "path": "/tmp/opencut-library-web-tests.log",
+      "sha256": "04291581f997238ce6fb93a6fdd3fc0bfda7220fd91d50302b30af7d03611dce"
+    },
+    "web-build": {
+      "path": "/tmp/opencut-library-web-build.log",
+      "sha256": "9a6962f2b75d3f10dce23e8139bbda44208ed0daf59697e5f88b1d213206fb10"
+    },
+    "sdk": {
+      "path": "/tmp/opencut-library-sdk.log",
+      "sha256": "1869eacdc290d3f3c0553c8c2aa98ec8112c26deb491309f2f216d58ff0902f4"
+    },
+    "wire": {
+      "path": "/tmp/opencut-library-wire.log",
+      "sha256": "2f131b56d92eb709d7463dd111d1eb1206b9cb8e76a0d5f58637e93ee7c3b228"
+    },
+    "contracts": {
+      "path": "/tmp/opencut-library-contracts.log",
+      "sha256": "ef19d0e7c3797dc1dc10b471d4c2ecc55251e51816ed37b36a28a300034fad92"
+    },
+    "fmt": {
+      "path": "/tmp/opencut-library-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "diff": {
+      "path": "/tmp/opencut-library-diff.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "browser-final": {
+      "path": "/tmp/opencut-library-browser-final.log",
+      "sha256": "25d60bb7679262f55a1e6fa60c4062e53ef55973bd83ba9fbf1fa8632535c933"
+    },
+    "live-upgrade": {
+      "path": "/tmp/opencut-library-live-upgrade.log",
+      "sha256": "ddf8fe7b60e080dcc5e3e6bc6c4971682166c6cc241d7b070e8e54a1b9b4f138"
+    }
+  },
+  "package": {
+    "status": "packaged_not_yet_accepted",
+    "archive": "/Users/vincent/Desktop/OpenCut/dist/local/opencut-0.1.0-dev-010dedd8117e-x86_64-apple-darwin.tar.gz",
+    "sha256": "d62490bc0d78109377f646bcac77a3d8b8562d8c2fe8b0a2d1b08c702f324f53",
+    "binary_sha256": "35388f75c8da968a8fb644106c854cdbb72746fb7f4def1b70f5bac4f0fcfa70",
+    "target": "x86_64-apple-darwin",
+    "manifest_entries_verified": 27,
+    "manifest_sha256": "010dedd8117e7a963a6c182d74cc04ead01a6b8830e618412115c54ad756c948",
+    "verified_web_and_binary_match_browser": true,
+    "acceptance_scope": "Extracted manifest and tested Web/binary bytes; complete package release suite not run in this increment"
+  },
+  "screenshots": {
+    "project-library-en-light.png": {
+      "path": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-hdkf8pfr/project-library-en-light.png",
+      "sha256": "aaa900c64f1b2189b9e7cce2c8a4f3333e7f39b0884d32f3a9194f3c23f74d96"
+    },
+    "project-library-menu-en-light.png": {
+      "path": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-hdkf8pfr/project-library-menu-en-light.png",
+      "sha256": "f80218294e85c7e5db35c9c8aa6b6e614da6d8475a78c826a548a726b63c6442"
+    },
+    "project-library-zh-dark.png": {
+      "path": "/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-hdkf8pfr/project-library-zh-dark.png",
+      "sha256": "0884e231afa3f7bbf3dc87cab797c36b2d8d90465ec30d37839a1a53ef5c78fb"
+    }
+  }
+}

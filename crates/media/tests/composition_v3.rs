@@ -179,6 +179,15 @@ fn desaturation_keeps_transparent_area_black() {
 
 #[test]
 fn source_handle_crossfade_renders_red_blue_mix() {
+    check_source_handle_crossfade(false);
+}
+
+#[test]
+fn color_adjust_preserves_crossfade_alpha() {
+    check_source_handle_crossfade(true);
+}
+
+fn check_source_handle_crossfade(graded: bool) {
     let Some(backend) = FfmpegBackend::discover().ok() else {
         return;
     };
@@ -272,6 +281,18 @@ fn source_handle_crossfade_renders_red_blue_mix() {
         duration: seconds(3, 5),
         transition: TransitionV3::Crossfade,
     });
+    if graded {
+        for target in ["out", "in"] {
+            graph.visual.effects.push(EffectNodeV3 {
+                target_id: target.into(),
+                effect: VisualEffectV3::ColorAdjust {
+                    exposure_ev: 0.0,
+                    contrast: 1.025,
+                    saturation: 1.025,
+                },
+            });
+        }
+    }
     for (step, red_dominant, blue_dominant) in
         [(8, true, false), (10, false, false), (12, false, true)]
     {
@@ -327,13 +348,19 @@ fn source_handle_crossfade_renders_red_blue_mix() {
     assert!(bytes.windows(4).any(|chunk| chunk == b"moof"));
     let stream_path = dir.path().join("stream.mp4");
     std::fs::write(&stream_path, bytes).unwrap();
-    for (name, input) in [
-        ("range", &range.timeline.base.output),
-        ("stream", &stream_path),
+    let mut full = graph.clone();
+    full.base.output = dir.path().join("full.mp4");
+    backend
+        .render_timeline_v3(&full, &CancellationToken::new(), &mut |_| {})
+        .unwrap();
+    for (name, input, seek) in [
+        ("range", &range.timeline.base.output, "0.5"),
+        ("stream", &stream_path, "0.5"),
+        ("full", &full.base.output, "1.0"),
     ] {
         let output = dir.path().join(format!("{name}-middle.png"));
         let status = std::process::Command::new(ffmpeg)
-            .args(["-v", "error", "-ss", "0.5", "-i"])
+            .args(["-v", "error", "-ss", seek, "-i"])
             .arg(input)
             .args(["-frames:v", "1", "-y"])
             .arg(&output)
@@ -343,6 +370,36 @@ fn source_handle_crossfade_renders_red_blue_mix() {
         let pixel = image::open(output).unwrap().to_rgb8().get_pixel(80, 45).0;
         assert!(pixel[0] > 25 && pixel[2] > 25, "{name} middle={pixel:?}");
     }
+    // Source handles extend the visible range, not the clip-local animation
+    // clock. At sequence 1.3 the incoming curve is 0.3 seconds into the clip.
+    graph.base.video_clips[1]
+        .curves
+        .opacity
+        .segments
+        .push(EvaluatedSegment {
+            start: seconds(0, 1),
+            end: seconds(1, 1),
+            start_value: 0.25,
+            end_value: 0.75,
+            cubic_bezier: None,
+        });
+    graph.base.output = dir.path().join("transition-animation-clock.png");
+    backend
+        .render_timeline_frame_v3(
+            &TimelineFrameRenderRequestV3 {
+                timeline: graph.clone(),
+                sequence_time: seconds(13, 10),
+            },
+            &CancellationToken::new(),
+            &mut |_| {},
+        )
+        .unwrap();
+    let pixel = image::open(&graph.base.output)
+        .unwrap()
+        .to_rgb8()
+        .get_pixel(80, 45)
+        .0;
+    assert!((i16::from(pixel[2]) - 102).abs() <= 10, "curve={pixel:?}");
 }
 
 #[test]
@@ -451,4 +508,225 @@ fn overlapping_adjacent_crossfades_keep_all_three_real_sources() {
         pixel[0] > 12 && pixel[1] > 40 && pixel[2] > 12,
         "triple mix={pixel:?}"
     );
+}
+
+#[test]
+fn identity_alpha_paths_and_half_open_interval_preserve_real_pixels() {
+    let backend = FfmpegBackend::discover().expect("FFmpeg required for media acceptance");
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("alpha.png");
+    let mut picture = image::RgbaImage::new(80, 40);
+    for (x, y, pixel) in picture.enumerate_pixels_mut() {
+        *pixel = image::Rgba([
+            220,
+            (x * 2) as u8,
+            (y * 4) as u8,
+            if x < 40 { 255 } else { 128 },
+        ]);
+    }
+    picture.save(&input).unwrap();
+    let mut graph = request(dir.path().join("identity.png"));
+    graph.base.duration = seconds(3, 1);
+    graph.base.image_clips = vec![TimelineImageClip {
+        input,
+        timeline_start: seconds(1, 2),
+        timeline_duration: seconds(1, 1),
+        stream: None,
+        opacity: 0.5,
+        position_x: 0.0,
+        position_y: 0.0,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        rotation_degrees: 0.0,
+        z_index: 0,
+        curves: Default::default(),
+    }];
+    graph.visual.targets = vec![VisualTargetBindingV3 {
+        target_id: "image".into(),
+        kind: VisualTargetKindV3::ImageClip,
+        index: 0,
+        z_index: 0,
+        layer_order: 0,
+    }];
+    graph.visual.shapes.clear();
+    graph.visual.effects.clear();
+    graph.visual.masks.clear();
+    let render = |graph: &TimelineExportRequestV3, time: MediaTime, name: &str| {
+        let mut graph = graph.clone();
+        graph.base.output = dir.path().join(name);
+        backend
+            .render_timeline_frame_v3(
+                &TimelineFrameRenderRequestV3 {
+                    timeline: graph.clone(),
+                    sequence_time: time,
+                },
+                &CancellationToken::new(),
+                &mut |_| {},
+            )
+            .unwrap();
+        image::open(&graph.base.output).unwrap().to_rgb8()
+    };
+    let static_frame = render(&graph, seconds(1, 1), "static.png");
+    // The animated path with a constant evaluated value must preserve the same
+    // source alpha and contain padding as the fast constant-alpha path.
+    graph.base.image_clips[0]
+        .curves
+        .opacity
+        .segments
+        .push(EvaluatedSegment {
+            start: seconds(0, 1),
+            end: seconds(1, 1),
+            start_value: 0.5,
+            end_value: 0.5,
+            cubic_bezier: None,
+        });
+    let animated_frame = render(&graph, seconds(1, 1), "animated.png");
+    for (index, (a, b)) in static_frame
+        .pixels()
+        .zip(animated_frame.pixels())
+        .enumerate()
+    {
+        for channel in 0..3 {
+            assert!(
+                (i16::from(a[channel]) - i16::from(b[channel])).abs() <= 2,
+                "pixel ({}, {}): static={a:?}, animated={b:?}",
+                index % 160,
+                index / 160
+            );
+        }
+    }
+    assert!(static_frame.get_pixel(35, 45)[0] > 70);
+    assert!(static_frame.get_pixel(125, 45)[0] < static_frame.get_pixel(35, 45)[0]);
+    let mut fading = graph.clone();
+    fading.base.image_clips[0].curves.opacity.segments[0].start_value = 0.0;
+    fading.base.image_clips[0].curves.opacity.segments[0].end_value = 1.0;
+    for (time, expected_red, name) in [
+        (seconds(7, 10), 44_i16, "fade-early.png"),
+        (seconds(13, 10), 176_i16, "fade-late.png"),
+    ] {
+        let frame = render(&fading, time, name);
+        assert!((i16::from(frame.get_pixel(35, 45)[0]) - expected_red).abs() <= 8);
+        assert!((i16::from(frame.get_pixel(125, 45)[0]) - expected_red / 2).abs() <= 8);
+    }
+    // Independent RGB expectations for source-over black, including the
+    // source image's half-alpha region. This also catches a mislabeled YUV
+    // output matrix instead of accepting matching tags alone.
+    for (x, expected) in [(35, [110_i16, 18, 40]), (125, [55_i16, 31, 20])] {
+        let actual = static_frame.get_pixel(x, 45);
+        for channel in 0..3 {
+            assert!(
+                (i16::from(actual[channel]) - expected[channel]).abs() <= 8,
+                "RGB composition at {x}: actual={actual:?}, expected={expected:?}"
+            );
+        }
+    }
+    assert!(
+        render(&graph, seconds(15, 10), "end.png")
+            .pixels()
+            .all(|p| p.0.iter().all(|v| *v < 10))
+    );
+    let mut ranged = graph.clone();
+    ranged.base.output = dir.path().join("boundary.mp4");
+    backend
+        .render_timeline_range_v3(
+            &TimelineRangeRenderRequestV3 {
+                timeline: ranged.clone(),
+                sequence_start: seconds(14, 10),
+                sequence_duration: seconds(3, 10),
+            },
+            &CancellationToken::new(),
+            &mut |_| {},
+        )
+        .unwrap();
+    let decoded = std::process::Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(ranged.base.output)
+        .args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    assert!(decoded.status.success());
+    let size = 160 * 90 * 3;
+    assert_eq!(decoded.stdout.len(), size * 3);
+    assert!(decoded.stdout[(45 * 160 + 35) * 3] > 60);
+    assert!(decoded.stdout[size..].iter().all(|v| *v < 10));
+    let probe = std::process::Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=color_space,color_transfer,color_primaries,color_range",
+            "-of",
+            "json",
+        ])
+        .arg(dir.path().join("boundary.mp4"))
+        .output()
+        .unwrap();
+    assert!(probe.status.success());
+    let probe: serde_json::Value = serde_json::from_slice(&probe.stdout).unwrap();
+    let stream = &probe["streams"][0];
+    assert_eq!(stream["color_space"], "bt709");
+    assert_eq!(stream["color_transfer"], "bt709");
+    assert_eq!(stream["color_primaries"], "bt709");
+    assert_eq!(stream["color_range"], "tv");
+}
+
+#[test]
+fn caption_still_input_keeps_subsecond_boundaries_and_sdr_metadata() {
+    let backend = FfmpegBackend::discover().expect("FFmpeg required for media acceptance");
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("caption.mp4");
+    let mut graph = request(output.clone());
+    graph.base.duration = seconds(2, 1);
+    graph.visual.targets.clear();
+    graph.visual.shapes.clear();
+    graph.visual.effects.clear();
+    graph.visual.masks.clear();
+    graph.base.captions = vec![TimelineCaption {
+        start: seconds(2, 10),
+        duration: seconds(12, 10),
+        text: "Boundary".into(),
+        font_family: "Arial".into(),
+        font_size: 22.0,
+        color: "#ffffff".into(),
+        background_color: None,
+        font_policy: FontResolutionPolicy::Strict {},
+        max_width: None,
+        line_height: None,
+        text_align: TextAlign::Center,
+    }];
+    backend
+        .render_timeline_v3(&graph, &CancellationToken::new(), &mut |_| {})
+        .unwrap();
+    let decoded = std::process::Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(&output)
+        .args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+        .output()
+        .unwrap();
+    assert!(decoded.status.success());
+    let size = 160 * 90 * 3;
+    assert_eq!(decoded.stdout.len(), size * 20);
+    for (index, frame) in decoded.stdout.chunks_exact(size).enumerate() {
+        let visible = frame.iter().filter(|value| **value > 180).count() > 20;
+        assert_eq!(visible, (2..14).contains(&index), "frame {index}");
+    }
+    let probe = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-show_streams", "-of", "json"])
+        .arg(output)
+        .output()
+        .unwrap();
+    assert!(probe.status.success());
+    let probe: serde_json::Value = serde_json::from_slice(&probe.stdout).unwrap();
+    let video = probe["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|stream| stream["codec_type"] == "video")
+        .unwrap();
+    for key in ["color_space", "color_transfer", "color_primaries"] {
+        assert_eq!(video[key], "bt709", "{key}");
+    }
+    assert_eq!(video["color_range"], "tv");
 }

@@ -7,6 +7,7 @@ pub mod project_package;
 pub mod project_package_v3;
 pub mod render;
 pub mod render_v3;
+pub mod reproducibility;
 pub mod uploads;
 
 pub mod storage;

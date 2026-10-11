@@ -84,11 +84,25 @@ pub(crate) fn build_filter(
         "{}/{}",
         timeline.video.frame_rate.numerator, timeline.video.frame_rate.denominator
     );
-    let mut chains = vec!["[0:v]format=yuv420p[base0]".to_string()];
+    // Keep absolute timestamps for layer animation and captions, but do not
+    // composite every preceding black frame when seeking into a sequence.
+    let window = if let Some(time) = frame_time {
+        format!("trim=start={:.9},", time.seconds())
+    } else if let Some((start, duration)) = range {
+        format!(
+            "trim=start={:.9}:duration={:.9},",
+            start.seconds(),
+            duration.seconds()
+        )
+    } else {
+        String::new()
+    };
+    let mut chains = vec![format!("[0:v]{window}format=yuv420p[base0]")];
     let mut base = "base0".to_string();
     let mut targets = visual.targets.iter().collect::<Vec<_>>();
     targets.sort_by_key(|target| (target.z_index, target.layer_order));
     for (layer, target) in targets.into_iter().enumerate() {
+        let layer_chain_start = chains.len();
         let label = format!("v3layer{layer}");
         let (start, duration) = match target.kind {
             VisualTargetKindV3::VideoClip | VisualTargetKindV3::ImageClip => {
@@ -173,7 +187,26 @@ pub(crate) fn build_filter(
                         None,
                     )
                 };
-                let local = format!("T-{start:.9}");
+                let identity_geometry = px == 0.0
+                    && py == 0.0
+                    && sx == 1.0
+                    && sy == 1.0
+                    && rotation == 0.0
+                    && curves.position_x.segments.is_empty()
+                    && curves.position_y.segments.is_empty()
+                    && curves.scale_x.segments.is_empty()
+                    && curves.scale_y.segments.is_empty()
+                    && curves.rotation_degrees.segments.is_empty();
+                let constant_opacity = curves.opacity.segments.is_empty() && fade.is_none();
+                let static_opacity = opacity;
+                // Transition handles expose extra source frames before a clip;
+                // they must not advance its local animation clock.
+                let curve_start = if target.kind == VisualTargetKindV3::VideoClip {
+                    timeline.video_clips[target.index].timeline_start.seconds()
+                } else {
+                    start
+                };
+                let local = format!("T-{curve_start:.9}");
                 let mut opacity = crate::backend::curve_expr(&curves.opacity, opacity, &local)?;
                 if let Some((fade_start, fade_duration)) = fade {
                     opacity =
@@ -195,7 +228,31 @@ pub(crate) fn build_filter(
                 let visible = format!(
                     "gt(({sx}),0)*gt(({sy}),0)*gte(({src_x}),0)*lt(({src_x}),W)*gte(({src_y}),0)*lt(({src_y}),H)"
                 );
-                chains.push(format!("[{input}:{stream}]{source},fps={fps},tpad=stop_mode=clone:stop_duration={duration:.9},scale={width}:{height}:force_original_aspect_ratio=decrease,format=rgba,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black@0,geq=r='r({src_x},{src_y})':g='g({src_x},{src_y})':b='b({src_x},{src_y})':a='alpha({src_x},{src_y})*({opacity})*({visible})'[{label}]"));
+                // An ordinary untransformed shot must not evaluate trigonometry
+                // and resample four channels at every pixel. Keep the general
+                // expression path for actual geometry animation.
+                let transform = if identity_geometry && constant_opacity {
+                    if static_opacity == 1.0 {
+                        ",format=gbrap".to_string()
+                    } else {
+                        format!(",format=gbrap,lut=a='val*{static_opacity:.12}'")
+                    }
+                } else if identity_geometry {
+                    // Opacity is spatially uniform. Preserve RGB directly and
+                    // evaluate only the alpha plane instead of resampling all
+                    // four channels through geq for every pixel of every frame.
+                    format!(
+                        ",format=gbrap,split[v3rgb{layer}][v3alpha{layer}];[v3alpha{layer}]alphaextract,geq=lum='lum(X,Y)*({opacity})'[v3opacity{layer}];[v3rgb{layer}][v3opacity{layer}]alphamerge"
+                    )
+                } else {
+                    format!(
+                        ",geq=r='r({src_x},{src_y})':g='g({src_x},{src_y})':b='b({src_x},{src_y})':a='alpha({src_x},{src_y})*({opacity})*({visible})'"
+                    )
+                };
+                // Padding fills short sources, but it must not run transforms
+                // and effects past this layer's actual (handle-expanded) end.
+                let end = start + duration;
+                chains.push(format!("[{input}:{stream}]{source},fps={fps},tpad=stop_mode=clone:stop_duration={duration:.9},trim=end={end:.9},scale={width}:{height}:force_original_aspect_ratio=decrease,format=rgba,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black@0{transform}[{label}]"));
                 (start, duration)
             }
             VisualTargetKindV3::Shape => {
@@ -232,6 +289,22 @@ pub(crate) fn build_filter(
                 (shape.start.seconds(), shape.duration.seconds())
             }
         };
+        // Frame and interval requests only composite layers that can contribute
+        // to that interval. Bounds include the real crossfade source handles
+        // computed above; layer timing stays on the absolute sequence clock.
+        let end = start + duration;
+        let outside_frame = frame_time.is_some_and(|time| {
+            let time = time.seconds();
+            time < start || time >= end
+        });
+        let outside_range = range.is_some_and(|(requested_start, requested_duration)| {
+            end <= requested_start.seconds()
+                || start >= requested_start.seconds() + requested_duration.seconds()
+        });
+        if outside_frame || outside_range {
+            chains.truncate(layer_chain_start);
+            continue;
+        }
         let mut current = label;
         for (index, effect) in visual
             .effects
@@ -348,7 +421,19 @@ pub(crate) fn build_filter(
         chains.push(format!("[{base}][{current}]overlay=x=0:y=0:eof_action=pass:enable='gte(t,{start:.9})*lt(t,{:.9})'[{next}]", start+duration));
         base = next;
     }
-    crate::backend::finish_timeline_filter(timeline, frame_time, range, chains, base)
+    // V3's RGB graphics and SDR media compositor has a defined delivery space.
+    // Convert the actual samples as well as carrying the frame metadata: merely
+    // tagging an unspecified YUV matrix as BT.709 changes decoded colors.
+    chains.push(format!(
+        "[{base}]format=gbrp,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709[v3sdr]"
+    ));
+    // The base is already on the requested frame. finish_timeline_filter's
+    // frame selection counts frames, whereas all upstream PTS remain absolute.
+    let selected_frame = frame_time.map(|_| MediaTime {
+        ticks: 0,
+        timebase: 1,
+    });
+    crate::backend::finish_timeline_filter(timeline, selected_frame, range, chains, "v3sdr".into())
 }
 
 fn validate(timeline: &TimelineExportRequest, graph: &CompiledVisualGraphV3) -> MediaResult<()> {

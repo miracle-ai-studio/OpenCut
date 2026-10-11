@@ -131,6 +131,10 @@ def verify(archive, mcp_sdk_root=None, component=None):
                          'native-child-write-contract.md', 'artifact-retention-contract.md']:
             assert (bundle / contract).is_file(), f'Missing packaged contract: {contract}'
         schema = json.loads(run([binary, '--json', 'system', 'schema']))['data']
+        editorial = json.loads(run(['python3', ROOT / 'scripts/verify-editorial.py', '--binary', binary,
+            '--agent-config-generator', bundle / 'agent-config.py', '--artifacts-dir', evidence / 'editorial']))
+        assert editorial['status'] == 'passed' and editorial['binary_sha256'] == manifest['binary_sha256']
+        checks.append('Delivered Agent configurations, managed Worker and three-entry editorial plans preserve exact history, pixels and PCM')
         assert schema == json.loads((bundle / 'contracts/tools.generated.json').read_text())
         domains = json.loads(run([binary, '--json', 'system', 'domains']))['data']
         assert manifest['operation_count'] == len(schema) and manifest['domain_count'] == len(domains)

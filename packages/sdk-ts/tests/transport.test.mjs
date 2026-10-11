@@ -67,6 +67,21 @@ test("upload owns its byte snapshot and sends raw content with a verified digest
   await assert.rejects(c.uploadChunk("upload_"+"a".repeat(32), "00", original),TypeError);
 });
 
+test("stream chunks preserve the byte snapshot and allow a deferred file digest", async () => {
+  const { createHash } = await import("node:crypto");
+  const bytes = Uint8Array.of(1, 2, 3);
+  const client = new OpenCutClient({baseUrl:"http://localhost",fetch:async (url, init) => {
+    assert.equal(new URL(url).pathname, "/v1/stream-uploads/upload_" + "a".repeat(32) + "/chunks/0");
+    assert.equal(new URL(url).searchParams.get("content_hash"), createHash("sha256").update(Uint8Array.of(1,2,3)).digest("hex"));
+    assert.deepEqual([...init.body], [1,2,3]);
+    return Response.json({api_version:"1",request_id:"r",warnings:[],error:null,
+      data:{content_hash:null,next_offset:"3",state:"receiving"}});
+  }});
+  const pending = client.uploadStreamChunk("upload_" + "a".repeat(32), "0", bytes);
+  bytes.fill(9);
+  assert.equal((await pending).content_hash, null);
+});
+
 test("project media URL stays scoped and raw reads preserve authorization errors", async () => {
   const id = "media_" + "a".repeat(32);
   const resource = { project_id: "team/project", media_id: id,
@@ -163,4 +178,18 @@ test("V3 render and speaker turns decode only explicit successful public extensi
     assert.throws(()=>publicJobResult({...job,extended_result:{...job.extended_result,schema_version:2}},kind),TypeError);
     assert.throws(()=>publicJobResult({...job,result_unavailable:{code:"INVALID_STORED_RESULT"}},kind),TypeError);
   }
+});
+
+test("long media chunks reach transport beyond 1 GiB and stop at 16 GiB", async () => {
+  let calls = 0;
+  const client = new OpenCutClient({baseUrl:"http://localhost",token:"",fetch:async(url, init) => {
+    calls++;
+    assert.equal(new URL(url).pathname.split("/").at(-1), "17179869181");
+    assert.equal(init.body.byteLength,3);
+    return new Response(JSON.stringify({api_version:"1",request_id:"large",warnings:[],error:null,data:{next_offset:"17179869184"}}));
+  }});
+  const id = "upload_"+"a".repeat(32);
+  assert.equal((await client.uploadChunk(id,"17179869181",Uint8Array.of(1,2,3))).next_offset,"17179869184");
+  await assert.rejects(client.uploadChunk(id,"17179869182",Uint8Array.of(1,2,3)),TypeError);
+  assert.equal(calls,1);
 });

@@ -44,10 +44,10 @@ def verify(binary, root, component):
             while b'\r\n\r\n' not in header: header+=s.recv(1)
             assert header.startswith(b'HTTP/1.1 200'),header
         return s
-    def live(category):
+    def live(category, minimum_bytes=1):
         deadline=time.monotonic()+15
         while True:
-            state=inspect();active=[r for r in state['reservations'] if r['category']==category and int(r['reserved_bytes'])>0]
+            state=inspect();active=[r for r in state['reservations'] if r['category']==category and int(r['reserved_bytes'])>=minimum_bytes]
             if active: return state,active
             assert time.monotonic()<deadline,state
             time.sleep(.02)
@@ -81,7 +81,9 @@ def verify(binary, root, component):
         start();wav=root/'tone.wav'
         with wave.open(str(wav),'wb') as w: w.setnchannels(1);w.setsampwidth(2);w.setframerate(8000);w.writeframes(b'\0\0'*800)
         data=wav.read_bytes();configure(0,'upload-deny');raw('POST','/v1/media/upload?name=tone.wav',data,'STORAGE_BUDGET_EXCEEDED');settled();assert not list((root/'media').glob('.upload-*'))
-        configure(1<<30,'upload-room');s=slow('/v1/media/upload?name=partial.wav','POST',data);state,active=live('media_upload');recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==0 and recovery['reserved_bytes']==state['reserved_bytes'];s.close();settled();assert not list((root/'media').glob('.upload-*'))
+        # Cross the batched disk-write boundary while leaving the HTTP body open.
+        partial = data + b'\0' * ((8 << 20) - len(data))
+        configure(1<<30,'upload-room');s=slow('/v1/media/upload?name=partial.wav','POST',partial);state,active=live('media_upload',len(partial));recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==0 and recovery['reserved_bytes']==state['reserved_bytes'];s.close();settled();assert not list((root/'media').glob('.upload-*'))
         uploaded=json.loads(raw('POST','/v1/media/upload?name=tone.wav',data))['data'];settled();content=hashlib.sha256(data).hexdigest();assert (root/'media'/content).read_bytes()==data
         checks.append('Global HTTP upload rejects before bytes are written; live chunked upload survives recovery and disconnect cleans file and reservation; valid WAV publishes exact bytes')
         metadata=root/'media'/f'{content}.json';metadata.write_text('{}');entry=call('opencut_media_inspect',{'content_hash':content});request={'content_hash':content,'expected_metadata_hash':entry['metadata_hash']}
@@ -117,7 +119,13 @@ def verify(binary, root, component):
         downloaded=raw('GET',path);settled();assert hashlib.sha256(downloaded).hexdigest()==ref['content_hash'];result=root/'download.png';result.write_bytes(downloaded)
         decoded=subprocess.check_output(['ffmpeg','-v','error','-i',str(result),'-f','rawvideo','-pix_fmt','rgb24','-'],timeout=45);assert decoded==pixels
         checks.append('Real 18 MiB PNG download refuses low capacity; anonymous copy retains exact reservation under backpressure, survives recovery, excludes a second download, releases on disconnect, and full download decodes to source pixels')
-        s=slow(path);live('artifact_download');host.kill();host.wait(timeout=15);host=None;s.close();pending=inspect();assert int(pending['reserved_bytes'])==size;recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==1 and recovery['reserved_bytes']=='0';assert int(recovery['observed_payload_bytes'])==used
+        s=slow(path);live('artifact_download');host.kill();host.wait(timeout=15);host=None;s.close();pending=inspect();assert int(pending['reserved_bytes'])==size
+        # A killed host can also leave its SQLite control reservation behind.
+        expected_recovered=len(pending['reservations'])+len(pending['control']['reservations'])
+        recovery=call('opencut_storage_budget_recover')
+        assert recovery['recovered_reservations']==expected_recovered and recovery['reserved_bytes']=='0'
+        assert recovery['reservations']==[] and recovery['control']['reservations']==[]
+        assert recovery['control']['reserved_control_bytes']=='0' and int(recovery['observed_payload_bytes'])==used
         start();assert hashlib.sha256(raw('GET',path)).hexdigest()==ref['content_hash'];settled()
         checks.append('SIGKILL during a live download leaves a recoverable reservation, no anonymous payload residue, unchanged published artifact and a successful download after restart')
         report={'status':'passed','binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'checks':checks,'evidence':str(root)};(root/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

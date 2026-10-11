@@ -11,9 +11,10 @@
     "./contracts": { "types": "./dist/contracts.generated.d.ts", "import": "./dist/contracts.generated.js" }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/build.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "contracts:generate": "node scripts/generate.mjs",
+    "boundaries:check": "node scripts/check-boundaries.mjs",
     "contracts:check": "node scripts/generate.mjs --check",
     "prepack": "npm run build"
   },

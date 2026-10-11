@@ -1,6 +1,6 @@
 //! MCP framing only; resource identity, projection and bounds live in Application.
-use opencut_automation::Automation;
 use opencut_editor_application::resources;
+use opencut_host_runtime::Automation;
 use rmcp::{ErrorData as McpError, RoleServer, model::*, service::Peer};
 use serde_json::{Value, json};
 use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};

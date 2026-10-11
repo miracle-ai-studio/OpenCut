@@ -170,13 +170,17 @@ def verify(binary,root,sdk):
    for item in http('opencut_project_media_query',{'project_id':'a','limit':100},runner)['media']:
     http('opencut_upload_release',{'upload_id':item['upload_id']},runner)
    assert http('opencut_upload_quota',{'project_id':'a'},reader)['project_reserved_bytes']=='0'
+   project_limit=int(cap['uploads']['staging']['project_reservation_limit_bytes'])
+   assert project_limit % 8 == 0
+   quota_unit=project_limit//8
+   assert 0 < quota_unit <= int(cap['uploads']['max_upload_bytes'])
    held=[]
    with sqlite3.connect(db) as c:c.execute("CREATE TRIGGER deny_staging_release BEFORE INSERT ON audit_records WHEN NEW.action='upload.staging_released' BEGIN SELECT RAISE(ABORT,'injected release failure'); END")
    try:
     for i in range(8):
-     value=http('opencut_upload_create',{'project_id':'a','name':'reservation','idempotency_key':f'quota-{i}','size_bytes':str(1073741824),'content_hash':'a'*64},runner);held.append(value)
+     value=http('opencut_upload_create',{'project_id':'a','name':'reservation','idempotency_key':f'quota-{i}','size_bytes':str(quota_unit),'content_hash':'a'*64},runner);held.append(value)
      http('opencut_upload_abort',{'upload_id':value['upload_id']},runner,'UPLOAD_CLEANUP_PENDING',500)
-    quota=http('opencut_upload_quota',{'project_id':'a'},reader);assert quota['project_reserved_bytes']==quota['project_limit_bytes']==str(8*1073741824)
+    quota=http('opencut_upload_quota',{'project_id':'a'},reader);assert quota['project_reserved_bytes']==quota['project_limit_bytes']==str(project_limit)
     http('opencut_upload_create',descriptor(b'x','over-quota'),runner,'UPLOAD_QUOTA_EXCEEDED',422)
     assert http('opencut_upload_retention',{'upload_id':held[0]['upload_id']},reader)['state']=='retained'
    finally:

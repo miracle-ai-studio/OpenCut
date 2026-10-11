@@ -4,6 +4,7 @@ use axum::{
     response::Response as HttpResponse,
 };
 use opencut_automation::{CallSource, Caller, Response, denials::*};
+use opencut_host_runtime::denials::record_at;
 use std::path::Path;
 pub(super) const REQUEST_HEADER: &str = "x-opencut-request-id";
 pub(super) const WARNING_HEADER: &str = "x-opencut-audit-warning";

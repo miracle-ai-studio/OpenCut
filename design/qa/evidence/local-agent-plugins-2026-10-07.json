@@ -1,0 +1,179 @@
+{
+  "date": "2026-10-07",
+  "scope": "Local external-agent plugin first step",
+  "status": "specified_local_flows_verified",
+  "whole_classic_migration_complete": false,
+  "binary_sha256": "be86a50b6e265692df6f463151e85df1a280c3dcde3a502c40a3621b8c83d7b8",
+  "source_head": "8c112728490e7c2a371d330d029141d70646a833",
+  "source_files": {
+    "scripts/distribution/agent-plugin.py": "36ede09e9db3b61ea222f4a592d4f5f32655162dac58c0f2ab5d3b370e5e2134",
+    "scripts/distribution/agent-plugin/SKILL.md": "df015ddb8208a6a98717262b1f552d0f13aa6728790449feb559f6f2cd5cb7b8",
+    "scripts/verify-agent-plugin.py": "a2a8def7639b338168cf3bd69b8b374191f359317e319a88069b2eb1de07842a",
+    "scripts/verify-agent-plugin-clients.py": "e38cebdbe5116a660892bce137456628904517d80ff61d6685811b933a9a188d",
+    "scripts/tests/test_agent_plugin.py": "d36d5ae293c783b29d886a4d0f011fd8a012562009b41cbb3cdd38b67a6ccb36",
+    "design/architecture/local-agent-plugins.md": "7b6aceae750f7414bc4b7b9309cca0556ed2578a10e476d1c09e7008463b4722"
+  },
+  "deliverable": "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/plugins",
+  "reports": {
+    "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/report.json": "c2bd6ebbad546e56d8de66acad6d30c765bfd33c38552d1fb3775ed7efa431f4",
+    "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/trace.json": "f8491e9c4fb4d1b866d0dc16fd0e5b5049ac1173476ba3c6f135b1d4c5bfab0a",
+    "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/plugins/manifest.json": "9b9f3384eb01ebab23a803fffa59ce03ebe79cba13bb26004a24fdc26dc16741",
+    "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/client-validation/report.json": "11efc03e79150ec1fb7b48f703214e6a4ef09bd7ca560651f0e38ecc06cbbcc2"
+  },
+  "tests": {
+    "python_scripts_tests": {
+      "passed": 26,
+      "new_plugin_tests": 3
+    },
+    "architecture": {
+      "status": "passed",
+      "modules": 22,
+      "temporary_exception_edges": 0
+    },
+    "contract_boundaries": "passed",
+    "python_syntax": "passed"
+  },
+  "mcp_acceptance": [
+    {
+      "adapter": "codex",
+      "checks": [
+        "MCP initialize, nine compact tools, capabilities and exact action schema resources",
+        "Project/media reads and managed import of two synthetic videos; originals deleted",
+        "Read-only plan, one atomic ripple edit, identical retry and stale-revision rejection",
+        "Rendered preview at 1.5 seconds is independently expected blue after deletion",
+        "Undo restores exact original document; redo restores intended final edit",
+        "Export job succeeds; actual H.264 MP4 decodes to three seconds and expected blue frame"
+      ],
+      "project_id": "codex-film",
+      "revision": "rev_d531240c4a854e02c2b0407e3884f4d19a19c7a94974bbe2cdd7f6c3bae4675d",
+      "preview": "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/codex/preview.png",
+      "preview_rgb": [
+        0,
+        0,
+        250
+      ],
+      "movie": "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/codex/export.mp4",
+      "movie_rgb": [
+        0,
+        0,
+        250
+      ],
+      "duration": 3.0,
+      "movie_sha256": "0568d8b74370d6d92f10b6a582703c2bad9ac392122885ec63963f1b9e85d9ef"
+    },
+    {
+      "adapter": "claude",
+      "checks": [
+        "MCP initialize, nine compact tools, capabilities and exact action schema resources",
+        "Project/media reads and managed import of two synthetic videos; originals deleted",
+        "Read-only plan, one atomic ripple edit, identical retry and stale-revision rejection",
+        "Rendered preview at 1.5 seconds is independently expected blue after deletion",
+        "Undo restores exact original document; redo restores intended final edit",
+        "Export job succeeds; actual H.264 MP4 decodes to three seconds and expected blue frame"
+      ],
+      "project_id": "claude-film",
+      "revision": "rev_6ada00cee1a433286079f75dc779e11f7c24908a1a3aeaa6ce72a9d653769cda",
+      "preview": "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/claude/preview.png",
+      "preview_rgb": [
+        0,
+        0,
+        250
+      ],
+      "movie": "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/claude/export.mp4",
+      "movie_rgb": [
+        0,
+        0,
+        250
+      ],
+      "duration": 3.0,
+      "movie_sha256": "0568d8b74370d6d92f10b6a582703c2bad9ac392122885ec63963f1b9e85d9ef"
+    }
+  ],
+  "native_clients": {
+    "status": "passed",
+    "codex_version": "codex-cli 0.157.1",
+    "claude_version": "2.1.251 (Claude Code)",
+    "codex": "Native local marketplace discovery and plugin manifest parsing",
+    "claude": "Native strict plugin and marketplace validation",
+    "limits": [
+      "Does not install into global clients or grant persistent tool permissions",
+      "Does not run an external agent conversation or desktop UI",
+      "MCP execution acceptance is recorded by verify-agent-plugin.py"
+    ],
+    "runs": [
+      {
+        "check": "codex-version",
+        "command": [
+          "codex",
+          "--version"
+        ],
+        "exit_code": 0
+      },
+      {
+        "check": "claude-version",
+        "command": [
+          "claude",
+          "--version"
+        ],
+        "exit_code": 0
+      },
+      {
+        "check": "codex-catalog",
+        "command": [
+          "codex",
+          "-c",
+          "marketplaces.opencut-local.source_type=\"local\"",
+          "-c",
+          "marketplaces.opencut-local.source=\"/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/plugins/codex\"",
+          "plugin",
+          "list",
+          "--available",
+          "--json",
+          "--marketplace",
+          "opencut-local"
+        ],
+        "exit_code": 0
+      },
+      {
+        "check": "claude-plugin",
+        "command": [
+          "claude",
+          "plugin",
+          "validate",
+          "--strict",
+          "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/plugins/claude/plugins/opencut"
+        ],
+        "exit_code": 0
+      },
+      {
+        "check": "claude-marketplace",
+        "command": [
+          "claude",
+          "plugin",
+          "validate",
+          "--strict",
+          "/Users/vincent/Documents/Codex/2026-10-01/task/opencut-local-plugin-verified/plugins/claude"
+        ],
+        "exit_code": 0
+      }
+    ]
+  },
+  "fixed_during_acceptance": [
+    "Timeline plan must submit its returned transaction through v3.apply; no timeline.apply action exists",
+    "Claude strict validation requires attribution/marketplace metadata to avoid warnings"
+  ],
+  "limitations": [
+    "Deterministic MCP harness, not an external model conversation",
+    "Synthetic silent video; no audio/ASR/full Classic parity acceptance",
+    "Separate client manifest validation recorded outside this report",
+    "Local owner on isolated database; no credentials or live service changes",
+    "Codex app-server startup hit local sandbox restrictions; native catalog discovery succeeded with command-scoped config overrides",
+    "No persistent plugin installation, desktop UI acceptance or model conversation was performed",
+    "Original 3061 source/document file hashes unchanged before ledger and README additions; existing dirty changes preserved"
+  ],
+  "official_sources": [
+    "https://developers.openai.com/plugins/build/plugins",
+    "https://code.claude.com/docs/en/plugins-reference",
+    "https://code.claude.com/docs/en/plugins"
+  ]
+}

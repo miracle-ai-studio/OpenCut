@@ -44,9 +44,68 @@ def archive(source, target):
                 tar.addfile(info, f)
 
 
+
+def copy_sdk_sources(source, destination):
+    """Ship Rust source, excluding local caches and editor residue."""
+    destination.mkdir(parents=True)
+    for path in sorted(source.iterdir()):
+        if path.name in {'.DS_Store', '__pycache__', 'target', 'node_modules'} or path.suffix in {'.pyc', '.bak', '.tmp', '.orig', '.rej'}:
+            continue
+        if path.is_symlink():
+            raise ValueError(f'Symlink in SDK source: {path}')
+        target = destination / path.name
+        if path.is_dir():
+            copy_sdk_sources(path, target)
+        elif path.suffix == '.rs':
+            shutil.copy2(path, target)
+        else:
+            raise ValueError(f'Unreviewed file in SDK source delivery: {path}')
+
+
+def validate_npm_files(files):
+    """Only public runtime modules, declarations and package metadata are delivered."""
+    expected = {'package.json', 'README.md', 'LICENSE'}
+    for item in files:
+        name = item['path']
+        if name in expected:
+            continue
+        path = Path(name)
+        if (len(path.parts) == 2 and path.parts[0] == 'dist'
+                and (path.name.endswith('.js') or path.name.endswith('.d.ts'))
+                and not any(marker in path.name for marker in ('.test.', '.spec.'))):
+            continue
+        raise ValueError(f'Unreviewed file in npm delivery: {name}')
+
+def copy_web_build(source, destination):
+    """Ship only public build assets; reject workspace data, maps and symlinks."""
+    if not (source / 'index.html').is_file():
+        raise ValueError('Web build is missing index.html')
+    allowed_root = {'index.html', 'favicon.ico', 'manifest.json', 'robots.txt'}
+    allowed_assets = {'.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.woff2'}
+    for file in sorted(source.rglob('*')):
+        relative = file.relative_to(source)
+        if file.is_symlink():
+            raise ValueError(f'Symlink in Web build: {relative}')
+        if file.is_dir():
+            continue
+        if str(relative) not in allowed_root and not (relative.parts[0] == 'assets' and file.suffix in allowed_assets):
+            raise ValueError(f'Unreviewed Web build file: {relative}')
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(file, target)
+
+
 def package(output, skip_build, supplied_binary=None):
+    # Build assets away from the directory a running service may be serving.
+    with tempfile.TemporaryDirectory(prefix='opencut-package-web-') as web_directory:
+        return package_with_web_root(output, skip_build, supplied_binary, Path(web_directory))
+
+
+def package_with_web_root(output, skip_build, supplied_binary, web_root):
     if not skip_build and supplied_binary is None:
         run(['cargo', 'build', '--locked', '--release', '-p', 'opencut-cli'])
+    run(['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], ROOT / 'apps/web')
+    run(['npm', 'run', 'build', '--', '--outDir', web_root], ROOT / 'apps/web')
     binary = supplied_binary or ROOT / 'target/release/opencut'
     assert binary.is_file(), 'Build the release CLI first'
     run(['node', ROOT / 'packages/sdk-ts/scripts/generate.mjs', '--check', '--skip-build', '--binary', binary])
@@ -68,7 +127,9 @@ def package(output, skip_build, supplied_binary=None):
         stage = Path(temporary)
         sdk_ts = ROOT / 'packages/sdk-ts'
         run(['npm', 'run', 'build'], sdk_ts)
-        packed = json.loads(run(['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', stage], sdk_ts))[0]['filename']
+        npm_package = json.loads(run(['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', stage], sdk_ts))[0]
+        validate_npm_files(npm_package['files'])
+        packed = npm_package['filename']
         rust = stage / 'opencut-rust-sdk'
         rust.mkdir()
         pure = ['contracts', 'media-contracts', 'job-contracts', 'api-contracts', 'sdk-rust']
@@ -80,7 +141,7 @@ def package(output, skip_build, supplied_binary=None):
                     shutil.copy2(source / filename, destination / filename)
             for folder in ['src', 'examples']:
                 if (source / folder).is_dir():
-                    shutil.copytree(source / folder, destination / folder)
+                    copy_sdk_sources(source / folder, destination / folder)
         (rust / 'Cargo.toml').write_text('[workspace]\nresolver="3"\nmembers=["crates/*"]\n[workspace.package]\n'+f'version="{version}"\nedition="2024"\nlicense="MIT"\n')
         shutil.copy2(ROOT / 'Cargo.lock', rust / 'Cargo.lock')
         shutil.copy2(ROOT / 'LICENSE', rust / 'LICENSE')
@@ -93,7 +154,9 @@ def package(output, skip_build, supplied_binary=None):
         (host / 'bin').mkdir(parents=True)
         shutil.copy2(binary, host / 'bin/opencut')
         shutil.copy2(ROOT / 'LICENSE', host / 'LICENSE')
+        copy_web_build(web_root, host / 'web')
         shutil.copy2(ROOT / 'scripts/distribution/doctor.py', host / 'doctor.py')
+        shutil.copy2(ROOT / 'scripts/distribution/agent-config.py', host / 'agent-config.py')
         shutil.copy2(ROOT / 'design/architecture/local-distribution.md', host / 'README.md')
         for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
                          'storage-governance-contract.md', 'cas-gc-contract.md',
@@ -123,7 +186,7 @@ def package(output, skip_build, supplied_binary=None):
         manifest = {'format': 'opencut.local-bundle.v1', 'version': version, 'maturity': 'development', 'target': target,
                     'api_version': '1', 'database_schema': database_schema, 'operation_count': len(tools),
                     'domain_count': len(domains), 'binary_sha256': sha(binary), 'files': files,
-                    'external_dependencies': ['ffmpeg', 'ffprobe'], 'scope': 'local CLI, HTTP, MCP and SDKs; full R0-R7 acceptance not complete'}
+                    'external_dependencies': ['ffmpeg', 'ffprobe'], 'scope': 'local Web, CLI, HTTP, MCP and SDKs; full R0-R7 acceptance not complete'}
         (host / 'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
         bundle_id = sha(host / 'manifest.json')[:12]
         destination = output / f'opencut-{version}-dev-{bundle_id}-{target}.tar.gz'

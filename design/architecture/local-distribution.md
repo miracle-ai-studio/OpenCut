@@ -1,8 +1,8 @@
 # OpenCut 本地开发交付包
 
-这是 CLI、HTTP、stdio/Streamable HTTP MCP 与独立 SDK 的本地开发包，不是 R0–R7 完整产品发布。网页、桌面客户端和其他平台二进制不在本包中。具体 CPU/OS 目标、版本和文件 SHA-256 见 `manifest.json`；不包含工程、素材、认证 token 或用户配置。
+这是包含 Web、CLI、HTTP、stdio/Streamable HTTP MCP 与独立 SDK 的本地开发包，不是 R0–R7 完整产品发布。桌面客户端和其他平台二进制不在本包中。具体 CPU/OS 目标、版本和文件 SHA-256 见 `manifest.json`；不包含工程、素材、认证 token 或用户配置。
 
-2026-09-23 当前打包入口从被测二进制读取实际数据库 schema、操作数和领域数写入清单；不再使用历史硬编码版本。默认 MCP 发现九个领域工具，61 个旧叶操作仍可调用。生成 OpenAPI 覆盖 75 条叶操作、领域及原始上传／下载／SSE 路径；后面各节说明数据面的恢复语义。当前恢复源码的包仍须以独立验收报告判定，打包成功本身不是放行。
+打包入口从被测二进制读取实际数据库格式、操作数和领域数写入清单。MCP 默认发现领域工具，具体动作通过领域契约查询，旧叶操作仍可调用。生成 OpenAPI 覆盖公共操作及原始上传／下载／SSE 路径。当前包须以匹配归档及程序哈希的独立验收报告判定，打包成功本身不是放行。
 
 ## 解包和启动
 
@@ -19,9 +19,52 @@ python3 doctor.py
   --listen 127.0.0.1:8788 --token-file /your/workspace/api-token
 ```
 
-`doctor.py` 需要 Python 3，用 JSON 报告本包文件校验、主程序能否执行以及 PATH 中的 FFmpeg/ffprobe；不会打开或修改 workspace。CLI 本身不依赖 Python。媒体操作需要 FFmpeg/ffprobe；字体由宿主提供，指定严格字体不存在时预检/任务会明确失败。检查通过不代表所有编码器、字体或功能可用。
+`doctor.py` 需要 Python 3，用 JSON 报告本包文件校验、主程序能否执行、PATH 中的 FFmpeg/ffprobe、基础合成所需滤镜及 H.264/AAC/PNG 编码器，并在临时目录实际编码和探测一段合成音视频；不会打开或修改 workspace。CLI 本身不依赖 Python。字体由宿主提供，指定严格字体不存在时预检/任务会明确失败。诊断通过只确认基础运行环境，其他编码器和具体工程仍须预检。
 
-`serve` 同时运行持久化 Worker。直接 CLI/MCP 接入时，可另开 `./bin/opencut --database /your/workspace/workspace.sqlite worker run`。CLI `--json` 输出一个结构化 envelope；stderr 留给诊断。MCP 入口是 `./bin/opencut --database /your/workspace/workspace.sqlite mcp serve`。新版入口协商 2025-11-25，支持 tools、resources/templates、prompts 与每连接最多 32 个资源订阅；资源通知用于重新读取，不是持久化日志。不要把 HTTP token 写进源码或 MCP 参数。
+随包包含 `web/` 静态编辑器，无需 Node 在目标机运行。可通过独立服务同源提供页面：
+
+```sh
+./bin/opencut --database /your/workspace/workspace.sqlite server start --web-root "$PWD/web"
+./bin/opencut --json server status
+```
+
+打开状态中的 `web_url`。Web 使用服务端同源 HttpOnly 会话，页面不要求填写服务地址或选择 token。Agent 的独立凭证继续由宿主管理。构建使用锁文件和临时 Web 输出目录，所有静态文件 hash 纳入包清单；打包会重新安装 Web 开发依赖，应在浏览器验收前完成。
+
+可在服务目录的 `config.json` 中配置监听、Web 目录和本地语音模型，再执行 `server start`。例如：
+
+```json
+{
+  "listen": "127.0.0.1:8788",
+  "web_root": "/path/to/opencut/web",
+  "transcription": {
+    "model": "/path/to/models/ggml-small.bin",
+    "executable": "/path/to/whisper-cli"
+  }
+}
+```
+
+`transcription` 可省略；自动字幕需要已安装的 whisper.cpp 和真实模型，模型不随包分发。模型相对路径从配置文件目录解析；执行程序可用绝对路径或 PATH 中的命令名。更改配置后停止再启动服务，相同配置重复启动保留同一实例。音频混合、识别和字幕生成在本机执行，页面不暴露模型或宿主路径。
+
+`serve` 同时运行持久化 Worker。本机 owner 的 stdio MCP 可用 `mcp serve --with-worker` 随连接托管 Worker，退出或断线后停止进程内 Worker，未完成任务按既有租约规则恢复，不代表取消任务。需要独立调度时，可另开 `./bin/opencut --database /your/workspace/workspace.sqlite worker run`。受限凭证不能启动 Worker，必须由 owner 单独运行。CLI `--json` 输出一个结构化 envelope；stderr 留给诊断。MCP 支持 tools、resources/templates、prompts 与每连接最多 32 个资源订阅；资源通知用于重新读取，不是持久化日志。不要把 HTTP token 写进源码或 MCP 参数。
+
+## 接入外部 Agent
+
+在解包目录运行以下命令，输出目录必须不存在：
+
+```sh
+python3 agent-config.py --database /your/workspace/workspace.sqlite \
+  --output /your/configs/opencut
+```
+
+生成 `codex.toml`、`claude.mcp.json` 和单服务器描述 `mcp-server.json`，均使用绝对路径。工具不会修改已有 Agent 配置，也不会打开数据库。按 [Codex 配置说明](https://learn.chatgpt.com/docs/config-file/config-reference) 将 TOML 条目合入目标配置；按 [Claude Code MCP 说明](https://code.claude.com/docs/en/mcp) 将 `mcpServers` 条目合入项目 `.mcp.json`，或通过 `mcp add-json` 注册单服务器对象。不要覆盖包含其他服务器的配置文件。其他支持 stdio MCP 的宿主按自身格式使用相同 command/args。
+
+默认配置使用当前本机 owner，带 `--with-worker`。提供 `--credential-file /absolute/path/credential` 可生成受限配置，只引用凭证文件路径，不读取或嵌入 secret；此模式由 owner 另开 Worker。移动解包目录后应重新生成配置。生成器不安装模型、不提供内部 Agent，也不替外部 Agent 决定编辑内容。
+
+## 联动时间线编辑
+
+调用 `opencut_edit_timeline_plan`，或领域工具 `opencut_edit` 的 `timeline.plan`，提供工程、序列、精确修订、幂等键和命令，先得到可审阅的 `transaction`、增删改 ID 及后果说明。支持 `ripple_delete`、`insert_gap`、`slip`、`roll`、`slide`、`move_group`、`reorder_tracks`。将 transaction 原样交给 `opencut_edit_v3_apply` 完成一次原子提交；选择性撤销和重做复用原有工具。
+
+Ripple/gap 联动视频、音频、字幕和图形，剪开片段时保留现有关键帧、效果与蒙版。受影响转场重连到存活片段；不再邻接的转场会在 notes 中明确列出。锁定轨、超出源素材、同轨冲突和超过 128 个底层操作会拒绝整个计划，不会部分写入。`move_group` 是显式选择的一次移动，尚不表示持久同步组；roll/slide 对已有常速素材生效，不表示速度曲线或新增转场、蒙版种类。
 
 若预算门槛设置过高导致 SQLite 的 WAL／SHM 无法重建，本机 workspace owner 可运行 `./bin/opencut --database /your/workspace/workspace.sqlite --json storage recovery inspect`，再用 `storage recovery configure --input policy.json` 按当前 expected revision 和稳定幂等键恢复策略。此路径直接读取原生账本，不打开数据库；带 `--credential-file` 的调用被拒绝。策略变更有账本回执，但数据库不可用时没有 SQLite 审计记录。若卷真的填满，应先停掉所有管理型 Host／Worker，检查 `inspect.control.repair` 为 ready，再用 `storage recovery enter --input enter.json` 释放实际分配的 8 MiB 预留；此时只可用 `storage recovery cancel <job_id>` 和 `storage recovery release <upload_id>` 执行有界修复。外部容量恢复后用 `storage recovery exit --input exit.json` 补足预留，才能恢复普通写入。`enter.json`／`exit.json` 都携带当前 repair revision 的 `expected_revision` 和稳定 `idempotency_key`，重复执行沿用原键。进入／退出要求没有打开的管理型数据库连接；完整条件见包内 `database-control-admission.md`。
 
@@ -51,13 +94,13 @@ policy 例：`{"principal_id":"reader","expected_revision":"0","enabled":true,"g
 
 ## 项目素材上传与导入
 
-先调用 `opencut_upload_create`，提交 `project_id`、显示名称、整文件小写 SHA-256 `content_hash`、十进制字符串 `size_bytes` 和幂等键。创建会话不会改变工程 head。按 `capabilities.uploads` 给出的路径顺序发送原始分块：`PUT /v1/uploads/{upload_id}/chunks/{offset}?size_bytes=...&content_hash=...`，请求体是字节流，Bearer 身份需要项目 `read`、`edit`、`run_jobs` 权限。当前单文件上限 1 GiB、单块 4 MiB、最多 4096 块；实际并发数与接收超时以运行中宿主的 capabilities 为准。传输中撤权不会确认未完成分块；响应结果不明时先 `opencut_upload_inspect` 读取 `next_offset`，再重试相同未确认分块。
+先调用 `opencut_upload_create`，提交 `project_id`、显示名称、整文件小写 SHA-256 `content_hash`、十进制字符串 `size_bytes` 和幂等键。创建会话不会改变工程 head。按 `capabilities.uploads` 给出的路径顺序发送原始分块：`PUT /v1/uploads/{upload_id}/chunks/{offset}?size_bytes=...&content_hash=...`，请求体是字节流，Bearer 身份需要项目 `read`、`edit`、`run_jobs` 权限。当前单文件上限 16 GiB、单块 4 MiB、最多 4096 块；实际并发数与接收超时以运行中宿主的 capabilities 为准。传输中撤权不会确认未完成分块；响应结果不明时先 `opencut_upload_inspect` 读取 `next_offset`，再重试相同未确认分块。
 
 本地 CLI 使用 `upload put <upload_id> --offset <十进制偏移> --input <本地文件或 ->`。路径只由本地 CLI 读取，不进入服务端编辑请求。MCP 提供创建、查询、封存等控制工具；大字节数据通过 HTTP 或本地 CLI 传输，不能塞入 JSON base64。TypeScript SDK 的 `uploadChunk` 和 Rust SDK 的 `upload_chunk` 会计算分块摘要并发送认证请求。
 
 完整会话由 `opencut_upload_seal` 接受为 `media.import` 持久 Job。成功后的公开 JobView 在 `extended_result` 中返回 schema 版本 1 的导入结果；TypeScript `publicJobResult` 和 Rust `extended_job_result` 可按类型读取。结果中的 `media_id` 只可在所属项目绑定，导入本身不修改时间线。`opencut_project_media_inspect`／`opencut_project_media_query` 用于有项目读取权的后续发现。
 
-授权客户端用 `GET /v1/projects/{project}/media/{media_id}/content` 读取导入素材字节；服务端先按当前项目 `read` 权限解析资源，再从固定 CAS 版本打开并校验完整 SHA-256／长度，然后返回检测到的 MIME 和长度。读取中策略变更按持续响应规则复核。`media_id` 与资源 URI 不授予全局媒体目录访问权；旧 `/v1/media/{hash}` 仍是 owner-only 兼容接口。TypeScript SDK 提供 `downloadProjectMedia`，Rust SDK 提供 `project_media_url`。当前 Web 的原生素材播放器会把授权响应读入浏览器 Blob；长素材的流式播放与内存边界仍需 R4/R7 单独验收。
+授权客户端用 `GET /v1/projects/{project}/media/{media_id}/content` 读取导入素材字节；服务端先按当前项目 `read` 权限解析资源，再从固定 CAS 版本打开并校验完整 SHA-256／长度，然后返回检测到的 MIME 和长度。读取中策略变更按持续响应规则复核。`media_id` 与资源 URI 不授予全局媒体目录访问权；旧 `/v1/media/{hash}` 仍是 owner-only 兼容接口。TypeScript SDK 提供 `downloadProjectMedia`，Rust SDK 提供 `project_media_url`。当前 Web 原始素材预览通过授权字节 Range 流式读取；合成预览使用 MSE 流与有界缓冲。长素材持续播放及跨浏览器内存边界仍需 R4/R7 单独验收。
 
 `abort` 仅处理仍在接收的会话；`UPLOAD_CLEANUP_PENDING` 表示状态已提交但私有字节尚未清完，应重试 abort。封存后的任务通过 Job 取消。终态上传暂存的保留和释放使用独立工具；完整物理配额与自动回收仍未完成。备份整个 workspace 时必须包含 `uploads` 目录。
 

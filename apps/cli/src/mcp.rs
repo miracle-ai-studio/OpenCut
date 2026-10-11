@@ -3,7 +3,8 @@ use std::{
     sync::Arc,
 };
 
-use opencut_automation::{Automation, domains, tool_spec, tool_specs};
+use opencut_automation::{domains, tool_spec, tool_specs};
+use opencut_host_runtime::Automation;
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
     model::{
@@ -64,7 +65,7 @@ impl EditorMcp {
         let source = self.source;
         let checked = caller.clone();
         tokio::task::spawn_blocking(move|| {
-            let mut app=opencut_sqlite_store::EditorApplication::open_managed(database.as_ref()).map_err(|_|McpError::internal_error("Identity check unavailable",None))?;
+            let mut app=opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref()).map_err(|_|McpError::internal_error("Identity check unavailable",None))?;
             app.set_caller(checked.clone());
             if let Err(error)=app.access_view() {
                 let response=opencut_automation::denials::observe_response(&app,Some(&checked),source,opencut_automation::denials::DeniedOperation::McpRequest,opencut_automation::denials::DenialReason::AuthorizationDenied,opencut_automation::response(Err(error)));
@@ -284,7 +285,11 @@ pub async fn serve(
     database: &Path,
     caller: opencut_automation::Caller,
     tool_surface: ToolSurface,
+    with_worker: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if with_worker && !caller.is_owner() {
+        return Err(opencut_editor_application::access::denied().into());
+    }
     drop(Automation::open(database)?);
     let handler = EditorMcp::new(
         Arc::new(database.to_path_buf()),
@@ -300,12 +305,38 @@ pub async fn serve(
         disconnected: disconnected.clone(),
     };
     let server = handler.serve((input, output)).await?;
-    tokio::select! {
-        result=server.waiting()=>{result?;},
-        _=disconnected.cancelled()=>{},
-    }
+    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut worker = with_worker.then(|| {
+        let worker_database = database.to_path_buf();
+        let worker_stop = stop.clone();
+        tokio::task::spawn_blocking(move || {
+            opencut_host_runtime::worker::run(&worker_database, false, worker_stop)
+        })
+    });
+    let mut worker_finished = false;
+    let result: Result<(), Box<dyn std::error::Error>> = tokio::select! {
+        result=server.waiting()=>result.map(|_| ()).map_err(Into::into),
+        _=disconnected.cancelled()=>Ok(()),
+        _=crate::signals::termination()=>Ok(()),
+        result=async {
+            match worker.as_mut() {
+                Some(task) => task.await.map_err(|error| -> Box<dyn std::error::Error> {error.into()})?
+                    .map_err(|error| -> Box<dyn std::error::Error> {error.into()}),
+                None => std::future::pending::<Result<(), Box<dyn std::error::Error>>>().await,
+            }
+        } => {
+            worker_finished = true;
+            result.and_then(|_| Err("Managed Worker stopped unexpectedly".into()))
+        },
+    };
+    // Disconnect is a host stop, never a durable job cancellation. The scheduler
+    // fences unfinished attempts and a later Worker recovers their leases.
+    stop.store(true, std::sync::atomic::Ordering::SeqCst);
     subscriptions.shutdown().await;
-    Ok(())
+    if !worker_finished && let Some(worker) = worker {
+        worker.await??;
+    }
+    result
 }
 
 // EOF must be observable independently of the SDK flushing its writer during

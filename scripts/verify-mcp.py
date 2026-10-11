@@ -44,7 +44,25 @@ def assert_job_kind_schemas(capabilities):
         "artifact.verify": ({"input"}, {"passed", "checks", "metadata", "decoded_samples"}),
         "media.import": ({"upload_id"}, {"media_id", "project_id", "upload_id", "job_id", "asset"}),
     }
-    assert {item["name"] for item in descriptors} == set(expected), descriptors
+    analysis_input = {"idempotency_key", "project_id", "revision", "asset_id"}
+    analysis_result = {"project_id", "revision", "asset_id", "asset_version"}
+    expected["analysis.transcribe"] = (analysis_input, analysis_result | {"transcription"})
+    for kind, options in {
+        "silence": {"noise_db", "min_duration_ms"}, "shots": {"threshold"},
+        "waveform": {"buckets"}, "speaker_turns": {"language"},
+    }.items():
+        expected["analysis." + kind] = (analysis_input | options, analysis_result | {"analysis"})
+    for v3, legacy in {
+        "render.project.v3": "render.project",
+        "preview.project_frame.v3": "preview.composited_frame",
+        "preview.project_range.v3": "preview.project_range",
+    }.items():
+        inputs, outputs = expected[legacy]
+        expected[v3] = (inputs | {"idempotency_key"}, outputs)
+    actual_names = {item["name"] for item in descriptors}
+    assert len(actual_names) == len(descriptors), "Duplicate Job descriptors"
+    assert actual_names == set(expected), {"missing": sorted(set(expected) - actual_names),
+                                            "unexpected": sorted(actual_names - set(expected))}
 
     def dereference(schema, node):
         while "$ref" in node:

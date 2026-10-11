@@ -183,6 +183,23 @@ impl Client {
         offset: u64,
         bytes: &[u8],
     ) -> Result<api::uploads::UploadView, Error> {
+        self.put_upload_chunk("uploads", upload_id, offset, bytes)
+    }
+    pub fn upload_stream_chunk(
+        &self,
+        upload_id: &str,
+        offset: u64,
+        bytes: &[u8],
+    ) -> Result<api::stream_uploads::StreamUploadView, Error> {
+        self.put_upload_chunk("stream-uploads", upload_id, offset, bytes)
+    }
+    fn put_upload_chunk<T: serde::de::DeserializeOwned>(
+        &self,
+        route: &str,
+        upload_id: &str,
+        offset: u64,
+        bytes: &[u8],
+    ) -> Result<T, Error> {
         let valid_id = upload_id.strip_prefix("upload_").is_some_and(|v| {
             v.len() == 32
                 && v.bytes()
@@ -190,10 +207,10 @@ impl Client {
         });
         if !valid_id
             || bytes.is_empty()
-            || bytes.len() > 4_194_304
+            || bytes.len() as u64 > api::uploads::MAX_CHUNK_BYTES
             || offset
                 .checked_add(bytes.len() as u64)
-                .is_none_or(|end| end > 1_073_741_824)
+                .is_none_or(|end| end > api::uploads::MAX_UPLOAD_BYTES)
         {
             return Err(Error::Configuration(
                 "Invalid upload identity or chunk range".into(),
@@ -203,7 +220,7 @@ impl Client {
         let mut response = self
             .agent
             .put(format!(
-                "{}/v1/uploads/{upload_id}/chunks/{offset}?size_bytes={}&content_hash={hash}",
+                "{}/v1/{route}/{upload_id}/chunks/{offset}?size_bytes={}&content_hash={hash}",
                 self.base_url,
                 bytes.len()
             ))
@@ -223,11 +240,7 @@ impl Client {
             .limit(self.options.max_response_bytes)
             .read_to_vec()
             .map_err(|e| Error::Transport(Box::new(e)))?;
-        Ok(with_audit_warning(
-            decode_response::<api::uploads::UploadView>(status, &body),
-            audit_warning,
-        )?
-        .data)
+        Ok(with_audit_warning(decode_response::<T>(status, &body), audit_warning)?.data)
     }
     fn call_with_timeout<T: Tool>(
         &self,

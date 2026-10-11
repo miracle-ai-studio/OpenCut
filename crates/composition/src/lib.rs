@@ -1,5 +1,6 @@
 //! Pure fixed-revision composition compiler. No files, codecs, processes or database.
 mod compiler;
+pub mod coverage_v3;
 pub mod project_v3;
 mod selection;
 pub use compiler::compile;
@@ -53,3 +54,5 @@ impl std::fmt::Display for CompositionError {
     }
 }
 impl std::error::Error for CompositionError {}
+
+pub mod semantic_coverage;

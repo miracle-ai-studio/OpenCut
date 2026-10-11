@@ -6,6 +6,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct PreparedSequenceTranscribe {
+    pub snapshot: ProjectSnapshotV3,
+    pub sequence_id: String,
+    pub language: Option<String>,
+    pub asset_lock: AssetLockManifest,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PreparedV3Render {
     pub snapshot: ProjectSnapshotV3,
     pub sequence_id: String,

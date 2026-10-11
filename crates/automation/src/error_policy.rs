@@ -50,6 +50,8 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "UPLOAD_STATE_CONFLICT"
         | "UPLOAD_OFFSET_CONFLICT"
         | "UPLOAD_CHUNK_CONFLICT"
+        | "UPLOAD_HASH_CONFLICT"
+        | "UPLOAD_HASH_REQUIRED"
         | "UPLOAD_INCOMPLETE"
         | "JOB_LEASE_LOST" => (409, 5),
         "MEDIA_OUTPUT_LIMIT_EXCEEDED"

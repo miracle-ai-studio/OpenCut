@@ -1,0 +1,449 @@
+{
+  "status": "passed",
+  "scope": "Delivery cleanup and local macOS x86_64 development package acceptance; not whole-product or formal-release completion",
+  "recorded_at": "2026-09-27T11:26:59.535975+00:00",
+  "changes": [
+    {
+      "path": ".github/copilot-instructions.md",
+      "before_sha256": "da5a04c80dea8e6423d7cb86fdf87ebe304b3bf82387b5bd8651085fc3864df3",
+      "after_sha256": "a23fb183c1947d9d8bae21312a79dea4427d97e4426768d9a7a7cf3c3a13604b"
+    },
+    {
+      "path": ".github/workflows/architecture.yml",
+      "before_sha256": "5e3f0c4557a63b498c637a3a38a1bfd136e6cbb29c765eaf53b371c291943ff9",
+      "after_sha256": "cba16ddd2b2b503d4add83b2f21a1fab2fe26b333e517b812262cf1065eb8fa5"
+    },
+    {
+      "path": "README.md",
+      "before_sha256": "46591a45b1c964f89e0608feeaebc9e0a506aa5ff6dcc39ef4b75466dc00d6da",
+      "after_sha256": "8d5eb6ff16ad16629b95500c32a4bb913136ab54b6cf1707deeffc31bfc05433"
+    },
+    {
+      "path": "crates/automation/src/denials.rs",
+      "before_sha256": "86ca94ad2f470cea784432204a3f731386219c112ac4f8ae74036bd7690b90a2",
+      "after_sha256": "4c40072b347b7992e499da7ac44f19b17b102f915957db4ddc415eaa4aa5db23"
+    },
+    {
+      "path": "crates/host-runtime/Cargo.toml",
+      "before_sha256": "c37d46cff979437c22a792cf54f6dca35f2a53037494989dd7de33ef829e3f7b",
+      "after_sha256": "a0533426be06c0e2b97331a655df3fcee03c8ea595d7b13be96a4805e8971706"
+    },
+    {
+      "path": "crates/host-runtime/src/denials.rs",
+      "before_sha256": "8ee4469e7d400b148a36c02ab851098e19da0e7cd5253a108fa63269b57498be",
+      "after_sha256": "5a3790a57b6128df9f0af7f3988264f87cd441cc35b0227c8e0e2142b87e67c7"
+    },
+    {
+      "path": "crates/host-runtime/src/lib.rs",
+      "before_sha256": "0e88e40a36cab27fef75d2a2bd08676deb7b4604133ac2c666107238c061e2bc",
+      "after_sha256": "ead39f12a3af83c2e7746646df6c578285c9838915954abdc9bafb92cbe29c6b"
+    },
+    {
+      "path": "crates/host-runtime/src/worker/mod.rs",
+      "before_sha256": "d1d677f681c2122a9c2c0f992ec78a5770ff2af6f37a7ec7534e142138268a55",
+      "after_sha256": "90b49d1a040597f55c88a43db699489d4334d84cb0c00b852ee0d1b8a4338e49"
+    },
+    {
+      "path": "design/architecture/architecture-renewal-plan.md",
+      "before_sha256": "a45222aac5f55b5cdeea886a5c5154e01f30424329bdc8c52222dd438b9c7f0b",
+      "after_sha256": "68651549c1828d0fb08ab4f9f5357e765437e68f1519e48ce8a67edbb5a12880"
+    },
+    {
+      "path": "design/architecture/dependency-policy.json",
+      "before_sha256": "70a029ab27197eeb6759dedd9fdbf69d18b88f0fd0c4a842faa96fd2adad2b33",
+      "after_sha256": "9bd2e9bed4e24c4d024aed15e989ec6d3b53a79d308c78793113525f0b9bdc4f"
+    },
+    {
+      "path": "design/architecture/headless-completion-ledger.md",
+      "before_sha256": "888084484fcfa354d4b8fe44747fa63d92a6cf1f98f9ff90de29dcb8b566c8bc",
+      "after_sha256": "04d53d26edda2cd8418fd43f39bd8ac9d7de4f2e205423cbafb5721cc11cc655"
+    },
+    {
+      "path": "design/architecture/implementation-status.md",
+      "before_sha256": "6aab70c969be923c12a9db39fde6d4ecafb32ec828532e145db2646e54f6e1b6",
+      "after_sha256": "301eb6ac3c6ffafc73a697f31272e53869a5f9263c19113dcabfca5f4388d5f7"
+    },
+    {
+      "path": "design/architecture/local-distribution.md",
+      "before_sha256": "4727b4c74d810701792bb4cd9b5803b97f3111994f05a71d10fd462c098904bb",
+      "after_sha256": "94a8bf33fef6dd254ca418038553c3deb465fd9d6ce4634aeabda3a68106b4aa"
+    },
+    {
+      "path": "design/qa/r2-database-control-gap-2026-09-24.md",
+      "before_sha256": "d2e7ab0a61dc9d539d5d5342822b186b0a61ee19fcd84a11ebe69c24c6cf5efa",
+      "after_sha256": "e42ed1129c39983ccd4794e9a87c50e15bab70344bdfe6147e2d348e621cb635"
+    },
+    {
+      "path": "packages/sdk-ts/README.md",
+      "before_sha256": "0b1615aa58f493b6b5a041bd778d4149594da321b29d477124005a5e42649864",
+      "after_sha256": "8416e00317812fa4507445349f0ac864625353b332da33b157020443bcae11b4"
+    },
+    {
+      "path": "packages/sdk-ts/package.json",
+      "before_sha256": "c0aa871ac6a9bfa860d11deddb1578bbab4f4b7670f05eb5b707e177d8d75d3b",
+      "after_sha256": "15675bd7f6f19555dca9265082d266e5737d0845e71bc5f124b8ab51ce6450c1"
+    },
+    {
+      "path": "scripts/audit-database-control-gap.py",
+      "before_sha256": "30fc2faa8dda326dd6d7778d6f1c0de13c1b70d320bc167eed4d11d470a5321b",
+      "after_sha256": null
+    },
+    {
+      "path": "scripts/package-local.py",
+      "before_sha256": "f88816584a5d60d8bd973a0a8968c85686ba305a5508e2b759973761cccb1369",
+      "after_sha256": "4669651a98c9298eec77b364e61b58d5cde0e8a56eeb6e8143ca0e8dff281a29"
+    },
+    {
+      "path": "scripts/verify-budget-writers.py",
+      "before_sha256": "099746d99fae5c0d27d039228af94945a7cf9d20b9ce7cbb84577c89500f392d",
+      "after_sha256": "d64de0c7fda3f8c0867ac281a432f331c1305b208effae75454348904842dc04"
+    },
+    {
+      "path": "scripts/verify-history-compatibility.py",
+      "before_sha256": "39fe06ebada04a41abe349904af4564819c6abdda1d8858dd1f1d28de680b5b8",
+      "after_sha256": "afb6e3e1d48338ce718d81bbf23adf160cab807c171a09269d96241ecd50c24b"
+    },
+    {
+      "path": "scripts/verify-project-import.py",
+      "before_sha256": "65f8e4239d2808b7d3ca1cad056676d4b203fb65a7b4e22f5a15f4f29aeb158e",
+      "after_sha256": "23e1237eb13d4969bb172cc8b29ac967bb8c3fe268d7d63397a29f4a8f287dad"
+    },
+    {
+      "path": "crates/host-runtime/src/worker/tests.rs",
+      "before_sha256": null,
+      "after_sha256": "532ce3657cfd63efefb5599b3923b1636ca641d808f8de9aedcf35142bf7fc43"
+    },
+    {
+      "path": "packages/sdk-ts/scripts/build.mjs",
+      "before_sha256": null,
+      "after_sha256": "7747ec8b73143e99c394219dfe36cfa5eab0de889e9dd6a302fa53e4aa6e1fb0"
+    },
+    {
+      "path": "scripts/tests/test_package_local.py",
+      "before_sha256": null,
+      "after_sha256": "a31e4e9bc50174d76f5543c908f339990843febc5120699d32a1656d3afe96bb"
+    },
+    {
+      "path": "scripts/README.md",
+      "before_sha256": null,
+      "after_sha256": "4ede3c913aaf8d7d9dc8547b009af290fc9a19aa99cf9054fef10976021cc5a0"
+    }
+  ],
+  "before_snapshot": "/tmp/opencut-delivery-cleanup-1790506240532302000/before",
+  "checks": {
+    "rust_affected_tests": 26,
+    "python_architecture_and_packaging_tests": 17,
+    "acceptance_runner_tests": 5,
+    "typescript_sdk_tests": 19,
+    "rust_modules": 22,
+    "temporary_dependency_exceptions": 0,
+    "typescript_boundary_files": 75,
+    "release_build": "passed",
+    "clippy_deny_warnings": "passed",
+    "format": "passed",
+    "generated_contracts": "passed",
+    "wire_compatibility": "passed"
+  },
+  "package": {
+    "path": "dist/local/opencut-0.1.0-dev-94f1fa63b8a7-x86_64-apple-darwin.tar.gz",
+    "sha256": "e550020dfea66a9476acc352a9d0c481a1d993a6a6dc96376e2270d68188505c",
+    "binary_sha256": "6079d2056cc6b307db5c5eb658918c884fc36b6f9ce617cf753cea125b376a13",
+    "target": "x86_64-apple-darwin",
+    "full_acceptance_checks": 45,
+    "acceptance_receipt": {
+      "path": "dist/local/opencut-0.1.0-dev-94f1fa63b8a7-x86_64-apple-darwin.tar.gz.acceptance.json",
+      "sha256": "cbed33717a928fb485890c8c7231fa07cdf902abe09f32b09b96cf897eb6ee2c"
+    },
+    "acceptance_commands": {
+      "path": "dist/local/opencut-0.1.0-dev-94f1fa63b8a7-x86_64-apple-darwin.tar.gz.acceptance-commands.json",
+      "sha256": "5135e63cede2292f40c055e6faf58ed79322fc29a69673801eda2f75cdbb8ad7"
+    },
+    "contents": {
+      "status": "passed",
+      "archive_sha256": "e550020dfea66a9476acc352a9d0c481a1d993a6a6dc96376e2270d68188505c",
+      "host_files": 20,
+      "typescript_files": [
+        "package/dist/contracts.generated.js",
+        "package/dist/index.js",
+        "package/dist/transport.js",
+        "package/package.json",
+        "package/README.md",
+        "package/dist/contracts.generated.d.ts",
+        "package/dist/index.d.ts",
+        "package/dist/transport.d.ts"
+      ],
+      "rust_source_files": 62,
+      "runtime_development_residue": false
+    }
+  },
+  "semantic_checks": {
+    "status": "passed",
+    "report": {
+      "path": "/tmp/opencut-cleanup-semantic/render-semantics-1790506753458431000/report.json",
+      "sha256": "aa0b07b7c3b61e8c46c6e6a2101b8e8ecc0937c5a731becc9c328cb53b31d570"
+    },
+    "binary_sha256": "6079d2056cc6b307db5c5eb658918c884fc36b6f9ce617cf753cea125b376a13",
+    "independent_pixel_checks": [
+      {
+        "index": 0,
+        "rgb": [
+          250,
+          0,
+          0
+        ],
+        "job_id": "job_17e8e5c1802c46d7b2bf83961d9a3348",
+        "artifact_sha256": "847aec166dff21d6d655e58d6b6f12ff3cec883874c767cac36be8b7a052994f"
+      },
+      {
+        "index": 1,
+        "rgb": [
+          125,
+          0,
+          122
+        ],
+        "job_id": "job_8e963b39c6ca4552b5ad451c6f0c29b8",
+        "artifact_sha256": "cfc62cbe5d653a0f0a9bea8a4d8deaeecd7e45b48f6c4461e50bf95e9789b5ff"
+      },
+      {
+        "index": 2,
+        "rgb": [
+          0,
+          0,
+          250
+        ],
+        "job_id": "job_e6f1e67d9ee549f1984770276239e339",
+        "artifact_sha256": "1264bde75fea96cea9aa9765b6e5ee8cf35c6496dbd8dd0998468229647cc7a0"
+      },
+      {
+        "index": 3,
+        "rgb": [
+          125,
+          0,
+          122
+        ],
+        "job_id": "job_00e300b0f39044df818420fff30057d7",
+        "artifact_sha256": "5ca4762a3220aa9b062ef68066e3e66a6dd40d35ff5613f2341f1e95de1830c3"
+      },
+      {
+        "index": 4,
+        "rgb": [
+          125,
+          0,
+          122
+        ],
+        "job_id": "job_49bb9a43eb0e4625abedbed6ab653c0d",
+        "artifact_sha256": "6937b757574a6f4c3433a5dbb911dd5d582be01acb0573a904bc2b294f1c64ea"
+      },
+      {
+        "index": 5,
+        "rgb": [
+          0,
+          0,
+          96
+        ],
+        "job_id": "job_7f34f0e2de44448fb9e4e445c5bd36ba",
+        "artifact_sha256": "414d3f4a8196ba9714c6a73587e76ff8a031aeabcabd65581cec4224ea2eb282"
+      }
+    ],
+    "independent_pcm_checks": [
+      {
+        "index": 3,
+        "job_id": "job_00e300b0f39044df818420fff30057d7",
+        "artifact_sha256": "5ca4762a3220aa9b062ef68066e3e66a6dd40d35ff5613f2341f1e95de1830c3",
+        "expected_duration_seconds": 2,
+        "decoded_samples_per_channel": 96256,
+        "expected_peak": 0.1,
+        "channels": [
+          {
+            "rms": 0.07066854055669139,
+            "selected_660hz_peak": 0.09994030966843233,
+            "excluded_330hz_peak": 8.299699072973903e-07,
+            "silence_rms": [
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "rms": 0.07066854055669139,
+            "selected_660hz_peak": 0.09994030966843233,
+            "excluded_330hz_peak": 8.299699072973903e-07,
+            "silence_rms": [
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "job_id": "job_49bb9a43eb0e4625abedbed6ab653c0d",
+        "artifact_sha256": "6937b757574a6f4c3433a5dbb911dd5d582be01acb0573a904bc2b294f1c64ea",
+        "expected_duration_seconds": 1,
+        "decoded_samples_per_channel": 48128,
+        "expected_peak": 0.1,
+        "channels": [
+          {
+            "rms": 0.0708186544145386,
+            "selected_660hz_peak": 0.10014364606008633,
+            "excluded_330hz_peak": 3.4137425261433653e-06,
+            "silence_rms": []
+          },
+          {
+            "rms": 0.07081865443053073,
+            "selected_660hz_peak": 0.10014364608197335,
+            "excluded_330hz_peak": 3.413687092883012e-06,
+            "silence_rms": []
+          }
+        ]
+      }
+    ]
+  },
+  "cleanup": {
+    "status": "completed",
+    "deleted": [
+      {
+        "path": "target/debug/incremental",
+        "files": 85852,
+        "allocated_bytes_before": 28120981504
+      },
+      {
+        "path": "target/local-package-consumer",
+        "files": 61057,
+        "allocated_bytes_before": 17075146752
+      },
+      {
+        "path": "target/rust-sdk-acceptance",
+        "files": 1874,
+        "allocated_bytes_before": 532426752
+      },
+      {
+        "path": ".DS_Store",
+        "files": 1,
+        "allocated_bytes_before": 8192
+      },
+      {
+        "path": "scripts/__pycache__",
+        "files": 57,
+        "allocated_bytes_before": 1273856
+      },
+      {
+        "path": "scripts/tests/__pycache__",
+        "files": 2,
+        "allocated_bytes_before": 20480
+      },
+      {
+        "path": "docs/architecture",
+        "files": 0,
+        "allocated_bytes_before": 0
+      },
+      {
+        "path": "docs",
+        "files": 0,
+        "allocated_bytes_before": 0
+      }
+    ],
+    "allocated_bytes_before": 45729857536,
+    "note": "Recorded allocated size before deletion; filesystem snapshots or sharing can affect actual free-space change."
+  },
+  "failed_attempts_preserved": [
+    {
+      "log": {
+        "path": "/tmp/opencut-cleanup-package-acceptance.log",
+        "sha256": "0efe798c55b412e530a08cc55cc9faa9ac1e5d12d53430cb5544e71611419f94"
+      },
+      "reason": "New history-quota check reused a variable that held rows instead of database path; fixed by distinct current_database binding."
+    },
+    {
+      "log": {
+        "path": "/tmp/opencut-cleanup-package-acceptance-final.log",
+        "sha256": "4723902d1497cd0e1dffd532ab1fde6f6907234a9c76f68519e106a678017261"
+      },
+      "reason": "Old partial upload fixture never crossed the current batched disk-write boundary; fixed by an unfinished 8 MiB body and waiting for all sent bytes to be reserved."
+    },
+    {
+      "log": {
+        "path": "/tmp/opencut-cleanup-budget-writers-final.log",
+        "sha256": "cafa08bbb370a3e28dae3417b29f354ebab696a473a5c874cd971052620b20b3"
+      },
+      "reason": "Crash recovery count assumed only one payload reservation; now verifies exact pending payload plus SQLite control reservations and empty post-recovery sets."
+    }
+  ],
+  "logs": {
+    "rust-tests": {
+      "path": "/tmp/opencut-cleanup-rust-tests.log",
+      "sha256": "b8c7be53fa71cd04ca3bce1a1bd7e51448852767357ae0c999e25476f2cbde9d"
+    },
+    "python-tests": {
+      "path": "/tmp/opencut-cleanup-python-tests.log",
+      "sha256": "87586abe109d7a1efb25cb64b321d392952f8b492387bb6fec8dc7b051315cd3"
+    },
+    "runner-tests": {
+      "path": "/tmp/opencut-cleanup-runner-tests.log",
+      "sha256": "781fd48163fc31bbd54618d94018f67e4a61e3b1ebe067345ba81ffaff85f19e"
+    },
+    "sdk-tests": {
+      "path": "/tmp/opencut-cleanup-sdk-tests.log",
+      "sha256": "525e6c57fba84fcbe29b368113372601540cf23696fc869745384942373dcf82"
+    },
+    "release": {
+      "path": "/tmp/opencut-cleanup-release.log",
+      "sha256": "9debb39cc0cf748d0d4ad01cb0ca99d71d57005fd96a60f8a3ec9b948ac14882"
+    },
+    "clippy": {
+      "path": "/tmp/opencut-cleanup-clippy.log",
+      "sha256": "f04c3b75491651da9caf649e7cf80f8e5b264c984c67694886f9ab056e31edb1"
+    },
+    "fmt": {
+      "path": "/tmp/opencut-cleanup-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "architecture": {
+      "path": "/tmp/opencut-cleanup-architecture.json",
+      "sha256": "837dcd161fd646f8f1b252cb013b6da96f6f828400cb4095027f461d60fac725"
+    },
+    "boundaries": {
+      "path": "/tmp/opencut-cleanup-boundaries.json",
+      "sha256": "d1d06f7501ab1da78f0037984bb3696dd28675009f68725f8fa7544549b4e9e7"
+    },
+    "ts-boundaries": {
+      "path": "/tmp/opencut-cleanup-ts-boundaries.json",
+      "sha256": "8efb37f7c14d55c8a39c56f804d8dc0612150fdac29e6ba23f84ad2cb58d8235"
+    },
+    "wire": {
+      "path": "/tmp/opencut-cleanup-wire.json",
+      "sha256": "5e6fb604d78220eab55c5e6cc87e354e3d4e822e052f5f16ff2c2564ff6b2e9f"
+    },
+    "generated": {
+      "path": "/tmp/opencut-cleanup-generated.log",
+      "sha256": "ef19d0e7c3797dc1dc10b471d4c2ecc55251e51816ed37b36a28a300034fad92"
+    },
+    "package-contents": {
+      "path": "/tmp/opencut-cleanup-package-contents.json",
+      "sha256": "15f6c149a0717546df6797e1d04c06c1a3bd62353f9d68ea5171c1b9943f1dc0"
+    },
+    "budget-writers-confirmed": {
+      "path": "/tmp/opencut-cleanup-budget-writers-confirmed.log",
+      "sha256": "b3f752ea2fac6abb3fa0a0e47b4e75de0d48aca26e7a1433ac80aa8e71edb390"
+    },
+    "project-import-final": {
+      "path": "/tmp/opencut-cleanup-project-import-final.log",
+      "sha256": "78455cc8dfdd6994fd2b70935d2ef6eac087917ad7c667de66434b402644bde6"
+    },
+    "package-acceptance-confirmed": {
+      "path": "/tmp/opencut-cleanup-package-acceptance-confirmed.log",
+      "sha256": "2b4e8d4c592bf040cc2aff5ec31bc8181d7dea857bbd55d3ee33a9f1a29cec70"
+    }
+  },
+  "retained": [
+    "Required regression tests and frozen historical fixtures",
+    "Existing dirty source work",
+    "Recovery and Classic materials under tmp",
+    "Earlier accepted delivery archives",
+    "Current release binary and installed dependencies"
+  ],
+  "remaining": [
+    "Cross-platform delivery, signing and upgrade acceptance",
+    "Broader P0/P1 editing and reproducibility gaps listed in headless-completion-ledger.md",
+    "Web/Desktop work deferred by user scope"
+  ]
+}

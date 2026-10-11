@@ -3,7 +3,7 @@ use clap::Subcommand;
 use opencut_automation::{CallSource, Caller, ExecutionContext, Response};
 use opencut_contracts::EditorError;
 use opencut_editor_application::{access::denied, budget};
-use opencut_native_services::budget::NativeBudget;
+use opencut_host_runtime::transport_io::WorkspaceBudget as NativeBudget;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
@@ -104,29 +104,19 @@ pub fn execute(database: &Path, credential: Option<&Path>, command: &Command) ->
                 command: RecoveryCommand::Cancel { job_id },
             } => {
                 let mut app =
-                    opencut_sqlite_store::EditorApplication::open_managed_repair(database)?;
+                    opencut_host_runtime::workspace::Workspace::open_managed_repair(database)?;
                 app.set_execution_context(context.clone());
                 Ok(json!(app.repair_cancel_job(job_id)?))
             }
             Command::Recovery {
                 command: RecoveryCommand::Release { upload_id },
-            } => {
-                let mut app =
-                    opencut_sqlite_store::EditorApplication::open_managed_repair(database)?;
-                app.set_execution_context(context.clone());
-                let uploads_root = app
-                    .asset_store_root()
-                    .parent()
-                    .ok_or_else(|| EditorError::new("STORAGE_ERROR", "Invalid asset root"))?
-                    .join("uploads");
-                Ok(json!(opencut_native_services::uploads::release(
-                    &uploads_root,
-                    &mut app,
-                    opencut_editor_application::uploads::UploadInput {
-                        upload_id: upload_id.clone(),
-                    },
-                )?))
-            }
+            } => Ok(json!(
+                opencut_host_runtime::transport_io::release_upload_in_repair(
+                    database,
+                    context.clone(),
+                    upload_id
+                )?
+            )),
         }
     })();
     Response::from_result_with_id(context.request_id().to_owned(), result)

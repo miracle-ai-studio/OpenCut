@@ -4,7 +4,7 @@
 
 ## 架构修订
 
-Application API 是中心；Embedded、Headless、Service 是三种宿主。独立 daemon 是可选宿主，不是 Domain 的运行前提。所有宿主执行同一事务／版本／权限契约。现有 React/TanStack Start、GPUI、Elysia 云 API 和 Moon 工具链保留。脚本 SDK 与移动端适配属于正式设计范围。
+Application API 是中心；Embedded、Headless、Service 是三种宿主。独立 daemon 是可选宿主，不是 Domain 的运行前提。所有宿主执行同一事务／版本／权限契约。Web 使用 React/Vite 静态页面并连接独立 Rust 服务；保留 GPUI 外壳与 Moon 工具链，移除无编辑能力的云 API 示例。脚本 SDK 与移动端适配属于正式设计范围。
 
 ## 第一轮共享 Rust 接口
 

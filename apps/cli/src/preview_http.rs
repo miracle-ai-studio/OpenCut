@@ -6,9 +6,10 @@ use axum::{
     http::header,
     response::{IntoResponse, Response},
 };
+use opencut_automation::CallSource;
 use opencut_automation::preview::StreamInput;
-use opencut_automation::{Automation, CallSource};
-use opencut_native_services::preview::StreamRead;
+use opencut_host_runtime::Automation;
+use opencut_host_runtime::transport_io::StreamRead;
 use std::time::{Duration, Instant};
 
 pub(super) async fn stream(

@@ -1,7 +1,8 @@
 //! Local byte-client adapter. File paths never enter an editor/tool request.
 use clap::Subcommand;
-use opencut_automation::{Automation, CallSource, Caller, Response, uploads};
+use opencut_automation::{CallSource, Caller, Response, uploads};
 use opencut_contracts::EditorError;
+use opencut_host_runtime::Automation;
 use sha2::{Digest, Sha256};
 use std::{
     io::Read,
@@ -17,17 +18,32 @@ pub(super) enum Command {
         #[arg(long)]
         input: PathBuf,
     },
+    /// Confirm raw bytes in a streaming upload whose complete digest is not yet declared.
+    StreamPut {
+        upload_id: String,
+        #[arg(long)]
+        offset: String,
+        #[arg(long)]
+        input: PathBuf,
+    },
 }
 pub(super) fn execute(
     database: &Path,
     caller: Caller,
     command: &Command,
 ) -> Result<Response, EditorError> {
-    let Command::Put {
-        upload_id,
-        offset,
-        input,
-    } = command;
+    let (upload_id, offset, input, streaming) = match command {
+        Command::Put {
+            upload_id,
+            offset,
+            input,
+        } => (upload_id, offset, input, false),
+        Command::StreamPut {
+            upload_id,
+            offset,
+            input,
+        } => (upload_id, offset, input, true),
+    };
     uploads::validate_id(upload_id)?;
     uploads::decimal(offset)?;
     let reader: Box<dyn Read> = if input.as_os_str() == "-" {
@@ -49,8 +65,12 @@ pub(super) fn execute(
         content_hash: format!("{:x}", Sha256::digest(&bytes)),
     };
     uploads::validate_chunk(&chunk)?;
-    Ok(Automation::open(database)?
+    let mut host = Automation::open(database)?
         .with_source(CallSource::Cli)
-        .with_caller(caller)
-        .put_upload_chunk(&chunk, &bytes))
+        .with_caller(caller);
+    Ok(if streaming {
+        host.put_stream_upload_chunk(&chunk, &bytes)
+    } else {
+        host.put_upload_chunk(&chunk, &bytes)
+    })
 }

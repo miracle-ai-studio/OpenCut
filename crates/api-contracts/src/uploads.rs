@@ -1,4 +1,8 @@
 //! Project-scoped upload control plane. Media bytes never enter these DTOs.
+/// Host policy ceiling, shared with native package IO and Rust clients.
+/// Requests still pass byte reservations and per-attempt disk admission.
+pub const MAX_UPLOAD_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+pub const MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
