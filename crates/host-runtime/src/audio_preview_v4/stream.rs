@@ -272,6 +272,7 @@ mod tests {
             Mutex::new(SessionState {
                 machine,
                 authority: TrustedJobAuthorityV1::LocalOwner,
+                picture: None,
             }),
             Mutex::new(None),
             input,
@@ -528,5 +529,84 @@ mod tests {
             drop(guard);
             assert_eq!(thread.join().unwrap().unwrap_err().code, "PREVIEW_STOPPED");
         });
+    }
+}
+
+#[cfg(test)]
+mod picture_expiry_tests {
+    use super::*;
+    #[test]
+    fn an_already_expired_session_releases_its_prepared_frame() {
+        use opencut_contracts::{CreateProject, FrameRate, Time, project_v4::ProjectSnapshotV4};
+        use opencut_editor_application::{
+            project_v4::new_document, visual_preview_v4::PreparedPictureV4,
+        };
+        use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
+        let start = Time {
+            ticks: "0".into(),
+            timebase: 48000,
+        };
+        let request = AudioPreviewCreateV4 {
+            project_id: "p".into(),
+            revision: "r".into(),
+            sequence_id: "s".into(),
+            start_time: start.clone(),
+            sample_rate: 48000,
+            idempotency_key: "create".into(),
+        };
+        let machine = AudioPreviewMachineV4::new(
+            &request,
+            "session".into(),
+            "owner".into(),
+            "lease".into(),
+            96000,
+            0,
+        )
+        .unwrap();
+        let view = machine.snapshot(0);
+        let session = AudioPreviewStreamV4 {
+            session_id: view.session_id,
+            generation: view.generation,
+            overlay_epoch: view.overlay_epoch,
+            owner_id: view.owner_id,
+            lease_id: view.lease_id,
+        };
+        let snapshot = ProjectSnapshotV4 {
+            revision: "r".into(),
+            project: new_document(&CreateProject {
+                id: "p".into(),
+                name: "Synthetic expiry".into(),
+                sequence_id: "s".into(),
+                width: 1,
+                height: 1,
+                fps: FrameRate {
+                    numerator: 24,
+                    denominator: 1,
+                },
+            })
+            .unwrap(),
+        };
+        let policy = LocalVisualExecutionPolicyV1 {
+            max_frame_pixels: 1,
+            max_decoded_pixels: 16,
+            max_gpu_bytes: 1024,
+            max_rgba_bytes: 1024,
+            max_encoded_bytes: 1024,
+            max_output_bytes: 1024,
+            max_rss_bytes: 1024,
+            deadline_ms: 1000,
+        };
+        let prepared = Arc::new(PreparedPictureV4::new(&snapshot, "s", &start, &policy).unwrap());
+        let weak = Arc::downgrade(&prepared);
+        let mut state = SessionState {
+            machine,
+            authority: TrustedJobAuthorityV1::LocalOwner,
+            picture: Some(CachedPicture { session, prepared }),
+        };
+        assert!(state.machine.expire(31000).unwrap());
+        assert!(weak.upgrade().is_some());
+        assert!(!state.expire(31000).unwrap());
+        assert!(weak.upgrade().is_none());
+        assert!(state.picture.is_none());
     }
 }

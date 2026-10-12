@@ -137,6 +137,16 @@ export async function verifyV4ScenePreviewPerformance(browser, endpoint, directo
       runtime: runtimes.at(-1), errors };
     evidence.execution = Object.fromEntries(["planMs", "bindMs", "totalMs"].map(key => [key,
       { mean: runtimes.reduce((n,r)=>n+Number(r[key] ?? 0),0)/runtimes.length, maximum: Math.max(...runtimes.map(r=>Number(r[key] ?? 0))) }]));
+    const timings = values => values.length ? { count: values.length, mean_ms: values.reduce((n,v)=>n+v,0)/values.length,
+      maximum_ms: Math.max(...values), p95_ms: [...values].sort((a,b)=>a-b)[Math.ceil(values.length*.95)-1] } : { count: 0 };
+    const controls = steady.controls.filter(c => c.began >= start.at && c.ended <= start.at + budget.steady_ms);
+    const supplies = steady.supplies.filter(s => s.at >= start.at && s.at <= start.at + budget.steady_ms);
+    evidence.transport = {
+      controls: Object.fromEntries(["report_consumed", "heartbeat"].map(kind => [kind, timings(controls.filter(c=>c.kind===kind).map(c=>c.ended-c.began))])),
+      pcm_arrival_gaps: timings(supplies.slice(1).map((s,i)=>s.at-supplies[i].at)),
+      block_sizes: [...new Set(supplies.map(s=>s.frames))],
+      method: "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference",
+    };
     evidence.resources = {
       peak_gpu_bytes: Math.max(...runtimes.map(r => Number(r.peakGpuBytes))),
       peak_accounted_bytes: Math.max(...runtimes.map(r => Number(r.peakAccountedBytes))),

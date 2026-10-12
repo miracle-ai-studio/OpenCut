@@ -599,21 +599,85 @@ fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
     let mut fixture = Fixture::new();
     let old = fixture.stream_input();
     let request = json!({"session":old,"time":null,"decoded":null});
-    let frame = call(&mut fixture.host, "opencut_visual_preview_v4_frame", request.clone()).unwrap();
-    assert_eq!(frame["plan"]["identity"]["revision"], fixture.session.identity.revision);
-    assert_eq!(frame["plan"]["identity"]["time"], json!({"ticks":"0","timebase":48000}));
+    let frame = call(
+        &mut fixture.host,
+        "opencut_visual_preview_v4_frame",
+        request.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        frame["plan"]["identity"]["revision"],
+        fixture.session.identity.revision
+    );
+    assert_eq!(
+        frame["plan"]["identity"]["time"],
+        json!({"ticks":"0","timebase":48000})
+    );
     assert!(frame["plan"]["layers"].as_array().unwrap().is_empty());
-    assert_eq!(frame["max_lag_ms"],150);
+    assert_eq!(frame["max_lag_ms"], 150);
+    let binding = json!({"session":old,"time":frame["plan"]["identity"]["time"],"decoded":[]});
+    let cached = call(
+        &mut fixture.host,
+        "opencut_visual_preview_v4_frame",
+        binding.clone(),
+    )
+    .unwrap();
+    assert_eq!(cached["plan"], frame["plan"]);
+    assert!(cached["bound"].is_object());
+    let future = json!({"session":old,"time":{"ticks":"1","timebase":1},"decoded":[]});
+    assert_eq!(
+        call(&mut fixture.host, "opencut_visual_preview_v4_frame", future)
+            .unwrap_err()
+            .code,
+        "PREVIEW_FRAME_STALE"
+    );
     fixture.control(AudioPreviewCommandV4::Pause);
-    assert_eq!(call(&mut fixture.host,"opencut_visual_preview_v4_frame",request).unwrap_err().code,"PREVIEW_GENERATION_CONFLICT");
-    let current=json!({"session":fixture.stream_input(),"time":null,"decoded":[]});
-    let paused=call(&mut fixture.host,"opencut_visual_preview_v4_frame",current.clone()).unwrap();
+    assert_eq!(
+        call(
+            &mut fixture.host,
+            "opencut_visual_preview_v4_frame",
+            request
+        )
+        .unwrap_err()
+        .code,
+        "PREVIEW_GENERATION_CONFLICT"
+    );
+    assert_eq!(
+        call(
+            &mut fixture.host,
+            "opencut_visual_preview_v4_frame",
+            binding
+        )
+        .unwrap_err()
+        .code,
+        "PREVIEW_GENERATION_CONFLICT"
+    );
+    let planning = json!({"session":fixture.stream_input(),"time":null,"decoded":null});
+    let planned = call(
+        &mut fixture.host,
+        "opencut_visual_preview_v4_frame",
+        planning,
+    )
+    .unwrap();
+    let current = json!({"session":fixture.stream_input(),"time":planned["plan"]["identity"]["time"],"decoded":[]});
+    let paused = call(
+        &mut fixture.host,
+        "opencut_visual_preview_v4_frame",
+        current.clone(),
+    )
+    .unwrap();
     assert!(paused["bound"].is_object());
-    fixture.owner.revoke_credential(&fixture.credential).unwrap();
+    fixture
+        .owner
+        .revoke_credential(&fixture.credential)
+        .unwrap();
     // A fresh owner host cannot substitute its stronger credential for the
     // original session grant, even when supplied the correct live lease token.
-    let mut owner=Automation::open(&fixture.database).unwrap();
-    let denied=call(&mut owner,"opencut_visual_preview_v4_frame",current).unwrap_err();
-    assert!(matches!(denied.code.as_str(),"NOT_AUTHORIZED"|"PREVIEW_STOPPED"));
+    let mut owner = Automation::open(&fixture.database).unwrap();
+    let denied = call(&mut owner, "opencut_visual_preview_v4_frame", current).unwrap_err();
+    assert!(matches!(
+        denied.code.as_str(),
+        "NOT_AUTHORIZED" | "PREVIEW_STOPPED"
+    ));
     fixture.assert_terminated(AudioPreviewStateV4::Failed);
 }

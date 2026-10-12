@@ -46,6 +46,25 @@ fn database_key(path: &Path) -> Result<PathBuf, EditorError> {
 struct SessionState {
     machine: AudioPreviewMachineV4,
     authority: TrustedJobAuthorityV1,
+    picture: Option<CachedPicture>,
+}
+struct CachedPicture {
+    session: AudioPreviewStreamV4,
+    prepared: Arc<opencut_editor_application::visual_preview_v4::PreparedPictureV4>,
+}
+impl SessionState {
+    fn expire(&mut self, at: u64) -> Result<bool, EditorError> {
+        let changed = self.machine.expire(at)?;
+        // Another endpoint may already have made this session terminal. Cache
+        // disposal must not depend on being the first expiry observer.
+        if matches!(
+            self.machine.snapshot(at).state,
+            AudioPreviewStateV4::Stopped | AudioPreviewStateV4::Failed
+        ) {
+            self.picture = None;
+        }
+        Ok(changed)
+    }
 }
 struct Actor {
     sender: mpsc::SyncSender<producer::BlockRequest>,
@@ -66,7 +85,8 @@ struct Entry {
 impl Entry {
     fn view(&self) -> Result<AudioPreviewSessionV4, EditorError> {
         let mut state = lock(&self.state)?;
-        if state.machine.expire(now())? {
+        if state.expire(now())? {
+            state.picture = None;
             self.credit.notify_all();
         }
         Ok(state.machine.snapshot(now()))
@@ -84,7 +104,8 @@ impl Entry {
     fn checkpoint(&self, app: &opencut_sqlite_store::EditorApplication) -> Result<(), EditorError> {
         let authority = {
             let mut state = lock(&self.state)?;
-            if state.machine.expire(now())? {
+            if state.expire(now())? {
+                state.picture = None;
                 self.credit.notify_all();
             }
             if self.shutdown.load(Ordering::Acquire)
@@ -120,7 +141,8 @@ impl Entry {
         Ok(())
     }
     fn signal_shutdown(&self) -> Result<(), EditorError> {
-        let _state = lock(&self.state)?;
+        let mut state = lock(&self.state)?;
+        state.picture = None;
         self.shutdown.store(true, Ordering::Release);
         self.credit.notify_all();
         Ok(())
@@ -259,6 +281,7 @@ pub(crate) fn create(
         state: Mutex::new(SessionState {
             machine,
             authority: selected.authority,
+            picture: None,
         }),
         credit: Condvar::new(),
         actor: Mutex::new(None),
@@ -285,7 +308,7 @@ pub(crate) fn events(
     let e = entry(&host.database, &input.session_id)?;
     authorize(host, &e, false)?;
     let mut state = lock(&e.state)?;
-    if state.machine.expire(now())? {
+    if state.expire(now())? {
         e.credit.notify_all();
     }
     state.machine.events(&input)
@@ -317,6 +340,9 @@ pub(crate) fn control(
         let transition = state
             .machine
             .control_validated(&input, gain.as_ref(), now())?;
+        if transition.effect != AudioPreviewEffectV4::None {
+            state.picture = None;
+        }
         // Predicate changes and notification share the stream wait mutex.
         e.credit.notify_all();
         transition
@@ -350,7 +376,7 @@ pub(crate) fn acquire(
         // cancellation through the original-authority CAS checkpoint.
         {
             let mut state = lock(&e.state)?;
-            if state.machine.expire(now())? {
+            if state.expire(now())? {
                 e.credit.notify_all();
             }
         }
@@ -367,6 +393,7 @@ pub(crate) fn acquire(
             now(),
         )?;
         if next.effect != AudioPreviewEffectV4::None {
+            state.picture = None;
             state.authority = trusted(&host.caller);
         } else {
             host.app.revalidate_audio_preview(
@@ -423,25 +450,47 @@ pub(crate) fn picture(
 ) -> Result<opencut_api_contracts::visual_preview_v4::VisualPreviewFrameResultV4, EditorError> {
     let e = entry(&host.database, &input.session.session_id)?;
     authorize(host, &e, true)?;
-    let view = {
+    let (view, cached) = {
         let state = lock(&e.state)?;
         state
             .machine
             .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
-        state.machine.snapshot(now())
+        let cached = state
+            .picture
+            .as_ref()
+            .filter(|c| {
+                input.decoded.is_some()
+                    && c.session == input.session
+                    && input.time.as_ref() == Some(c.prepared.time())
+            })
+            .map(|c| c.prepared.clone());
+        (state.machine.snapshot(now()), cached)
     };
-    let selected = host
-        .app
-        .fixed_v4_frame_snapshot(&e.request.project_id, &e.request.revision)?;
-    let result = opencut_editor_application::visual_preview_v4::prepare_picture(
-        &selected.snapshot,
-        &e.request.sequence_id,
-        &input,
+    opencut_editor_application::visual_preview_v4::validate_picture_time(
+        input.time.as_ref().unwrap_or(&view.authoritative_time),
         &view.authoritative_time,
-        &selected.processing_policy,
     )?;
+    // One private prepared frame, never a public DTO or mutable-head cache.
+    // The adapter's visual policy is immutable within this host runtime.
+    // Misses/direct bindings retain the original full preparation semantics.
+    let prepared = if let Some(cached) = cached {
+        cached
+    } else {
+        let selected = host
+            .app
+            .fixed_v4_frame_snapshot(&e.request.project_id, &e.request.revision)?;
+        Arc::new(
+            opencut_editor_application::visual_preview_v4::PreparedPictureV4::new(
+                &selected.snapshot,
+                &e.request.sequence_id,
+                input.time.as_ref().unwrap_or(&view.authoritative_time),
+                &selected.processing_policy,
+            )?,
+        )
+    };
+    let result = prepared.result(&input, &view.authoritative_time)?;
     authorize(host, &e, true)?;
-    let state = lock(&e.state)?;
+    let mut state = lock(&e.state)?;
     state
         .machine
         .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
@@ -449,5 +498,11 @@ pub(crate) fn picture(
         &result.plan.identity.time,
         &state.machine.snapshot(now()).authoritative_time,
     )?;
+    if input.decoded.is_none() {
+        state.picture = Some(CachedPicture {
+            session: input.session,
+            prepared,
+        });
+    }
     Ok(result)
 }

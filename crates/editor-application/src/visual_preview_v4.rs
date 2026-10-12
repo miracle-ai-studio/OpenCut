@@ -2,6 +2,7 @@
 //! never submits jobs, holds native resource paths or evaluates clocks in clients.
 use crate::classic_visual::ClassicVisualSession;
 use opencut_api_contracts::visual_preview_v4::*;
+use opencut_composition::project_v4::PreparedVisualFrameV4;
 use opencut_contracts::{EditorError, Time, project_v4::ProjectSnapshotV4};
 use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
 use opencut_time::RationalTime;
@@ -31,6 +32,48 @@ pub fn validate_picture_time(time: &Time, consumer: &Time) -> Result<(), EditorE
     }
     Ok(())
 }
+/// Internal, bounded preparation of one immutable frame. Hosts may retain it
+/// for decoder binding, but must independently revalidate live authority and
+/// the sound publication fence before and after every use.
+pub struct PreparedPictureV4 {
+    prepared: PreparedVisualFrameV4,
+    policy: LocalVisualExecutionPolicyV1,
+}
+impl PreparedPictureV4 {
+    pub fn new(
+        snapshot: &ProjectSnapshotV4,
+        sequence: &str,
+        time: &Time,
+        policy: &LocalVisualExecutionPolicyV1,
+    ) -> Result<Self, EditorError> {
+        let prepared = crate::project_v4_frame_jobs::prepare(snapshot, sequence, time)?;
+        // Enforce the existing layer/resource/pixel budgets before retention.
+        ClassicVisualSession::new(&prepared, policy)?;
+        Ok(Self {
+            prepared,
+            policy: policy.clone(),
+        })
+    }
+    pub fn time(&self) -> &Time {
+        &self.prepared.identity().time
+    }
+    pub fn result(
+        &self,
+        input: &VisualPreviewFrameV4,
+        consumer: &Time,
+    ) -> Result<VisualPreviewFrameResultV4, EditorError> {
+        let time = input.time.as_ref().unwrap_or(consumer);
+        if time != self.time() {
+            return Err(EditorError::new(
+                "INVALID_VISUAL_PLAN",
+                "Prepared picture time changed",
+            ));
+        }
+        validate_picture_time(time, consumer)?;
+        let session = ClassicVisualSession::new(&self.prepared, &self.policy)?;
+        picture_result(&session, input, consumer)
+    }
+}
 pub fn prepare_picture(
     snapshot: &ProjectSnapshotV4,
     sequence: &str,
@@ -40,8 +83,15 @@ pub fn prepare_picture(
 ) -> Result<VisualPreviewFrameResultV4, EditorError> {
     let time = input.time.as_ref().unwrap_or(consumer);
     validate_picture_time(time, consumer)?;
-    let prepared = crate::project_v4_frame_jobs::prepare(snapshot, sequence, time)?;
-    let session = ClassicVisualSession::new(&prepared, policy)?;
+    PreparedPictureV4::new(snapshot, sequence, time, policy)?.result(input, consumer)
+}
+fn picture_result(
+    session: &ClassicVisualSession<'_>,
+    input: &VisualPreviewFrameV4,
+    consumer: &Time,
+) -> Result<VisualPreviewFrameResultV4, EditorError> {
+    let time = session.prepared().identity().time.clone();
+    let policy = session.policy();
     let plan = session.typed_plan()?;
     let decode_admissions = plan
         .layers
@@ -65,7 +115,7 @@ pub fn prepare_picture(
             max_rgba_bytes: policy.max_rgba_bytes.to_string(),
             max_encoded_bytes: policy.max_encoded_bytes.to_string(),
         },
-        time_seconds: seconds(time)?,
+        time_seconds: seconds(&time)?,
         consumer_time_seconds: seconds(consumer)?,
         max_lag_ms: VISUAL_PREVIEW_MAX_LAG_MS,
     })

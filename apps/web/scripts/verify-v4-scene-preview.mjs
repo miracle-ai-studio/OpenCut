@@ -14,11 +14,18 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
       pcm: [],
       firstSoundAt: null,
       blocks: 0,
+      supplies: [],
+      controls: [],
     });
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
+      const began = performance.now();
       const url = String(args[0]);
+      const input = url.endsWith("opencut_audio_preview_v4_control") ? JSON.parse(args[1]?.body ?? "null") : null;
+      const response = await originalFetch(...args);
+      if (input?.command && w.controls.length < 2048)
+        w.controls.push({ kind: input.command.kind, frames: input.command.consumed_frames ?? null,
+          began, ended: performance.now() });
       if (/opencut_audio_preview_v4_(create|control)$/.test(url))
         response
           .clone()
@@ -48,6 +55,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
             };
           if (data.kind === "block") {
             w.blocks++;
+            if (w.supplies.length < 512) w.supplies.push({ frames: data.pcm.byteLength / 8, at: performance.now() });
             if (w.pcm.length < 4096)
               w.pcm.push(
                 ...new Float32Array(data.pcm)

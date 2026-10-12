@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "Scoped candidate records retain actual Web entrypoint identities; HD correctness, dense red gates and final fallback-only unit/build checks are distinct.",
-    "latest_candidate": "visual_preview_hd_bounded_execution",
+    "scope": "18 scoped records retain candidate identities; latest prepared-frame reuse uses one binary/Web for HD and dense, with three performance gates still open.",
+    "latest_candidate": "visual_preview_prepared_frame_reuse",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -3445,6 +3445,341 @@
           "user_media_touched": false,
           "media_or_database_committed": false
         }
+      },
+      {
+        "evidence_id": "visual_preview_prepared_frame_reuse",
+        "status": "passed_scoped_with_open_performance_gates",
+        "candidate": {
+          "base_commit": "c4615a456832189d95f601871725a49331c0a074",
+          "source_files": [
+            "apps/web/scripts/verify-v4-scene-preview-performance.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "crates/editor-application/src/project_v4_frame_jobs/tests.rs",
+            "crates/editor-application/src/visual_preview_v4.rs",
+            "crates/host-runtime/src/audio_preview_v4/mod.rs",
+            "crates/host-runtime/src/audio_preview_v4/producer.rs",
+            "crates/host-runtime/src/audio_preview_v4/stream.rs",
+            "crates/host-runtime/tests/audio_preview_lifecycle.rs"
+          ],
+          "source_manifest_sha256": "d14d8f13efbcad13676c8deb926be1d9c7212cf525a31b0ce613584853d6714b",
+          "binary_sha256": "db0120a10655c6001630533257ede3e0d9e3eebb1e08be16cfac0f07dc4a9b79",
+          "web_entrypoints": {
+            "assets/editor-workspace-DYHwzZOq.js": "691bf7832e540b1581ad476c509f03aeb8291ad6009e894703f07e2b5be5b354",
+            "assets/index-DMGbqN5h.js": "b94a83d562065a2349dbb0568f5f182203e8472db416c74e89424cfa6ac8455d",
+            "assets/worklet-s8qZVu2l.js": "c39ab153d7876d7b4bb90ee0429256626c7f63364e0d8341ff3a3c8b93597862",
+            "index.html": "316c5bb9b589bd26fe95a204d52cec3a8217d969ac09968eb66fa5dee0eef4b9"
+          },
+          "browser": "154.0.8037.99",
+          "foundation_record": "visual_preview_hd_bounded_execution",
+          "browser_binary_sha256": "d5632246a1cb53cef6ca492f603af9288d79daf05da2cf75926454b09d617082",
+          "final_rust_delta": "Only disposal of private prepared metadata when the machine was already made terminal by another endpoint; no frame/PCM/control wire path changes. Final eight pure host checks and real original-authority/cache lifecycle check cover this delta; HD/dense retain their actual browser binary identity without duplicate media runs."
+        },
+        "scope": "One private prepared visual frame per sound session; same-time decoder binding reuses existing application IR/session while every live authority and publication fence remains. Browser evidence uses original per-quantum Worklet; no observation-throttling change shipped.",
+        "implementation": [
+          "PreparedPictureV4 captures immutable frame and existing fixed host visual processing policy; shared application result projection validates exact Time, current consumer window and decoder facts each use",
+          "Host retains at most one admitted prepared frame, keyed by full AudioPreviewStreamV4 plus exact Time; misses/direct binds preserve fresh preparation. Original/current caller grants, revision existence and generation/lease/owner/overlay rechecked before and after each result",
+          "Stop, expiration, generational controls and producer failure release retained frame; existing60-layer/32-resource/pixel budgets, DTO registration and policy baseline unchanged",
+          "Bounded verifier records authenticated consumption/heartbeat RTT and PCM transfer arrival gaps without copying credentials or media into reports"
+        ],
+        "checks": {
+          "application_frame_tests": 7,
+          "host_credit_stream_tests": {
+            "count": 8,
+            "scope": "Final source: original credit/stream predicates plus weak-reference proof that already-expired session metadata is released even when another endpoint observed expiry first."
+          },
+          "real_native_original_authority_cached_binding": 1,
+          "native_test_binary_sha256": "a619bba30b084ba82875df3fec8da5d23cd4dc214a1ca4a46a5c2f724d3302fc",
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "web_boundary_files": 178,
+          "generated_contract_check": "passed against the explicit release binary; no derived file changes",
+          "legacy_wire_checks": 22,
+          "registered_tools": 194,
+          "typecheck_and_production_build": "passed; final Web runtime returns to original per-quantum Worklet",
+          "release_builds": 2,
+          "fresh_whole_workspace_run": false
+        },
+        "hd_correctness": {
+          "status": "passed",
+          "checks": [
+            "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+            "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs",
+            "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+            "paused preview revalidates authority within one second and clears cached pixels after a versioned permission rejection; genuine original-credential revocation is covered by the native host test"
+          ],
+          "independent_oracles": [
+            {
+              "check": "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+              "scene_preview": {
+                "width": 1280,
+                "height": 720,
+                "cold_ms": 8136,
+                "distinct_frames": 66,
+                "max_skew_ms": 112.0000000000001,
+                "frequency_hz": 439.99991601772865,
+                "rms": 0.08831585190797463,
+                "runtime": {
+                  "gpuBackend": "webgpu",
+                  "gpuDevice": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+                  "textureFormat": "bgra8unorm",
+                  "bindMs": "9.299999982118607",
+                  "peakGpuBytes": "18432164",
+                  "peakAccountedBytes": "67108857",
+                  "retainedDecodedBytes": "11059200",
+                  "retainedEncodedBytes": "11475",
+                  "planMs": "5.899999976158142",
+                  "totalMs": "55.89999997615814"
+                }
+              }
+            },
+            {
+              "check": "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs",
+              "seek_ms": 493
+            },
+            {
+              "check": "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+              "preview_cache": {
+                "resource_downloads": 1
+              }
+            }
+          ],
+          "scope": "1280x720/8s24fps explicitBT709 alternating red/green H264 and independent440Hz48000monoPCM16, unit-rate/keepPitch default. Four checks passed at same binary/Web as dense receipt. Distinct_frames counts requested-time presentations, not unique source PTS. Paused permission rejection is versionedHTTP injection; genuine original credential revocation is the real native test.",
+          "candidate": "candidate.browser_binary_sha256 and candidate.web_entrypoints"
+        },
+        "dense_performance": {
+          "status": "failed",
+          "budget": {
+            "cold_ms": 10000,
+            "steady_ms": 10000,
+            "skew_ms": 150,
+            "distinct_video_frames": 144,
+            "deficit_ratio": 0.01,
+            "heap_delta_bytes": 67108864,
+            "gpu_bytes": 268435456
+          },
+          "machine": {
+            "platform": "darwin",
+            "arch": "x64",
+            "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"
+          },
+          "fixture": {
+            "project_id": "scene-preview-dense-7b4ffe9a-45e5-4c4c-bcca-23c1af75316e",
+            "revision": "rev_bf2ac2ef6fde247d9f66ed4f125aab89c66e68a24129c11038f11af4e5872f1e",
+            "width": 1280,
+            "height": 720,
+            "placements": 100,
+            "tracks": 5,
+            "seconds": 300,
+            "source_seconds": 8,
+            "unique_assets": 2,
+            "starts": "292*k/19; k=0..19",
+            "source_audio_disabled": true,
+            "audio_voices": 3,
+            "gain_db": -18,
+            "rate": "1/1",
+            "maintain_pitch": false
+          },
+          "cold_ms": 5403,
+          "distinct_presented_source_pts": 140,
+          "max_skew_ms": 122.66666666666649,
+          "minimum_skew_ms": 5.333333333333634,
+          "consumption": {
+            "elapsed_ms": 9999.59999999404,
+            "frames": 458624,
+            "reports": 3752,
+            "stalled_ratio": 0.04112164488250911,
+            "deficit_ratio": 0.04449511313728938,
+            "stalled_reports_by_second": {
+              "0": 2,
+              "1": 12,
+              "2": 16,
+              "3": 16,
+              "4": 44,
+              "5": 14,
+              "6": 12,
+              "7": 35,
+              "8": 17,
+              "9": 0
+            }
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "main_thread": {
+            "task_ms": 4813.0869999999995,
+            "script_ms": 1301.0070000000003,
+            "method": "CDP page main-thread time during the real steady window; excludes driver/native CPU"
+          },
+          "heap": {
+            "baseline_bytes": 4629348,
+            "peak_bytes": 32309252,
+            "delta_bytes": 27679904,
+            "method": "CDP page V8 heap, one baseline GC; no steady-window GC"
+          },
+          "execution": {
+            "planMs": {
+              "mean": 12.902347419043663,
+              "maximum": 65.80000001192093
+            },
+            "bindMs": {
+              "mean": 8.849295773696452,
+              "maximum": 26.599999994039536
+            },
+            "totalMs": {
+              "mean": 40.91314554060569,
+              "maximum": 1396.699999988079
+            }
+          },
+          "transport": {
+            "controls": {
+              "report_consumed": {
+                "count": 282,
+                "mean_ms": 9.140425531788075,
+                "maximum_ms": 74.59999999403954,
+                "p95_ms": 13.5
+              },
+              "heartbeat": {
+                "count": 18,
+                "mean_ms": 9.805555558866924,
+                "maximum_ms": 13,
+                "p95_ms": 13
+              }
+            },
+            "pcm_arrival_gaps": {
+              "count": 110,
+              "mean_ms": 89.08090909096327,
+              "maximum_ms": 162.5,
+              "p95_ms": 129.2000000178814
+            },
+            "block_sizes": [
+              4096
+            ],
+            "method": "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference"
+          },
+          "resources": {
+            "peak_gpu_bytes": 18432212,
+            "peak_accounted_bytes": 35414841,
+            "retained_decoded_bytes": 11059200,
+            "retained_encoded_bytes": 11475,
+            "method": "Classic execution allocation accounting; excludes driver/native RSS and process GPU overhead"
+          },
+          "independent_pixels": [
+            {
+              "time": 0,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 1.024,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 2,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 3.008,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 4.042666666666666,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 5.034666666666666,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 6.058666666666666,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 7.093333333333334,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            }
+          ],
+          "gates": {
+            "independent_pixels": true,
+            "extent": true,
+            "cold": true,
+            "stalls": false,
+            "deficit": false,
+            "useful_video_pts": false,
+            "synchronization": true,
+            "heap": true,
+            "gpu": true,
+            "independent_pcm": true,
+            "readonly": true,
+            "page_errors": true
+          },
+          "scope": "Actual10s Worklet window over300s authored extent, two8sCAS sources/100 placements/5tracks. Transport observations are page receipt/arrival timing, not native execution or physical device timing. No5min playback/long source/DAC/full feature parity claim.",
+          "candidate": "candidate.browser_binary_sha256 and candidate.web_entrypoints"
+        },
+        "reuse": {
+          "foundation": "Original Classic renderer/decoder/shaders, Worklet/FIFO, immutable resource/SDK and registered194 operations; no new dependency/module/allowlist extension",
+          "unchanged_web_behavior_tests": "Prior foundation34Web/9renderer tests kept at their recorded candidates; no final Web product code delta, only browser observer scripts",
+          "broader_suites_rerun": false,
+          "one_owned_synthetic_workspace": true,
+          "prior_media_import_or_project_copy_repeated": false,
+          "scope": "Only affected frame preparation/host authority/HD boundaries/dense consumer behavior plus required architectural gates and the new explicit binary contract checks. No repeated Rust build for reverted Web/observer experiments."
+        },
+        "limits": [
+          "Dense stalls/deficit/useful_video_pts remain red; improved unique source PTS140/144 does not establish fullS1 performance.",
+          "Changing host visual policy dynamically will require a policy version in the private cache key or disabling reuse; current adapter policy is fixed per host runtime.",
+          "Rendering/authorization correctness is independently scoped; lower binding time does not prove that PCM supply tails come from one particular component.",
+          "No fresh whole workspace/physical DAC/long-file/VFR/nonunit-rate/codec/full transport or all visual/export matrix acceptance."
+        ],
+        "cleanup": {
+          "service_stopped": true,
+          "synthetic_workspace_retained": true,
+          "reason": "Reuse the same fixed revision/media for further PCM production/credit/UI scheduling diagnosis",
+          "user_media_touched": false,
+          "media_or_database_committed": false,
+          "resolved_startup_diagnostics_removed": true
+        }
       }
     ]
   },
@@ -3500,23 +3835,23 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "visual_preview_hd_bounded_execution",
+      "evidence_id": "visual_preview_prepared_frame_reuse",
       "feature": "S1 dense continuous picture/audio preview",
       "gates": {
         "stalls": {
-          "actual_ratio": 0.026230262312818456,
+          "actual_ratio": 0.04112164488250911,
           "maximum": 0.01
         },
         "deficit": {
-          "actual_ratio": 0.0242569092334326,
+          "actual_ratio": 0.04449511313728938,
           "maximum": 0.01
         },
         "useful_video_pts": {
-          "actual": 121,
+          "actual": 140,
           "minimum": 144
         }
       },
-      "next": "Use the retained 720p100-placement/5-track fixture and original budgets to improve planning/binding/control credit and GPU cadence; keep Rust clock/IR and authority fences."
+      "next": "Separate native PCM production, HTTP/credit turnaround and UI-thread delivery contributions using the retained fixture. PCM arrival p95 exceeds4096/48000=85.33ms; retain exact consumer clock, two-block budget and authority fences."
     }
   ],
   "resource_constraints": [

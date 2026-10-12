@@ -437,3 +437,77 @@ fn per_layer_zero_decode_budget_is_rejected_by_shared_admission_and_callback() {
         "VISUAL_BUDGET_EXCEEDED"
     );
 }
+
+#[test]
+fn retained_picture_keeps_fixed_time_policy_and_revalidates_decoder_facts() {
+    use crate::visual_preview_v4::{PreparedPictureV4, prepare_picture};
+    use opencut_api_contracts::{
+        audio_preview_v4::AudioPreviewStreamV4, visual_preview_v4::VisualPreviewFrameV4,
+    };
+    let original = input();
+    let mut request = VisualPreviewFrameV4 {
+        session: AudioPreviewStreamV4 {
+            session_id: "s".into(),
+            generation: "1".into(),
+            overlay_epoch: "0".into(),
+            owner_id: "owner".into(),
+            lease_id: "lease".into(),
+        },
+        time: Some(original.time.clone()),
+        decoded: None,
+    };
+    let prepared = PreparedPictureV4::new(
+        &original.snapshot,
+        &original.sequence_id,
+        &original.time,
+        &original.processing_policy,
+    )
+    .unwrap();
+    let plan = prepared.result(&request, &original.time).unwrap();
+    assert_eq!(plan.plan.identity.revision, "fixed-r1");
+    assert_eq!(plan.plan.identity.time, t(1, 7));
+    assert_eq!(plan.plan.layers[0].element_id, "element");
+    request.decoded = Some(vec![observation()]);
+    let bound = prepared.result(&request, &t(2, 7)).unwrap();
+    assert!(bound.bound.is_some());
+    assert_eq!(
+        bound.admission.max_rgba_bytes,
+        original.processing_policy.max_rgba_bytes.to_string()
+    );
+    let fresh = prepare_picture(
+        &original.snapshot,
+        &original.sequence_id,
+        &request,
+        &t(2, 7),
+        &original.processing_policy,
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(bound).unwrap(),
+        serde_json::to_value(fresh).unwrap()
+    );
+    // A newer consumer is rechecked, never inherited from preparation.
+    assert_eq!(
+        prepared.result(&request, &t(3, 7)).unwrap_err().code,
+        "PREVIEW_FRAME_STALE"
+    );
+    request.time = Some(t(1, 8));
+    assert_eq!(
+        prepared.result(&request, &t(2, 7)).unwrap_err().code,
+        "INVALID_VISUAL_PLAN"
+    );
+    request.time = Some(original.time.clone());
+    request.decoded = Some(vec![]);
+    assert!(prepared.result(&request, &original.time).is_err());
+    let mut policy = original.processing_policy.clone();
+    policy.max_rgba_bytes = 1;
+    assert!(
+        PreparedPictureV4::new(
+            &original.snapshot,
+            &original.sequence_id,
+            &original.time,
+            &policy
+        )
+        .is_err()
+    );
+}
