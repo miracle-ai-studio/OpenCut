@@ -1,34 +1,44 @@
 import {
   openGpuRealm,
   renderClassicFrame,
+  VisualDecoderCache,
   type GpuRealm,
 } from "../../../../../../packages/classic-visual-renderer/src/index.mjs";
 import type { EditorApi } from "../api";
 import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
 type Input = ToolInput<"opencut_visual_preview_v4_frame">;
 type Frame = ToolOutput<"opencut_visual_preview_v4_frame">;
+export type VisualPreviewExecutionApi = {
+  v4: Pick<EditorApi["v4"], "visualPreviewFrame" | "resource">;
+  sdk: Pick<EditorApi["sdk"], "downloadProjectV4Resource">;
+};
 
 /** Only execution of application facts. No source clock, geometry or project
  * evaluation lives here. Cache is volatile, hash verified and session scoped. */
 export class VisualPreviewRenderer {
   private realm: GpuRealm | null = null;
   private readonly cache = new Map<string, Uint8Array>();
-  async render(api: EditorApi, session: Input["session"], signal: AbortSignal) {
+  private readonly decoders = new VisualDecoderCache();
+  private readonly surface = new OffscreenCanvas(1, 1);
+  async render(api: VisualPreviewExecutionApi, session: Input["session"], signal: AbortSignal) {
+    const began = performance.now();
     const frame = await api.v4.visualPreviewFrame(
       { session, time: null, decoded: null },
       signal,
     );
     signal.throwIfAborted();
+    const planned = performance.now();
     this.realm ??= await openGpuRealm();
     signal.throwIfAborted();
     const { width, height } = frame.plan.identity;
-    const pixels = new Uint8ClampedArray(width * height * 4);
     const transfers = new Map<string, Uint8Array>();
-    let written = 0;
+    let execution: Record<string, string> = {};
     await renderClassicFrame(
       frame.plan,
       {
         admission: frame.admission,
+        surface: this.surface,
+        observeExecution: (observation) => { execution = { ...execution, ...observation }; },
         callback: async (name, args) => {
           signal.throwIfAborted();
           if (name === "admitDecode") {
@@ -37,6 +47,7 @@ export class VisualPreviewRenderer {
             return permit;
           }
           if (name === "bindFrame") {
+            const beganBind = performance.now();
             const bound = await api.v4.visualPreviewFrame(
               {
                 session,
@@ -46,6 +57,7 @@ export class VisualPreviewRenderer {
               signal,
             );
             if (!bound.bound) throw new Error("Missing bound visual frame");
+            execution.bindMs = String(performance.now() - beganBind);
             return bound.bound;
           }
           if (name === "resolveVerifiedBytes") {
@@ -118,28 +130,29 @@ export class VisualPreviewRenderer {
           }
           throw new Error("Unknown visual callback");
         },
-        rgba: async (offset, bytes) => {
-          signal.throwIfAborted();
-          if (offset !== written || offset + bytes.length > pixels.length)
-            throw new Error("Invalid visual readback order");
-          pixels.set(bytes, offset);
-          written += bytes.length;
-        },
+        rgba: async () => { throw new Error("Unexpected preview readback"); },
       },
       this.realm,
       signal,
       this.cache,
+      this.decoders,
     );
     signal.throwIfAborted();
-    if (written !== pixels.length)
-      throw new Error("Incomplete visual readback");
+    const pixels = this.surface.transferToImageBitmap();
+    if (pixels.width !== width || pixels.height !== height) {
+      pixels.close(); throw new Error("Invalid preview surface dimensions");
+    }
     return {
       frame,
-      pixels: new ImageData(pixels, width, height),
-      runtime: this.realm.observation,
+      pixels,
+      runtime: { ...this.realm.observation, ...execution, planMs: String(planned - began), totalMs: String(performance.now() - began) },
     };
   }
   close() {
+    this.decoders.close();
+    const context = this.surface.getContext("webgpu");
+    if (context && "unconfigure" in context) context.unconfigure();
+    this.surface.width = 0; this.surface.height = 0;
     this.cache.clear();
     this.realm?.device.destroy();
     this.realm = null;

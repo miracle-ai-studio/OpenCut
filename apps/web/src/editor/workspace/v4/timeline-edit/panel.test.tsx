@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setupTimelineEdit } from "./timeline-fixture";
 import { V4TimelinePanel } from "./panel";
 import type { TimelinePanelProps } from "./panel";
+import { preferences } from "../../../shared/locale";
 
 beforeEach(() => {
   Object.defineProperty(window, "DragEvent", { configurable: true, value: class extends MouseEvent {
@@ -35,6 +36,21 @@ async function setup() {
   };
   return { f, props };
 }
+
+it("consumer cursor updates reuse authored clip bodies while callbacks and language stay current", async () => {
+  const { f, props } = await setup();
+  try {
+    const body = vi.fn(() => null); props.renderAudioControls = body;
+    const view = render(<V4TimelinePanel {...props} />), rendered = body.mock.calls.length;
+    const nextSeek = vi.fn();
+    view.rerender(<V4TimelinePanel {...props} playhead={{ ticks: "2", timebase: 3 }} onSeek={nextSeek} />);
+    expect(body).toHaveBeenCalledTimes(rendered);
+    fireEvent.click(screen.getByRole("button", { name: "Whole image · image" }));
+    expect(nextSeek).toHaveBeenCalledWith(props.sequence.tracks[0].elements[0].timeline_range.start);
+    act(() => preferences({ language: "zh" }));
+    expect(body.mock.calls.length).toBeGreaterThan(rendered);
+  } finally { act(() => preferences({ language: "en" })); f.controller.dispose(); }
+});
 
 it("file drops use the lane coordinate at the current zoom, including scroll, and reject locked or busy tracks", async () => {
   const { f, props } = await setup();

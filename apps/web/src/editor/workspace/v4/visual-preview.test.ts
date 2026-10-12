@@ -14,7 +14,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-async function fixture() {
+async function fixture(bitmaps = false) {
   const f = await setupAudioPreview();
   let state = f.state();
   const s = f.sessionFor({
@@ -31,6 +31,7 @@ async function fixture() {
     resolve: (time: number) => void;
   }[] = [];
   const close = vi.fn();
+  const released: ReturnType<typeof vi.fn>[] = [];
   const renderer = {
     close,
     render: vi.fn(
@@ -39,7 +40,8 @@ async function fixture() {
           calls.push({
             session,
             signal,
-            resolve: (time) =>
+            resolve: (time) => {
+              const release = vi.fn(); released.push(release);
               resolve({
                 frame: {
                   plan: {
@@ -56,9 +58,11 @@ async function fixture() {
                   width: 1,
                   height: 1,
                   data: new Uint8ClampedArray([255, 0, 0, 255]),
+                  ...(bitmaps ? { close: release } : {}),
                 },
                 runtime: { gpuBackend: "mock" },
-              }),
+              });
+            },
           }),
         ),
     ),
@@ -81,8 +85,23 @@ async function fixture() {
     };
     port.observe(state.audioPreview);
   };
-  return { visual, calls, close, failure, s, observe };
+  return { visual, calls, close, failure, s, observe, released };
 }
+
+it("releases presented and late bitmap ownership at replacement/stop without publishing canceled pixels", async () => {
+  const f = await fixture(true), port = f.visual.start();
+  const prepare = port.prepare(f.s, new AbortController().signal);
+  await flush(); f.calls[0].resolve(0); await prepare;
+  f.observe(port, { ...f.s, authoritative_time: { ticks: "50", timebase: 1000 } });
+  await flush();
+  port.suspend();
+  expect(f.released[0]).toHaveBeenCalledTimes(1);
+  f.calls[1].resolve(.05); await flush();
+  expect(f.released[1]).toHaveBeenCalledTimes(1);
+  expect(f.visual.snapshot().pixels).toBeNull();
+  port.close();
+  expect(f.released[0]).toHaveBeenCalledTimes(1);
+});
 it("coalesces consumer observations to one in-flight frame and the latest intent; overdue pixels clear", async () => {
   const f = await fixture(),
     port = f.visual.start();
@@ -161,8 +180,7 @@ it("playing without fresh consumer observations removes its picture and close re
   vi.useFakeTimers();
   f.observe(port, f.s);
   await flush();
-  f.calls[1].resolve(0);
-  await flush();
+  expect(f.calls).toHaveLength(1);
   expect(f.visual.snapshot().pixels).not.toBeNull();
   vi.advanceTimersByTime(151);
   expect(f.visual.snapshot().pixels).toBeNull();
@@ -176,7 +194,7 @@ it("fences pixels with actual Worklet consumption while server confirmation is d
   try {
     const first = port.prepare(f.s, new AbortController().signal);
     await flush(); f.calls[0].resolve(0); await first;
-    f.observe(port, f.s);
+    f.observe(port, { ...f.s, authoritative_time: { ticks: "1", timebase: 1000 } });
     await flush();
     port.consume?.(f.s, "7424"); // 154.666ms, server still confirms zero.
     expect(f.visual.snapshot().pixels).toBeNull();

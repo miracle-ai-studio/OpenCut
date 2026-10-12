@@ -17,8 +17,12 @@ import {
   verifyV4ScenePreviewBoundaries,
 } from "./verify-v4-scene-preview.mjs";
 
+import { verifyV4ScenePreviewPerformance } from "./verify-v4-scene-preview-performance.mjs";
+
 const suites = new Map([
   ["scene-preview", verifyV4ScenePreview],
+  ["scene-preview-performance", verifyV4ScenePreviewPerformance],
+  ["scene-preview-hd", (...args) => verifyV4ScenePreview(...args, { width: 1280, height: 720 })],
   ["scene-preview-boundaries", verifyV4ScenePreviewBoundaries],
   ["timeline-selection", verifyTimelineSelection],
   ["media-fps", verifyMediaFps],

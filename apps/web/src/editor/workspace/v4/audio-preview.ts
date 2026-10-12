@@ -23,7 +23,7 @@ export const emptyAudioPreview = (): V4AudioPreviewState => ({
 type Output = Pick<
   PreviewAudioOutput,
   "ready" | "sampleRate" | "push" | "waitForCredit" | "silence" | "stop"
->;
+> & Partial<Pick<PreviewAudioOutput, "finish">>;
 type OutputFactory = (
   token: string,
   rate: number,
@@ -462,7 +462,7 @@ export class V4AudioPreview {
           for (;;) {
             await output.waitForCredit(abort.signal);
             const { value: pcm, done } = await blocks.next();
-            if (done) break;
+            if (done) { if (current()) output.finish?.(); break; }
             if (!current()) return;
             await output.push(pcm, abort.signal);
           }

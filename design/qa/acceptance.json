@@ -286,10 +286,10 @@
     "feedback": "Local mock receiver; no real email delivery"
   },
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
-  "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values.",
+  "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "Scoped candidate records below; main color/PCM AV and final affected boundaries retain their own Web entrypoint identities.",
-    "latest_candidate": "visual_preview_v4",
+    "scope": "Scoped candidate records retain actual Web entrypoint identities; HD correctness, dense red gates and final fallback-only unit/build checks are distinct.",
+    "latest_candidate": "visual_preview_hd_bounded_execution",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -3104,12 +3104,353 @@
           "removed_bytes": 11521758,
           "scope": "Exact owned opencut-web-f75qlux3 plus explicitly named task diagnostics; unrelated S1 history/ASR workspace and prior services retained."
         }
+      },
+      {
+        "evidence_id": "visual_preview_hd_bounded_execution",
+        "status": "passed_scoped_with_open_performance_gates",
+        "candidate": {
+          "base_commit": "1b1465e2fc3676cd93d7beaa55ecdfcb86494a99",
+          "source_files": [
+            "apps/web/scripts/verify-suite.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-performance.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "apps/web/src/editor/workspace/context.tsx",
+            "apps/web/src/editor/workspace/v4/audio-gain-line.tsx",
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview/output.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview/worklet.test.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview/worklet.ts",
+            "apps/web/src/editor/workspace/v4/frame-canvas.tsx",
+            "apps/web/src/editor/workspace/v4/product.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-art.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.test.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.tsx",
+            "apps/web/src/editor/workspace/v4/visual-preview-renderer.ts",
+            "apps/web/src/editor/workspace/v4/visual-preview.test.ts",
+            "apps/web/src/editor/workspace/v4/visual-preview.ts",
+            "apps/web/vitest.config.ts",
+            "packages/classic-visual-renderer/package.json",
+            "packages/classic-visual-renderer/src/decoder.mjs",
+            "packages/classic-visual-renderer/src/gpu.mjs",
+            "packages/classic-visual-renderer/src/index.d.mts",
+            "packages/classic-visual-renderer/src/index.mjs",
+            "packages/classic-visual-renderer/tests/decoder-cache.test.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "8435605413f16addbe1db2524234131e5349c9d36189a6f28db03aa365e707cb",
+          "binary_sha256": "384191b20c4ab7e640782809f7fe0e1ef61bc21487bbb89e548288108d48082b",
+          "browser": "154.0.8037.99",
+          "final_web_entrypoints": {
+            "index.html": "316c5bb9b589bd26fe95a204d52cec3a8217d969ac09968eb66fa5dee0eef4b9",
+            "assets/editor-workspace-DYHwzZOq.js": "691bf7832e540b1581ad476c509f03aeb8291ad6009e894703f07e2b5be5b354",
+            "assets/worklet-s8qZVu2l.js": "c39ab153d7876d7b4bb90ee0429256626c7f63364e0d8341ff3a3c8b93597862",
+            "assets/index-DMGbqN5h.js": "b94a83d562065a2349dbb0568f5f182203e8472db416c74e89424cfa6ac8455d"
+          },
+          "final_delta": "After the HD/dense receipts: primitive locale/theme memo dependencies verified by the panel unit test; final multi-request resource guard uses native one-shot canvases for different source times/admission, verified by targeted 4-layer unit regression and production build. Same-time HD/dense execution remains unchanged; no repeated browser run for that fallback-only guard."
+        },
+        "scope": "S1 bounded 1280x720 normal CFR/unit-rate continuous scene preview using existing Rust time/IR, Classic GPU renderer and sound authority; not full S1, dense performance or long-file delivery.",
+        "implementation": [
+          "GPU surface to ImageBitmap, bounded three-canvas verified-resource decoder pool, exact-request decode/GPU-upload reuse with independent layer composition",
+          "Original byte/dimension admission retained; no double charge for admitted retained pool; distinct per-layer times/admissions own separate canvases until GPU upload",
+          "Matching-token short-EOF plus two-block FIFO priming, silent wait never advances consumption",
+          "Exact unchanged consumer-time coalescing, stale bitmap release, timeline body and gain/source-art stable subscriptions with current action callbacks"
+        ],
+        "checks": {
+          "classic_visual_renderer_tests": 9,
+          "affected_web_files": 7,
+          "affected_web_tests": 34,
+          "web_tests_scope": "Per affected file receipts, not one fresh whole-Web run; panel 6 includes latest callback and locale invalidation regression.",
+          "real_native_gpu_pixel_oracle": 1,
+          "real_native_video_pts_oracle": 1,
+          "native_test_binary": "target/debug/deps/classic_visual-83656917f6eb3ee9",
+          "native_test_binary_sha256": "8ffdc4a45d4d4e2fdea66fda818b6b7ddaf020804ed549cd0b15bb6515161f68",
+          "typecheck": "passed",
+          "production_web_build": "passed; final fallback guard integrated",
+          "web_boundary_files": 178,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "rust_rebuilds": 0,
+          "public_contract_changes": false,
+          "generated_wire_reuse": "Prior S1 explicit binary: 194 tools, exact prior193 declarations and legacy22 checks; unchanged Rust/public schemas, no redundant regeneration."
+        },
+        "hd_correctness": {
+          "status": "passed",
+          "web_entrypoints": {
+            "assets/editor-workspace-DcOzuhI3.js": "9dd65bb7822595e4476ec1193c9eec7954e85646cabfe67ae1b725dd009fc07b",
+            "assets/index-D6dJbMwE.js": "33313cc813462bdd40ef3ac284e57d7ef12d618a96b5b0b2592f6d8674eade42",
+            "assets/worklet-s8qZVu2l.js": "c39ab153d7876d7b4bb90ee0429256626c7f63364e0d8341ff3a3c8b93597862",
+            "index.html": "89b451f72f9d867c836de316fa65dacad535e5c8a173f45c79d7fa88b1c5c01d"
+          },
+          "checks": [
+            "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+            "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs",
+            "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+            "paused preview revalidates authority within one second and clears cached pixels after a versioned permission rejection; genuine original-credential revocation is covered by the native host test"
+          ],
+          "independent_oracles": [
+            {
+              "check": "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+              "scene_preview": {
+                "width": 1280,
+                "height": 720,
+                "cold_ms": 8269,
+                "distinct_frames": 64,
+                "max_skew_ms": 117.33333333333329,
+                "frequency_hz": 439.99991601772865,
+                "rms": 0.08831585190797463,
+                "runtime": {
+                  "gpuBackend": "webgpu",
+                  "gpuDevice": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+                  "textureFormat": "bgra8unorm",
+                  "bindMs": "8.5",
+                  "peakGpuBytes": "18432164",
+                  "peakAccountedBytes": "67108857",
+                  "retainedDecodedBytes": "11059200",
+                  "retainedEncodedBytes": "11475",
+                  "planMs": "8.5",
+                  "totalMs": "70.10000002384186"
+                }
+              }
+            },
+            {
+              "check": "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs",
+              "seek_ms": 513
+            },
+            {
+              "check": "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+              "preview_cache": {
+                "resource_downloads": 1
+              }
+            }
+          ],
+          "fixture": {
+            "width": 1280,
+            "height": 720,
+            "seconds": 8,
+            "fps": 24,
+            "video": "H264, explicit BT709 alternating red/green; source audio off",
+            "audio": "separate mono PCM16 WAV, 440Hz/48000Hz",
+            "rate": "1/1",
+            "maintain_pitch": true
+          },
+          "distinct_frames_meaning": "Distinct requested-time presentations over4s, not independent decoded source PTS.",
+          "authority_limit": "Paused permission rejection is versioned HTTP fault injection; genuine original-credential revocation retains the prior native authority receipt."
+        },
+        "dense_performance": {
+          "status": "failed",
+          "web_entrypoints": {
+            "assets/editor-workspace-BNPWx40R.js": "4c508a25e88b2d72a5576fbf7ea581ebb02aabe4d53210565ba158dc5bb864e4",
+            "assets/index-DeYWaYMg.js": "191242aa74a76b68268bbed27e03e4dd60a8b39521e2f8a5e4544d012d58b3c1",
+            "assets/worklet-s8qZVu2l.js": "c39ab153d7876d7b4bb90ee0429256626c7f63364e0d8341ff3a3c8b93597862",
+            "index.html": "63e8ad39732eb4ac804b5bc8ee8bdbee00f7862715b0099e3fb68cf8a2c33f27"
+          },
+          "budget": {
+            "cold_ms": 10000,
+            "steady_ms": 10000,
+            "skew_ms": 150,
+            "distinct_video_frames": 144,
+            "deficit_ratio": 0.01,
+            "heap_delta_bytes": 67108864,
+            "gpu_bytes": 268435456
+          },
+          "machine": {
+            "platform": "darwin",
+            "arch": "x64",
+            "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"
+          },
+          "fixture": {
+            "project_id": "scene-preview-dense-7b4ffe9a-45e5-4c4c-bcca-23c1af75316e",
+            "revision": "rev_bf2ac2ef6fde247d9f66ed4f125aab89c66e68a24129c11038f11af4e5872f1e",
+            "width": 1280,
+            "height": 720,
+            "placements": 100,
+            "tracks": 5,
+            "seconds": 300,
+            "source_seconds": 8,
+            "unique_assets": 2,
+            "starts": "292*k/19; k=0..19",
+            "source_audio_disabled": true,
+            "audio_voices": 3,
+            "gain_db": -18,
+            "rate": "1/1",
+            "maintain_pitch": false
+          },
+          "cold_ms": 5224,
+          "distinct_presented_source_pts": 121,
+          "max_skew_ms": 122.66666666666649,
+          "minimum_skew_ms": 16.000000000000014,
+          "consumption": {
+            "elapsed_ms": 9999.899999976158,
+            "frames": 468352,
+            "reports": 3752,
+            "stalled_ratio": 0.026230262312818456,
+            "deficit_ratio": 0.0242569092334326,
+            "stalled_reports_by_second": {
+              "0": 12,
+              "1": 2,
+              "2": 4,
+              "3": 0,
+              "4": 14,
+              "5": 28,
+              "6": 14,
+              "7": 0,
+              "8": 18,
+              "9": 0
+            }
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "main_thread": {
+            "task_ms": 4859.244,
+            "script_ms": 1379.4449999999997,
+            "method": "CDP page main-thread time during the real steady window; excludes driver/native CPU"
+          },
+          "heap": {
+            "baseline_bytes": 4626664,
+            "peak_bytes": 22707732,
+            "delta_bytes": 18081068,
+            "method": "CDP page V8 heap, one baseline GC; no steady-window GC"
+          },
+          "execution": {
+            "planMs": {
+              "mean": 13.303664921622001,
+              "maximum": 62.29999998211861
+            },
+            "bindMs": {
+              "mean": 12.329319372851186,
+              "maximum": 45.69999998807907
+            },
+            "totalMs": {
+              "mean": 44.44240837696335,
+              "maximum": 1317.699999988079
+            }
+          },
+          "resources": {
+            "peak_gpu_bytes": 18432212,
+            "peak_accounted_bytes": 35414841,
+            "retained_decoded_bytes": 11059200,
+            "retained_encoded_bytes": 11475,
+            "method": "Classic execution allocation accounting; excludes driver/native RSS and process GPU overhead"
+          },
+          "independent_pixels": [
+            {
+              "time": 0,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 1.04,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 2.042666666666667,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 3.029333333333333,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 4.016,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 5.029333333333334,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 6.018666666666666,
+              "color": [
+                254,
+                0,
+                0,
+                255
+              ]
+            },
+            {
+              "time": 7.029333333333334,
+              "color": [
+                0,
+                254,
+                0,
+                255
+              ]
+            }
+          ],
+          "gates": {
+            "independent_pixels": true,
+            "extent": true,
+            "cold": true,
+            "stalls": false,
+            "deficit": false,
+            "useful_video_pts": false,
+            "synchronization": true,
+            "heap": true,
+            "gpu": true,
+            "independent_pcm": true,
+            "readonly": true,
+            "page_errors": true
+          },
+          "scope": "10s actual Worklet consumption window; first8s shared source plus authored gap. 300s project extent is not 300s continuous playback or a long source. Main-thread/heap/GPU allocation observations exclude native/driver CPU, RSS and GPU process overhead."
+        },
+        "reuse": {
+          "one_owned_synthetic_workspace": true,
+          "binary_rebuilt": false,
+          "prior_broad_suites_rerun": false,
+          "scope": "Reuse import/place fixture and current fixed revision, renderer/shaders, application facts and generated SDK; do not rerun unaffected recovery/import/DSP/all-workspace/package suites."
+        },
+        "limits": [
+          "Dense stalls/deficit/useful_video_pts gates remain unmet; do not mark S1/F10/F42 complete.",
+          "No physical DAC/long-file/VFR/non-unit-rate/SoundTouch/other codec/cross-browser/full transport or complete visual/export matrix acceptance.",
+          "Browser pool/surface are bounded allocation accounting, not hard OS RSS/VRAM quotas or exact renderer reproducibility."
+        ],
+        "cleanup": {
+          "service_stopped": true,
+          "synthetic_workspace_retained": true,
+          "reason": "Keep one owned failed dense fixture for next gate convergence; no duplicate media/import/project setup.",
+          "user_media_touched": false,
+          "media_or_database_committed": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG picture/audio preview is implemented and verified for the recorded 160x90/8s scope; normal-resolution/dense/long-file/VFR/full transport matrices, text/fonts/layout/graphics/stickers/all blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG preview has bounded 720p/8s correctness evidence; dense stalls/deficit/useful-source-PTS gates remain open. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -3157,7 +3498,27 @@
       "limits": "No real long-file/physical device/derived cache acceptance;whole migration remains incomplete."
     }
   ],
-  "open_failures": [],
+  "open_failures": [
+    {
+      "evidence_id": "visual_preview_hd_bounded_execution",
+      "feature": "S1 dense continuous picture/audio preview",
+      "gates": {
+        "stalls": {
+          "actual_ratio": 0.026230262312818456,
+          "maximum": 0.01
+        },
+        "deficit": {
+          "actual_ratio": 0.0242569092334326,
+          "maximum": 0.01
+        },
+        "useful_video_pts": {
+          "actual": 121,
+          "minimum": 144
+        }
+      },
+      "next": "Use the retained 720p100-placement/5-track fixture and original budgets to improve planning/binding/control credit and GPU cadence; keep Rust clock/IR and authority fences."
+    }
+  ],
   "resource_constraints": [
     {
       "id": "F18",
@@ -3200,10 +3561,10 @@
     }
   ],
   "cleanup": {
-    "scope": "Only identified owned synthetic workspaces, process logs/reports, temporary media/databases and obsolete executables were removed after stop/exit and no-open-file checks. User media, Classic reference and current required deliverables were retained.",
-    "temporary_fixtures_retained": false,
+    "scope": "Prior identified owned workspaces were cleaned as recorded. Current one stopped owned 720p dense synthetic workspace and compact scoped receipts retained for continuation; no user media touched, no media/DB/credentials in Git.",
+    "temporary_fixtures_retained": true,
     "user_media_touched": false,
-    "process_reports_retained": false
+    "process_reports_retained": true
   },
   "maintenance_validation": {
     "scope": "2026-10-12 change governance; no production behavior change or fresh product/media acceptance",

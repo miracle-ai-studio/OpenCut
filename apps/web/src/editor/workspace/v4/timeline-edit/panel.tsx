@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
@@ -43,7 +43,7 @@ const keyOf = (target: TimelineTarget) => `${target.track_id}\u0000${target.elem
 /** One Session owns the project, selection, playhead and transactions. Local
  * state here is only a view (zoom/scroll) or an uncommitted pointer intention. */
 export function V4TimelinePanel(props: TimelinePanelProps) {
-  useLocale();
+  const { language, theme } = useLocale();
   const latest = useRef(props); latest.current = props;
   const root = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null), tracks = useRef<HTMLDivElement>(null);
   const gesture = useRef<TimelineGesture | null>(null), rubber = useRef<Rubber | null>(null);
@@ -197,6 +197,50 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
   };
   const labelInterval = Math.max(0.1, 10 ** Math.ceil(Math.log10(100 / scale)));
   const ticks = Array.from({ length: Math.min(2000, Math.ceil((width / scale) / labelInterval)) }, (_, index) => index * labelInterval);
+  // Authored clip bodies do not depend on the continuous consumer cursor.
+  // Handlers use the latest view; selection, policy, scope and draft still invalidate.
+  const trackRows = useMemo(() => props.sequence.tracks.map(track => <div key={track.id} className="v4-track" style={{ height: TRACK_HEIGHT, minHeight: TRACK_HEIGHT, gap: 0 }}>
+            <button className="v4-track-name" style={{ width: TRACK_LABEL_WIDTH, flexBasis: TRACK_LABEL_WIDTH }} data-selected={props.selectedId === track.id} aria-pressed={props.selectedId === track.id}
+              onClick={() => latest.current.onSelectOther(track.id)}>{track.name} · {track.kind}{track.locked ? " 🔒" : ""}</button>
+            <div className="v4-track-lane" data-timeline-background data-file-track={track.id} style={{ width, flex: "none", height: TRACK_HEIGHT }}>
+              {track.elements.map(element => {
+                const target = { track_id: track.id, element_id: element.id };
+                const move = draft?.command?.kind === "move_selection" ? draft.command.moves.find(item => keyOf(item.target) === keyOf(target)) : undefined;
+                const trim = draft?.command?.kind === "trim" && draft.command.target.element_id === element.id ? draft.command : null;
+                const startSeconds = secondsForDisplay(element.timeline_range.start), duration = secondsForDisplay(element.timeline_range.duration);
+                const left = move ? secondsForDisplay(move.new_start) : trim?.edge === "left" ? secondsForDisplay(trim.boundary) : startSeconds;
+                const right = trim?.edge === "right" ? secondsForDisplay(trim.boundary) : startSeconds + duration;
+                return <div key={element.id} className="v4-timeline-element" data-selected={selected.has(keyOf(target)) || props.selectedId === element.id}
+                  data-timeline-media={media(element) ? "true" : undefined} data-track-id={track.id} data-element-id={element.id}
+                  style={{ left: left * scale, width: (move ? duration : Math.max(0, right - left)) * scale,
+                    ...(move ? { transform: `translateY(${draft!.trackOffset * TRACK_HEIGHT}px)`, zIndex: 4 } : {}) }}>
+                  <button className="v4-element-select" aria-pressed={selected.has(keyOf(target)) || props.selectedId === element.id}
+                    title={`${element.name} · ${formatTime(element.timeline_range.start)}`} onClick={event => {
+                    if (props.gainDraftActive || props.attempt?.phase === "applying") return;
+                    if (media(element)) { if (!event.detail) latest.current.onSelect(target, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace"); }
+                    else latest.current.onSelectOther(element.id);
+                    if (!event.shiftKey && !event.metaKey && !event.ctrlKey) latest.current.onSeek(element.timeline_range.start);
+                    root.current?.focus({ preventScroll: true });
+                  }}>{element.name} · {element.content.kind}</button>
+                  {props.renderAudioControls(element)}
+                  {props.sourceArt && media(element) && (() => {
+                    const assetId = element.content.kind === "video" || element.content.kind === "audio" || element.content.kind === "image" ? element.content.asset_id : null;
+                    const asset = props.sourceArt.assets.find(item => item.id === assetId);
+                    return asset ? <TimelineArt api={props.sourceArt.api} scope={props.scope} trackId={track.id} element={element} asset={asset} scale={scale} gainDraft={props.sourceArt.gainDraft} /> : null;
+                  })()}
+                  {media(element) && !props.disabled && !props.gainDraftActive && !track.locked && <>
+                    <span className="v4-trim-handle" data-trim-edge="left" title={t("Trim left edge")} />
+                    <span className="v4-trim-handle" data-trim-edge="right" title={t("Trim right edge")} />
+                  </>}
+                </div>;
+              })}
+              {props.sequence.captions.filter(caption => caption.track_id === track.id).map(caption => <button key={caption.id} className="v4-caption-marker"
+                style={{ left: secondsForDisplay(caption.timeline_range.start) * scale, width: secondsForDisplay(caption.timeline_range.duration) * scale }}
+                onClick={() => { latest.current.onSelectOther(caption.id); latest.current.onSeek(caption.timeline_range.start); }}>{caption.text}</button>)}
+            </div>
+          </div>), [props.sequence, props.selection, props.selectedId, props.disabled, props.gainDraftActive,
+    props.attempt?.phase, props.scope.projectId, props.scope.revision, props.scope.sequenceId,
+    props.sourceArt?.api, props.sourceArt?.assets, props.sourceArt?.gainDraft, props.renderAudioControls, scale, draft, language, theme]);
   return <div className="v4-timeline-panel" ref={root} tabIndex={0} aria-label={t("Timeline")} onKeyDown={keyboard}
     onBlur={event => { if (gesture.current || rubber.current || !event.currentTarget.contains(event.relatedTarget as Node | null)) cancel(); }}>
     <TimelineEditControls controller={props.controller} sequence={props.sequence} scope={props.scope} playhead={props.playhead}
@@ -256,46 +300,7 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
             style={{ left: secondsForDisplay(bookmark.time) * scale }} onClick={() => { props.onSelectOther(bookmark.id); props.onSeek(bookmark.time); }}>◆</button>)}
         </div>
         <div className="v4-timeline-tracks" ref={tracks} style={{ position: "relative" }}>
-          {props.sequence.tracks.map(track => <div key={track.id} className="v4-track" style={{ height: TRACK_HEIGHT, minHeight: TRACK_HEIGHT, gap: 0 }}>
-            <button className="v4-track-name" style={{ width: TRACK_LABEL_WIDTH, flexBasis: TRACK_LABEL_WIDTH }} data-selected={props.selectedId === track.id} aria-pressed={props.selectedId === track.id}
-              onClick={() => props.onSelectOther(track.id)}>{track.name} · {track.kind}{track.locked ? " 🔒" : ""}</button>
-            <div className="v4-track-lane" data-timeline-background data-file-track={track.id} style={{ width, flex: "none", height: TRACK_HEIGHT }}>
-              {track.elements.map(element => {
-                const target = { track_id: track.id, element_id: element.id };
-                const move = draft?.command?.kind === "move_selection" ? draft.command.moves.find(item => keyOf(item.target) === keyOf(target)) : undefined;
-                const trim = draft?.command?.kind === "trim" && draft.command.target.element_id === element.id ? draft.command : null;
-                const startSeconds = secondsForDisplay(element.timeline_range.start), duration = secondsForDisplay(element.timeline_range.duration);
-                const left = move ? secondsForDisplay(move.new_start) : trim?.edge === "left" ? secondsForDisplay(trim.boundary) : startSeconds;
-                const right = trim?.edge === "right" ? secondsForDisplay(trim.boundary) : startSeconds + duration;
-                return <div key={element.id} className="v4-timeline-element" data-selected={selected.has(keyOf(target)) || props.selectedId === element.id}
-                  data-timeline-media={media(element) ? "true" : undefined} data-track-id={track.id} data-element-id={element.id}
-                  style={{ left: left * scale, width: (move ? duration : Math.max(0, right - left)) * scale,
-                    ...(move ? { transform: `translateY(${draft!.trackOffset * TRACK_HEIGHT}px)`, zIndex: 4 } : {}) }}>
-                  <button className="v4-element-select" aria-pressed={selected.has(keyOf(target)) || props.selectedId === element.id}
-                    title={`${element.name} · ${formatTime(element.timeline_range.start)}`} onClick={event => {
-                    if (props.gainDraftActive || props.attempt?.phase === "applying") return;
-                    if (media(element)) { if (!event.detail) props.onSelect(target, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace"); }
-                    else props.onSelectOther(element.id);
-                    if (!event.shiftKey && !event.metaKey && !event.ctrlKey) props.onSeek(element.timeline_range.start);
-                    root.current?.focus({ preventScroll: true });
-                  }}>{element.name} · {element.content.kind}</button>
-                  {props.renderAudioControls(element)}
-                  {props.sourceArt && media(element) && (() => {
-                    const assetId = element.content.kind === "video" || element.content.kind === "audio" || element.content.kind === "image" ? element.content.asset_id : null;
-                    const asset = props.sourceArt.assets.find(item => item.id === assetId);
-                    return asset ? <TimelineArt api={props.sourceArt.api} scope={props.scope} trackId={track.id} element={element} asset={asset} scale={scale} gainDraft={props.sourceArt.gainDraft} /> : null;
-                  })()}
-                  {media(element) && !props.disabled && !props.gainDraftActive && !track.locked && <>
-                    <span className="v4-trim-handle" data-trim-edge="left" title={t("Trim left edge")} />
-                    <span className="v4-trim-handle" data-trim-edge="right" title={t("Trim right edge")} />
-                  </>}
-                </div>;
-              })}
-              {props.sequence.captions.filter(caption => caption.track_id === track.id).map(caption => <button key={caption.id} className="v4-caption-marker"
-                style={{ left: secondsForDisplay(caption.timeline_range.start) * scale, width: secondsForDisplay(caption.timeline_range.duration) * scale }}
-                onClick={() => { props.onSelectOther(caption.id); props.onSeek(caption.timeline_range.start); }}>{caption.text}</button>)}
-            </div>
-          </div>)}
+          {trackRows}
           {box && <div className="v4-selection-box" style={{ left: TRACK_LABEL_WIDTH + box.x, top: box.y, width: box.width, height: box.height }} />}
           <div className="v4-playhead" style={{ left: TRACK_LABEL_WIDTH + secondsForDisplay(props.playhead) * scale, height: props.sequence.tracks.length * TRACK_HEIGHT }} />
         </div>

@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/opencut')
     parser.add_argument('--web-root', type=Path, help='Verify a supplied built Web tree, including extracted bundles')
-    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'v4-file-import', 'v4-file-import-boundaries', 'scene-preview', 'scene-preview-boundaries', 'project-covers', 'classic-recovery', 'feedback', 'v4-editor', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
+    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'v4-file-import', 'v4-file-import-boundaries', 'scene-preview', 'scene-preview-hd', 'scene-preview-performance', 'scene-preview-boundaries', 'project-covers', 'classic-recovery', 'feedback', 'v4-editor', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
     parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
     parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
     parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
@@ -39,7 +39,7 @@ def main():
         required = ['workspace.sqlite'] + ([] if suites == ['edit-recovery'] else ['sample.mp4', 'sample.wav'])
         if any(suite in suites for suite in ['v4-editor', 'v4-file-import', 'v4-file-import-boundaries']):
             required += ['sample.png', 'replacement.wav']
-        if 'scene-preview-boundaries' in suites and 'scene-preview' not in suites:
+        if any(s in suites for s in ['scene-preview-boundaries', 'scene-preview-performance']) and not any(s in suites for s in ['scene-preview', 'scene-preview-hd']):
             required += ['scene-preview-fixture.json']
         if 'v4-file-import-boundaries' in suites:
             required += ['fractional.wav', 'fractional-b.wav']
@@ -57,11 +57,11 @@ def main():
             raise RuntimeError(result.stdout + result.stderr)
         return json.loads(result.stdout)['data']
     try:
-        if 'scene-preview' in suites and not args.reuse_workspace:
+        if any(suite in suites for suite in ['scene-preview', 'scene-preview-hd']) and not args.reuse_workspace:
             # Independent authored red/green intervals, primary H264 24fps, no
             # embedded audio. WAV is independent 440Hz mono at 48000Hz.
             subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i',
-                            'color=c=red:size=160x90:rate=24:duration=8','-vf',
+                            f"color=c=red:size={'1280x720' if 'scene-preview-hd' in suites else '160x90'}:rate=24:duration=8",'-vf',
                             "drawbox=x=0:y=0:w=iw:h=ih:color=lime:t=fill:enable='mod(floor(t),2)',colorspace=iall=bt601-6-625:all=bt709:fast=1",
                             '-c:v','libx264','-bf','0','-pix_fmt','yuv420p',str(workspace/'sample.mp4')],check=True)
             subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i',

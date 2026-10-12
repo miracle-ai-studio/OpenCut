@@ -1,18 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import { useWorkspace } from "../context";
-import { t } from "../../shared/locale";
+import { memo, useEffect, useRef, useState } from "react";
+import { useWorkspace, useWorkspaceSelection } from "../context";
+import { t, useLocale } from "../../shared/locale";
 import { audioGainAvailability } from "./audio-gain";
 import { gainLinePercent, gainLineTenths } from "./audio-gain-display";
 
 /** Only presentation and gestures. Saving uses the controller's fixed-head plan. */
-export function V4AudioGainLine({
+const selectLine = (s: ReturnType<import("../controller").WorkspaceController["getSnapshot"]>) => ({ v4: s.v4, busy: s.busy, api: s.api });
+const sameLine = (a: ReturnType<typeof selectLine>, b: ReturnType<typeof selectLine>) =>
+  a.busy === b.busy && a.api === b.api && a.v4?.head === b.v4?.head && a.v4?.historical === b.v4?.historical &&
+  a.v4?.sequenceId === b.v4?.sequenceId && a.v4?.gainDraft === b.v4?.gainDraft && a.v4?.audioGain === b.v4?.audioGain &&
+  a.v4?.audioPreview.phase === b.v4?.audioPreview.phase;
+export const V4AudioGainLine = memo(function V4AudioGainLine({
   elementId,
   onSelect,
 }: {
   elementId: string;
-  onSelect(): void;
+  onSelect(elementId: string): void;
 }) {
-  const { controller, v4, busy } = useWorkspace();
+  useLocale();
+  const { controller, selected: { v4, busy } } = useWorkspaceSelection(selectLine, sameLine);
   const [error, setError] = useState<string | null>(null);
   const gesture = useRef<{
     id: string;
@@ -99,7 +105,7 @@ export function V4AudioGainLine({
                 return;
               try {
                 e.currentTarget.focus();
-                onSelect();
+                onSelect(elementId);
                 const id = gain.begin(elementId);
                 gesture.current = { id, pointer: e.pointerId, key: null };
                 e.currentTarget.setPointerCapture(e.pointerId);
@@ -157,7 +163,7 @@ export function V4AudioGainLine({
                 return;
               try {
                 if (!gesture.current) {
-                  onSelect();
+                  onSelect(elementId);
                   gesture.current = {
                     id: gain.begin(elementId),
                     pointer: null,
@@ -212,7 +218,7 @@ export function V4AudioGainLine({
         aria-pressed={available.audio.muted}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect();
+          onSelect(elementId);
           run(() => gain.mute(elementId, !available.audio.muted));
         }}
       >
@@ -236,7 +242,7 @@ export function V4AudioGainLine({
       )}
     </div>
   );
-}
+});
 
 export function V4AudioGainStatus() {
   const { controller, v4, busy } = useWorkspace();

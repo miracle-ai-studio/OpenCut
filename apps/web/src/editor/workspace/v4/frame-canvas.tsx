@@ -27,7 +27,9 @@ export function V4FrameCanvas({
     if (node && live.pixels) {
       node.width = live.pixels.width;
       node.height = live.pixels.height;
-      node.getContext("2d")?.putImageData(live.pixels, 0, 0);
+      if ("close" in live.pixels)
+        node.getContext("bitmaprenderer")?.transferFromImageBitmap(live.pixels);
+      else node.getContext("2d")?.putImageData(live.pixels, 0, 0);
     }
   }, [live.pixels]);
   const [image, setImage] = useState<{ url: string; stamp: string } | null>(

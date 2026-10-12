@@ -20,7 +20,7 @@ export async function openGpuRealm() {
   const device = await adapter.requestDevice();
   return { device, observation: { gpuBackend: "webgpu", gpuDevice: observedDevice, textureFormat: FORMAT } };
 }
-export async function renderGpuFrame(frame, sources, admission, emit, signal, realm) {
+export async function renderGpuFrame(frame, sources, admission, emit, signal, realm, surface) {
   checkAbort(signal);
   const owned = !realm;
   realm ??= await openGpuRealm();
@@ -79,6 +79,7 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       canvases.push(backgroundCanvas);
       items.push({ texture: bg, quad: { centerX: width / 2, centerY: height / 2, width, height, rotationRadians: 0, opacity: 1, flipX: false, flipY: false } });
     }
+    const uploaded = new Map();
     for (const layer of frame.layers) {
       checkAbort(signal);
       if (layer.quad === null) continue;
@@ -87,8 +88,12 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       if (!source) reject("INVALID_VISUAL_PLAN", "Bound quad has no decoded source");
       for (const key of ["centerX", "centerY", "width", "height", "rotationRadians", "opacity"]) finite(quad[key], key);
       if (quad.width <= 0 || quad.height <= 0 || typeof quad.flipX !== "boolean" || typeof quad.flipY !== "boolean") reject("UNSUPPORTED_RENDER_FEATURE", "Degenerate visual quads are unsupported");
-      const tex = texture(source.width, source.height);
-      device.queue.copyExternalImageToTexture({ source: source.canvas, flipY: false }, { texture: tex, colorSpace: "srgb", premultipliedAlpha: false }, [source.width, source.height]);
+      let tex = uploaded.get(source);
+      if (!tex) {
+        tex = texture(source.width, source.height);
+        device.queue.copyExternalImageToTexture({ source: source.canvas, flipY: false }, { texture: tex, colorSpace: "srgb", premultipliedAlpha: false }, [source.width, source.height]);
+        uploaded.set(source, tex);
+      }
       items.push({ texture: tex, quad });
     }
     for (const item of items) {
@@ -102,6 +107,25 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       mix.setBindGroup(0, group(blendPipeline, 0, scene)); mix.setBindGroup(1, group(blendPipeline, 1, target)); mix.setBindGroup(2, normal);
       mix.draw(6); mix.end(); [scene, nextScene] = [nextScene, scene];
     }
+    if (surface) {
+      releases.push(budget.reserve(width * height * 4));
+      const changed = realm.previewSurface !== surface || surface.width !== width || surface.height !== height;
+      if (surface.width !== width) surface.width = width;
+      if (surface.height !== height) surface.height = height;
+      const context = surface.getContext("webgpu");
+      if (!context) reject("VISUAL_GPU_FAILED", "Preview GPU surface is unavailable");
+      if (changed) {
+        context.configure({ device, format: FORMAT, alphaMode: "opaque", usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
+        realm.previewSurface = surface;
+      }
+      encoder.copyTextureToTexture({ texture: scene }, { texture: context.getCurrentTexture() }, [width, height]);
+      device.queue.submit([encoder.finish()]);
+      const validationFailure = await device.popErrorScope(); scopes--;
+      const memoryFailure = await device.popErrorScope(); scopes--;
+      if (validationFailure || memoryFailure) reject("VISUAL_GPU_FAILED", "GPU rejected preview presentation");
+      checkAbort(signal);
+      return { ...realm.observation, peakGpuBytes: String(budget.peak) };
+    }
     const rowBytes = width * 4, aligned = Math.ceil(rowBytes / 256) * 256;
     releases.push(budget.reserve(aligned * height));
     readback = device.createBuffer({ size: aligned * height, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }); buffers.push(readback);
@@ -111,12 +135,16 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     const memoryFailure = await device.popErrorScope(); scopes--;
     if (validationFailure || memoryFailure) reject("VISUAL_GPU_FAILED", "GPU rejected the compiled frame execution");
     await readback.mapAsync(GPUMapMode.READ); checkAbort(signal);
-    const bytes = new Uint8Array(readback.getMappedRange());
-    let offset = 0; const chunk = new Uint8Array(Math.min(65536, rowBytes * height)); let fill = 0;
+    const bytes = new Uint32Array(readback.getMappedRange());
+    // BGRA -> RGBA swaps the red/blue lanes without four scalar byte writes
+    // per pixel. Both the padded rows and emitted chunks remain exact.
+    let offset = 0; const chunk = new Uint8Array(Math.min(65536, rowBytes * height));
+    const words = new Uint32Array(chunk.buffer); let fill = 0;
     for (let row = 0; row < height; row++) {
-      for (let x = 0; x < rowBytes; x += 4) {
-        const start = row * aligned + x;
-        chunk[fill++] = bytes[start + 2]; chunk[fill++] = bytes[start + 1]; chunk[fill++] = bytes[start]; chunk[fill++] = bytes[start + 3];
+      for (let x = 0; x < width; x++) {
+        const pixel = bytes[row * aligned / 4 + x];
+        words[fill / 4] = (pixel & 0xff00ff00) | ((pixel & 0xff) << 16) | ((pixel >>> 16) & 0xff);
+        fill += 4;
         if (fill === chunk.length) { checkAbort(signal); await emit(offset, chunk); offset += fill; fill = 0; }
       }
     }

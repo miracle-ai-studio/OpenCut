@@ -12,6 +12,7 @@ class PreviewOutputProcessor extends AudioWorkletProcessor {
   private queue = new PreviewPcmQueue();
   private token: string | null = null;
   private playing = false;
+  private primed = false;
   constructor() {
     super();
     this.port.onmessage = ({ data }) => {
@@ -19,6 +20,7 @@ class PreviewOutputProcessor extends AudioWorkletProcessor {
         this.token = data.token;
         this.queue.reset(this.token);
         this.playing = true;
+        this.primed = false;
       } else if (data.kind === "stop") {
         this.playing = false;
         this.port.postMessage({
@@ -30,6 +32,7 @@ class PreviewOutputProcessor extends AudioWorkletProcessor {
       } else if (data.kind === "block") {
         try {
           this.queue.append(data.token, new Float32Array(data.pcm));
+          if (this.queue.freeBlocks === 0) this.primed = true;
         } catch (error) {
           this.playing = false;
           this.queue.reset(null);
@@ -39,13 +42,13 @@ class PreviewOutputProcessor extends AudioWorkletProcessor {
             message: String(error),
           });
         }
-      }
+      } else if (data.kind === "end" && data.token === this.token) this.primed = true;
     };
   }
   process(_inputs: Float32Array[][], outputs: Float32Array[][]) {
     const output = outputs[0];
     if (!output?.[0] || !output[1]) return true;
-    if (!this.playing) {
+    if (!this.playing || !this.primed) {
       output[0].fill(0);
       output[1].fill(0);
       return true;

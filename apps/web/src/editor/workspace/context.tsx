@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
@@ -31,4 +32,23 @@ export function useWorkspace() {
     controller.getSnapshot,
   );
   return { controller, ...state };
+}
+
+/** Subscribe to stable presentation facts without duplicating workspace state.
+ * Controllers still inspect the current authoritative snapshot for every action. */
+export function useWorkspaceSelection<T>(
+  select: (state: ReturnType<WorkspaceController["getSnapshot"]>) => T,
+  equal: (a: T, b: T) => boolean,
+) {
+  const controller = useContext(Context);
+  if (!controller) throw new Error("WorkspaceProvider missing");
+  const snapshot = useMemo(() => {
+    let value = select(controller.getSnapshot());
+    return () => {
+      const next = select(controller.getSnapshot());
+      if (!equal(value, next)) value = next;
+      return value;
+    };
+  }, [controller, select, equal]);
+  return { controller, selected: useSyncExternalStore(controller.subscribe, snapshot) };
 }

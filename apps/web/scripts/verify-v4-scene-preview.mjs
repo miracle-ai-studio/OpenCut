@@ -3,43 +3,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { importProductMedia, placeProductMedia } from "./verify-v4-editor.mjs";
 
-// Owned independent color schedule and 440Hz PCM; source fixture is generated
-// by verify-web.py. The witness observes real Worklet consumption and canvas
-// readback, rather than deriving expected pixels from the service frame plan.
-export async function verifyV4ScenePreview(
-  browser,
-  endpoint,
-  directory,
-  check,
-) {
-  const page = await browser.newPage({
-    locale: "en-US",
-    viewport: { width: 1440, height: 1100 },
-  });
-  page.setDefaultTimeout(30000);
-  const errors = [],
-    writes = [],
-    streamObservations = [],
-    requests = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  page.on("request", (r) => {
-    if (r.url().endsWith("opencut_edit_v4_apply"))
-      writes.push(r.postDataJSON());
-    requests.push(new URL(r.url()).pathname);
-  });
-  page.on("response", (r) => {
-    if (r.url().includes("/preview/v4/audio/stream"))
-      streamObservations.push({ kind: "response", status: r.status() });
-  });
-  page.on("requestfailed", (r) => {
-    if (r.url().includes("/preview/v4/audio/stream"))
-      streamObservations.push({ kind: "failed", error: r.failure() });
-  });
-  await page.addInitScript(() => {
+export function installScenePreviewWitness({ deferReadback = false } = {}) {
+    const deferred = [], sampledSeconds = new Set();
     const w = (window.__scenePreviewWitness = {
       session: null,
       progress: null,
       frames: [],
+      progresses: [],
+      bindings: [],
       pcm: [],
       firstSoundAt: null,
       blocks: 0,
@@ -56,6 +27,11 @@ export async function verifyV4ScenePreview(
             if (r.data) w.session = r.data;
           })
           .catch(() => {});
+      if (url.endsWith("opencut_visual_preview_v4_frame"))
+        response.clone().json().then(r => {
+          if (r.data?.bound && w.bindings.length < 1024)
+            w.bindings.push({ time: r.data.time_seconds, pts: r.data.bound.decoded.filter(d => d.kind === "readyVideo").map(d => d.actualTimestampSeconds) });
+        }).catch(() => {});
       return response;
     };
     const Original = window.AudioWorkletNode;
@@ -84,6 +60,8 @@ export async function verifyV4ScenePreview(
         this.port.addEventListener("message", ({ data }) => {
           if (data.kind === "progress" && data.token === w.progress?.token) {
             w.progress = data;
+            if (Number(data.consumedFrames) > 0 && w.progresses.length < 8192)
+              w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now() });
             if (Number(data.consumedFrames) > 0 && !w.firstSoundAt)
               w.firstSoundAt = Date.now();
           }
@@ -112,6 +90,9 @@ export async function verifyV4ScenePreview(
             Math.floor(data.width / 2)) *
           4;
         w.frames.push({
+          width: data.width,
+          height: data.height,
+          pts: w.bindings.findLast(b => b.time === t)?.pts ?? [],
           time: t,
           actual,
           confirmed: s
@@ -125,7 +106,86 @@ export async function verifyV4ScenePreview(
       }
       return result;
     };
+    const transfer = ImageBitmapRenderingContext.prototype.transferFromImageBitmap;
+    ImageBitmapRenderingContext.prototype.transferFromImageBitmap = function (bitmap) {
+      if (bitmap && this.canvas.classList.contains("v4-scene-frame") && w.frames.length < 512) {
+        // Read one independently selected center pixel before ownership moves.
+        // Avoid a full-frame GPU readback in the measurement itself.
+        const s = w.session, p = w.progress, t = Number(this.canvas.dataset.time);
+        const record = { width: bitmap.width, height: bitmap.height,
+          pts: w.bindings.findLast(b => b.time === t)?.pts ?? [], time: t,
+          actual: s && p ? Number(s.actual_start_sample) / s.identity.sample_rate + Number(p.consumedFrames) / s.identity.sample_rate : 0,
+          confirmed: s ? Number(s.authoritative_time.ticks) / s.authoritative_time.timebase : 0,
+          generation: this.canvas.dataset.generation, color: null,
+          at: performance.now(), runtime: this.canvas.dataset.runtime };
+        const read = (source) => {
+          const sample = new OffscreenCanvas(1, 1), context = sample.getContext("2d", { willReadFrequently: true });
+          context.drawImage(source, 0, 0, 1, 1);
+          record.color = [...context.getImageData(0, 0, 1, 1).data];
+          sample.width = 0; sample.height = 0;
+        };
+        if (deferReadback) {
+          // Freeze one actual center pixel per authored second, at most 16.
+          // Materialize its CPU bytes after the measured playback window; a
+          // synchronous GPU read every paint otherwise dominates this test.
+          const second = Math.floor(t);
+          if (!sampledSeconds.has(second) && deferred.length < 16) {
+            sampledSeconds.add(second);
+            deferred.push({ record, bitmap: createImageBitmap(bitmap, Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1), read });
+          }
+        } else {
+          const sample = new OffscreenCanvas(1, 1), context = sample.getContext("2d", { willReadFrequently: true });
+          context.drawImage(bitmap, Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1, 0, 0, 1, 1);
+          record.color = [...context.getImageData(0, 0, 1, 1).data];
+          sample.width = 0; sample.height = 0;
+        }
+        w.frames.push(record);
+      }
+      return transfer.call(this, bitmap);
+    };
+    window.__readScenePreviewSamples = async () => {
+      for (const item of deferred) {
+        const bitmap = await item.bitmap;
+        try { item.read(bitmap); } finally { bitmap.close(); }
+      }
+      deferred.length = 0;
+    };
+}
+
+// Owned independent color schedule and 440Hz PCM; source fixture is generated
+// by verify-web.py. The witness observes real Worklet consumption and canvas
+// readback, rather than deriving expected pixels from the service frame plan.
+export async function verifyV4ScenePreview(
+  browser,
+  endpoint,
+  directory,
+  check,
+  { width = 160, height = 90 } = {},
+) {
+  const page = await browser.newPage({
+    locale: "en-US",
+    viewport: { width: 1440, height: 1100 },
   });
+  page.setDefaultTimeout(30000);
+  const errors = [],
+    writes = [],
+    streamObservations = [],
+    requests = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("request", (r) => {
+    if (r.url().endsWith("opencut_edit_v4_apply"))
+      writes.push(r.postDataJSON());
+    requests.push(new URL(r.url()).pathname);
+  });
+  page.on("response", (r) => {
+    if (r.url().includes("/preview/v4/audio/stream"))
+      streamObservations.push({ kind: "response", status: r.status() });
+  });
+  page.on("requestfailed", (r) => {
+    if (r.url().includes("/preview/v4/audio/stream"))
+      streamObservations.push({ kind: "failed", error: r.failure() });
+  });
+  await page.addInitScript(installScenePreviewWitness);
   const tool = async (name, input) => {
     const r = await page.evaluate(
       async ({ name, input }) =>
@@ -155,18 +215,21 @@ export async function verifyV4ScenePreview(
     await expect(
       page.getByRole("button", { name: "New project", exact: true }),
     ).toBeEnabled();
-    id = `scene-preview-${crypto.randomUUID()}`;
+    const known = await fs.readFile(path.join(directory, "scene-preview-fixture.json"), "utf8").then(JSON.parse).catch(e => { if (e.code === "ENOENT") return null; throw e; });
+    id = known?.project_id ?? `scene-preview-${crypto.randomUUID()}`;
+    if (!known) {
     await tool("opencut_project_v4_create", {
       project: {
         id,
         name: "Continuous preview acceptance",
         sequence_id: "main",
-        width: 160,
-        height: 90,
+        width,
+        height,
         fps: { numerator: 24, denominator: 1 },
       },
       idempotency_key: `${id}-create`,
     });
+    }
     await page.goto(`${endpoint}/editor/${id}`);
     await expect(
       page.getByRole("main", { name: "V4 editor", exact: true }),
@@ -177,6 +240,7 @@ export async function verifyV4ScenePreview(
     });
     if (await guide.isVisible())
       await guide.getByRole("button", { name: "Close", exact: true }).click();
+    if (!known) {
     await importProductMedia(page, path.join(directory, "sample.mp4"), writes);
     await placeProductMedia(
       page,
@@ -207,13 +271,16 @@ export async function verifyV4ScenePreview(
       },
       writes,
     );
+    }
     const fixed = await inspect(id),
       beforeWrites = writes.length;
+    if (known) expect(fixed.revision).toBe(known.revision);
     const began = Date.now();
     await page
       .getByRole("button", { name: "Play scene preview", exact: true })
       .click();
     await expect(live).toBeVisible();
+    expect(await live.evaluate(c => [c.width, c.height])).toEqual([width, height]);
     const firstPicture = Date.now() - began;
     expect(firstPicture).toBeLessThanOrEqual(10000);
     await expect
@@ -270,6 +337,8 @@ export async function verifyV4ScenePreview(
       "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
       {
         scene_preview: {
+          width,
+          height,
           cold_ms: cold,
           distinct_frames: new Set(moving.map((f) => f.time)).size,
           max_skew_ms: Math.max(

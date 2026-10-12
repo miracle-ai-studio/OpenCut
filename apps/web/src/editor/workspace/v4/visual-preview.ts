@@ -3,9 +3,10 @@ import type { V4SessionHost } from "./session";
 import type { V4AudioPreviewSession, V4AudioPreviewState } from "./types";
 import type { PicturePresentation } from "./audio-preview";
 import { VisualPreviewRenderer } from "./visual-preview-renderer";
+type Renderer = Pick<VisualPreviewRenderer, "render" | "close">;
 export type VisualPreviewView = {
   phase: "idle" | "loading" | "ready" | "failed";
-  pixels: ImageData | null;
+  pixels: ImageData | ImageBitmap | null;
   time: number | null;
   generation: string | null;
   error: string | null;
@@ -34,7 +35,7 @@ export class V4VisualPreview {
   private view: VisualPreviewView = empty();
   private listeners = new Set<() => void>();
   private epoch = 0;
-  private renderer: VisualPreviewRenderer | null = null;
+  private renderer: Renderer | null = null;
   private abort = new AbortController();
   private desired: V4AudioPreviewSession | null = null;
   private presentedTime: V4AudioPreviewSession["authoritative_time"] | null =
@@ -47,7 +48,7 @@ export class V4VisualPreview {
   constructor(
     private readonly host: V4SessionHost,
     private readonly failure: (e: Error) => void,
-    private readonly factory: () => VisualPreviewRenderer = () =>
+    private readonly factory: () => Renderer = () =>
       new VisualPreviewRenderer(),
   ) {}
   snapshot = () => this.view;
@@ -58,6 +59,8 @@ export class V4VisualPreview {
     };
   };
   private publish(patch: Partial<VisualPreviewView>) {
+    if ("pixels" in patch && this.view.pixels && patch.pixels !== this.view.pixels && "close" in this.view.pixels)
+      this.view.pixels.close();
     this.view = { ...this.view, ...patch };
     for (const listener of this.listeners) listener();
   }
@@ -231,6 +234,11 @@ export class V4VisualPreview {
     while (this.desired && epoch === this.epoch) {
       const session = this.desired;
       this.desired = null;
+      const shown = this.presentedTime, requested = session.authoritative_time;
+      // A consumer report may renew the lease without advancing the cursor.
+      // Re-executing that same confirmed frame wastes decode/GPU and FIFO time.
+      if (shown && BigInt(requested.ticks) * BigInt(shown.timebase) <= BigInt(shown.ticks) * BigInt(requested.timebase))
+        continue;
       const signal = this.abort.signal;
       try {
         await this.render(session, signal, epoch);
@@ -274,13 +282,14 @@ export class V4VisualPreview {
       },
       signal,
     );
-    signal.throwIfAborted();
+    const discard = () => { if ("close" in result.pixels) result.pixels.close(); };
+    if (signal.aborted) { discard(); signal.throwIfAborted(); }
     if (
       epoch !== this.epoch ||
       this.currentToken !== identity ||
       api !== this.host.api()
     )
-      return;
+      { discard(); return; }
     const latest = this.host.state()?.audioPreview.session;
     // Compare rational public Times exactly, never divide ticks to evaluate IR.
     if (latest && token(latest) === identity) {
@@ -296,6 +305,7 @@ export class V4VisualPreview {
         delta * 1000n > maxLag * BigInt(c.timebase) * BigInt(t.timebase)
       ) {
         this.publish({ pixels: null, phase: "loading" });
+        discard();
         return;
       }
     }

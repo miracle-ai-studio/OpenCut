@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../context";
 import { Button, Field, Panel } from "../../shared/ui";
 import {
@@ -25,6 +25,7 @@ import { editorProjectId } from "../../../routes";
 import { EditRecoveryPanel } from "./edit-recovery-panel";
 import { MediaPlanDialog } from "./media-dialog";
 import type { MediaFileTarget } from "./media";
+import type { V4Element } from "./types";
 
 /** Full V4 remains in the workspace controller. Read panels never manufacture
  * a legacy document. Changes use versioned public application operations. */
@@ -34,6 +35,8 @@ export function V4Product() {
   const [editing, setEditing] = useState<V4Bookmark | "new" | null>(null);
   const [timelineReview, setTimelineReview] = useState(false);
   const [mediaReview, setMediaReview] = useState(false);
+  const selectGain = useCallback((id: string) => { controller.v4.select(id); setEditing(null); }, [controller]);
+  const renderAudioControls = useCallback((element: V4Element) => <V4AudioGainLine elementId={element.id} onSelect={selectGain} />, [selectGain]);
   const [seek, setSeek] = useState("0"),
     [pending, setPending] = useState(false);
   const seekIntent = useRef({ dirty: false, focused: false });
@@ -353,8 +356,7 @@ export function V4Product() {
             onSeek={time => controller.v4.seek(time)}
             onReview={() => setTimelineReview(true)}
             onFiles={importTimelineFiles}
-            renderAudioControls={element => <V4AudioGainLine elementId={element.id}
-              onSelect={() => { controller.v4.select(element.id); setEditing(null); }} />}
+            renderAudioControls={renderAudioControls}
           />
         </div>
       </Panel>

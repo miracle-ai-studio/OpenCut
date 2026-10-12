@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import type { EditorApi } from "../api";
 import type { V4Asset, V4Element, V4GainDraft } from "./types";
 import type { TimelineScope } from "./timeline-edit/types";
@@ -12,7 +12,7 @@ export function waveformTemporaryGain(scope: TimelineScope, trackId: string, ele
     draft.sequenceId === scope.sequenceId && draft.trackId === trackId && draft.elementId === elementId ? draft.tenths : null;
 }
 
-export function TimelineArt({ api, scope, trackId, element, asset, scale, gainDraft }: {
+export const TimelineArt = memo(function TimelineArt({ api, scope, trackId, element, asset, scale, gainDraft }: {
   api: EditorApi; scope: TimelineScope; trackId: string; element: V4Element; asset: V4Asset; scale: number; gainDraft?: V4GainDraft | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -55,4 +55,6 @@ export function TimelineArt({ api, scope, trackId, element, asset, scale, gainDr
         <ArtDisplay art={state?.art} error={state?.error} loading={!state?.art && !state?.error} tiled />
       </div>)}
   </div>;
-}
+}, (a, b) => a.api === b.api && a.trackId === b.trackId && a.element === b.element && a.asset === b.asset &&
+  a.scale === b.scale && a.gainDraft === b.gainDraft && a.scope.projectId === b.scope.projectId &&
+  a.scope.revision === b.scope.revision && a.scope.sequenceId === b.scope.sequenceId);

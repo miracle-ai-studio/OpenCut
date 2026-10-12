@@ -1,4 +1,5 @@
 import { decodeImage, decodeVideo } from "./decoder.mjs";
+export { VisualDecoderCache } from "./decoder.mjs";
 import { openGpuRealm, renderGpuFrame } from "./gpu.mjs";
 import { byteBudget, checkAbort, integer, natural, reject, sameJsonFacts } from "./validation.mjs";
 export { openGpuRealm };
@@ -25,17 +26,22 @@ async function encodedResource(resource,host,budget,signal) {
   } catch(error) {release();throw error;}
   finally {if(transfer)await host.callback("releaseVerifiedBytes",{transferId:transfer.transferId});}
 }
-export async function renderClassicFrame(fixedPlan,host,realm,signal,cache) {
+export async function renderClassicFrame(fixedPlan,host,realm,signal,cache,decoders) {
   checkAbort(signal);const plan=clone(fixedPlan),admission=host.admission;
   const width=integer(plan.identity.width,"frame width",1,16384),height=integer(plan.identity.height,"frame height",1,16384);
   const rgba=BigInt(width)*BigInt(height)*4n;
   if(plan.identity.profile!=="classic-v31-gpu-normal-frame"||BigInt(width)*BigInt(height)>natural(admission.maxFramePixels,"frame pixels")||rgba>natural(admission.maxRgbaBytes,"RGBA bytes")||plan.layers.length>60)reject("INVALID_VISUAL_PLAN","Fixed visual frame exceeds admission");
-  const budget=byteBudget(admission.maxRgbaBytes),sources=new Map(),encoded=new Map(),decoded=[],releases=[];
+  const budget=byteBudget(admission.maxRgbaBytes),sources=new Map(),encoded=new Map(),decodedSources=new Map(),borrowedRequests=new Map(),canvases=new Set(),decoded=[],releases=[];
   // Output readback is admitted separately from all decoded source canvases.
   releases.push(budget.reserve(Number(rgba)));
+  const resourceKey = r => `${r.assetId}:${r.contentHash}:${r.size}`;
+  decoders?.retain(new Set(plan.layers.filter(l => l.decode.kind === "video" && !l.decode.noFrameReason).map(l => resourceKey(l.resource))));
+  let retainedDecoded = decoders?.retainedBytes() ?? 0;
+  releases.push(budget.reserve(retainedDecoded));
   // Optional session cache contains verified immutable encoded bytes only.
   // Its complete retained set is charged to every frame; changed resource sets
-  // evict obsolete entries before admission. Decoded canvases remain per-frame.
+  // evict obsolete entries before admission. The optional decoded pool above
+  // is independently retained/accounted; native one-shot canvases still release.
   if(cache) {
     const keys=new Set(plan.resources.map(r=>`${r.assetId}:${r.contentHash}:${r.size}`));
     for(const key of cache.keys())if(!keys.has(key))cache.delete(key);
@@ -65,23 +71,48 @@ export async function renderClassicFrame(fixedPlan,host,realm,signal,cache) {
       }
       // Admission is checked before the decoder allocates; the cap remains
       // reserved until actual output dimensions replace it with factual bytes.
+      const sourceKey = `${resourceKey(layer.resource)}:${JSON.stringify([decode, permit])}`;
+      let source = decodedSources.get(sourceKey);
+      if (!source) {
+      const key = resourceKey(layer.resource);
+      // Keep at most one borrowed observation per resource in a composed frame.
+      // A different time or permit must not recycle/dispose an earlier layer's
+      // pool canvas before all layers have finished uploading to the GPU.
+      const usePool = decoders && decode.kind === "video" && (!borrowedRequests.has(key) || borrowedRequests.get(key) === sourceKey);
+      if (usePool) borrowedRequests.set(key, sourceKey);
       const cap=natural(permit.maxDecodedBytes,"decoded byte cap");
       if(cap>BigInt(Number.MAX_SAFE_INTEGER))reject("VISUAL_BUDGET_EXCEEDED","Decoded admission cannot be allocated safely");
-      const releaseCap=budget.reserve(Number(cap));let source;
-      try {source=decode.kind==="image"?await decodeImage(encodedSource.bytes,permit,signal):decode.kind==="video"?await decodeVideo(encodedSource.bytes,decode,permit,signal):reject("UNSUPPORTED_RENDER_FEATURE","Unknown visual source");}
+      // The cap already includes this resource's admitted retained pool. Only
+      // its unused capacity is reserved again; new factual pool bytes replace
+      // that temporary reservation after decode, never on top of it.
+      const releaseCap=budget.reserve(Math.max(0, Number(cap) - (usePool ? decoders.retainedBytes(key) : 0)));
+      try {
+        source=decode.kind==="image"?await decodeImage(encodedSource.bytes,permit,signal):decode.kind==="video"?(usePool ? await decoders.decode(key,encodedSource.bytes,decode,permit,signal) : await decodeVideo(encodedSource.bytes,decode,permit,signal)):reject("UNSUPPORTED_RENDER_FEATURE","Unknown visual source");
+        if (source.canvas && !source.borrowed) canvases.add(source.canvas);
+      }
       finally {releaseCap();}
+      const retained = decoders?.retainedBytes() ?? 0;
+      if (retained > retainedDecoded) releases.push(budget.reserve(retained - retainedDecoded));
+      retainedDecoded = retained;
+      decodedSources.set(sourceKey, source);
+      if (!source.reason) {
+        sources.set(layer.elementId, source);
+        if (!source.borrowed) releases.push(budget.reserve(source.width*source.height*16));
+      }
+      }
       checkAbort(signal);
       if(source.reason) {decoded.push({kind:"noFrame",elementId:layer.elementId,requestedTime:clone(decode.requestedTime),reason:source.reason});continue;}
-      releases.push(budget.reserve(source.width*source.height*16));sources.set(layer.elementId,source);
+      sources.set(layer.elementId,source);
       decoded.push({kind:decode.kind==="image"?"readyImage":"readyVideo",elementId:layer.elementId,width:source.width,height:source.height,...(decode.kind==="video"?{requestedTime:clone(decode.requestedTime),selectedVideoStream:null,actualTimestampSeconds:source.actualTimestampSeconds,frameDurationSeconds:source.frameDurationSeconds}:{})});
     }
     checkAbort(signal);const bound=clone(await host.callback("bindFrame",{decoded:clone(decoded)}));checkAbort(signal);
     if(!sameJsonFacts(bound.identity,plan.identity)||!sameJsonFacts(bound.decoded,decoded))reject("INVALID_VISUAL_PLAN","Bound frame changed fixed identity or decoder facts");
-    await renderGpuFrame(bound,sources,admission,async(offset,bytes)=>{checkAbort(signal);await host.rgba(offset,bytes);checkAbort(signal);},signal,realm);
+    const gpu = await renderGpuFrame(bound,sources,admission,async(offset,bytes)=>{checkAbort(signal);await host.rgba(offset,bytes);checkAbort(signal);},signal,realm,host.surface);
+    host.observeExecution?.({ ...gpu, peakAccountedBytes: String(budget.peak), retainedDecodedBytes: String(retainedDecoded), retainedEncodedBytes: String([...cache?.values() ?? []].reduce((n,b)=>n+b.byteLength,0)) });
     checkAbort(signal);
-    return {identity:clone(plan.identity),engineIdentity:"classic-v31-gpu-normal-frame",bound,rgbaBytes:String(rgba),peakAccountedBytes:String(budget.peak)};
+    return {identity:clone(plan.identity),engineIdentity:"classic-v31-gpu-normal-frame",bound,rgbaBytes:host.surface ? "0" : String(rgba),peakAccountedBytes:String(budget.peak)};
   } finally {
-    for(const source of sources.values()){source.canvas.width=0;source.canvas.height=0;}
+    for(const canvas of canvases){canvas.width=0;canvas.height=0;}
     for(const item of encoded.values())item.release();for(const release of releases)release();
   }
 }

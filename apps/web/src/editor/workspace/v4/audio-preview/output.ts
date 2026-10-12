@@ -152,6 +152,9 @@ export class PreviewAudioOutput {
     );
   }
   /** Disconnect before any asynchronous server stop, including limiter release tails. */
+  finish() {
+    if (!this.stopped) this.node?.port.postMessage({ kind: "end", token: this.token });
+  }
   silence() {
     if (!this.stopped && this.node) {
       this.finalReceipt = new Promise<string>((resolve) => {
