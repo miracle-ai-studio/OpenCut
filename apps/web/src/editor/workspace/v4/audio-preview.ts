@@ -11,7 +11,9 @@ import type {
 } from "./types";
 import { PreviewAudioOutput } from "./audio-preview/output";
 import type { AudioOutputProgress } from "./audio-preview/output";
-import { readPreviewPcm, sameAudioIdentity } from "./audio-preview/transport";
+import { PreviewConsumptionPump } from "./audio-preview/pump";
+import type { PreviewPump } from "./audio-preview/pump";
+import { checkPreviewSession } from "./audio-preview/session-identity";
 
 export const emptyAudioPreview = (): V4AudioPreviewState => ({
   phase: "idle",
@@ -23,7 +25,8 @@ export const emptyAudioPreview = (): V4AudioPreviewState => ({
 type Output = Pick<
   PreviewAudioOutput,
   "ready" | "sampleRate" | "push" | "waitForCredit" | "silence" | "stop"
-> & Partial<Pick<PreviewAudioOutput, "finish">>;
+> &
+  Partial<Pick<PreviewAudioOutput, "finish" | "createPump">>;
 type OutputFactory = (
   token: string,
   rate: number,
@@ -49,19 +52,11 @@ type Active = {
   abort: AbortController;
   controls: AbortController;
   progress: AudioOutputProgress;
-  reportSequence: bigint;
-  timer: ReturnType<typeof setInterval> | null;
-  reporting: boolean;
-  completedPending: boolean;
   draining: boolean;
-  heartbeatAt: number;
+  pump: PreviewPump | null;
   leaseDeadline: number;
 };
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const counter = (s: unknown): s is string =>
-  typeof s === "string" &&
-  /^(0|[1-9][0-9]{0,19})$/.test(s) &&
-  BigInt(s) <= 18446744073709551615n;
 
 /** Fixed-revision playback delegate. Project evaluation, overlays and sample→Time
  * belong to the service; this client only reports actual device consumption. */
@@ -143,40 +138,7 @@ export class V4AudioPreview {
     s: V4AudioPreviewSession,
     previous?: V4AudioPreviewSession,
   ) {
-    const i = s.identity;
-    if (
-      s.schema_version !== 1 ||
-      !s.session_id ||
-      !s.owner_id ||
-      !s.lease_id ||
-      !i ||
-      i.project_id !== a.request.project_id ||
-      i.revision !== a.request.revision ||
-      i.sequence_id !== a.request.sequence_id ||
-      i.sample_rate !== a.output.sampleRate ||
-      i.channels !== 2 ||
-      i.profile !== "classic-realtime-v31" ||
-      !counter(s.generation) ||
-      !counter(s.overlay_epoch) ||
-      !counter(s.actual_start_sample) ||
-      !counter(s.total_frames) ||
-      !counter(s.consumed_frames) ||
-      !counter(s.lease_remaining_ms) ||
-      BigInt(s.actual_start_sample) + BigInt(s.consumed_frames) >
-        BigInt(s.total_frames) ||
-      !s.authoritative_time ||
-      !/^-?\d+$/.test(s.authoritative_time.ticks) ||
-      !Number.isInteger(s.authoritative_time.timebase) ||
-      s.authoritative_time.timebase <= 0 ||
-      (previous &&
-        (s.session_id !== previous.session_id ||
-          !sameAudioIdentity(i, previous.identity) ||
-          s.owner_id !== previous.owner_id ||
-          s.lease_id !== previous.lease_id))
-    )
-      throw new Error(
-        "Scene audio returned an unexpected fixed session identity.",
-      );
+    checkPreviewSession(s, a.request, a.output.sampleRate, previous);
     // A local admission hint only; every Play still rechecks server authority.
     a.leaseDeadline =
       performance.now() + Math.min(30000, Number(s.lease_remaining_ms));
@@ -289,7 +251,9 @@ export class V4AudioPreview {
         (progress) => {
           if (this.same(a) && a.output === output && !a.draining) {
             a.progress = progress;
-            if (a.session) a.picture?.consume?.(a.session, progress.consumedFrames);
+            a.pump?.observe(progress);
+            if (a.session)
+              a.picture?.consume?.(a.session, progress.consumedFrames);
           }
         },
         (error) => {
@@ -317,12 +281,8 @@ export class V4AudioPreview {
       abort: new AbortController(),
       progress: { consumedFrames: "0", stalled: true, contextTime: 0 },
       controls: new AbortController(),
-      reportSequence: 0n,
-      timer: null,
-      reporting: false,
-      completedPending: false,
       draining: false,
-      heartbeatAt: Date.now(),
+      pump: null,
       leaseDeadline: 0,
     };
     this.active = a;
@@ -338,6 +298,8 @@ export class V4AudioPreview {
       dispatched = false;
     try {
       await a.output.ready;
+      if (!this.same(a)) return;
+      await this.attachPump(a);
       if (!this.same(a)) return;
       let session = preparedSession;
       if (!session) {
@@ -427,133 +389,76 @@ export class V4AudioPreview {
       command,
     };
   }
-  private stream(a: Active) {
-    const s = a.session!;
-    a.reportSequence = 0n;
-    const output = a.output,
-      abort = a.abort;
-    const current = () =>
-      this.same(a) &&
-      a.output === output &&
-      a.abort === abort &&
-      a.session?.generation === s.generation &&
-      a.session.overlay_epoch === s.overlay_epoch;
-    a.timer = setInterval(() => {
-      void this.report(a).catch(() => {});
-    }, 50);
-    void (async () => {
-      try {
-        const response = await a.api.sdk.openV4AudioPreviewStream(
-          {
-            session_id: s.session_id,
-            generation: s.generation,
-            overlay_epoch: s.overlay_epoch,
-            owner_id: s.owner_id,
-            lease_id: s.lease_id,
-          },
-          { signal: abort.signal },
-        );
-        if (!current()) {
-          await response.body?.cancel().catch(() => {});
-          return;
-        }
-        const blocks = readPreviewPcm(response, s, abort.signal);
-        try {
-          for (;;) {
-            await output.waitForCredit(abort.signal);
-            const { value: pcm, done } = await blocks.next();
-            if (done) { if (current()) output.finish?.(); break; }
-            if (!current()) return;
-            await output.push(pcm, abort.signal);
-          }
-        } finally {
-          await blocks.return(undefined);
-        }
-      } catch (e) {
-        // Pause/seek closes the old producer at its generation fence. Its
-        // expected EOF must not race the final pause receipt into failure.
-        if (current() && !a.draining && !abort.signal.aborted) this.fail(a, e);
-      }
-    })();
-  }
-  private completedBlock(a: Active, output: Output) {
-    if (!this.same(a) || a.output !== output || a.draining || !a.session)
-      return;
-    if (a.reporting) a.completedPending = true;
-    else void this.report(a).catch(() => {});
-  }
-  private async report(a: Active, stoppedFrames?: string) {
-    if (
-      !this.same(a) ||
-      !a.session ||
-      a.reporting ||
-      (a.draining && stoppedFrames === undefined)
-    )
-      return;
-    a.reporting = true;
-    a.completedPending = false;
-    const previous = a.session;
+  private async attachPump(a: Active) {
     const output = a.output;
-    const command = this.command(a, {
-      kind: "report_consumed",
-      sequence: (++a.reportSequence).toString(),
-      consumed_frames: stoppedFrames ?? a.progress.consumedFrames,
-      playing: stoppedFrames === undefined,
-      stalled: stoppedFrames === undefined && a.progress.stalled,
-    });
-    try {
-      const signal = AbortSignal.any([
-        a.controls.signal,
-        AbortSignal.timeout(3000),
-      ]);
-      const session = await a.api.v4.audioPreviewControl(command, signal);
-      this.checkSession(a, session, previous);
-      if (
-        !this.same(a) ||
-        session.generation !== previous.generation ||
-        session.overlay_epoch !== previous.overlay_epoch
-      )
-        return;
+    const updated = (
+      session: V4AudioPreviewSession,
+      progress: AudioOutputProgress,
+    ) => {
+      if (!this.same(a) || a.output !== output) return;
+      this.checkSession(a, session, a.session ?? undefined);
       a.session = session;
       this.present(session.authoritative_time);
-      if (session.state === "failed" || session.state === "stopped")
-        throw new Error("Scene audio is no longer available.");
+      if (a.draining) return;
       const phase =
         session.state === "ended"
           ? "ended"
-          : a.progress.stalled
+          : progress.stalled
             ? "stalled"
             : "playing";
-      if (!a.draining) this.publish({ session, phase });
+      this.publish({ session, phase });
       if (phase === "ended") this.invalidate(false);
-      // Release production credit before renewing authorization. Both controls
-      // remain serialized; a completion during either await is flushed below.
-      if (this.same(a) && !a.draining && Date.now() - a.heartbeatAt >= 500) {
-        const heartbeat = await a.api.v4.audioPreviewControl(
-          this.command(a, { kind: "heartbeat" }),
-          signal,
+    };
+    const failure = (error: unknown) => {
+      if (this.same(a) && a.output === output) this.fail(a, error);
+    };
+    const pump = output.createPump
+      ? await output.createPump(a.api.audioPreviewConnection, updated, failure)
+      : new PreviewConsumptionPump(
+          {
+            open: (session, signal) =>
+              a.api.sdk.openV4AudioPreviewStream(session, { signal }),
+            control: (input, signal) =>
+              a.api.v4.audioPreviewControl(input, signal),
+          },
+          output,
+          () => this.same(a) && a.output === output,
+          updated,
+          failure,
         );
-        this.checkSession(a, heartbeat, session);
-        if (!this.same(a)) return;
-        a.heartbeatAt = Date.now();
-      }
-      return session;
-    } catch (e) {
-      if (this.same(a)) this.fail(a, e);
-      throw e;
-    } finally {
-      a.reporting = false;
-      if (
-        a.completedPending &&
-        this.same(a) &&
-        !a.draining &&
-        a.output === output &&
-        a.session?.generation === previous.generation &&
-        a.session.overlay_epoch === previous.overlay_epoch
-      ) {
-        void this.report(a).catch(() => {});
-      }
+    if (!this.same(a) || a.output !== output) {
+      pump.abort();
+      return;
     }
+    a.pump = pump;
+    const abort = () => {
+      pump.abort();
+      a.controls.signal.removeEventListener("abort", abort);
+    };
+    a.abort.signal.addEventListener("abort", abort, { once: true });
+    a.controls.signal.addEventListener("abort", abort, { once: true });
+  }
+  private stream(a: Active) {
+    a.pump!.start(a.session!);
+  }
+  private completedBlock(a: Active, output: Output) {
+    if (this.same(a) && a.output === output && !a.draining) a.pump?.completed();
+  }
+  private async report(a: Active, frames: string) {
+    const previous = a.session!;
+    const session = await a.pump!.reportStopped(frames);
+    if (!this.same(a)) return;
+    if (!session)
+      throw new Error("Scene audio final consumption was not confirmed.");
+    this.checkSession(a, session, previous);
+    if (
+      session.generation !== previous.generation ||
+      session.overlay_epoch !== previous.overlay_epoch
+    )
+      return;
+    a.session = session;
+    this.present(session.authoritative_time);
+    return session;
   }
   private stopRemote(a: Active) {
     if (a.session)
@@ -563,10 +468,8 @@ export class V4AudioPreview {
   }
   private localStop(a: Active) {
     a.picture?.suspend();
-    a.completedPending = false;
     a.output.silence();
-    if (a.timer) clearInterval(a.timer);
-    a.timer = null;
+    a.pump?.freeze();
   }
   invalidate(clearPending = true) {
     this.epoch++;
@@ -610,8 +513,6 @@ export class V4AudioPreview {
     this.localStop(a);
     try {
       const frames = await a.output.stop();
-      while (a.reporting && this.same(a))
-        await new Promise<void>((resolve) => setTimeout(resolve, 5));
       if (!this.same(a)) return;
       await this.report(a, frames);
       if (!this.same(a)) return;
@@ -663,8 +564,6 @@ export class V4AudioPreview {
   private async seekPlaying(a: Active, time: Time) {
     try {
       const frames = await a.output.stop();
-      while (a.reporting && this.same(a))
-        await new Promise<void>((resolve) => setTimeout(resolve, 5));
       if (!this.same(a)) return;
       await this.report(a, frames);
       if (!this.same(a)) return;
@@ -682,6 +581,7 @@ export class V4AudioPreview {
   }
   private async replaceOutput(a: Active, session: V4AudioPreviewSession) {
     a.abort.abort();
+    a.pump = null;
     a.session = session;
     a.abort = new AbortController();
     a.progress = { consumedFrames: "0", stalled: true, contextTime: 0 };
@@ -695,6 +595,7 @@ export class V4AudioPreview {
       (p) => {
         if (this.same(a) && a.output === output && !a.draining) {
           a.progress = p;
+          a.pump?.observe(p);
           if (a.session) a.picture?.consume?.(a.session, p.consumedFrames);
         }
       },
@@ -705,6 +606,8 @@ export class V4AudioPreview {
     );
     a.output = output;
     await output.ready;
+    if (!this.same(a)) return;
+    await this.attachPump(a);
     if (!this.same(a)) return;
     if (a.picture)
       await a.picture.prepare(
@@ -741,8 +644,6 @@ export class V4AudioPreview {
     a.draining = true;
     try {
       const frames = await a.output.stop();
-      while (a.reporting && this.same(a))
-        await new Promise<void>((resolve) => setTimeout(resolve, 5));
       if (!this.same(a)) return;
       await this.report(a, frames);
       if (!this.same(a)) return;

@@ -2,7 +2,7 @@ import { expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { installScenePreviewWitness } from "./verify-v4-scene-preview.mjs";
+import { installScenePreviewWitness, trackScenePreviewPumps } from "./verify-v4-scene-preview.mjs";
 import { summarizePreviewConsumption } from "./scene-preview-consumption.mjs";
 
 const time = (n, base = 1) => ({ ticks: String(n), timebase: base });
@@ -27,7 +27,7 @@ export async function verifyV4ScenePreviewPerformance(browser, endpoint, directo
     })).json(), { name, input });
     expect(r.error).toBeNull(); return r.data;
   };
-  const witness = () => page.evaluate(() => structuredClone(window.__scenePreviewWitness));
+  const witness = trackScenePreviewPumps(page);
   let evidence;
   try {
     await page.goto(`${endpoint}/editor/${fixture.project_id}`);

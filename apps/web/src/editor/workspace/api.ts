@@ -5,10 +5,11 @@ import type { CoverRequest } from "./project-covers";
 import { CoverSceneViews } from "../shared/view-preferences";
 import {
   OpenCutClient,
+  createEditorClient,
   OpenCutApiError,
   JobCompletionError,
 } from "../../lib/editor-sdk";
-import type { ToolInput, ToolOutput } from "../../lib/editor-sdk";
+import type { EditorConnection, ToolInput, ToolOutput } from "../../lib/editor-sdk";
 import { normalizeBase, normalizeVisual } from "../model/types";
 import type {
   Operation,
@@ -39,25 +40,13 @@ export class EditorApi {
     this.projectCover(project, signal),
   );
   readonly sdk: OpenCutClient;
+  readonly audioPreviewConnection: EditorConnection;
   readonly v4: V4Api;
   readonly coverViews: CoverSceneViews;
   private feed: TaskFeed;
   constructor(endpoint: string, token: string) {
-    this.sdk = new OpenCutClient({
-      baseUrl: endpoint,
-      token,
-      fetch: token
-        ? undefined
-        : async (input, init) => {
-            const headers = new Headers(init?.headers);
-            headers.delete("Authorization");
-            return fetch(input, {
-              ...init,
-              headers,
-              credentials: "same-origin",
-            });
-          },
-    });
+    this.audioPreviewConnection = { baseUrl: endpoint, token };
+    this.sdk = createEditorClient(this.audioPreviewConnection);
     this.coverViews = new CoverSceneViews(this.sdk.baseUrl);
     this.v4 = new V4Api(this.sdk);
     this.feed = new TaskFeed(this.sdk);

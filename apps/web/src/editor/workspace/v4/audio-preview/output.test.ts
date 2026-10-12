@@ -26,6 +26,7 @@ class Node {
   port = {
     onmessage: null as ((event: MessageEvent) => void) | null,
     close: vi.fn(),
+    start: vi.fn(),
     postMessage: vi.fn((message: { kind: string; token?: string }) => {
       if (message.kind === "stop")
         queueMicrotask(() =>

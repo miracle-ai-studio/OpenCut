@@ -41,18 +41,43 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
         }).catch(() => {});
       return response;
     };
+    const contexts = new Map();
+    const observe = (data, context) => {
+      if (data.kind !== "progress" || data.token !== w.progress?.token) return;
+      w.progress = data;
+      if (Number(data.consumedFrames) > 0 && w.progresses.length < 8192)
+        w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now(),
+          copied: data.copied, completedBlocks: data.completedBlocks,
+          renderFrame: data.renderFrame, quantumFrames: data.quantumFrames,
+          contextFrame: Math.round(context.currentTime * context.sampleRate) });
+      if (Number(data.consumedFrames) > 0 && !w.firstSoundAt) w.firstSoundAt = Date.now();
+    };
+    const OriginalWorker = window.Worker;
+    window.Worker = class extends OriginalWorker {
+      constructor(...args) {
+        super(...args);
+        if (args[1]?.name !== "opencut-audio-pump") return;
+        this.addEventListener("message", ({data}) => {
+          if (data.channel !== "opencut-audio-pump" || data.version !== 1 || data.token !== w.progress?.token) return;
+          if (data.kind === "progress") observe(data.receipt, contexts.get(data.token));
+          if (data.kind === "session" || data.kind === "reply" && data.session) w.session = data.session;
+        });
+      }
+    };
     const Original = window.AudioWorkletNode;
     window.AudioWorkletNode = class extends Original {
       constructor(...args) {
         super(...args);
         const post = this.port.postMessage.bind(this.port);
         this.port.postMessage = (data, ...rest) => {
-          if (data.kind === "reset")
+          if (data.kind === "reset") {
+            contexts.set(data.token, args[0]);
             w.progress = {
               token: data.token,
               consumedFrames: "0",
               stalled: true,
             };
+          }
           if (data.kind === "block") {
             w.blocks++;
             if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
@@ -66,16 +91,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
           return post(data, ...rest);
         };
         this.port.addEventListener("message", ({ data }) => {
-          if (data.kind === "progress" && data.token === w.progress?.token) {
-            w.progress = data;
-            if (Number(data.consumedFrames) > 0 && w.progresses.length < 8192)
-              w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now(),
-                copied: data.copied, completedBlocks: data.completedBlocks,
-                renderFrame: data.renderFrame, quantumFrames: data.quantumFrames,
-                contextFrame: Math.round(args[0].currentTime * args[0].sampleRate) });
-            if (Number(data.consumedFrames) > 0 && !w.firstSoundAt)
-              w.firstSoundAt = Date.now();
-          }
+          observe(data, args[0]);
         });
       }
     };
@@ -163,6 +179,66 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
     };
 }
 
+// Observe transferred PCM and control RTT in the owning Worker. Injection is
+// required before its start message; otherwise acceptance fails rather than
+// silently treating a missing supply trace as an empty/healthy stream.
+export function installScenePreviewPumpWitness() {
+  const w = globalThis.__scenePumpWitness = { token: null, startObserved: false,
+    timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [] };
+  addEventListener("message", ({data}) => {
+    if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
+      w.token = data.token; w.startObserved = true;
+    }
+  });
+  const post = MessagePort.prototype.postMessage;
+  MessagePort.prototype.postMessage = function(data, ...rest) {
+    if (data.kind === "block" && data.token === w.token) {
+      w.blocks++;
+      if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
+      if (w.pcm.length < 4096) w.pcm.push(...new Float32Array(data.pcm)
+        .subarray(0, Math.min(8192, (4096 - w.pcm.length) * 2)).filter((_, i) => i % 2 === 0));
+    }
+    return post.call(this, data, ...rest);
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (...args) => {
+    const began = performance.now(), url = String(args[0]);
+    const input = url.endsWith("opencut_audio_preview_v4_control") ? JSON.parse(args[1]?.body ?? "null") : null;
+    const response = await originalFetch(...args);
+    if (input?.command && w.controls.length < 2048) w.controls.push({ kind: input.command.kind,
+      frames: input.command.consumed_frames ?? null, began, ended: performance.now() });
+    return response;
+  };
+}
+export function trackScenePreviewPumps(page) {
+  const pumps = [];
+  page.on("worker", worker => {
+    if (!/pump-worker/.test(worker.url())) return;
+    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness) };
+    // Preserve the rejection for the reader, without an unhandled rejection if
+    // the user cancels before this otherwise idle worker starts playback.
+    worker.on("close", () => { entry.closed = true; });
+    void entry.installed.catch(() => {}); pumps.push(entry);
+  });
+  return async () => {
+    const w = await page.evaluate(() => ({ ...structuredClone(window.__scenePreviewWitness), timeOrigin: performance.timeOrigin }));
+    for (const entry of pumps) {
+      try { await entry.installed; entry.cached = await entry.worker.evaluate(() => structuredClone(globalThis.__scenePumpWitness)); }
+      catch (error) { if (!entry.cached && !entry.closed) throw error; }
+    }
+    const current = pumps.map(p => p.cached).find(p => p?.token === w.progress?.token);
+    if (current) {
+      const offset = current.timeOrigin - w.timeOrigin;
+      if (!current.startObserved) throw new Error("Audio pump witness missed the start fence.");
+      w.blocks = current.blocks; w.pcm = current.pcm;
+      w.supplies = current.supplies.map(s => ({...s, at: s.at + offset}));
+      w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset})));
+      w.pumpWitness = { startObserved: true, owner: "dedicated-worker", timeOriginConverted: true };
+    } else if (w.firstSoundAt) throw new Error("No actual audio pump supply witness.");
+    return w;
+  };
+}
+
 // Owned independent color schedule and 440Hz PCM; source fixture is generated
 // by verify-web.py. The witness observes real Worklet consumption and canvas
 // readback, rather than deriving expected pixels from the service frame plan.
@@ -218,8 +294,7 @@ export async function verifyV4ScenePreview(
     name: "Live scene preview",
     exact: true,
   }); // canvas has img role below
-  const witness = () =>
-    page.evaluate(() => structuredClone(window.__scenePreviewWitness));
+  const witness = trackScenePreviewPumps(page);
   let id;
   try {
     await page.goto(`${endpoint}/editor`);
