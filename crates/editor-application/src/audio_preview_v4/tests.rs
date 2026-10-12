@@ -430,6 +430,28 @@ fn preview_admits_actual_native_pcm_without_whole_scene_output_and_refuses_unver
         )
         .unwrap();
     assert_eq!(block["voices"][0]["positions"][0]["segmentId"], 3);
+    let mut changed_format = format.clone();
+    changed_format.segments[0].segment_id = 4;
+    assert!(
+        session
+            .callback(
+                AudioCallback::BindPreview(BindPreviewSources {
+                    source_formats: vec![changed_format],
+                }),
+                &mut resources
+            )
+            .is_err()
+    );
+    // Rejected rebinding must leave the original compiled PTS index usable;
+    // exact idempotent rebinding remains accepted.
+    session
+        .callback(
+            AudioCallback::BindPreview(BindPreviewSources {
+                source_formats: vec![format.clone()],
+            }),
+            &mut resources,
+        )
+        .unwrap();
     session
         .set_preview_state(
             0,

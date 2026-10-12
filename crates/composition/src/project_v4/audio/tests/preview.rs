@@ -32,6 +32,66 @@ fn ordinary() -> PreviewSourceFormatV4 {
     }
 }
 #[test]
+fn retained_binding_preserves_input_receipt_order_and_compiled_voice_order() {
+    let mut s = snapshot();
+    let mut second = s.project.sequences[0].tracks[1].clone();
+    second.id = "second-track".into();
+    second.elements[0].id = "second".into();
+    s.project.sequences[0].tracks.push(second);
+    let p = preview(&s);
+    let first_format = ordinary();
+    let second_format = PreviewSourceFormatV4 {
+        element_id: "second".into(),
+        ..ordinary()
+    };
+    let formats = [second_format, first_format];
+    let bound = bind_preview_audio_v4(&p, &formats).unwrap();
+    assert!(bound.source_formats().eq(formats.iter()));
+    let block = compile_preview_audio_block_v4(&bound, 18000, 4096, 0, None).unwrap();
+    assert_eq!(
+        block
+            .voices
+            .iter()
+            .map(|v| v.element_id.as_str())
+            .collect::<Vec<_>>(),
+        ["voice", "second"]
+    );
+    assert_eq!(block.voices[0].positions, block.voices[1].positions);
+}
+#[test]
+fn constant_gain_has_independent_full_block_oracles_across_overlay_and_anchor_changes() {
+    for db in [-60.0, -6.0, 0.0, 20.0] {
+        let mut s = snapshot();
+        audio_mut(&mut s).gain = GainV4::Decibels { value: db };
+        let track = &mut s.project.sequences[0].tracks[1];
+        track.gain = GainV4::Decibels { value: -6.0 };
+        let p = preview(&s);
+        let bound = bind_preview_audio_v4(&p, &[ordinary()]).unwrap();
+        let expected = (10f64.powf(db / 20.0) * 10f64.powf(-6.0 / 20.0)).to_bits();
+        for anchor in [0, 18000] {
+            let block = compile_preview_audio_block_v4(&bound, 18000, 4096, anchor, None).unwrap();
+            assert!(
+                block.voices[0]
+                    .amplitudes
+                    .iter()
+                    .all(|a| a.to_bits() == expected)
+            );
+            let overlay = p.validate_temporary_gain("sound", "voice", -60).unwrap();
+            let changed =
+                compile_preview_audio_block_v4(&bound, 18000, 4096, anchor, Some(&overlay))
+                    .unwrap();
+            let expected = (10f64.powf(-6.0 / 20.0) * 10f64.powf(-6.0 / 20.0)).to_bits();
+            assert!(
+                changed.voices[0]
+                    .amplitudes
+                    .iter()
+                    .all(|a| a.to_bits() == expected)
+            );
+            assert_eq!(changed.voices[0].positions, block.voices[0].positions);
+        }
+    }
+}
+#[test]
 fn pcm_packet_pts_accumulation_survives_without_rewriting_observed_timestamps() {
     // Independent of the producer: WAVE packets have 2048 frames and the
     // pinned PCM decoder accumulates their duration. Packet 5 differs from

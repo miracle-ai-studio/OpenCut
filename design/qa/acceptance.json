@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "18 scoped records retain candidate identities; latest prepared-frame reuse uses one binary/Web for HD and dense, with three performance gates still open.",
-    "latest_candidate": "visual_preview_prepared_frame_reuse",
+    "scope": "19 scoped feature records retain actual candidate identities; latest fixed-source-binding reuse uses one binary and the existing Web for HD/dense. Useful source PTS passed; two continuous-audio performance gates remain open.",
+    "latest_candidate": "audio_preview_retained_source_binding",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -3780,12 +3780,191 @@
           "media_or_database_committed": false,
           "resolved_startup_diagnostics_removed": true
         }
+      },
+      {
+        "evidence_id": "audio_preview_retained_source_binding",
+        "status": "passed_scoped_with_open_performance_gates",
+        "candidate": {
+          "base_commit": "1496d1840c50fac79ffaf452d1ab95190888c0a3",
+          "source_files": [
+            "crates/composition/src/project_v4/audio/preview.rs",
+            "crates/composition/src/project_v4/audio/tests/preview.rs",
+            "crates/editor-application/src/audio_preview_v4/tests.rs",
+            "crates/editor-application/src/classic_audio/session.rs"
+          ],
+          "source_manifest_sha256": "8e539b9d9d78985325e118cbb21b61a9eb6223c467951b22d746b6850e828ec7",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "web_entrypoints_ref": "visual_preview_prepared_frame_reuse.candidate.web_entrypoints",
+          "web_entrypoints_byte_identical": true,
+          "browser": "154.0.8037.99",
+          "runtime_scope": "One explicit release binary for generated/wire checks, HD boundaries and dense playback; existing Web/Worklet/Classic audio runtime reused without rebuild."
+        },
+        "scope": "Reuse one fixed validated PCM source binding per existing ClassicAudioSession and evaluate unanimated physical gain once per voice/block. No source-clock, DSP, public DTO, credit-budget or policy change.",
+        "implementation": [
+          "BoundPreviewAudioV4 replaces stored unbound formats in the existing session; retains one owned format set and native PTS index, borrowing the original fixed preparation. Dense per-block validation/clone of the whole fixed audio voice/segment set is removed.",
+          "Bounded original-order indices retain exact binding/receipt comparison independently from prepared voice compilation order. Rebinding remains validated, identical facts accepted and changes rejected without replacing the original binding.",
+          "Per-block native/resource authorization checkpoints and host generation/publication fences remain live. Constant element/track gain moves outside sample loop; animated60Hz ramps, temporary-gain admission and generation anchor semantics remain unchanged."
+        ],
+        "checks": {
+          "composition_preview_tests": 7,
+          "new_independent_oracles": 2,
+          "application_binding_authorization_test": 1,
+          "application_scope": "Extended existing real session test: changed binding rejects, exact repeated binding accepts, original fractional44100/48000 PTS remains, typed/callback outputs agree and revoked authority refuses both after binding reuse.",
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "generated_contract_check": "passed against the same explicit binary; derived files unchanged",
+          "legacy_wire_checks": 22,
+          "registered_tools": 194,
+          "release_builds": 1,
+          "fresh_whole_workspace_run": false
+        },
+        "hd_correctness": {
+          "status": "passed",
+          "checks_passed": 4,
+          "oracle_scope_ref": "visual_preview_prepared_frame_reuse.hd_correctness.checks",
+          "cold_ms": 7536,
+          "distinct_requested_time_presentations": 72,
+          "max_skew_ms": 114.66666666666691,
+          "frequency_hz": 439.99991601772865,
+          "rms": 0.08831585190797463,
+          "seek_ms": 387,
+          "resource_downloads": 1,
+          "scope": "Actual720p/8s24fps BT709 and independent440Hz PCM; requested-time presentations are not unique source PTS. Permission failure here is HTTP injection; prior genuine native credential-revocation evidence retains its original identity."
+        },
+        "dense_performance": {
+          "status": "failed",
+          "fixture_ref": "visual_preview_prepared_frame_reuse.dense_performance.fixture",
+          "fixed_fixture_reused": true,
+          "budget_ref": "visual_preview_prepared_frame_reuse.dense_performance.budget",
+          "cold_ms": 5403,
+          "distinct_presented_source_pts": 164,
+          "max_skew_ms": 104.00000000000009,
+          "minimum_skew_ms": 16.000000000000014,
+          "consumption": {
+            "elapsed_ms": 9999.899999976158,
+            "frames": 472704,
+            "reports": 3752,
+            "stalled_ratio": 0.010130101302229267,
+            "deficit_ratio": 0.015190151899170945,
+            "stalled_reports_by_second": {
+              "0": 2,
+              "1": 0,
+              "2": 0,
+              "3": 6,
+              "4": 8,
+              "5": 8,
+              "6": 0,
+              "7": 22,
+              "8": 2,
+              "9": 10
+            }
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "main_thread": {
+            "task_ms": 4434.467,
+            "script_ms": 1109.8490000000002,
+            "method": "CDP page main-thread time during the real steady window; excludes driver/native CPU"
+          },
+          "heap": {
+            "baseline_bytes": 4629548,
+            "peak_bytes": 32985352,
+            "delta_bytes": 28355804,
+            "method": "CDP page V8 heap, one baseline GC; no steady-window GC"
+          },
+          "execution": {
+            "planMs": {
+              "mean": 11.57916666736657,
+              "maximum": 71.90000000596046
+            },
+            "bindMs": {
+              "mean": 8.769696970780691,
+              "maximum": 142.2999999821186
+            },
+            "totalMs": {
+              "mean": 33.256439395136,
+              "maximum": 1433.800000011921
+            }
+          },
+          "transport": {
+            "controls": {
+              "report_consumed": {
+                "count": 288,
+                "mean_ms": 8.675000000020695,
+                "maximum_ms": 74.2000000178814,
+                "p95_ms": 14.099999994039536
+              },
+              "heartbeat": {
+                "count": 18,
+                "mean_ms": 9.183333332339922,
+                "maximum_ms": 13.199999988079071,
+                "p95_ms": 13.199999988079071
+              }
+            },
+            "pcm_arrival_gaps": {
+              "count": 114,
+              "mean_ms": 86.21754385949227,
+              "maximum_ms": 152.5,
+              "p95_ms": 127.40000000596046
+            },
+            "block_sizes": [
+              4096
+            ],
+            "method": "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference"
+          },
+          "resources": {
+            "peak_gpu_bytes": 18432212,
+            "peak_accounted_bytes": 35414841,
+            "retained_decoded_bytes": 11059200,
+            "retained_encoded_bytes": 11475,
+            "method": "Classic execution allocation accounting; excludes driver/native RSS and process GPU overhead"
+          },
+          "gates": {
+            "independent_pixels": true,
+            "extent": true,
+            "cold": true,
+            "stalls": false,
+            "deficit": false,
+            "useful_video_pts": true,
+            "synchronization": true,
+            "heap": true,
+            "gpu": true,
+            "independent_pcm": true,
+            "readonly": true,
+            "page_errors": true
+          },
+          "independent_pixels": "All eight externally authored alternating red/green intervals passed the existing pixel oracle.",
+          "scope": "Actual10s consumer window over300s authored extent using the same two8s CAS sources/100 placements/5tracks and fixed revision. Page-observed arrival/RTT measurements do not isolate native production or DAC latency."
+        },
+        "reuse": {
+          "broader_suites_rerun": false,
+          "web_build_repeated": false,
+          "prior_media_import_or_project_copy_repeated": false,
+          "foundation": "Existing Rust clocks/application/native producer, Classic GPU/decoder, PackedV2, SDK194 operations and per-quantum Worklet/two-blockFIFO. Prior unrelated acceptance remains at its recorded source identity."
+        },
+        "limits": [
+          "Dense stalls1.013% and deficit1.519% still exceed1%; useful sourcePTS164/144 passes for this candidate. One observed improvement is not a repeated-run stability or causal latency guarantee.",
+          "No5min continuous playback, true long source/VFR/non-unit-rate/physicalDAC/cross-browser/full transport or whole migration acceptance. S1/F10/F42 and36 groups remain partial."
+        ],
+        "cleanup": {
+          "owned_workspace_reused": true,
+          "verifier_service_stopped": true,
+          "lsof_owned_workspace_handles": 0,
+          "necessary_failed_dense_receipt_retained": true,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG preview has bounded 720p/8s correctness evidence; dense stalls/deficit/useful-source-PTS gates remain open. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG preview has bounded 720p/8s correctness evidence; dense stalls/deficit gates remain open; useful sourcePTS164/144 passed on the latest candidate. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -3835,23 +4014,19 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "visual_preview_prepared_frame_reuse",
+      "evidence_id": "audio_preview_retained_source_binding",
       "feature": "S1 dense continuous picture/audio preview",
       "gates": {
         "stalls": {
-          "actual_ratio": 0.04112164488250911,
+          "actual_ratio": 0.010130101302229267,
           "maximum": 0.01
         },
         "deficit": {
-          "actual_ratio": 0.04449511313728938,
+          "actual_ratio": 0.015190151899170945,
           "maximum": 0.01
-        },
-        "useful_video_pts": {
-          "actual": 140,
-          "minimum": 144
         }
       },
-      "next": "Separate native PCM production, HTTP/credit turnaround and UI-thread delivery contributions using the retained fixture. PCM arrival p95 exceeds4096/48000=85.33ms; retain exact consumer clock, two-block budget and authority fences."
+      "next": "Isolate native producer/compiled-fact transport, HTTP credit turnaround and page delivery latency on the retained fixed fixture. PCM arrival p95 remains127.4ms against85.33ms block playtime. Preserve two-block budget, exact consumer clock and authority fences; do not rerun unchanged suites or relax gates."
     }
   ],
   "resource_constraints": [

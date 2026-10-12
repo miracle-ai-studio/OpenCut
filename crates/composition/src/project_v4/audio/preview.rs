@@ -207,6 +207,16 @@ pub struct PreviewSourceFormatV4 {
 pub struct BoundPreviewAudioV4<'a> {
     prepared: &'a PreparedPreviewAudioV4,
     formats: Vec<BoundPreviewSourceV4>,
+    original_order: Vec<usize>,
+}
+impl BoundPreviewAudioV4<'_> {
+    /// Preserve the admitted input order for exact fixed-session receipts.
+    /// The compiled voice lookup remains in prepared order.
+    pub fn source_formats(&self) -> impl Iterator<Item = &PreviewSourceFormatV4> {
+        self.original_order
+            .iter()
+            .map(|&index| &self.formats[index].format)
+    }
 }
 struct BoundPreviewSourceV4 {
     format: PreviewSourceFormatV4,
@@ -258,14 +268,15 @@ pub fn bind_preview_audio_v4<'a>(
         ));
     }
     let mut by_id = BTreeMap::new();
-    for f in formats {
-        if by_id.insert(f.element_id.as_str(), f).is_some() {
+    for (ordinal, f) in formats.iter().enumerate() {
+        if by_id.insert(f.element_id.as_str(), (ordinal, f)).is_some() {
             return Err(invalid("Duplicate preview source"));
         }
     }
     let mut output = Vec::with_capacity(formats.len());
+    let mut original_order = vec![0; formats.len()];
     for voice in &prepared.audio.voices {
-        let f = by_id
+        let (ordinal, f) = by_id
             .remove(voice.element_id.as_str())
             .ok_or_else(|| invalid("Unknown or missing preview source"))?;
         if f.sample_rate == 0
@@ -342,6 +353,7 @@ pub fn bind_preview_audio_v4<'a>(
                 ));
             }
         }
+        original_order[ordinal] = output.len();
         output.push(BoundPreviewSourceV4 {
             format: f.clone(),
             native_starts,
@@ -350,6 +362,7 @@ pub fn bind_preview_audio_v4<'a>(
     Ok(BoundPreviewAudioV4 {
         prepared,
         formats: output,
+        original_order,
     })
 }
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -474,6 +487,23 @@ pub fn compile_preview_audio_block_v4(
         let local_anchor = anchor_sample.saturating_sub(voice.start);
         let duration = time(&voice.timeline_duration)?;
         let end_seconds = duration.ticks() as f64 / f64::from(duration.timebase());
+        let element_gain =
+            gain.filter(|g| g.element_id == voice.element_id)
+                .map_or(voice.element_gain, |g| GainV4::Decibels {
+                    value: f64::from(g.decibels_tenths) / 10.0,
+                });
+        // Constant physical gain is independent of both generation anchors and
+        // sample clocks. Animated channels retain the original 60Hz ramp path.
+        let element_constant = if has_keys(&voice.element_channels) {
+            None
+        } else {
+            Some(preview_amplitude(element_gain, &[], 0.0)?)
+        };
+        let track_constant = if has_keys(&voice.track_channels) {
+            None
+        } else {
+            Some(preview_amplitude(voice.track_gain, &[], 0.0)?)
+        };
         for offset in 0..u64::from(facts.frame_count) {
             let local = facts.local_start_sample + offset;
             let position = if format.prepared {
@@ -508,27 +538,32 @@ pub fn compile_preview_audio_block_v4(
                     })
             };
             positions.push(position);
-            let element_gain =
-                gain.filter(|g| g.element_id == voice.element_id)
-                    .map_or(voice.element_gain, |g| GainV4::Decibels {
-                        value: f64::from(g.decibels_tenths) / 10.0,
-                    });
-            let element = ramp(
-                element_gain,
-                &voice.element_channels,
-                local,
-                local_anchor,
-                end_seconds,
-                rate,
+            let element = element_constant.map_or_else(
+                || {
+                    ramp(
+                        element_gain,
+                        &voice.element_channels,
+                        local,
+                        local_anchor,
+                        end_seconds,
+                        rate,
+                    )
+                },
+                Ok,
             )?;
             let sequence_sample = start_sample + u64::from(facts.block_offset) + offset;
-            let track = ramp(
-                voice.track_gain,
-                &voice.track_channels,
-                sequence_sample,
-                anchor_sample,
-                audio.duration_samples as f64 / f64::from(rate),
-                rate,
+            let track = track_constant.map_or_else(
+                || {
+                    ramp(
+                        voice.track_gain,
+                        &voice.track_channels,
+                        sequence_sample,
+                        anchor_sample,
+                        audio.duration_samples as f64 / f64::from(rate),
+                        rate,
+                    )
+                },
+                Ok,
             )?;
             amplitudes.push(finite(element * track)?);
         }

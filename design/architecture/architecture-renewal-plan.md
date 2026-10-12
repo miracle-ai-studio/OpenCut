@@ -297,3 +297,5 @@ Web仅通过`visual-preview-renderer.ts`桥执行既有Classic解码、WGSL及GP
 Worklet只在原两块FIFO内预填，短EOF由匹配token的end解除预填；静默等待不推进消费帧。时间线仅对稳定呈现事实订阅/缓存片段主体，播放头继续取原控制器当前消费状态，动作使用最新控制器/回调；选择、草稿、权限、修订、语言和主题仍使视图失效。
 
 同帧规划与解码事实绑定由应用层`PreparedPictureV4`复用既有纯IR及ClassicVisualSession；宿主只保留一个受原60层/32资源及像素预算准入的私有prepared帧，按完整声音session与精确Time匹配，未命中保持直接绑定的原完整准备路径。复用不缓存授权：每次绑定前后仍核对当前/原调用者Read/RunJobs、固定修订存在、owner/lease/generation/overlay及150ms窗口。宿主内SQLite视觉processing policy是固定配置，随prepared输入捕获；若将来允许动态政策，该缓存必须增加政策版本或禁用复用。停止、过期、代际控制及生产失败释放准备缓存。不新增模块/依赖/allowlist例外，跨进程DTO保持原样。
+
+实时声音的已验证`BoundPreviewAudioV4`由原`ClassicAudioSession`持有，借用同一固定准备并只保留一份声源格式及原生PTS索引；每个PCM块复用绑定，避免再次校验、克隆完整voice/segment集合。输入顺序单独保存为有界索引，原绑定/回执的精确比较和编译voice顺序保持；重复绑定仍核验，变更或未授权绑定拒绝且不替换原事实。每次块编译仍先执行实时资源checkpoint，宿主保留生产/发布的权限及代际围栏。无关键帧的element/track物理增益每voice每块求值一次，动画保持原60Hz采样插值与generation anchor；临时gain沿用原应用准入。该复用不扩展两块FIFO或PCM/进程预算，不新增源时钟算法、公开wire、模块或依赖。

@@ -15,7 +15,7 @@ pub struct ClassicAudioSession<'a> {
     primary: BTreeMap<String, Option<ClassicAudioPrimarySelection>>,
     range: Option<ClassicAudioRange>,
     preview: Option<&'a PreparedPreviewAudioV4>,
-    preview_formats: Option<Vec<PreviewSourceFormatV4>>,
+    preview_bound: Option<BoundPreviewAudioV4<'a>>,
     preview_anchor: u64,
     preview_gain: Option<PreviewGainOverrideV4>,
     preview_decoded: BTreeMap<String, PreviewDecodedObservation>,
@@ -131,7 +131,7 @@ impl<'a> ClassicAudioSession<'a> {
             primary: BTreeMap::new(),
             range,
             preview,
-            preview_formats: None,
+            preview_bound: None,
             preview_anchor: 0,
             preview_gain: None,
             preview_decoded: BTreeMap::new(),
@@ -639,11 +639,11 @@ impl<'a> ClassicAudioSession<'a> {
         let preview = self
             .preview
             .ok_or_else(|| invalid("Preview source binding requires a realtime session"))?;
-        bind_preview_audio_v4(preview, &request.source_formats).map_err(composition)?;
+        let bound = bind_preview_audio_v4(preview, &request.source_formats).map_err(composition)?;
         if self
-            .preview_formats
+            .preview_bound
             .as_ref()
-            .is_some_and(|old| old != &request.source_formats)
+            .is_some_and(|old| !old.source_formats().eq(request.source_formats.iter()))
         {
             return Err(invalid("Bound preview PCM facts changed"));
         }
@@ -708,7 +708,10 @@ impl<'a> ClassicAudioSession<'a> {
                 }
             }
         }
-        self.preview_formats = Some(request.source_formats);
+        // This binding borrows only the immutable preparation. Retain the one
+        // validated PTS index for all blocks; live resource checkpoints still
+        // run before every compilation and host publication.
+        self.preview_bound = Some(bound);
         Ok(json!({"bound":true}))
     }
     fn observe_preview_decoded(
@@ -792,16 +795,15 @@ impl<'a> ClassicAudioSession<'a> {
         &self,
         request: PreviewBlockRequest,
     ) -> Result<PreviewAudioBlockV4, EditorError> {
-        let preview = self
-            .preview
-            .ok_or_else(|| invalid("Not a realtime session"))?;
-        let formats = self
-            .preview_formats
+        if self.preview.is_none() {
+            return Err(invalid("Not a realtime session"));
+        }
+        let bound = self
+            .preview_bound
             .as_ref()
             .ok_or_else(|| invalid("Preview PCM must bind before block compilation"))?;
-        let bound = bind_preview_audio_v4(preview, formats).map_err(composition)?;
         compile_preview_audio_block_v4(
-            &bound,
+            bound,
             decimal(&request.start_sample)?,
             request.frame_count,
             self.preview_anchor,
@@ -825,7 +827,10 @@ impl<'a> ClassicAudioSession<'a> {
             || receipt.identity.channels != 2
             || receipt.engine_identity.is_empty()
             || receipt.peak_accounted_bytes > self.max_pcm_bytes
-            || self.preview_formats.as_ref() != Some(&receipt.source_formats)
+            || self
+                .preview_bound
+                .as_ref()
+                .is_none_or(|bound| !bound.source_formats().eq(receipt.source_formats.iter()))
             || receipt.preparation.len() != self.observations.len()
             || receipt.decoders.len() > 32
         {
