@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "24 unique scoped records. Latest native phase diagnostic reuses production bytes with an explicitly expanded observer execution identity; original and diagnostic per-window continuity failures remain open. No whole migration acceptance.",
-    "latest_candidate": "audio_preview_native_phase_observation",
+    "scope": "25 unique scoped records. Latest calibrated native dispatch diagnostic narrows two outliers to return waiting overlapping Node loop tardiness; no GC/OS causal or optimization claim. Original per-window gates stay open.",
+    "latest_candidate": "audio_preview_native_dispatch_observation",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -5095,6 +5095,293 @@
           "media_database_credentials_in_git": false,
           "user_media_touched": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_native_dispatch_observation",
+        "status": "verified_dispatch_observation_with_open_continuity_gates",
+        "candidate": {
+          "base_commit": "045bb19bf3ede8e5b85c093a01cd83b8afeb5be0",
+          "source_files": [
+            "apps/web/scripts/native-preview-dispatch.mjs",
+            "apps/web/scripts/native-preview-timing.mjs",
+            "apps/web/scripts/native-preview-timing.test.mjs",
+            "apps/web/scripts/profile-native-preview-preload.mjs",
+            "apps/web/scripts/summarize-native-preview-timing.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "7b8e667e8f3f1f9ff39a802bda6b95c21cf449c947c9837f896b614c6599bc0f",
+          "product_ref": "audio_preview_worker_pcm_pump.candidate",
+          "binary_byte_identical": true,
+          "web_byte_identical": true,
+          "audio_package_bytes_unchanged": true,
+          "observed_execution_identity": "Original audio package plus explicitly injected local Node/page dispatch observers; not uninstrumented production execution",
+          "probe_files_at_launch": {
+            "native-preview-timing.mjs": "e2cd088c06cac803049a8bc66bb6cac190cbd0c24fb772d3b93796a1ca1ded8c",
+            "native-preview-dispatch.mjs": "409926fc347662527e235d8ccaa6f2d2c22ca67c557875ca0756fdd0679916b3",
+            "profile-native-preview-preload.mjs": "722de59acc269eb8fb799c35f135a5e2d10f73409ef1e04b651ea50125c7c488"
+          },
+          "numeric_artifact_sha256": "d91e1f7636d034ba5edc1501fc34d0edb6ac1ffe0dcd5c2f294912ad64f385cd",
+          "failed_diagnostic_receipt_sha256": "a1a2eaa57827b1f003944c278cde2a2b83afd8fbc134a706e166345ce1a6bb29",
+          "browser": "154.0.8037.99",
+          "post_run_analyzer_guard": "Only analyzer overlap broadened to whole evaluate interval, including pre-producer/after-hex; page task list is actually empty so existing numbers unchanged. Original launched dispatch file hash retained; final source manifest differs for this analyzer-only change. Pure tests/reanalysis, no repeated media run."
+        },
+        "scope": "One new calibrated dispatch diagnostic in the original fixed synthetic project/revision/8sCAS fixture, actual300s/3516 commands/14400000 supplied frames. Preserves previous production and diagnostic failures; not an optimization.",
+        "checks": {
+          "pure_observer_tests": 5,
+          "syntax_and_runner_registration": "passed",
+          "product_builds": 0,
+          "fresh_whole_workspace_run": false,
+          "scope_reuse": "Unchanged product/public/dependency boundaries; original architecture14/22modules/0exceptions, contracts/194tools/22 wire/Worker/HD/10s retain candidate scopes, not re-run."
+        },
+        "native_dispatch": {
+          "commands": 3516,
+          "contiguous_supplied_frames": "14400000",
+          "artifact_bytes": 1707414,
+          "incomplete_commands": 0,
+          "overflow": false,
+          "phases": {
+            "total_ms": {
+              "mean_ms": 36.12901763310591,
+              "p95_ms": 55.58329700000468,
+              "max_ms": 202.16927099999157
+            },
+            "evaluate_ms": {
+              "mean_ms": 33.46062915614319,
+              "p95_ms": 52.51673800000572,
+              "max_ms": 198.06220600000233
+            },
+            "broker_ms": {
+              "mean_ms": 4.950194147610809,
+              "p95_ms": 9.877619000006234,
+              "max_ms": 20.47822200000519
+            },
+            "page_callback_ms": {
+              "mean_ms": 14.017775881505731,
+              "p95_ms": 25.69999998807907,
+              "max_ms": 46.70000001788139
+            },
+            "page_producer_ms": {
+              "mean_ms": 20.09234926040974,
+              "p95_ms": 37.099999994039536,
+              "max_ms": 58.80000001192093
+            },
+            "page_hex_ms": {
+              "mean_ms": 2.953327644976604,
+              "p95_ms": 3.4000000059604645,
+              "max_ms": 6.599999964237213
+            },
+            "observer_ms": {
+              "mean_ms": 2.0669575915812635,
+              "p95_ms": 3.007062999997288,
+              "max_ms": 22.62983600000007
+            },
+            "pcm_write_ms": {
+              "mean_ms": 0.25054313509694404,
+              "p95_ms": 0.34008799999719486,
+              "max_ms": 1.3816250000090804
+            },
+            "post_evaluate_to_first_pcm_ms": {
+              "mean_ms": 2.276612454209436,
+              "p95_ms": 3.2345859999768436,
+              "max_ms": 22.724671999996644
+            },
+            "node_callback_ms": {
+              "mean_ms": 5.040947910124981,
+              "p95_ms": 10.034434999979567,
+              "max_ms": 20.62043699999049
+            },
+            "page_body_ms": {
+              "mean_ms": 23.15298634797199,
+              "p95_ms": 40.5,
+              "max_ms": 62.20000001788139
+            },
+            "page_unpack_validate_mix_ms": {
+              "mean_ms": 6.0745733789040095,
+              "p95_ms": 11.599999994039536,
+              "max_ms": 16.400000035762787
+            },
+            "evaluate_residual_ms": {
+              "mean_ms": 10.414952250756825,
+              "p95_ms": 13.019104982115095,
+              "max_ms": 156.86220601192326
+            },
+            "callback_outside_broker_ms": {
+              "mean_ms": 9.067581733894924,
+              "p95_ms": 16.05040799404378,
+              "max_ms": 34.50302101788111
+            }
+          },
+          "clock_bounds": [
+            {
+              "stage": "prepare",
+              "lower_ms": 3113.9185209940397,
+              "upper_ms": 3115.1975049940393,
+              "rtt_ms": 1.278983999999582
+            },
+            {
+              "stage": "terminal",
+              "lower_ms": 3113.873659999983,
+              "upper_ms": 3115.182664999971,
+              "rtt_ms": 1.3090049999882467
+            }
+          ],
+          "maximum_clock_uncertainty_ms": 1.3238449940563441,
+          "selected_tail_count": 32,
+          "slowest_tails": [
+            {
+              "command_id": "1805",
+              "start_sample": "7389184",
+              "total_ms": 202.16927099999157,
+              "evaluate_ingress": {
+                "lower_ms": 2.650612011901103,
+                "upper_ms": 3.97445700597018
+              },
+              "evaluate_return": {
+                "lower_ms": 152.88774900596582,
+                "upper_ms": 154.21159400002216
+              },
+              "callback_ingress": {
+                "lower_ms": 0.2493689940438344,
+                "upper_ms": 1.5732139881001785
+              },
+              "callback_return": {
+                "lower_ms": 13.95909001189284,
+                "upper_ms": 15.282935005961917
+              },
+              "node_callback_ms": 8.967696000006981,
+              "page_body_ms": 41.19999998807907,
+              "overlapping_selected_node_timer_lags": [
+                {
+                  "start_ms": 158676.118876,
+                  "end_ms": 158817.761396,
+                  "late_ms": 116.64251999999397
+                }
+              ],
+              "overlapping_selected_page_long_tasks": []
+            },
+            {
+              "command_id": "1447",
+              "start_sample": "5922816",
+              "total_ms": 143.43014699999185,
+              "evaluate_ingress": {
+                "lower_ms": 0.6807720119104488,
+                "upper_ms": 2.004617005964974
+              },
+              "evaluate_return": {
+                "lower_ms": 90.05080801191616,
+                "upper_ms": 91.3746530059725
+              },
+              "callback_ingress": {
+                "lower_ms": 0.07191399404655385,
+                "upper_ms": 1.395758988102898
+              },
+              "callback_return": {
+                "lower_ms": 13.207575999986148,
+                "upper_ms": 14.531420994040673
+              },
+              "node_callback_ms": 8.096664999990026,
+              "page_body_ms": 36.79999998211861,
+              "overlapping_selected_node_timer_lags": [
+                {
+                  "start_ms": 128029.096922,
+                  "end_ms": 128116.687622,
+                  "late_ms": 62.59070000000065
+                },
+                {
+                  "start_ms": 128116.687622,
+                  "end_ms": 128149.210324,
+                  "late_ms": 7.5227020000020275
+                }
+              ],
+              "overlapping_selected_page_long_tasks": []
+            }
+          ],
+          "timer_lag_count": 3920,
+          "selected_timer_lag_count": 32,
+          "page_tasks": {
+            "long_tasks": [],
+            "long_task_count": 0,
+            "long_tasks_supported": true
+          },
+          "scope": "All commands accounted; largest32 detailed command totals/timer lags/page tasks are selected witnesses, not exhaustive scheduling. Timer max includes preparation; two listed overlaps occur during actual blocks. Clock envelope from start/end smallest RTT bounds is not continuous hardware clock certification."
+        },
+        "diagnostic_continuity": {
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": false,
+            "deficit_ratio": false,
+            "render_quantum_deficit_ratio": false,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": true,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14426624,
+            "copied_frames": 14400000,
+            "missing_frames": 26624,
+            "elapsed_ms": 300548.5,
+            "render_quantum_deficit_ratio": 0.0018454768073251234,
+            "stalled_ratio": 0.0018749053810303263,
+            "deficit_ratio": 0.0018338692978558946,
+            "max_raw_points": 3751
+          },
+          "failed_windows": [
+            {
+              "index": 5,
+              "rendered_frames": 480000,
+              "missing_frames": 4864,
+              "stalled_ratio": 0.010151673219270182,
+              "deficit_ratio": 0.007035283415815163,
+              "render_quantum_deficit_ratio": 0.010133333333333333
+            },
+            {
+              "index": 15,
+              "rendered_frames": 480000,
+              "missing_frames": 8448,
+              "stalled_ratio": 0.018102896460496606,
+              "deficit_ratio": 0.017442790844192424,
+              "render_quantum_deficit_ratio": 0.0176
+            }
+          ],
+          "max_skew_ms": 122.66666666667447,
+          "minimum_source_pts": 153,
+          "credit_scope": "Worker3508 completed-block observation prefix; no claim all terminal credit stamps; page/device accounting complete."
+        },
+        "findings": [
+          "At1.324ms start/end calibration uncertainty, command1805 evaluate return152.89..154.21ms overlaps Node timer tardiness116.64ms; Node handler8.97ms and page body41.2ms. Command1447 return90.05..91.37ms overlaps Node62.59ms; handler8.10ms/body36.8ms. Ingress about0.68..3.97ms for these two outliers.",
+          "Native page LongTasks supported,0 entries after preparation through final capture; does not prove zeroGC/OS delays. Node loop overlap narrows the observed return tail, not its CPU/GC/serialization cause.",
+          "Source-inspected pinned Playwright1.63.0 Chromium defaults already disable background timer throttling and renderer backgrounding. No speculative launch-flag changes, budget expansion or throughput claim."
+        ],
+        "next": "优先在原Node返回封送路径加入有界GC PerformanceEntry与同一command/事件循环迟到的关联，区分GC暂停、同步解析/序列化和OS调度；当前返回等待和Node迟到重叠仅定位阶段，未证明原因。基于已定位的Node分配/封送瓶颈选一个切片优化，保持原预算与完整数据/授权/取消围栏后才补受影响持续验收；随后gain/rapidseek/场景修订/真实撤权和后续独立PCM，最后真实长源/VFR/非单位速率。",
+        "reuse": {
+          "prior_import_copy_repeated": false,
+          "one_owned_synthetic_workspace": true,
+          "rust_web_audio_rebuilt": false,
+          "broader_suites_rerun": false
+        },
+        "limits": [
+          "Three per-window gates remain failed; observer timing changes are not a performance comparison. NoGC cause proof, physicalDAC or fullS1 acceptance.",
+          "36 groups and gain/rapid-seek/scene-revision/real-permission/later-independentPCM/long-source/VFR/non-unit-rate remain incomplete."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "owned_native_children_after_end": 0,
+          "device_closed": true,
+          "worker_target_closed": true,
+          "lsof_owned_workspace_handles": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
@@ -5166,7 +5453,7 @@
           "maximum": 0.01
         }
       },
-      "next": "先细分原page evaluate residual及页面callback outside broker中的原生浏览器dispatch/return/序列化/调度与Node事件循环延迟；按同一command与sample关联补块长尾。当前最大残余153.41ms和callback外broker101.70ms未因果定位；不凭此重写PCM混合、Rust编译或增大两槽预算。选一个已定位瓶颈优化后才补受影响持续门槛；随后临时gain/快速seek/场景修订/真实撤权及后续独立PCM，最后长源/VFR/非单位速率。"
+      "next": "优先在原Node返回封送路径加入有界GC PerformanceEntry与同一command/事件循环迟到的关联，区分GC暂停、同步解析/序列化和OS调度；当前返回等待和Node迟到重叠仅定位阶段，未证明原因。基于已定位的Node分配/封送瓶颈选一个切片优化，保持原预算与完整数据/授权/取消围栏后才补受影响持续验收；随后gain/rapidseek/场景修订/真实撤权和后续独立PCM，最后真实长源/VFR/非单位速率。"
     }
   ],
   "resource_constraints": [

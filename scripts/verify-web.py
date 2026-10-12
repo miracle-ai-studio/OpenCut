@@ -75,7 +75,7 @@ def main():
         run_env['OPENCUT_PREVIEW_PROFILE_DIR'] = str(profile_directory)
         run_env['NODE_OPTIONS'] = run_env.get('NODE_OPTIONS', '') + ' --import=' + json.dumps(str(probe))
         probe_files = {name: hashlib.sha256((ROOT / 'apps/web/scripts' / name).read_bytes()).hexdigest()
-                       for name in ['native-preview-timing.mjs', 'profile-native-preview-preload.mjs']}
+                       for name in ['native-preview-timing.mjs', 'native-preview-dispatch.mjs', 'profile-native-preview-preload.mjs']}
     def cli(*arguments):
         result = subprocess.run([str(binary), '--json', '--database', str(workspace / 'workspace.sqlite'),
                                  'server', '--directory', str(service), *arguments], capture_output=True, text=True, timeout=60, cwd=workspace, env=run_env)

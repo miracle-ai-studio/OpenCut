@@ -1,20 +1,36 @@
 // Verifier-only injection, serialized into the already-owned isolated page.
 // No source clock/gain/PCM computation, DTO changes or authorized byte copies.
-export function installNativePreviewTiming() {
+export function installNativePreviewTiming(traceDispatch=false) {
   const producer=globalThis.__opencutPreviewProducer, callback=globalThis.__opencutPreviewCallback;
   if (!producer || typeof producer.next!=="function" || typeof callback!=="function" || globalThis.__opencutPreviewTiming) throw Error("No unique prepared native producer");
   const next=producer.next, from=Array.from, join=Array.prototype.join, arrays=new WeakSet();
   let current=null;
   globalThis.__opencutPreviewTiming={last:null};
+  let longTaskObserver;
+  if(traceDispatch){
+    const meta=globalThis.__opencutPreviewTiming;
+    meta.long_tasks=[];meta.long_task_count=0;
+    meta.long_tasks_supported=typeof PerformanceObserver!=="undefined"&&PerformanceObserver.supportedEntryTypes.includes("longtask");
+    if(meta.long_tasks_supported){
+      longTaskObserver=new PerformanceObserver(list=>{
+        for(const e of list.getEntries()){
+          meta.long_task_count++;meta.long_tasks.push({start_ms:e.startTime,duration_ms:e.duration});
+          meta.long_tasks.sort((a,b)=>b.duration_ms-a.duration_ms);meta.long_tasks.length=Math.min(32,meta.long_tasks.length);
+        }
+      });longTaskObserver.observe({type:"longtask"});
+    }
+  }
   globalThis.__opencutPreviewCallback=async function(op,args) {
-    const t=performance.now();try{return await callback(op,args);}
-    finally{if(current&&op==="compilePreviewBlock")current.callback_ms+=performance.now()-t;}
+    const t=performance.now();if(traceDispatch&&current&&op==="compilePreviewBlock")current.callback_enter_ms=t;
+    try{return await callback(op,args);}
+    finally{if(current&&op==="compilePreviewBlock"){const end=performance.now();current.callback_ms+=end-t;if(traceDispatch)current.callback_exit_ms=end;}}
   };
   producer.next=async function(command) {
     current={command_id:command.id,start_sample:command.startSample,frame_count:command.frameCount,
       callback_ms:0,producer_ms:0,hex_ms:0,hex_calls:0,after_next:false};
     globalThis.__opencutPreviewTiming.last=current;
     const t=performance.now();
+    if(traceDispatch)current.producer_enter_ms=t;
     try{return await next.call(this,command);}
     finally{current.producer_ms=performance.now()-t;current.after_next=true;}
   };
@@ -25,10 +41,11 @@ export function installNativePreviewTiming() {
   };
   Array.prototype.join=function(...args) {
     if(!arrays.has(this))return join.apply(this,args);
-    const t=performance.now();try{return join.apply(this,args);}finally{current.hex_ms+=performance.now()-t;arrays.delete(this);}
+    const t=performance.now();try{return join.apply(this,args);}finally{const end=performance.now();current.hex_ms+=end-t;if(traceDispatch)current.hex_exit_ms=end;arrays.delete(this);}
   };
   globalThis.__restoreNativePreviewTiming=()=>{
     producer.next=next;globalThis.__opencutPreviewCallback=callback;Array.from=from;Array.prototype.join=join;
+    longTaskObserver?.disconnect();
     delete globalThis.__opencutPreviewTiming;delete globalThis.__restoreNativePreviewTiming;
   };
 }
