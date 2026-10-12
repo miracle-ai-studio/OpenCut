@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installNativePreviewTiming, NativePreviewTiming } from "./native-preview-timing.mjs";
 import { nextPreviewPage } from "../../../packages/classic-audio-renderer/host/preview-page.mjs";
-import { summarizeNativePreviewTiming } from "./summarize-native-preview-timing.mjs";
+import { summarizeNativePreviewTiming, correlateNativePreviewCredit } from "./summarize-native-preview-timing.mjs";
 import { NativePreviewDispatch, summarizeNativePreviewDispatch } from "./native-preview-dispatch.mjs";
 test("isolated observer preserves independent Float32 hex/receipt bytes and restores original callback/sampler",async()=>{
   const callback=async()=>({ok:true,value:"fixed-facts"});
@@ -81,4 +81,24 @@ test("phase summary checks exact command/sample continuity and keeps overlapping
   for(const mutate of [x=>x.overflow=true,x=>x.incomplete_commands=1,x=>x.rows[1].start_sample="4097",x=>x.rows[1].command_id="3",x=>x.rows[0].hex_calls=1,x=>x.rows[0].evaluate_ms=NaN,x=>x.rows[0].page_callback_ms=51]){
     const bad=structuredClone(snapshot);mutate(bad);assert.throws(()=>summarizeNativePreviewTiming(bad));
   }
+});
+test("Worker refill identity joins original native sample facts and bounds prior-control overlap without leaking extras",()=>{
+  let now=0;const p=new NativePreviewTiming(()=>now);
+  for(let k=0;k<3;k++) {
+    p.command({id:String(k+1),startSample:String(k*4096),frameCount:4096});
+    Object.assign(p.row(String(k+1)),{compiled_bytes:1000,hex_calls:2,page_producer_ms:8,page_callback_ms:4,evaluate_ms:10,observer_ms:1});
+    now+=12;p.finish(String(k+1));
+  }
+  const tail={completed_block:1,consumed_frames:"4096",supplied_block:3,supplied_start_sample:"8192",supplied_frames:4096,
+    receipt_at_ms:10,report_began_ms:20,report_headers_ended_ms:23,report_ended_ms:25,supplied_at_ms:35,completion_to_report_ms:10,completion_to_supply_ms:25,
+    preceding_control_count:1,preceding_controls:[{kind:"heartbeat",began_ms:8,headers_ended_ms:15,ended_ms:19,secret:"must-not-be-recorded"}],secret:"must-not-be-recorded"};
+  const continuity={credit:{slowest_refills:[tail]},consumption:{windows:[{start_frame:"0",end_frame:"4096",missing_frames:0},{start_frame:"4096",end_frame:"16384",missing_frames:128}]}};
+  const raw=p.snapshot(),r=correlateNativePreviewCredit(raw,continuity),s=r.samples[0];
+  assert.equal(s.native_command.command_id,"3");assert.equal(s.native_command.total_ms,12);
+  assert.equal(s.preceding_controls[0].overlap_ms,9);assert.equal(s.associated_sample_windows[1].missing_frames,128);
+  assert(!JSON.stringify(r).includes("must-not-be-recorded"));
+  for(const change of [t=>t.supplied_start_sample="8193",t=>t.supplied_block=4,t=>t.supplied_frames=4095,t=>t.completion_to_supply_ms=24,t=>t.preceding_controls[0].ended_ms=9,t=>t.receipt_at_ms=NaN,t=>t.report_headers_ended_ms=26,t=>t.preceding_controls[0].headers_ended_ms=20]) {
+    const bad=structuredClone(continuity);change(bad.credit.slowest_refills[0]);assert.throws(()=>correlateNativePreviewCredit(raw,bad));
+  }
+  const duplicate=structuredClone(continuity);duplicate.credit.slowest_refills.push({...tail});assert.throws(()=>correlateNativePreviewCredit(raw,duplicate),/Duplicate/);
 });

@@ -58,22 +58,36 @@ export class PreviewContinuity {
 // Bounded pending correlations survive drains; controls and supplies may have
 // arrived in the adjacent page/worker observation batches.
 export class PreviewCreditObservations {
-  constructor() {this.previous=0;this.pending=new Map();this.controls=[];this.supplies=new Map();this.samples=[];this.unmatched=0;}
+  constructor() {this.previous=0;this.pending=new Map();this.controls=[];this.supplies=new Map();this.samples=[];this.tails=[];this.unmatched=0;}
   add(receipts,controls,supplies) {
     for(const p of receipts) {
-      if(!decimal(p.frames)||!Number.isSafeInteger(p.completedBlocks)||p.completedBlocks<this.previous) throw Error("Invalid Worker receipt");
+      if(!decimal(p.frames)||!Number.isSafeInteger(p.completedBlocks)||p.completedBlocks<this.previous||!Number.isFinite(p.at)||p.at<0) throw Error("Invalid Worker receipt");
       if(p.completedBlocks>this.previous) this.pending.set(p.completedBlocks,{at:p.at,frames:p.frames});
       this.previous=p.completedBlocks;
     }
-    this.controls.push(...controls.filter(c=>c.kind==="report_consumed"));
+    for(const c of controls) {
+      if(!["report_consumed","heartbeat"].includes(c.kind))continue;
+      if(![c.began,c.ended].every(Number.isFinite)||c.began<0||c.ended<c.began||c.kind==="report_consumed"&&!decimal(c.frames))throw Error("Invalid control observation");
+      if(c.headers_ended!==undefined&&(!Number.isFinite(c.headers_ended)||c.headers_ended<c.began||c.headers_ended>c.ended))throw Error("Invalid response body observation");
+      this.controls.push(c);
+    }
     this.controls=this.controls.slice(-512);
-    for(const s of supplies)this.supplies.set(s.ordinal,s);
+    for(const s of supplies) {
+      if(!Number.isSafeInteger(s.ordinal)||s.ordinal<1||!Number.isSafeInteger(s.frames)||s.frames<1||s.frames>4096||!decimal(s.start_sample)||!Number.isFinite(s.at)||s.at<0)throw Error("Invalid supply observation");
+      this.supplies.set(s.ordinal,s);
+    }
     for(const [k,p] of this.pending) {
-      const c=this.controls.find(c=>decimal(c.frames)&&BigInt(c.frames)>=BigInt(p.frames)&&c.began>=p.at);
+      const c=this.controls.find(c=>c.kind==="report_consumed"&&decimal(c.frames)&&BigInt(c.frames)>=BigInt(p.frames)&&c.began>=p.at);
       const s=this.supplies.get(k+2);
       if(!c||!s)continue;
       if(s.at<c.began || s.at<p.at) throw Error("Invalid two-slot credit observation order");
       this.samples.push({release:c.began-p.at,refill:s.at-p.at,turnaround:s.at-c.began});this.pending.delete(k);
+      const overlapping=this.controls.filter(x=>x!==c&&x.began<=c.began&&x.ended>=p.at);
+      this.tails.push({completed_block:k,consumed_frames:p.frames,supplied_block:s.ordinal,supplied_start_sample:s.start_sample,supplied_frames:s.frames,
+        receipt_at_ms:p.at,report_began_ms:c.began,report_headers_ended_ms:c.headers_ended??c.ended,report_ended_ms:c.ended,supplied_at_ms:s.at,
+        completion_to_report_ms:c.began-p.at,completion_to_supply_ms:s.at-p.at,
+        preceding_control_count:overlapping.length,preceding_controls:overlapping.slice(0,8).map(x=>({kind:x.kind,began_ms:x.began,headers_ended_ms:x.headers_ended??x.ended,ended_ms:x.ended}))});
+      this.tails.sort((a,b)=>b.completion_to_supply_ms-a.completion_to_supply_ms);this.tails.length=Math.min(32,this.tails.length);
     }
     for(const [k]of this.supplies)if(k<this.previous-64)this.supplies.delete(k);
     if(this.pending.size>64||this.supplies.size>512||this.samples.length>4096)throw Error("Credit observation budget exceeded");
@@ -81,6 +95,7 @@ export class PreviewCreditObservations {
   result() {
     const stats=key=>{const a=this.samples.map(s=>s[key]).sort((a,b)=>a-b);return a.length?{count:a.length,mean_ms:a.reduce((a,b)=>a+b,0)/a.length,maximum_ms:a.at(-1),p95_ms:a[Math.ceil(a.length*.95)-1]}:{count:0};};
     return {completion_to_report:stats("release"),completion_to_next_supply:stats("refill"),report_to_next_supply:stats("turnaround"),
+      slowest_refills:this.tails,
       completions_observed:this.previous,unmatched_terminal_completions:this.pending.size,
       method:"Actual Worker MessagePort receipt entry, covering serialized report and transfer block k+2; all timestamps converted with performance.timeOrigin. Not native-only or DAC latency."};
   }

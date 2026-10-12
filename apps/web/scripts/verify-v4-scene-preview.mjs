@@ -198,6 +198,7 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
 // required before its start message; otherwise acceptance fails rather than
 // silently treating a missing supply trace as an empty/healthy stream.
 export function installScenePreviewPumpWitness({ rolling = false } = {}) {
+  let suppliedFrames = 0n;
   const w = globalThis.__scenePumpWitness = { token: null, startObserved: false,
     timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [], progresses: [], overflows: 0 };
   addEventListener("message", ({data}) => {
@@ -230,7 +231,9 @@ export function installScenePreviewPumpWitness({ rolling = false } = {}) {
     if (data.kind === "block" && data.token === w.token) {
       w.blocks++;
       if (rolling && w.supplies.length >= 512) w.overflows++;
-      if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
+      const frames = data.pcm.byteLength / 8;
+      if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames, start_sample: String(suppliedFrames), at: performance.now() });
+      suppliedFrames += BigInt(frames);
       if (w.pcm.length < 4096) w.pcm.push(...new Float32Array(data.pcm)
         .subarray(0, Math.min(8192, (4096 - w.pcm.length) * 2)).filter((_, i) => i % 2 === 0));
     }
@@ -241,9 +244,19 @@ export function installScenePreviewPumpWitness({ rolling = false } = {}) {
     const began = performance.now(), url = String(args[0]);
     const input = url.endsWith("opencut_audio_preview_v4_control") ? JSON.parse(args[1]?.body ?? "null") : null;
     const response = await originalFetch(...args);
-    if (rolling && input?.command && w.controls.length >= 2048) w.overflows++;
-    if (input?.command && w.controls.length < 2048) w.controls.push({ kind: input.command.kind,
-      frames: input.command.consumed_frames ?? null, began, ended: performance.now() });
+    if (input?.command) {
+      const headersEnded=performance.now(),text=response.text;
+      // The shared SDK reads text before decoding its typed envelope. Headers
+      // alone do not acknowledge the body or release its serialized control.
+      response.text=async function(...readArgs) {
+        try { return await text.apply(this,readArgs); }
+        finally {
+          if (rolling && w.controls.length >= 2048) w.overflows++;
+          if (w.controls.length < 2048) w.controls.push({ kind: input.command.kind,
+            frames: input.command.consumed_frames ?? null, began, headers_ended:headersEnded, ended:performance.now() });
+        }
+      };
+    }
     return response;
   };
 }
@@ -284,7 +297,8 @@ export function trackScenePreviewPumps(page, {rolling = false} = {}) {
       if (!current.startObserved) throw new Error("Audio pump witness missed the start fence.");
       w.blocks = current.blocks; w.pcm = current.pcm;
       w.supplies = current.supplies.map(s => ({...s, at: s.at + offset}));
-      w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset})));
+      w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset,
+        ...(c.headers_ended===undefined?{}:{headers_ended:c.headers_ended+offset})})));
       w.workerProgresses = current.progresses.map(p => ({...p, at: p.at + offset}));
       w.workerOverflows = current.overflows;
       w.pumpWitness = { startObserved: true, owner: "dedicated-worker", timeOriginConverted: true };
