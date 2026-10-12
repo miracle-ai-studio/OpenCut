@@ -47,7 +47,7 @@ export async function runPreviewHost(input = process.stdin, output = process.std
         initialization = (async () => {
           monitor = new QuotaMonitor(begin.admission, error => void end(error)); await monitor.start(); checkAbort(controller.signal);
           prepTimer = setTimeout(() => void end(new AudioExecutionError("AUDIO_TIME_LIMIT", "Preview preparation deadline expired")), begin.preparationDeadlineMs);
-          realm = new BrowserRealm(begin, broker, writer, monitor, controller.signal, { configurePage: configurePreviewPage });
+          realm = new BrowserRealm(begin, broker, writer, monitor, controller.signal, { configurePage: configurePreviewPage, ownedLocal: true });
           await realm.start(); checkAbort(controller.signal);
           const receipt = await preparePreviewRealm(realm); checkAbort(controller.signal);
           clearTimeout(prepTimer); ready = true; await writer.send({ type: "prepared", receipt });

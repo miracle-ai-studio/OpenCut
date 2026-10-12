@@ -5,6 +5,7 @@ import path from "node:path";
 import { AudioExecutionError, checkAbort, integer, natural, reject } from "../src/validation.mjs";
 import { ORIGIN, moduleRegistry, moduleResponse, playwrightRuntime } from "./modules.mjs";
 import { executeAudioPage } from "./page.mjs";
+import { launchOwnedBrowser } from "./owned-browser.mjs";
 
 export class BrowserRealm {
   constructor(begin, broker, writer, monitor, signal, hooks = {}) { Object.assign(this, { begin, broker, writer, monitor, signal, hooks }); }
@@ -20,18 +21,20 @@ export class BrowserRealm {
     if (runtime.chromiumSha256 !== undefined && runtime.chromiumSha256 !== browserSha256) reject("AUDIO_RUNTIME_IDENTITY_MISMATCH", "Chromium executable does not match the admitted hash");
     const [modules, { chromium }] = await Promise.all([(this.hooks.moduleRegistry ?? moduleRegistry)(runtime), (this.hooks.playwrightRuntime ?? playwrightRuntime)(runtime)]);
     checkAbort(this.signal);
-    this.starting = chromium.launchServer({
+    const options = {
       executablePath: executable, headless: true, chromiumSandbox: true, timeout: this.monitor.remainingTimeout(),
       args: ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps", "--disable-crash-reporter", "--no-first-run", "--no-proxy-server", "--host-resolver-rules=MAP * ~NOTFOUND"],
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(DEBUG|PWDEBUG|NODE_OPTIONS|HTTPS?_PROXY|ALL_PROXY|https?_proxy|all_proxy)$/.test(name))),
-    });
+    };
+    this.starting = this.hooks.ownedLocal ? launchOwnedBrowser(chromium, options, this.signal) : chromium.launchServer(options);
     this.server = await this.starting;
     const pid = this.server.process().pid; integer(pid, "actual browser PID", 1); this.monitor.setBrowserPid(pid);
     await this.writer.send({ type: "started", browserPid: pid });
     checkAbort(this.signal);
-    this.browser = await chromium.connect(this.server.wsEndpoint(), { timeout: this.monitor.remainingTimeout() });
+    this.browser = this.hooks.ownedLocal ? this.server.browser : await chromium.connect(this.server.wsEndpoint(), { timeout: this.monitor.remainingTimeout() });
     const browserVersion = this.browser.version();
     this.identity = { engine: `Chromium ${browserVersion} · ${process.platform}/${process.arch} · ${browserSha256} · ${modules.moduleSha256}`, browserVersion, browserSha256, moduleSha256: modules.moduleSha256, playwrightVersion: "1.63.0", mediabunnyVersion: "1.41.0" };
+    if (this.hooks.ownedLocal) this.identity.engine += ` · preview-direct-v1 · Node ${process.versions.node}`;
     this.context = await this.browser.newContext({ acceptDownloads: false, serviceWorkers: "block" });
     await this.context.route("**/*", async route => {
       const response = moduleResponse(modules, route.request().url(), route.request().method());

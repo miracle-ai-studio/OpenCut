@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "26 unique scoped records. Latest GC observer caps actual delivered entry samples; current14-gate diagnostic pass is not a product optimization and does not close original per-window failures. Next product slice removes structurally redundant same-process WS transport while preserving owned-child lifecycle.",
-    "latest_candidate": "audio_preview_native_gc_observation",
+    "scope": "27 unique scoped records. Preview collocated transport/owned-child lifecycle and HD4 checks verified using unchanged release/Web and one retained fixture. Uninstrumented new-product300s reaches terminal and cleans up, but3 per-window gates fail; S1 remains partial. No repeated unchanged-candidate benchmark or performance-benefit claim.",
+    "latest_candidate": "audio_preview_owned_collocated_transport",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -5608,12 +5608,235 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_owned_collocated_transport",
+        "status": "implemented_lifecycle_and_hd_verified_sustained_windows_failed",
+        "candidate": {
+          "base_commit": "6f1bc955e9656e2b569769ebf8669a00014b438a",
+          "source_files": [
+            "packages/classic-audio-renderer/host/browser.mjs",
+            "packages/classic-audio-renderer/host/owned-browser.mjs",
+            "packages/classic-audio-renderer/host/preview-runner.mjs",
+            "packages/classic-audio-renderer/tests/owned-browser.test.mjs"
+          ],
+          "source_manifest_sha256": "3f9261899dce86d176ee7165a2ce1dc80370112d3f15c51c08cb4863034e745d",
+          "binary_ref": "audio_preview_retained_source_binding.candidate.binary_sha256",
+          "binary_byte_identical": true,
+          "web_ref": "audio_preview_worker_pcm_pump.candidate",
+          "web_byte_identical": true,
+          "audio_runtime_module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+          "visual_runtime_module_sha256": "9c56e69317d3bc90250798b1f918607188ec4318deb2c49478b4dad6f919289a",
+          "runtime": "preview-direct-v1; Node24.19.0; Chromium154.0.8037.99; Playwright1.63.0. No native profiling preload in actual300s run.",
+          "identity_limit": "Shared host bytes change both package identities; default non-preview transport behavior retained. Versions and module hashes do not establish exact renderer/DAC reproducibility."
+        },
+        "implementation": "Preview alone uses public collocated chromium.launch. Node child_process channel captures actual ChildProcess; checks unique root/executable and one actor, unsubscribes after launch, reaps late/failed/aborted roots, group-kills on close timeout and requires actual exit. Original admission/env/CSP/PID/monitor, source IR/clock/PCM and Rust authority fences retained; no new dependency/module-policy exception or public schema.",
+        "checks": {
+          "existing_private_host_preview_tests": 23,
+          "owned_browser_tests": 7,
+          "real_chrome_ownership": "Actual independent byte/receipt return, graceful exit, group SIGKILL exit and abort at actual spawn; all acknowledged.",
+          "architecture_unit_tests": 14,
+          "architecture_modules": 22,
+          "architecture_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "syntax": "passed",
+          "product_builds": 0,
+          "hd_and_boundary_checks": 4,
+          "scope_reuse": "Original explicit release/Web bytes, generated194 tools/22 frozen wire, application original-credential/lease/revision semantics and unaffected DSP/export checks retain their recorded scope. No fresh whole workspace or actual original-credential revocation rerun."
+        },
+        "hd_correctness": {
+          "width": 1280,
+          "height": 720,
+          "cold_ms": 6792,
+          "distinct_frames": 76,
+          "max_skew_ms": 117.33333333333334,
+          "frequency_hz": 439.99991601772865,
+          "rms": 0.08831585190797463,
+          "runtime": {
+            "gpuBackend": "webgpu",
+            "gpuDevice": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+            "textureFormat": "bgra8unorm",
+            "bindMs": "5.800000011920929",
+            "peakGpuBytes": "18432164",
+            "peakAccountedBytes": "67108857",
+            "retainedDecodedBytes": "11059200",
+            "retainedEncodedBytes": "11475",
+            "planMs": "7.4000000059604645",
+            "totalMs": "25.19999998807907"
+          },
+          "seek_ms": 492,
+          "cache_resource_downloads": 1,
+          "paused_permission_rejection": "Versioned HTTP403 injection clears cached pixels; not genuine credential revocation.",
+          "distinct_frame_limit": "76 different requested times over4s, not independent decoded PTS."
+        },
+        "sustained_continuity": {
+          "status": "failed",
+          "fixture": {
+            "project_id": "scene-preview-dense-7b4ffe9a-45e5-4c4c-bcca-23c1af75316e",
+            "revision": "rev_bf2ac2ef6fde247d9f66ed4f125aab89c66e68a24129c11038f11af4e5872f1e",
+            "seconds": 300,
+            "source_seconds": 8,
+            "placements": 100,
+            "tracks": 5
+          },
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": false,
+            "deficit_ratio": false,
+            "render_quantum_deficit_ratio": false,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": true,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14412800,
+            "copied_frames": 14400000,
+            "missing_frames": 12800,
+            "elapsed_ms": 300260.89999997616,
+            "render_quantum_deficit_ratio": 0.0008880994671403197,
+            "stalled_ratio": 0.0008662466541399836,
+            "deficit_ratio": 0.0008777921688866153,
+            "max_raw_points": 3751
+          },
+          "windows": 31,
+          "worst_window": {
+            "one_based_index": 29,
+            "start_frame": "13433728",
+            "end_frame": "13907328",
+            "elapsed_ms": 10000.200000017881,
+            "copied_frames": 473600,
+            "rendered_frames": 480000,
+            "missing_frames": 6400,
+            "stalled_ratio": 0.013069738604012456,
+            "deficit_ratio": 0.013353066273772196,
+            "render_quantum_deficit_ratio": 0.013333333333333334,
+            "maximum_message_lag_ms": 24,
+            "reports": 3751
+          },
+          "cold_ms": 4508,
+          "source_pts_per_placement": [
+            154,
+            157,
+            165,
+            158,
+            156,
+            162,
+            163,
+            156,
+            161,
+            160,
+            161,
+            161,
+            159,
+            160,
+            155,
+            163,
+            166,
+            161,
+            159,
+            167
+          ],
+          "max_skew_ms": 122.66666666667447,
+          "independent_pixel_observations": 389,
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959,
+            "scope": "Initial4096 left-channel pre-master samples only; not all later placements/gaps or physical output."
+          },
+          "credit": {
+            "completion_to_report": {
+              "count": 3508,
+              "mean_ms": 1.1211801597098805,
+              "maximum_ms": 125.90000000596046,
+              "p95_ms": 6.5
+            },
+            "completion_to_next_supply": {
+              "count": 3508,
+              "mean_ms": 43.41106043304895,
+              "maximum_ms": 220.09999999403954,
+              "p95_ms": 63.900000005960464
+            },
+            "report_to_next_supply": {
+              "count": 3508,
+              "mean_ms": 42.28988027333907,
+              "maximum_ms": 220,
+              "p95_ms": 60.69999998807907
+            },
+            "completions_observed": 3509,
+            "unmatched_terminal_completions": 1,
+            "method": "Actual Worker MessagePort receipt entry, covering serialized report and transfer block k+2; all timestamps converted with performance.timeOrigin. Not native-only or DAC latency."
+          },
+          "resources": {
+            "page": {
+              "baseline": 4225532,
+              "peak": 37129212,
+              "delta": 32903680
+            },
+            "worker": {
+              "samples": 267,
+              "peak_used": 21791220,
+              "peak_backing": 13534554,
+              "method": "Actual dedicated Worker CDP Runtime.getHeapUsage; no steady-window GC"
+            },
+            "native": {
+              "samples": 54,
+              "peak_tree_rss": 2067623936,
+              "peak_processes": 21,
+              "owned_children_after_end": 0,
+              "method": "ps RSS of live owned Rust service and descendants, captured PID/start identity; separate from verification-browser RSS, not a kernel quota"
+            },
+            "peak_gpu_accounted": 18432212,
+            "peak_execution_accounted": 35414841,
+            "device_closed": true,
+            "worker_target_closed": true
+          },
+          "readonly": true,
+          "errors": []
+        },
+        "retained_receipts": {
+          "hd_and_continuity_report": "/private/tmp/opencut-preview-direct-v1-20261013.json",
+          "boundary_report": "/private/tmp/opencut-preview-direct-boundaries-20261013.json",
+          "necessary_failure": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/preview-direct-v1-evidence/continuity-failure.json",
+          "failure_sha256": "d91addee4c0b3114845d4906ae604eee519d241103bf93724093567620cfb411",
+          "failure_bytes": 32937,
+          "scope": "Single owned retained synthetic workspace; failure moved to independent evidence directory to prevent overwrite, not another media/DB copy."
+        },
+        "findings": [
+          "Actual300s reaches Rust/device terminal14400000 and all20 source intervals/19 gaps with independent pixels;11/14 gates pass. Window29 quantum loss1.3333%, page stall1.3070%, confirmed deficit1.3353% fail<=1%; overall loss0.08881% cannot mask that window.",
+          "Direct transport removes structural WS redundancy but does not close sustained failure or establish performance benefit/sole cause. Native tree RSS2.0676GB is below2GiB; separate from page/Worker/GPU and not a kernel quota."
+        ],
+        "next": "Reuse bounded native/page/Node dispatch and GC observers for the new direct execution only if needed to identify the late block, preserving independent observation identity; align command/sample to failing quantum and credit window. Fix the evidenced stage, then verify once for changed product source. Do not rerun unchanged300s to seek green or enlarge two-slot/heap budgets. Then complete gain/rapidseek/scene-revision/original-authority controls, later independentPCM and real long/VFR/non-unit-rate matrices.",
+        "limits": [
+          "S1/F10/F42/F44 and36 groups remain incomplete. Synthetic100 placements/5 tracks authored300s uses two8s sources, not real long-source proof.",
+          "No complete original-credential/control/format/cross-browser/DAC/laterPCM matrix, whole-project acceptance or new release package."
+        ],
+        "cleanup": {
+          "verifier_services_stopped": true,
+          "owned_native_children_after_end": 0,
+          "device_closed": true,
+          "worker_target_closed": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: prior scoped720p/8s and dense10s pass. Same product now has complete actual300s end/cursor,20x8 source intervals/19 gaps, sourcePTS152-162/skew122.67ms and split resource cleanup evidence; overall quantum loss0.1491%, but10s windows1.7067%/1.0133% fail<=1%, so sustained continuity remains open. Initial PCM only; later PCM, long-file/VFR/full control and complete visual/export matrix remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG: collocated native preview lifecycle and scopedHD4 passed. New uninstrumented product300s copies14400000 frames, renders14412800, misses12800(overall0.08881%); window29 loss1.3333%/stall1.3070%/confirmed deficit1.3353% fail<=1%. SourcePTS154-167/skew122.67ms/389 independent pixels and split resource cleanup pass. Initial PCM only; laterPCM, long/VFR/full controls and complete visual/export scope remain incomplete. Old candidate/diagnostic receipts retain original identities.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -5663,23 +5886,24 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "audio_preview_sustained_quantum_resource_observations",
+      "evidence_id": "audio_preview_owned_collocated_transport",
+      "baseline_evidence_id": "audio_preview_sustained_quantum_resource_observations",
       "feature": "S1 sustained continuous picture/audio preview",
       "gates": {
         "stalled_ratio": {
-          "maximum_window_ratio": 0.016730167302855148,
+          "maximum_window_ratio": 0.013069738604012456,
           "maximum": 0.01
         },
         "deficit_ratio": {
-          "maximum_window_ratio": 0.0170568372356249,
+          "maximum_window_ratio": 0.013353066273772196,
           "maximum": 0.01
         },
         "render_quantum_deficit_ratio": {
-          "maximum_window_ratio": 0.017066666666666667,
+          "maximum_window_ratio": 0.013333333333333334,
           "maximum": 0.01
         }
       },
-      "next": "不重复原候选追捕稀有长尾或扩大heap/两槽预算。评审并移除preview宿主同进程launchServer→WebSocket connect的重复协议封送：用public Chromium launch及Node child_process诊断通道捕获真实ChildProcess，保持原PID发布、进程组kill/实际exit确认、10s启动/15s取消宽限与同一monitor/CSP/原凭据/固定修订/lease/generation/overlay围栏。先验证拥有者捕获、启动失败/迟到/取消/强制退出及独立PCM字节，再按新的产品执行身份补必要持续验收；GC记录不证明旧153ms长尾原因。随后gain/rapidseek/场景修订/真实撤权、后续独立PCM和真实长源/VFR/非单位速率。"
+      "next": "Reuse bounded native/page/Node dispatch and GC observers for the new direct execution only if needed to identify the late block, preserving independent observation identity; align command/sample to failing quantum and credit window. Fix the evidenced stage, then verify once for changed product source. Do not rerun unchanged300s to seek green or enlarge two-slot/heap budgets. Then complete gain/rapidseek/scene-revision/original-authority controls, later independentPCM and real long/VFR/non-unit-rate matrices."
     }
   ],
   "resource_constraints": [
