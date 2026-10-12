@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/opencut')
     parser.add_argument('--web-root', type=Path, help='Verify a supplied built Web tree, including extracted bundles')
-    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'project-covers', 'classic-recovery', 'feedback', 'v4-editor', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
+    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'v4-file-import', 'v4-file-import-boundaries', 'project-covers', 'classic-recovery', 'feedback', 'v4-editor', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
     parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
     parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
     parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
@@ -37,8 +37,10 @@ def main():
     workspace = args.reuse_workspace.resolve() if args.reuse_workspace else Path(tempfile.mkdtemp(prefix='opencut-web-'))
     if args.reuse_workspace:
         required = ['workspace.sqlite'] + ([] if suites == ['edit-recovery'] else ['sample.mp4', 'sample.wav'])
-        if 'v4-editor' in suites:
+        if any(suite in suites for suite in ['v4-editor', 'v4-file-import', 'v4-file-import-boundaries']):
             required += ['sample.png', 'replacement.wav']
+        if 'v4-file-import-boundaries' in suites:
+            required += ['fractional.wav', 'fractional-b.wav']
         if 'v4-media-fps' in suites:
             required += ['fps-vfr.mp4', 'fps-v4-fixture.json']
         if not workspace.is_dir() or any(not (workspace / name).is_file() for name in required):
@@ -100,7 +102,7 @@ def main():
                 'packet_limit': 100, 'frame_count': 180,
                 'authored_schedule': [{'frames': 120, 'fps': 60}, {'frames': 60, 'fps': 12}],
             })+'\n')
-        if 'v4-editor' in suites and not args.reuse_workspace:
+        if any(suite in suites for suite in ['v4-editor', 'v4-file-import', 'v4-file-import-boundaries']) and not args.reuse_workspace:
             # Exact RGBA fixture, independent of FFmpeg's YUV color conversion.
             def png_chunk(kind, data):
                 return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
@@ -110,6 +112,16 @@ def main():
             subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i',
                             str(workspace / 'sample.wav'), '-af', 'volume=0.5', '-c:a', 'pcm_s16le',
                             str(workspace / 'replacement.wav')], check=True)
+        if 'v4-file-import-boundaries' in suites and not args.reuse_workspace:
+            # Exact source extent, independent of probe/frame alignment: 48480
+            # PCM frames / 48000 Hz = 1.01 s, not a whole 24fps frame span.
+            import math
+            import wave
+            for name, frequency in [('fractional.wav', 330), ('fractional-b.wav', 550)]:
+                with wave.open(str(workspace / name), 'wb') as output:
+                    output.setparams((1, 2, 48000, 48480, 'NONE', 'not compressed'))
+                    output.writeframes(b''.join(struct.pack('<h', round(12000 * math.sin(2 * math.pi * frequency * index / 48000)))
+                                                for index in range(48480)))
         state = cli('start', '--listen', '127.0.0.1:0', '--web-root', str(web))
         assert state['ready'] and state['web_url']
         env = {**os.environ, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace), 'OPENCUT_WEB_BINARY': str(binary), 'OPENCUT_WEB_SUITE': ','.join(suites)}

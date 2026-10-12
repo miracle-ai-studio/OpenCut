@@ -10,6 +10,7 @@ import { verifyClassicAudio } from "./verify-classic-audio.mjs";
 import { verifyV4Performance } from "./verify-v4-timeline.mjs";
 import { verifySourceArt } from "./verify-source-art.mjs";
 import { verifyEditRecovery } from "./verify-edit-recovery.mjs";
+import { verifyV4FileImport } from "./verify-v4-file-import.mjs";
 
 const suites = new Map([
   ["timeline-selection", verifyTimelineSelection],
@@ -22,6 +23,11 @@ const suites = new Map([
   ["v4-performance", verifyV4Performance],
   ["source-art", verifySourceArt],
   ["edit-recovery", verifyEditRecovery],
+  ["v4-file-import", verifyV4FileImport],
+  [
+    "v4-file-import-boundaries",
+    (...args) => verifyV4FileImport(...args, { boundaries: true }),
+  ],
 ]);
 const names = (process.env.OPENCUT_WEB_SUITE ?? "").split(",");
 const verifications = names.map((name) => suites.get(name));
@@ -46,7 +52,7 @@ try {
   for (const verify of verifications)
     await verify(browser, endpoint, directory, (name, evidence) => {
       report.checks.push(name);
-      if (evidence) report.evidence.push({check: name, ...evidence});
+      if (evidence) report.evidence.push({ check: name, ...evidence });
       console.log(name);
     });
   report.status = "passed";

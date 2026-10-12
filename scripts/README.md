@@ -28,7 +28,11 @@
 
 `python3 scripts/verify-web.py --binary target/release/opencut` 在仓库外创建隔离服务和合成音视频，通过真实 Chromium 执行连接、新建、上传、编辑、连续预览、字幕、撤销/重做、刷新后导出及下载解码。首次先在 `apps/web` 执行 `npx playwright install chromium`；也可用 `OPENCUT_CHROME` 指定本机浏览器可执行文件。结果包含二进制与页面 hash、浏览器版本和实际检查。`--web-root <解包目录/web>` 复用已有构建；脚本结束停止自己启动的服务，成功后默认删除临时数据库、媒体、截图和日志。失败现场保留供定位；必要时用 `--keep-workspace` 显式保留成功现场，或 `--report <文件>` 只保存结果。
 
-`--suite` 支持 `timeline-selection`、`media-fps`、`project-covers`、`feedback`、`v4-editor`、`classic-audio`、`v4-performance`、`source-art`，共用 `apps/web/scripts/verify-suite.mjs`；各功能只保留自己的用例模块。重复参数（如 `--suite media-fps --suite feedback`）共享一个隔离服务/浏览器工作区。`full` 和 `classic-recovery` 独立运行。`npm --prefix apps/web run verify:browser -- --suite media-fps` 使用同一 Python 入口，避免直接连接固定测试端口。完整浏览器组合也包含反馈专项。
+`--suite` 支持 `timeline-selection`、`media-fps`、`v4-media-fps`、`v4-file-import`、`v4-file-import-boundaries`、`project-covers`、`feedback`、`v4-editor`、`classic-audio`、`v4-performance`、`source-art`、`edit-recovery`，共用 `apps/web/scripts/verify-suite.mjs`；各功能只保留自己的用例模块。重复参数（如 `--suite media-fps --suite feedback`）共享一个隔离服务/浏览器工作区。`full` 和 `classic-recovery` 独立运行。`npm --prefix apps/web run verify:browser -- --suite media-fps` 使用同一 Python 入口，避免直接连接固定测试端口。完整浏览器组合也包含反馈专项。
+
+`v4-file-import`只验文件放置纵切面：视频/PNG与双WAV批次、缩放滚动落点、Chromium trusted PNG粘贴、原事务/历史、整批拒绝、真实chunk取消及锁轨。视频探测需已有锁定packet运行时；源码候选在启动隔离服务前设置`OPENCUT_CLASSIC_AUDIO_PACKAGE`为`packages/classic-audio-renderer`绝对路径，并保证对应Node可用。运行`python3 scripts/verify-web.py --binary target/release/opencut --web-root apps/web/dist --suite v4-file-import`复用明确CLI与Web构建；失败使用`--reuse-workspace`原路径继续定位，不另复制素材。浏览器拖放事件不证明Finder来源，原生PNG粘贴不证明视频/音频跨应用文件剪贴板或系统IME。
+
+`v4-file-import-boundaries`复用上述导入/Review/历史宿主，只补六项边界：48480/48000秒PCM精确源时长与24fps落点调整、批内及已有片段碰撞拒绝、第二文件上传准入失败后的已完成媒体恢复、临时规划失败原意图重试、空主轨起点调整。错误回复以版本化envelope注入，其他上传/探测/规划/SQLite是真实链路；不是所有原生存储故障证明。拖放坐标显式取整，并在zoom5用整数像素表达1.26秒请求；不把浏览器坐标截断当原生时间缺陷。使用`--suite v4-file-import-boundaries --web-root apps/web/dist`，只在代码影响旧范围时重跑旧专项。
 
 此脚本只生成合成素材，不读取用户素材或凭证。浏览器文件保存接口在测试中接入受控字节接收器，随后独立解码；不表示已测试所有操作系统的原生保存对话框。实时播放性能、Safari/Firefox、4K 和大型工程另行验收。
 

@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values.",
   "current_worktree_validation": {
-    "scope": "Latest valid evidence grouped by function; records have different candidate/source/browser identities. Staged results are not one final-candidate full run. Historical verification limits are time-qualified; current remaining limits below are authoritative.",
-    "latest_candidate": "v4_media_fps",
+    "scope": "Latest scoped F16 precise review/failure-recovery supplement uses one new Web build and unchanged hash-verified F08 release CLI. Prior evidence retains its own candidate; no whole-project run.",
+    "latest_candidate": "v4_file_import_boundaries",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -2664,6 +2664,247 @@
           "removed_files": 26,
           "removed_bytes": 10535256
         }
+      },
+      {
+        "evidence_id": "v4_file_import",
+        "status": "passed_scoped",
+        "candidate": {
+          "base_commit": "2dab959358f01955f35b93f680a93649a1d15afa",
+          "source_files": [
+            "apps/web/src/editor/workspace/v4/media.ts",
+            "apps/web/src/editor/workspace/v4/media.test.ts",
+            "apps/web/src/editor/workspace/v4/product.tsx",
+            "apps/web/src/editor/workspace/v4/product.test.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.test.tsx",
+            "apps/web/src/editor/shared/messages.ts",
+            "apps/web/scripts/verify-v4-file-import.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "b3266241b7aa8bfd73e80dad0962611fa704d4a775ae4e61b99996c41f262fe5",
+          "binary_sha256": "33bcff7968529960875f3348b95996c11706f0db9d976a35341741a5458b846c",
+          "binary_reused_from": "v4_media_fps",
+          "web_entrypoints": {
+            "assets/editor-workspace-B1VP-uaa.js": "cdece23382026324307b44b1b24b01dfb84f264bb41f2ca225804d94dd3a4cba",
+            "assets/index-D5f-yez5.js": "980386a9e19957a471f1dbadfea87448d7a3863796afcfc146e268ab5e051620",
+            "index.html": "25a3e097a67f42c4603e10d955cd004d11fb4f04cc92d99f93294d4fae952699"
+          },
+          "browser": "153.0.8010.12",
+          "packet_runtime": {
+            "node": "v24.19.0",
+            "mediabunny": "1.41.0"
+          }
+        },
+        "scope": "F16 explicit-target ordered file import and native Chromium PNG clipboard; existing Rust application media planner/apply/recovery reused. New Web candidate only; no whole-migration or package acceptance.",
+        "checks": {
+          "affected_web_files": 5,
+          "affected_web_tests": 33,
+          "typecheck": "passed",
+          "production_web_build": "passed_once",
+          "web_boundaries_files": 176,
+          "browser_scenarios": 6,
+          "page_errors": 0,
+          "rust_rebuilt": false,
+          "public_protocol_changed": false
+        },
+        "independent_timeline_oracles": [
+          {
+            "check": "file drop imports real video/image bytes into one exact reviewed native transaction; independent 0/4s starts, 4/5s durations, source audio, reopen and selective Undo/Redo",
+            "file_drop": {
+              "transaction_id": "txn_fcacef34934043a0bb6f3f56a1bcfb03",
+              "batch_size": 2,
+              "event_source": "browser DataTransfer; not Finder"
+            }
+          },
+          {
+            "check": "audio multi-file drop uses the target lane at zoom2 and horizontal scroll; native placement preserves independent 1.25/5.25s starts in one public commit",
+            "audio_drop": {
+              "transaction_id": "txn_3c6e7a166b714340b760f58ab6b999b5",
+              "track_id": "5a578067-f985-47a4-8638-309e7ae522fd",
+              "zoom": 2,
+              "scroll": 120
+            }
+          },
+          {
+            "check": "Chromium trusted native PNG paste captures selected track and 12.25s playhead, applies original plan once, and leaves focused input clipboard ownership intact",
+            "native_file_paste": {
+              "transaction_id": "txn_3de04a49a27d4525beefd0c5a4f8d4ab",
+              "trusted": true,
+              "cross_application_clipboard": "unverified",
+              "system_ime": "unverified"
+            }
+          },
+          {
+            "check": "incompatible mixed file batch is rejected by the existing application planner with no partial binding, placement or content revision",
+            "rejected_batch": {
+              "error_code": "INVALID_ARGUMENT",
+              "unchanged_revision": "rev_241cad367f5687d9762377b8d6f1d948a32ebf0107f01b353f4050e5a3878589"
+            }
+          },
+          {
+            "check": "cancelled real chunk upload has no partial retryable content intent or late planning; project revision stays fixed",
+            "cancelled_upload": {
+              "unchanged_revision": "rev_241cad367f5687d9762377b8d6f1d948a32ebf0107f01b353f4050e5a3878589"
+            }
+          },
+          {
+            "check": "locked target refuses before upload; all file import checks complete with zero page exceptions",
+            "page_errors": []
+          }
+        ],
+        "limits": [
+          "DataTransfer drop events use real synthetic file bytes but do not verify Finder OS drag delivery or cross-application file transport.",
+          "Only PNG native clipboard trusted paste is verified; native video/audio clipboard, system IME and cross-browser behavior remain pending.",
+          "Explicit tracks are captured, not silently reassigned/created. Non-frame-aligned source durations and full collision/format/failure matrix remain pending.",
+          "Source-art/audio/visual render capability acceptance is outside this suite; no new pixels/PCM/realtime/VFR export evidence.",
+          "Original F08 Rust binary reused by exact hash; prior checks remain bound to their own candidates. No fresh workspace, user database or full package acceptance."
+        ],
+        "cleanup": {
+          "synthetic_workspace_removed": true,
+          "user_media_touched": false
+        }
+      },
+      {
+        "evidence_id": "v4_file_import_boundaries",
+        "status": "passed_scoped",
+        "candidate": {
+          "base_commit": "2dab959358f01955f35b93f680a93649a1d15afa",
+          "source_files": [
+            "apps/web/scripts/verify-suite.mjs",
+            "apps/web/scripts/verify-v4-file-import-boundaries.mjs",
+            "apps/web/scripts/verify-v4-file-import.mjs",
+            "apps/web/src/editor/shared/messages.ts",
+            "apps/web/src/editor/workspace/v4/media-dialog.tsx",
+            "apps/web/src/editor/workspace/v4/media-panel.test.tsx",
+            "apps/web/src/editor/workspace/v4/media.test.ts",
+            "apps/web/src/editor/workspace/v4/media.ts",
+            "apps/web/src/editor/workspace/v4/product.test.tsx",
+            "apps/web/src/editor/workspace/v4/product.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.test.tsx",
+            "apps/web/src/editor/workspace/v4/timeline-edit/panel.tsx",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "7aefe1cad639357f8f1294d04d576aa59203af5cb99e43b45321c0bc419c30f0",
+          "source_manifest_method": "SHA256 of sorted-key compact UTF-8 JSON mapping relative source paths to SHA256(file bytes)",
+          "binary_sha256": "33bcff7968529960875f3348b95996c11706f0db9d976a35341741a5458b846c",
+          "binary_reused_from": "v4_media_fps",
+          "web_entrypoints": {
+            "assets/editor-workspace-CB0SKkor.js": "77803fba38f9f9168b4b946ac73d8ee8b1d4b094770c60ab8c3b1b1faf02d312",
+            "assets/index-DAQPw7k5.js": "660eaacf0ce98ef674eae22c1e78761ace5a51f7a4d55e4d897350204146541c",
+            "index.html": "6baf1771397b2e523a030c3d4a5d06de3f4ccfa589cd9416cd1b203f8c3f27fa"
+          },
+          "browser": "153.0.8010.12"
+        },
+        "scope": "F16 precise media review and supplemental fractional PCM/collision/upload-failure/plan-retry boundaries. Real HTTP/native probe/planning/SQLite except two explicitly injected versioned error responses; browser DataTransfer only.",
+        "checks": {
+          "affected_web_files": 2,
+          "affected_web_tests": 15,
+          "typecheck": "passed_in_build",
+          "production_web_build": "passed_once",
+          "web_boundaries_files": 176,
+          "browser_scenarios": 6,
+          "page_errors": 0,
+          "rust_rebuilt": false,
+          "public_protocol_changed": false
+        },
+        "independent_timeline_oracles": [
+          {
+            "check": "48480-sample WAV preserves exact 1.01s extent while 1.26s request resolves to 1.25s at 24fps; review, one original commit, Undo/Redo and reopen agree",
+            "fractional_placement": {
+              "source_samples": 48480,
+              "sample_rate": 48000,
+              "requested_start": {
+                "ticks": "63",
+                "timebase": 50
+              },
+              "resolved_start": {
+                "ticks": "5",
+                "timebase": 4
+              },
+              "duration": {
+                "ticks": "101",
+                "timebase": 100
+              },
+              "transaction_id": "txn_02993389e2a44352b2261bc72164948f"
+            }
+          },
+          {
+            "check": "non-frame batch collision is refused atomically; exact ordered intentions remain visible and retry uses original IDs/key without reupload or a content revision",
+            "batch_collision": {
+              "code": "INVALID_PROJECT",
+              "unchanged_revision": "rev_4d7e3b95ee3eaba1a31a4a6a489583cbb1fa96ce56802100461b56750ba1dd72",
+              "first_end_seconds": "101/100",
+              "second_aligned_start_seconds": "1/1",
+              "retry_reuploaded": false
+            }
+          },
+          {
+            "check": "collision with an existing clip preserves the complete head and publishes neither partial binding nor placement",
+            "existing_collision": {
+              "code": "INVALID_PROJECT",
+              "unchanged_revision": "rev_4d7e3b95ee3eaba1a31a4a6a489583cbb1fa96ce56802100461b56750ba1dd72"
+            }
+          },
+          {
+            "check": "second-file upload admission failure leaves no partial retryable batch; first real completed upload is recovered with its original media/version and no reupload",
+            "partial_upload_recovery": {
+              "injected_failure": "second admission HTTP response",
+              "media_id": "media_167fd57cb02d4c7a944da12cbb3d1f68",
+              "version": {
+                "content_hash": "3f4520e4c12341980567cad240785fb1767aa25220663e7d4df317e6c1796e9f",
+                "id": "av_3f4520e4c12341980567cad240785fb1767aa25220663e7d4df317e6c1796e9f",
+                "size": 384078
+              },
+              "transaction_id": "txn_cf10d2a382ce48eabfd5532e09c7819d",
+              "reuploaded": false
+            }
+          },
+          {
+            "check": "transient plan failure retries the complete original fractional intent/IDs/key against native planning and commits unchanged without another upload",
+            "transient_plan_retry": {
+              "injected_failure": "planning HTTP response",
+              "idempotency_key": "e733b84e-cf7a-423d-8f47-581d9e386b81",
+              "transaction_id": "txn_15f87f1a3a0d4448b7a60813490d8f35",
+              "reuploaded": false
+            }
+          },
+          {
+            "check": "review explicitly explains empty-main-track adjustment from requested 2.01s to 0s; original public apply agrees and all boundary cases have zero page exceptions",
+            "main_track_adjustment": {
+              "requested_start": {
+                "ticks": "201",
+                "timebase": 100
+              },
+              "resolved_start": {
+                "ticks": "0",
+                "timebase": 1
+              },
+              "transaction_id": "txn_d552d54229b640f58a107c67e71203c2"
+            },
+            "page_errors": []
+          }
+        ],
+        "reuse": {
+          "prior_record": "v4_file_import",
+          "prior_checks_rerun": false,
+          "scope": "Prior 33 tests/6 browser cases remain bound to their original Web candidate; shared upload/planner/apply/history semantics and unchanged Rust binary reused. This supplement does not assert those browser cases passed against the new Web build."
+        },
+        "limits": [
+          "F16 remains partial. Finder/cross-application file transport, native video/audio clipboard, system IME and Safari/Firefox remain unverified.",
+          "One mono PCM16 source at 48480 frames/48000Hz is not the complete codec, source-duration, VFR or failure matrix.",
+          "Explicit-track insertion refuses collisions, including frame alignment overlap within a batch; no automatic new-track, reassignment, gap-closing or duration truncation.",
+          "Second upload admission and transient planning errors are injected valid HTTP envelopes; no proof of all native storage failures or process crashes.",
+          "No new render pixels/PCM acoustic correctness, source-art runtime, continuous picture/audio sync, export or full-package/workspace acceptance."
+        ],
+        "cleanup": {
+          "service_stopped": true,
+          "open_handles": 0,
+          "synthetic_workspace_and_report_removed": true,
+          "removed_files": 41,
+          "removed_bytes": 11236116,
+          "user_media_touched": false
+        }
       }
     ]
   },
@@ -2672,7 +2913,7 @@
     "Continuous picture/audio sync; text/fonts/layout/graphics/stickers/all blends/effects/masks/transitions/background and complete MP4/WebM export are incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource; long-file/VFR/real-device performance and full element/zoom/interaction matrices are not established by repeated four-second CAS fixtures.",
-    "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; bookmark/timeline/clipboard/gain/media/source-audio/history use one coordinator. Project create/copy, jobs/upload and cross-project transfer are outside this contract. Cross-project clipboard is refused; real file paste/IME/cross-application clipboard remain unverified.",
+    "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
     "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",

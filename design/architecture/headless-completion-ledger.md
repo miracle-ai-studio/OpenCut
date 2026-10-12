@@ -27,7 +27,8 @@
 |F08全局FPS与VFR导入|锁定Mediabunny直接computePacketStats(100)，保留旧header；raw先比较后标准化、unknown抑制header回退及实际放置告警；fixed-revision/版本授权观察、旧V3兼容。真实180帧77KB VFR：header675/26、前100包约60→全局60；两非空场景完整内容/源1/7/关键帧/书签不变，一次原事务、apply/refresh/Undo播放头1001/2000保持，Undo及reload恢复内容/settings，0pageerror|F08部分迁移；真实unknown视频、当前V4 VFR视频导出及更广格式/长素材未验；reload播放头按产品归零；Node heap/cache非hard RSS配额|
 |F10书签及Classic静帧|同V4工作区时间线标记/inclusive备注/选择性历史；1/3与2/3时间保持；Video/静态PNG/JPEG normal持久PNG、contain/翻转/旋转/层序/透明度/纯色背景有独立像素，HUD排除PNG|F10部分迁移；连续画面/声画同步、完整视觉类型和备注排除视频导出|
 |媒体工作区与时间线|真实media ID/version贯穿上传、恢复、源试看、绑定/替换/放置；Video/Audio/Image多选Move、双边Trim/Split/Delete逐轨ripple、状态/空轨、原样Review/重开/UndoRedo；1.5x非零源跨度有独立预期|动画/非媒体完整矩阵、全元素命中；只新绑定比较导入FPS，不把重复插入当重新导入|
-|手势、剪贴板和恢复|实际跨轨Move/Trim、S/Q/W、缩放滚动命中、框选Escape；同工程历史跨场景Copy/Paste/Duplicate及原生C/V；历史timeline-only整页reload原receipt/原key证据保留，迟到API/read不能降级Saved或复活pointer|完整选择URL、真实files/系统IME/跨应用及跨工程未交付；通用V2当前范围单列，不以旧timeline证据代替|
+|手势、剪贴板和恢复|实际跨轨Move/Trim、S/Q/W、缩放滚动命中、框选Escape；同工程历史跨场景Copy/Paste/Duplicate及原生C/V；历史timeline-only整页reload原receipt/原key证据保留，迟到API/read不能降级Saved或复活pointer；F16指定轨道真实文件批次与Chromium trusted PNG粘贴已验|完整选择URL、Finder跨应用拖放、原生视频/音频文件粘贴、系统IME及跨工程未交付；通用V2当前范围单列，不以旧timeline证据代替|
+|F16文件放置|复用上传/原生只读workspace规划/原样V4事务与恢复。拖放捕获缩放滚动后的显式轨道/时间，粘贴捕获所选轨道/播放头；图片默认5秒，批次按观测时长生成有序放置意图，实际对齐/类型/权限由应用规划决定。整个批次完成前不保留可重试的部分绑定；取消或失败的已上传素材仍可恢复。真实视频/PNG一次提交、重开与Undo/Redo；双WAV zoom2+scroll120落点1.25/5.25秒；trusted原生PNG粘贴12.25秒、输入焦点、混合批次拒绝、真实chunk取消、锁轨先拒绝均通过。精确确认补充批：逐片段展示目标轨道、请求/实际落点与源/时间线时长，解释帧对齐和主轨起点调整；失败保留原始请求，不伪造实际结果。真实48480帧/48000Hz WAV保持1.01秒，1.26秒请求在24fps落为1.25秒，原事务/UndoRedo/重开一致；批内与已有片段碰撞原子拒绝，第二文件准入失败后首个完成媒体免重传恢复，临时规划失败原ID/key/意图重试、主轨2.01→0均通过|F16保持部分迁移；Finder实际拖放来源、跨应用文件与原生视频/音频粘贴、系统IME/跨浏览器及更广格式/源时长/失败组合仍待验；显式轨道不自动新建/改靶。HTTP错误回复为故障注入，不推为所有原生存储故障通过；本批无新像素/PCM/连续声画证据|
 |通用未知写恢复V2|typed PublicApply/Undo/Redo/Restore，新stage/inspect/ack三操作；DB29兼容原V1，混合单条2MiB/32条/64MiB及原凭据scope互斥；当前原动作权限/write-control、只读原family/key/full-intent与完整事务/因果回执、Immediate精确重复与原子ack；Web共同协调器仅存sessionStorage非敏感指针，整页原意图/原key恢复不replan；最终四family×两路径8案例及aggregate全部通过，0 pageexception；Restore实际替换默认场景、删除main后恢复历史main与独立书签，原意图/key、一次提交、无replan均断言|限定四类fixed-head写已交付；创建/复制、Job/upload、跨工程不混入此恢复证明。旧Web尾项分段证据不能当最终网页全套通过|
 |F42完整/范围WAV|分离保留trim/rate/gain/通道并关闭视频音频，恢复保留独立音频；持久任务原caller权限/CAS/预算/取消/租约发布与下载贯通；真实1.5x/−6dB输出64000帧/512058字节、独立660Hz；范围6000/24000输出192058字节|F42部分迁移；范围为整场母带后裁切，不是实时seek。全量codec/edit/音高矩阵和视频导出仍待|
 |独立PCM与decoder|Float脉冲trim/placement/EOF及0/−60/+20dB、mute；−60是非零；PCM PTS间隙在export拼接；first mono/default stereo实际primary；aligned AAC25包/ELST1024/末包448→24576帧，峰4096/16384及trim后3089/15377|AAC仅单个aligned LC夹具；非整包edit、任意codec、显式stream/复杂ISO明确未验或拒绝，不静默当primary|
@@ -39,7 +40,7 @@
 
 ## 候选与检查如何引用
 
-摘要以13条功能证据保留各自CLI、Web入口、native测试/执行身份及独立预期；旧候选明确historical。不同候选、staged库检查、浏览器前缀/专项不能合为同一最终候选全过。单后端输出相等、注册工具或构建成功不能替代独立像素/PCM及权限生命周期。
+摘要以15条功能证据保留各自CLI、Web入口、native测试/执行身份及独立预期；旧候选明确historical。不同候选、staged库检查、浏览器前缀/专项不能合为同一最终候选全过。单后端输出相等、注册工具或构建成功不能替代独立像素/PCM及权限生命周期。
 
 |最近已验范围|结果与边界|
 |---|---|
@@ -49,13 +50,15 @@
 |F17实际浏览器独立范围|原WAV字节峰/高度/burn/Canvas像素及−12dB原事务回归；密集首中末/20zoom+4次rapid半clip，DOM打开837.3ms、首次video/audio艺术3156.5/3286.7ms、输入p95 26.1/max26.9ms、heap增量15716540B；0pageerror/0未分类失败。38主动waiter abort和6笔同request fulfilled204单列。isolated cache峰32830700B、256项、淘汰重建后0B，不将heap当cache占用|
 |通用恢复V2本批分阶段|App5/SQLite197/API1、Rust SDK3/TS SDK38/Web96（含新增Restore定位回归）；架构14/22模块/0例外、Web边界15/176、SDK边界179、旧wire22项、193工具且旧190声明不变、生成检查通过。最终CLI/Web8恢复案例及aggregate全部通过，0 pageexception；此前同CLI旧Web分段10前缀+9尾项通过，含双声部gain手势、media恢复/替换、timeline两组、gesture/rubberband及clipboard三组，0 pageerror/failed request，不能合为最终网页一次全套。已增加CDP完成状态与应用实际消费text观测，本轮body-unavailable completed为0；旧失败原完成状态未采集，不能据后续通过宣称根因已修|
 |F08当前候选|App25/SQLite6/DTO2/host4、打包5/doctor6、架构14/22模块/0例外及契约边界通过；旧wire22、193工具及生成产物保持。一CLI构建复用Web，真实V4场景通过；最小runtime6文件/1066929字节复制验证并已清理，不冒充完整包安装通过|
+|F16文件放置基线候选|受影响Web5文件33测试、类型/生产构建与Web边界176通过；同一新Web构建+原F08 release CLI真实6组通过，0pageerror。Rust/公共协议未改，核对二进制身份后复用，不重编/重复生成契约或重跑无影响媒体验收；不作为当前整仓/整包通过|
+|F16精确确认与失败恢复当前候选|受影响Web2文件15测试、含类型检查的一次生产构建/Web边界176通过；同一新Web+原F08 release CLI补充6组真实浏览器边界通过，0pageerror。Rust/公开协议未改；复用原二进制，旧33测试/6组浏览器证据保留在原候选，不重复当成本批结果；无全仓/整包通过声明|
 |历史不可替代证据|旧F06产品77+恢复9及独立红像素/800Hz PCM、原生462排除Desktop；Legacy六像素；原生未母带八PCM；早期共享DSP整场母带；P0路径别名修复与CFR导出独立帧。各自限原候选，不推为当前全仓/整包通过|
 
 ## 待完成与卡点
 
 |范围|必要剩余工作|
 |---|---|
-|S1基础|F08真实unknown视频、当前V4 VFR视频导出及更广格式矩阵；连续画面/声画同步；完整元素/动画/锁轨/ripple命中矩阵；F17完整源/格式与长素材矩阵及真实系统files/IME交互|
+|S1基础|F08真实unknown视频、当前V4 VFR视频导出及更广格式矩阵；连续画面/声画同步；完整元素/动画/锁轨/ripple命中矩阵；F17完整源/格式与长素材矩阵；F16补Finder/跨应用/原生视频音频粘贴、系统IME及更广格式/时长/失败组合；指定非整帧PCM/碰撞/失败恢复已验|
 |S2文字字幕|合法字体bytes/license/固定face与glyph、独立文字全字段/布局/画布编辑、字幕语言/时间/内容等价；实施前置与分工见计划3.3|
 |S3图形合成|图形/描边/动画、17混合、复杂路径蒙版/手柄/多蒙版动画、效果栈/轨道及背景|
 |S4动画交互|过冲/Pop/预设、关键帧多选复制、速度/音高、全元素/轨道与实际内容拖动预览|

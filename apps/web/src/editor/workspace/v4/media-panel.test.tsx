@@ -12,6 +12,7 @@ import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { WorkspaceProvider } from "../context";
 import { V4MediaPanel } from "./media-panel";
 import { V4ResourcePreview } from "./resource-preview";
+import { MediaPlanDialog } from "./media-dialog";
 import { setupMedia } from "./media-fixture";
 import * as upload from "../upload";
 beforeAll(() => {
@@ -140,6 +141,23 @@ it("placement preserves untouched rational playhead/duration, captures a new tra
       name: "Second video",
       id: request.placements[0].track_id,
     });
+    const placementReview = within(review).getByRole("region", {
+      name: "Placement of Image",
+    });
+    expect(
+      within(placementReview).getByText("Target track: Second video"),
+    ).toBeTruthy();
+    expect(
+      within(placementReview).getByText("Requested position: 00:00.33 (1/3 s)"),
+    ).toBeTruthy();
+    expect(
+      within(placementReview).getByText("Resolved position: 00:00.00 (0/1 s)"),
+    ).toBeTruthy();
+    expect(
+      within(placementReview).getByText(
+        "The main track moved this placement to the scene start.",
+      ),
+    ).toBeTruthy();
     fireEvent.click(
       within(review).getAllByRole("button", { name: "Close" })[0],
     );
@@ -153,6 +171,48 @@ it("placement preserves untouched rational playhead/duration, captures a new tra
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
+  } finally {
+    f.controller.dispose();
+  }
+});
+it("a refused placement keeps exact requested timing visible without inventing a resolved plan", async () => {
+  const f = await setupMedia();
+  try {
+    vi.spyOn(f.api.v4, "mediaPlan").mockRejectedValueOnce(
+      new Error("Track collision"),
+    );
+    await expect(
+      f.controller.v4.media.place({
+        asset_id: "asset",
+        name: "Fractional image",
+        track_id: "track",
+        start: { ticks: "63", timebase: 50 },
+        content: { kind: "image", duration: { ticks: "101", timebase: 100 } },
+      }),
+    ).rejects.toThrow("Track collision");
+    render(
+      <WorkspaceProvider controller={f.controller}>
+        <MediaPlanDialog onClose={() => {}} />
+      </WorkspaceProvider>,
+    );
+    const placementReview = screen.getByRole("region", {
+      name: "Placement of Fractional image",
+    });
+    expect(
+      within(placementReview).getByText(
+        "Requested position: 00:01.26 (63/50 s)",
+      ),
+    ).toBeTruthy();
+    expect(
+      within(placementReview).getByText(
+        "Requested duration: 00:01.01 (101/100 s)",
+      ),
+    ).toBeTruthy();
+    expect(within(placementReview).queryByText(/Resolved position/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Apply media changes" }),
+    ).toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain("Track collision");
   } finally {
     f.controller.dispose();
   }

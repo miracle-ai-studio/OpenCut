@@ -3,10 +3,12 @@ import { Button, Field, Modal } from "../../shared/ui";
 import { t, useLocale } from "../../shared/locale";
 import { useWorkspace } from "../context";
 import {
+  compareTime,
   formatTime,
   secondsForDisplay,
   timeFromDecimalSeconds,
 } from "../../model/time";
+import type { Time } from "../../model/types";
 import type { V4Asset, V4MediaRequest } from "./types";
 
 export function PlaceMediaDialog({
@@ -308,6 +310,11 @@ export function MediaPlanDialog({ onClose }: { onClose(): void }) {
   };
   const fps = (value: { numerator: number; denominator: number }) =>
     `${value.numerator}/${value.denominator}`;
+  const preciseTime = (value: Time) =>
+    `${formatTime(value)} (${value.ticks}/${value.timebase} s)`;
+  const sequence = v4.head.project.sequences.find(
+    (scene) => scene.id === attempt.request.sequence_id,
+  );
   return (
     <Modal title={t("Review media changes")} onClose={onClose}>
       <p>
@@ -343,12 +350,6 @@ export function MediaPlanDialog({ onClose }: { onClose(): void }) {
               {decisions.canvas_change.next.height}
             </p>
           )}
-          {decisions.placements.map((placement) => (
-            <p key={placement.element_id}>
-              {t("Placement")}: {formatTime(placement.resolved_start)} ·{" "}
-              {t("Duration")}: {formatTime(placement.timeline_duration)}
-            </p>
-          ))}
           {decisions.video_asset_ids_without_fps.length > 0 && (
             <p>
               {t(
@@ -358,6 +359,74 @@ export function MediaPlanDialog({ onClose }: { onClose(): void }) {
           )}
         </>
       )}
+      {attempt.request.placements.map((requested) => {
+        const placement = decisions?.placements.find(
+          (decision) => decision.element_id === requested.element_id,
+        );
+        const track =
+          sequence?.tracks.find((item) => item.id === requested.track_id) ??
+          attempt.request.new_tracks.find(
+            (item) => item.id === requested.track_id,
+          );
+        const content = requested.content;
+        return (
+          <section
+            key={requested.element_id}
+            aria-label={t("Placement of {name}", { name: requested.name })}
+          >
+            <strong>{requested.name}</strong>
+            <p>
+              {t("Target track")}: {track?.name ?? requested.track_id}
+            </p>
+            <p>
+              {t("Requested position")}: {preciseTime(requested.start)}
+            </p>
+            {content.kind === "image" ? (
+              <p>
+                {t("Requested duration")}: {preciseTime(content.duration)}
+              </p>
+            ) : content.timing.kind === "source_range" ? (
+              <p>
+                {t("Requested source start")}:{" "}
+                {preciseTime(content.timing.range.start)} ·{" "}
+                {t("Source duration")}:{" "}
+                {preciseTime(content.timing.range.duration)}
+              </p>
+            ) : (
+              <p>
+                {t("Requested duration")}:{" "}
+                {preciseTime(content.timing.duration)}
+              </p>
+            )}
+            {placement && (
+              <>
+                <p>
+                  {t("Placement")}: {formatTime(placement.resolved_start)} ·{" "}
+                  {t("Duration")}: {formatTime(placement.timeline_duration)}
+                </p>
+                <p>
+                  {t("Resolved position")}:{" "}
+                  {preciseTime(placement.resolved_start)}
+                </p>
+                <p>
+                  {t("Timeline duration")}:{" "}
+                  {preciseTime(placement.timeline_duration)}
+                </p>
+                {compareTime(requested.start, placement.resolved_start) !==
+                  0 && (
+                  <p role="status">
+                    {t(
+                      placement.main_track_start_adjusted
+                        ? "The main track moved this placement to the scene start."
+                        : "Frame alignment changed the requested position.",
+                    )}
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        );
+      })}
       {attempt.request.new_tracks.map((track) => (
         <p key={track.id}>
           {t("New track")}: {track.name}

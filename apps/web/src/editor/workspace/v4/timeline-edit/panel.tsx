@@ -15,6 +15,7 @@ import { TimelineGesture, sameGestureFence } from "./gesture";
 import type { GestureDraft, GestureFence } from "./gesture";
 import { anchoredScroll, intersectingMedia, MARKER_HEIGHT, pixelsPerSecond, pointerTime, RULER_HEIGHT, sequenceEnd, TRACK_HEIGHT, TRACK_LABEL_WIDTH } from "./geometry";
 import type { TimelineRect } from "./geometry";
+import type { MediaFileTarget } from "../media";
 
 export type TimelinePanelProps = {
   controller: V4TimelineEdit;
@@ -31,6 +32,7 @@ export type TimelinePanelProps = {
   onSelectOther(id: string): void;
   onSeek(time: Time): void;
   onReview(): void;
+  onFiles?(files: File[], target: MediaFileTarget): Promise<void>;
   renderAudioControls(element: V4Element): ReactNode;
   sourceArt?: { api: EditorApi; assets: V4Asset[]; gainDraft?: V4GainDraft | null };
 };
@@ -212,6 +214,28 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
         : <span role="status">{t("Release to review. Escape cancels without saving.")}</span>}
     </div>}
     <div className="v4-timeline-viewport" ref={viewport} onPointerDown={start} onPointerMove={update} onPointerUp={finish}
+      onDragOver={event => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = blocked() || !props.onFiles ? "none" : "copy";
+      }}
+      onDrop={event => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault(); event.stopPropagation();
+        if (blocked() || !props.onFiles || gesture.current || rubber.current) return;
+        const lane = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-file-track]") : null;
+        const track = props.sequence.tracks.find(item => item.id === lane?.dataset.fileTrack);
+        if (!lane || !track) return;
+        if (track.locked || !["video", "audio", "graphic"].includes(track.kind)) {
+          setError("Choose an unlocked video, audio or graphic track for these files."); return;
+        }
+        const captured = fence(), at = pointerTime((event.clientX - lane.getBoundingClientRect().left) / scale);
+        const files = Array.from(event.dataTransfer.files);
+        setError(null);
+        void props.onFiles(files, { scope: { ...props.scope }, trackId: track.id, at }).catch(cause => {
+          if (sameGestureFence(captured, fence())) setError(cause instanceof Error ? cause.message : String(cause));
+        });
+      }}
       onPointerDownCapture={() => { if (!gesture.current && !rubber.current) clickConsumed.current = false; }}
       onPointerCancel={() => cancel()} onLostPointerCapture={() => { if (gesture.current || rubber.current) cancel(); }}
       onClickCapture={event => { if (clickConsumed.current && event.detail > 0) { clickConsumed.current = false; event.preventDefault(); event.stopPropagation(); } }}
@@ -235,7 +259,7 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
           {props.sequence.tracks.map(track => <div key={track.id} className="v4-track" style={{ height: TRACK_HEIGHT, minHeight: TRACK_HEIGHT, gap: 0 }}>
             <button className="v4-track-name" style={{ width: TRACK_LABEL_WIDTH, flexBasis: TRACK_LABEL_WIDTH }} data-selected={props.selectedId === track.id} aria-pressed={props.selectedId === track.id}
               onClick={() => props.onSelectOther(track.id)}>{track.name} · {track.kind}{track.locked ? " 🔒" : ""}</button>
-            <div className="v4-track-lane" data-timeline-background style={{ width, flex: "none", height: TRACK_HEIGHT }}>
+            <div className="v4-track-lane" data-timeline-background data-file-track={track.id} style={{ width, flex: "none", height: TRACK_HEIGHT }}>
               {track.elements.map(element => {
                 const target = { track_id: track.id, element_id: element.id };
                 const move = draft?.command?.kind === "move_selection" ? draft.command.moves.find(item => keyOf(item.target) === keyOf(target)) : undefined;

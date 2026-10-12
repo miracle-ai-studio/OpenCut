@@ -23,6 +23,8 @@ import { TimelineEditReview } from "./timeline-edit/review";
 import { V4ClipboardControls } from "./timeline-edit/clipboard-controls";
 import { editorProjectId } from "../../../routes";
 import { EditRecoveryPanel } from "./edit-recovery-panel";
+import { MediaPlanDialog } from "./media-dialog";
+import type { MediaFileTarget } from "./media";
 
 /** Full V4 remains in the workspace controller. Read panels never manufacture
  * a legacy document. Changes use versioned public application operations. */
@@ -31,6 +33,7 @@ export function V4Product() {
   const { controller, v4, busy, api } = useWorkspace();
   const [editing, setEditing] = useState<V4Bookmark | "new" | null>(null);
   const [timelineReview, setTimelineReview] = useState(false);
+  const [mediaReview, setMediaReview] = useState(false);
   const [seek, setSeek] = useState("0"),
     [pending, setPending] = useState(false);
   const seekIntent = useRef({ dirty: false, focused: false });
@@ -38,6 +41,7 @@ export function V4Product() {
     setEditing(null);
   }, [v4?.head.revision, v4?.historical?.revision, v4?.sequenceId]);
   useEffect(() => { setTimelineReview(false); }, [v4?.head.project.id, v4?.historical?.revision, v4?.sequenceId]);
+  useEffect(() => { setMediaReview(false); }, [v4?.head.project.id, v4?.historical?.revision, v4?.sequenceId]);
   useEffect(() => {
     seekIntent.current = { dirty: false, focused: false };
     if (v4) setSeek(secondsForDisplay(v4.playhead).toFixed(6));
@@ -75,6 +79,16 @@ export function V4Product() {
     }
   };
   const readonly = !!v4.historical || busy || pending;
+  const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {
+    const capturedApi = api;
+    try { await controller.v4.media.importFiles(files, undefined, target); }
+    finally {
+      const current = controller.getSnapshot();
+      if (current.api === capturedApi && current.v4?.head.project.id === target.scope.projectId &&
+        current.v4.sequenceId === target.scope.sequenceId && !current.v4.historical)
+        setMediaReview(true);
+    }
+  };
   const cancelSeek = () => {
     seekIntent.current = { dirty: false, focused: false };
     setSeek(secondsForDisplay(v4.playhead).toFixed(6));
@@ -302,7 +316,11 @@ export function V4Product() {
               if (!current || current.historical || current.head.project.id !== captured.projectId ||
                 current.head.revision !== captured.revision || current.sequenceId !== captured.sequenceId)
                 throw new Error("The file paste target changed. Paste into the current scene again.");
-              await controller.v4.media.importFiles(files);
+              const scene = current.head.project.sequences.find(s => s.id === captured.sequenceId)!;
+              const track = scene.tracks.find(t => t.id === current.selectedId || t.elements.some(e => e.id === current.selectedId)) ??
+                scene.tracks.find(t => t.id === current.timelineEdit.selection[0]?.track_id) ??
+                scene.tracks.find(t => t.id === scene.main_track_id)!;
+              await importTimelineFiles(files, { scope: captured, trackId: track.id, at: current.playhead });
             }}
           />
           {v4.timelineEdit.recoveryError && <div role="alert">
@@ -326,18 +344,21 @@ export function V4Product() {
             selectedId={v4.selectedId}
             playhead={v4.playhead}
             attempt={v4.timelineEdit.attempt}
-            disabled={readonly || !!v4.timelineEdit.attempt || !!v4.timelineEdit.recoveryError || !!v4.clipboard.attempt}
+            disabled={readonly || !!v4.timelineEdit.attempt || !!v4.timelineEdit.recoveryError || !!v4.clipboard.attempt ||
+              !!v4.media.attempt || !!v4.historyPlan || !!v4.audioGain || !!v4.sourceAudio || !!v4.recovery?.record || !!v4.recovery?.error}
             gainDraftActive={!!v4.gainDraft}
             onSelect={(target, mode) => { controller.v4.timelineEdit.select(target, mode); setEditing(null); }}
             onSelectMany={(targets, primary) => controller.v4.timelineEdit.selectMany(targets, primary)}
             onSelectOther={id => { controller.v4.select(id); setEditing(null); }}
             onSeek={time => controller.v4.seek(time)}
             onReview={() => setTimelineReview(true)}
+            onFiles={importTimelineFiles}
             renderAudioControls={element => <V4AudioGainLine elementId={element.id}
               onSelect={() => { controller.v4.select(element.id); setEditing(null); }} />}
           />
         </div>
       </Panel>
+      {mediaReview && v4.media.attempt && <MediaPlanDialog onClose={() => setMediaReview(false)} />}
       {timelineReview && v4.timelineEdit.attempt && <TimelineEditReview
         attempt={v4.timelineEdit.attempt}
         controller={controller.v4.timelineEdit}

@@ -1,6 +1,9 @@
 import { OpenCutApiError } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
 import { uploadMedia } from "../upload";
+import { addTime, compareTime, zero } from "../../model/time";
+import type { Time } from "../../model/types";
+import type { TimelineScope } from "./timeline-edit/types";
 import type { V4SessionHost } from "./session";
 import type {
   V4Asset,
@@ -11,6 +14,11 @@ import type {
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+export type MediaFileTarget = {
+  scope: TimelineScope;
+  trackId: string;
+  at: Time;
+};
 /** Retains commands only, never another project document or SDK. Plans are
  * server-authored and public apply receives their exact transaction bytes. */
 export class V4Media {
@@ -37,9 +45,14 @@ export class V4Media {
     return this.attempts.get(api)?.get(projectId) ?? null;
   }
   recovered(api: EditorApi, projectId: string, key: string) {
-    if (this.attempts.get(api)?.get(projectId)?.request.idempotency_key === key) this.attempts.get(api)?.delete(projectId);
+    if (this.attempts.get(api)?.get(projectId)?.request.idempotency_key === key)
+      this.attempts.get(api)?.delete(projectId);
     const state = this.host.state();
-    if (api === this.host.api() && state?.head.project.id === projectId && state.media.attempt?.request.idempotency_key === key)
+    if (
+      api === this.host.api() &&
+      state?.head.project.id === projectId &&
+      state.media.attempt?.request.idempotency_key === key
+    )
       this.host.publish({ ...state, media: { ...state.media, attempt: null } });
   }
   private publish(api: EditorApi, attempt: V4MediaAttempt) {
@@ -147,13 +160,49 @@ export class V4Media {
         });
     }
   }
-  async importFiles(files: File[], replacing?: Pick<V4Asset, "id" | "kind">) {
+  async importFiles(
+    files: File[],
+    replacing?: Pick<V4Asset, "id" | "kind">,
+    target?: MediaFileTarget,
+  ) {
     if (!files.length || files.length > 60 || (replacing && files.length !== 1))
       throw new Error(
         "Choose between 1 and 60 files; replacements require one file.",
       );
+    const captured = target ? structuredClone(target) : null;
+    if (captured) {
+      const { state } = this.active();
+      if (replacing)
+        throw new Error("File placement cannot replace existing media.");
+      if (
+        state.historical ||
+        captured.scope.projectId !== state.head.project.id ||
+        captured.scope.revision !== state.head.revision ||
+        captured.scope.sequenceId !== state.sequenceId
+      )
+        throw new Error(
+          "The file import target changed. Choose the current scene again.",
+        );
+      const track = state.head.project.sequences
+        .find((s) => s.id === state.sequenceId)
+        ?.tracks.find((t) => t.id === captured.trackId);
+      if (
+        !track ||
+        track.locked ||
+        !["video", "audio", "graphic"].includes(track.kind)
+      )
+        throw new Error(
+          "Choose an unlocked video, audio or graphic track for these files.",
+        );
+      if (compareTime(captured.at, zero) < 0)
+        throw new Error("File placement time must be non-negative.");
+    }
     let { api, attempt } = this.begin(
-      replacing ? "Replace media" : "Import media",
+      replacing
+        ? "Replace media"
+        : captured
+          ? "Import and place media"
+          : "Import media",
     );
     const generation = this.host.generation(),
       view = this.host.viewGeneration(),
@@ -166,8 +215,12 @@ export class V4Media {
     requests.set(attempt.request.project_id, abort);
     attempt = { ...attempt, phase: "uploading" };
     this.publish(api, attempt);
+    const bindings: V4MediaRequest["bindings"] = [],
+      placements: V4MediaRequest["placements"] = [];
+    let at = captured?.at ?? zero;
     try {
       for (const file of files) {
+        abort.signal.throwIfAborted();
         this.checkView(attempt, api, generation, view);
         const imported = await uploadMedia(
           api.sdk,
@@ -179,6 +232,7 @@ export class V4Media {
           },
           abort.signal,
         );
+        abort.signal.throwIfAborted();
         // A finished upload belongs to the captured project. It remains in
         // available media if navigation or a concurrent revision changed.
         this.checkView(attempt, api, generation, view);
@@ -192,25 +246,68 @@ export class V4Media {
           throw new Error(
             "Replacement media must have the same type as the original.",
           );
-        attempt = {
-          ...attempt,
-          request: {
-            ...attempt.request,
-            bindings: [
-              ...attempt.request.bindings,
-              {
-                media_id: imported.media_id,
-                version: imported.version,
-                asset_id: replacing?.id ?? crypto.randomUUID(),
-                name: imported.asset.name,
-                mode: replacing ? "replace" : "bind",
-              },
-            ],
-          },
-          progress: imported.warning,
-        };
+        const assetId = replacing?.id ?? crypto.randomUUID();
+        bindings.push({
+          media_id: imported.media_id,
+          version: imported.version,
+          asset_id: assetId,
+          name: imported.asset.name,
+          mode: replacing ? "replace" : "bind",
+        });
+        if (captured) {
+          const asset = imported.asset;
+          const duration = ["image", "graphic"].includes(asset.kind)
+            ? { ticks: "5", timebase: 1 }
+            : asset.duration;
+          if (!duration || compareTime(duration, zero) <= 0)
+            throw new Error(
+              "This media needs supported type and observed duration before placement.",
+            );
+          const timing = {
+            kind: "source_range" as const,
+            range: { start: zero, duration },
+            rate: { numerator: 1, denominator: 1 },
+            maintain_pitch: true,
+          };
+          const content: V4MediaRequest["placements"][number]["content"] =
+            asset.kind === "video"
+              ? {
+                  kind: "video",
+                  timing,
+                  source_audio_enabled: asset.metadata?.has_audio === true,
+                }
+              : asset.kind === "audio"
+                ? { kind: "audio", timing }
+                : ["image", "graphic"].includes(asset.kind)
+                  ? { kind: "image", duration }
+                  : (() => {
+                      throw new Error(
+                        "This media type cannot be placed on the timeline.",
+                      );
+                    })();
+          placements.push({
+            element_id: crypto.randomUUID(),
+            name: asset.name,
+            asset_id: assetId,
+            track_id: captured.trackId,
+            start: at,
+            content,
+          });
+          // These are authored ordered drop positions. The application still
+          // owns frame alignment, compatibility and actual placement decisions.
+          at = addTime(at, duration);
+        }
+        attempt = { ...attempt, progress: imported.warning };
         this.publish(api, attempt);
       }
+      abort.signal.throwIfAborted();
+      this.checkView(attempt, api, generation, view);
+      // An incomplete batch has no retryable partial content intent. Successful
+      // uploads remain discoverable through the existing available-media path.
+      attempt = {
+        ...attempt,
+        request: { ...attempt.request, bindings, placements },
+      };
       await this.planAttempt(api, attempt, generation, view);
     } catch (error) {
       this.publish(api, { ...attempt, phase: "failed", error: message(error) });
@@ -284,7 +381,12 @@ export class V4Media {
   async retryPlan() {
     const { api, state } = this.active(),
       attempt = state.media.attempt;
-    if (!attempt || attempt.plan || !["failed"].includes(attempt.phase))
+    if (
+      !attempt ||
+      attempt.plan ||
+      !["failed"].includes(attempt.phase) ||
+      (!attempt.request.bindings.length && !attempt.request.placements.length)
+    )
       throw new Error("No media request is ready to plan.");
     return this.planAttempt(
       api,
@@ -348,8 +450,16 @@ export class V4Media {
       attempt = { ...attempt, phase: "applying", error: null };
       this.publish(api, attempt);
       dispatched = true;
-      const receipt = this.host.publicApply ? await this.host.publicApply(api, attempt.plan!.transaction, attempt.request.sequence_id)
-        : await api.sdk.call("opencut_edit_v4_apply", attempt.plan!.transaction);
+      const receipt = this.host.publicApply
+        ? await this.host.publicApply(
+            api,
+            attempt.plan!.transaction,
+            attempt.request.sequence_id,
+          )
+        : await api.sdk.call(
+            "opencut_edit_v4_apply",
+            attempt.plan!.transaction,
+          );
       if (
         receipt.base_revision !== attempt.request.expected_revision ||
         !receipt.revision ||

@@ -6,6 +6,10 @@ import { V4TimelinePanel } from "./panel";
 import type { TimelinePanelProps } from "./panel";
 
 beforeEach(() => {
+  Object.defineProperty(window, "DragEvent", { configurable: true, value: class extends MouseEvent {
+    dataTransfer: DataTransfer | null;
+    constructor(type: string, init: DragEventInit) { super(type, init); this.dataTransfer = init.dataTransfer ?? null; }
+  } });
   Object.defineProperty(window, "PointerEvent", { configurable: true, value: class extends MouseEvent {
     pointerId: number;
     constructor(type: string, init: PointerEventInit) { super(type, init); this.pointerId = init.pointerId ?? 1; }
@@ -31,6 +35,31 @@ async function setup() {
   };
   return { f, props };
 }
+
+it("file drops use the lane coordinate at the current zoom, including scroll, and reject locked or busy tracks", async () => {
+  const { f, props } = await setup();
+  try {
+    props.onFiles = vi.fn(async () => {});
+    const view = render(<V4TimelinePanel {...props} />);
+    const lane = view.container.querySelector<HTMLElement>("[data-file-track=track]")!;
+    const file = new File(["png"], "image.png", { type: "image/png" });
+    const transfer = { files: [file], types: ["Files"], dropEffect: "none" };
+    vi.spyOn(lane, "getBoundingClientRect").mockReturnValue({ left: -28, top: 100 } as DOMRect);
+    fireEvent.change(screen.getByLabelText("Timeline zoom"), { target: { value: "2" } });
+    fireEvent.drop(lane, { dataTransfer: transfer, clientX: 132 });
+    expect(props.onFiles).toHaveBeenCalledExactlyOnceWith([file], { scope: props.scope, trackId: "track", at: { ticks: "1", timebase: 1 } });
+    props.sequence.tracks[0].locked = true;
+    view.rerender(<V4TimelinePanel {...props} />);
+    fireEvent.drop(lane, { dataTransfer: transfer, clientX: 132 });
+    expect(props.onFiles).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert").textContent).toContain("unlocked");
+    props.sequence.tracks[0].locked = false; props.disabled = true;
+    view.rerender(<V4TimelinePanel {...props} />);
+    fireEvent.drop(lane, { dataTransfer: transfer, clientX: 132 });
+    expect(props.onFiles).toHaveBeenCalledOnce();
+    expect(f.planner).not.toHaveBeenCalled(); expect(f.applyCalls()).toHaveLength(0);
+  } finally { f.controller.dispose(); }
+});
 
 it("real pointer cancellation writes nothing; pointerup plans once and consumes the following clip click", async () => {
   const { f, props } = await setup();

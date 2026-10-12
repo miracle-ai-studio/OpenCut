@@ -17,6 +17,28 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+it("native file paste captures the selected track and exact playhead, while text input retains clipboard ownership", async () => {
+  const { controller, current } = await setupV4();
+  try {
+    current().project.sequences[0].tracks.push({ ...structuredClone(current().project.sequences[0].tracks[0]),
+      id: "selected-audio", name: "Audio", kind: "audio", elements: [] });
+    await controller.v4.refresh();
+    controller.v4.select("selected-audio"); controller.v4.seek({ ticks: "1", timebase: 3 });
+    const importing = vi.spyOn(controller.v4.media, "importFiles").mockResolvedValue(undefined);
+    const view = render(<WorkspaceProvider controller={controller}><V4Product /></WorkspaceProvider>);
+    const file = new File(["wav"], "sound.wav", { type: "audio/wav" });
+    const data = { files: [file], getData: () => "" };
+    fireEvent.paste(view.container.querySelector(".v4-timeline-panel")!, { clipboardData: data });
+    await waitFor(() => expect(importing).toHaveBeenCalledOnce());
+    expect(importing).toHaveBeenCalledWith([file], undefined, {
+      scope: { projectId: current().project.id, revision: "r0", sequenceId: "scene" },
+      trackId: "selected-audio", at: { ticks: "1", timebase: 3 },
+    });
+    fireEvent.paste(screen.getByLabelText("Playhead (seconds)"), { clipboardData: data });
+    expect(importing).toHaveBeenCalledOnce();
+  } finally { controller.dispose(); }
+});
+
 it("keeps a focused or dirty seek intention through confirmed consumer progress and submits that exact time", async () => {
   const { controller } = await setupV4();
   try {
