@@ -67,18 +67,21 @@ export async function preparePreviewPage({ plan, engineIdentity, admission }) {
 export async function nextPreviewPage(command) {
   try {
     const result = await globalThis.__opencutPreviewProducer.next(command);
+    if (!Number.isInteger(command.frameCount) || command.frameCount < 1 || command.frameCount > 4096 ||
+        !Array.isArray(result.channels) || result.channels.length !== 2 ||
+        result.channels.some(samples => !(samples instanceof Float32Array) || samples.length !== command.frameCount)) {
+      const error = new Error("Preview PCM exceeds command credit"); error.code = "INVALID_OUTPUT_PCM"; throw error;
+    }
+    const channelsHex = [];
     for (let channel = 0; channel < 2; channel++) {
       const samples = result.channels[channel], bytes = new Uint8Array(samples.length * 4), view = new DataView(bytes.buffer);
       for (let n = 0; n < samples.length; n++) view.setFloat32(n * 4, samples[n], true);
-      const bytesHex = Array.from(bytes, n => n.toString(16).padStart(2, "0")).join("");
-      const envelope = await globalThis.__opencutPreviewPcm({ commandId: command.id, generation: command.generation, overlayEpoch: command.overlayEpoch, startSample: command.startSample, channel, frames: samples.length, bytesHex });
-      if (envelope?.ok !== true) {
-        const code = envelope?.ok === false && typeof envelope.error?.code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(envelope.error.code)
-          ? envelope.error.code : "AUDIO_PREVIEW_FAILED";
-        const error = new Error("Preview PCM callback failed"); error.code = code; throw error;
-      }
+      channelsHex.push(Array.from(bytes, n => n.toString(16).padStart(2, "0")).join(""));
     }
-    return { ok: true, value: result.receipt };
+    // The command already admits at most two4096-frame Float32 channels.
+    // Return both byte strings with the completion in this one evaluate call;
+    // Node keeps the original private PCM packets and publication checks.
+    return { ok: true, value: { receipt: result.receipt, frameCount: command.frameCount, channelsHex } };
   } catch (error) {
     return { ok: false, error: { code: typeof error?.code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code)
       ? error.code : "AUDIO_PREVIEW_FAILED" } };

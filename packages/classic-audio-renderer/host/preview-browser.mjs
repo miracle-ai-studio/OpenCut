@@ -62,21 +62,30 @@ export async function configurePreviewPage(realm) {
     return value;
   }));
   await realm.page.exposeFunction("__opencutTerminatePreviewRealm", () => realm.stop());
-  await realm.page.exposeFunction("__opencutPreviewPcm", packet => previewEnvelope(async () => {
-    checkAbort(realm.signal);
-    const active = realm.previewCommand;
-    if (!active || ["commandId", "generation", "overlayEpoch", "startSample"].some(k => packet[k] !== (k === "commandId" ? active.id : active[k]))) reject("INVALID_OUTPUT_PCM", "Preview output changed command identity");
-    integer(packet.channel, "preview PCM channel", 0, 1);
-    if (packet.frames !== active.frameCount || typeof packet.bytesHex !== "string" || packet.bytesHex.length !== packet.frames * 8 || !/^(?:[0-9a-f]{2})+$/.test(packet.bytesHex)) reject("INVALID_OUTPUT_PCM", "Preview PCM exceeds credit");
-    await realm.writer.send({ ...packet, type: "pcm" });
-  }));
 }
 export async function preparePreviewRealm(realm) {
   const receipt = unwrapPreviewEnvelope(await realm.page.evaluate(preparePreviewPage, { plan: realm.begin.plan, engineIdentity: realm.identity.engine, admission: realm.begin.admission }));
   return compactPreviewReceipt(realm.begin.plan, receipt, realm.previewBinding);
 }
 export async function nextPreviewRealm(realm, command) {
+  integer(command.frameCount, "preview PCM frames", 1, 4096);
   realm.previewCommand = command;
-  try { return unwrapPreviewEnvelope(await realm.page.evaluate(nextPreviewPage, command)); }
+  try {
+    const result = unwrapPreviewEnvelope(await realm.page.evaluate(nextPreviewPage, command));
+    checkAbort(realm.signal);
+    if (realm.previewCommand !== command || !result || Object.keys(result).length !== 3 || !Object.hasOwn(result, "receipt") ||
+        result.frameCount !== command.frameCount || !Array.isArray(result.channelsHex) || result.channelsHex.length !== 2 ||
+        result.channelsHex.some(bytes => typeof bytes !== "string" || bytes.length !== command.frameCount * 8 || !/^(?:[0-9a-f]{2})+$/.test(bytes)))
+      reject("INVALID_OUTPUT_PCM", "Preview PCM exceeds captured command credit");
+    // Admit both channels before publishing either. Recheck cancellation for
+    // each unchanged private packet; Rust still fences every received packet.
+    for (let channel = 0; channel < 2; channel++) {
+      checkAbort(realm.signal);
+      await realm.writer.send({ type: "pcm", commandId: command.id, generation: command.generation,
+        overlayEpoch: command.overlayEpoch, startSample: command.startSample, channel,
+        frames: command.frameCount, bytesHex: result.channelsHex[channel] });
+    }
+    return result.receipt;
+  }
   finally { realm.previewCommand = undefined; }
 }

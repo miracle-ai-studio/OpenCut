@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "19 scoped feature records retain actual candidate identities; latest fixed-source-binding reuse uses one binary and the existing Web for HD/dense. Useful source PTS passed; two continuous-audio performance gates remain open.",
-    "latest_candidate": "audio_preview_retained_source_binding",
+    "scope": "20 scoped feature records retain actual candidate identities; latest private PCM bridge uses the unchanged explicit Rust/Web and a separately identified audio module. HD boundaries passed; dense useful source PTS and stalls passed, confirmed deficit remains open.",
+    "latest_candidate": "audio_preview_single_page_pcm_result",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -3959,12 +3959,191 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_single_page_pcm_result",
+        "status": "passed_scoped_with_open_performance_gate",
+        "candidate": {
+          "base_commit": "cb8f1847a251f5ef557c6576b4852d1c74d482fb",
+          "source_files": [
+            "packages/classic-audio-renderer/host/preview-browser.mjs",
+            "packages/classic-audio-renderer/host/preview-page.mjs",
+            "packages/classic-audio-renderer/tests/preview.test.mjs"
+          ],
+          "source_manifest_sha256": "2ee0c9e2bfe461fc66db74c215113a0cf601b1f7ccbecab8aacc1c7fa1724f6a",
+          "binary_ref": "audio_preview_retained_source_binding.candidate.binary_sha256",
+          "binary_byte_identical": true,
+          "web_entrypoints_ref": "visual_preview_prepared_frame_reuse.candidate.web_entrypoints",
+          "web_entrypoints_byte_identical": true,
+          "audio_runtime_module_sha256": "4037ed763456ac72cab091d6c3f980b8c0f8dc307a6b3caea6b5183a30f9c55a",
+          "browser": "154.0.8037.99",
+          "runtime_scope": "Exact pinned local audio package/runtime paths used by both browser commands. Module registry hashes all renderer/host/page sources and pinned dependency bytes; reuse of Rust/Web does not mean unchanged audio execution identity."
+        },
+        "scope": "One bounded page-evaluate result carries exact stereo PCM bytes and completion; original private PCM packets, compiled source facts, sampler, native publication fences and two-block credit retained.",
+        "implementation": [
+          "Remove two serial per-channel exposeFunction PCM roundtrips. Existing nextPreviewPage returns two little-endianFloat32 canonical hex strings and original receipt in its one evaluate result.",
+          "Page enforces actual Float32Array shape/count1..4096; Node admits both channels and the captured command before either write, checks cancellation before each original PCM packet, and clears command capture on every exit.",
+          "Original Rust producer validates each unchanged private packet identity, credit, original resource authorization and final source binding receipt; host generation/lease/publication fences remain. No additional production concurrency, buffering, module/dependency or public schema."
+        ],
+        "checks": {
+          "preview_and_host_tests": 23,
+          "new_transport_oracle": "1 and4096 frames, exact -0/+0.25/-0.5/+1 Float32LE constants, source sample decimal beyond2^53 copied unchanged, one evaluate/two original packets; malformed/oversized/wrong-count/wrong-shape result admits neither channel, aborted/late command and cancellation between channel writes cannot complete publication.",
+          "obsolete_callback": "Targeted repository search leaves only a test asserting __opencutPreviewPcm is absent; original packet behavior and error-code paths retained in affected bridge tests.",
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "generated_wire_reuse": "Exact unchanged release binary from previous candidate; its194 declarations/legacy22 checks reused. Public DTO/registry/generated consumers unchanged.",
+          "rust_builds": 0,
+          "web_builds": 0,
+          "fresh_whole_workspace_run": false
+        },
+        "hd_correctness": {
+          "status": "passed",
+          "checks_passed": 4,
+          "oracle_scope_ref": "visual_preview_prepared_frame_reuse.hd_correctness.checks",
+          "cold_ms": 7316,
+          "distinct_requested_time_presentations": 74,
+          "max_skew_ms": 103.99999999999964,
+          "frequency_hz": 439.99991601772865,
+          "rms": 0.08831585190797463,
+          "seek_ms": 376,
+          "resource_downloads": 1,
+          "scope": "Same720p/8s24fps explicitBT709/independent440HzPCM. Requested-time presentations are not unique source PTS; paused permission denial is versionedHTTP injection. Native original-revocation receipts retain their original candidates."
+        },
+        "dense_performance": {
+          "status": "failed",
+          "fixture_ref": "visual_preview_prepared_frame_reuse.dense_performance.fixture",
+          "fixed_fixture_reused": true,
+          "budget_ref": "visual_preview_prepared_frame_reuse.dense_performance.budget",
+          "cold_ms": 4910,
+          "distinct_presented_source_pts": 156,
+          "max_skew_ms": 106.66666666666646,
+          "minimum_skew_ms": 5.33333333333319,
+          "consumption": {
+            "elapsed_ms": 9999.5,
+            "frames": 473984,
+            "reports": 3752,
+            "stalled_ratio": 0.009140457017486456,
+            "deficit_ratio": 0.0124839575312099,
+            "stalled_reports_by_second": {
+              "0": 0,
+              "1": 0,
+              "2": 2,
+              "3": 12,
+              "4": 0,
+              "5": 0,
+              "6": 16,
+              "7": 18,
+              "8": 0,
+              "9": 0
+            }
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "main_thread": {
+            "task_ms": 4440.638,
+            "script_ms": 1116.842,
+            "method": "CDP page main-thread time during the real steady window; excludes driver/native CPU"
+          },
+          "heap": {
+            "baseline_bytes": 4660640,
+            "peak_bytes": 22552264,
+            "delta_bytes": 17891624,
+            "method": "CDP page V8 heap, one baseline GC; no steady-window GC"
+          },
+          "execution": {
+            "planMs": {
+              "mean": 11.980487804587295,
+              "maximum": 77.90000000596046
+            },
+            "bindMs": {
+              "mean": 8.167073171313216,
+              "maximum": 66
+            },
+            "totalMs": {
+              "mean": 34.90975609724599,
+              "maximum": 1282.5
+            }
+          },
+          "transport": {
+            "controls": {
+              "report_consumed": {
+                "count": 286,
+                "mean_ms": 8.330769231582021,
+                "maximum_ms": 61,
+                "p95_ms": 13.200000017881393
+              },
+              "heartbeat": {
+                "count": 19,
+                "mean_ms": 8.689473682328275,
+                "maximum_ms": 14.599999994039536,
+                "p95_ms": 14.599999994039536
+              }
+            },
+            "pcm_arrival_gaps": {
+              "count": 114,
+              "mean_ms": 86.12631578926454,
+              "maximum_ms": 135.40000000596046,
+              "p95_ms": 128.60000002384186
+            },
+            "block_sizes": [
+              4096
+            ],
+            "method": "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference"
+          },
+          "resources": {
+            "peak_gpu_bytes": 18432212,
+            "peak_accounted_bytes": 35414841,
+            "retained_decoded_bytes": 11059200,
+            "retained_encoded_bytes": 11475,
+            "method": "Classic execution allocation accounting; excludes driver/native RSS and process GPU overhead"
+          },
+          "gates": {
+            "independent_pixels": true,
+            "extent": true,
+            "cold": true,
+            "stalls": true,
+            "deficit": false,
+            "useful_video_pts": true,
+            "synchronization": true,
+            "heap": true,
+            "gpu": true,
+            "independent_pcm": true,
+            "readonly": true,
+            "page_errors": true
+          },
+          "independent_pixels": "All eight external alternating red/green interval pixel oracles passed.",
+          "scope": "Actual10s Worklet window over300s authored extent, original two8sCAS sources/100placements/5tracks. Page-observed arrival/RTT data does not isolate native producer/driver/DAC latency."
+        },
+        "reuse": {
+          "broader_suites_rerun": false,
+          "unchanged_candidate_rerun": false,
+          "prior_media_import_or_project_copy_repeated": false,
+          "one_owned_synthetic_workspace": true,
+          "foundation": "Original Rust/application/cache/PackedV2/renderer/SDK/per-quantumWorklet/FIFO. Only changed private bridge behavior and required boundaries plus same-fixture actual HD/dense runtime checked."
+        },
+        "limits": [
+          "Dense stalls0.914% and useful sourcePTS156/144 pass on this candidate; deficit1.248% remains above1%. One observed run is not sustained stability or a causal latency breakdown.",
+          "No5min playback, true long-file/VFR/non-unit-rate/full transport, physicalDAC/cross-browser/whole migration acceptance. S1/F10/F42 and36 groups remain partial."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "lsof_owned_workspace_handles": 0,
+          "owned_workspace_reused": true,
+          "necessary_failed_dense_receipt_retained": true,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG preview has bounded 720p/8s correctness evidence; dense stalls/deficit gates remain open; useful sourcePTS164/144 passed on the latest candidate. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG preview has bounded720p/8s correctness evidence; dense confirmed deficit remains above1%, while stalls0.914% and useful sourcePTS156/144 passed on the latest candidate. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -4014,19 +4193,15 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "audio_preview_retained_source_binding",
+      "evidence_id": "audio_preview_single_page_pcm_result",
       "feature": "S1 dense continuous picture/audio preview",
       "gates": {
-        "stalls": {
-          "actual_ratio": 0.010130101302229267,
-          "maximum": 0.01
-        },
         "deficit": {
-          "actual_ratio": 0.015190151899170945,
+          "actual_ratio": 0.0124839575312099,
           "maximum": 0.01
         }
       },
-      "next": "Isolate native producer/compiled-fact transport, HTTP credit turnaround and page delivery latency on the retained fixed fixture. PCM arrival p95 remains127.4ms against85.33ms block playtime. Preserve two-block budget, exact consumer clock and authority fences; do not rerun unchanged suites or relax gates."
+      "next": "Separate credit-release-to-production and production-to-page/Worklet delivery from delayed consumption confirmations in the retained fixed fixture. Keep original10s confirmed-deficit gate, two-block budget and authority fences; do not rerun an unchanged candidate to hunt a pass. Page arrival p95 remains128.6ms vs85.33ms per4096-frame block."
     }
   ],
   "resource_constraints": [

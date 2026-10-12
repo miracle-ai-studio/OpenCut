@@ -8,7 +8,7 @@ import { packPreviewBinding, expandPreviewBinding, compactPreviewReceipt } from 
 import { configurePreviewPage, preparePreviewRealm, nextPreviewRealm, previewEnvelope, unwrapPreviewEnvelope } from "../host/preview-browser.mjs";
 import { PROTOCOL_LIMITS, PacketWriter } from "../host/protocol.mjs";
 import { Writable } from "node:stream";
-import { preparePreviewPage } from "../host/preview-page.mjs";
+import { preparePreviewPage, nextPreviewPage } from "../host/preview-page.mjs";
 import { readFile } from "node:fs/promises";
 import { unpackPreviewBlockV1, unpackPreviewBlockV2 } from "../src/preview-packet.mjs";
 
@@ -142,8 +142,10 @@ test("a small source dictionary cannot amplify expanded source facts past the ex
 test("Node preview bridge preserves exact safe failure codes and only captures accepted shared facts", async () => {
   const handlers = new Map(), { plan, formats } = sharedFixture(2, 2), requests = [];
   const fullReceipt = { sourceFormats: formats, sourceBindingSha256: "unchanged", decoders: [], preparation: [] };
+  const command = { id: "1", generation: "3", overlayEpoch: "7", startSample: "0", frameCount: 1 };
   const realm = { begin: { plan, resources: [], admission: {} }, identity: { engine: "pinned" }, signal: new AbortController().signal,
-    page: { exposeFunction: async (name, fn) => handlers.set(name, fn), evaluate: async fn => ({ ok: true, value: fn.name === "preparePreviewPage" ? fullReceipt : { completed: true } }) },
+    writer: { send: async () => {} },
+    page: { exposeFunction: async (name, fn) => handlers.set(name, fn), evaluate: async fn => ({ ok: true, value: fn.name === "preparePreviewPage" ? fullReceipt : { receipt: { completed: true }, frameCount: 1, channelsHex: ["00000000", "00000000"] } }) },
     broker: { request: async (op, args) => { requests.push({ op, args }); return { bound: true }; } } };
   await configurePreviewPage(realm);
   const callback = handlers.get("__opencutPreviewCallback");
@@ -151,7 +153,8 @@ test("Node preview bridge preserves exact safe failure codes and only captures a
   assert.equal(requests[0].op, "bindPreviewSourcesSharedV1");
   assert.equal(requests[0].args.schemaVersion, 1);
   assert(!Object.hasOwn(await preparePreviewRealm(realm), "sourceFormats"));
-  assert.deepEqual(await nextPreviewRealm(realm, {}), { completed: true });
+  assert.deepEqual(await nextPreviewRealm(realm, command), { completed: true });
+  assert(!handlers.has("__opencutPreviewPcm"));
   realm.previewBinding = undefined;
   realm.broker.request = async () => { throw Object.assign(new Error("private host path"), { code: "AUDIO_BUDGET_EXCEEDED" }); };
   const failure = await callback("bindPreviewSources", { sourceFormats: formats });
@@ -159,7 +162,7 @@ test("Node preview bridge preserves exact safe failure codes and only captures a
   assert.equal(realm.previewBinding, undefined);
   assert.throws(() => unwrapPreviewEnvelope(failure), { code: "AUDIO_BUDGET_EXCEEDED", message: "Isolated preview operation failed" });
   realm.page.evaluate = async () => failure;
-  await assert.rejects(nextPreviewRealm(realm, {}), { code: "AUDIO_BUDGET_EXCEEDED" });
+  await assert.rejects(nextPreviewRealm(realm, command), { code: "AUDIO_BUDGET_EXCEEDED" });
   assert.deepEqual(await previewEnvelope(async () => { throw new Error("HOST_PACKET_TOO_LARGE private path"); }), { ok: false, error: { code: "AUDIO_PREVIEW_FAILED" } });
   assert.deepEqual(await previewEnvelope(async () => { throw { code: "invalid/path" }; }), { ok: false, error: { code: "AUDIO_PREVIEW_FAILED" } });
   assert.deepEqual(await previewEnvelope(async () => undefined), { ok: true, value: undefined });
@@ -414,4 +417,56 @@ test("prepared source position bridge keeps exact integer fractions and rejects 
   }
   realm.broker.request = async () => [];
   assert.deepEqual(await callback("compileSourcePositions", args), { ok: false, error: { code: "AUDIO_PROTOCOL_ERROR" } });
+});
+
+test("one bounded page result retains exact stereo Float32 bytes and captured command fences", async () => {
+  const prior = globalThis.__opencutPreviewProducer;
+  try {
+    for (const count of [1, 4096]) {
+      const command = { id: "19", generation: "3", overlayEpoch: "7", startSample: "9007199254740993", frameCount: count };
+      const channels = [new Float32Array(count), new Float32Array(count)];
+      channels[0][0] = -0; channels[1][0] = .25;
+      if (count > 1) { channels[0][count - 1] = -.5; channels[1][count - 1] = 1; }
+      const receipt = { sourceBindingSha256: "fixed", compilation: { startSample: command.startSample, frameCount: count } };
+      globalThis.__opencutPreviewProducer = { next: async input => { assert.equal(input, command); return { channels, receipt }; } };
+      const packets = [], abort = new AbortController(); let calls = 0;
+      const realm = { signal: abort.signal, page: { evaluate: async (fn, input) => { calls++; return fn(input); } }, writer: { send: async packet => packets.push(packet) } };
+      assert.deepEqual(await nextPreviewRealm(realm, command), receipt);
+      assert.equal(calls, 1); assert.equal(packets.length, 2); assert.equal(realm.previewCommand, undefined);
+      for (let c = 0; c < 2; c++) {
+        const bytes = Buffer.from(packets[c].bytesHex, "hex");
+        assert.equal(bytes.length, count * 4);
+        assert.equal(bytes.readUInt32LE(0), c === 0 ? 0x80000000 : 0x3e800000);
+        if (count > 1) assert.equal(bytes.readUInt32LE(bytes.length - 4), c === 0 ? 0xbf000000 : 0x3f800000);
+        assert.deepEqual({ ...packets[c], bytesHex: undefined }, { type: "pcm", commandId: "19", generation: "3", overlayEpoch: "7", startSample: "9007199254740993", channel: c, frames: count, bytesHex: undefined });
+      }
+      for (const bad of [
+        { frameCount: count + 1 }, { channelsHex: [packets[0].bytesHex] },
+        { channelsHex: [packets[0].bytesHex, "Z".repeat(count * 8)] },
+        { channelsHex: [packets[0].bytesHex, packets[1].bytesHex + "00"] }, { extra: true },
+      ]) {
+        realm.page.evaluate = async () => ({ ok: true, value: { receipt, frameCount: count, channelsHex: packets.map(p => p.bytesHex), ...bad } });
+        const before = packets.length;
+        await assert.rejects(nextPreviewRealm(realm, command), { code: "INVALID_OUTPUT_PCM" });
+        assert.equal(packets.length, before); assert.equal(realm.previewCommand, undefined);
+      }
+      realm.page.evaluate = async () => { abort.abort(); return { ok: true, value: { receipt, frameCount: count, channelsHex: packets.map(p => p.bytesHex) } }; };
+      await assert.rejects(nextPreviewRealm(realm, command), { code: "CANCELLED" });
+      assert.equal(packets.length, 2);
+      const between = new AbortController(), published = [];
+      realm.signal = between.signal;
+      realm.page.evaluate = async () => ({ ok: true, value: { receipt, frameCount: count, channelsHex: packets.map(p => p.bytesHex) } });
+      realm.writer.send = async packet => { published.push(packet); between.abort(); };
+      await assert.rejects(nextPreviewRealm(realm, command), { code: "CANCELLED" });
+      assert.equal(published.length, 1); assert.equal(realm.previewCommand, undefined);
+      realm.signal = new AbortController().signal;
+      realm.page.evaluate = async () => { realm.previewCommand = { ...command }; return { ok: true, value: { receipt, frameCount: count, channelsHex: packets.map(p => p.bytesHex) } }; };
+      await assert.rejects(nextPreviewRealm(realm, command), { code: "INVALID_OUTPUT_PCM" });
+      assert.equal(published.length, 1);
+    }
+    globalThis.__opencutPreviewProducer = { next: async () => ({ channels: [new Float32Array(2), new Float32Array(1)], receipt: {} }) };
+    assert.deepEqual(await nextPreviewPage({ frameCount: 1 }), { ok: false, error: { code: "INVALID_OUTPUT_PCM" } });
+  } finally {
+    if (prior === undefined) delete globalThis.__opencutPreviewProducer; else globalThis.__opencutPreviewProducer = prior;
+  }
 });
