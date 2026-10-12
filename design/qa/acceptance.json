@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "25 unique scoped records. Latest calibrated native dispatch diagnostic narrows two outliers to return waiting overlapping Node loop tardiness; no GC/OS causal or optimization claim. Original per-window gates stay open.",
-    "latest_candidate": "audio_preview_native_dispatch_observation",
+    "scope": "26 unique scoped records. Latest GC observer caps actual delivered entry samples; current14-gate diagnostic pass is not a product optimization and does not close original per-window failures. Next product slice removes structurally redundant same-process WS transport while preserving owned-child lifecycle.",
+    "latest_candidate": "audio_preview_native_gc_observation",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -5382,6 +5382,232 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_native_gc_observation",
+        "status": "verified_gc_observation_not_performance_optimization",
+        "candidate": {
+          "base_commit": "b2979753a451d71f821e4e54597d26002d303e9f",
+          "source_files": [
+            "apps/web/scripts/native-preview-dispatch.mjs",
+            "apps/web/scripts/native-preview-timing.test.mjs",
+            "apps/web/scripts/profile-native-preview-preload.mjs"
+          ],
+          "source_manifest_sha256": "0d0d0de986fd04521d6c1ec370700fd6e0380385d77d710bd1225bc6fd8c0231",
+          "product_ref": "audio_preview_worker_pcm_pump.candidate",
+          "binary_byte_identical": true,
+          "web_byte_identical": true,
+          "audio_package_bytes_unchanged": true,
+          "observed_execution_identity": "Original package plus explicitly injected Node/page dispatch and GC observers, not uninstrumented production execution",
+          "probe_files_at_launch": {
+            "native-preview-timing.mjs": "e2cd088c06cac803049a8bc66bb6cac190cbd0c24fb772d3b93796a1ca1ded8c",
+            "native-preview-dispatch.mjs": "39698fd5692378cf2d6f6bff4e84dbbd9bdfcbd84fe2da8b815b94339a3083f3",
+            "profile-native-preview-preload.mjs": "78684bcca7324c249db5bdba7e1085f1ba9cb3e2b21979759615cb8a7b078d03"
+          },
+          "numeric_artifact_sha256": "5dc6161368e98b9620169971f68f9b3487e5dd90727211c5945c89319080e8c2",
+          "browser": "154.0.8037.99"
+        },
+        "scope": "New Node GC PerformanceEntries correlated to original command/evaluate timestamps. Same stopped owned synthetic project/revision/media;3516 commands and14400000 supplied frames. No forcedGC or heap/quota expansion in the real run; no optimization or repeat-to-green claim.",
+        "checks": {
+          "pure_observer_tests": 5,
+          "real_node_gc_api_smoke": "Isolated--expose-gc observer unit process saw majorGC; no media/browser and no forcedGC in measured product diagnostic.",
+          "syntax": "passed",
+          "product_builds": 0,
+          "fresh_whole_workspace_run": false,
+          "scope_reuse": "Unchanged production/public/dependency boundaries; original architecture/contracts/wire/Worker/HD retain source scopes, not re-run."
+        },
+        "gc": {
+          "supported": true,
+          "count": 421,
+          "total_duration_ms": 889.6971699893475,
+          "maximum_duration_ms": 16.140318989753723,
+          "selected_count": 32,
+          "largest_entries": [
+            {
+              "start_ms": 173865.887367,
+              "duration_ms": 16.140318989753723,
+              "kind": 4,
+              "flags": 64
+            },
+            {
+              "start_ms": 83247.820743,
+              "duration_ms": 11.127467006444931,
+              "kind": 4,
+              "flags": 64
+            },
+            {
+              "start_ms": 281360.095874,
+              "duration_ms": 10.79425898194313,
+              "kind": 4,
+              "flags": 64
+            }
+          ],
+          "scope": "All delivered GC entry counts/durations from observer registration through stop, greatest32 numeric samples; includes preparation. Not a complete CPU profile or a cause proof for prior runs."
+        },
+        "native_dispatch": {
+          "commands": 3516,
+          "contiguous_supplied_frames": "14400000",
+          "artifact_bytes": 1709303,
+          "incomplete_commands": 0,
+          "overflow": false,
+          "maximum_clock_uncertainty_ms": 1.2408159761848765,
+          "phases": {
+            "total_ms": {
+              "mean_ms": 35.845067535836215,
+              "p95_ms": 55.668808999995235,
+              "max_ms": 89.6478890000144
+            },
+            "evaluate_ms": {
+              "mean_ms": 33.1894633506826,
+              "p95_ms": 52.46531699999832,
+              "max_ms": 84.88480499997968
+            },
+            "broker_ms": {
+              "mean_ms": 4.937408871729501,
+              "p95_ms": 9.73813899999368,
+              "max_ms": 28.357454999990296
+            },
+            "page_callback_ms": {
+              "mean_ms": 14.002389078525418,
+              "p95_ms": 25.700000017881393,
+              "max_ms": 49.30000001192093
+            },
+            "page_producer_ms": {
+              "mean_ms": 20.027133105871552,
+              "p95_ms": 37,
+              "max_ms": 61.70000001788139
+            },
+            "page_hex_ms": {
+              "mean_ms": 2.955147895584809,
+              "p95_ms": 3.4000000059604645,
+              "max_ms": 5.700000017881393
+            },
+            "observer_ms": {
+              "mean_ms": 2.0610217124571957,
+              "p95_ms": 3.143312000000151,
+              "max_ms": 10.044241999974474
+            },
+            "pcm_write_ms": {
+              "mean_ms": 0.2551075918654878,
+              "p95_ms": 0.33139399997889996,
+              "max_ms": 6.964075999996567
+            },
+            "post_evaluate_to_first_pcm_ms": {
+              "mean_ms": 2.261325751422092,
+              "p95_ms": 3.3885210000007646,
+              "max_ms": 10.253836999996565
+            },
+            "node_callback_ms": {
+              "mean_ms": 5.027624298350548,
+              "p95_ms": 9.908049999998184,
+              "max_ms": 28.518948000011733
+            },
+            "page_body_ms": {
+              "mean_ms": 23.091552901152728,
+              "p95_ms": 40.5,
+              "max_ms": 66.10000002384186
+            },
+            "page_unpack_validate_mix_ms": {
+              "mean_ms": 6.024744027346135,
+              "p95_ms": 11.599999994039536,
+              "max_ms": 16.5
+            },
+            "evaluate_residual_ms": {
+              "mean_ms": 10.207182349226255,
+              "p95_ms": 12.846032023851876,
+              "max_ms": 33.0182009821292
+            },
+            "callback_outside_broker_ms": {
+              "mean_ms": 9.06498020679592,
+              "p95_ms": 16.093111023830716,
+              "max_ms": 33.439599011908285
+            }
+          },
+          "slowest_tail": {
+            "command_id": "2590",
+            "start_sample": "10604544",
+            "total_ms": 89.6478890000144,
+            "evaluate_ingress": {
+              "lower_ms": 4.197971999965375,
+              "upper_ms": 5.4387879761634395
+            },
+            "evaluate_return": {
+              "lower_ms": 13.346016999987569,
+              "upper_ms": 14.586832976172445
+            },
+            "callback_ingress": {
+              "lower_ms": 5.555489023840437,
+              "upper_ms": 6.796305000025313
+            },
+            "callback_return": {
+              "lower_ms": 26.466705011902377,
+              "upper_ms": 27.70752098810044
+            },
+            "node_callback_ms": 16.03698999999324,
+            "page_body_ms": 66.10000002384186,
+            "overlapping_selected_node_timer_lags": [],
+            "overlapping_selected_page_long_tasks": [],
+            "overlapping_selected_node_gc": []
+          }
+        },
+        "diagnostic_continuity": {
+          "status": "passed",
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": true,
+            "deficit_ratio": true,
+            "render_quantum_deficit_ratio": true,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": true,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14408960,
+            "copied_frames": 14400000,
+            "missing_frames": 8960,
+            "elapsed_ms": 300180.3000000119,
+            "render_quantum_deficit_ratio": 0.0006218353024784578,
+            "stalled_ratio": 0.0006096336100016826,
+            "deficit_ratio": 0.0006095225658664383,
+            "max_raw_points": 3751
+          },
+          "maximum_window_quantum_deficit_ratio": 0.007466666666666667,
+          "scope": "Instrumented run14 gates pass, but no product change and previous uninstrumented/local-window failures stay open. Variation cannot be claimed as optimization."
+        },
+        "findings": [
+          "ObservedGC maximum16.14ms; actual previous153ms return outlier did not recur. Current slowestNode command89.65ms has no overlapping greatest32GC entries; neither confirms nor excludes the cause of earlier runs.",
+          "Original native Node owns launchServer then connects by WebSocket to that same process; source-inspected pinned Playwright in-process launch dispatch passes objects without this WS JSON loop. This structurally redundant transport is the next bounded product slice, not a proved sole cause of the historic tail.",
+          "Current Node24.19.0 child_process diagnostics_channel publishes actualChildProcess at construction; afterspawn executable/PID can be checked and exit awaited, avoiding undocumented Playwright process fields or a new discoverable CDP port. Implementation/real lifecycle acceptance remains planned."
+        ],
+        "next": "不重复原候选追捕稀有长尾或扩大heap/两槽预算。评审并移除preview宿主同进程launchServer→WebSocket connect的重复协议封送：用public Chromium launch及Node child_process诊断通道捕获真实ChildProcess，保持原PID发布、进程组kill/实际exit确认、10s启动/15s取消宽限与同一monitor/CSP/原凭据/固定修订/lease/generation/overlay围栏。先验证拥有者捕获、启动失败/迟到/取消/强制退出及独立PCM字节，再按新的产品执行身份补必要持续验收；GC记录不证明旧153ms长尾原因。随后gain/rapidseek/场景修订/真实撤权、后续独立PCM和真实长源/VFR/非单位速率。",
+        "reuse": {
+          "prior_import_copy_repeated": false,
+          "one_owned_synthetic_workspace": true,
+          "rust_web_audio_rebuilt": false,
+          "broader_suites_rerun": false
+        },
+        "limits": [
+          "No153ms tail reproduction or GC/CPU/OS sole-cause proof. Previous per-window failures retained; no completeS1/whole-migration claim.",
+          "36 groups and full control/laterPCM/long-source/VFR/non-unit-rate scope remain incomplete."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "owned_native_children_after_end": 0,
+          "device_closed": true,
+          "worker_target_closed": true,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
@@ -5453,7 +5679,7 @@
           "maximum": 0.01
         }
       },
-      "next": "优先在原Node返回封送路径加入有界GC PerformanceEntry与同一command/事件循环迟到的关联，区分GC暂停、同步解析/序列化和OS调度；当前返回等待和Node迟到重叠仅定位阶段，未证明原因。基于已定位的Node分配/封送瓶颈选一个切片优化，保持原预算与完整数据/授权/取消围栏后才补受影响持续验收；随后gain/rapidseek/场景修订/真实撤权和后续独立PCM，最后真实长源/VFR/非单位速率。"
+      "next": "不重复原候选追捕稀有长尾或扩大heap/两槽预算。评审并移除preview宿主同进程launchServer→WebSocket connect的重复协议封送：用public Chromium launch及Node child_process诊断通道捕获真实ChildProcess，保持原PID发布、进程组kill/实际exit确认、10s启动/15s取消宽限与同一monitor/CSP/原凭据/固定修订/lease/generation/overlay围栏。先验证拥有者捕获、启动失败/迟到/取消/强制退出及独立PCM字节，再按新的产品执行身份补必要持续验收；GC记录不证明旧153ms长尾原因。随后gain/rapidseek/场景修订/真实撤权、后续独立PCM和真实长源/VFR/非单位速率。"
     }
   ],
   "resource_constraints": [

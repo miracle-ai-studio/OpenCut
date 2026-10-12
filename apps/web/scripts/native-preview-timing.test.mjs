@@ -37,19 +37,24 @@ test("refined page observer preserves PCM and records bounded long-task numbers 
 });
 test("dispatch keeps original biggest command identities and uncertainty intervals, rejects absent calibration and callbacks",()=>{
   const d=new NativePreviewDispatch(),rows=[];
+  d.enableGc(true);
   for(const stage of ["prepare","terminal"])for(let k=0;k<4;k++)d.clock(stage,100+k,0+k,102+k);
   for(let k=1;k<=40;k++){
     const row={command_id:String(k),start_sample:String((k-1)*4096),frame_count:4096,total_ms:k};rows.push(row);
     d.complete(row,{evaluate_enter_ms:100,evaluate_exit_ms:170,node_callback_enter_ms:122,node_callback_exit_ms:142,producer_enter_ms:10,hex_exit_ms:50,callback_enter_ms:20,callback_exit_ms:45,node_callback_calls:1});
     d.lag(k,k+25+k,k);
+    d.gcEntry(k,k,1,0);
   }
+  d.gcEntry(120,100,4,0);
   d.page_tasks={long_tasks_supported:true,long_task_count:2,long_tasks:[{start_ms:12,duration_ms:50},{start_ms:60,duration_ms:55}]};
   const raw=d.snapshot(),s=summarizeNativePreviewDispatch(raw,rows),t=s.tails[0];
   assert.equal(raw.tails.length,32);assert.equal(raw.timer_lags.length,32);assert.equal(t.command_id,"40");assert.equal(s.maximum_clock_uncertainty_ms,2);
   assert.deepEqual(t.evaluate_ingress,{lower_ms:10,upper_ms:12});assert.deepEqual(t.evaluate_return,{lower_ms:18,upper_ms:20});
   assert.deepEqual(t.callback_ingress,{lower_ms:0,upper_ms:2});assert.deepEqual(t.callback_return,{lower_ms:3,upper_ms:5});
   assert.equal(t.overlapping_selected_page_long_tasks.length,2);
-  for(const mutate of [x=>x.clock_samples.pop(),x=>x.tails[0].node_callback_calls=0,x=>x.tails[0].start_sample="1",x=>x.tails[0].evaluate_exit_ms=1,x=>x.timer_lags[0].late_ms=NaN,x=>x.page_tasks=null,x=>x.clock_samples.forEach(c=>c.after_ms+=20)]){
+  assert.equal(s.node_gc.count,41);assert.equal(s.node_gc.samples.length,32);assert.equal(s.node_gc.maximum_duration_ms,100);
+  assert.equal(t.overlapping_selected_node_gc.length,1);assert.equal(t.overlapping_selected_node_gc[0].kind,4);
+  for(const mutate of [x=>x.clock_samples.pop(),x=>x.tails[0].node_callback_calls=0,x=>x.tails[0].start_sample="1",x=>x.tails[0].evaluate_exit_ms=1,x=>x.timer_lags[0].late_ms=NaN,x=>x.page_tasks=null,x=>x.clock_samples.forEach(c=>c.after_ms+=20),x=>x.node_gc.samples[0].kind=0,x=>x.node_gc.samples[0].duration_ms=NaN,x=>x.node_gc.count=0,x=>x.node_gc.maximum_duration_ms=101,x=>x.node_gc.supported=false]){
     const bad=structuredClone(raw);mutate(bad);assert.throws(()=>summarizeNativePreviewDispatch(bad,rows));
   }
 });

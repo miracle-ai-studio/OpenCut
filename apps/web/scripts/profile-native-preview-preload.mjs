@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { PerformanceObserver } from "node:perf_hooks";
 import { BrowserRealm } from "../../../packages/classic-audio-renderer/host/browser.mjs";
 import { PacketReader, PacketWriter, CallbackBroker } from "../../../packages/classic-audio-renderer/host/protocol.mjs";
 import { installNativePreviewTiming, NativePreviewTiming } from "./native-preview-timing.mjs";
@@ -12,9 +13,13 @@ if (path.basename(process.argv[1]??"")==="preview-runner.mjs") {
   if(!directory||!path.isAbsolute(directory)||await fs.realpath(directory)!==directory||(await fs.lstat(directory)).isSymbolicLink())throw Error("Native timing needs an owned canonical directory");
   const file=await fs.open(path.join(directory,`native-${process.pid}.json`),"wx",0o600);
   const timing=new NativePreviewTiming(),dispatch=new NativePreviewDispatch();let current=null,saved=false;
+  dispatch.enableGc(PerformanceObserver.supportedEntryTypes.includes("gc"));
+  const collectGc=entries=>{for(const e of entries)dispatch.gcEntry(e.startTime,e.duration,e.detail.kind,e.detail.flags);};
+  const gcObserver=dispatch.gc.supported?new PerformanceObserver(list=>collectGc(list.getEntries())):null;
+  gcObserver?.observe({entryTypes:["gc"]});
   let expectedTimer=performance.now()+25;
   const timer=setInterval(()=>{const now=performance.now();dispatch.lag(expectedTimer-25,now,Math.max(0,now-expectedTimer));expectedTimer=now+25;},25);timer.unref();
-  async function save(){if(saved)return;saved=true;clearInterval(timer);const text=JSON.stringify({...timing.snapshot(),dispatch:dispatch.snapshot()});if(Buffer.byteLength(text)>2*1024*1024)throw Error("Native timing artifact budget exceeded");await file.writeFile(text);await file.close();}
+  async function save(){if(saved)return;saved=true;clearInterval(timer);if(gcObserver){collectGc(gcObserver.takeRecords());gcObserver.disconnect();}const text=JSON.stringify({...timing.snapshot(),dispatch:dispatch.snapshot()});if(Buffer.byteLength(text)>2*1024*1024)throw Error("Native timing artifact budget exceeded");await file.writeFile(text);await file.close();}
   const emit=PacketReader.prototype.emit;
   PacketReader.prototype.emit=function(event,p,...args){
     if(event==="packet"&&p?.type==="command"&&p.op==="next"){timing.command(p);current=p.id;}

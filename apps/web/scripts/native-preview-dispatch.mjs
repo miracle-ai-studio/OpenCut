@@ -6,7 +6,13 @@ function greatest(items,value,key,limit=32){
   if(value[key]>items[least][key])items[least]=value;
 }
 export class NativePreviewDispatch {
-  constructor(){this.clocks=[];this.tails=[];this.lags=[];this.lag_count=0;this.page_tasks=null;}
+  constructor(){this.clocks=[];this.tails=[];this.lags=[];this.lag_count=0;this.page_tasks=null;this.gc=null;}
+  enableGc(supported){if(typeof supported!=="boolean"||this.gc)throw Error("Invalid GC observation registration");this.gc={supported,count:0,total_duration_ms:0,maximum_duration_ms:0,samples:[]};}
+  gcEntry(start,duration,kind,flags){
+    if(!this.gc?.supported||![start,duration].every(Number.isFinite)||start<0||duration<0||![1,2,4,8,16].includes(kind)||!Number.isSafeInteger(flags)||flags<0||flags>65535)throw Error("Invalid GC observation");
+    this.gc.count++;this.gc.total_duration_ms+=duration;this.gc.maximum_duration_ms=Math.max(this.gc.maximum_duration_ms,duration);
+    greatest(this.gc.samples,{start_ms:start,duration_ms:duration,kind,flags},"duration_ms");
+  }
   clock(stage,before,page,after){
     if(!["prepare","terminal"].includes(stage)||this.clocks.length>=8||![before,page,after].every(Number.isFinite)||before<0||page<0||after<before)throw Error("Invalid clock calibration");
     this.clocks.push({stage,before_ms:before,page_ms:page,after_ms:after});
@@ -22,6 +28,7 @@ export class NativePreviewDispatch {
   }
   snapshot(){return {schema_version:1,clock_samples:this.clocks,tails:[...this.tails].sort((a,b)=>b.total_ms-a.total_ms),
     timer_lag_count:this.lag_count,timer_lags:[...this.lags].sort((a,b)=>b.late_ms-a.late_ms),page_tasks:this.page_tasks,
+    ...(this.gc?{node_gc:{...this.gc,samples:[...this.gc.samples].sort((a,b)=>b.duration_ms-a.duration_ms)}}:{}),
     scope:"Greatest32 observed command totals,25ms timer tardiness>=1ms and isolated-page long tasks; selection, not exhaustive events or CPU/GC/OS cause. Clock calibration bounds include round-trip uncertainty."};}
 }
 export function summarizeNativePreviewDispatch(raw,rows){
@@ -35,6 +42,11 @@ export function summarizeNativePreviewDispatch(raw,rows){
   const lower=Math.min(...stages.map(p=>p.lower_ms)),upper=Math.max(...stages.map(p=>p.upper_ms));
   if(upper-lower>10)throw Error("Dispatch clock uncertainty exceeds10ms");
   const interval=(a,b)=>({lower_ms:a,upper_ms:b});
+  if(raw.node_gc){
+    const g=raw.node_gc;if(typeof g.supported!=="boolean"||!Number.isSafeInteger(g.count)||g.count<0||![g.total_duration_ms,g.maximum_duration_ms].every(Number.isFinite)||g.total_duration_ms<0||g.maximum_duration_ms<0||g.total_duration_ms<g.maximum_duration_ms||!Array.isArray(g.samples)||g.samples.length!==Math.min(32,g.count)||!g.supported&&g.count!==0)throw Error("Incomplete GC observation");
+    for(const s of g.samples){const check=new NativePreviewDispatch();check.enableGc(true);check.gcEntry(s.start_ms,s.duration_ms,s.kind,s.flags);}
+    if(g.count&&Math.max(...g.samples.map(s=>s.duration_ms))!==g.maximum_duration_ms)throw Error("GC maximum lost from selected samples");
+  }
   const ids=new Set(),byId=new Map(rows.map(r=>[r.command_id,r]));
   const minimumSelected=[...rows].sort((a,b)=>b.total_ms-a.total_ms)[Math.min(32,rows.length)-1].total_ms;
   const tails=raw.tails.map(t=>{
@@ -44,6 +56,7 @@ export function summarizeNativePreviewDispatch(raw,rows){
     // Include tasks before producer entry or after last hex join: those are
     // precisely the dispatch/serialization intervals this witness investigates.
     const pageTasks=raw.page_tasks?.long_tasks?.filter(l=>l.start_ms<=t.evaluate_exit_ms-lower&&l.start_ms+l.duration_ms>=t.evaluate_enter_ms-upper)??[];
+    const gc=(raw.node_gc?.samples??[]).filter(s=>s.start_ms<=t.evaluate_exit_ms&&s.start_ms+s.duration_ms>=t.evaluate_enter_ms);
     return {command_id:t.command_id,start_sample:t.start_sample,total_ms:t.total_ms,
       evaluate_ingress:interval(t.producer_enter_ms+lower-t.evaluate_enter_ms,t.producer_enter_ms+upper-t.evaluate_enter_ms),
       evaluate_return:interval(t.evaluate_exit_ms-t.hex_exit_ms-upper,t.evaluate_exit_ms-t.hex_exit_ms-lower),
@@ -51,9 +64,11 @@ export function summarizeNativePreviewDispatch(raw,rows){
       callback_return:interval(t.callback_exit_ms+lower-t.node_callback_exit_ms,t.callback_exit_ms+upper-t.node_callback_exit_ms),
       node_callback_ms:t.node_callback_exit_ms-t.node_callback_enter_ms,
       page_body_ms:t.hex_exit_ms-t.producer_enter_ms,
-      overlapping_selected_node_timer_lags:nodeIntervals,overlapping_selected_page_long_tasks:pageTasks};
+      overlapping_selected_node_timer_lags:nodeIntervals,overlapping_selected_page_long_tasks:pageTasks,
+      ...(raw.node_gc?{overlapping_selected_node_gc:gc}:{} )};
   });
   for(const l of raw.timer_lags)if(![l.start_ms,l.end_ms,l.late_ms].every(Number.isFinite)||l.start_ms<0||l.end_ms<l.start_ms||l.late_ms<1)throw Error("Invalid selected timer lag");
   if(typeof raw.page_tasks?.long_tasks_supported!=="boolean"||!Array.isArray(raw.page_tasks.long_tasks)||raw.page_tasks.long_tasks.length>32||!Number.isSafeInteger(raw.page_tasks.long_task_count)||raw.page_tasks.long_task_count<raw.page_tasks.long_tasks.length||!raw.page_tasks.long_tasks_supported&&raw.page_tasks.long_task_count!==0||raw.page_tasks.long_tasks.some(t=>![t.start_ms,t.duration_ms].every(Number.isFinite)||t.start_ms<0||t.duration_ms<0))throw Error("Incomplete page task observation");
-  return {clock_bounds:stages,maximum_clock_uncertainty_ms:upper-lower,tails,timer_lag_count:raw.timer_lag_count,timer_lags:raw.timer_lags,page_tasks:raw.page_tasks,scope:raw.scope};
+  return {clock_bounds:stages,maximum_clock_uncertainty_ms:upper-lower,tails,timer_lag_count:raw.timer_lag_count,timer_lags:raw.timer_lags,page_tasks:raw.page_tasks,
+    ...(raw.node_gc?{node_gc:raw.node_gc,gc_scope:"Observed Node GC PerformanceEntries in the same monotonic clock; largest32 durations and aggregate counts. Overlap is not sole-cause attribution; no forced GC, heap expansion or CPU profile."}:{}),scope:raw.scope};
 }
