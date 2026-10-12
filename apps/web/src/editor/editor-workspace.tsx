@@ -36,6 +36,7 @@ import { SceneSwitcher } from "./projects/scenes";
 import { RenameProject } from "./projects/rename";
 import { ProjectBrowser } from "./projects/browser";
 import { ShortcutsDialog } from "./shared/shortcuts";
+import { FeedbackButton } from "./feedback/dialog";
 import { EffectsPanel } from "./effects/panel";
 import { CaptionsPanel } from "./assets/captions";
 import { SettingsPanel } from "./inspector/sequence-settings";
@@ -47,9 +48,12 @@ import { InspectorPanel } from "./inspector/panel";
 import { TasksPanel } from "./tasks/panel";
 import { ExportDialog } from "./tasks/export-dialog";
 import { HistoryPanel } from "./history/panel";
-import { Button } from "./shared/ui";
+import { Button, Modal } from "./shared/ui";
+import { AudioWavDialog } from "./workspace/v4/audio-wav-dialog";
+import { audioWavAvailability } from "./workspace/v4/audio-wav";
 import symbol from "./shared/brand/symbol.svg";
 import "./editor.css";
+import { V4Product } from "./workspace/v4/product";
 const tabs = [
   { id: "media", name: "Media", icon: FolderOpen },
   { id: "sounds", name: "Sounds", icon: Music2 },
@@ -76,6 +80,7 @@ function Workspace() {
   const {
     controller,
     snapshot,
+    v4,
     projects,
     historical,
     busy,
@@ -86,6 +91,8 @@ function Workspace() {
   const [layouts] = useState(readWorkspaceLayouts);
   const [guide, setGuide] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const [audioExporting, setAudioExporting] = useState(false),
+    [v4Tasks, setV4Tasks] = useState(false);
   const [exporting, setExporting] = useState(false),
     [tab, setTab] = useState("media"),
     [browsing, setBrowsing] = useState(true);
@@ -127,13 +134,20 @@ function Workspace() {
     setBrowsing(true);
   };
   const showEditor = () => {
-    const id = controller.getSnapshot().snapshot?.project.id;
+    const state = controller.getSnapshot();
+    const id = state.snapshot?.project.id ?? state.v4?.head.project.id;
     if (id) {
       history.pushState(null, "", editorProjectPath(id));
       setBrowsing(false);
     }
   };
   const active = !!snapshot && !browsing;
+  const activeV4 = !!v4 && !browsing;
+  const audioAvailability = v4 ? audioWavAvailability(v4) : null;
+  useEffect(() => {
+    setAudioExporting(false);
+    setV4Tasks(false);
+  }, [activeV4, v4?.head.project.id]);
   const activeJobs = jobs.filter(
     (job) => job.state === "running" || job.state === "queued",
   ).length;
@@ -147,24 +161,28 @@ function Workspace() {
             onClick={showProjects}
             icon={<img className="brand-symbol" src={symbol} alt="OpenCut" />}
           />
-          {active ? (
+          {active || activeV4 ? (
             <>
               <Button
                 aria-label={t("Back to projects")}
                 onClick={showProjects}
                 icon={<ArrowLeft size={14} />}
               />
-              <RenameProject
-                project={{
-                  id: snapshot.project.id,
-                  name: snapshot.project.name,
-                  revision: snapshot.revision,
-                  format: snapshot.format,
-                }}
-              />
+              {snapshot ? (
+                <RenameProject
+                  project={{
+                    id: snapshot.project.id,
+                    name: snapshot.project.name,
+                    revision: snapshot.revision,
+                    format: snapshot.format,
+                  }}
+                />
+              ) : (
+                <strong>{v4?.head.project.name} · V4</strong>
+              )}
               <ChevronDown size={13} />
               <span className="save-status">
-                {historical
+                {historical || v4?.historical
                   ? t("Saved revision")
                   : busy
                     ? t("Saving…")
@@ -176,8 +194,10 @@ function Workspace() {
           )}
         </div>
         <div className="toolbar">
+          <FeedbackButton />
           <Button
             aria-label={t("Shortcuts")}
+            disabled={activeV4}
             title={t("Shortcuts")}
             icon={<Keyboard size={17} />}
             onClick={() => setShortcuts(true)}
@@ -191,13 +211,27 @@ function Workspace() {
             />
           )}
           <Preferences />
-          {active && (
+          {(active || activeV4) && (
             <Button
-              onClick={() => setTab("tasks")}
+              onClick={() => (activeV4 ? setV4Tasks(true) : setTab("tasks"))}
               icon={<ListTodo size={15} />}
             >
               {t("Tasks")}
               {activeJobs ? ` · ${activeJobs}` : ""}
+            </Button>
+          )}
+          {activeV4 && (
+            <Button
+              disabled={busy || (!!audioAvailability?.reason && !v4?.audioWav)}
+              title={
+                audioAvailability?.reason
+                  ? t(audioAvailability.reason)
+                  : undefined
+              }
+              onClick={() => setAudioExporting(true)}
+              icon={<Download size={15} />}
+            >
+              {t("Export audio WAV")}
             </Button>
           )}
           {active && (
@@ -211,7 +245,9 @@ function Workspace() {
           )}
         </div>
       </header>
-      {active ? (
+      {activeV4 ? (
+        <V4Product />
+      ) : active ? (
         <>
           <EditorGuide forced={guide} onClose={() => setGuide(false)} />
           <div className="workspace-layout">
@@ -342,7 +378,20 @@ function Workspace() {
         </div>
       )}
       {shortcuts && <ShortcutsDialog onClose={() => setShortcuts(false)} />}
-      {exporting && <ExportDialog onClose={() => setExporting(false)} />}
+      {activeV4 && audioExporting && (
+        <AudioWavDialog
+          onClose={() => setAudioExporting(false)}
+          showTasks={() => setV4Tasks(true)}
+        />
+      )}
+      {activeV4 && v4Tasks && (
+        <Modal title={t("Tasks")} onClose={() => setV4Tasks(false)}>
+          <TasksPanel />
+        </Modal>
+      )}
+      {exporting && snapshot && (
+        <ExportDialog onClose={() => setExporting(false)} />
+      )}
     </div>
   );
 }

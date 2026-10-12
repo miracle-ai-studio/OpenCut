@@ -59,7 +59,7 @@ impl EditorApplication {
             &input.project_id,
             ProjectAction::Read,
         )?;
-        sqlite_project_v3::project_head_revision(&tx, &input.project_id)?;
+        sqlite_project_document::project_head_revision(&tx, &input.project_id)?;
         let view = state(&tx, &input.project_id)?;
         tx.commit().map_err(storage_error)?;
         Ok(view)
@@ -98,7 +98,7 @@ impl EditorApplication {
         )? {
             return decode_json(&value, "edit-control receipt");
         }
-        let head_revision = sqlite_project_v3::project_head_revision(&tx, &input.project_id)?;
+        let head_revision = sqlite_project_document::project_head_revision(&tx, &input.project_id)?;
         let current = state(&tx, &input.project_id)?;
         if current.generation != input.expected_generation {
             return Err(EditorError::new(

@@ -286,6 +286,32 @@ pub fn validate_import_result(
         "content_hash" => value.as_str() == Some(input.content_hash.as_str()),
         "size" => value.as_u64() == Some(input.size_bytes),
         "has_audio" => value.is_boolean(),
+        "audio_metadata" => {
+            metadata
+                .get("has_audio")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+                && matches!(
+                    result.asset.kind,
+                    opencut_contracts::AssetKind::Audio | opencut_contracts::AssetKind::Video
+                )
+                && serde_json::from_value::<opencut_contracts::project_v4::AudioMetadataV4>(
+                    value.clone(),
+                )
+                .is_ok_and(|format| format.sample_rate > 0 && format.channels > 0)
+        }
+        "frame_rate" => {
+            result.asset.kind == opencut_contracts::AssetKind::Video
+                && serde_json::from_value::<opencut_contracts::FrameRate>(value.clone())
+                    .is_ok_and(|rate| rate.numerator > 0 && rate.denominator > 0)
+        }
+        opencut_media_contracts::CLASSIC_PACKET_RATE_METADATA_KEY_V1 => {
+            result.asset.kind == opencut_contracts::AssetKind::Video
+                && serde_json::from_value::<opencut_media_contracts::ClassicPacketRateV1>(
+                    value.clone(),
+                )
+                .is_ok_and(|observation| observation.validate().is_ok())
+        }
         "width" | "height" => {
             value.is_null() || value.as_u64().is_some_and(|v| v <= u32::MAX as u64)
         }

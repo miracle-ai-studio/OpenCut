@@ -36,4 +36,4 @@ flowchart TD
 
 这里的“只读”指能力调用不写工程状态、不创建媒体/插件/CAS 目录。CLI 首次打开新 workspace 仍会初始化 SQLite；不承诺整个进程零文件写入。验收从已创建的 workspace 起比较完整数据库内容和目录变化。
 
-依赖与源码门禁位于 `scripts/check-contract-boundaries.py`；真实 CLI 只读动线为 `scripts/verify-read-only-capabilities.py`，WASM 计划动线为 `scripts/verify-plugin.py`。实际结果见 [本轮验收](../qa/r2-native-capabilities-2026-09-21.md)。后端无关合成描述、完整历史版本兼容矩阵和发行尚未由本次迁移完成。
+依赖与源码门禁位于 `scripts/check-contract-boundaries.py`；真实 CLI 只读动线为 `scripts/verify-read-only-capabilities.py`，WASM 计划动线为 `scripts/verify-plugin.py`。实际结果见 [当前交付台账](headless-completion-ledger.md)。后端无关合成描述、完整历史版本兼容矩阵和发行尚未由本次迁移完成。

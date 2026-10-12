@@ -2,6 +2,7 @@ import { useMediaPreview } from "../workspace/media-preview";
 import { MediaArt } from "../shared/media-art";
 import { t, useLocale } from "../shared/locale";
 import { TimelineCommands } from "./commands";
+import { DeleteTrack } from "./delete-track";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -22,17 +23,25 @@ import {
 } from "lucide-react";
 import { useWorkspace } from "../workspace/context";
 import { activeSequence } from "../model/types";
-import type { Asset, Clip, Operation, Track } from "../model/types";
+import type { Asset, Clip, Operation, Track, Snapshot } from "../model/types";
 import {
   addTime,
   atFrame,
   compareTime,
   formatTime,
   secondsForDisplay,
-  fromSeconds,
+  subtractTime,
 } from "../model/time";
 import { Button, Empty } from "../shared/ui";
 import { placeAsset } from "../model/edit-requests";
+import { copyClip, type CopiedClip } from "../model/clip-clipboard";
+import {
+  clipSelections,
+  deleteClips,
+  moveClips,
+  sameSelection,
+  type ClipSelection,
+} from "../model/selection";
 import {
   duration,
   PIXELS_PER_SECOND,
@@ -51,6 +60,20 @@ type Drag = {
   kind: "move" | "start" | "end";
   x: number;
   time: number;
+  revision: string;
+  sequenceId: string;
+  destination: string;
+  selected: ClipSelection[];
+  moved: boolean;
+  scrollLeft: number;
+  error?: string;
+};
+type Box = {
+  x: number;
+  y: number;
+  endX: number;
+  endY: number;
+  previous: ClipSelection[];
 };
 export function TimelinePanel() {
   useLocale();
@@ -60,8 +83,10 @@ export function TimelinePanel() {
     historical,
     sequenceId,
     selection,
+    selections,
     playhead,
     busy,
+    ripple,
   } = useWorkspace();
   const view = historical ?? snapshot,
     sequence = activeSequence(view, sequenceId);
@@ -69,6 +94,12 @@ export function TimelinePanel() {
     [snap, setSnap] = useState(true),
     [scroll, setScroll] = useState({ left: 0, width: 900 }),
     [drag, setDrag] = useState<Drag | null>(null);
+  const [trackDeletion, setTrackDeletion] = useState<{
+    view: Snapshot;
+    sequenceId: string;
+    trackId: string;
+  } | null>(null);
+  useEffect(() => setTrackDeletion(null), [view?.project.id, sequenceId]);
   const viewport = useRef<HTMLDivElement>(null),
     dragRef = useRef<Drag | null>(null);
   const restoredZoom = useRef(1),
@@ -99,11 +130,15 @@ export function TimelinePanel() {
     if (view && sequence && !historical)
       saveTimelinePreferences(view.project.id, sequence.id, { zoom: value });
   };
-  const clipboard = useRef<{
-    clip: Clip;
-    project: string;
-    trackId: string;
-  } | null>(null);
+  const clipboard = useRef<CopiedClip[]>([]);
+  const importAbort = useRef<AbortController | null>(null);
+  const [importProgress, setImportProgress] = useState<string | null>(null);
+  useEffect(
+    () => () => importAbort.current?.abort(),
+    [snapshot?.project.id, sequenceId],
+  );
+  const boxRef = useRef<Box | null>(null);
+  const [box, setBox] = useState<Box | null>(null);
   const [commands, setCommands] = useState(false);
   const scale = PIXELS_PER_SECOND * zoom;
   useEffect(() => {
@@ -119,6 +154,8 @@ export function TimelinePanel() {
   useEffect(() => {
     setDrag(null);
     dragRef.current = null;
+    boxRef.current = null;
+    setBox(null);
   }, [view?.project.id, view?.revision, sequenceId]);
   const end = sequence
       ? Math.max(
@@ -156,139 +193,175 @@ export function TimelinePanel() {
   }, [sequence, zoom, scroll, scale, end]);
   const run = (label: string, operations: Operation[]) =>
     void controller
-      .mutate(label, operations)
+      .mutate(label, operations, [], view?.revision)
       .catch((error) => controller.report(error));
   const selected = sequence?.tracks
     .flatMap((track) => track.clips.map((clip) => ({ track, clip })))
     .find(
       (item) => selection?.kind === "clip" && item.clip.id === selection.id,
     );
-  const split = () => {
-    if (selected && sequence)
-      run("Split clip", [
-        {
-          type: "clip.split",
-          sequence_id: sequence.id,
-          track_id: selected.track.id,
-          clip_id: selected.clip.id,
-          at: atFrame(secondsForDisplay(playhead), sequence.fps),
-          right_clip_id: crypto.randomUUID(),
-        },
-      ]);
-  };
+  const split = (retain: "both" | "left" | "right" = "both") =>
+    void controller.split(retain).catch((error) => controller.report(error));
+  const selectedClips =
+    sequence?.tracks.flatMap((track) =>
+      track.clips
+        .filter((clip) =>
+          selections.some(
+            (item) =>
+              item.kind === "clip" &&
+              item.trackId === track.id &&
+              item.id === clip.id,
+          ),
+        )
+        .map((clip) => ({ track, clip })),
+    ) ?? [];
   const remove = () => {
-    if (selected && sequence)
-      run("Delete clip", [
-        {
-          type: "clip.delete",
-          sequence_id: sequence.id,
-          track_id: selected.track.id,
-          clip_id: selected.clip.id,
-        },
-      ]);
-  };
-  const copy = () => {
-    if (selected && view)
-      clipboard.current = {
-        clip: structuredClone(selected.clip),
-        project: view.project.id,
-        trackId: selected.track.id,
-      };
-  };
-  const paste = (duplicate = false) => {
-    const source =
-      duplicate && selected && view
-        ? {
-            clip: selected.clip,
-            project: view.project.id,
-            trackId: selected.track.id,
-          }
-        : clipboard.current;
-    if (!source || !sequence || source.project !== view?.project.id) return;
-    const track = sequence.tracks.find((track) => track.id === source.trackId);
-    if (!track || track.locked) return;
-    const id = crypto.randomUUID();
-    const start = duplicate
-      ? track.clips.reduce(
-          (end, clip) =>
-            Math.max(
-              end,
-              secondsForDisplay(
-                addTime(
-                  clip.timeline_range.start,
-                  clip.timeline_range.duration,
-                ),
-              ),
-            ),
-          0,
-        )
-      : secondsForDisplay(playhead);
-    const keyIds = new Map<string, string>();
-    const clip = {
-      ...structuredClone(source.clip),
-      id,
-      timeline_range: {
-        ...source.clip.timeline_range,
-        start: fromSeconds(start),
-      },
-      channels: source.clip.channels?.map((channel) => ({
-        ...channel,
-        keyframes: channel.keyframes.map((frame) => {
-          const keyId = crypto.randomUUID();
-          keyIds.set(frame.id, keyId);
-          return { ...frame, id: keyId };
-        }),
-      })),
-    };
-    const graph = view.visual.find(
-      (graph) => graph.sequence_id === sequence.id,
-    );
-    const visual = [
-      ...(graph?.effects
-        .filter((effect) => effect.target_id === source.clip.id)
-        .map((effect) => ({
-          type: "effect.put" as const,
-          sequence_id: sequence.id,
-          effect: { ...effect, id: crypto.randomUUID(), target_id: id },
-        })) ?? []),
-      ...(graph?.masks
-        .filter((mask) => mask.target_id === source.clip.id)
-        .map((mask) => ({
-          type: "mask.put" as const,
-          sequence_id: sequence.id,
-          mask: { ...mask, id: crypto.randomUUID(), target_id: id },
-        })) ?? []),
-      ...view.curves
-        .filter(
-          (curve) =>
-            curve.clip_id === source.clip.id && keyIds.has(curve.keyframe_id),
-        )
-        .map((curve) => ({
-          type: "keyframe.curve_set" as const,
-          sequence_id: sequence.id,
-          curve: {
-            ...curve,
-            id: crypto.randomUUID(),
-            clip_id: id,
-            keyframe_id: keyIds.get(curve.keyframe_id)!,
-          },
-        })),
-    ];
+    if (!view || !sequence || !selectedClips.length) return;
+    const selected = selectedClips.map(({ track, clip }) => ({
+      kind: "clip" as const,
+      trackId: track.id,
+      id: clip.id,
+    }));
+    const ordered = deleteClips(view, sequence.id, selected);
     void controller
       .mutate(
-        duplicate ? "Duplicate clip" : "Paste clip",
-        [
-          {
-            type: "clip.insert",
-            sequence_id: sequence.id,
-            track_id: track.id,
-            clip,
-          },
-        ],
-        visual,
+        "Delete clips",
+        view.format === "base"
+          ? selected.map((item) => ({
+              type: "clip.delete" as const,
+              sequence_id: sequence.id,
+              track_id: item.trackId,
+              clip_id: item.id,
+            }))
+          : [],
+        view.format === "visual" ? ordered : [],
+        view.revision,
       )
-      .then(() => controller.select({ kind: "clip", trackId: track.id, id }))
       .catch((error) => controller.report(error));
+  };
+  const copy = () => {
+    if (view && sequence && selectedClips.length)
+      clipboard.current = selectedClips.map(({ track, clip }) =>
+        copyClip(view, sequence.id, track.id, clip),
+      );
+  };
+  const paste = (duplicate = false) => {
+    if (!view || !sequence) return;
+    const sources = duplicate
+      ? selectedClips.map(({ track, clip }) =>
+          copyClip(view, sequence.id, track.id, clip),
+        )
+      : clipboard.current;
+    if (
+      !sources.length ||
+      sources.some((source) => source.project !== view.project.id)
+    )
+      return;
+    try {
+      const earliest = sources.reduce(
+        (time, source) =>
+          compareTime(source.clip.timeline_range.start, time) < 0
+            ? source.clip.timeline_range.start
+            : time,
+        sources[0].clip.timeline_range.start,
+      );
+      const start = duplicate
+        ? sources.reduce((end, source) => {
+            const track = sequence.tracks.find(
+              (track) => track.id === source.trackId,
+            );
+            return (
+              track?.clips.reduce((end, clip) => {
+                const value = addTime(
+                  clip.timeline_range.start,
+                  clip.timeline_range.duration,
+                );
+                return compareTime(end, value) < 0 ? value : end;
+              }, end) ?? end
+            );
+          }, earliest)
+        : atFrame(secondsForDisplay(playhead), sequence.fps);
+      const operations: Operation[] = [],
+        visual: import("../model/types").VisualOperation[] = [],
+        next: ClipSelection[] = [];
+      for (const source of sources) {
+        const track = sequence.tracks.find(
+          (track) => track.id === source.trackId,
+        );
+        if (!track || track.locked)
+          throw new Error("Unlock the target track before adding clips.");
+        const id = crypto.randomUUID(),
+          keyIds = new Map<string, string>();
+        const clip = {
+          ...structuredClone(source.clip),
+          id,
+          timeline_range: {
+            ...source.clip.timeline_range,
+            start: addTime(
+              start,
+              subtractTime(source.clip.timeline_range.start, earliest),
+            ),
+          },
+          channels: source.clip.channels?.map((channel) => ({
+            ...channel,
+            keyframes: channel.keyframes.map((frame) => {
+              const keyId = crypto.randomUUID();
+              keyIds.set(frame.id, keyId);
+              return { ...frame, id: keyId };
+            }),
+          })),
+        };
+        operations.push({
+          type: "clip.insert",
+          sequence_id: sequence.id,
+          track_id: track.id,
+          clip,
+        });
+        visual.push(
+          ...source.effects.map((effect) => ({
+            type: "effect.put" as const,
+            sequence_id: sequence.id,
+            effect: { ...effect, id: crypto.randomUUID(), target_id: id },
+          })),
+          ...source.masks.map((mask) => ({
+            type: "mask.put" as const,
+            sequence_id: sequence.id,
+            mask: { ...mask, id: crypto.randomUUID(), target_id: id },
+          })),
+          ...source.curves
+            .filter((curve) => keyIds.has(curve.keyframe_id))
+            .map((curve) => ({
+              type: "keyframe.curve_set" as const,
+              sequence_id: sequence.id,
+              curve: {
+                ...curve,
+                sequence_id: sequence.id,
+                id: crypto.randomUUID(),
+                clip_id: id,
+                keyframe_id: keyIds.get(curve.keyframe_id)!,
+              },
+            })),
+        );
+        next.push({ kind: "clip", trackId: track.id, id });
+      }
+      void controller
+        .mutate(
+          duplicate ? "Duplicate clips" : "Paste clips",
+          operations,
+          visual,
+          view.revision,
+        )
+        .then(() => {
+          if (
+            controller.getSnapshot().snapshot?.project.id === view.project.id &&
+            controller.getSnapshot().sequenceId === sequence.id
+          )
+            controller.selectMany(next);
+        })
+        .catch((error) => controller.report(error));
+    } catch (error) {
+      controller.report(error);
+    }
   };
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
@@ -301,6 +374,8 @@ export function TimelinePanel() {
       if (event.key === "Escape") {
         setDrag(null);
         dragRef.current = null;
+        boxRef.current = null;
+        setBox(null);
         controller.select(null);
       }
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
@@ -322,11 +397,13 @@ export function TimelinePanel() {
       if (historical || busy) return;
       if (event.metaKey || event.ctrlKey) {
         const key = event.key.toLowerCase();
-        if (["z", "c", "v", "d"].includes(key)) event.preventDefault();
+        if (["z", "c", "v", "d", "a"].includes(key)) event.preventDefault();
         if (key === "z")
           void (event.shiftKey ? controller.redo() : controller.undo()).catch(
             (error) => controller.report(error),
           );
+        if (key === "a" && sequence)
+          controller.selectMany(clipSelections(sequence));
         if (key === "c") copy();
         if (key === "v") paste();
         if (key === "d") paste(true);
@@ -339,6 +416,17 @@ export function TimelinePanel() {
         event.preventDefault();
         split();
       }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+        const key = event.key.toLowerCase();
+        if (key === "q" || key === "w") {
+          event.preventDefault();
+          split(key === "q" ? "right" : "left");
+        }
+        if (key === "r") {
+          event.preventDefault();
+          controller.toggleRipple();
+        }
+      }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -350,13 +438,61 @@ export function TimelinePanel() {
     kind: Drag["kind"],
   ) => {
     event.stopPropagation();
-    controller.select({ kind: "clip", id: clip.id, trackId: track.id });
-    if (event.button !== 0 || track.locked || historical || busy) return;
+    if (event.button !== 0 || !sequence || !view) return;
+    const item: ClipSelection = {
+      kind: "clip",
+      id: clip.id,
+      trackId: track.id,
+    };
+    if (event.shiftKey) {
+      const ordered = clipSelections(sequence),
+        from = ordered.findIndex(
+          (entry) => selection && sameSelection(entry, selection),
+        ),
+        to = ordered.findIndex((entry) => sameSelection(entry, item));
+      controller.selectMany(
+        from < 0
+          ? [item]
+          : [
+              ...ordered
+                .slice(Math.min(from, to), Math.max(from, to) + 1)
+                .filter((entry) => !sameSelection(entry, item)),
+              item,
+            ],
+      );
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+      controller.select(item, "toggle");
+      return;
+    }
+    const group =
+      kind === "move" &&
+      selections.some((entry) => sameSelection(entry, item)) &&
+      selections.every((entry) => entry.kind === "clip")
+        ? (selections as ClipSelection[])
+        : [item];
+    controller.selectMany(group);
+    if (track.locked || historical || busy) return;
+    if (kind === "move") {
+      try {
+        moveClips(sequence, group, item, track.id, clip.timeline_range.start);
+      } catch (error) {
+        controller.report(error);
+        return;
+      }
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     const value = {
       clip,
       track,
       kind,
+      revision: view.revision,
+      sequenceId: sequence.id,
+      destination: track.id,
+      selected: group,
+      moved: false,
+      scrollLeft: viewport.current?.scrollLeft ?? 0,
       x: event.clientX,
       time: secondsForDisplay(
         kind === "end"
@@ -369,7 +505,13 @@ export function TimelinePanel() {
   };
   const moveDrag = (event: ReactPointerEvent) => {
     const value = dragRef.current;
-    if (!value || !sequence) return;
+    if (
+      !value ||
+      !sequence ||
+      view?.revision !== value.revision ||
+      sequence.id !== value.sequenceId
+    )
+      return;
     const initial = secondsForDisplay(
       value.kind === "end"
         ? addTime(
@@ -380,14 +522,64 @@ export function TimelinePanel() {
     );
     const time = secondsForDisplay(
       snappedTime(
-        initial + (event.clientX - value.x) / scale,
+        initial +
+          (event.clientX -
+            value.x +
+            (viewport.current?.scrollLeft ?? 0) -
+            value.scrollLeft) /
+            scale,
         sequence,
-        value.clip.id,
+        value.kind === "move"
+          ? value.selected.map((item) => item.id)
+          : value.clip.id,
         scale,
         snap,
       ),
     );
-    const next = { ...value, time };
+    let destination = value.destination,
+      error: string | undefined;
+    if (value.kind === "move") {
+      const lane = [
+        ...(viewport.current?.querySelectorAll<HTMLElement>(
+          ".track-lane[data-track-id]",
+        ) ?? []),
+      ].find((lane) => {
+        const rect = lane.getBoundingClientRect();
+        return (
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        );
+      });
+      destination = lane?.dataset.trackId ?? "";
+      try {
+        moveClips(
+          sequence,
+          value.selected,
+          { kind: "clip", id: value.clip.id, trackId: value.track.id },
+          destination,
+          atFrame(time, sequence.fps),
+        );
+      } catch (e) {
+        error = e instanceof Error ? e.message : String(e);
+      }
+    }
+    const next = {
+      ...value,
+      time,
+      destination,
+      error,
+      moved:
+        value.moved ||
+        Math.abs(
+          event.clientX -
+            value.x +
+            (viewport.current?.scrollLeft ?? 0) -
+            value.scrollLeft,
+        ) >= 4 ||
+        destination !== value.track.id,
+    };
     dragRef.current = next;
     setDrag(next);
   };
@@ -395,21 +587,58 @@ export function TimelinePanel() {
     const value = dragRef.current;
     dragRef.current = null;
     setDrag(null);
-    if (!value || !sequence) return;
+    const live = controller.getSnapshot();
+    if (
+      !value ||
+      !sequence ||
+      live.snapshot?.revision !== value.revision ||
+      live.snapshot.project.id !== view?.project.id ||
+      live.sequenceId !== value.sequenceId ||
+      live.historical ||
+      live.busy
+    )
+      return;
+    if (!value.moved && value.kind === "move") {
+      controller.select({
+        kind: "clip",
+        id: value.clip.id,
+        trackId: value.track.id,
+      });
+      return;
+    }
     const time = atFrame(value.time, sequence.fps);
     try {
       if (value.kind === "move") {
-        if (compareTime(time, value.clip.timeline_range.start) !== 0)
-          run("Move clip", [
-            {
-              type: "clip.move",
-              sequence_id: sequence.id,
-              track_id: value.track.id,
-              clip_id: value.clip.id,
-              destination_track_id: value.track.id,
-              start: time,
-            },
-          ]);
+        if (value.error) throw new Error(value.error);
+        const operations = moveClips(
+          sequence,
+          value.selected,
+          { kind: "clip", id: value.clip.id, trackId: value.track.id },
+          value.destination,
+          time,
+        );
+        if (operations.length)
+          void controller
+            .mutate("Move clips", operations, [], value.revision)
+            .then(() => {
+              if (
+                controller.getSnapshot().snapshot?.project.id !==
+                  view?.project.id ||
+                controller.getSnapshot().sequenceId !== sequence.id
+              )
+                return;
+              controller.selectMany(
+                value.selected.map((item) => {
+                  const op = operations.find(
+                    (op) => op.type === "clip.move" && op.clip_id === item.id,
+                  );
+                  return op?.type === "clip.move"
+                    ? { ...item, trackId: op.destination_track_id }
+                    : item;
+                }),
+              );
+            })
+            .catch((error) => controller.report(error));
       } else {
         const range = trimmedRange(
           value.clip,
@@ -446,6 +675,26 @@ export function TimelinePanel() {
         },
       ]);
   };
+  let moves: Operation[] = [];
+  if (
+    drag?.kind === "move" &&
+    !drag.error &&
+    sequence &&
+    view?.revision === drag.revision &&
+    sequence.id === drag.sequenceId
+  )
+    moves = moveClips(
+      sequence,
+      drag.selected,
+      { kind: "clip", id: drag.clip.id, trackId: drag.track.id },
+      drag.destination,
+      atFrame(drag.time, sequence.fps),
+    );
+  const cancelBox = () => {
+    if (boxRef.current) controller.selectMany(boxRef.current.previous);
+    boxRef.current = null;
+    setBox(null);
+  };
   return (
     <section className="timeline panel" aria-label={t("Timeline")}>
       <div className="timeline-toolbar">
@@ -476,10 +725,26 @@ export function TimelinePanel() {
           <Button
             aria-label={t("Split clip")}
             title={t("Split at playhead · S")}
-            disabled={!selected || !!historical || busy}
-            onClick={split}
+            disabled={!sequence || !!historical || busy}
+            onClick={() => split()}
             icon={<Scissors size={15} />}
           />
+          <Button
+            aria-label={t("Split and remove left")}
+            title={t("Split and remove left · Q")}
+            disabled={!sequence || !!historical || busy}
+            onClick={() => split("right")}
+          >
+            {t("Remove left")}
+          </Button>
+          <Button
+            aria-label={t("Split and remove right")}
+            title={t("Split and remove right · W")}
+            disabled={!sequence || !!historical || busy}
+            onClick={() => split("left")}
+          >
+            {t("Remove right")}
+          </Button>
           <Button
             aria-label={t("Delete clip")}
             disabled={!selected || !!historical || busy}
@@ -493,6 +758,15 @@ export function TimelinePanel() {
             onClick={() => setSnap(!snap)}
             icon={<Magnet size={15} />}
           />
+          <Button
+            aria-label={t("Ripple editing")}
+            title={t("Ripple editing · R")}
+            aria-pressed={ripple}
+            disabled={!!historical || busy}
+            onClick={() => controller.toggleRipple()}
+          >
+            {t("Ripple")}
+          </Button>
           <Button
             disabled={!!historical || busy}
             onClick={() =>
@@ -513,7 +787,21 @@ export function TimelinePanel() {
             {t("Timeline edit")}
           </Button>
         )}
+        {importProgress && (
+          <div className="toolbar" role="status">
+            <span>{importProgress}</span>
+            <Button onClick={() => importAbort.current?.abort()}>
+              {t("Cancel import")}
+            </Button>
+          </div>
+        )}
         <output className="timecode">{formatTime(playhead)}</output>
+        <output aria-label={t("Selected clips")}>
+          {selectedClips.length > 1
+            ? t("{count} clips selected", { count: selectedClips.length })
+            : ""}
+        </output>
+        {drag?.error && <output role="status">{t(drag.error)}</output>}
         <div className="toolbar">
           <Button
             aria-label={t("Zoom out timeline")}
@@ -555,7 +843,98 @@ export function TimelinePanel() {
             });
         }}
       >
-        <div className="timeline-body" style={{ width: width + 160 }}>
+        <div
+          className="timeline-body"
+          style={{ width: width + 160 }}
+          onPointerDown={(event) => {
+            if (
+              event.button !== 0 ||
+              busy ||
+              !(event.target as HTMLElement).closest(".track-lane") ||
+              (event.target as HTMLElement).closest(".timeline-clip")
+            )
+              return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const previous = selections.filter(
+              (item): item is ClipSelection => item.kind === "clip",
+            );
+            const value = {
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top,
+              endX: event.clientX - rect.left,
+              endY: event.clientY - rect.top,
+              previous,
+            };
+            boxRef.current = value;
+            setBox(value);
+            if (!event.ctrlKey && !event.metaKey && !event.shiftKey)
+              controller.selectMany([]);
+            else value.previous = previous;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            // Keep the original set for cancellation; additive selection is separate.
+            event.currentTarget.dataset.additive = String(
+              event.ctrlKey || event.metaKey || event.shiftKey,
+            );
+          }}
+          onPointerMove={(event) => {
+            const current = boxRef.current;
+            if (!current) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const next = {
+              ...current,
+              endX: event.clientX - rect.left,
+              endY: event.clientY - rect.top,
+            };
+            boxRef.current = next;
+            setBox(next);
+            const left = rect.left + Math.min(next.x, next.endX),
+              right = rect.left + Math.max(next.x, next.endX),
+              top = rect.top + Math.min(next.y, next.endY),
+              bottom = rect.top + Math.max(next.y, next.endY);
+            const hit: ClipSelection[] = [];
+            event.currentTarget
+              .querySelectorAll<HTMLElement>("[data-clip-id]")
+              .forEach((element) => {
+                const bounds = element.getBoundingClientRect(),
+                  trackId =
+                    element.closest<HTMLElement>("[data-track-id]")?.dataset
+                      .trackId;
+                if (
+                  trackId &&
+                  bounds.left < right &&
+                  bounds.right > left &&
+                  bounds.top < bottom &&
+                  bounds.bottom > top
+                )
+                  hit.push({
+                    kind: "clip",
+                    trackId,
+                    id: element.dataset.clipId!,
+                  });
+              });
+            controller.selectMany(
+              event.currentTarget.dataset.additive === "true"
+                ? [...current.previous, ...hit]
+                : hit,
+            );
+          }}
+          onPointerUp={() => {
+            boxRef.current = null;
+            setBox(null);
+          }}
+          onPointerCancel={cancelBox}
+        >
+          {box && (
+            <div
+              className="timeline-selection-box"
+              style={{
+                left: Math.min(box.x, box.endX),
+                top: Math.min(box.y, box.endY),
+                width: Math.abs(box.endX - box.x),
+                height: Math.abs(box.endY - box.y),
+              }}
+            />
+          )}
           <div className="timeline-ruler">
             <div className="track-heading ruler-corner">{t("TIMELINE")}</div>
             <div
@@ -623,16 +1002,62 @@ export function TimelinePanel() {
                       track.locked ? <Lock size={12} /> : <Unlock size={12} />
                     }
                   />
+                  <Button
+                    aria-label={t("Delete track {name}", { name: track.name })}
+                    title={
+                      track.locked
+                        ? t("Unlock this track before deleting it.")
+                        : t("Delete track")
+                    }
+                    disabled={!!historical || busy || track.locked}
+                    onClick={() => {
+                      if (view && sequence)
+                        setTrackDeletion({
+                          view,
+                          sequenceId: sequence.id,
+                          trackId: track.id,
+                        });
+                    }}
+                    icon={<Trash2 size={12} />}
+                  />
                 </div>
               </div>
               <div
                 className="track-lane"
+                data-track-id={track.id}
                 style={{ width }}
                 onDragOver={(event) => {
-                  if (!historical && !track.locked) event.preventDefault();
+                  if (!historical && !busy && !importAbort.current)
+                    event.preventDefault();
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
+                  if (historical || busy || importAbort.current) return;
+                  if (event.dataTransfer.files.length) {
+                    const rect = event.currentTarget.getBoundingClientRect(),
+                      request = new AbortController();
+                    const at = atFrame(
+                      Math.max(0, (event.clientX - rect.left) / scale),
+                      sequence.fps,
+                    );
+                    importAbort.current = request;
+                    setImportProgress(t("Preparing media…"));
+                    void controller
+                      .importMedia(
+                        Array.from(event.dataTransfer.files),
+                        setImportProgress,
+                        request.signal,
+                        { sequenceId: sequence.id, trackId: track.id, at },
+                      )
+                      .catch((error) => controller.report(error))
+                      .finally(() => {
+                        if (importAbort.current === request) {
+                          importAbort.current = null;
+                          setImportProgress(null);
+                        }
+                      });
+                    return;
+                  }
                   const asset = view?.project.assets.find(
                     (asset) =>
                       asset.id ===
@@ -659,6 +1084,31 @@ export function TimelinePanel() {
                   }
                 }}
               >
+                {moves
+                  .filter(
+                    (op): op is Extract<Operation, { type: "clip.move" }> =>
+                      op.type === "clip.move" &&
+                      op.destination_track_id === track.id,
+                  )
+                  .map((op) => {
+                    const clip = sequence.tracks
+                      .flatMap((track) => track.clips)
+                      .find((clip) => clip.id === op.clip_id)!;
+                    return (
+                      <div
+                        key={op.clip_id}
+                        className="timeline-clip move-ghost"
+                        style={{
+                          left: secondsForDisplay(op.start) * scale,
+                          width: Math.max(
+                            5,
+                            secondsForDisplay(clip.timeline_range.duration) *
+                              scale,
+                          ),
+                        }}
+                      />
+                    );
+                  })}
                 {track.clips
                   .filter((clip) => {
                     const start =
@@ -672,7 +1122,10 @@ export function TimelinePanel() {
                     );
                   })
                   .map((clip) => {
-                    const moving = drag?.clip.id === clip.id ? drag : null,
+                    const moving =
+                        drag?.kind !== "move" && drag?.clip.id === clip.id
+                          ? drag
+                          : null,
                       originalStart = secondsForDisplay(
                         clip.timeline_range.start,
                       ),
@@ -699,12 +1152,21 @@ export function TimelinePanel() {
                         aria-label={t("Clip {value0}", {
                           value0: asset?.name ?? clip.id,
                         })}
-                        aria-pressed={selection?.id === clip.id}
-                        className={`timeline-clip ${selection?.id === clip.id ? "selected" : ""}`}
+                        aria-pressed={selections.some(
+                          (item) => item.kind === "clip" && item.id === clip.id,
+                        )}
+                        className={`timeline-clip ${selections.some((item) => item.kind === "clip" && item.id === clip.id) ? "selected" : ""}`}
                         key={clip.id}
+                        data-clip-id={clip.id}
                         style={{
                           left: start * scale,
                           width: Math.max(5, (end - start) * scale),
+                          opacity:
+                            drag?.kind === "move" &&
+                            drag.moved &&
+                            drag.selected.some((item) => item.id === clip.id)
+                              ? 0.4
+                              : 1,
                         }}
                         onPointerDown={(event) =>
                           startDrag(event, clip, track, "move")
@@ -716,12 +1178,19 @@ export function TimelinePanel() {
                           setDrag(null);
                         }}
                         onKeyDown={(event) => {
-                          if (event.key === "Enter")
-                            controller.select({
-                              kind: "clip",
-                              id: clip.id,
-                              trackId: track.id,
-                            });
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            controller.select(
+                              {
+                                kind: "clip",
+                                id: clip.id,
+                                trackId: track.id,
+                              },
+                              event.metaKey || event.ctrlKey
+                                ? "toggle"
+                                : "replace",
+                            );
+                          }
                         }}
                       >
                         <span
@@ -831,6 +1300,12 @@ export function TimelinePanel() {
           sequence={sequence}
           clip={selected?.clip}
           onClose={() => setCommands(false)}
+        />
+      )}
+      {trackDeletion && (
+        <DeleteTrack
+          {...trackDeletion}
+          onClose={() => setTrackDeletion(null)}
         />
       )}
     </section>

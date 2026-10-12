@@ -1,5 +1,0 @@
-{
-  "status": "passed",
-  "check": "revoked Agent credential cannot edit after hold release; head unchanged",
-  "binary_sha256": "b140dcb13e7eaa21098d8b52296b791e1e2eb6df17b10ac1d51cc7185d45edc0"
-}

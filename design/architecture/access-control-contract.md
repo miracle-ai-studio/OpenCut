@@ -30,7 +30,7 @@ CLI 的凭据文件与 HTTP bearer、MCP 会话认证最终生成同一 Caller�
 
 ## 当前接通边界（2026-09-21）
 
-已接通原生 SQLite、Automation、CLI、stdio MCP、REST HTTP 与 MCP Streamable HTTP。CLI 无 `--credential-file` 时代表本机 OS owner；受限调用指定该参数。HTTP 两入口使用签发凭证作为 bearer，逐请求解析到可信 Caller；缺少身份上下文明确拒绝。owner bearer 保留兼容。实际验收见 [网络权限 QA](../qa/r2-network-access-2026-09-21.md)。
+已接通原生 SQLite、Automation、CLI、stdio MCP、REST HTTP 与 MCP Streamable HTTP。CLI 无 `--credential-file` 时代表本机 OS owner；受限调用指定该参数。HTTP 两入口使用签发凭证作为 bearer，逐请求解析到可信 Caller；缺少身份上下文明确拒绝。owner bearer 保留兼容。实际验收见 [当前交付台账](headless-completion-ledger.md)。
 
 CLI 管理命令：`access set-policy --input policy.json`、`access get-policy PRINCIPAL`、`access issue PRINCIPAL --output NEW_FILE`、`access revoke CREDENTIAL_ID`、`access inspect`。policy 的 `expected_revision` 为规范十进制字符串，创建时用 `"0"`。签发文件必须不存在，Unix 权限为 0600；stdout 只返回 credential ID 和文件位置。管理事件与策略／凭证状态原子保存于 access_events，现在通过 owner-only `opencut_access_audit_query` 或 `access events --input FILE` 查询。
 

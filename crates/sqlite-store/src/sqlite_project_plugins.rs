@@ -38,7 +38,7 @@ impl ProjectPluginStore for EditorApplication {
             return decode_json(&result, "plugin grant receipt");
         }
         let head_revision =
-            sqlite_project_v3::project_head_revision(&tx, &input.target.project_id)?;
+            sqlite_project_document::project_head_revision(&tx, &input.target.project_id)?;
         let previous = read(&tx, &input.target)?;
         let revision = previous.as_ref().map_or("0", |g| g.revision.as_str());
         if revision != input.expected_revision {
@@ -97,7 +97,7 @@ impl ProjectPluginStore for EditorApplication {
             .unchecked_transaction()
             .map_err(storage_error)?;
         sqlite_access::require(&tx, &self.connection.1, project, ProjectAction::Read)?;
-        sqlite_project_v3::project_head_revision(&tx, project)?;
+        sqlite_project_document::project_head_revision(&tx, project)?;
         let mut statement=tx.prepare("SELECT grant_json FROM project_plugin_grants WHERE project_id=?1 ORDER BY plugin_id,version LIMIT 64").map_err(storage_error)?;
         statement
             .query_map([project], |r| r.get::<_, String>(0))

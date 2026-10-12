@@ -12,9 +12,15 @@ pub mod uploads;
 
 pub mod storage;
 
+mod browser_process;
+mod browser_resources;
+pub mod classic_audio;
+pub mod classic_audio_preview;
+pub mod classic_visual;
 pub mod gc;
 
 pub mod artifacts;
 pub mod budget;
 
 mod preview_inputs;
+pub mod source_art_v1;

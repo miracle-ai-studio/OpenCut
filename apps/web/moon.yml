@@ -33,21 +33,6 @@ tasks:
       - 'tsconfig.json'
       - '/packages/sdk-ts/src/**/*'
 
-  contracts-check:
-    command: 'npm run contracts:check'
-    inputs:
-      - 'src/editor/generate-contracts.mjs'
-      - 'src/lib/editor-contracts.generated.ts'
-      - 'package.json'
-      - 'package-lock.json'
-      - '/Cargo.toml'
-      - '/Cargo.lock'
-      - '/crates/**/*'
-      - '/apps/cli/**/*'
-      - '/packages/sdk-ts/scripts/**/*'
-      - '/packages/sdk-ts/src/**/*'
-      - '/packages/contract-fixtures/**/*'
-
   boundaries-check:
     command: 'npm run boundaries:check'
     inputs: ['src/**/*', 'scripts/**/*', 'package.json']

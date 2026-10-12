@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, path::PathBuf};
 
 pub mod project_v3;
+pub mod project_v4;
+pub mod project_v4_audio;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -759,6 +761,12 @@ fn collect_object_issues(
         }
         for clip in &track.clips {
             let asset_id = clip.asset_id.clone();
+            let image = clip
+                .asset_id
+                .as_deref()
+                .and_then(|id| assets.get(id))
+                .is_some_and(|asset| asset.kind == AssetKind::Image);
+            let clip_allowed = if image { VISUAL_PARAMS } else { clip_allowed };
             for result in [
                 validate_params(&clip.params, clip_allowed, "clip"),
                 validate_channels(clip, clip_allowed),
@@ -791,7 +799,7 @@ fn collect_object_issues(
             };
             if let Some(asset) = assets.get(asset_id_ref) {
                 let kind_ok = match track.kind {
-                    TrackKind::Video => asset.kind == AssetKind::Video,
+                    TrackKind::Video => matches!(asset.kind, AssetKind::Video | AssetKind::Image),
                     TrackKind::Graphic => asset.kind == AssetKind::Image,
                     TrackKind::Audio => matches!(asset.kind, AssetKind::Audio | AssetKind::Video),
                     TrackKind::Caption => true,
@@ -809,7 +817,7 @@ fn collect_object_issues(
                     );
                 }
             }
-            if !matches!(track.kind, TrackKind::Graphic) && clip.source_range.is_none() {
+            if !matches!(track.kind, TrackKind::Graphic) && !image && clip.source_range.is_none() {
                 push_unique_issue(
                     issues,
                     preflight_issue(

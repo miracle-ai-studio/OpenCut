@@ -284,8 +284,15 @@ pub fn transition(
                 // Import publishes a new project resource. Its contract gives an
                 // already committed cancellation priority over publication.
                 // Legacy render/probe jobs retain their cooperative v1 semantics.
-                WorkerUpdate::Complete(_)
-                    if current.kind == "media.import" && current.cancel_requested =>
+                WorkerUpdate::Complete(_) | WorkerUpdate::Fail(_)
+                    if current.cancel_requested
+                        && (matches!(
+                            current.kind.as_str(),
+                            "render.project_audio.v4"
+                                | "render.project_audio_range.v4"
+                                | "render.project_frame.v4"
+                        ) || current.kind == "media.import"
+                            && matches!(update, WorkerUpdate::Complete(_))) =>
                 {
                     next.state = JobState::Cancelled;
                     next.result = None;

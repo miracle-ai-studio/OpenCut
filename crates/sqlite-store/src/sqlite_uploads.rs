@@ -98,7 +98,7 @@ pub(super) fn event(
         )
         .map_err(storage_error)?
     } else {
-        sqlite_project_v3::project_head_revision(c, &view.project_id)?
+        sqlite_project_document::project_head_revision(c, &view.project_id)?
     };
     let payload = serde_json::json!({"project_id":view.project_id,"upload_id":view.upload_id,"next_offset":view.next_offset,"state":view.state,"job_id":view.job_id,"media_id":media_id});
     c.execute("INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json) VALUES (?1,?2,?3,?4,?5)",params![format!("evt_{}",Uuid::new_v4().simple()),view.project_id,head_revision,action,encode_json(&payload,"upload event")?]).map_err(storage_error)?;
@@ -168,7 +168,7 @@ fn create_session(
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(storage_error)?;
     permission(&tx, &ctx, &input.project_id, true)?;
-    sqlite_project_v3::project_head_revision(&tx, &input.project_id)?;
+    sqlite_project_document::project_head_revision(&tx, &input.project_id)?;
     let replay:Option<(String,String)>=tx.query_row("SELECT upload_id,request_hash FROM upload_sessions WHERE project_id=?1 AND idempotency_key=?2",params![input.project_id,input.idempotency_key],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(storage_error)?;
     if let Some((id, hash)) = replay {
         if !identity.matches(&hash, None) {
@@ -381,7 +381,7 @@ fn seal_session(
         ));
     }
     let input = prepared(&tx, &view, format!("media_{}", Uuid::new_v4().simple()))?;
-    let head_revision = sqlite_project_v3::project_head_revision(&tx, &view.project_id)?;
+    let head_revision = sqlite_project_document::project_head_revision(&tx, &view.project_id)?;
     let record = JobRecord {
         job_id: format!("job_{}", Uuid::new_v4().simple()),
         kind: "media.import".into(),

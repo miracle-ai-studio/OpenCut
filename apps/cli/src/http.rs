@@ -144,6 +144,10 @@ pub async fn serve(
         )
         .route("/v1/tools/{name}", post(tool))
         .route("/v1/preview/stream", post(crate::preview_http::stream))
+        .route(
+            "/v1/preview/v4/audio/stream",
+            post(crate::audio_preview_http::stream),
+        )
         .route("/v1/media/upload", post(crate::media_http::upload))
         .route(
             "/v1/stream-uploads/{upload_id}/chunks/{offset}",
@@ -157,6 +161,10 @@ pub async fn serve(
         .route(
             "/v1/projects/{project}/media/{media_id}/content",
             get(crate::media_http::read_project),
+        )
+        .route(
+            "/v1/project-v4-resources/content",
+            get(crate::media_http::read_v4_resource),
         )
         .route("/v1/jobs", get(jobs).post(start_job))
         .route("/v1/jobs/{job}", get(job))
@@ -925,3 +933,7 @@ async fn read_changes(
     .await
     .map_err(|_| EditorError::new("INTERNAL_ERROR", "Event query failed"))?
 }
+
+#[cfg(test)]
+#[path = "http_resource_tests.rs"]
+mod resource_stream_tests;

@@ -287,7 +287,9 @@
           "opencut-project-render",
           "opencut-storage-budget",
           "opencut-time",
+          "png",
           "rustix",
+          "serde",
           "serde_json",
           "sha2",
           "tempfile",
@@ -348,6 +350,7 @@
         ],
         "build": [],
         "dev": [
+          "image",
           "tempfile"
         ]
       }

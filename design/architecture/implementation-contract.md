@@ -62,7 +62,7 @@ Application API 是中心；Embedded、Headless、Service 是三种宿主。独�
 
 ## 后续集成补充：修订素材版本
 
-本节补充上面的第一轮骨架；实际验收证据维护在 `implementation-status.md`。
+本节补充上面的第一轮骨架；实际验收证据维护在 `headless-completion-ledger.md`。
 
 - `Asset.version: Option<AssetVersion>`：版本包含 `id, content_hash, size`。逻辑 `Asset.id` 保持稳定，内容版本 ID 由宿主生成；None 在 JSON 中省略，旧请求身份保持兼容。
 - `Operation::ReplaceAsset { asset }`：对应 `asset.replace`，要求已有逻辑 ID，保留 clip 引用；最终工程范围／类型验证失败则不提交。
@@ -86,7 +86,7 @@ Application API 是中心；Embedded、Headless、Service 是三种宿主。独�
 - 新帧 attempt 被回收后清理整个未发布私有目录；成功当前 attempt 的公开 PNG 保留。普通返回和 panic 由临时文件 guard 清理。
 - Web 直接帧不运行包含音频依赖的完整导出 preflight，由视觉规划器验证；保留请求上下文防止旧结果覆盖新工程。
 
-具体通过证据见 `implementation-status.md`，接口落盘不等于完整预览系统完成。
+具体通过证据见 `headless-completion-ledger.md`，接口落盘不等于完整预览系统完成。
 
 时间坐标补充：源帧 `preview.frame` 的 requested_time 是实际源流 PTS 时间域；工程帧请求是 sequence 时间域。工程 clip 的 source_range 使用素材相对时间，不能把容器的非零 PTS 起点直接填入 source_range；本轮 VFR 样例的 source_start=0、sequence=0.6、0.5 倍速，对应实际源 PTS 8.3。多流起点偏移的进一步矩阵验收不能由单视频流样例替代。
 

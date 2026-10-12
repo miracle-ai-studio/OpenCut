@@ -5,8 +5,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
+import struct
+import sys
 import tempfile
+import zlib
+from fractions import Fraction
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,15 +20,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/opencut')
     parser.add_argument('--web-root', type=Path, help='Verify a supplied built Web tree, including extracted bundles')
+    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'project-covers', 'classic-recovery', 'feedback', 'v4-editor', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
+    parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
+    parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
+    parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
     args = parser.parse_args()
+    suites = list(dict.fromkeys(args.suite or ['full']))
+    if len(suites) > 1 and any(suite in {'full', 'classic-recovery'} for suite in suites):
+        parser.error('full and classic-recovery must run alone')
     binary = args.binary.resolve()
     if args.web_root:
         web = args.web_root.resolve()
     else:
         subprocess.run(['npm', 'run', 'build', '--prefix', str(ROOT / 'apps/web')], check=True)
         web = ROOT / 'apps/web/dist'
-    workspace = Path(tempfile.mkdtemp(prefix='opencut-web-'))
+    workspace = args.reuse_workspace.resolve() if args.reuse_workspace else Path(tempfile.mkdtemp(prefix='opencut-web-'))
+    if args.reuse_workspace:
+        required = ['workspace.sqlite'] + ([] if suites == ['edit-recovery'] else ['sample.mp4', 'sample.wav'])
+        if 'v4-editor' in suites:
+            required += ['sample.png', 'replacement.wav']
+        if 'v4-media-fps' in suites:
+            required += ['fps-vfr.mp4', 'fps-v4-fixture.json']
+        if not workspace.is_dir() or any(not (workspace / name).is_file() for name in required):
+            parser.error('Reused workspace must contain the existing synthetic fixtures and database')
     service = workspace / 'service'
+    report = None
+    succeeded = False
     def cli(*arguments):
         result = subprocess.run([str(binary), '--json', '--database', str(workspace / 'workspace.sqlite'),
                                  'server', '--directory', str(service), *arguments], capture_output=True, text=True, timeout=60, cwd=workspace)
@@ -31,27 +53,99 @@ def main():
             raise RuntimeError(result.stdout + result.stderr)
         return json.loads(result.stdout)['data']
     try:
-        subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+        if not args.reuse_workspace and suites != ['edit-recovery']:
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
                         'testsrc2=size=640x360:rate=24:duration=4', '-f', 'lavfi', '-i',
                         'sine=frequency=440:sample_rate=48000:duration=4', '-c:v', 'libx264',
                         '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', str(workspace / 'sample.mp4')], check=True)
-        subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=220:sample_rate=48000:duration=4',str(workspace / 'sample.wav')],check=True)
+            subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=220:sample_rate=48000:duration=4',str(workspace / 'sample.wav')],check=True)
+        if 'source-art' in suites and not args.reuse_workspace:
+            # Small, owned format/duration matrix; never duplicate a worktree.
+            def art_png_chunk(kind, data):
+                return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+            png = b'\x89PNG\r\n\x1a\n' + art_png_chunk(b'IHDR', struct.pack('>IIBBBBB', 32, 24, 8, 6, 0, 0, 0))
+            png += art_png_chunk(b'IDAT', zlib.compress((b'\0' + bytes([255, 0, 0, 255]) * 32) * 24))
+            (workspace / 'tiny.png').write_bytes(png + art_png_chunk(b'IEND', b''))
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(workspace / 'tiny.png'),
+                            '-frames:v', '1', '-q:v', '1', '-pix_fmt', 'yuvj444p', str(workspace / 'tiny.jpg')], check=True)
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(workspace / 'sample.mp4'),
+                            '-frames:v', '12', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', str(workspace / 'short.mp4')], check=True)
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+                            'sine=frequency=220:sample_rate=48000:duration=12', '-c:a', 'pcm_s16le', str(workspace / 'long.wav')], check=True)
+        if 'v4-media-fps' in suites and not args.reuse_workspace:
+            # Independent authored PTS: 120 frames at 60 Hz, then 60 at 12 Hz.
+            # Classic observes the first 100 packets (60 Hz), not the whole-file
+            # average. Preserve every PTS and disable B-frame reordering.
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+                            'testsrc2=size=160x90:rate=60:duration=3', '-vf',
+                            "setpts='if(lt(N,120),N/(60*TB),(2+(N-120)/12)/TB)'",
+                            '-frames:v', '180', '-fps_mode', 'passthrough',
+                            '-enc_time_base', '1:60000', '-c:v', 'libx264', '-bf', '0', '-pix_fmt', 'yuv420p',
+                            str(workspace / 'fps-vfr.mp4')], check=True)
+            probe = json.loads(subprocess.check_output([
+                'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_packets', '-show_streams',
+                '-show_entries', 'packet=pts_time,duration_time:stream=avg_frame_rate', '-of', 'json',
+                str(workspace / 'fps-vfr.mp4'),
+            ], text=True))
+            packets = probe['packets']
+            assert len(packets) == 180, 'VFR fixture must retain every authored frame'
+            for index, packet in enumerate(packets[:100]):
+                assert abs(float(packet['pts_time']) - index / 60) <= 1e-6, 'VFR prefix PTS differs from the independent 60 Hz schedule'
+                assert abs(float(packet['duration_time']) - 1 / 60) <= 1e-6, 'VFR prefix packet duration differs from 1/60 s'
+            header_avg_frame_rate = probe['streams'][0]['avg_frame_rate']
+            assert Fraction(header_avg_frame_rate) != 60, 'VFR fixture must distinguish prefix statistics from the header average'
+            (workspace / 'fps-v4-fixture.json').write_text(json.dumps({
+                'filename': 'fps-vfr.mp4', 'expected_fps': {'numerator': 60, 'denominator': 1},
+                'header_avg_frame_rate': header_avg_frame_rate,
+                'packet_limit': 100, 'frame_count': 180,
+                'authored_schedule': [{'frames': 120, 'fps': 60}, {'frames': 60, 'fps': 12}],
+            })+'\n')
+        if 'v4-editor' in suites and not args.reuse_workspace:
+            # Exact RGBA fixture, independent of FFmpeg's YUV color conversion.
+            def png_chunk(kind, data):
+                return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+            png = b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', struct.pack('>IIBBBBB', 64, 48, 8, 6, 0, 0, 0))
+            png += png_chunk(b'IDAT', zlib.compress((b'\0' + bytes([255, 0, 0, 255]) * 64) * 48))
+            (workspace / 'sample.png').write_bytes(png + png_chunk(b'IEND', b''))
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i',
+                            str(workspace / 'sample.wav'), '-af', 'volume=0.5', '-c:a', 'pcm_s16le',
+                            str(workspace / 'replacement.wav')], check=True)
         state = cli('start', '--listen', '127.0.0.1:0', '--web-root', str(web))
         assert state['ready'] and state['web_url']
-        env = {**os.environ, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace)}
-        result = subprocess.run(['node', str(ROOT / 'apps/web/scripts/verify-browser.mjs')], env=env, cwd=ROOT, timeout=600)
+        env = {**os.environ, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace), 'OPENCUT_WEB_BINARY': str(binary), 'OPENCUT_WEB_SUITE': ','.join(suites)}
+        verifier = {'full': 'verify-browser.mjs', 'classic-recovery': 'verify-classic-ui.mjs'}.get(suites[0], 'verify-suite.mjs')
+        result = subprocess.run(['node', str(ROOT / 'apps/web/scripts' / verifier)], env=env, cwd=ROOT, timeout=600)
         report_path = workspace / 'browser-report.json'
         report = json.loads(report_path.read_text())
+        report['suites'] = suites
         report['binary_sha256'] = hashlib.sha256(binary.read_bytes()).hexdigest()
         report['web_files'] = {str(file.relative_to(web)): hashlib.sha256(file.read_bytes()).hexdigest()
                                for file in sorted(web.rglob('*')) if file.is_file()}
         report['workspace'] = str(workspace)
-        report_path.write_text(json.dumps(report, indent=2)+'\n')
-        print(json.dumps({'status': report['status'], 'report': str(report_path)}, indent=2))
         if result.returncode or report['status'] != 'passed':
+            report['status'] = 'failed'
             raise SystemExit(1)
+        succeeded = True
     finally:
-        cli('stop')
+        try:
+            if service.exists():
+                cli('stop')
+        except Exception:
+            print(f'Service cleanup failed; workspace retained: {workspace}', file=sys.stderr)
+            raise
+        if succeeded and not args.keep_workspace and not args.reuse_workspace:
+            shutil.rmtree(workspace)
+        if report is not None:
+            report['workspace_retained'] = workspace.exists()
+            encoded = json.dumps(report, indent=2)+'\n'
+            if args.report:
+                args.report.resolve().write_text(encoded)
+                print(json.dumps({'status': report['status'], 'report': str(args.report.resolve()),
+                                  'workspace_retained': report['workspace_retained']}, indent=2))
+            else:
+                print(encoded)
+        elif workspace.exists():
+            print(f'Failed workspace retained: {workspace}', file=sys.stderr)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,2775 @@
+{
+  "format": "opencut.acceptance-summary.v1",
+  "updated": "2026-10-12",
+  "whole_migration_complete": false,
+  "scope": "Local Rust Server + Web Classic migration under the recorded user decisions",
+  "feature_status_counts": {
+    "指定动线已验": 20,
+    "部分迁移": 20,
+    "未迁移": 14,
+    "已实现待等价验收": 2,
+    "原版占位": 1
+  },
+  "features": [
+    {
+      "id": "F01",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F02",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F03",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F04",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F05",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F06",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F07",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F08",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F09",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F10",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F11",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F12",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F13",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F14",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F15",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F16",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F17",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F18",
+      "status": "未迁移"
+    },
+    {
+      "id": "F19",
+      "status": "未迁移"
+    },
+    {
+      "id": "F20",
+      "status": "未迁移"
+    },
+    {
+      "id": "F21",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F22",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F23",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F24",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F25",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F26",
+      "status": "未迁移"
+    },
+    {
+      "id": "F27",
+      "status": "已实现待等价验收"
+    },
+    {
+      "id": "F28",
+      "status": "未迁移"
+    },
+    {
+      "id": "F29",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F30",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F31",
+      "status": "未迁移"
+    },
+    {
+      "id": "F32",
+      "status": "未迁移"
+    },
+    {
+      "id": "F33",
+      "status": "已实现待等价验收"
+    },
+    {
+      "id": "F34",
+      "status": "未迁移"
+    },
+    {
+      "id": "F35",
+      "status": "原版占位"
+    },
+    {
+      "id": "F36",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F37",
+      "status": "未迁移"
+    },
+    {
+      "id": "F38",
+      "status": "未迁移"
+    },
+    {
+      "id": "F39",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F40",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F41",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F42",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F43",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F44",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F45",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F46",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F47",
+      "status": "未迁移"
+    },
+    {
+      "id": "F48",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F49",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F50",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F51",
+      "status": "未迁移"
+    },
+    {
+      "id": "F52",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F53",
+      "status": "未迁移"
+    },
+    {
+      "id": "F54",
+      "status": "部分迁移"
+    },
+    {
+      "id": "F55",
+      "status": "未迁移"
+    },
+    {
+      "id": "F56",
+      "status": "指定动线已验"
+    },
+    {
+      "id": "F57",
+      "status": "指定动线已验"
+    }
+  ],
+  "remaining_feature_ids": [
+    "F08",
+    "F10",
+    "F16",
+    "F17",
+    "F18",
+    "F19",
+    "F20",
+    "F21",
+    "F23",
+    "F24",
+    "F25",
+    "F26",
+    "F27",
+    "F28",
+    "F29",
+    "F30",
+    "F31",
+    "F32",
+    "F33",
+    "F34",
+    "F37",
+    "F38",
+    "F39",
+    "F40",
+    "F41",
+    "F42",
+    "F43",
+    "F44",
+    "F46",
+    "F47",
+    "F50",
+    "F51",
+    "F52",
+    "F53",
+    "F54",
+    "F55"
+  ],
+  "remaining_groups": 36,
+  "product_decisions": {
+    "classic_cloud_account_login": "excluded_by_user",
+    "online_fonts_stickers": "Classic source and permitted license scope",
+    "sounds": "Open-license sources or locally generated effects authorized; acquisition/product pipeline unverified",
+    "feedback": "Local mock receiver; no real email delivery"
+  },
+  "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
+  "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values.",
+  "current_worktree_validation": {
+    "scope": "Latest valid evidence grouped by function; records have different candidate/source/browser identities. Staged results are not one final-candidate full run. Historical verification limits are time-qualified; current remaining limits below are authoritative.",
+    "latest_candidate": "v4_media_fps",
+    "plan_coverage": {
+      "remaining_groups": 36,
+      "routes": 13,
+      "auxiliary_items": 3
+    },
+    "fresh_rust_workspace_run": false,
+    "evidence_records": [
+      {
+        "evidence_id": "historical_pre_v4_product",
+        "status": "historical_scoped_pass",
+        "candidate": {
+          "binary_sha256": "47c27644b511c3bee7d03da1867d4881b88b228805c6b28c5aadf59172c2daa4",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "source_aggregate_sha256": "e62983338ea236f1e66a711b82a691b01c11f5f6fdbbcb055b8c6c3f2e02f861",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-Bv_eTjAQ.js": "2e2b7488f3da8891969cc9e6aa68e6b6d33469f029cfb161c36e2b3725e4e02d",
+            "assets/index-DD7Sn82z.js": "cc70709b29c11313ee408c32f009d11ee2dadad0c73f3b9e2aba09c3361c45e4",
+            "index.html": "8cfd36cca198894f80551bf2819e786c42467a6ad72a5a707526025f119d35ec"
+          }
+        },
+        "scope": "Pre-V4 product baseline, including old-library recovery and Classic legacy editor; never current whole-tree acceptance.",
+        "checks": {
+          "web_behavior": 164,
+          "web_boundary_negative": 10,
+          "sdk": 24,
+          "python": 26,
+          "architecture_negative_included_in_python": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "web_runtime_files": 122,
+          "full_browser": {
+            "checks": 77,
+            "page_errors": 0,
+            "unexpected_failed_requests": 0,
+            "transient_project_busy_responses": 0,
+            "deletion_receipts": 3
+          },
+          "recovery_browser": {
+            "checks": 9,
+            "page_errors": 0
+          },
+          "complete_promotion_document_equality": "passed",
+          "generated_contracts": "passed",
+          "frozen_legacy_tools": 22,
+          "current_tools": 150,
+          "web_typecheck_and_production_build": "passed",
+          "rust_workspace": {
+            "passed": 462,
+            "ignored_parent_invoked_children": 6,
+            "suites": 58,
+            "excluded": "opencut-desktop",
+            "fresh": false,
+            "inherited_from": "Earlier F06 native candidate; detailed process receipt removed",
+            "reason": "Native behavior source and tested native executable unchanged"
+          },
+          "clippy_fmt": {
+            "fresh": false,
+            "inherited_from": "Earlier F06 native candidate; detailed process receipt removed"
+          }
+        },
+        "limits": [
+          "F06 production old-origin CSP, other browsers, larger projects, and full nonempty historical content matrices",
+          "Full 57-group Classic equivalence and S1 completion",
+          "Fresh real whisper.cpp acceptance on this binary; F05 ASR receipt remains historical",
+          "Desktop Metal runtime, cross-platform/signing/distribution and real online resource providers/licenses"
+        ],
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change",
+        "independent_media_oracles": "Recorded F06 product candidate: independently expected red image pixels and 800 Hz PCM; historical scoped proof, not re-executed in this governance change."
+      },
+      {
+        "evidence_id": "project_v4_foundation",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "96b11857167f8702ee403c0a632631ce79cd4e09263765430a4cd64a3f7f2758",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "8d6f9a7575d648c711276588f8a9ecbc2ff6b91ac1b58c936c01cb81cd56c022"
+        },
+        "scope": [
+          "global settings and explicit legacy per-scene profile",
+          "CAS/font identities, track/content ownership and whole-aggregate rejection",
+          "caption track ownership and legacy versus pinned caption anchor semantics",
+          "unknown/absent/present audio probe states; no false absent inference",
+          "locked title/text-mask font weight and style matching",
+          "exact rational ranges, real Classic inverse half-tick rounding and immutable validation",
+          "typed channel target/unit/local-clock ownership and preserved overshoot handles",
+          "freeform mask point/handle identities, generated trims and fractional shape counts",
+          "Pure all-or-nothing Rust V1/V2/V3 conversion with explicit CAS bindings, metadata loss/conflict reports and preserved original/curve identities",
+          "Legacy Graphic overlap/order, per-scene formats and caption overlay normalization; no invented audio stream format",
+          "Exhaustive 40 scalar / 5 color / 2 discrete parameter declarations with target applicability, units, authored bounds and post-evaluation rules",
+          "Raw versus physical animation samples; Classic dB clamp before amplitude, finite opacity/text-padding overshoot, parameter-specific shape/mask projection",
+          "Actual time/value Bezier, independent missing handles, equal-endpoint bumps, exact high-tick boundary clocks and hold/secant extrapolation",
+          "Legacy native normalized curve profile: 32 lookup subdivisions, 40 solve iterations and decimal12 constants, distinct from old split sampling",
+          "Classic creation defaults, fixed-source copy, all-known-schema authorized pagination",
+          "Complete V4 revisions, bookmark/frame alignment, replay, reopen, atomic audit failure rollback, scope and commit-time authority races",
+          "DB26 to DB27 barrier preserves original legacy revision bytes and receipts",
+          "CAS gate through commit; verify new bindings while allowing existing unavailable media to remain editable",
+          "Pure frame IR applies exact local/track clocks, physical gains, color component projection and legacy alpha-over crossfade",
+          "Audio participation precedes sampling; muted/known-absent audio produces explicit exclusions, not phantom execution or resource use",
+          "Both public event exits project V4 creation/copy snapshots to outer revision identity; frozen history navigation rejects V4",
+          "Complete public snapshots preserve typed scenes while hiding private asset/font locators; selectors reuse authorized fixed records",
+          "Original public request identity survives preparation/replay; same CAS hash without project membership is denied; membership removal before commit publishes nothing",
+          "Stable-ID selective undo/redo preserves independent later changes and durable causal navigation; current Restore permission, revocation, edit holds, CAS bytes and audit rollback enforced",
+          "Tagged units, channel target/binding and exact rational time/rate components are atomic during selective inversion",
+          "Actual public host dispatch and fresh CLI exercise all 13 V4 operations; inspect/history-plan/navigation match CLI versus MCP",
+          "Six independent native Legacy pixel tests cover animation, masks/feather, effects, background, crossfade, source Floor PTS and inverse half-tick request beyond resource extent"
+        ],
+        "checks": {
+          "affected_rust_passed": 410,
+          "contracts_tests": 9,
+          "editor_core_tests": 67,
+          "editor_application_tests": 89,
+          "sqlite_store_unit_tests": 166,
+          "sqlite_store_integration_passed": 6,
+          "composition_tests": 21,
+          "project_render_tests": 26,
+          "native_v4_pixel_tests": 6,
+          "native_renderer_v4_scope": "Direct Legacy frame subset only; no V4 Worker/PCM/range/export, Classic/font/effect-layer/blend/EOF coverage",
+          "protocol_checks": {
+            "current_tools": 163,
+            "new_v4_operations": 13,
+            "unchanged_preexisting_input_output_schemas": 150,
+            "unchanged_frozen_legacy_tools": 22,
+            "actual_v4_cli_operations": 13,
+            "actual_cli_mcp_equal_read_probes": 3,
+            "temporary_workspace_retained": false,
+            "bounded_registry_capture_bytes": 16777216
+          },
+          "clippy_all_targets_deny_warnings": "passed"
+        },
+        "verification_limits_at_candidate": [
+          "No V4 Web editor, resource URL/media planner, Worker jobs, continuous preview/range/export or complete-history package acceptance",
+          "Native frame supports only explicitly checked Legacy subset; Classic visuals, text/fonts, complex graphics/blends/effect layers/backgrounds and unresolved EOF still reject",
+          "No independent V4 PCM or maintain-pitch/mastering equivalence; frame gain samples cannot establish audio range semantics",
+          "New fonts currently require authorized fixed project reuse; font catalog/import/materialization, Classic browser conversion and full recovery remain incomplete",
+          "V4 branch/merge and full graph package6 restoration remain planned; frozen old operations refuse V4",
+          "Previously recorded browser/package artifacts predate V4; no fresh full-workspace or package/browser acceptance",
+          "DB27 was verified only on temporary fixtures; no live user database migration was performed"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_resources_media_audio",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "da78728ecec6c001d0717a3d81f969444ac87bcbb591fe936fcd5e118f74cf68",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "d7eee2d5ff3367e2b447338581066b2bbe84aa1775b9f9371a5400caa6fb8bc3"
+        },
+        "scope": [
+          "Fixed authorized asset/font descriptors hide private locators; resource identity uses percent-encoded query fields and exact fixed revision, hash and size",
+          "Actual HTTP asset bytes, range206/range416, missing authorization, historical revision after head removal and corrupt/missing CAS bytes; descriptor availability does not imply readable bytes",
+          "Synthetic multi-chunk transport stops after credential revocation or owner project deletion; stream authorization rechecks live exact revision without whole-document parsing",
+          "Pure V4 media bind/replace/place/ripple planning; Classic raw FPS normalization, first-video global FPS override and placement clocks; canvas custom memory and pinned inverse boundary",
+          "Real SQLite planned public transaction commits unchanged, replays, rejects stale head and reopens one atomic revision; planning does not publish a revision",
+          "Pure audio placement/local and track gain clocks, participation, captions/silent tail, exact retime mapping and bounded blocks with hand-calculated oracles",
+          "Native finite-queue FFmpeg unmastered stereo PCM: fractional samples across blocks, source trim and zero tail, first-two-channel mapping, dynamic dB/multitrack accumulation, total decode quota and cancellation",
+          "Native capability/policy failures: maintain-pitch before CAS access; network HLS and external concat rejected; actual format-specific input options, verified zero source origin and separate decode receipts"
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed": 505,
+          "test_breakdown": {
+            "eleven_rust_packages_unit_integration": 489,
+            "explicit_native_tests": 14,
+            "cli_resource_unit_and_http_integration": 2
+          },
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 12
+          },
+          "web_typecheck": "passed",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "protocol_checks": {
+            "current_tools": 165,
+            "v4_operations": 15,
+            "unchanged_preexisting_input_output_schemas_and_read_only": 163,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same freshly built CLI",
+            "wire_compatibility": "passed on same freshly built CLI",
+            "new_tools": [
+              "opencut_project_v4_resource_inspect",
+              "opencut_project_v4_media_import_plan"
+            ]
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Full Classic migration still has36 groups awaiting implementation or acceptance; no feature status promoted by infrastructure-only checks",
+          "No fresh V4 Web product/browser, full-workspace, release/package or live user database acceptance; DB27 fixtures only",
+          "Native audio output is explicitly unmastered, not a completed render; Classic SoundTouchJS keepPitch, browser decoding/resampling identity, whole-scene peak/compressor/limiter and range/seek DSP remain incomplete",
+          "No V4 Worker job/public execution receipt, continuous preview or range/export integration; old unsupported execution interfaces continue to reject V4",
+          "PCM native fixtures use synthetic CAS resolvers to isolate sampling; no claim of full Worker authority/decode integration",
+          "Font resource bytes/scope fixture is synthetic; no actual locked-font rendering, online-font materialization or browser/font layout acceptance",
+          "New media planner is verified through application and actual SQLite publication; no new planner CLI/MCP invocation acceptance recorded",
+          "Source-audio detach/restore, Classic browser conversion, branch/merge and complete-history package6 remain incomplete"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "independent_native_tests": {
+          "independent_legacy_pixels": 6,
+          "independent_unmastered_pcm": 8
+        },
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_web_source_audio",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "9064ad4b57834823646506c417019cecaa2715ed166e5c2c2f3b974267bbfbbf",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "2bb90c19f7fcec92d34576681215aae8fd99e7b3344bed3dec67fba1d2835925",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-UaDJqX-4.js": "c53999b2b6784ac35a0e9879b0b650488736d6ac4f29595a86db77aea69bf4fc",
+            "assets/index-Z9J7OXny.js": "e70b13cabbc347b462925a48cbd11a63a2aa054601e36fd6824c1a25b1e58c9c",
+            "index.html": "238653f072793c747fba8a47249f8e629cf8e27fbe750456b8323010a6fd7b00"
+          }
+        },
+        "scope": [
+          "Source-audio fixed-head read-only planning preserves source span, authored retime, gain and volume channels with new stable ids; disables original video audio; restore re-enables video and retains independently edited detached audio",
+          "Real public SQLite transaction audit-failure rollback, original-request replay, stale head, current policy revocation, database reopen and selective undo; new tool actual typed host dispatch; synthetic metadata fixture is not decodable video",
+          "Frozen legacy project-library SQL excludes only schema4 before pagination; mixed V3/V4 lists retain authorized later legacy rows and scoped cursors",
+          "Pure preparation facts use original authored duration, exact buffer/channel budgets and effective Classic tempo clamp, three Float32/SoundTouch modes; IEEE epsilon branch matches Classic while source/sample arithmetic remains rational",
+          "Shared browser adapter includes unmodified soundtouchjs0.3.0 source and full LGPL, fixed engine/facts, finite block budgets and termination-ack ports; independent real Chromium WAV/DSP acceptance only"
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed": 374,
+          "test_breakdown": {
+            "composition_lib": 32,
+            "application_lib": 107,
+            "sqlite_lib": 170,
+            "host_runtime_lib": 13,
+            "project_render_lib_including_native": 33,
+            "composition_portable": 6,
+            "contracts_lib": 9,
+            "api_contracts_lib": 1,
+            "rust_sdk_lib": 3
+          },
+          "web_behavior": 182,
+          "web_boundary": 11,
+          "sdk_tests": 25,
+          "browser_audio_node_checks": 8,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 8,
+            "composition_rechecked_after_classic_ieee_epsilon_fix": true
+          },
+          "web_typecheck_and_build": "passed",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "protocol_checks": {
+            "current_tools": 166,
+            "v4_operations": 16,
+            "unchanged_preexisting_input_output_schemas_and_read_only": 165,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same final CLI",
+            "wire_compatibility": "passed on same final CLI",
+            "new_tools": [
+              "opencut_project_v4_source_audio_plan"
+            ]
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Full migration still has36 groups awaiting implementation or acceptance; F10/F42 are partial, not fully delivered",
+          "No production Rust browser-audio bridge, prepared-source binding API or isolated Browser Worker assembly; hand-authored host callbacks prove DSP only",
+          "No actual media V4 preview/playback/edit/export, auxiliary-note exclusion in completed product export, source-audio Web action or source-separation known-pulse PCM product chain",
+          "mediabunny1.41.0 is declared but not installed/executed; no real video audio-decoder, codec priming or cross-engine reproducibility acceptance",
+          "Hard process RSS/time quota, real out-of-realm termination, CAS leases/policy and fenced publication still need production integration; Node cancellation acknowledgement is a port regression only",
+          "No new source-audio planner CLI/MCP invocation acceptance, whole-workspace/release/package run or live user database migration",
+          "Classic browser conversion, branch/merge, locked-font rendering and complete-history package6 remain incomplete"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "independent_browser_dsp": {
+          "status": "passed",
+          "engine": "Chromium 153.0.8010.12",
+          "suites": [
+            "classic-audio",
+            "v4-editor"
+          ],
+          "checks": 6,
+          "page_exceptions": 0,
+          "scope": [
+            "PCM16 hand-authored 441Hz at2x ->882Hz; exact SoundTouch ->441Hz; output44100 frames",
+            "IEEE_FLOAT WAV0.5 with gain0.5 ->exact0.25 in both channels; late whole-scene peak2 triggers real compressor/gain/clamp before100-frame quiet-range slicing",
+            "Real authenticated HTTP/SQLite V4 bookmark time/duration/color/note and expected revision",
+            "Inclusive HUD endpoints, selected note outside interval hidden, move/selective undo/redo",
+            "Only editing note preserves1/3 and2/3 rational clocks; scene isolation, reload and saved revision read-only",
+            "Mixed V3/V4 library reopens unchanged legacy editor/export surface"
+          ],
+          "web_files": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-UaDJqX-4.js": "c53999b2b6784ac35a0e9879b0b650488736d6ac4f29595a86db77aea69bf4fc",
+            "assets/index-Z9J7OXny.js": "e70b13cabbc347b462925a48cbd11a63a2aa054601e36fd6824c1a25b1e58c9c",
+            "index.html": "238653f072793c747fba8a47249f8e629cf8e27fbe750456b8323010a6fd7b00"
+          }
+        },
+        "soundtouch_source_sha256": "5143b5e14251a1e2068c83a7851ffe4bee27a0628cb0e587e2d941e0f06bf9c0",
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_source_audio_host",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "5017e73210c59422880b4d405423d1ec974b9e0abd7d46489e3f05bbaf936add",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "abd4a03fbea3594dd2c13fd53bfdfac2f688c57ccc3670620782abf0cc1b3fbb",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-BWNwNGLl.js": "9527add237add61b9d5c9bb6e9afa7cf86385f9d23f17340ac8ec944f6bcb863",
+            "assets/index-DQeYxALx.js": "b0ee02d4c544ea16176af30dab007a384bc7498da311fbf23fa75586acef80ea",
+            "index.html": "65d42c9beef27b7cc1945a452bb94c7c61d933457b3a348e2deb0c4db6787250"
+          }
+        },
+        "scope": [
+          "Pure runtime binding has unique complete participating voices, decoded facts and three Classic modes; prepared PCM has zero source origin/unit rate while gain preserves authored local/sequence clocks",
+          "Application typed callbacks and receipts bind observed decode channels/rate/positive frames and original preparation facts; empty or changed participation/format is rejected before publication",
+          "Native CAS verified immutable descriptors and shared GC gate remain held throughout execution; host checkpoints before/after bounded reads and execution; policy-revocation acceptance uses a deterministic port wrapper, not live SQL caller revocation",
+          "Actual Rust to isolated Node/Chromium mediabunny execution proves unprepared and unit-prepared fractional source trim at5512.5 produces exact0.125 then0.25 with gain0.5, stereo mapping and5512 leading zero frames",
+          "Actual Rust callbacks drive441Hz tone at2x to882Hz or pinned SoundTouch441Hz; complete PCM, mastering receipt, exact runtime identity and actual browser group exit are required",
+          "Actual encoded-read revocation returns NOT_AUTHORIZED with no PCM;1MiB monitored RSS overrun terminates; strict-hard quota on macOS is explicitly rejected; deadline and launch share remaining monotonic budget",
+          "Real authenticated HTTP/SQLite product Separate/Restore/Undo on actually uploaded/probed video preserves source span, retime and gain through reload; same returned public transaction applied unchanged"
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed": 165,
+          "test_breakdown": {
+            "composition_lib": 35,
+            "application_lib": 107,
+            "native_services_lib": 19,
+            "classic_audio_fixed_callbacks": 1,
+            "classic_audio_actual_chromium": 3
+          },
+          "web_behavior": 197,
+          "web_boundary": 11,
+          "sdk_tests": 25,
+          "browser_audio_node_checks": 13,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 3
+          },
+          "web_typecheck_and_build": "passed",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "protocol_checks": {
+            "current_tools": 166,
+            "v4_operations": 16,
+            "new_tools": [],
+            "unchanged_preexisting_input_output_schemas_and_read_only": 166,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same final CLI",
+            "wire_compatibility": "passed on same final CLI"
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Full migration still has36 groups awaiting implementation or acceptance; F10/F42 remain partial",
+          "Production browser-audio process adapter is implemented and verified, but no public V4 queued WAV job, original SQL submitter policy recheck, cancellation-priority final transaction or fenced artifact publication is assembled yet",
+          "Web source-audio controls are verified; media upload/placement for V4 acceptance uses real public tools as setup; V4 product import, actual preview/playback/full export remain unconnected",
+          "No real video audio-decoder origin/codec-priming or actual extracted video known-pulse PCM product acceptance; native browser PCM fixture is WAV, with independent expectations",
+          "macOS supports monitored RSS termination only; strict-hard memory requires existing effective Linux cgroup v2 and has not been verified on Linux",
+          "No new source-audio planner CLI/MCP invocation acceptance, whole-workspace/release/package run or live user database migration",
+          "Classic complete conversion, fonts/graphics/full parameter matrices, branch/merge and complete-history package6 remain incomplete"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "actual_native_browser": {
+          "status": "passed",
+          "engine": "Chromium 153.0.8010.12",
+          "actual_tests": 3,
+          "fixed_callback_tests": 1,
+          "test_binary_sha256": "1bcd732d1242ff7f18ccc40c726b7c70993c42e381a7231e767ef28f320dc474",
+          "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+          "playwright_version": "1.63.0",
+          "mediabunny_version": "1.41.0",
+          "quota_profile": "monitored-terminate",
+          "hard_memory_enforced": false,
+          "strict_hard_macos": "UNSUPPORTED_AUDIO_QUOTA",
+          "termination": "Actual browser PID/group exit acknowledged; failure cleanup kills/reaps and rejects incomplete receipts",
+          "module_sha256": "0f0b8680918d0a9f61a97c74b6d8ad4dc5efbb278ce297f018ddfa0b47034e39"
+        },
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_audio_wav_jobs",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "b5b8d1f5b9af19c747cf1727caaa0646968949fe5f7923b5a417e52a646815e2",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "d80a4e1a41170b6ba8b0d9705a29a2cb0078e47d9fac0aad2fa37a789f4bf442",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-ByfL0iqi.js": "1416f0e1d43e751b59cefbed05c98cc65e4b58ee035088a57082af0e1142745c",
+            "assets/index-BiXehh3p.js": "93a122b467595f85565a112f1c2dc4d75e9af5ed57348923f5bd8297e35501bb",
+            "index.html": "cb0244e6e1b0d3e1d61a8d4f9e7268138bd9101533f522b44df1010d7a5a8908"
+          }
+        },
+        "scope": [
+          "Immutable V4 history, participating CAS lock, original trusted submitter and captured local execution policy are accepted atomically; idempotent replay returns the original job even after CAS removal, changed requests are refused",
+          "Live original Read+RunJobs credential, project existence, policy, active attempt/lease and cancellation checked during execution and within final SQL publication; audit faults roll back; committed cancellation wins Complete and Fail; invalid completion safely becomes Failed",
+          "Exact output budget precedes file creation; inode-held no-follow/exclusive attempt child, bounded interleaved stereo Float32 writes, exact frame/RIFF/fact/data length, finite PCM, sync and same-file validation; publication-finished hook immediately releases directory lease",
+          "Real upload ffprobe format is typed through application and strict import-result validation into V4 audio metadata; unknown historical formats remain unknown and conservative admission stays enforced",
+          "Web fixed-revision dialog preserves identity across selection/head changes; unknown results retry the same key; shared TaskFeed, cancellation and authenticated artifact download; no second project/task authority",
+          "Actual uploaded AAC video separated/restored/undone, trimmed from nonzero source origin and retimed1.5x at-6dB produces64000 stereo Float32 frames/512058 bytes; independent660Hz and known-amplitude RMS/peak expectations and artifact SHA pass",
+          "Actual final native Chromium fixture tests fractional trim/gain, unprepared/unit-prepared/SoundTouch, whole-scene mastering, read-time revocation with no PCM, monitored RSS termination, strict-hard rejection and real browser process exit"
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed": 429,
+          "test_breakdown": {
+            "application_lib": 111,
+            "editor_core_lib": 69,
+            "sqlite_store_lib": 174,
+            "host_runtime_lib": 18,
+            "native_services_lib": 19,
+            "job_contracts_lib": 9,
+            "storage_budget_lib": 1,
+            "job_runtime_lib": 4,
+            "storage_budget_integration": 16,
+            "classic_audio_integration": 7,
+            "media_actual_probe_upload": 1
+          },
+          "web_behavior": 206,
+          "web_boundary": 11,
+          "sdk_tests": 25,
+          "browser_audio_node_checks": 14,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 11
+          },
+          "web_typecheck_and_build": "passed",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "protocol_checks": {
+            "current_tools": 168,
+            "v4_operations": 18,
+            "new_tools": [
+              "opencut_job_v4_audio_wav",
+              "opencut_project_v4_audio_capability"
+            ],
+            "unchanged_preexisting_input_output_schemas_and_read_only": 166,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same final CLI",
+            "wire_compatibility": "passed on same final CLI"
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Whole migration remains incomplete:36 groups; F10/F42 remain partial",
+          "WAV scope is complete-scene stereo Float32 at44100/48000; exact video decoder priming/origin, PTS gaps, multiple streams, known-pulse product PCM and full retime/gain/keepPitch/mastering matrix remain unverified",
+          "Range/seek and full V4 visual preview/playback/video export remain unconnected; product V4 media import/placement uses public tools as acceptance setup",
+          "SQL tests prove original-caller revocation/deletion/publication fences; actual native read-time revocation uses a deterministic port wrapper; cancelled real product task proves no artifact without claiming it entered Running",
+          "macOS supports monitored RSS termination only; strict-hard Linux effective cgroup v2 has not been verified",
+          "No new audio CLI/MCP invocation acceptance, full workspace/release/package run or live user database upgrade",
+          "Classic complete conversion, fonts/graphics/all parameter matrices, full branch/merge and history package6 remain incomplete"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "actual_native_browser": {
+          "status": "passed",
+          "engine": "Chromium 153.0.8010.12",
+          "actual_tests": 3,
+          "fixed_callback_tests": 1,
+          "test_binary_sha256": "53a4230f9806d52db45f64a4e22e5c5e7cc22e3128dcf49eba5a5c859e6ce629",
+          "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+          "playwright_version": "1.63.0",
+          "mediabunny_version": "1.41.0",
+          "quota_profile": "monitored-terminate",
+          "hard_memory_enforced": false,
+          "strict_hard_macos": "UNSUPPORTED_AUDIO_QUOTA",
+          "termination": "Actual browser PID/group exit acknowledged; failure cleanup kills/reaps and rejects incomplete receipts",
+          "module_sha256": "fe6fa5f75f52fd68c82f01891f142aa48d81dea3c64fc2b2bfd89c76aa7dd707",
+          "wav_file_tests": 3
+        },
+        "product_wav_oracle": [
+          {
+            "check": "real V4 WAV UI submission and authenticated Tasks download retain the original revision, validate 58-byte Float32 stereo header and independent 660Hz/-6dB PCM; cancelled task publishes no artifact",
+            "audio_wav": {
+              "artifact": {
+                "content_hash": "5298b047e3d105f922e383ceb57437cbc552e09f9a7e5d2d6c954db98b95a5a0",
+                "mime_type": "audio/wav",
+                "size_bytes": "512058"
+              },
+              "asset_lock": {
+                "assets": [
+                  {
+                    "asset_id": "dc82b524-9cda-4285-bee8-5393f8db923a",
+                    "content_hash": "42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+                    "size": 419582
+                  }
+                ],
+                "revision": "rev_f8cce8cbaa5645d533e809b27932ab5c1ea103b889b7c65062df252d72f5f3b5",
+                "version": 1
+              },
+              "execution": {
+                "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                "browser_version": "153.0.8010.12",
+                "decoder_profiles": [
+                  "mediabunny-1.41.0-concatenate-offline-resample"
+                ],
+                "host_sha256": "b5b8d1f5b9af19c747cf1727caaa0646968949fe5f7923b5a417e52a646815e2",
+                "mastering_applied": false,
+                "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+                "mediabunny_version": "1.41.0",
+                "module_sha256": "fe6fa5f75f52fd68c82f01891f142aa48d81dea3c64fc2b2bfd89c76aa7dd707",
+                "pitch_profiles": [
+                  "unprepared-linear"
+                ],
+                "playwright_version": "1.63.0",
+                "soundtouch_version": "0.3.0"
+              },
+              "identity": {
+                "channels": 2,
+                "frame_count": "64000",
+                "profile": "classic-export-v31-web-audio",
+                "revision": "rev_f8cce8cbaa5645d533e809b27932ab5c1ea103b889b7c65062df252d72f5f3b5",
+                "sample_format": "ieee_float32_le",
+                "sample_rate": 48000
+              },
+              "render_input_sha256": "4067629b91dbcdd999038a440f6d4ca438237e6d0fed6922131a4307043f2c73",
+              "schema_version": 1
+            },
+            "cancellation": {
+              "state": "cancelled",
+              "artifact_count": 0
+            }
+          }
+        ],
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_scene_frame",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "ad3b0daaef251b555243d8eb34c23ea6b82b0394da8055f8db374b604abc9913",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "efa84bcf2ad9863d1fe2b018c68991661adc5a91052a8ee47a1d7824bd8da29e",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-CYekfmox.js": "edf54d8ecf5c7b42cf71c47ee2fa40a5d471fa7f35db1492dff682cf338423c4",
+            "assets/index-BFnLo0tz.js": "501241b5c3d524341a43dd339381a3f3dad9d059ecf4dbc78dd294c16bed5a9e",
+            "index.html": "c7c9b08b734e52abae635c8ce927d1875876093cf822b10d0d3545a2f5395f98"
+          }
+        },
+        "scope": [
+          "Pure IR/prepared frame and typed application callback plan own exact project/revision/scene/time, sampled transform/opacity, ordered resources and actual-dimension contain binding; JavaScript does not evaluate project clocks or animation",
+          "Actual single video frame or static PNG/JPEG, normal two-pass original MIT WGSL in bgra8unorm; independent contain/layering/quarter opacity, asymmetric negative scale and90-degree rotation/position/source alpha times track alpha over blue pixels",
+          "Actual lossless two-frame VP9 source: requested77143/120000 after .5 trim at scene1/7 observes PTS .5/duration .5 and independent green pixels; initial CanvasSink iterator and half-open interval facts",
+          "Fixed revision/idempotency/atomic queue/reopen, original Read+RunJobs scope/credential/live project and private authority rechecked by owner Worker and SQL publication; cancel wins late completion and failure, stale attempt rejected",
+          "Verified CAS FD/GC protection, admission before source decode, separate encoded/decode/GPU/RGBA/PNG/RSS/deadline counters; bounded streaming PNG into inode-held private attempt and unchanged lease/publication fences",
+          "Semantic cross-process facts comparison permits object-key order differences while retaining exact values and ordered arrays; regression covers reordered keys, source ordering, rational ticks and value types",
+          "Opening an undo/redo plan during PNG download leaves the original fixed frame ready; actual project/revision/scene/time/API/generation changes still reject stale results and preserve original unknown-submission retry keys",
+          "Failed teardown consumes scoped late started PID within15s; Node group is signalled only while unreaped. Actual Chromium exists before a6s delayed started acknowledgment, cancellation produces no PCM and actual browser process/group both exit",
+          "Real Web scene PNG displays640x360 exact red contain/black margins, excludes a visible HUD note, invalidates on seek and shows black beyond the1s half-open image clip; old V3 editor and WAV UI download/independent660Hz PCM/cancel remain verified"
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed_unique": 422,
+          "test_breakdown": {
+            "composition_lib": 42,
+            "application_lib": 121,
+            "host_runtime_lib": 20,
+            "job_contracts_lib": 9,
+            "native_services_lib": 23,
+            "sqlite_store_lib_unique": 178,
+            "storage_budget_lib_and_integration_unique": 17,
+            "native_audio_integration": 8,
+            "actual_gpu_visual_integration": 4
+          },
+          "verification_scope": "Affected staged checks, not a final whole-workspace run: SQLite177 passed in the full run and the remaining scope-revocation fixture passed after correction; final native23/audio8/visual4 reran after lifecycle freeze. Storage HFS output-ceiling case passed with local disk-image access and removed its volume.",
+          "web_behavior_unique": 229,
+          "web_verification_scope": "228 full behavior cases passed; final affected frame9 passed including1 new undo-plan/download regression; no repeated whole suite after that isolated frame fix",
+          "web_boundary": 11,
+          "sdk_tests": 28,
+          "audio_node_tests": 14,
+          "visual_node_tests": 5,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 7,
+            "final_native_recheck": "passed after lifecycle and startup regression freeze"
+          },
+          "web_typecheck_and_build": "passed on final Web",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "protocol_checks": {
+            "current_tools": 171,
+            "v4_operations": 21,
+            "new_tools": [
+              "opencut_job_v4_frame_png",
+              "opencut_project_v4_frame_capability"
+            ],
+            "unchanged_preexisting_input_output_schemas_and_read_only": 169,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same final CLI",
+            "wire_compatibility": "passed on same final CLI"
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Whole Classic migration remains36 groups; F10/F42 stay partial",
+          "This single-frame normal profile does not claim stateful Classic preview caching, continuous playback or MP4/WebM export",
+          "Text/fonts/graphics/stickers/17 blends/masks/effects/blur/transitions/animated images/multiple video streams remain rejected; transparent video rejected before decode to avoid silent loss of alpha",
+          "Exact audio codec priming/gaps/pulses/multistream/range/seek/full gain-pitch matrices, Classic conversion/history package6 and full element interaction remain pending",
+          "No whole-workspace/release/package acceptance or live user database migration; monitored RSS is not a hard VRAM or kernel memory quota; strict Linux cgroup remains unverified",
+          "F18 needs authorized Freesound access; F24 active Classic Logos source is missing"
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "independent_native_pixels": {
+          "video_requested_time": {
+            "ticks": "77143",
+            "timebase": 120000
+          },
+          "video_observed_pts_seconds": 0.5,
+          "video_frame_duration_seconds": 0.5,
+          "clockwise_rotation_alpha_pixels": {
+            "7,2": [
+              0,
+              0,
+              255,
+              255
+            ],
+            "12,2": [
+              64,
+              0,
+              191,
+              255
+            ],
+            "7,13": [
+              64,
+              64,
+              191,
+              255
+            ],
+            "12,13": [
+              0,
+              64,
+              191,
+              255
+            ],
+            "2,8": [
+              0,
+              0,
+              255,
+              255
+            ]
+          }
+        },
+        "product_pixels": [
+          {
+            "check": "real V4 UI fixed scene PNG uses actual Classic GPU shaders: exact red image contain/black margins, visible HUD excluded from PNG and half-open clip exclusion have independent pixels; seeking invalidates the old picture",
+            "scene_frame": {
+              "identity": {
+                "height": 360,
+                "profile": "classic-v31-gpu-normal-frame",
+                "revision": "rev_179dd068771a6ea5660053c6feb577796262c470d20b01b5fd1e49d11797bc31",
+                "time": {
+                  "ticks": "1",
+                  "timebase": 2
+                },
+                "width": 640
+              },
+              "execution": {
+                "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                "browser_version": "153.0.8010.12",
+                "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+                "gpu_backend": "webgpu",
+                "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+                "host_sha256": "ad3b0daaef251b555243d8eb34c23ea6b82b0394da8055f8db374b604abc9913",
+                "mediabunny_version": "1.41.0",
+                "module_sha256": "0ba4a763d7f213c0406658347dcbbbb3f012de2ee45ce5970ba1a04da698ff51",
+                "playwright_version": "1.63.0",
+                "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+                "texture_format": "bgra8unorm"
+              },
+              "sources": [
+                {
+                  "actual_timestamp_seconds": null,
+                  "asset_id": "fd4f53bd-eaa6-4583-9f88-bb7060122b09",
+                  "frame_duration_seconds": null,
+                  "height": 48,
+                  "no_frame_reason": null,
+                  "requested_time": null,
+                  "selected_video_stream": null,
+                  "width": 64
+                }
+              ],
+              "artifact": {
+                "content_hash": "aa25f52cb78736c325f4b0edf25cc0af90a60b06a91467a15bef3de1821bbee8",
+                "mime_type": "image/png",
+                "size_bytes": "924895"
+              },
+              "independent_pixels": {
+                "width": 640,
+                "height": 360,
+                "center": [
+                  255,
+                  0,
+                  0,
+                  255
+                ],
+                "margin": [
+                  0,
+                  0,
+                  0,
+                  255
+                ]
+              },
+              "outside_clip_pixels": {
+                "width": 640,
+                "height": 360,
+                "center": [
+                  0,
+                  0,
+                  0,
+                  255
+                ],
+                "margin": [
+                  0,
+                  0,
+                  0,
+                  255
+                ]
+              }
+            }
+          }
+        ],
+        "browser": {
+          "status": "passed",
+          "engine": "Chromium 153.0.8010.12",
+          "checks": 11,
+          "page_exceptions": 0,
+          "failed_requests": 0
+        },
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_audio_range",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "f1cdab5e10229669ef7c08b6a94ec487fa66876f6cc1327fe402ac06c23a2ae5",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "18944fe3ad74b618a1f8cf4c60a176f2385afee827122a8bec87111d9744f584",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-DswU6AII.js": "4cd05b4889f6f53e4174d43285fafc3260ff3c157120c1a3788aaeceea632235",
+            "assets/index-BBS9fmue.js": "e74fd38c04bff63843e4cd1187cf41fdc254cba21bb8777a4af84bfba0349894",
+            "index.html": "926ae00879e50aa1739ca700f22bf26547da25dcaf5ca0ad98b7bcd3667f250d"
+          }
+        },
+        "scope": [
+          "Same verified CAS/Input selects actual primary codec/native sample rate/channels/trackId before PCM admission, decode uses same track and rejects changed native chunks; original ffprobe first-track metadata cannot substitute for default-primary format. Receipt binds exact selected identity; explicit stream remains refused.",
+          "Independent new public range kind/request/result, canonical u64 samples, fixed whole prepared snapshot and whole-scene mastering before output crop. Old whole submission and render digest stay unchanged. Range start/count/whole extent/digest/output frames/WAV length/resource lock/typed result are bound before fenced publication.",
+          "Existing SQLite acceptance and Worker authorization/policy/cancel/lease/CAS/attempt fences shared by whole and range. New SQL cases prove fault rollback, same-key replay, changed request conflict, exact selected-result refusal/publication/reopen, original credential revocation and cancel priority; metadata fixtures are not media evidence.",
+          "Same Web export dialog/controller and Tasks, separately probed range capability, exact canonical strings, historical revision captured once, missing range support does not block whole, unknown outcome retries same original key/body across reopen/revocation.",
+          "Five real native CAS/session/process/Chromium decoder tests verify independent full PCM Float pulses/gain/EOF, Classic export PTS-gap concatenation, first mono/default stereo selection, reverse/repeated output ranges and one independently inspected aligned AAC-LC priming fixture.",
+          "Real historical V4 range UI submits6000/24000 at48k, durable task/replay returns same job, authorized Tasks download validates192058-byte Float32 stereo SHA/header/fact/data length, independent660Hz/-6dB PCM and corresponding whole-scene crop. Low-peak range and separate high-peak whole-mastering fixture are different proofs."
+        ],
+        "checks": {
+          "affected_rust_unit_integration_passed_unique": 376,
+          "test_breakdown": {
+            "application_lib": 131,
+            "host_runtime_lib": 21,
+            "job_contracts_lib": 9,
+            "job_execution_lib": 3,
+            "native_services_lib": 23,
+            "sqlite_store_lib": 180,
+            "native_callback_and_wav_sink": 4,
+            "actual_chromium_audio_decoder": 5
+          },
+          "verification_scope": "Affected library suites completed in stages: application131/host21 passed initially; job-contract registry count20 assertion failed after the additive kind. Corrected count21 with range schema regression, then job-contracts9/job-execution3/native23/SQLite180 all passed. No duplicate app/host count. Native callback/WAV sink4 and five explicit actual-browser decoder fixtures passed; other four lifecycle/browser fixture tests were not rerun. No whole-workspace acceptance.",
+          "web_behavior_affected": 20,
+          "web_verification_scope": "Three affected files (audio-wav10, dialog5, session5) passed together with maxWorkers2. Typecheck initially exposed one strict literal includes(number) typing issue; fixed via equality predicate before final20 passed. No current whole Web suite rerun.",
+          "web_boundary": 11,
+          "sdk_tests": 28,
+          "audio_node_tests": 18,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 8
+          },
+          "web_typecheck_and_build": "passed on final production Web",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed after registration; no new dependencies thereafter",
+          "protocol_checks": {
+            "current_tools": 174,
+            "v4_operations": 24,
+            "job_kinds": 21,
+            "new_tools": [
+              "opencut_job_v4_audio_range_wav",
+              "opencut_project_v4_audio_range_capability"
+            ],
+            "unchanged_preexisting_input_output_schemas_and_read_only": 172,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed on same final CLI",
+            "wire_compatibility": "passed on same final CLI"
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Whole Classic migration still has36 groups; F10/F42/F44 remain partial. Actual drag audition, continuous playback/seek, zoom/full element interaction matrix and long-project performance remain pending.",
+          "AAC proof is one aligned AAC-LC fixture only. Non-integral packet edit offset, arbitrary codecs, explicit stream selection and complex unsupported ISO edits remain unverified or refused.",
+          "Range is an offline output selection after whole-scene mastering, not realtime seeking. Classic export concatenates PTS gaps; realtime ordinary/prepared branch, gain ramp, limiter and scheduling differences require an independent versioned profile.",
+          "Normal PNG remains scoped; text/fonts/graphics/stickers/17 blends/masks/effects/blur/transitions/animated images/full MP4-WebM and Classic complete conversion/package6 remain pending.",
+          "No whole-workspace, formal release/package, physical speaker or live user database migration acceptance. Previous checks retain original candidate identities.",
+          "F18 requires approved Freesound access; F24 active Classic Logos source is missing."
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "independent_native_pcm": {
+          "pulse_trim_placement_eof": {
+            "sample_rate": 48000,
+            "source_frames": 16384,
+            "output_frames": 24017,
+            "nonzero_at_0db": {
+              "L17": 0.25,
+              "L3088": 0.5,
+              "L7185": 0.01,
+              "R3089": -0.25,
+              "R15376": 0.125
+            },
+            "gain_cases": [
+              "0dB",
+              "-60dB nonzero",
+              "mute removes voices",
+              "+20dB single .01 source sample outputs .1 without mastering"
+            ]
+          },
+          "pcm_container_pts_gap": {
+            "packet_pts_seconds": [
+              0.1,
+              0.3
+            ],
+            "packet_bytes": [
+              9600,
+              9600
+            ],
+            "decoder_frames": 4800,
+            "profile": "Classic export concatenation compresses the gap",
+            "mono_pulses": {
+              "100": 0.25,
+              "2450": -0.5
+            }
+          },
+          "default_primary_track": {
+            "stream_dispositions": [
+              0,
+              1
+            ],
+            "native_channels": [
+              1,
+              2
+            ],
+            "metadata_channels": 1,
+            "selected_native_channels": 2,
+            "selected_codec": "pcm-f32",
+            "sample_rate": 48000,
+            "independent_stereo_pulses": {
+              "L200": -0.5,
+              "R300": 0.25
+            },
+            "other_samples": "zero"
+          },
+          "fixed_ranges": {
+            "order": [
+              [
+                7180,
+                16
+              ],
+              [
+                3000,
+                120
+              ],
+              [
+                15370,
+                32
+              ],
+              [
+                3000,
+                120
+              ]
+            ],
+            "nonzero_samples": {
+              "3000/120": {
+                "L88": 0.5,
+                "R89": -0.25
+              },
+              "7180/16": {
+                "L5": 0.01
+              },
+              "15370/32": {
+                "R6": 0.125
+              }
+            },
+            "other_samples": "zero"
+          },
+          "aligned_aac_priming": {
+            "encoder": "FFmpeg8.1.2 AAC-LC128k",
+            "source_sample_rate": 48000,
+            "source_frames": 24000,
+            "source_pulse_centers": [
+              4096,
+              16384
+            ],
+            "source_band_limited_pulses": "signed .25 sinc((n-center)/8) times Hann window radius128",
+            "packet_count": 25,
+            "first_packet": {
+              "pts": -1024,
+              "duration": 1024,
+              "skip_samples": 1024,
+              "discard_padding": 0
+            },
+            "second_packet_pts": 0,
+            "last_packet": {
+              "pts": 23552,
+              "duration": 448
+            },
+            "single_elst": {
+              "version": 0,
+              "duration_movie_units": 500,
+              "media_time_samples": 1024,
+              "rate": 1
+            },
+            "decoded_frames": 24576,
+            "independent_expected_positions": [
+              4096,
+              16384
+            ],
+            "observed_peak_positions": [
+              4096,
+              16384
+            ],
+            "observed_peak_amplitudes": [
+              0.24996117,
+              -0.2487377
+            ],
+            "trim_samples": 1024,
+            "placement_samples": 17,
+            "trimmed_output_peak_positions": [
+              3089,
+              15377
+            ],
+            "trimmed_actual_eof_sample": 23569,
+            "allowed_peak_position_error_samples": 1,
+            "observed_peak_position_error_samples": 0,
+            "non_integral_edit_offset_verified": false
+          }
+        },
+        "range_product_oracle": [
+          {
+            "check": "real historical V4 sample-range WAV preserves the captured revision, replays the same task, downloads exact192058-byte Float32 stereo PCM with independent660Hz/-6dB level and matches the complete mastered scene crop",
+            "audio_range_wav": {
+              "artifact": {
+                "content_hash": "2030113a510743bbab0acf996ee45e86df7de41935937f055ba3142473bcd848",
+                "mime_type": "audio/wav",
+                "size_bytes": "192058"
+              },
+              "asset_lock": {
+                "assets": [
+                  {
+                    "asset_id": "b9280038-fedf-4b4a-ad52-5117932728fd",
+                    "content_hash": "42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+                    "size": 419582
+                  }
+                ],
+                "revision": "rev_a2231feb2d989e7344beb2edb55480dd3b9a2a6119ce0a6a609cd5fcc580b2f1",
+                "version": 1
+              },
+              "execution": {
+                "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                "browser_version": "153.0.8010.12",
+                "decoder_profiles": [
+                  "mediabunny-1.41.0-concatenate-offline-resample"
+                ],
+                "host_sha256": "f1cdab5e10229669ef7c08b6a94ec487fa66876f6cc1327fe402ac06c23a2ae5",
+                "mastering_applied": false,
+                "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+                "mediabunny_version": "1.41.0",
+                "module_sha256": "dc8b9cbc3087c70185cb8bdaa69b696fd9f7f63af53881f278bd3a7bce91ecaf",
+                "pitch_profiles": [
+                  "unprepared-linear"
+                ],
+                "playwright_version": "1.63.0",
+                "soundtouch_version": "0.3.0"
+              },
+              "identity": {
+                "channels": 2,
+                "frame_count": "24000",
+                "profile": "classic-export-v31-web-audio",
+                "revision": "rev_a2231feb2d989e7344beb2edb55480dd3b9a2a6119ce0a6a609cd5fcc580b2f1",
+                "sample_format": "ieee_float32_le",
+                "sample_rate": 48000,
+                "start_sample": "6000",
+                "whole_scene_frame_count": "64000"
+              },
+              "render_input_sha256": "4d3d749e10d70a77bb1135980e724dca329b8c888c938fb5b114633ea3970f29",
+              "schema_version": 1
+            }
+          }
+        ],
+        "browser": {
+          "status": "passed",
+          "engine": "Chromium 153.0.8010.12",
+          "checks": 13,
+          "page_exceptions": 0
+        },
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_audio_preview",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "8c73a5c1d89fccb78f0aa7f4cb3407b29ab1683672d31d3d2c663a9d7f1e4816",
+          "source_head": "4ff7e308ded93484983fb3922956f23dddeb4a89",
+          "dirty_source": true,
+          "historical_source_manifest_sha256": "b252998a2574ee3e0dab37015bb52f6f337ce77b75f6b9f17bb2deecce07594a",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-hPQ6C2EQ.js": "d2e2d62e293ba7872b4b991ac240fa14aa0065885e993a222a7c58ececca79b4",
+            "assets/index-Dw3oupjN.js": "ee2cc60e57cbacb35e4579f66d7a2e911b09ce24b0df174502b19b353bc12d99",
+            "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+            "index.html": "950c33f07c304ac554124d7e4b12dce8ff0e156e9b082c74c3aa9d9827b0f1f6"
+          }
+        },
+        "scope": [
+          "Fixed trusted original credential and immutable snapshot; ephemeral sessions never write revisions or durable jobs. Application state machine owns leases, idempotent controls, generation/overlay, actual consumer sample-to-Time, two pending block receipts and partial credit.",
+          "Native isolated realm prepares primary/source/pitch once; ordinary retains native PTS/EOF gaps, prepared concatenates and ramps physical amplitude at60Hz. Rust compiles original source/local/scene clocks and target static gain before mixing. JS receives executable sample facts only.",
+          "Original credential checked during CAS reads, idle heartbeat, each block and fixed stream generation/owner/lease publication/backpressure. Registry counts actually alive actors even after expiry; actual acquire replaces authority, replay does not. Matching stream claim/drop atomic; stale open/drop cannot cancel new stream.",
+          "Worklet has bounded FIFO, finite framed integrity checks and actual consumed-frame receipts. Pause/seek/overlay stop and disconnect before final old-generation consume/control; Resume reuses same native session while replacing generation and output graph. Unknown gain commit keeps original operation and stops old audio.",
+          "Web and native share only pure mastering chain via one explicitly reviewed bridge; decoder/host/project evaluation never imported into Web. No new production dependency or regenerated architecture allowlist."
+        ],
+        "checks": {
+          "affected_rust_unit_passed_unique": 412,
+          "test_breakdown": {
+            "composition_lib": 46,
+            "application_lib": 136,
+            "host_runtime_lib": 23,
+            "native_services_lib": 25,
+            "sqlite_store_lib": 182
+          },
+          "verification_scope": "Initial five library suites409 passed. New IEEE PTS regression and two host stream-claim race regressions passed narrowly; unique412, no full-workspace rerun. After deleting the unimplemented unused capture trait, rebuilt the frozen CLI and passed strict Clippy/architecture/contract gates; library behavior suites were not repeated for a declaration-only deletion.",
+          "web_behavior_affected_unique": 39,
+          "web_verification_scope": "Eight affected behavior files passed38 initially; same-session Pause/Play adds1, affected controller/output9 passed; double-Play guard controller7 passed. SDK transport and exact pure mastering bridge boundary verified in stages after one bridge-allowlist failure. Counts are unique; no full Web or whole workspace rerun.",
+          "web_boundary": 12,
+          "sdk_tests_passed_unique": 29,
+          "audio_node_tests": 23,
+          "rustfmt": "passed",
+          "clippy_all_targets_deny_warnings": {
+            "status": "passed",
+            "selected_packages": 7,
+            "after_unused_trait_removal": "CLI all-targets strict Clippy passed"
+          },
+          "web_typecheck_and_build": "passed on frozen production Web",
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed after final unused declaration removal",
+          "protocol_checks": {
+            "current_tools": 180,
+            "v4_operations": 30,
+            "job_kinds": 21,
+            "new_tools": [
+              "opencut_audio_preview_v4_capability",
+              "opencut_audio_preview_v4_create",
+              "opencut_audio_preview_v4_inspect",
+              "opencut_audio_preview_v4_control",
+              "opencut_audio_preview_v4_events",
+              "opencut_audio_preview_v4_acquire"
+            ],
+            "unchanged_preexisting_input_output_schemas_and_read_only": 174,
+            "unchanged_frozen_legacy_tools": 22,
+            "generated_check": "passed with --binary same final CLI; redundant default build stopped before replacing frozen CLI",
+            "wire_compatibility": "passed with same final CLI",
+            "binary_route": "POST /v1/preview/v4/audio/stream",
+            "mime_type": "application/vnd.opencut.audio-preview-v4"
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Whole migration still36 groups; F10/F42/F44 partial. Actual static playback-time gain gesture/cancel/commit now passed; full source/zoom/element matrices and long project performance remain pending.",
+          "Real credential/project-scope/RunJobs revocation, lease expiry and Stop source-process exit now pass in the separate staged native lifecycle scope. Full realtime PTS/AAC edit and post-master independent signal matrices remain pending.",
+          "Ordinary primary above2channels, explicit stream selection, unsupported ISO edits, animated/Legacy/locked static override and strict hard mac quotas refused; first decode is bounded whole-resource preparation, not low-memory long-file streaming.",
+          "Continuous video/audio synchronization, text/fonts/graphics/17 blends/masks/effects/transitions/animated images/MP4-WebM and complete Classic conversion/package6 remain pending.",
+          "No whole workspace, formal release/package, physical speaker or live user database migration acceptance; prior evidence keeps its original candidate identity.",
+          "F18 requires authorized Freesound access and F24 active Classic Logos source is missing."
+        ],
+        "evidence_freshness": "Scoped historical candidate; later records supersede only their specified scopes. No final-tree aggregate pass implied.",
+        "runtime_limits_at_candidate": {
+          "max_frame_count": 4096,
+          "max_unconsumed_blocks": 2,
+          "max_buffered_frames": 8192,
+          "max_voice_samples_per_block": 65536,
+          "max_voices": 32,
+          "max_live_sessions_per_database": 4,
+          "max_registry_entries": 32,
+          "owner_lease_seconds": 30,
+          "ttl_seconds": 3600,
+          "preparation_deadline_seconds": 120,
+          "pcm_bytes": 268435456,
+          "encoded_bytes": 33554432,
+          "rss_bytes": 2147483648,
+          "mac_quota_profile": "monitored-terminate; strict-hard refused"
+        },
+        "independent_realtime_pcm_and_consumer": [
+          {
+            "check": "real fixed-revision audio stream: independent660Hz/-6dB pre-master stereo; seek repeats exactPCM; temporary-12dB participates before mixing without edits; two-block backpressure never advances consumerTime",
+            "preview": {
+              "identity": {
+                "channels": 2,
+                "profile": "classic-realtime-v31",
+                "revision": "rev_fe01816d9302513ff63799584bcccda80b9bd4cbf23ed180e0e69160985afeaf",
+                "sample_rate": 48000
+              },
+              "frequency_hz": 659.9486081638607,
+              "rms": 0.04392061829879075,
+              "seek_hash": "f047919c4b6b26aba98ceaecde5f28ba041540879a4fa3cc451548acdfadd42f",
+              "temporary_gain_hash": "61b6f5002462aee5e5a7d4edf135d324ddff2c14e8d9e3fd4a084cae809a1197"
+            }
+          },
+          {
+            "check": "real prepared realtime branch: shared pinned SoundTouch preserves independent440Hz under1.5x retime and seek reuses exact preparedPCM",
+            "prepared_preview": {
+              "identity": {
+                "channels": 2,
+                "profile": "classic-realtime-v31",
+                "revision": "rev_6fbe6b80279a813bed5026b573878f37ec94241552231535529ec3af47e2682c",
+                "sample_rate": 48000
+              },
+              "frequency_hz": 440.07039627401974,
+              "seek_hash": "cbda181ebd7a31ef967a3248306099a264eb6cfa8b3d6cd3d6eb537dc6dfd8c4"
+            }
+          },
+          {
+            "check": "actual product AudioWorklet consumes productionPCM; Pause flushes and confirms final sampleTime on the same historical revision with zero edit writes",
+            "audio_consumer": {
+              "identity": {
+                "channels": 2,
+                "profile": "classic-realtime-v31",
+                "revision": "rev_fe01816d9302513ff63799584bcccda80b9bd4cbf23ed180e0e69160985afeaf",
+                "sample_rate": 48000
+              },
+              "final_consumed_frames": "4096",
+              "authoritative_time": {
+                "ticks": "8896",
+                "timebase": 48000
+              },
+              "state": "paused"
+            }
+          }
+        ],
+        "live_gain_gesture": {
+          "status": "passed",
+          "check_count": 1,
+          "evidence": [
+            {
+              "check": "actual playing two-voice volume gesture: target-only overlay, Escape clears without edits, pointerup publishes one original transaction, old session stops and explicit Play binds the new revision",
+              "audio_gesture": {
+                "reference_decibels": -18,
+                "draft_decibels": -12,
+                "draft_generation": "4",
+                "cancelled_generation": "3",
+                "pre_master_two_voice_pcm": {
+                  "baseline_rms": 0.0549614599566723,
+                  "expected_rms": 0.05542654513884286,
+                  "target_only_ratio": 0.6013288890502301,
+                  "max_sample_error": 6.466216798117763e-09,
+                  "baseline_hash": "7b7add58340ac9bf6be50a38ef95abd000225345642a1b1ab54ddf995545912c",
+                  "overlay_hash": "a2afdb1642bbf659a2077c042dd80a10fb3887032ba6c2cab7dc1bf0d6a53159"
+                },
+                "independent_post_master_acoustics_verified": false
+              }
+            }
+          ],
+          "console_errors": [],
+          "binary_sha256": "8c73a5c1d89fccb78f0aa7f4cb3407b29ab1683672d31d3d2c663a9d7f1e4816",
+          "same_production_web_files": true,
+          "verification_note": "Executed separately on retained synthetic database using the same final CLI/Web; exact stage total16+1, not a new full17 run. First fixture rejected missing retime.mapping; preserved full retime object, only fixture correction, then passed. No mocked control/consume/DSP, no physical speaker/post-master signal claim."
+        },
+        "native_lifecycle_incremental": {
+          "status": "passed_scoped_staged",
+          "tests_passed_unique": 4,
+          "actual_source_realms": 6,
+          "pure_preview_regressions_passed": 5,
+          "scope": "Actual public Automation host, real SQLite/CAS, pinned Node/Chromium and Float32 WAV. Credential idle/8192-frame backpressure, Read-only revokes RunJobs, empty grants revoke project scope, natural 30-second owner lease and Stop. Observe this test process owned PID/start-time tree exit, old/new stream rejection and CAS exclusive gate recovery.",
+          "production_fix": "Pinned Mediabunny PCM packet PTS accumulate f64 durations without WebCodecs sample rounding. Accept bounded numeric drift up to 1/1024 native sample, retain raw PTS in receipts, and bind signed native indices for exact interval lookup; independent packet8/9 boundary and off-grid refusal regression passes.",
+          "production_source_sha256": {
+            "crates/composition/src/project_v4/audio/preview.rs": "777c90dcc50afe3b64b5868ecd31a17ca8d165df55e1499e4615ab9f7441935e"
+          },
+          "final_test_source_sha256": "9fcea46a1fb9b71efcec6f703fd94b0f5501ce0e929422e6fe726bdfa9abec64",
+          "final_test_binary_sha256": "7f242352217e4fff0697990b45ff684ff8551fdc333065109e334ff5a0df84ea",
+          "final_test_binary_scope": "Only corrected grant test rerun with this final fixture binary. First three tests retain the earlier staged fixture scope; production audio source identical.",
+          "temporary_fixtures_retained": false,
+          "limits": [
+            "Not physical-speaker, full HTTP backpressure/disconnect or all PTS/AAC/codec/post-master signal matrix evidence.",
+            "The old CLI/Web receipt above predates the correction. The separate v4_media_timeline candidate now includes it and actual ordinary/prepared/gesture browser regressions; native lifecycle keeps its staged fixture scope."
+          ],
+          "staged_scope": "Only corrected grant test rerun with this final fixture binary. First three tests retain the earlier staged fixture scope; production audio source identical."
+        },
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "v4_timeline_interaction_recovery",
+        "status": "passed_scoped_staged",
+        "candidate": {
+          "binary_sha256": "3e78de2e26ef55346825a29340e3764a50828fb90e89df9c33dc162a04545b59",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-BkrJDt6-.js": "ad9bdc1e3118ff636b2b7b031bce6a65e23d219cd7c26fe7da9989226d922b2e",
+            "assets/index-BW0OdG9i.js": "2970813b1468e864f5b3f9d65390a0ed5d51f1d79ef52ae3098c52567c9831f4",
+            "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+            "index.html": "3a1d7985e4a8d27cbfaa59a7643fae04923c8790693496cfb1481a0eca35a99b"
+          }
+        },
+        "scope": "Historical V1 timeline/clipboard evidence below; latest_v2 supersedes only durable recovery and its affected scoped checks. Rendering/type/performance/system boundaries remain open.",
+        "checks": {
+          "rust_library_tests_passed_unique": 373,
+          "rust_libraries": {
+            "application": 156,
+            "host": 30,
+            "sqlite": 187
+          },
+          "web_affected_tests_passed_unique": 82,
+          "web_execution": "Affected initial74, clipboard6, stale recovery-read1 and external-head clipboard-read1 passed. Final inspector fixture changes rechecked the affected Session/connection/product23; focus assertions rechecked panel4. No whole-Web run.",
+          "sdk_tests_passed_unique": 30,
+          "sdk_execution": "Prior29 plus the real-client non-null inspection envelope transport regression1, staged.",
+          "clippy": "Six affected packages all-targets -D warnings passed before the final lock inverse fix; final affected application all-targets -D warnings passed after it.",
+          "format": "cargo fmt --all --check and git diff --check passed",
+          "typecheck": "passed",
+          "web_production_build": "passed",
+          "architecture": {
+            "negative_tests": 14,
+            "modules": 22,
+            "temporary_exceptions": 0,
+            "contract_boundaries": "passed",
+            "web_boundary_tests": 13,
+            "web_runtime_files": 174
+          },
+          "protocol": {
+            "tools": 187,
+            "v4_operations": 33,
+            "job_kinds": 21,
+            "old_181_input_output_read_only_unchanged": true,
+            "frozen_legacy_tools_unchanged": 22,
+            "generated_with_final_cli": "passed",
+            "final_wire_compatibility": "passed",
+            "inspection_scope": "Added opencut_edit_recovery_v1_inspect with non-null schema1 envelope; original nullable read schema and SDK rejection of top-level data:null remain frozen.",
+            "old_186_input_output_read_only_unchanged": true
+          }
+        },
+        "verification_limits_at_candidate": [
+          "Whole migration remains36 groups incomplete.",
+          "Durable SQL recovery only covers timeline operations; clipboard/gain/media/history other unknown writes await the planned versioned shared recovery.",
+          "Cross-project clipboard transfer is explicitly rejected.",
+          "All non-media/animation trim/split and clipboard product matrices, dense100-clip/5-track/300-second performance/cache and the current total32-voice admission remain pending.",
+          "Continuous picture playback, full codecs/PTS/priming/pitch, physical sound, fonts/complex composition, video export, project package6 and real user database upgrade remain unverified."
+        ],
+        "evidence_freshness": "V1 fields remain historical; latest_v2 contains the current recovery candidate and explicit staged evidence. No final-tree aggregate pass implied.",
+        "browser": {
+          "status": "passed_scoped_staged",
+          "checks_passed_unique": 22,
+          "page_errors_focused": 0,
+          "browser_version": "153.0.8010.12",
+          "stages": [
+            {
+              "scope": "Integrated unaffected prefix14; runner failed at initial recovery inspection",
+              "checks": 14,
+              "binary_sha256": "301ca9e26fcbb07e71d16fec17f7a309a14550e59a9707aaab05a3de3c5cf446",
+              "web_files": {
+                "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+                "assets/editor-workspace-VLWE5A6F.js": "f961419ad9dfb4bd1714b0f2847b2443169f81a4af1aa14636f694d48776508a",
+                "assets/index-DLAtGsHo.js": "e857f158d048972b3e50ad704e060741d81a0eb084e106663434fcc85f6b82c6",
+                "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+                "index.html": "cb7242f0e6ece05655639184d03d2831a0b4b1db6e6db67c9f5d206c5a02bc92"
+              },
+              "runner_status": "failed_after_prefix"
+            },
+            {
+              "scope": "Non-null inspection1, real page reload recovery/form timeline2, physical core gestures1 and rubberband cancellation1",
+              "checks": 5,
+              "binary_sha256": "13c15a4947206d4a96c7dbff17e72aa0425063267a7add2387873170acd195df",
+              "web_identity": "current web_files below",
+              "execution": "Same synthetic workspace, focused stages; coordinate and current-Redo-head harness assertions corrected. No claim that the initial focused runner completed without failure."
+            },
+            {
+              "scope": "Historical clipboard/cross-scene paste1, Duplicate1, native browser keyboard clipboard1",
+              "checks": 3,
+              "binary_sha256": "3e78de2e26ef55346825a29340e3764a50828fb90e89df9c33dc162a04545b59",
+              "web_identity": "current web_files below",
+              "runner_status": "passed",
+              "execution": "After the real locked-track inverse fix. Initial helper keyboard modifier activation, digest-prefix, explicit scene URL and stale navigation response assumptions corrected without relaxing source/clone/time/transaction oracles."
+            }
+          ],
+          "verification_limits": [
+            "No single uninterrupted22-check run and no all22-on-final-binary claim; staged identities above are authoritative.",
+            "Explicit destination scene link reopens exact project contents. V4 selection does not currently synchronize the scene URL; active scene preference across reload is not verified.",
+            "Native browser clipboard uses explicit origin permissions. File paste, cross-application clipboard and operating-system IME are not exercised.",
+            "Input text copy/paste and script-dispatched composition-state guard are verified; this does not prove a real Chinese IME."
+          ],
+          "checks": [
+            "real SDK recovery inspection with absent records leaves editing enabled",
+            "real two-track timeline UI: Ctrl/Meta Move and cancellation, lock/ID rejection; actual page reload restores an accepted-but-lost original receipt without another apply, while pre-service network abort reloads and Retry sends the identical original transaction/key without planning and publishes once",
+            "real timeline UI bilateral trim/split/delete+ripple preserves independent 1.5x source-clock expectations; original public plans apply once, reopening and selective Undo/Redo recover the complete project without touching the independent reference track",
+            "physical fixed-revision timeline core gestures: multi-track Move+Escape, bilateral trim, zoom/scroll hit and ruler S/Q/W; original Review transactions publish once and Undo/Redo preserves independently expected 1.5x source windows",
+            "physical empty-lane rubberband crosses both split pieces and Escape restores exact selection without planning or writing",
+            "clipboard UI fixed historical Read, cross-scene same-project paste, readonly discard and one exact public commit; 3:2 retime/nonzero trims/half-second group spacing and stable animation rebind survive locked-track insertion, reopen and selective Undo/Redo",
+            "formal Duplicate copies the fixed authored element with fresh channel/key/segment identities, leaves its source unchanged, commits the reviewed transaction once and Undo/Redo restores the complete graph",
+            "explicit origin clipboard permissions: actual Ctrl/Cmd+C writes reference-only text and native Ctrl/Cmd+V plans one reviewed exact commit; focused input copy/paste and browser composition-state guard do not invoke timeline tools"
+          ]
+        },
+        "independent_source_clock_and_recovery": [
+          {
+            "check": "real two-track timeline UI: Ctrl/Meta Move and cancellation, lock/ID rejection; actual page reload restores an accepted-but-lost original receipt without another apply, while pre-service network abort reloads and Retry sends the identical original transaction/key without planning and publishes once",
+            "timeline_transactions": {
+              "synthetic_fps": 30,
+              "synthetic_rate": {
+                "numerator": 3,
+                "denominator": 2
+              },
+              "synthetic_source_trim_start": {
+                "ticks": "1",
+                "timebase": 1
+              },
+              "synthetic_source_trim_end": {
+                "ticks": "1",
+                "timebase": 1
+              }
+            }
+          },
+          {
+            "check": "real timeline UI bilateral trim/split/delete+ripple preserves independent 1.5x source-clock expectations; original public plans apply once, reopening and selective Undo/Redo recover the complete project without touching the independent reference track",
+            "timeline_source_clock": {
+              "split_time": {
+                "ticks": "1",
+                "timebase": 2
+              },
+              "right_trim_start": {
+                "ticks": "7",
+                "timebase": 4
+              },
+              "right_trim_end": {
+                "ticks": "6",
+                "timebase": 5
+              },
+              "right_duration": {
+                "ticks": "7",
+                "timebase": 10
+              },
+              "rippled_start": {
+                "ticks": "1",
+                "timebase": 5
+              }
+            }
+          },
+          {
+            "check": "physical fixed-revision timeline core gestures: multi-track Move+Escape, bilateral trim, zoom/scroll hit and ruler S/Q/W; original Review transactions publish once and Undo/Redo preserves independently expected 1.5x source windows",
+            "timeline_gestures": {
+              "source_rate": {
+                "numerator": 3,
+                "denominator": 2
+              },
+              "fps": 30,
+              "final_right_source_start": {
+                "ticks": "41",
+                "timebase": 20
+              }
+            }
+          },
+          {
+            "check": "physical empty-lane rubberband crosses both split pieces and Escape restores exact selection without planning or writing",
+            "timeline_rubberband": {
+              "revision": "rev_5e067664648d0b88c8972211601e5bdceda3f367a3e82a3cdea02635ec1c3700"
+            }
+          },
+          {
+            "check": "clipboard UI fixed historical Read, cross-scene same-project paste, readonly discard and one exact public commit; 3:2 retime/nonzero trims/half-second group spacing and stable animation rebind survive locked-track insertion, reopen and selective Undo/Redo"
+          },
+          {
+            "check": "formal Duplicate copies the fixed authored element with fresh channel/key/segment identities, leaves its source unchanged, commits the reviewed transaction once and Undo/Redo restores the complete graph"
+          },
+          {
+            "check": "explicit origin clipboard permissions: actual Ctrl/Cmd+C writes reference-only text and native Ctrl/Cmd+V plans one reviewed exact commit; focused input copy/paste and browser composition-state guard do not invoke timeline tools",
+            "clipboard_browser": {
+              "file_paste": "not exercised",
+              "cross_application_clipboard": "not exercised",
+              "operating_system_ime": "not exercised"
+            }
+          }
+        ],
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change",
+        "latest_v2": {
+          "status": "passed_scoped_staged",
+          "candidate": {
+            "binary_sha256": "be362d5f4b36b64f609f6a5406d190e966141848b18b10ee94594ec56c952e83",
+            "web_entrypoints": {
+              "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+              "assets/editor-workspace-NQdXi8dg.js": "c7edef9fd821891fc7159508a4474b2304a23c8f5b2fbbecac94bca50e993807",
+              "assets/index-C3fKTLiz.js": "0a4c3aa09304cac8671d62d478e6e3f6d2e6f97c402fcc434bcab8c55b1bd8e3",
+              "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+              "index.html": "8aa255e33212990b862fa8fa5aaa50915bc333a28455ef17d6401381b9cfe498"
+            }
+          },
+          "scope": "Durable exact typed fixed-head PublicApply, Undo, Redo and Restore; bookmark/timeline/clipboard/gain/media/source-audio/history share the Web coordinator. Project create/copy, jobs/upload and cross-project transfer remain outside this recovery contract.",
+          "implementation": {
+            "database_version": 29,
+            "migration": "DB28→29 preserves V1 JSON/digest and history; shared 32-record/64MiB and complete-record 2MiB limits, scope exclusion and atomic ack",
+            "authority": "Original principal/credential/write-control, family/key/full intent, full transaction result and causal journal checked. Pure inspect never applies. Saved uses original receipt; NotSaved requires absent receipt plus changed fixed head. Revocation/disconnection retains unknown.",
+            "pointer": "Only bounded nonsecret identity/project/recovery pointers in sessionStorage; exact stage/readback/dispatch/ack, no replan or new key. Legacy V1 discovery remains compatible.",
+            "restore": "Project-scoped null sequence locator permits restoring a target scene deleted from the captured head."
+          },
+          "checks": {
+            "application_v2_tests": 5,
+            "sqlite_library_tests": 197,
+            "api_contract_tests": 1,
+            "rust_sdk_tests": 3,
+            "ts_sdk_tests": 38,
+            "web_affected_tests_unique": 96,
+            "web_execution": "95 affected tests across14 files staged; final fixture changes rechecked32; Restore deleted-scene regression adds1. TypeScript and production build pass. No full Web run.",
+            "architecture_negative_tests": 14,
+            "modules": 22,
+            "temporary_exceptions": 0,
+            "contract_boundaries": "passed",
+            "web_boundary_tests": 15,
+            "web_runtime_files": 176,
+            "sdk_boundary_files": 179,
+            "wire_compatibility_tests": 22,
+            "tools": 193,
+            "prior190_input_output_read_only_unchanged": true,
+            "generated_contracts": "passed generation and check; OpenAPI1774173 bytes/53038 lines/212 paths/393 components",
+            "format": "cargo fmt --all --check and git diff --check passed"
+          },
+          "browser": {
+            "engine": "153.0.8010.12",
+            "final_recovery_cases": [
+              {
+                "kind": "public_apply",
+                "mode": "submitted_lost",
+                "dispatches": 1,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "public_apply",
+                "mode": "not_sent",
+                "dispatches": 2,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "undo",
+                "mode": "submitted_lost",
+                "dispatches": 1,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "undo",
+                "mode": "not_sent",
+                "dispatches": 2,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "redo",
+                "mode": "submitted_lost",
+                "dispatches": 1,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "redo",
+                "mode": "not_sent",
+                "dispatches": 2,
+                "restore_deleted_scene": false
+              },
+              {
+                "kind": "restore",
+                "mode": "submitted_lost",
+                "dispatches": 1,
+                "restore_deleted_scene": true
+              },
+              {
+                "kind": "restore",
+                "mode": "not_sent",
+                "dispatches": 2,
+                "restore_deleted_scene": true
+              }
+            ],
+            "page_errors_final_recovery": 0,
+            "proof": "Four families each submitted-but-lost and not-sent; whole-page reload discovers exact typed intent and original receipt, no planning; known receipt never redispatches, unsent retry preserves exact request/key and commits once; pure inspection/head and independent bookmark/history outcomes, pointer deletion and zh/en UI verified. Both Restore cases replace/delete current main scene before historical restore.",
+            "affected_stages": {
+              "candidate_web_before_restore_locator": {
+                "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+                "assets/editor-workspace-81xaE7-1.js": "03eb53387e6853f251bb37d6800ff6178cbb2b32bf6a6a52a69d68c694cddff7",
+                "assets/index-DYyp4kgM.js": "1a63a81cdd1629a56dc9340c59fc65b9505a407227df354a07a2119db176e6fc",
+                "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+                "index.html": "8046d02afbbecb7630a58b9c42c6dfa3234747c46b1280e223860edea896862e"
+              },
+              "same_binary_sha256": "be362d5f4b36b64f609f6a5406d190e966141848b18b10ee94594ec56c952e83",
+              "prefix_checks_passed": 10,
+              "focused_tail_checks_passed": 9,
+              "tail_page_errors": [],
+              "scope": "Bookmark/rational scenes/media/gain/source-audio/range WAV/independent PCM/prepared SoundTouch/actual Worklet prefix; playing two-voice gain, media replacement, timeline recovery/trim, physical gestures/rubberband and clipboard tail. These19 groups are staged on the prior V2 Web, not all rerun on final Restore-only Web fix.",
+              "control_body_observation": {
+                "cdp_body_unavailable_completed": 0,
+                "failed_requests": 0,
+                "control_failures": [],
+                "witness_limit": 128
+              },
+              "observation_limit": "Earlier CDP Network.getResponseBody NoData lacked original request completion evidence. Added same-request completion and bounded application-consumed-body observation; fallback was not exercised in the passing tail. Later pass does not establish the original failure cause."
+            }
+          },
+          "limits": [
+            "36 Classic groups still incomplete; no fresh whole Rust workspace or all-suite final-candidate pass.",
+            "V1 compatibility, Restore-only auth, mixed quota/race and corrupt receipt rejection verified at storage/application/unit scope; no real user database upgrade.",
+            "Continuous picture/audio sync, complete element/media/FPS-VFR and real system files/IME/cross-application clipboard matrices remain incomplete; physical post-master sound unverified."
+          ],
+          "cleanup": "Only owned synthetic workspace/reports/media are removed after stop and no-open-file checks; no user media."
+        }
+      },
+      {
+        "evidence_id": "v4_dense_audio_admission",
+        "status": "passed_scoped_native_lifecycle_and_release_web",
+        "candidate": {
+          "binary_sha256": "79a49f4f8541b6127c536911f0d12453b2afabea4b09f340db416928979f1edf",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-BKN2EP_N.js": "180e50189c4eaf243b4dc98e213e2351990066e2044b9c8bd8e8043c04e19490",
+            "assets/index-DZKGn3es.js": "8538ab013b551aae253b76079baf12180f58dc904fd81b6f8ec1c07a4ec020c3",
+            "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+            "index.html": "03bcc68649d07f094cae030477cc02f86fc124d10186a3044c6447258b2d0066"
+          }
+        },
+        "scope": "S1 dense ordinary admission, private PackedV2, host idle/credit waits, Web endpoint receipts and scene URL/seek-draft isolation verified on synthetic100clips5tracks300seconds. No complete F17/cache or whole migration delivery.",
+        "checks": {
+          "native_affected": 18,
+          "native_browser_process": 2,
+          "architecture_unittest": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "host_credit_concurrency": 7,
+          "web_affected": 19,
+          "web_typecheck_and_production_build": "passed",
+          "release_cli_build": "passed",
+          "strict_clippy": "passed application/native/host all-targets -D warnings",
+          "generated_contracts": "passed same final release CLI",
+          "legacy_wire_compatibility": 22
+        },
+        "independent_native": {
+          "status": "independent_pcm_and_per_block_time_passed",
+          "test_binary_sha256": "0022bc8f9cd5fc26cb2e1f36b3ad7899f9d8edf98a778ec32b2b975d0b3b150d",
+          "runtime_module_sha256": "44a9c63eb572e3c091602af03dab15b22f37bd686ec4f06fd6e110dd9f1cdfe0",
+          "sampled_owned_tree_peak_rss_bytes": 854626304,
+          "whole_producer_block_ms": [
+            68.068046,
+            57.25453,
+            19.751229,
+            54.536065,
+            55.81502,
+            53.291345,
+            20.936167,
+            55.029671,
+            54.812231,
+            53.877948,
+            20.22614,
+            66.298441,
+            68.420656,
+            69.294656,
+            24.805249,
+            53.976407,
+            55.425388,
+            51.928643,
+            18.598657,
+            54.310887
+          ],
+          "independent_pcm_seeks": 20,
+          "fixed_profile": "100ordinary clips,5audio tracks,300second scene,one4secondFloatCAS; noanimation/noKeepPitch",
+          "per_block_budget_ms": 85.33333333333333,
+          "source_resolution_and_release_count": 1,
+          "owned_processes_gone": true,
+          "limitations": "Independent native PCM/local block timing belongs to this earlier native candidate; the later release Web gates are separately identified below.",
+          "whole_producer_block_ms_range": [
+            18.598657,
+            69.294656
+          ]
+        },
+        "latest_native": {
+          "native_test_binary_sha256": "e15730adee819a04a9b75a4753f87653c176c03270ac415f025ffa106f65e964",
+          "sampled_native_tree_rss_bytes": 851480576,
+          "independent_float_pcm_twenty_seeks": "passed",
+          "real_lifecycle": {
+            "status": "passed",
+            "test_binary_sha256": "d848dfa3df1b92ba47e53e70d22349c5a611e6b74220343ccc0c96dd88a38069",
+            "tests": 4,
+            "source_realms": 6,
+            "scope": "Credential revoke idle/backpressured;Read/RunJobs project grant revoke;natural30second lease expiry;explicitStop. Actual managed Node/Chromium identity disappearance and exclusive CAS reacquisition verified."
+          }
+        },
+        "mechanism": {
+          "authorized_idle_poll": "nonblocking with unchanged queued packet/error/disconnect and auth/TTL/failure identity checks; normal receive50ms retained",
+          "host_credit_wait": "condition variable with state predicate lock;200ms maximum auth/expiry checkpoint retained; fresh fence after wake;8192/two-block ceiling unchanged",
+          "web_credit_receipt": "On actual whole-block completion; one report flight and boolean pending coalescing;ReportConsumed before heartbeat;50ms observations retained;old-output/generation/epoch and final stopped cursor fences retained."
+        },
+        "browser": {
+          "status": "passed",
+          "machine": {
+            "platform": "darwin",
+            "release": "25.5.0",
+            "arch": "x64",
+            "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+            "logical_cpus": 12,
+            "memory_bytes": 17179869184,
+            "browser": "153.0.8010.12"
+          },
+          "budget": {
+            "open_ms": 2000,
+            "input_p95_ms": 50,
+            "input_max_ms": 100,
+            "cold_consume_ms": 10000,
+            "warm_seek_ms": 1000,
+            "stall_ratio": 0.01,
+            "heap_delta_bytes": 67108864,
+            "retained_first_last_growth_bytes": 8388608,
+            "retained_slope_bytes_per_seek": 262144
+          },
+          "fixture": {
+            "revision": "rev_7b52ec2bcdb6e0a318aad4e577a38e4993b691f642c0bcbc3af288456c72a6a9",
+            "sample_rate": 48000,
+            "elements": 100,
+            "tracks": 5,
+            "seconds": 300,
+            "starts": "296*k/19; k=0..19 on each track",
+            "source_seconds": 4,
+            "unique_resources": 1,
+            "source_version": {
+              "content_hash": "42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+              "id": "av_42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+              "size": 419582
+            },
+            "rate": "1/1",
+            "maintain_pitch": false,
+            "animated_gain": false
+          },
+          "open_ms": 846.1016,
+          "cold_consume_ms": 3181.2999999821186,
+          "consumer_window": {
+            "observed_ms": 9969.5,
+            "confirmed_frames": "477824",
+            "reports": 299,
+            "stalled_observation_ratio": 0,
+            "method": "Time-weighted Worklet stalled observations in accepted Rust ReportConsumed responses; not an acoustic/device clock measurement.",
+            "confirmed_consumer_deficit_ratio": 0.001487871340923208,
+            "deficit_method": "Confirmed Worklet sample advancement against response-arrival elapsed time; includes report delivery jitter and never drives the UI playhead."
+          },
+          "seek_count": 20,
+          "seek_latency_ms": {
+            "min": 144.59999999403954,
+            "max": 211.30000001192093
+          },
+          "all_seek_start_samples_match": true,
+          "input": {
+            "samples": 43,
+            "p95_ms": 32.599999994039536,
+            "max_ms": 33.30000001192093,
+            "method": "Trusted timeline input capture through two requestAnimationFrame callbacks; includes frame scheduling, not presentation scanout."
+          },
+          "heap": {
+            "baseline_bytes": 4904380,
+            "warm_retained_baseline_bytes": 6325524,
+            "peak_bytes": 34926036,
+            "delta_bytes": 30021656,
+            "retained_first_five_mean_bytes": 8082694.4,
+            "retained_last_five_mean_bytes": 8313826.4,
+            "retained_first_last_growth_bytes": 231132,
+            "retained_ols_slope_bytes_per_seek": 15508.688721804512,
+            "source": "CDP Performance.JSHeapUsedSize; raw samples before measurement GC, retained samples after HeapProfiler.collectGarbage",
+            "leak_status": "passed",
+            "method": "Explicit GC at library baseline, after timed dense open, and after each measured successful consumption. No GC during the ten-second steady window. Twenty retained samples: mean(last five)-mean(first five) and ordinary-least-squares slope against seek index 0..19.",
+            "scope": "Local twenty-seek retained-growth check; 8MiB mean-growth and 256KiB/seek slope tolerate measurement noise, supplementing rather than replacing the original 64MiB raw incremental peak budget. Does not prove unbounded-duration leak freedom."
+          },
+          "scene_url_state_preserved": true,
+          "page_errors": [],
+          "failed_requests": [],
+          "console_noise": {
+            "count": 4,
+            "scope": "Observed during20 generation-changing seeks; no pageerror/UI audio failure or failedRequests. Exact request correlation not captured; do not claim zero console network noise."
+          }
+        },
+        "limits": [
+          "No physical audio-device/acoustic acceptance",
+          "Four-second CAS arrangement does not establish real five-minute/VFR/multichannel matrix",
+          "Derived waveform/thumbnail cache unimplemented",
+          "Generic V2 unknown-write recovery and S2-S6 remain pending"
+        ],
+        "temporary_instrumentation_removed": true,
+        "verification_currency": "recorded_not_current; no new product execution in this documentation-governance change"
+      },
+      {
+        "evidence_id": "source_art_v1",
+        "status": "source_display_refresh_rapid_partial_viewport_and_isolated_cache_allocations_verified",
+        "candidate": {
+          "binary_sha256": "6a6854324af25fdca257708e27f75bd7119de69a9e3c6037db0d84666892dddd",
+          "web_entrypoints": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-D0q6YW7y.js": "b5d789fedbc26ab8e91de345e371a1b2307563c47ff96d635717cf95255e05fc",
+            "assets/index-BzUx0Qae.js": "6eea17f3bd4a117a39e308b4efad222a25bb4dce2e36e23ee321e4c327fac67b",
+            "assets/worklet-C0tpKtgb.js": "f3d08216c4643906aef9bbe76d17b4809fb1b425737f48da344f5be3a7c8ad24",
+            "index.html": "15d38e5e7f567a870e14e0cf6eb42b358c01c726ac656c077cf8eea9ce926725"
+          }
+        },
+        "scope": "F17 cache maintenance slice;10 final-candidate Chromium groups, separate host behavior/runtime checks. Not full F17 or migration acceptance.",
+        "implementation": {
+          "public_tools": [
+            "opencut_source_art_v1_get",
+            "opencut_source_art_v1_cancel",
+            "opencut_source_art_waveform_display_v1_get"
+          ],
+          "raw_summary": "all decoded channels, max absolute Float32 per 128 samples, explicit 44100 or 48000 Hz",
+          "thumbnail": "primary video getSample(1) or static image; sequential 1280x720 fit, no upscale, JPEG quality 0.8; explicit no-frame",
+          "cache": {
+            "bytes": 33554432,
+            "entries": 256,
+            "concurrent_decoders": 2,
+            "partitions": "exact resource version, typed source facts, policy, actual runtime identity, original credential and project scope",
+            "accounting": "Allocated Vec/String capacity; pinned completions and warm projections stay charged. Eviction only releases unborrowed payloads; admission fails explicitly when no room. Shutdown drains flights/tickets/borrows before replacement."
+          },
+          "web_authorization": "one bounded live probe per visible asset/profile; invalidation fences late success; FIFO renewal prevents visible request starvation Clearing a view retains its existing scheduler until prior cancellation acknowledgement; new scale/placement measures before subscribing, stale viewport/gain receipts never remount.",
+          "waveform_display": "Application owns Classic 200 midpoint gain samples, amplitude interpolation, source windows, dB height, burn and device geometry; host shares existing source cache/tickets/authority. Web Canvas consumes generated facts; exact project/revision/sequence/track/element temporary draft never changes head."
+        },
+        "checks": {
+          "host_pure": 10,
+          "host_actual_runtime": 1,
+          "web_affected": 19,
+          "web_typecheck_and_production_build": "passed",
+          "web_boundaries": 181,
+          "browser_groups": 10,
+          "architecture_unittest": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "legacy_wire_unchanged": 22,
+          "current_tools": 190,
+          "generation": "No declaration change; generated files not regenerated in this cache-only slice."
+        },
+        "historical_native_reference": {
+          "candidate_binary_sha256": "145b4e604ffbe5f9a9be1caf7b99a69d8b8b183ada2f02e9b92b906c2511d9c4",
+          "scope": "Prior source/PCM/JPEG/long-source and display oracles; not rerun by this cache-only candidate. Current host tests/runtime listed separately.",
+          "independent_native": {
+            "sha256": "95fab95449766cb9de9f420d77a18ab6a411c94385a8aa88af8c32f2a8b2925e",
+            "checks": [
+              "four-channel Float32 WAV actual 257 samples with independent peaks [0.75,0.875,0.125]",
+              "16x9 JPEG checked by independent FFmpeg decoded RGB",
+              "primary video one-second blue frame and a source beginning at 2 seconds producing no sample",
+              "cancel real detached child, observe exit and acquire exclusive CAS gate"
+            ],
+            "duration_seconds": 9.72
+          },
+          "host_actual": {
+            "sha256": "d0d3e127a3e3f78ebca6a14383d41da5af3285d6360d3a792efd6b36846edd66",
+            "checks": [
+              "100 public requests share exactly one real decode",
+              "independent stereo impulses checked against expected peak amplitudes",
+              "different credential requires its own decode",
+              "revoked credential cannot return cached source art",
+              "original Read+RunJobs authority checked in owner host",
+              "bounded cache, waiter limits and warm/cold cancellation fences",
+              "Draining cancelled old decode does not cancel or revive a new request; bounded new waiter remains independently cancellable until actual reap"
+            ],
+            "suite_duration_seconds": 14.51
+          },
+          "long_source_actual": {
+            "status": "passed",
+            "samples": 14400017,
+            "sample_rate": 48000,
+            "channels": 1,
+            "peak_buckets": 112501,
+            "source_bytes": 28800078,
+            "duration_seconds": 18.99,
+            "oracle": "Every complete bucket equals Float32(16384 * Float32(1/32767)); final partial bucket equals Float32(8192 * Float32(1/32767)); exact equality. Chromium positive PCM16 normalization verified independently from source. Authored duration stays four seconds. No runtime budget or tolerance increase.",
+            "oracle_source": "https://chromium.googlesource.com/chromium/src/+/refs/tags/126.0.6478.55/media/base/audio_sample_types.h",
+            "test_binary_sha256": "02cf50fee19ac6825aa1944112d2eb529720886691cb9c332cf576cc65f51b53",
+            "temporary_media": "Owned TempDir automatically removed after each run; no user media."
+          },
+          "display_application": {
+            "status": "public_host_web_integrated_and_actual_browser_verified",
+            "scope": "Separate Classic 200 whole-clip midpoint gain sampling, amplitude interpolation, mute/floor/burn, viewport/device geometry and temporary gain validation; raw source cache unchanged. Audio elements only; legacy-linear display explicitly unsupported.",
+            "boundary": "Contracts own separate display DTOs; application evaluates pure display semantics using existing core/composition; single-element temporary gain validator extracted from existing preview rules, no new native dependency or exception. New versioned operation and generated media domain action; all189 existing tools unchanged. No new dependency or migration exception."
+          }
+        },
+        "browser": "153.0.8010.12",
+        "independent_browser_evidence": [
+          {
+            "check": "source art: actual uploaded video JPEG, Media source peaks and timeline Classic display reach their distinct product surfaces",
+            "source_art": {
+              "project_id": "fbb99c0b-9112-4050-b912-9d968460cb6b",
+              "revision": "rev_e860ddb39ffd1e66ddc21ff2828bd73e1612922c8c771c4afd4bb0e1b5a5ca9b",
+              "thumbnail": {
+                "width": 640,
+                "height": 360,
+                "content_hash": "9d2d4068c4a935b9d1d71a568b56d15ff7b948aa9a3f972fbd1c11ca31b81824",
+                "identity": {
+                  "algorithm": "classic-thumbnail-1s-jpeg08-v1",
+                  "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                  "browser_version": "153.0.8010.12",
+                  "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                  "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                }
+              },
+              "waveform": {
+                "sample_rate": 48000,
+                "total_samples": "192000",
+                "bins": 128,
+                "identity": {
+                  "algorithm": "source-peaks128-v1",
+                  "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                  "browser_version": "153.0.8010.12",
+                  "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                  "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                }
+              },
+              "independent_pixels_pcm": "native source-art tests; this check covers public receipts and UI consumption"
+            }
+          },
+          {
+            "check": "waveform display: independent original PCM16 buckets, static gain, dB height and over-unity burn agree with public facts; real canvas paints bars and transparent gaps",
+            "waveform_display_oracle": {
+              "source": "owned sample.wav mono PCM16/48000; independent original-byte conversion and 128-sample peaks",
+              "profiles": [
+                "source-peaks128-v1",
+                "classic-waveform-display-v1"
+              ],
+              "baseline_db": 0,
+              "readonly_burn_db": 20,
+              "baseline_pixels": {
+                "device_width": 320,
+                "device_height": 24,
+                "rgba_bar": [
+                  255,
+                  255,
+                  255,
+                  179
+                ],
+                "gap_alpha": 0
+              },
+              "dense_100_clips_5_tracks_300_seconds": "separate metadata-only viewport check below; no audio-playback or native-cache-occupancy claim"
+            }
+          },
+          {
+            "check": "waveform display: physical volume draft changes fixed-revision bars, Escape restores without writes, pointerup saves one original gain transaction and displays the new revision",
+            "waveform_display_gesture": {
+              "original_revision": "rev_e860ddb39ffd1e66ddc21ff2828bd73e1612922c8c771c4afd4bb0e1b5a5ca9b",
+              "saved_revision": "rev_815ca547255ea22899bc37f7c7ce9eac96d113526cba9e812fd82609965ed5b0",
+              "temporary_gain_tenths": -120,
+              "cancelled_writes": 0,
+              "saved_writes": 1,
+              "draft_pixels": {
+                "device_width": 320,
+                "device_height": 24,
+                "rgba_bar": [
+                  255,
+                  255,
+                  255,
+                  179
+                ],
+                "gap_alpha": 0
+              },
+              "committed_pixels": {
+                "device_width": 320,
+                "device_height": 24,
+                "rgba_bar": [
+                  255,
+                  255,
+                  255,
+                  179
+                ],
+                "gap_alpha": 0
+              },
+              "scene_sound": "not playing in this waveform-only fixture"
+            }
+          },
+          {
+            "check": "source art: whole-page reload rebuilds a new JPEG ObjectURL and identical Classic display at the unchanged fixed head",
+            "source_art_reload": {
+              "revision": "rev_815ca547255ea22899bc37f7c7ce9eac96d113526cba9e812fd82609965ed5b0",
+              "thumbnail_hash": "9d2d4068c4a935b9d1d71a568b56d15ff7b948aa9a3f972fbd1c11ca31b81824",
+              "identity": {
+                "algorithm": "classic-thumbnail-1s-jpeg08-v1",
+                "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                "browser_version": "153.0.8010.12",
+                "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+              },
+              "rebuilt_pixels": {
+                "device_width": 320,
+                "device_height": 24,
+                "rgba_bar": [
+                  255,
+                  255,
+                  255,
+                  179
+                ],
+                "gap_alpha": 0
+              },
+              "cache_scope": "Actual product Web reconstruction; native cache bytes/eviction and decode count require separate evidence."
+            }
+          },
+          {
+            "check": "source art dense: 100 clips / 5 tracks / 300 seconds, 20 zoom inputs plus rapid partially-clipped zoom and first/middle/last actual display viewports meet fixed UI/heap budgets without changing head or IDs",
+            "source_art_dense": {
+              "machine": {
+                "platform": "darwin",
+                "release": "25.5.0",
+                "architecture": "x64",
+                "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+                "logical_cpus": 12,
+                "browser_version": "153.0.8010.12"
+              },
+              "budget": {
+                "navigation_100_dom_ms": 2000,
+                "input_two_raf_p95_ms": 50,
+                "input_two_raf_max_ms": 100,
+                "heap_delta_bytes": 67108864
+              },
+              "fixture": {
+                "project_id": "d36bf6d9-5cb6-42e2-81c5-3ae0cbdc5fd1",
+                "revision": "rev_f2a8c0c33a1cb73b3746342833b592b7228e7650d4ab092d5275f0a3df8cba9b",
+                "sequence_id": "35296517-6eec-4f66-85f4-077d5e316889",
+                "tracks": 5,
+                "clips": 100,
+                "seconds": 300,
+                "start": "296*k/19, k=0..19",
+                "duration": "4/1",
+                "rate": "1/1",
+                "unique_resources": 2,
+                "versions": [
+                  {
+                    "content_hash": "42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+                    "id": "av_42969447c3213113d8847ab9cb24f627f03682af7d81bde962361e77cef51328",
+                    "size": 419582
+                  },
+                  {
+                    "content_hash": "3f4520e4c12341980567cad240785fb1767aa25220663e7d4df317e6c1796e9f",
+                    "id": "av_3f4520e4c12341980567cad240785fb1767aa25220663e7d4df317e6c1796e9f",
+                    "size": 384078
+                  }
+                ],
+                "gain_db": 0,
+                "gain_animation": false,
+                "maintain_pitch": false
+              },
+              "samples": [
+                {
+                  "index": 0,
+                  "element_id": "1cf20b57-5c2b-4b4d-8d46-4441589f8f85",
+                  "viewport": {
+                    "clip_left_px": 0,
+                    "clip_right_px": 320,
+                    "pixels_per_second": 80,
+                    "css_height": 24,
+                    "device_pixel_ratio": 1
+                  },
+                  "bars": 160,
+                  "pixels": {
+                    "device_width": 320,
+                    "device_height": 24,
+                    "rgba_bar": [
+                      255,
+                      255,
+                      255,
+                      179
+                    ],
+                    "gap_alpha": 0
+                  },
+                  "scroll_left": 0
+                },
+                {
+                  "index": 10,
+                  "element_id": "138c9a46-04de-4f58-9d61-d4110e88d781",
+                  "viewport": {
+                    "clip_left_px": 159.84375,
+                    "clip_right_px": 320,
+                    "pixels_per_second": 80,
+                    "css_height": 24,
+                    "device_pixel_ratio": 1
+                  },
+                  "bars": 80,
+                  "pixels": {
+                    "device_width": 161,
+                    "device_height": 24,
+                    "rgba_bar": [
+                      255,
+                      255,
+                      255,
+                      179
+                    ],
+                    "gap_alpha": 0
+                  },
+                  "scroll_left": 12795
+                },
+                {
+                  "index": 19,
+                  "element_id": "3193f753-4da3-4dbe-803d-514a2ec76d91",
+                  "viewport": {
+                    "clip_left_px": 0,
+                    "clip_right_px": 320,
+                    "pixels_per_second": 80,
+                    "css_height": 24,
+                    "device_pixel_ratio": 1
+                  },
+                  "bars": 160,
+                  "pixels": {
+                    "device_width": 320,
+                    "device_height": 24,
+                    "rgba_bar": [
+                      255,
+                      255,
+                      255,
+                      179
+                    ],
+                    "gap_alpha": 0
+                  },
+                  "scroll_left": 22942
+                }
+              ],
+              "cache_decode_count": "unverified: public HTTP responses do not observe native decode count or cache occupancy",
+              "playback": "not measured; source-art viewport matrix only",
+              "long_source": "covered by separate real native 300-second source test, not this 4-second CAS reuse",
+              "navigation_100_dom_ms": 837.2661899999985,
+              "first_video_art_ms": 3156.5462740000003,
+              "first_audio_art_ms": 3286.7285139999985,
+              "art_timing_method": "Navigation to first video art; navigation plus explicit vertical reveal to first audio art. No initial hidden-track readiness claim.",
+              "input_count": 51,
+              "input_two_raf_p95_ms": 26.099999994039536,
+              "input_two_raf_max_ms": 26.899999976158142,
+              "long_tasks_ms": [],
+              "raf_gap_max_ms": 16.800000000000182,
+              "heap_baseline_bytes": 5253392,
+              "heap_peak_bytes": 20969932,
+              "heap_delta_bytes": 15716540,
+              "heap_method": "CDP JSHeapUsedSize, baseline GC before navigation only; raw sampled peak after open, each zoom and each viewport. No retained-leak claim.",
+              "rapid_partial_clip": {
+                "index": 10,
+                "zoom_inputs": 4,
+                "intermediate_artwork_waits": 0
+              }
+            }
+          },
+          {
+            "check": "source art: static PNG/JPEG retain tiny dimensions and independent red pixels, short video preserves Classic 1-second last-sample selection, and 12-second PCM peaks match original source bytes",
+            "source_art_varied": {
+              "revision": "rev_433e89883a02aa52a3234ac78493bfdceed09cfabe7e8d43ae1df438da424124",
+              "sources": [
+                {
+                  "source": "tiny.png",
+                  "dimensions": [
+                    32,
+                    24
+                  ],
+                  "rgba": [
+                    254,
+                    0,
+                    0,
+                    255
+                  ],
+                  "expected_rgb": [
+                    255,
+                    0,
+                    0
+                  ],
+                  "jpeg_rgb_tolerance": 2,
+                  "content_hash": "87fcbe88e6b5e36962fd091233343ad29f7166c34a69a2f0dea13262fae98555",
+                  "identity": {
+                    "algorithm": "classic-thumbnail-1s-jpeg08-v1",
+                    "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                    "browser_version": "153.0.8010.12",
+                    "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                    "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                  }
+                },
+                {
+                  "source": "tiny.jpg",
+                  "dimensions": [
+                    32,
+                    24
+                  ],
+                  "rgba": [
+                    254,
+                    0,
+                    0,
+                    255
+                  ],
+                  "expected_rgb": [
+                    255,
+                    0,
+                    0
+                  ],
+                  "jpeg_rgb_tolerance": 2,
+                  "content_hash": "87fcbe88e6b5e36962fd091233343ad29f7166c34a69a2f0dea13262fae98555",
+                  "identity": {
+                    "algorithm": "classic-thumbnail-1s-jpeg08-v1",
+                    "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                    "browser_version": "153.0.8010.12",
+                    "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                    "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                  }
+                },
+                {
+                  "source": "short.mp4",
+                  "observation": {
+                    "actual_timestamp_seconds": 0.4583333333333333,
+                    "frame_duration_seconds": 0.041666666666666664,
+                    "kind": "video",
+                    "requested_seconds": 1,
+                    "source_height": 360,
+                    "source_width": 640,
+                    "track_id": 1
+                  },
+                  "content_hash": "870494c6ff439aea592c440f0d212b08719f6acda22134e8aa571e333e2ee5de",
+                  "semantics": "Classic 1-second last-start sample; explicit NoFrame-before-first-PTS remains independently native-tested",
+                  "identity": {
+                    "algorithm": "classic-thumbnail-1s-jpeg08-v1",
+                    "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                    "browser_version": "153.0.8010.12",
+                    "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                    "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                  }
+                },
+                {
+                  "source": "long.wav",
+                  "total_samples": "576000",
+                  "bins": 128,
+                  "oracle": "Independent original PCM16 bytes with complete 128-sample source bucket projection",
+                  "identity": {
+                    "algorithm": "source-peaks128-v1",
+                    "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+                    "browser_version": "153.0.8010.12",
+                    "module_sha256": "d8e624654d325bb92a4c58034bce90f68eba53830b19d1e3cbe5e0d76ca92699",
+                    "node_sha256": "855f2caefe62360dcc2223a95678e00c19415302bb158b6db45199bbcd941b95"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "check": "source art cache: isolated production browser allocations hit real 32 MiB and 256-entry eviction, rebuild evicted JPEG URLs and clear all charged bytes",
+            "source_art_cache_allocations": {
+              "scope": "Isolated about:blank production SourceArtCache + allocateArt using actual authorized JPEG receipts; not main workspace/native cache occupancy.",
+              "defaults": {
+                "bytes": 33554432,
+                "entries": 256,
+                "concurrent": 2
+              },
+              "peak_bytes": 32830700,
+              "peak_entries": 256,
+              "after_byte_eviction": {
+                "bytes": 32830700,
+                "entries": 35
+              },
+              "after_entry_eviction": {
+                "bytes": 1143552,
+                "entries": 256
+              },
+              "decoded": {
+                "width": 640,
+                "height": 360
+              },
+              "materializations": 302,
+              "created_urls": 302,
+              "revoked_urls": 302,
+              "final_bytes": 0,
+              "final_entries": 0
+            }
+          },
+          {
+            "check": "source art: opening another project releases old JPEG ObjectURLs and leaves no prior artwork mounted",
+            "source_art_scope": {
+              "released_jpeg_urls": 14,
+              "credential_revocation": "covered separately by native/host lifecycle tests; not claimed by this project-switch fixture"
+            }
+          },
+          {
+            "check": "source art: no page errors or unexpected failed requests",
+            "source_art_browser": {
+              "page_errors": 0,
+              "failed_requests": 0,
+              "expected_waiter_aborts": 38,
+              "observation_budget": {
+                "entries": 256,
+                "encoded_bytes": 16777216,
+                "retained_entries": 76,
+                "peak_encoded_bytes": 2908563,
+                "responses_observed": 147,
+                "method": "Source metadata only; exact fixed element/temporary-gain/viewport duplicates replace in place, distinct viewports retain complete bars. Exceeding either cap fails acceptance; no silent eviction."
+              },
+              "session_abort_classifications": {
+                "fulfilled_204_body_abort": 6
+              }
+            }
+          }
+        ],
+        "pending": [
+          "Full supported-image and source-format matrix beyond PNG/JPEG/CFR video/mono PCM16 and complete long-file/cache performance combinations remain pending.",
+          "Isolated production browser cache uses actual allocations and live-byte accounting; main-workspace/native cache occupancy is not inferred from UI heap. No physical sound claim.",
+          "Initial older thumbnail-unavailable cause remains unconfirmed because its original error receipt was lost; current first-card/reload flows pass and independently reproduced scheduler/pinned-cache defects are fixed."
+        ],
+        "verification_currency": "current_scoped; final release/Web browser10 groups passed; historical native reference is explicitly separate"
+      },
+      {
+        "evidence_id": "v4_media_fps",
+        "status": "scoped_pass",
+        "candidate": {
+          "binary_sha256": "33bcff7968529960875f3348b95996c11706f0db9d976a35341741a5458b846c",
+          "web_entrypoints": {
+            "assets/editor-workspace-NQdXi8dg.js": "c7edef9fd821891fc7159508a4474b2304a23c8f5b2fbbecac94bca50e993807",
+            "assets/index-C3fKTLiz.js": "0a4c3aa09304cac8671d62d478e6e3f6d2e6f97c402fcc434bcab8c55b1bd8e3",
+            "index.html": "8aa255e33212990b862fa8fa5aaa50915bc333a28455ef17d6401381b9cfe498"
+          },
+          "runtime": {
+            "node": "v24.19.0",
+            "mediabunny": "1.41.0",
+            "mediabunny_bundle_sha256": "0e978df952d606fdeafef1e90ad695886ffa1a4e64f4a39d77654ada006b4b99",
+            "packet_helper_sha256": "da5d7109d1564f254d5b4296fb6162be9ab1898f6d51ad8d5ff7d12ded7b6080"
+          },
+          "browser": "154.0.8037.99"
+        },
+        "scope": "Current V4 upload/binding and two nonempty scenes; existing Classic packet-statistics implementation, not a new FFprobe packet algorithm. Existing Web build reused; one release CLI candidate.",
+        "checks": {
+          "application_media_import": 25,
+          "media_contracts": 2,
+          "sqlite_public_resources": 6,
+          "host_classic_runtime": 4,
+          "package_copy": 5,
+          "distribution_doctor": 6,
+          "architecture_negative": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "generated_contracts": "unchanged",
+          "frozen_legacy_tools": 22,
+          "current_tools": 193,
+          "real_browser_scenarios": 1,
+          "page_errors": 0
+        },
+        "independent_evidence": {
+          "fixture": {
+            "filename": "fps-vfr.mp4",
+            "expected_fps": {
+              "numerator": 60,
+              "denominator": 1
+            },
+            "header_avg_frame_rate": "675/26",
+            "packet_limit": 100,
+            "frame_count": 180,
+            "authored_schedule": [
+              {
+                "frames": 120,
+                "fps": 60
+              },
+              {
+                "frames": 60,
+                "fps": 12
+              }
+            ]
+          },
+          "fixture_bytes": 77046,
+          "fixture_sha256": "ba8c8c02defa3397a367db80387cd704374780ccc3b6825038bd264d923fa05c",
+          "native_header_fps": {
+            "denominator": 26,
+            "numerator": 675
+          },
+          "native_classic_packet_observation": {
+            "average_packet_rate": 60.00000000000001,
+            "packet_count": 100,
+            "schema_version": 1
+          },
+          "expected_global_fps": {
+            "numerator": 60,
+            "denominator": 1
+          },
+          "browser": {
+            "project_id": "fps-v4-0309d14b-f054-4111-b631-bc80a7f3e110",
+            "fixture": {
+              "filename": "fps-vfr.mp4",
+              "expected_fps": {
+                "numerator": 60,
+                "denominator": 1
+              },
+              "header_avg_frame_rate": "675/26",
+              "packet_limit": 100,
+              "frame_count": 180,
+              "authored_schedule": [
+                {
+                  "frames": 120,
+                  "fps": 60
+                },
+                {
+                  "frames": 60,
+                  "fps": 12
+                }
+              ]
+            },
+            "before_revision": "rev_b3405513d87c51f222c2db973091e3dc568bd0b07cd2d63840a3f9b0b4f57a27",
+            "raised_revision": "rev_8f760cffa4715b00f3894b14bd3f5a8ab5930e26529f9767232e3c280572ee6b",
+            "clocks": {
+              "start": {
+                "ticks": "1",
+                "timebase": 3
+              },
+              "duration": {
+                "ticks": "3",
+                "timebase": 1
+              },
+              "trim_start": {
+                "ticks": "1",
+                "timebase": 7
+              },
+              "trim_end": {
+                "ticks": "6",
+                "timebase": 7
+              },
+              "key_end": {
+                "ticks": "2",
+                "timebase": 3
+              }
+            },
+            "playhead": {
+              "ticks": "1001",
+              "timebase": 2000
+            },
+            "reload_playhead": {
+              "ticks": "0",
+              "timebase": 1
+            },
+            "sequence_ids": [
+              "main",
+              "other"
+            ]
+          },
+          "invariants": [
+            "one original public media transaction",
+            "both complete scenes and preexisting assets unchanged",
+            "source trim 1/7, three source seconds, curve 2/3 and bookmark clocks unchanged",
+            "apply/periodic refresh/Undo preserve playhead 1001/2000",
+            "Undo restores complete project; reload restores content/settings and intentionally resets playhead to zero"
+          ]
+        },
+        "packaging": {
+          "copy_only_actual_installation_files": 6,
+          "copied_bytes": 1066929,
+          "temporary_copy_removed": true,
+          "external_node_required": true,
+          "scope": "Packet-only libexec and Node-aware doctor; no full archive installation acceptance or full Classic browser runtime bundling"
+        },
+        "limits": [
+          "F08 remains partial; current V4 VFR video export and broader format/long-file matrix are not verified.",
+          "Explicit unknown packet FPS is covered by typed/application/storage tests, not a real no-packet video fixture.",
+          "Legacy records without the marker retain header fallback.",
+          "Node uses existing admission/cancel/reap, 30-second deadline, 256MiB JS heap and 8MiB library cache; these are not a hard process RSS quota.",
+          "No fresh whole-project, continuous picture/audio sync or complete package acceptance."
+        ],
+        "cleanup": {
+          "service_stopped": true,
+          "open_handles": 0,
+          "synthetic_workspace_and_report_removed": true,
+          "removed_files": 26,
+          "removed_bytes": 10535256
+        }
+      }
+    ]
+  },
+  "current_limits": [
+    "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
+    "Continuous picture/audio sync; text/fonts/layout/graphics/stickers/all blends/effects/masks/transitions/background and complete MP4/WebM export are incomplete.",
+    "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
+    "Audio preparation remains bounded whole-resource; long-file/VFR/real-device performance and full element/zoom/interaction matrices are not established by repeated four-second CAS fixtures.",
+    "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; bookmark/timeline/clipboard/gain/media/source-audio/history use one coordinator. Project create/copy, jobs/upload and cross-project transfer are outside this contract. Cross-project clipboard is refused; real file paste/IME/cross-application clipboard remain unverified.",
+    "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
+    "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
+    "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
+    "Online font/sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent."
+  ],
+  "retained_delivery_packages": [
+    {
+      "archive": "dist/local/opencut-0.1.0-dev-990fd47e4f81-x86_64-apple-darwin.tar.gz",
+      "sha256": "586cffcbbb3af57d695b898190ca5630224a3406f4d1286cd5f686f40f9a7d76",
+      "scope": "Previously verified local development package, not current source acceptance"
+    },
+    {
+      "archive": "dist/local/opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz",
+      "sha256": "6c3d9abe5c49644350315393be0ec08443525e1108d6477f975d57f86b4f38d8",
+      "scope": "Previously verified local development package, not current source acceptance"
+    }
+  ],
+  "resolved_defects": [
+    {
+      "id": "F52-artifact-availability",
+      "priority": "P0",
+      "status": "resolved",
+      "job_id": "job_f617c292651742ff828327131bdf7068",
+      "job_state": "succeeded",
+      "http_status": 500,
+      "expected_artifact_sha256": "175da38f03b1ff92c76f22957d0f5a19cfb399274cc5fa88236649e8e36dbdf3",
+      "observed_artifact_file_exists": false,
+      "reproduce": "python3 scripts/verify-web.py --binary target/debug/opencut --web-root apps/web/dist --suite media-fps",
+      "cause": "Cleanup compared canonical /private/var publication to lexical /var artifact root, misclassified it as unpublished and removed the attempt; normalize the trusted root before scanning",
+      "regression": "Existing recovery matrix extended with symlinked parent and canonical publication; failed before the fix and passed after it, including missing published file preservation",
+      "verification": "34 affected native tests and the original export download flow with independent expected frame samples passed",
+      "original_artifact_recovered": false,
+      "synthetic_failure_workspace_retained": false
+    },
+    {
+      "id": "v4_dense_audio_throughput",
+      "status": "resolved_for_frozen_synthetic_dense_fixture",
+      "cause": "Every host block incurred a blocking50ms idle receive; no-credit stream slept200ms despite170.67ms buffer;completed Worklet endpoints waited periodic report/heartbeat before releasing server FIFO credit.",
+      "repair": "Nonblocking idle poll with normal receive retained;predicate-locked Condvar credit notification and fresh fences;whole-block immediate coalesced consumption before heartbeat.",
+      "binary_sha256": "79a49f4f8541b6127c536911f0d12453b2afabea4b09f340db416928979f1edf",
+      "verification": "Independent20 Float PCM seeks,4 actual lifecycle tests/6 source realms,final synthetic AAC browser all frozen gates passed;stall0,deficit0.001487871340923208.",
+      "limits": "No real long-file/physical device/derived cache acceptance;whole migration remains incomplete."
+    }
+  ],
+  "open_failures": [],
+  "resource_constraints": [
+    {
+      "id": "F18",
+      "status": "optional_provider_access_unverified",
+      "reason": "Freesound unauthenticated text search returned 401; no configured application key found. This restricts the optional Freesound provider, not F18 overall: on 2026-10-12 the user authorized open-license sources or generated audio.",
+      "chosen_path": "Kenney Interface Sounds and UI Audio official pages checked: CC0. Implement a bounded catalog/acquisition path and local deterministic simple-effect generation through application/native ports and existing media/CAS; no product acquisition/generation acceptance performed yet.",
+      "sources": [
+        "https://kenney.nl/assets/interface-sounds",
+        "https://kenney.nl/assets/ui-audio",
+        "https://ffmpeg.org/ffmpeg-filters.html"
+      ],
+      "source_acquisition": {
+        "status": "official_archive_and_selected_metadata_verified_not_product_acceptance",
+        "archive_url": "https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip",
+        "archive_bytes": 411949,
+        "archive_sha256": "946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6",
+        "license_path": "License.txt",
+        "license_sha256": "4f88ab3c885c87874834441a0d009cea8942f57461d7b870be65cf4e31362073",
+        "license": "CC0",
+        "selected_files": [
+          "Audio/click1.ogg",
+          "Audio/click2.ogg",
+          "Audio/mouseclick1.ogg",
+          "Audio/mouserelease1.ogg",
+          "Audio/rollover1.ogg",
+          "Audio/rollover2.ogg",
+          "Audio/switch1.ogg",
+          "Audio/switch2.ogg"
+        ],
+        "sample_rate": 44100,
+        "channels": 2,
+        "limits": "Metadata/ZIP entry paths, size limits and selected CRC checked. Not auditioned, no product CAS/provenance/catalog/generation/placement/PCM acceptance. No extracted copies.",
+        "temporary_archive_removed": true
+      }
+    },
+    {
+      "id": "F24",
+      "status": "source_gap",
+      "reason": "Classic cf5e79e919144200294fb9fed22a222592a0aeea has an inactive empty Logos provider; nonempty brand results have no active Classic source. Shapes and flags can progress independently."
+    }
+  ],
+  "cleanup": {
+    "scope": "Only identified owned synthetic workspaces, process logs/reports, temporary media/databases and obsolete executables were removed after stop/exit and no-open-file checks. User media, Classic reference and current required deliverables were retained.",
+    "temporary_fixtures_retained": false,
+    "user_media_touched": false,
+    "process_reports_retained": false
+  },
+  "maintenance_validation": {
+    "scope": "2026-10-12 change governance; no production behavior change or fresh product/media acceptance",
+    "generated_contracts": "8 generator tests and explicit existing-release generation/check passed; 387 components equivalent, 209 paths unchanged, all6049 pre-change references resolve. OpenAPI3495769->1713729 bytes (113052->51485 lines); tools/TypeScript/event/Web compatibility bytes unchanged. Frozen22 wire check passed.",
+    "verification_scripts": "Syntax plus bounded-receipt out-of-order/cap mocks, binary-reuse/default-build mocks and owned-success/keep/failure cleanup mocks passed; upload stop must return stopped. No real upload/browser run in this maintenance batch.",
+    "documents": "57 feature statuses and36 remaining IDs preserved; full36-item plan checklist unchanged;12 unique scoped evidence records and local links checked.",
+    "execution": "No Cargo build, browser/media benchmark or new process report. One SDK Moon contract task; Web duplicate removed. SDK test cache includes generator/fixtures. Package schema capture reused;4 package unit tests and Moon YAML parsing passed, Moon execution not run. Agent ownership and affected-check rules recorded in AGENTS.md."
+  }
+}

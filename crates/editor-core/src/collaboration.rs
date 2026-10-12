@@ -2,9 +2,12 @@
 use opencut_contracts::{
     ProjectDocument,
     project_v3::{ProjectDocumentV3, SequenceVisualV3},
+    project_v4::ProjectDocumentV4,
 };
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
+mod profile;
+use profile::{MergeProfile, collection_key, same_variant};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Change {
@@ -34,6 +37,41 @@ pub struct MergeV3 {
     pub conflicts: Vec<Conflict>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct MergeV4 {
+    pub project: Option<ProjectDocumentV4>,
+    pub changes: Vec<Change>,
+    pub conflicts: Vec<Conflict>,
+}
+
+/// Same stable-identity merge engine, using the complete V4 aggregate and its
+/// own collection identities. No legacy projection participates in inversion.
+pub fn selective_merge_v4(
+    from: &ProjectDocumentV4,
+    to: &ProjectDocumentV4,
+    head: &ProjectDocumentV4,
+) -> MergeV4 {
+    let (result, changes, mut conflicts) = merge_values(
+        serde_json::to_value(from).expect("schema 4 project serializes"),
+        serde_json::to_value(to).expect("schema 4 project serializes"),
+        serde_json::to_value(head).expect("schema 4 project serializes"),
+        MergeProfile::V4,
+    );
+    let project = result.and_then(|value| serde_json::from_value(value).ok());
+    if project.is_none() && conflicts.is_empty() {
+        conflicts.push(Conflict {
+            path: "/".into(),
+            expected: None,
+            actual: None,
+        });
+    }
+    MergeV4 {
+        project,
+        changes,
+        conflicts,
+    }
+}
+
 /// `from` is the effect expected in the current head; `to` is the desired
 /// state. Undo passes original after/before, redo passes original before/after.
 pub fn selective_merge(
@@ -45,6 +83,7 @@ pub fn selective_merge(
         serde_json::to_value(from).expect("project document serializes"),
         serde_json::to_value(to).expect("project document serializes"),
         serde_json::to_value(head).expect("project document serializes"),
+        MergeProfile::Legacy,
     );
     let project = result.and_then(|value| serde_json::from_value(value).ok());
     Merge {
@@ -63,6 +102,7 @@ pub fn selective_merge_v3(
         serde_json::to_value(normalize_v3(from)).expect("schema 3 project serializes"),
         serde_json::to_value(normalize_v3(to)).expect("schema 3 project serializes"),
         serde_json::to_value(normalize_v3(head)).expect("schema 3 project serializes"),
+        MergeProfile::Legacy,
     );
     let mut project: Option<ProjectDocumentV3> =
         result.and_then(|value| serde_json::from_value(value).ok());
@@ -124,6 +164,7 @@ fn merge_values(
     from: Value,
     to: Value,
     head: Value,
+    profile: MergeProfile,
 ) -> (Option<Value>, Vec<Change>, Vec<Conflict>) {
     let mut changes = Vec::new();
     let mut conflicts = Vec::new();
@@ -134,6 +175,7 @@ fn merge_values(
         "",
         &mut changes,
         &mut conflicts,
+        profile,
     );
     let result = if conflicts.is_empty() { result } else { None };
     if result.is_none() && conflicts.is_empty() {
@@ -153,6 +195,7 @@ fn merge_field(
     path: &str,
     changes: &mut Vec<Change>,
     conflicts: &mut Vec<Conflict>,
+    profile: MergeProfile,
 ) -> Option<Value> {
     if from == to {
         return head.cloned();
@@ -160,6 +203,7 @@ fn merge_field(
     if let (Some(Value::Object(from)), Some(Value::Object(to)), Some(Value::Object(head))) =
         (from, to, head)
         && !opaque(path)
+        && same_variant(profile, from, to, head)
     {
         let mut result = Map::new();
         let keys: BTreeSet<_> = from.keys().chain(to.keys()).chain(head.keys()).collect();
@@ -172,6 +216,7 @@ fn merge_field(
                 &child,
                 changes,
                 conflicts,
+                profile,
             ) {
                 result.insert(key.clone(), value);
             }
@@ -183,7 +228,7 @@ fn merge_field(
         Some(Value::Array(to_values)),
         Some(Value::Array(head)),
     ) = (from, to, head)
-        && let Some(key_field) = collection_key(path)
+        && let Some(key_field) = collection_key(profile, path)
         && let (Some(from), Some(to), Some(current)) = (
             keyed(from_values, key_field),
             keyed(to_values, key_field),
@@ -206,6 +251,7 @@ fn merge_field(
                 &child,
                 changes,
                 conflicts,
+                profile,
             ) {
                 merged.insert(key, value);
             }
@@ -311,16 +357,6 @@ fn merge_field(
     }
 }
 
-fn collection_key(path: &str) -> Option<&'static str> {
-    match path.rsplit('/').next()? {
-        "assets" | "sequences" | "tracks" | "clips" | "caption_cues" | "keyframes" | "shapes"
-        | "effects" | "masks" | "transitions" | "keyframe_curves" => Some("id"),
-        "visual" => Some("sequence_id"),
-        "channels" => Some("parameter"),
-        _ => None,
-    }
-}
-
 fn keyed<'a>(values: &'a [Value], field: &str) -> Option<BTreeMap<String, &'a Value>> {
     let mut result = BTreeMap::new();
     for value in values {
@@ -355,249 +391,4 @@ fn join(path: &str, key: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    fn document() -> ProjectDocument {
-        serde_json::from_value(json!({
-            "id":"p","name":"Project","schema_version":2,"default_sequence_id":"main",
-            "assets":[],"sequences":[{"id":"main","name":"Main","width":640,"height":360,
-                "fps":{"numerator":25,"denominator":1},"caption_cues":[],
-                "tracks":[{"id":"voice","name":"Voice","kind":"audio","enabled":true,
-                    "muted":false,"locked":false,"params":{"volume":1.0},"clips":[]}]}]
-        }))
-        .unwrap()
-    }
-
-    #[test]
-    fn reverts_one_track_property_and_preserves_later_caption() {
-        let before = document();
-        let mut after = before.clone();
-        after.sequences[0].tracks[0]
-            .params
-            .insert("volume".into(), json!(0.4));
-        let mut head = after.clone();
-        head.sequences[0].caption_cues.push(
-            serde_json::from_value(json!({
-                "id":"human-caption","timeline_range":{"start":{"ticks":"0","timebase":25},
-                    "duration":{"ticks":"25","timebase":25}},"text":"Human text",
-                "source_anchor":null,"style":{"font_family":"Arial","font_size":24,
-                    "color":"#ffffff","background_color":null,"max_width":600,
-                    "line_height":28,"text_align":"center"}
-            }))
-            .unwrap(),
-        );
-        let undone = selective_merge(&after, &before, &head);
-        assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
-        let project = undone.project.unwrap();
-        assert_eq!(project.sequences[0].tracks[0].params["volume"], json!(1.0));
-        assert_eq!(
-            project.sequences[0].caption_cues,
-            head.sequences[0].caption_cues
-        );
-        let redone = selective_merge(&before, &after, &project);
-        assert!(redone.conflicts.is_empty());
-        assert_eq!(
-            redone.project.unwrap().sequences[0].tracks[0].params["volume"],
-            json!(0.4)
-        );
-    }
-
-    #[test]
-    fn reports_same_property_and_created_object_dependencies() {
-        let before = document();
-        let mut after = before.clone();
-        after.sequences[0].tracks[0]
-            .params
-            .insert("volume".into(), json!(0.4));
-        let mut head = after.clone();
-        head.sequences[0].tracks[0]
-            .params
-            .insert("volume".into(), json!(0.8));
-        let conflict = selective_merge(&after, &before, &head);
-        assert!(conflict.project.is_none());
-        assert_eq!(
-            conflict.conflicts[0].path,
-            "/sequences/main/tracks/voice/params/volume"
-        );
-
-        let mut created = before.clone();
-        let mut track = created.sequences[0].tracks[0].clone();
-        track.id = "agent-track".into();
-        created.sequences[0].tracks.push(track);
-        let mut dependent = created.clone();
-        dependent.sequences[0].tracks[1].name = "Human renamed".into();
-        let conflict = selective_merge(&created, &before, &dependent);
-        assert!(conflict.project.is_none());
-        assert_eq!(
-            conflict.conflicts[0].path,
-            "/sequences/main/tracks/agent-track"
-        );
-    }
-
-    #[test]
-    fn reverses_pure_track_order_and_preserves_later_entities() {
-        let mut before = document();
-        for name in ["graphics", "captions"] {
-            let mut track = before.sequences[0].tracks[0].clone();
-            track.id = name.into();
-            track.name = name.into();
-            before.sequences[0].tracks.push(track);
-        }
-        let mut after = before.clone();
-        after.sequences[0].tracks.swap(0, 1);
-        let mut head = after.clone();
-        let mut later = before.sequences[0].tracks[0].clone();
-        later.id = "later".into();
-        later.name = "Later".into();
-        head.sequences[0].tracks.insert(1, later);
-        head.sequences[0].tracks[0].muted = true;
-        let undone = selective_merge(&after, &before, &head);
-        assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
-        assert!(
-            undone
-                .changes
-                .iter()
-                .any(|change| change.path == "/sequences/main/tracks/@order")
-        );
-        let tracks = &undone.project.unwrap().sequences[0].tracks;
-        assert_eq!(
-            tracks
-                .iter()
-                .map(|track| track.id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["voice", "later", "graphics", "captions"]
-        );
-        assert!(
-            tracks
-                .iter()
-                .find(|track| track.id == "graphics")
-                .unwrap()
-                .muted
-        );
-
-        let mut changed_order = head;
-        changed_order.sequences[0].tracks.swap(0, 3);
-        let conflict = selective_merge(&after, &before, &changed_order);
-        assert!(conflict.project.is_none());
-        assert!(
-            conflict
-                .conflicts
-                .iter()
-                .any(|item| item.path == "/sequences/main/tracks/@order")
-        );
-    }
-
-    #[test]
-    fn v3_undo_preserves_later_independent_shape_and_detects_same_property() {
-        let base = document();
-        let before = ProjectDocumentV3 {
-            schema_version: 3,
-            base: base.clone(),
-            visual: vec![],
-            keyframe_curves: vec![],
-        };
-        let mut after = before.clone();
-        after.base.sequences[0].tracks[0]
-            .params
-            .insert("volume".into(), json!(0.4));
-        let mut head = after.clone();
-        head.visual.push(
-            serde_json::from_value(json!({"sequence_id":"main","shapes":[{
-            "id":"card","track_id":"voice","timeline_range":{"start":{"ticks":"0","timebase":25},
-            "duration":{"ticks":"25","timebase":25}},"primitive":{"kind":"rectangle",
-            "width_px":100.0,"height_px":50.0},"fill":{"red":255,"green":0,"blue":0,"alpha":255},
-            "position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}],
-            "effects":[],"masks":[],"transitions":[]}))
-            .unwrap(),
-        );
-        let undone = selective_merge_v3(&after, &before, &head);
-        assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
-        let result = undone.project.unwrap();
-        assert_eq!(
-            result.base.sequences[0].tracks[0].params["volume"],
-            json!(1.0)
-        );
-        assert_eq!(result.visual, head.visual);
-        head.base.sequences[0].tracks[0]
-            .params
-            .insert("volume".into(), json!(0.8));
-        let conflict = selective_merge_v3(&after, &before, &head);
-        assert!(conflict.project.is_none());
-        assert_eq!(
-            conflict.conflicts[0].path,
-            "/base/sequences/main/tracks/voice/params/volume"
-        );
-    }
-
-    #[test]
-    fn v3_undo_first_visual_node_preserves_later_shape_in_same_sequence() {
-        let before = ProjectDocumentV3 {
-            schema_version: 3,
-            base: document(),
-            visual: vec![],
-            keyframe_curves: vec![],
-        };
-        let mut after = before.clone();
-        after.visual.push(
-            serde_json::from_value(json!({"sequence_id":"main","shapes":[{
-            "id":"first","track_id":"voice","timeline_range":{"start":{"ticks":"0","timebase":25},
-            "duration":{"ticks":"25","timebase":25}},"primitive":{"kind":"rectangle",
-            "width_px":100.0,"height_px":50.0},"fill":{"red":255,"green":0,"blue":0,"alpha":255},
-            "position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}],
-            "effects":[],"masks":[],"transitions":[]}))
-            .unwrap(),
-        );
-        let mut head = after.clone();
-        let mut later = head.visual[0].shapes[0].clone();
-        later.id = "later".into();
-        head.visual[0].shapes.push(later);
-        let undone = selective_merge_v3(&after, &before, &head);
-        assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
-        assert_eq!(
-            undone.project.unwrap().visual[0]
-                .shapes
-                .iter()
-                .map(|shape| shape.id.as_str())
-                .collect::<Vec<_>>(),
-            ["later"]
-        );
-    }
-
-    #[test]
-    fn v3_undo_of_one_keyframe_curve_preserves_an_independent_curve() {
-        let base = document();
-        let before = ProjectDocumentV3 {
-            schema_version: 3,
-            base: base.clone(),
-            visual: vec![],
-            keyframe_curves: vec![],
-        };
-        let curve = |id: &str, keyframe_id: &str| {
-            serde_json::json!({
-                "id":id,"schema_version":1,"sequence_id":"main","clip_id":"clip",
-                "parameter":"opacity","keyframe_id":keyframe_id,
-                "curve":{"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}
-            })
-        };
-        let first: opencut_contracts::project_v3::KeyframeCurveV1 =
-            serde_json::from_value(curve("curve-a", "key-a")).unwrap();
-        let second: opencut_contracts::project_v3::KeyframeCurveV1 =
-            serde_json::from_value(curve("curve-b", "key-b")).unwrap();
-        let mut after = before.clone();
-        after.keyframe_curves = vec![first.clone()];
-        let mut head = after.clone();
-        head.keyframe_curves.push(second.clone());
-
-        let undo = selective_merge_v3(&after, &before, &head);
-        assert!(undo.conflicts.is_empty(), "{:?}", undo.conflicts);
-        assert_eq!(undo.project.unwrap().keyframe_curves, [second]);
-
-        let mut conflicting_head = after.clone();
-        conflicting_head.keyframe_curves[0].curve.y1 = 0.25;
-        let conflict = selective_merge_v3(&after, &before, &conflicting_head);
-        assert_eq!(conflict.conflicts.len(), 1);
-        assert!(conflict.conflicts[0].path.contains("curve-a"));
-    }
-}
+mod tests;

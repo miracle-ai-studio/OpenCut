@@ -387,6 +387,9 @@ pub fn project(record: JobRecord) -> JobView {
             | "preview.composited_frame"
             | "preview.project_range"
             | "render.project.v3"
+            | "render.project_audio.v4"
+            | "render.project_audio_range.v4"
+            | "render.project_frame.v4"
             | "preview.project_frame.v3"
             | "preview.project_range.v3"
             | "analysis.speaker_turns"
@@ -492,7 +495,83 @@ pub fn project(record: JobRecord) -> JobView {
         failure: None,
         artifacts: vec![],
     };
-    if record.state == JobState::Succeeded && view.kind.ends_with(".v3") {
+    if record.state == JobState::Succeeded && view.kind == "render.project_frame.v4" {
+        let projected = (|| {
+            use crate::project_v4_frame_jobs::{
+                PreparedV4FramePng, StoredV4FramePngResultV1, validate_stored_result,
+            };
+            let input: PreparedV4FramePng = decode(record.input.clone())?;
+            let stored: StoredV4FramePngResultV1 = decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_audio.v4" {
+        let projected = (|| {
+            use crate::project_v4_audio_jobs::{
+                PreparedV4AudioWav, StoredV4AudioWavResultV1, validate_stored_result,
+            };
+            let input: PreparedV4AudioWav = decode(record.input.clone())?;
+            let stored: StoredV4AudioWavResultV1 = decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_audio_range.v4" {
+        let projected = (|| {
+            use crate::project_v4_audio_jobs::{
+                PreparedV4AudioWav, StoredV4AudioRangeWavResultV1, validate_stored_range_result,
+            };
+            let input: PreparedV4AudioWav = decode(record.input.clone())?;
+            let stored: StoredV4AudioRangeWavResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_range_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind.ends_with(".v3") {
         let projected = (|| {
             use opencut_job_execution::project_v3::{
                 PreparedV3Frame, PreparedV3Range, PreparedV3Render,

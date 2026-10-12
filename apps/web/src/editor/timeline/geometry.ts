@@ -30,7 +30,7 @@ export function duration(
 export function snappedTime(
   seconds: number,
   sequence: Sequence,
-  exclude: string | null,
+  exclude: string | string[] | null,
   pixelsPerSecond: number,
   snap: boolean,
 ): Time {
@@ -39,7 +39,12 @@ export function snappedTime(
     let best = 8 / pixelsPerSecond;
     for (const track of sequence.tracks)
       for (const clip of track.clips) {
-        if (clip.id === exclude) continue;
+        if (
+          Array.isArray(exclude)
+            ? exclude.includes(clip.id)
+            : clip.id === exclude
+        )
+          continue;
         for (const time of [
           clip.timeline_range.start,
           addTime(clip.timeline_range.start, clip.timeline_range.duration),

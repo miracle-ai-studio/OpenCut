@@ -704,6 +704,191 @@ fn parse_track(value: &Value, path: &str, review: &mut Review, sequence: &mut Se
     review.mapped(path);
 }
 
+/// Recovery keeps the complete mapped library, including unreferenced assets.
+/// Legacy `analyze` remains unchanged: its unused mappings are explicit losses.
+pub fn analyze_recovery(
+    input: &ClassicAnalyze,
+    media: &BTreeMap<String, Asset>,
+) -> ClassicAnalysis {
+    let (source, shadow_fields) = recovery_source(input);
+    let mut report = analyze(&source, media);
+    // The source identity always covers the actual supplied snapshot, including
+    // explicitly reviewed legacy shadow fields, never just its cleaned projection.
+    report.source_content_id = source_content_id(&input.content);
+    report.losses.extend(shadow_fields);
+    let Some(project) = report.proposed_project.as_mut() else {
+        return report;
+    };
+    for (id, source) in media {
+        let asset_id = crate::content_id("classic_asset", id.as_bytes());
+        if project.assets.iter().any(|asset| asset.id == asset_id) {
+            continue;
+        }
+        let mut asset = source.clone();
+        asset.id = asset_id;
+        if let Some(version) = &asset.version {
+            asset.uri = format!("opencut-package://sha256/{}", version.content_hash);
+        }
+        project.assets.push(asset);
+        report.mapped.push(format!("$.media_mappings.{id}"));
+    }
+    report
+        .losses
+        .retain(|loss| loss.code != "UNUSED_MEDIA_MAPPING");
+    if let Err(error) = opencut_editor_core::validate_project(project) {
+        report.blockers.push(CompatibilityFinding {
+            path: "$.media_mappings".into(),
+            code: "TARGET_VALIDATION".into(),
+            detail: error.message,
+        });
+        report.proposed_project = None;
+    }
+    report
+}
+
+fn recovery_source(input: &ClassicAnalyze) -> (ClassicAnalyze, Vec<CompatibilityFinding>) {
+    if input.content.len() > MAX_CLASSIC_BYTES {
+        return (input.clone(), Vec::new());
+    }
+    let Ok(mut raw) = serde_json::from_str::<Value>(&input.content) else {
+        return (input.clone(), Vec::new());
+    };
+    let mut losses = Vec::new();
+    if raw["version"] != json!(31) {
+        return (input.clone(), losses);
+    }
+    if let Some(root) = raw.as_object_mut() {
+        let metadata = root.get("metadata").and_then(Value::as_object).cloned();
+        if let Some(metadata) = metadata {
+            for name in ["id", "name", "thumbnail", "createdAt", "updatedAt"] {
+                // A contradictory keyPath identity is an error, not a shadow.
+                if name == "id" && root.get(name) != metadata.get(name) {
+                    continue;
+                }
+                if metadata.contains_key(name) {
+                    remove_shadow(root, name, "$", &mut losses);
+                }
+            }
+        }
+        if root.get("settings").is_some_and(Value::is_object) {
+            for name in [
+                "fps",
+                "canvasSize",
+                "background",
+                "backgroundType",
+                "backgroundColor",
+                "blurIntensity",
+            ] {
+                remove_shadow(root, name, "$", &mut losses);
+            }
+        }
+        // Root bookmarks were moved to individual scenes by Classic v1→v2.
+        if root
+            .get("scenes")
+            .and_then(Value::as_array)
+            .is_some_and(|scenes| scenes.iter().all(|scene| scene.get("bookmarks").is_some()))
+        {
+            remove_shadow(root, "bookmarks", "$", &mut losses);
+        }
+    }
+    if let Some(scenes) = raw.get_mut("scenes").and_then(Value::as_array_mut) {
+        for (scene_index, scene) in scenes.iter_mut().enumerate() {
+            if let Some(tracks) = scene.get_mut("tracks").and_then(Value::as_object_mut) {
+                for (category, value) in tracks {
+                    if category == "main" {
+                        recovery_track(
+                            value,
+                            &format!("$.scenes[{scene_index}].tracks.main"),
+                            &mut losses,
+                        );
+                    } else if let Some(items) = value.as_array_mut() {
+                        for (index, track) in items.iter_mut().enumerate() {
+                            recovery_track(
+                                track,
+                                &format!("$.scenes[{scene_index}].tracks.{category}[{index}]"),
+                                &mut losses,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut source = input.clone();
+    source.content = raw.to_string();
+    (source, losses)
+}
+
+fn remove_shadow(
+    object: &mut Map<String, Value>,
+    name: &str,
+    path: &str,
+    losses: &mut Vec<CompatibilityFinding>,
+) {
+    if object.remove(name).is_some() {
+        losses.push(CompatibilityFinding {path: format!("{path}.{name}"), code: "LEGACY_SHADOW_FIELD".into(),
+            detail: "Classic v31 uses its canonical metadata/settings/params; this obsolete serialized shadow is excluded from the new document. The source snapshot is unchanged.".into()});
+    }
+}
+
+fn recovery_track(track: &mut Value, path: &str, losses: &mut Vec<CompatibilityFinding>) {
+    let Some(elements) = track.get_mut("elements").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for (index, element) in elements.iter_mut().enumerate() {
+        let Some(item) = element.as_object_mut() else {
+            continue;
+        };
+        let Some(params) = item.get("params").and_then(Value::as_object).cloned() else {
+            continue;
+        };
+        let path = format!("{path}.elements[{index}]");
+        for name in [
+            "opacity",
+            "blendMode",
+            "volume",
+            "muted",
+            "content",
+            "fontSize",
+            "fontFamily",
+            "color",
+            "textAlign",
+            "fontWeight",
+            "fontStyle",
+            "textDecoration",
+            "letterSpacing",
+            "lineHeight",
+        ] {
+            if params.contains_key(name) {
+                remove_shadow(item, name, &path, losses);
+            }
+        }
+        if let Some(transform) = item.get("transform").and_then(Value::as_object) {
+            let represented = transform.iter().all(|(key, value)| match key.as_str() {
+                "position" => value.as_object().is_some_and(|position| {
+                    position
+                        .iter()
+                        .all(|(key, value)| matches!(key.as_str(), "x" | "y") && value.is_number())
+                        && params.contains_key("transform.positionX")
+                        && params.contains_key("transform.positionY")
+                }),
+                "scale" => {
+                    value.is_number()
+                        && params.contains_key("transform.scaleX")
+                        && params.contains_key("transform.scaleY")
+                }
+                "scaleX" => value.is_number() && params.contains_key("transform.scaleX"),
+                "scaleY" => value.is_number() && params.contains_key("transform.scaleY"),
+                "rotate" => value.is_number() && params.contains_key("transform.rotate"),
+                _ => false,
+            });
+            if represented {
+                remove_shadow(item, "transform", &path, losses);
+            }
+        }
+    }
+}
+
 /// Pure dry-run. The caller must resolve media mappings under authorization and
 /// verify each AssetVersion before passing them here. No file or DB is touched.
 pub fn analyze(input: &ClassicAnalyze, media: &BTreeMap<String, Asset>) -> ClassicAnalysis {
@@ -1170,6 +1355,151 @@ mod tests {
             ("mv".into(), asset("video", AssetKind::Video, 'a')),
             ("ma".into(), asset("audio", AssetKind::Audio, 'b')),
         ])
+    }
+
+    #[test]
+    fn recovery_preserves_unreferenced_library_assets_without_changing_legacy_analysis() {
+        let mut input = input(source());
+        let mut media = media();
+        media.insert("unused".into(), asset("shelf-image", AssetKind::Image, 'c'));
+        input.media_mappings.push(ClassicMediaMapping {
+            classic_media_id: "unused".into(),
+            source_project_id: "library".into(),
+            source_revision: "r".into(),
+            asset_id: "shelf-image".into(),
+        });
+        let legacy = analyze(&input, &media);
+        let recovered = analyze_recovery(&input, &media);
+        assert_eq!(legacy.proposed_project.as_ref().unwrap().assets.len(), 2);
+        assert!(
+            legacy
+                .losses
+                .iter()
+                .any(|loss| loss.code == "UNUSED_MEDIA_MAPPING")
+        );
+        let project = recovered.proposed_project.as_ref().unwrap();
+        assert_eq!(project.assets.len(), 3);
+        let shelf = project
+            .assets
+            .iter()
+            .find(|asset| asset.name == "shelf-image")
+            .unwrap();
+        assert_eq!(shelf.version, media["unused"].version);
+        assert_eq!(
+            shelf.uri,
+            format!("opencut-package://sha256/{}", "c".repeat(64))
+        );
+        assert!(
+            !recovered
+                .losses
+                .iter()
+                .any(|loss| loss.code == "UNUSED_MEDIA_MAPPING")
+        );
+        assert_eq!(recovered.source_content_id, legacy.source_content_id);
+        assert_eq!(
+            project.sequences,
+            legacy.proposed_project.unwrap().sequences
+        );
+    }
+
+    #[test]
+    fn recovery_does_not_publish_a_projection_for_unsupported_semantics_or_unpinned_shelf_media() {
+        let mut source_data = source();
+        source_data["scenes"][0]["tracks"]["main"]["elements"][0]["effects"] =
+            json!([{"type":"unknown"}]);
+        let report = analyze_recovery(&input(source_data), &media());
+        assert!(report.proposed_project.is_none());
+        assert!(
+            report
+                .blockers
+                .iter()
+                .any(|finding| finding.code == "UNSUPPORTED_DEPENDENCY")
+        );
+        let mut input = input(source());
+        let mut media = media();
+        let mut asset = asset("shelf", AssetKind::Image, 'c');
+        asset.version = None;
+        media.insert("unused".into(), asset);
+        input.media_mappings.push(ClassicMediaMapping {
+            classic_media_id: "unused".into(),
+            source_project_id: "library".into(),
+            source_revision: "r".into(),
+            asset_id: "shelf".into(),
+        });
+        let report = analyze_recovery(&input, &media);
+        assert!(report.proposed_project.is_none());
+        assert!(
+            report
+                .blockers
+                .iter()
+                .any(|finding| finding.code == "MEDIA_VERSION_REQUIRED")
+        );
+    }
+
+    #[test]
+    fn recovery_reviews_obsolete_shadows_but_keeps_original_source_identity_and_canonical_values() {
+        let mut raw = source();
+        raw["id"] = json!("classic");
+        raw["name"] = json!("obsolete title");
+        raw["fps"] = json!(60);
+        raw["scenes"][0]["tracks"]["main"]["elements"][0]["volume"] = json!(0);
+        let input = input(raw);
+        assert!(analyze(&input, &media()).proposed_project.is_none());
+        let report = analyze_recovery(&input, &media());
+        assert!(report.blockers.is_empty(), "{:?}", report.blockers);
+        assert_eq!(report.source_content_id, source_content_id(&input.content));
+        let shadows: Vec<_> = report
+            .losses
+            .iter()
+            .filter(|f| f.code == "LEGACY_SHADOW_FIELD")
+            .map(|f| f.path.as_str())
+            .collect();
+        assert_eq!(
+            shadows,
+            vec![
+                "$.id",
+                "$.name",
+                "$.fps",
+                "$.scenes[0].tracks.main.elements[0].volume"
+            ]
+        );
+        let project = report.proposed_project.unwrap();
+        assert_eq!(project.name, "Interview");
+        assert!(
+            (project.sequences[0].tracks[0].clips[0].params["volume"]
+                .as_f64()
+                .unwrap()
+                - 0.5011872336272722)
+                .abs()
+                < 1e-12
+        );
+    }
+
+    #[test]
+    fn recovery_cannot_erase_conflicting_id_or_unknown_transform_dependencies() {
+        for transform in [
+            json!({"scale": {"curve": "unknown"}}),
+            json!({"position": {"x": 0, "y": 0, "z": 1}}),
+        ] {
+            let mut raw = source();
+            let clip = &mut raw["scenes"][0]["tracks"]["main"]["elements"][0];
+            clip["transform"] = transform;
+            clip["params"]["transform.scaleY"] = json!(1);
+            clip["params"]["transform.positionY"] = json!(0);
+            let report = analyze_recovery(&input(raw), &media());
+            assert!(report.proposed_project.is_none());
+            assert!(
+                report
+                    .blockers
+                    .iter()
+                    .any(|f| f.path.ends_with("transform"))
+            );
+        }
+        let mut raw = source();
+        raw["id"] = json!("different");
+        let report = analyze_recovery(&input(raw), &media());
+        assert!(report.proposed_project.is_none());
+        assert!(report.blockers.iter().any(|f| f.path == "$.id"));
     }
 
     #[test]

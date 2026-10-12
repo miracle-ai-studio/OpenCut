@@ -16,7 +16,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "STORAGE_BUSY"
         | "STORAGE_BUDGET_BUSY"
         | "DATABASE_BUSY" => (429, 7),
-        "UPLOAD_TIMEOUT" => (408, 124),
+        "UPLOAD_TIMEOUT" | "SOURCE_ART_DEADLINE_EXCEEDED" | "SOURCE_ART_TIME_LIMIT" => (408, 124),
         "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" => (403, 3),
         "NOT_FOUND" => (404, 4),
@@ -54,7 +54,12 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "UPLOAD_HASH_REQUIRED"
         | "UPLOAD_INCOMPLETE"
         | "JOB_LEASE_LOST" => (409, 5),
-        "MEDIA_OUTPUT_LIMIT_EXCEEDED"
+        "SOURCE_ART_CANCELLED" | "SOURCE_ART_STOPPED" => (409, 7),
+        "SOURCE_ART_REQUEST_CONFLICT" => (409, 5),
+        "SOURCE_ART_BUDGET_EXCEEDED" => (422, 6),
+        "MEDIA_METADATA_REQUIRED"
+        | "NO_AUDIO_TRACK"
+        | "MEDIA_OUTPUT_LIMIT_EXCEEDED"
         | "STORAGE_BUDGET_EXCEEDED"
         | "STORAGE_CAPACITY_LOW"
         | "RESOURCE_TOO_LARGE"
@@ -62,6 +67,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "CONSTRAINT_VIOLATION"
         | "CAPABILITY_UNAVAILABLE"
         | "UNSUPPORTED_OPERATION"
+        | "UNSUPPORTED_WAVEFORM_DISPLAY_PROFILE"
         | "UNSUPPORTED_PROJECT_VERSION"
         | "PREVIEW_LIMIT"
         | "PREVIEW_VIEWPORT_LIMIT"
@@ -75,7 +81,9 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "UNSUPPORTED_DATABASE_VERSION" => (422, 6),
         "JOB_WAIT_TIMEOUT" => (408, 124),
         "JOB_CANCELLED" => (409, 7),
-        "JOB_FAILED" | "PLUGIN_RUNTIME" | "PLUGIN_OUTPUT_LIMIT" => (422, 7),
+        "JOB_FAILED" | "PLUGIN_RUNTIME" | "PLUGIN_OUTPUT_LIMIT" | "SOURCE_ART_DECODE_FAILED" => {
+            (422, 7)
+        }
         // Integrity/storage/internal errors require investigation or repair.
         // A successful historical Job is not rewritten when an artifact decays.
         _ => (500, 8),

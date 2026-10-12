@@ -140,12 +140,19 @@ pub fn compile_v3(
         if !track.enabled {
             continue;
         }
-        let kind = match track.kind {
-            TrackKind::Video => VisualTargetKind::VideoClip,
-            TrackKind::Graphic => VisualTargetKind::ImageClip,
-            _ => continue,
-        };
+        if !matches!(track.kind, TrackKind::Video | TrackKind::Graphic) {
+            continue;
+        }
         for (clip_index, clip) in track.clips.iter().enumerate() {
+            let image = snapshot.project.base.assets.iter().any(|asset| {
+                Some(asset.id.as_str()) == clip.asset_id.as_deref()
+                    && asset.kind == opencut_contracts::AssetKind::Image
+            });
+            let kind = if image {
+                VisualTargetKind::ImageClip
+            } else {
+                VisualTargetKind::VideoClip
+            };
             let index = match kind {
                 VisualTargetKind::VideoClip => {
                     let index = video_index;

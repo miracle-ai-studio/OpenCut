@@ -258,3 +258,66 @@ fn cleanup_tolerates_another_cleaner_and_rechecks_directory_identity() {
     std::os::unix::fs::symlink(&path, &alias).unwrap();
     assert!(AttemptLease::try_cleanup(&alias).is_err());
 }
+
+#[test]
+fn anchored_output_creation_is_exclusive_and_cannot_follow_replaced_attempt_paths() {
+    use std::{ffi::OsStr, io::Write};
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("attempt");
+    fs::create_dir(&path).unwrap();
+    let lease = AttemptLease::acquire(&path).unwrap();
+    let mut first = lease
+        .create_readwrite_child(OsStr::new("output.wav"))
+        .unwrap();
+    first.write_all(b"original").unwrap();
+    first.sync_all().unwrap();
+    assert!(
+        lease
+            .create_readwrite_child(OsStr::new("output.wav"))
+            .is_err()
+    );
+    assert_eq!(fs::read(path.join("output.wav")).unwrap(), b"original");
+    for name in ["", ".", "..", "../escape.wav", "nested/escape.wav"] {
+        assert!(lease.create_readwrite_child(OsStr::new(name)).is_err());
+    }
+    let outside = root.path().join("outside.wav");
+    fs::write(&outside, b"outside").unwrap();
+    assert!(lease.create_readwrite_child(outside.as_os_str()).is_err());
+    std::os::unix::fs::symlink(&outside, path.join("linked.wav")).unwrap();
+    assert!(
+        lease
+            .create_readwrite_child(OsStr::new("linked.wav"))
+            .is_err()
+    );
+    assert_eq!(fs::read(&outside).unwrap(), b"outside");
+    assert!(!root.path().join("escape.wav").exists());
+
+    let held_path = root.path().join("held-attempt");
+    fs::rename(&path, &held_path).unwrap();
+    fs::create_dir(&path).unwrap();
+    assert!(!lease.still_names(&path).unwrap());
+    assert!(lease.still_names(&held_path).unwrap());
+    let mut held = lease
+        .create_readwrite_child(OsStr::new("after-replacement.wav"))
+        .unwrap();
+    held.write_all(b"held inode only").unwrap();
+    held.sync_all().unwrap();
+    lease.sync_directory().unwrap();
+    assert_eq!(
+        fs::read(held_path.join("after-replacement.wav")).unwrap(),
+        b"held inode only"
+    );
+    assert!(!path.join("after-replacement.wav").exists());
+    fs::remove_dir(&path).unwrap();
+    std::os::unix::fs::symlink(&held_path, &path).unwrap();
+    assert!(!lease.still_names(&path).unwrap());
+    let mut child = lease
+        .create_readwrite_child(OsStr::new("after-symlink.wav"))
+        .unwrap();
+    child.write_all(b"still anchored").unwrap();
+    child.sync_all().unwrap();
+    assert_eq!(
+        fs::read(held_path.join("after-symlink.wav")).unwrap(),
+        b"still anchored"
+    );
+}

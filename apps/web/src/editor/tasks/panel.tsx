@@ -29,18 +29,29 @@ export function TasksPanel() {
           <article className="task-card" key={job.job_id}>
             <div className="task-title">
               <strong>
-                {job.kind.startsWith("render.")
-                  ? t("Export")
-                  : job.kind.startsWith("preview.")
-                    ? t("Preview")
-                    : job.kind === "media.import"
-                      ? t("Import")
-                      : job.kind === "analysis.sequence_transcribe"
-                        ? t("Transcription")
-                        : job.kind.replaceAll(".", " ")}
+                {job.kind === "render.project_audio_range.v4"
+                  ? t("Audio range WAV export")
+                  : job.kind === "render.project_audio.v4"
+                    ? t("Audio WAV export")
+                  : job.kind === "render.project_frame.v4"
+                    ? t("Scene frame")
+                    : job.kind.startsWith("render.")
+                      ? t("Export")
+                      : job.kind.startsWith("preview.")
+                        ? t("Preview")
+                        : job.kind === "media.import"
+                          ? t("Import")
+                          : job.kind === "analysis.sequence_transcribe"
+                            ? t("Transcription")
+                            : job.kind.replaceAll(".", " ")}
               </strong>
               <span className={`state ${job.state}`}>{t(job.state)}</span>
             </div>
+            {job.target && (
+              <small>
+                {t("Saved revision")} · {job.target.revision}
+              </small>
+            )}
             {job.progress && (
               <>
                 <progress max="1" value={job.progress.fraction ?? undefined} />
@@ -62,6 +73,7 @@ export function TasksPanel() {
             <div className="task-actions">
               {job.kind === "media.import" &&
                 job.state === "succeeded" &&
+                !!snapshot &&
                 !historical && (
                   <Button
                     disabled={busy}

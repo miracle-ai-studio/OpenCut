@@ -45,7 +45,7 @@ fn selection(ids: &[String]) -> Result<BTreeSet<String>, EditorError> {
 }
 
 struct Planner<'a> {
-    input: &'a TimelineEditRequest,
+    sequence_id: &'a str,
     working: ProjectDocumentV3,
     transaction: ApplyV3Project,
     transitions: Vec<TransitionNode>,
@@ -53,13 +53,79 @@ struct Planner<'a> {
     reserved: BTreeSet<String>,
     notes: Vec<String>,
 }
-impl Planner<'_> {
+impl<'a> Planner<'a> {
+    fn new(
+        snapshot: &ProjectSnapshotV3,
+        sequence_id: &'a str,
+        transaction: ApplyV3Project,
+    ) -> Result<Self, EditorError> {
+        if snapshot.project.base.id != transaction.project_id
+            || snapshot.revision != transaction.expected_revision
+        {
+            return Err(EditorError::new(
+                "REVISION_CONFLICT",
+                "Editorial plan requires the exact project revision",
+            ));
+        }
+        opencut_editor_core::project_v3::validate_project_v3(&snapshot.project)?;
+        let sequence = snapshot
+            .project
+            .base
+            .sequences
+            .iter()
+            .find(|s| s.id == sequence_id)
+            .ok_or_else(|| EditorError::new("NOT_FOUND", "Sequence does not exist"))?;
+        if transaction.idempotency_key.trim().is_empty() {
+            return Err(invalid("Idempotency key is required"));
+        }
+        let lineage = sequence
+            .tracks
+            .iter()
+            .flat_map(|t| &t.clips)
+            .map(|c| (c.id.clone(), vec![c.id.clone()]))
+            .collect();
+        // Reserve all strings conservatively: generated IDs cannot collide with an
+        // existing clip, keyframe, effect, asset, curve, sequence or future extension.
+        fn strings(value: &serde_json::Value, out: &mut BTreeSet<String>) {
+            match value {
+                serde_json::Value::String(v) => {
+                    out.insert(v.clone());
+                }
+                serde_json::Value::Array(v) => {
+                    for x in v {
+                        strings(x, out)
+                    }
+                }
+                serde_json::Value::Object(v) => {
+                    for x in v.values() {
+                        strings(x, out)
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut reserved = BTreeSet::new();
+        strings(
+            &serde_json::to_value(&snapshot.project).map_err(|e| invalid(e.to_string()))?,
+            &mut reserved,
+        );
+        Ok(Self {
+            sequence_id,
+            working: snapshot.project.clone(),
+            transaction,
+            transitions: vec![],
+            lineage,
+            reserved,
+            notes: vec![],
+        })
+    }
+
     fn sequence(&self) -> &Sequence {
         self.working
             .base
             .sequences
             .iter()
-            .find(|s| s.id == self.input.sequence_id)
+            .find(|s| s.id == self.sequence_id)
             .expect("validated sequence")
     }
     fn clip(&self, id: &str) -> Result<(String, Clip), EditorError> {
@@ -113,7 +179,7 @@ impl Planner<'_> {
             return Ok(());
         }
         self.base(Operation::MoveClip {
-            sequence_id: self.input.sequence_id.clone(),
+            sequence_id: self.sequence_id.to_owned(),
             track_id: track.clone(),
             clip_id: id.into(),
             destination_track_id: track,
@@ -124,7 +190,7 @@ impl Planner<'_> {
         let (track, _) = self.clip(id)?;
         let right = self.fresh();
         self.base(Operation::SplitClip {
-            sequence_id: self.input.sequence_id.clone(),
+            sequence_id: self.sequence_id.to_owned(),
             track_id: track,
             clip_id: id.into(),
             at: at.into(),
@@ -143,14 +209,14 @@ impl Planner<'_> {
             .working
             .visual
             .iter()
-            .find(|s| s.sequence_id == self.input.sequence_id)
+            .find(|s| s.sequence_id == self.sequence_id)
             .cloned()
         {
             for mut effect in visual.effects.into_iter().filter(|v| v.target_id == id) {
                 effect.id = self.fresh();
                 effect.target_id = right.into();
                 self.step(VisualOperation::EffectPut {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     effect,
                 })?;
             }
@@ -158,7 +224,7 @@ impl Planner<'_> {
                 mask.id = self.fresh();
                 mask.target_id = right.into();
                 self.step(VisualOperation::MaskPut {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     mask,
                 })?;
             }
@@ -170,18 +236,18 @@ impl Planner<'_> {
             .working
             .visual
             .iter()
-            .find(|s| s.sequence_id == self.input.sequence_id)
+            .find(|s| s.sequence_id == self.sequence_id)
             .cloned()
         {
             for effect in visual.effects.iter().filter(|v| v.target_id == id) {
                 self.step(VisualOperation::EffectDelete {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     id: effect.id.clone(),
                 })?;
             }
             for mask in visual.masks.iter().filter(|v| v.target_id == id) {
                 self.step(VisualOperation::MaskDelete {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     id: mask.id.clone(),
                 })?;
             }
@@ -192,7 +258,7 @@ impl Planner<'_> {
         let (track, _) = self.clip(id)?;
         self.remove_target_visuals(id)?;
         self.base(Operation::DeleteClip {
-            sequence_id: self.input.sequence_id.clone(),
+            sequence_id: self.sequence_id.to_owned(),
             track_id: track,
             clip_id: id.into(),
         })?;
@@ -245,7 +311,7 @@ impl Planner<'_> {
         )?;
         // Grow first, so all shifted animation keys remain in bounds.
         self.base(Operation::TrimClip {
-            sequence_id: self.input.sequence_id.clone(),
+            sequence_id: self.sequence_id.to_owned(),
             track_id: track.clone(),
             clip_id: retained.clone(),
             timeline_range: range(start, finish)?,
@@ -257,7 +323,7 @@ impl Planner<'_> {
                     key.time = time(&key.time)?.checked_add(leading)?.into();
                 }
                 self.base(Operation::SetKeyframeChannel {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     track_id: track.clone(),
                     clip_id: retained.clone(),
                     channel: channel.clone(),
@@ -358,11 +424,11 @@ impl Planner<'_> {
                 right.timeline_range = range(finish, end(&old)?.checked_add(duration)?)?;
                 cue.timeline_range = range(time(&old.start)?, start)?;
                 self.base(Operation::UpdateCaption {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     cue,
                 })?;
                 self.base(Operation::InsertCaption {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     cue: right,
                 })?;
                 continue;
@@ -376,14 +442,14 @@ impl Planner<'_> {
             };
             if !b.cmp_exact(a).is_gt() {
                 self.base(Operation::DeleteCaption {
-                    sequence_id: self.input.sequence_id.clone(),
+                    sequence_id: self.sequence_id.to_owned(),
                     cue_id: cue.id,
                 })?;
             } else {
                 cue.timeline_range = range(a, b)?;
                 if cue.timeline_range != old {
                     self.base(Operation::UpdateCaption {
-                        sequence_id: self.input.sequence_id.clone(),
+                        sequence_id: self.sequence_id.to_owned(),
                         cue,
                     })?;
                 }
@@ -393,7 +459,7 @@ impl Planner<'_> {
             .working
             .visual
             .iter()
-            .find(|s| s.sequence_id == self.input.sequence_id)
+            .find(|s| s.sequence_id == self.sequence_id)
             .cloned()
         {
             for mut shape in visual.shapes {
@@ -409,11 +475,11 @@ impl Planner<'_> {
                     let old_id = shape.id.clone();
                     let right_id = right.id.clone();
                     self.step(VisualOperation::ShapePut {
-                        sequence_id: self.input.sequence_id.clone(),
+                        sequence_id: self.sequence_id.to_owned(),
                         shape,
                     })?;
                     self.step(VisualOperation::ShapePut {
-                        sequence_id: self.input.sequence_id.clone(),
+                        sequence_id: self.sequence_id.to_owned(),
                         shape: right,
                     })?;
                     self.copy_visuals(&old_id, &right_id)?;
@@ -428,14 +494,14 @@ impl Planner<'_> {
                 if !b.cmp_exact(a).is_gt() {
                     self.remove_target_visuals(&shape.id)?;
                     self.step(VisualOperation::ShapeDelete {
-                        sequence_id: self.input.sequence_id.clone(),
+                        sequence_id: self.sequence_id.to_owned(),
                         id: shape.id,
                     })?;
                 } else {
                     shape.timeline_range = range(a, b)?;
                     if shape.timeline_range != old {
                         self.step(VisualOperation::ShapePut {
-                            sequence_id: self.input.sequence_id.clone(),
+                            sequence_id: self.sequence_id.to_owned(),
                             shape,
                         })?;
                     }
@@ -466,7 +532,7 @@ impl Planner<'_> {
                     transition.outgoing_clip_id = outgoing;
                     transition.incoming_clip_id = incoming;
                     self.step(VisualOperation::TransitionPut {
-                        sequence_id: self.input.sequence_id.clone(),
+                        sequence_id: self.sequence_id.to_owned(),
                         transition,
                     })?;
                     continue;
@@ -513,52 +579,17 @@ pub fn plan(
         }
         _ => {}
     }
-    let lineage = sequence
-        .tracks
-        .iter()
-        .flat_map(|t| t.clips.iter())
-        .map(|c| (c.id.clone(), vec![c.id.clone()]))
-        .collect();
-    // Reserve all strings conservatively: generated IDs cannot collide with an
-    // existing clip, keyframe, effect, asset, curve, sequence or future extension.
-    fn strings(value: &serde_json::Value, out: &mut BTreeSet<String>) {
-        match value {
-            serde_json::Value::String(v) => {
-                out.insert(v.clone());
-            }
-            serde_json::Value::Array(v) => {
-                for x in v {
-                    strings(x, out)
-                }
-            }
-            serde_json::Value::Object(v) => {
-                for x in v.values() {
-                    strings(x, out)
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut reserved = BTreeSet::new();
-    strings(
-        &serde_json::to_value(&snapshot.project).map_err(|e| invalid(e.to_string()))?,
-        &mut reserved,
-    );
-    let mut planner = Planner {
-        input,
-        working: snapshot.project.clone(),
-        transaction: ApplyV3Project {
+    let mut planner = Planner::new(
+        snapshot,
+        &input.sequence_id,
+        ApplyV3Project {
             project_id: input.project_id.clone(),
             expected_revision: input.expected_revision.clone(),
             idempotency_key: input.idempotency_key.clone(),
             label: input.label.clone(),
             operations: vec![],
         },
-        transitions: vec![],
-        lineage,
-        reserved,
-        notes: vec![],
-    };
+    )?;
     if let Some(visual) = planner
         .working
         .visual
@@ -902,6 +933,8 @@ pub fn plan(
         notes: planner.notes,
     })
 }
+
+pub mod classic;
 
 #[cfg(test)]
 mod tests;

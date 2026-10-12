@@ -1,0 +1,19 @@
+{
+  "profile": "Classic CURRENT_PROJECT_VERSION=31",
+  "repository": "https://github.com/OpenCut-app/OpenCut",
+  "license": "MIT",
+  "sources": {
+    "layer.wgsl": {
+      "source": "rust/crates/compositor/src/shaders/layer.wgsl",
+      "sha256": "ef27e7857c69e64a1e5d4f23d3be329dfe7863cde3212b5910366e6542afa9aa"
+    },
+    "blend.wgsl": {
+      "source": "rust/crates/compositor/src/shaders/blend.wgsl",
+      "sha256": "8e98f80f2ca883a838d27e33e96401810819c44c73956ca1a762f2cd66ab12f7"
+    },
+    "fullscreen.wgsl": {
+      "source": "rust/crates/gpu/src/shaders/fullscreen.wgsl",
+      "sha256": "2b58b120d275531b74160283ef3a0ad67943ab37a1e9fd564a7ede2413de9d37"
+    }
+  }
+}

@@ -12,6 +12,7 @@ export function TransformOverlay() {
     historical,
     sequenceId,
     selection,
+    selections,
     playhead,
     busy,
   } = useWorkspace();
@@ -68,6 +69,7 @@ export function TransformOverlay() {
   const time = secondsForDisplay(playhead);
   if (
     !entity ||
+    selections.length > 1 ||
     !sequence ||
     !snapshot ||
     historical ||

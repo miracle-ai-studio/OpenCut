@@ -30,18 +30,25 @@ fn history_project_v3(
         )
         .optional()
         .map_err(storage_error)?;
-    let document = match sqlite_project_v3::decode_versioned_project(&raw.ok_or_else(|| {
-        EditorError::new("NOT_FOUND", "Revision does not belong to this project")
-    })?)? {
-        sqlite_project_v3::VersionedProjectDocument::V3(document) => document,
-        sqlite_project_v3::VersionedProjectDocument::Legacy(mut document) => {
-            // Schema 1 and 2 share the same typed legacy shape. A version 1
-            // snapshot has no versioned assets, so lifting it to schema 2 is
-            // semantics-preserving and required by the schema 3 base contract.
-            document.schema_version = 2;
-            opencut_editor_application::project_v3::promote(&document)?
-        }
-    };
+    let document =
+        match sqlite_project_document::decode_versioned_project(&raw.ok_or_else(|| {
+            EditorError::new("NOT_FOUND", "Revision does not belong to this project")
+        })?)? {
+            sqlite_project_document::VersionedProjectDocument::V3(document) => document,
+            sqlite_project_document::VersionedProjectDocument::Legacy(mut document) => {
+                // Schema 1 and 2 share the same typed legacy shape. A version 1
+                // snapshot has no versioned assets, so lifting it to schema 2 is
+                // semantics-preserving and required by the schema 3 base contract.
+                document.schema_version = 2;
+                opencut_editor_application::project_v3::promote(&document)?
+            }
+            sqlite_project_document::VersionedProjectDocument::V4(_) => {
+                return Err(EditorError::new(
+                    "UNSUPPORTED_PROJECT_VERSION",
+                    "Schema 4 revisions require schema 4 history operations",
+                ));
+            }
+        };
     if document.base.id != project {
         return Err(EditorError::new(
             "STORAGE_ERROR",

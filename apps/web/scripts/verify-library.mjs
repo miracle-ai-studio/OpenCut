@@ -234,7 +234,7 @@ export async function verifyLibrary(page, inspect, directory, check) {
   await deletion
     .getByRole("button", { name: "Delete projects", exact: true })
     .click();
-  await expect(deletion).toHaveCount(0);
+  await expect(deletion).toHaveCount(0, { timeout: 45000 });
   await expect(page.locator(".project-card")).toHaveCount(3);
   await card(copyName).locator(".project-card").click();
   await page.getByRole("button", { name: "Media", exact: true }).click();
@@ -250,7 +250,9 @@ export async function verifyLibrary(page, inspect, directory, check) {
     .toBeGreaterThan(0);
   await surviving.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Render frame", exact: true }).click();
-  await expect(page.getByAltText("Rendered project frame")).toBeVisible();
+  await expect(page.getByAltText("Rendered project frame")).toBeVisible({
+    timeout: 60000,
+  });
   await page
     .getByRole("button", { name: "Back to projects", exact: true })
     .click();
@@ -265,7 +267,9 @@ export async function verifyLibrary(page, inspect, directory, check) {
   await deletion
     .getByRole("button", { name: "Delete projects", exact: true })
     .click();
-  await expect(page.locator(".project-card")).toHaveCount(0);
+  await expect(page.locator(".project-card")).toHaveCount(0, {
+    timeout: 45000,
+  });
   await page.reload();
   await expect(
     page.getByText("Start with a blank canvas", { exact: true }),

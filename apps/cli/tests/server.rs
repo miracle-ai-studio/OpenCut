@@ -441,3 +441,110 @@ fn transcription_config_resolves_model_and_preserves_idempotent_service_configur
     assert_ne!(code, 0);
     assert_eq!(rejected["error"]["code"], "SERVICE_ERROR");
 }
+
+#[test]
+fn v4_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_access() {
+    use sha2::{Digest, Sha256};
+    use std::io::{Read, Write};
+    let service = Service::new();
+    let state = service.start();
+    let owner = client(&service, &state);
+    let call = |name: &str, input: Value| owner.call_registered(name, &input).unwrap().data;
+    let created = call(
+        "opencut_project_create",
+        json!({"project":{"id":"p","name":"Fixture","sequence_id":"main","width":64,"height":48,"fps":{"numerator":25,"denominator":1}},"idempotency_key":"create"}),
+    );
+    // Native test setup writes exactly one known immutable CAS object. No user media.
+    let bytes = b"0123456789ABCDEF";
+    let hash = format!("{:x}", Sha256::digest(bytes));
+    let root = service.0.path().join("asset-store").join(&hash[..2]);
+    fs::create_dir_all(&root).unwrap();
+    let object = root.join(&hash);
+    fs::write(&object, bytes).unwrap();
+    let bound = call(
+        "opencut_edit_apply",
+        json!({"project_id":"p","request":{"expected_revision":created["revision"],"idempotency_key":"bind","label":"Fixture resource","operations":[{"type":"asset.bind","asset":{"id":"resource","name":"Resource","kind":"image","uri":"/private/not-a-byte-source","duration":null,"version":{"id":format!("av_{hash}"),"content_hash":hash,"size":bytes.len()},"metadata":{}}}]}}),
+    );
+    let promoted = call(
+        "opencut_project_v4_promote",
+        json!({"project_id":"p","expected_revision":bound["revision"],"idempotency_key":"promote","asset_versions":{}}),
+    );
+    let request = json!({"project_id":"p","revision":promoted["revision"],"kind":"asset","resource_id":"resource"});
+    let descriptor = call("opencut_project_v4_resource_inspect", request.clone());
+    assert!(!descriptor.to_string().contains("/private/"));
+    let path = descriptor["content_path"].as_str().unwrap();
+    let address = state["endpoint"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("http://")
+        .unwrap();
+    let token = fs::read_to_string(service.directory().join("api-token")).unwrap();
+    let get = |path: &str, auth: bool, range: Option<&str>| {
+        let mut socket = std::net::TcpStream::connect(address).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        write!(
+            socket,
+            "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n"
+        )
+        .unwrap();
+        if auth {
+            write!(socket, "Authorization: Bearer {}\r\n", token.trim()).unwrap();
+        }
+        if let Some(range) = range {
+            write!(socket, "Range: {range}\r\n").unwrap();
+        }
+        write!(socket, "\r\n").unwrap();
+        let mut response = Vec::new();
+        socket.read_to_end(&mut response).unwrap();
+        let split = response
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .unwrap()
+            + 4;
+        (
+            String::from_utf8(response[..split].to_vec())
+                .unwrap()
+                .to_ascii_lowercase(),
+            response[split..].to_vec(),
+        )
+    };
+    let (headers, body) = get(path, true, None);
+    assert!(headers.starts_with("http/1.1 200"), "{headers}");
+    assert_eq!(body, bytes);
+    assert!(
+        headers.contains("cache-control: no-store")
+            && headers.contains("x-content-type-options: nosniff")
+    );
+    let (headers, body) = get(path, true, Some("bytes=3-7"));
+    assert!(headers.starts_with("http/1.1 206") && headers.contains("content-range: bytes 3-7/16"));
+    assert_eq!(body, b"34567");
+    assert!(
+        get(path, true, Some("bytes=100-101"))
+            .0
+            .starts_with("http/1.1 416")
+    );
+    assert!(get(path, false, None).0.starts_with("http/1.1 403"));
+    // Changing the head does not retarget a resource pinned to an old revision.
+    call(
+        "opencut_edit_v4_apply",
+        json!({"project_id":"p","expected_revision":promoted["revision"],"idempotency_key":"unbind","label":"Remove from head","operations":[{"type":"asset_delete","asset_id":"resource"}]}),
+    );
+    assert_eq!(get(path, true, None).1, bytes);
+    fs::write(&object, b"tampered CAS bytes").unwrap();
+    let (headers, body) = get(path, true, None);
+    assert!(
+        headers.starts_with("http/1.1 500"),
+        "{headers} {}",
+        String::from_utf8_lossy(&body)
+    );
+    assert!(String::from_utf8_lossy(&body).contains("ARTIFACT_VERIFICATION_FAILED"));
+    fs::remove_file(&object).unwrap();
+    assert!(
+        owner
+            .call_registered("opencut_project_v4_resource_inspect", &request)
+            .is_ok()
+    );
+    assert!(get(path, true, None).0.starts_with("http/1.1 500"));
+}

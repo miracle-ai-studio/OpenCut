@@ -1,0 +1,17 @@
+// Serialized into the isolated realm; imports only its fixed module registry.
+export async function observeVisualPage() {
+  const module=await import("/renderer/src/index.mjs");
+  globalThis.__opencutVisualModule=module;globalThis.__opencutVisualGpu=await module.openGpuRealm();
+  return globalThis.__opencutVisualGpu.observation;
+}
+export async function executeVisualPage({plan,admission}) {
+  try {
+    const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
+      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
+    }};
+    const receipt=await globalThis.__opencutVisualModule.renderClassicFrame(plan,host,globalThis.__opencutVisualGpu);
+    return {ok:true,receipt};
+  } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
+  finally {globalThis.__opencutVisualGpu?.device.destroy();}
+}

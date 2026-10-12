@@ -57,12 +57,19 @@ pub fn audit_visual_coverage(
     let mut videos = 0;
     let mut images = 0;
     for (z, track) in sequence.tracks.iter().enumerate() {
-        let kind = match track.kind {
-            TrackKind::Video => VisualTargetKind::VideoClip,
-            TrackKind::Graphic => VisualTargetKind::ImageClip,
-            _ => continue,
-        };
+        if !matches!(track.kind, TrackKind::Video | TrackKind::Graphic) {
+            continue;
+        }
         for (order, clip) in track.clips.iter().enumerate() {
+            let image_asset = snapshot.project.base.assets.iter().any(|asset| {
+                Some(asset.id.as_str()) == clip.asset_id.as_deref()
+                    && asset.kind == opencut_contracts::AssetKind::Image
+            });
+            let kind = if image_asset {
+                VisualTargetKind::ImageClip
+            } else {
+                VisualTargetKind::VideoClip
+            };
             known.insert(clip.id.as_str());
             if !track.enabled {
                 entries.push(entry("clip", &clip.id, VisualDisposition::DisabledTrack));

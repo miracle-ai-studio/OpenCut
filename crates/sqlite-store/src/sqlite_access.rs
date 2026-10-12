@@ -142,6 +142,15 @@ pub(super) fn verified_target(
 ) -> Result<Option<(String, String)>, EditorError> {
     if matches!(
         kind,
+        "render.project_audio.v4" | "render.project_audio_range.v4"
+    ) {
+        return sqlite_project_v4_audio_jobs::verified_target(connection, input);
+    }
+    if kind == "render.project_frame.v4" {
+        return sqlite_project_v4_frame_jobs::verified_target(connection, input);
+    }
+    if matches!(
+        kind,
         "preview.project_frame.v3"
             | "preview.project_range.v3"
             | "render.project.v3"
@@ -208,12 +217,18 @@ pub(super) fn verified_target(
         return Ok(None);
     };
     let stored = if kind.starts_with("analysis.") {
-        match sqlite_project_v3::decode_versioned_project(&stored)? {
-            sqlite_project_v3::VersionedProjectDocument::Legacy(project) => project,
-            sqlite_project_v3::VersionedProjectDocument::V3(project) => project.base,
+        match sqlite_project_document::decode_versioned_project(&stored)? {
+            sqlite_project_document::VersionedProjectDocument::Legacy(project) => project,
+            sqlite_project_document::VersionedProjectDocument::V3(project) => project.base,
+            sqlite_project_document::VersionedProjectDocument::V4(_) => {
+                return Err(EditorError::new(
+                    "UNSUPPORTED_PROJECT_VERSION",
+                    "Schema 4 jobs require a schema 4 execution snapshot",
+                ));
+            }
         }
     } else {
-        sqlite_project_v3::decode_legacy_project(&stored)?
+        sqlite_project_document::decode_legacy_project(&stored)?
     };
     if stored != snapshot.project {
         return Ok(None);
@@ -255,6 +270,15 @@ pub(super) fn require_submission(
     context: &ExecutionContext,
     request: &JobRequest,
 ) -> Result<(), EditorError> {
+    if matches!(
+        request.kind.as_str(),
+        "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4"
+    ) {
+        let (project, _) = verified_target(connection, &request.kind, &request.input)?
+            .ok_or_else(access::denied)?;
+        require(connection, context, &project, ProjectAction::Read)?;
+        require(connection, context, &project, ProjectAction::RunJobs)?;
+    }
     if context.caller().is_owner() {
         require_live_input(connection, &request.input)?;
         return Ok(());
@@ -367,7 +391,7 @@ impl EditorApplication {
             ));
         }
         for grant in &policy.grants {
-            sqlite_project_v3::project_head_revision(&tx, &grant.project_id)?;
+            sqlite_project_document::project_head_revision(&tx, &grant.project_id)?;
         }
         let revision = expected + 1;
         tx.execute("INSERT INTO access_principals(principal_id,revision,enabled) VALUES (?1,?2,?3) ON CONFLICT(principal_id) DO UPDATE SET revision=excluded.revision,enabled=excluded.enabled",params![policy.principal_id,revision,policy.enabled]).map_err(storage_error)?;

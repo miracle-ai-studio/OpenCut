@@ -73,12 +73,18 @@ const expectedPaths = [
   ...domains.map(d => `/v1/tools/opencut_${d.domain}`),
   "/v1/domains", "/v1/domains/{domain}",
   "/v1/uploads/{upload_id}/chunks/{offset}",
+  "/v1/stream-uploads/{upload_id}/chunks/{offset}",
   "/v1/projects/{project}/media/{media_id}/content",
+  "/v1/project-v4-resources/content",
+  "/v1/preview/v4/audio/stream",
   "/v1/artifacts/{artifact}",
   "/v1/changes/stream",
   "/v1/preview/stream",
 ];
 assert.deepEqual(Object.keys(openapi.paths).sort(), expectedPaths.sort());
+assert.equal(openapi.paths["/v1/stream-uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_stream_chunk");
+assert.equal(openapi.paths["/v1/project-v4-resources/content"].get.operationId, "opencut_project_v4_resource_content");
+assert.equal(openapi.paths["/v1/preview/v4/audio/stream"].post.operationId, "opencut_audio_preview_v4_stream");
 assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");
 assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.requestBody.content["application/octet-stream"].schema.format, "binary");
 assert.equal(openapi.paths["/v1/projects/{project}/media/{media_id}/content"].get.operationId, "opencut_project_media_content");

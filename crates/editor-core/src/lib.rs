@@ -1,6 +1,8 @@
 pub mod collaboration;
 pub mod dependencies;
 pub mod project_v3;
+pub mod project_v4;
+pub mod scene_bookmarks;
 use std::cmp::Ordering;
 
 use opencut_contracts::*;

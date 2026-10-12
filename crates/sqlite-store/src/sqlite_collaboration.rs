@@ -59,7 +59,7 @@ fn revision(
         .map_err(storage_error)?;
     Ok(ProjectSnapshot {
         revision: id.into(),
-        project: sqlite_project_v3::decode_legacy_project(&document.ok_or_else(|| {
+        project: sqlite_project_document::decode_legacy_project(&document.ok_or_else(|| {
             EditorError::new("NOT_FOUND", "Revision does not belong to this project")
         })?)?,
     })

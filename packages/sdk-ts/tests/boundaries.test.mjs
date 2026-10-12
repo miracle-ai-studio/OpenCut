@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { violations } from "../scripts/check-boundaries.mjs";
+import { violations, isTestOnlySource, inspect } from "../scripts/check-boundaries.mjs";
 const web="apps/web/src/lib/example.ts";
 test("TS boundary accepts local aliases and declared packages",()=>{
  assert.deepEqual(violations(web,'import {x} from "@/editor/x"; export {y} from "./y"; import "react";',new Set(["react"])),[]);
@@ -17,6 +17,12 @@ test("TS boundary permits only the public SDK bridge target",()=>{
  assert.deepEqual(violations(bridge,'export * from "../../../../packages/sdk-ts/src/index";'),[]);
  assert.equal(violations(bridge,'export * from "../../../../packages/sdk-ts/src/transport";').length,1);
  assert.equal(violations(web,'import "../editor/generate-contracts.mjs";').length,1);
+ const audio="apps/web/src/editor/workspace/v4/audio-preview-mastering.ts";
+ const pure="../../../../../../packages/classic-audio-renderer/src/mastering.mjs";
+ assert.deepEqual(violations(audio,`export {createClassicMasteringChain} from "${pure}";`),[]);
+ assert.equal(violations(web,'import "../../../../packages/classic-audio-renderer/src/mastering.mjs";').length,1);
+ assert.equal(violations(audio,'import "../../../../../../packages/classic-audio-renderer/src/index.mjs";').length,1);
+ assert.equal(violations(audio,'import "../../../../../../packages/classic-audio-renderer/host/runner.mjs";').length,1);
 });
 
 test("TS boundary rejects alias traversal and excluded runtime imports",()=>{
@@ -25,4 +31,29 @@ test("TS boundary rejects alias traversal and excluded runtime imports",()=>{
  assert.equal(violations(web,'import "./other.spec.ts";').length,1);
  assert.equal(violations(web,'import "../editor/generate-contracts";').length,1);
  assert.equal(violations(web,'import "node:fs";',new Set(["node:fs"])).length,1);
+});
+
+test("TS boundary narrowly classifies test helper filenames",()=>{
+ for (const file of ["fixture.ts", "editor/media-fixture.ts", "editor/audio-wav-fixture.ts", "editor/a.test.tsx", "editor/a.spec.mjs", "editor/media-fixture"]) assert.equal(isTestOnlySource(file),true,file);
+ for (const file of ["editor/fixtures.ts", "editor/fixture-loader.ts", "editor/media-fixture-loader.ts", "editor/fixture/product.ts", "editor/media-fixture/product.ts"]) assert.equal(isTestOnlySource(file),false,file);
+});
+
+test("TS boundary rejects runtime references to fixtures through every module form",()=>{
+ for (const code of [
+  'import {x} from "../editor/workspace/v4/fixture";',
+  'export * from "@/editor/workspace/v4/media-fixture.ts";',
+  'export {x} from "#/editor/workspace/v4/audio-wav-fixture";',
+  'const x=require("../editor/workspace/v4/source-audio-fixture.js");',
+  'const x=import("../editor/workspace/v4/media-fixture");',
+  'type X=import("../editor/workspace/v4/fixture.ts").X;',
+  'import X=require("../editor/workspace/v4/media-fixture");',
+ ]) assert.match(violations(web,code).join("\n"),/Runtime source cannot import test-only code/,code);
+ assert.match(violations("packages/sdk-ts/src/index.ts",'export * from "./media-fixture";').join("\n"),/test-only code/);
+});
+
+test("TS boundary still rejects runtime Vitest and checks current source roots",()=>{
+ assert.match(violations(web,'import {vi} from "vitest";',new Set(["react"])).join("\n"),/Undeclared or native runtime dependency/);
+ const result=inspect();
+ assert.equal(result.status,"passed",result.errors.join("\n"));
+ assert.ok(result.files>0);
 });

@@ -1,8 +1,0 @@
-{
-  "status": "passed",
-  "binary_sha256": "881d9cfb74d4279e56154f46b1e8aadd89e7514be7f70970d06bdd6a45627634",
-  "fixture": "1100000 ASCII track name",
-  "elapsed_seconds": 3.4972990988753736,
-  "revision": "rev_93c94c2aea3a6fc78f240c579b679659fcba27af1271a6cf896b247c07624b6c",
-  "limit": "one debug-build stress sample, not long-media p95"
-}

@@ -1,4 +1,5 @@
 mod access;
+mod audio_preview_http;
 mod blocking_owned;
 mod denials;
 mod event_streams;
@@ -161,6 +162,8 @@ enum SystemCommand {
     },
     /// JSON Schema for versioned CLI NDJSON records.
     EventsSchema,
+    /// Shared request and frame-header schemas for the V4 binary audio stream.
+    AudioPreviewSchema,
 }
 
 #[derive(Subcommand)]
@@ -642,6 +645,13 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
         Command::System {
             command: SystemCommand::Capabilities,
         } => return Ok(opencut_automation::response(Ok(capabilities()))),
+        Command::System {
+            command: SystemCommand::AudioPreviewSchema,
+        } => {
+            return Ok(opencut_automation::response(Ok(
+                opencut_host_runtime::audio_preview_contracts::stream_schemas(),
+            )));
+        }
         Command::System {
             command: SystemCommand::EventsSchema,
         } => {

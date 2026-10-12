@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CoverSceneViews,
   flushTimelinePreferences,
   readTimelinePreferences,
   readWorkspaceLayouts,
@@ -13,6 +14,43 @@ import {
   saveTimelinePreferences,
 } from "./view-preferences";
 
+it("cover scene views persist only bounded identities, isolate hosts/projects and preserve copying", () => {
+  const views = new CoverSceneViews("http://localhost:8788");
+  views.save("project", "other");
+  expect(new CoverSceneViews("http://localhost:8788").read("project")).toBe(
+    "other",
+  );
+  expect(
+    new CoverSceneViews("http://localhost:8789").read("project"),
+  ).toBeNull();
+  views.save("copy", views.read("project")!);
+  expect(views.read("copy")).toBe("other");
+  for (let n = 0; n < 66; n++) views.save("p" + n, "s");
+  const raw = JSON.parse(localStorage.getItem("opencut.cover-scenes.v1")!);
+  expect(raw).toHaveLength(64);
+  expect(
+    raw.every(
+      (v: object) =>
+        Object.keys(v).sort().join(",") === "host,projectId,sequenceId",
+    ),
+  ).toBe(true);
+  expect(views.read("project")).toBeNull();
+  views.save("x".repeat(513), "s");
+  expect(JSON.parse(localStorage.getItem("opencut.cover-scenes.v1")!)).toEqual(
+    raw,
+  );
+});
+it("cover scene views reject credentials and recover the session when storage is unavailable", () => {
+  new CoverSceneViews("http://user:secret@localhost:8788").save("p", "s");
+  expect(localStorage.getItem("opencut.cover-scenes.v1")).toBeNull();
+  const views = new CoverSceneViews("http://localhost:8788");
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("quota");
+  });
+  views.save("project", "other");
+  expect(views.read("project")).toBe("other");
+});
+
 beforeEach(() => {
   flushTimelinePreferences();
   localStorage.clear();
@@ -24,6 +62,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe("optional timeline views", () => {
+  it("persists ripple per scene and project while keeping the stored projection finite", () => {
+    saveTimelinePreferences("p", "main", { ripple: true });
+    flushTimelinePreferences();
+    expect(readTimelinePreferences("p", "main").ripple).toBe(true);
+    expect(readTimelinePreferences("p", "other").ripple).toBe(false);
+    expect(readTimelinePreferences("another", "main").ripple).toBe(false);
+    const stored = JSON.parse(localStorage.getItem("opencut.timeline")!);
+    expect(Object.keys(stored[0]).sort()).toEqual([
+      "playhead",
+      "projectId",
+      "ripple",
+      "scrollLeft",
+      "sequenceId",
+      "zoom",
+    ]);
+  });
   it("coalesces frequent playback updates without losing scene isolation or exact ticks", () => {
     const write = vi.spyOn(Storage.prototype, "setItem");
     for (let i = 0; i < 20; i++)

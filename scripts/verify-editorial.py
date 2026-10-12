@@ -147,6 +147,15 @@ def verify(binary,root,config_generator=None):
         req=urllib.request.Request(f'http://127.0.0.1:{port}/v1/tools/opencut_edit_timeline_plan',data=json.dumps(request).encode(),headers={'Authorization':'Bearer '+token.read_text().strip(),'Content-Type':'application/json'})
         with urllib.request.urlopen(req,timeout=30) as response:http_plan=json.load(response)
         assert http_plan['error'] is None and http_plan['data']==cli_plan
+        classic_request={'project_id':'film','expected_revision':before['revision'],'sequence_id':'main','idempotency_key':'classic-preview','label':'Classic retained right','ripple':True,'command':{'kind':'split','clip_ids':['red-clip','music'],'caption_ids':[],'shape_ids':[],'at':tick(10),'retain':'right'}}
+        classic_cli=call('opencut_edit_classic_plan_v1',classic_request)
+        classic_mcp=mcp.tool('opencut_edit_classic_plan_v1',classic_request)
+        req=urllib.request.Request(f'http://127.0.0.1:{port}/v1/tools/opencut_edit_classic_plan_v1',data=json.dumps(classic_request).encode(),headers={'Authorization':'Bearer '+token.read_text().strip(),'Content-Type':'application/json'})
+        with urllib.request.urlopen(req,timeout=30) as response:classic_http=json.load(response)
+        assert classic_http['error'] is None and classic_http['data']==classic_cli==classic_mcp and current()==before
+        call('opencut_edit_classic_plan_v1',classic_request,credential=root/'reader.credential',error='NOT_AUTHORIZED')
+        assert call('opencut_edit_classic_plan_v1',classic_request,credential=root/'editor.credential')==classic_cli
+        checks.append('Classic split/ripple versioned plan is identical and read-only through actual CLI, HTTP and MCP; project readers are denied and scoped editors agree')
         host.terminate();assert host.wait(timeout=20)==0;host=None
         checks.append('CLI, HTTP and compact MCP produce the same read-only editorial transaction')
         edit=mcp.tool('opencut_edit_v3_apply',cli_plan['transaction']);assert mcp.tool('opencut_edit_v3_apply',cli_plan['transaction'])==edit
@@ -181,6 +190,41 @@ def verify(binary,root,config_generator=None):
             energy=lambda hz:abs(sum(v*complex(math.cos(2*math.pi*hz*n/48000),math.sin(2*math.pi*hz*n/48000)) for n,v in enumerate(segment)))/len(segment)
             assert energy(expected)>.1 and energy(440)<.005,(at,energy(expected),energy(440))
         checks.append('Export is three seconds and independent PCM excludes the removed 440 Hz interval')
+        nav=call('opencut_project_history_navigation',{'project_id':'film','revision':current()['revision']})
+        seed=call('opencut_edit_v3_undo_apply',{'project_id':'film','expected_revision':current()['revision'],'target_transaction_id':nav['undo']['transaction_id'],'idempotency_key':'classic-seed'})
+        assert current()['project']==before['project']
+        classic_request.update(expected_revision=current()['revision'],idempotency_key='classic-retain-commit')
+        classic=mcp.tool('opencut_edit_classic_plan_v1',classic_request)
+        committed=mcp.tool('opencut_edit_v3_apply',classic['plan']['transaction'])
+        assert mcp.tool('opencut_edit_v3_apply',classic['plan']['transaction'])==committed
+        classic_after=current();scene=classic_after['project']['base']['sequences'][0]
+        right_video=next(c for c in scene['tracks'][0]['clips'] if c['id'] in classic['selection']['clip_ids'])
+        right_audio=next(c for c in scene['tracks'][1]['clips'] if c['id'] in classic['selection']['clip_ids'])
+        assert right_video['timeline_range']==span(0,10) and right_video['source_range']==span(20,10)
+        assert right_audio['timeline_range']==span(0,30) and right_audio['source_range']==span(10,30)
+        assert scene['tracks'][0]['clips'][1]['timeline_range']==span(10,20)
+        checks.append('Classic multi-track retained-right split is one idempotent native commit with independently expected source windows and per-row displacement')
+        classic_target={'project_id':'film','revision':committed['revision'],'sequence_id':'main'}
+        for at,point,channel in [(5,(80,45),0),(15,(120,45),2),(15,(40,45),None)]:
+            frame=await_job(mcp.tool('opencut_job_v3_frame',{**classic_target,'idempotency_key':f'classic-frame-{at}-{point[0]}','requested_time':tick(at),'alignment':'exact'}))
+            raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(frame),'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','-'],timeout=30)
+            rgb=raw[(point[1]*160+point[0])*3:(point[1]*160+point[0])*3+3]
+            assert max(rgb)<8 if channel is None else rgb[channel]>230 and all(v<15 for i,v in enumerate(rgb) if i!=channel),list(rgb)
+        classic_export=await_job(mcp.tool('opencut_job_v3_render',{**classic_target,'idempotency_key':'classic-export','container':'mp4','video_codec':'h264'}))
+        classic_pcm=array.array('f');classic_pcm.frombytes(subprocess.check_output(['ffmpeg','-v','error','-i',str(classic_export),'-map','0:a:0','-f','f32le','-ac','1','-ar','48000','-'],timeout=30))
+        if os.sys.byteorder!='little':classic_pcm.byteswap()
+        for at,expected in [(.2,440),(1.2,660),(2.2,660)]:
+            segment=classic_pcm[int(at*48000):int((at+.2)*48000)]
+            assert energy(expected)>.1 and energy(330)<.005,(at,energy(expected),energy(330))
+        checks.append('Classic retained-right split reaches native red/blue/masked-black pixels and PCM: 440 then 660 Hz, removed 330 Hz excluded')
+        call('opencut_edit_v3_undo_apply',{'project_id':'film','expected_revision':committed['revision'],'target_transaction_id':committed['transaction_id'],'idempotency_key':'classic-undo'})
+        assert current()['project']==before['project']
+        request.update(expected_revision=current()['revision'],idempotency_key='restore-shortened-checkpoint')
+        restored_plan=call('opencut_edit_timeline_plan',request)
+        restored_edit=call('opencut_edit_v3_apply',restored_plan['transaction'])
+        assert current()['project']==after['project']
+        target['revision']=restored_edit['revision']
+        checks.append('Classic split undo restores the complete original document, then shared timeline planning restores the verified shortened checkpoint')
         mcp.close();mcp=None
         queued=call('opencut_job_v3_frame',{**target,'idempotency_key':'after-restart','requested_time':tick(5),'alignment':'exact'})
         assert queued['state']=='queued'

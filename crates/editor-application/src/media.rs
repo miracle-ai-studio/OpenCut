@@ -1,5 +1,6 @@
 //! Media identity and metadata policy, independent of files and codecs.
 pub use opencut_api_contracts::media::{InspectMediaInput, RepairMediaInput};
+use opencut_contracts::project_v4::AudioMetadataV4;
 use opencut_contracts::{Asset, AssetKind, CatalogEntry, EditorError, Time};
 use opencut_media_contracts::{MediaMetadata, StreamKind};
 use serde_json::json;
@@ -84,7 +85,7 @@ pub fn describe<P>(
     let audio = metadata
         .streams
         .iter()
-        .any(|s| s.codec_type == StreamKind::Audio);
+        .find(|s| s.codec_type == StreamKind::Audio);
     let format = metadata.format_name.as_deref().unwrap_or("");
     let format_brand = metadata.format_brand.as_deref().unwrap_or("").trim();
     let normalized_brand = format_brand.to_ascii_lowercase();
@@ -154,7 +155,7 @@ pub fn describe<P>(
                 "application/octet-stream"
             },
         )
-    } else if audio {
+    } else if audio.is_some() {
         (
             AssetKind::Audio,
             if format_brand.eq_ignore_ascii_case("qt") {
@@ -197,10 +198,33 @@ pub fn describe<P>(
     fields.insert("mime_type".into(), json!(mime));
     fields.insert("size".into(), json!(size));
     if let Some(video) = video {
+        if !image
+            && let Some(rate) = &video.average_frame_rate
+            && rate.numerator > 0
+            && rate.denominator > 0
+        {
+            fields.insert("frame_rate".into(), json!(rate));
+        }
         fields.insert("width".into(), json!(video.width));
         fields.insert("height".into(), json!(video.height));
     }
-    fields.insert("has_audio".into(), json!(audio));
+    fields.insert("has_audio".into(), json!(audio.is_some()));
+    // Record the primary observed stream only. Missing format observations do
+    // not imply mono/stereo or the output sample rate requested by a renderer.
+    if let Some(audio) = audio
+        && let (Some(sample_rate), Some(channels)) = (audio.sample_rate, audio.channels)
+        && sample_rate > 0
+        && channels > 0
+    {
+        fields.insert(
+            "audio_metadata".into(),
+            json!(AudioMetadataV4 {
+                sample_rate,
+                channels,
+                channel_layout: audio.channel_layout.clone(),
+            }),
+        );
+    }
     let asset = Asset {
         id: format!("asset_{hash}"),
         name: name.into(),
@@ -286,6 +310,129 @@ mod tests {
         }
     }
 
+    #[test]
+    fn primary_probe_audio_format_survives_description_and_v4_conversion() {
+        use opencut_contracts::project_v4::AudioPresenceV4;
+        use opencut_contracts::{AssetVersion, FrameRate, ProjectDocument, Sequence};
+        use opencut_editor_core::project_v4::legacy::{
+            LegacyConversionInputs, LegacyConversionResult, LegacyProjectInput,
+            convert_legacy_project,
+        };
+
+        let mut probe = visual("mov,mp4,m4a,3gp,3g2,mj2", Some("isom"));
+        let mut primary = audio("aac", None).streams.remove(0);
+        primary.index = 1;
+        primary.sample_rate = Some(48_000);
+        let mut secondary = primary.clone();
+        secondary.index = 2;
+        secondary.sample_rate = Some(44_100);
+        secondary.channels = Some(2);
+        secondary.channel_layout = Some("stereo".into());
+        probe.streams.extend([primary, secondary]);
+        let hash = "a".repeat(64);
+        let observed = describe(&probe, "private", "AAC video", &hash, 123).unwrap();
+        let expected = AudioMetadataV4 {
+            sample_rate: 48_000,
+            channels: 1,
+            channel_layout: Some("mono".into()),
+        };
+        assert_eq!(observed.metadata["audio_metadata"], json!(expected));
+        assert_eq!(observed.metadata["has_audio"], json!(true));
+        let mut old = ProjectDocument {
+            id: "project".into(),
+            name: "Project".into(),
+            schema_version: 2,
+            default_sequence_id: "scene".into(),
+            sequences: vec![Sequence {
+                id: "scene".into(),
+                name: "Scene".into(),
+                width: 640,
+                height: 360,
+                fps: FrameRate {
+                    numerator: 24,
+                    denominator: 1,
+                },
+                tracks: Vec::new(),
+                caption_cues: Vec::new(),
+            }],
+            assets: vec![observed],
+        };
+        old.assets[0].version = Some(AssetVersion {
+            id: format!("av_{hash}"),
+            content_hash: hash,
+            size: 123,
+        });
+        let LegacyConversionResult::Converted { project, .. } = convert_legacy_project(
+            LegacyProjectInput::Base(&old),
+            &LegacyConversionInputs::default(),
+        ) else {
+            panic!("native probe metadata must convert without losing audio format");
+        };
+        opencut_editor_core::project_v4::validate_project_v4(&project).unwrap();
+        assert_eq!(
+            project.assets[0].metadata.audio,
+            AudioPresenceV4::Present {
+                metadata: Some(expected)
+            }
+        );
+
+        // Incomplete or invalid primary format cannot fall back to the second
+        // stream or invent a layout; known presence remains independently true.
+        for (sample_rate, channels) in [
+            (None, Some(1)),
+            (Some(48_000), None),
+            (Some(0), Some(1)),
+            (Some(48_000), Some(0)),
+        ] {
+            probe.streams[1].sample_rate = sample_rate;
+            probe.streams[1].channels = channels;
+            let unknown = describe(&probe, "private", "AAC video", "hash", 1).unwrap();
+            assert_eq!(unknown.metadata["has_audio"], json!(true));
+            assert!(!unknown.metadata.contains_key("audio_metadata"));
+        }
+        probe.streams[1].sample_rate = Some(48_000);
+        probe.streams[1].channels = Some(1);
+        probe.streams[1].channel_layout = None;
+        assert_eq!(
+            describe(&probe, "private", "AAC video", "hash", 1)
+                .unwrap()
+                .metadata["audio_metadata"]["channel_layout"],
+            json!(null)
+        );
+    }
+
+    #[test]
+    fn native_video_rate_is_preserved_but_still_images_and_invalid_rates_have_none() {
+        let mut metadata = visual("mov,mp4,m4a,3gp,3g2,mj2", Some("isom"));
+        metadata.streams[0].average_frame_rate = Some(opencut_media_contracts::FrameRate {
+            numerator: 60000,
+            denominator: 1001,
+        });
+        let observed = describe(&metadata, "fixture", "video", "hash", 1).unwrap();
+        assert_eq!(
+            observed.metadata["frame_rate"],
+            json!({"numerator":60000,"denominator":1001})
+        );
+        metadata.format_name = Some("png_pipe".into());
+        assert!(
+            !describe(&metadata, "fixture", "image", "hash", 1)
+                .unwrap()
+                .metadata
+                .contains_key("frame_rate")
+        );
+        metadata.format_name = Some("mp4".into());
+        metadata.streams[0]
+            .average_frame_rate
+            .as_mut()
+            .unwrap()
+            .denominator = 0;
+        assert!(
+            !describe(&metadata, "fixture", "invalid", "hash", 1)
+                .unwrap()
+                .metadata
+                .contains_key("frame_rate")
+        );
+    }
     #[test]
     fn iso_bmff_major_brand_disambiguates_quicktime_mov_from_mp4() {
         let mov = describe(

@@ -16,7 +16,11 @@ export function placeAsset(
     throw new Error("This asset cannot be placed as a media clip.");
   const existing =
     sequence.tracks.find((track) => track.id === trackId) ??
-    sequence.tracks.find((track) => track.kind === kind && !track.locked);
+    (trackId
+      ? undefined
+      : sequence.tracks.find((track) => track.kind === kind && !track.locked));
+  if (trackId && !existing)
+    throw new Error("The target track no longer exists.");
   if (existing?.locked)
     throw new Error("Unlock the target track before adding clips.");
   if (
@@ -64,4 +68,39 @@ export function placeAsset(
       },
     },
   ];
+}
+
+/** Build one insertion intent, preserving file order on each compatible track.
+ * The native transaction planner remains the authority for collisions/locks. */
+export function placeAssets(
+  assets: Asset[],
+  sequence: Sequence,
+  at?: Time,
+  trackId?: string,
+): Operation[] {
+  const draft = structuredClone(sequence),
+    operations: Operation[] = [];
+  const cursors = new Map<string, Time>();
+  for (const asset of assets) {
+    const planned = placeAsset(asset, draft, undefined, trackId);
+    for (const operation of planned) {
+      if (operation.type === "track.create") draft.tracks.push(operation.track);
+      if (operation.type === "clip.insert") {
+        const start =
+          cursors.get(operation.track_id) ??
+          at ??
+          operation.clip.timeline_range.start;
+        operation.clip.timeline_range.start = start;
+        cursors.set(
+          operation.track_id,
+          addTime(start, operation.clip.timeline_range.duration),
+        );
+        draft.tracks
+          .find((track) => track.id === operation.track_id)!
+          .clips.push(operation.clip);
+      }
+    }
+    operations.push(...planned);
+  }
+  return operations;
 }

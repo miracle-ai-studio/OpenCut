@@ -1,7 +1,572 @@
 export const zh: Record<string, string> = {
+  "The service returned a different restore receipt.": "服务返回了不同类型的恢复回执。",
+  "Choose a saved project revision to restore.": "请选择要恢复的已保存工程修订。",
+  "The service returned a different history receipt.": "服务返回了不同类型的历史回执。",
+  "The edit target changed.": "编辑目标已变化。",
+  "Resolve the original timeline operation before starting another edit.": "请先处理原时间线操作，再开始其他编辑。",
+  "Edit recovery storage is unavailable or invalid. Resolve the original edit before continuing.": "编辑恢复存储不可用或已损坏。请先处理原编辑操作，再继续。",
+  "Resolve the original edit before dismissing it.": "请先确认原编辑操作的结果，再关闭。",
+  "No original edit needs recovery.": "没有需要恢复的原编辑操作。",
+  "Open the original current project to recover this edit.": "请打开原工程的当前修订，恢复此编辑操作。",
+  "The service returned a different edit family.": "服务返回了不同类型的编辑回执。",
+  "The staged edit differs from the original request.": "暂存的编辑操作与原请求不匹配。",
+  "The original edit was not staged.": "原编辑操作尚未暂存。",
+  "Resolve the original edit before starting another operation.": "请先处理原编辑操作，再开始其他操作。",
+  "The recovery acknowledgment differs from the original receipt.": "恢复确认与原回执不匹配。",
+  "The service returned a different original edit.": "服务返回了其他编辑操作的记录。",
+  "The service returned invalid edit recovery.": "服务返回的编辑恢复记录无效。",
+  "The redo receipt differs from its original target.": "重做回执与原目标不匹配。",
+  "The undo receipt differs from its original target.": "撤销回执与原目标不匹配。",
+  "The recovered receipt differs from the original edit.": "恢复回执与原编辑操作不匹配。",
+  "Authenticate the connection before editing.": "请先认证连接，再进行编辑。",
+  "Release resolved edit": "清理已确认的恢复记录",
+  "Retry original edit": "重试原编辑操作",
+  "Repair recovery pointer": "修复恢复指针",
+  "Refresh recovery": "刷新恢复记录",
+  "Retry sends the original request and key. The project head is not an edit receipt.": "重试会发送原请求和原标识。工程当前修订不等于编辑回执。",
+  "Restore project revision": "恢复工程修订",
+  "Redo project changes": "重做工程修改",
+  "Undo project changes": "撤销工程修改",
+  "The original edit needs recovery before another change.": "请先恢复原编辑操作的结果，再进行其他修改。",
+  "Reading original edit recovery…": "正在读取原编辑操作的恢复记录…",
+  "Original edit saved.": "原编辑操作已保存。",
+  "Recover original edit": "恢复原编辑操作",
+  "Timeline editing": "时间线编辑",
+  "Move selection": "移动所选片段",
+  "Trim element": "修剪片段",
+  "Split selection": "分割所选片段",
+  "Delete selection": "删除所选片段",
+  "Add track": "添加轨道",
+  "Lock track": "锁定轨道",
+  "Unlock track": "解锁轨道",
+  "Enable track": "启用轨道",
+  "Disable track": "停用轨道",
+  "Mute track": "轨道静音",
+  "Unmute track": "取消轨道静音",
+  "Delete empty track": "删除空轨道",
+  "Target track for {name}": "{name} 的目标轨道",
+  "New start for {name} (seconds)": "{name} 的新起点（秒）",
+  "Current start": "当前起点",
+  "Trim edge": "修剪边缘",
+  "Left": "左侧",
+  "Right": "右侧",
+  "Boundary (scene seconds)": "边界位置（场景秒数）",
+  "Keep after split": "分割后保留",
+  "Both parts": "左右两段",
+  "Left part": "左段",
+  "Right part": "右段",
+  "Track name": "轨道名称",
+  "Track type": "轨道类型",
+  "Ripple affected tracks": "联动受影响轨道的后续片段",
+  "Animated trim and split are not yet supported. Move and delete preserve saved animation.": "动画片段的修剪和分割尚未支持，移动和删除会保留已有动画。",
+  "Review the planned changes before saving. Timing and ripple are validated by the editor service.": "请先审阅计划再保存，时间边界和后续片段联动由编辑器服务校验。",
+  "Review timeline changes": "审阅时间线修改",
+  "Apply timeline changes": "保存时间线修改",
+  "Cancel planning": "取消规划",
+  "Retry timeline plan": "重试原时间线规划",
+  "Retry original timeline operation": "重试原时间线操作",
+  "Discard timeline changes": "放弃时间线修改",
+  "Refresh saved timeline changes": "刷新已保存的时间线修改",
+  "Created items": "新增项目",
+  "Changed items": "修改项目",
+  "Deleted items": "删除项目",
+  "Moved by ripple": "联动移动的片段",
+  "Removed transitions": "移除的转场",
+  "Selection after saving": "保存后选择",
+  "Operation": "操作",
+  "Preparing timeline changes…": "正在规划时间线修改…",
+  "Saving timeline changes…": "正在保存时间线修改…",
+  "Timeline changes saved.": "时间线修改已保存。",
+  "Timeline changes await review.": "时间线修改等待审阅。",
+  "Timeline save is unconfirmed. Retry the original operation to recover its receipt.": "时间线保存结果尚未确认，请重试原操作找回保存回执。",
+  "The original timeline operation was not saved. Discard it before making a new plan.": "原时间线操作未保存，请放弃此计划后再重新规划。",
+  "The plan makes no changes.": "此计划没有修改。",
+  "Review timeline changes before saving.": "请先审阅时间线修改再保存。",
+  "The project head is not a receipt. Retry sends the original transaction and key; it does not create a new plan.": "当前修订不等于保存回执。重试会发送原事务和原标识，不会创建新计划。",
+  "Select video, audio or images in the timeline.": "请在时间线选择视频、音频或图片。",
+  "The timeline selection is no longer available.": "所选时间线片段已不可用。",
+  "Unlock the selected tracks before editing their elements.": "请先解锁所选轨道再编辑片段。",
+  "Wait for the timeline operation to finish.": "请等待时间线操作完成。",
+  "The timeline target changed. Return to the original scene to continue.": "时间线目标已变化，请返回原场景继续。",
+  "The project changed. Discard this plan and review a new timeline operation.": "工程已变化，请放弃此计划后重新规划时间线操作。",
+  "The timeline target changed. Close this form and review a new operation.": "时间线目标已变化，请关闭此表单后重新规划。",
+  "Resolve the previous timeline operation before starting another.": "请先处理上一项时间线操作，再开始新的操作。",
+  "Recover the original timeline operation before discarding it.": "请先恢复原时间线操作的结果，再放弃此操作。",
+  "The original timeline operation was not saved because the project changed. Discard it before reviewing a new plan.": "工程已变化，原时间线操作未保存。请放弃此计划后重新规划。",
+  "Return to the original scene before retrying this timeline operation.": "请返回原场景，再重试此时间线操作。",
+  "Click video, audio or images to select. Ctrl/Command-click toggles selection; Shift-click adds an element.": "点击视频、音频或图片选择。Ctrl/Command 加点击可切换选择，Shift 加点击可添加片段。",
+  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, continuous picture playback and video export are not available yet.": "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑、连续画面播放和视频导出尚未接入。",
+  "Scene sound": "场景声音",
+  "Audio preview sample rate": "声音试听采样率",
+  "Play scene audio": "播放场景声音",
+  "Pause scene audio": "暂停场景声音",
+  "Retry original audio session": "重试原声音试听请求",
+  "Preparing scene sound…": "正在准备场景声音…",
+  "Playing scene sound": "正在播放场景声音",
+  "Waiting for scene audio; the playhead is stopped.":
+    "正在等待场景声音，播放位置已停止。",
+  "Scene sound paused": "场景声音已暂停",
+  "Scene sound ended": "场景声音已结束",
+  "Audio session is unconfirmed. Retry the original request.":
+    "声音试听会话结果尚未确认，请重试原请求。",
+  "Scene sound is stopped": "场景声音已停止",
+  "Scene sound follows the fixed revision. The scene image remains a still frame.":
+    "场景声音使用固定修订，场景画面仍为静帧。",
+  "This service does not support live scene audio.":
+    "当前服务不支持场景声音实时试听。",
+  "Live scene audio is unavailable on this service.":
+    "当前服务尚无法进行场景声音实时试听。",
+  "The audio device sample rate does not match this service.":
+    "音频设备采样率与当前服务不匹配。",
+  "Allow audio playback before starting scene sound.":
+    "请允许音频播放后再试听场景声音。",
+  "Scene audio playback was suspended. Press Play to resume.":
+    "场景声音播放已被暂停，请点击播放继续。",
+  "Scene audio output failed.": "场景声音输出失败。",
+  "Scene audio is no longer available.": "场景声音已无法继续试听。",
+  "The audio device did not confirm its stopped sample cursor.":
+    "音频设备未能确认停止时的样本位置。",
+  "Retry the original audio session before starting another.":
+    "请先重试原声音试听请求，再启动新的试听。",
+  "Return to the original scene and revision to recover its audio session.":
+    "请返回原场景和修订，恢复声音试听请求。",
+  "The original scene audio session has stopped. Start a new session.":
+    "原场景声音试听已停止，请重新开始试听。",
+  "Volume draft is previewed in the playing scene sound.":
+    "音量草稿会在正在播放的场景声音中试听。",
+  "Play scene audio to hear volume drafts while dragging.":
+    "播放场景声音后，可在拖动时试听音量草稿。",
+  "Media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Other element editing, continuous picture playback and video export are not available yet.":
+    "已支持素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和场景声音依赖当前服务的渲染能力，其余元素编辑、连续画面播放和视频导出尚未接入。",
+  "Audio range WAV export": "音频范围 WAV 导出",
+  "Export scope": "导出范围",
+  "Whole scene": "整个场景",
+  "Sample range": "样本范围",
+  "Starting sample (0-based)": "起始样本（从 0 开始）",
+  "Frame count": "样本帧数",
+  "Sample indexes use the selected sample rate. The service validates the range against this saved scene; no seconds are rounded. Mastering uses the whole scene before extracting the range.":
+    "样本索引按所选采样率计算。服务会根据此保存的场景校验范围，不对秒数舍入。母带处理使用整个场景，然后提取选定范围。",
+  "Enter a canonical starting sample and a positive frame count.":
+    "请输入规范的起始样本整数和大于 0 的样本帧数，不要使用前导零、符号或小数。",
+  "This service does not support sample range WAV export.":
+    "当前服务不支持样本范围 WAV 导出。",
+  "Legacy gain": "旧版增益",
+  "Refresh saved audio changes": "刷新已保存的音频修改",
+  "Refresh the saved audio changes before editing again.":
+    "请刷新已保存的音频修改后再编辑。",
+  "Track muted": "轨道已静音",
+  "Source audio disabled": "源音频已关闭",
+  "The audio element track is locked.": "音频元素所在轨道已锁定。",
+  "This video needs known source audio before editing volume.":
+    "编辑音量前需确认此视频包含源音频。",
+  "Volume automation is preserved; the static volume line is hidden.":
+    "已保留音量动画，静态音量线已隐藏。",
+  "Legacy linear gain cannot be edited with the volume line.":
+    "旧版线性增益不能通过音量线编辑。",
+  "Volume draft; sound is not previewed while dragging.":
+    "音量草稿；拖动时不试听声音。",
+  "Element audio changes saved.": "元素音频修改已保存。",
+  "Volume save is unconfirmed. Retry the original operation to recover its receipt.":
+    "音量保存结果尚未确认，请重试原操作找回保存回执。",
+  "Saving element audio changes…": "正在保存元素音频修改…",
+  "Retry original volume operation": "重试原音量操作",
+  "Close volume status": "关闭音量状态",
+  "Resolve the previous volume operation first.": "请先处理上一项音量操作。",
+  "Return to the original element before retrying its volume operation.":
+    "请回到原元素再重试音量操作。",
+  "The original volume operation was not saved because the project changed. Dismiss it before choosing a new operation on the current revision.":
+    "工程发生变化，原音量操作未保存。请关闭此操作后在当前修订重新操作。",
+  "Media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames depend on this service’s rendering capability. Other element editing, playback and video export are not available yet.":
+    "可使用素材导入与放置、源素材试看、场景备注、历史、源音频分离/恢复及元素音量和静音。场景静帧取决于当前服务的渲染能力，其他元素编辑、播放和视频导出尚未接入。",
+  "Render scene frame": "渲染场景静帧",
+  "Scene frame": "场景静帧",
+  "Refresh frame availability": "刷新静帧可用性",
+  "Retry frame download": "重试静帧下载",
+  "The scene frame image could not be displayed.": "场景静帧图片无法显示。",
+  "The saved frame is unavailable in this view.":
+    "保存的静帧在当前视图不可用。",
+  "Retry original frame request": "重试原静帧请求",
+  "Cancel scene frame": "取消场景静帧",
+  "Rendered scene frame": "场景渲染静帧",
+  "Scene time": "场景时间",
+  "Preparing scene frame…": "正在准备场景静帧…",
+  "This is a still scene frame. Notes are shown only in the editor; playback and video export are not available yet.":
+    "这是场景静帧。备注仅在编辑器内显示，播放和视频导出尚未接入。",
+  "The frame submission is not confirmed. Retry the original request to find its task.":
+    "静帧提交尚未确认，请重试原请求以找回对应任务。",
+  "Scene frame availability is being checked.": "正在检查场景静帧可用性。",
+  "Scene frames are unavailable on this service.": "当前服务无法渲染场景静帧。",
+  "This service does not support scene frames.": "当前服务不支持场景静帧。",
+  "Scene frames currently require Classic scene settings.":
+    "场景静帧目前需要 Classic 场景设置。",
+  "Scene frame returned an unexpected task identity.":
+    "场景静帧返回了不匹配的任务身份。",
+  "Scene frame returned an unexpected render identity or exceeds the display limit.":
+    "场景静帧的渲染身份不匹配或超出了显示限制。",
+  "Scene frame returned an unexpected PNG artifact.":
+    "场景静帧返回了不匹配的 PNG 产物。",
+  "Invalid scene frame size.": "场景静帧大小无效。",
+  "This scene frame exceeds the editor’s 32 MB display limit. Download the PNG from Tasks.":
+    "此场景静帧超出编辑器 32 MB 显示限制，仍可从任务面板下载 PNG。",
+  "Scene frame has no PNG content.": "场景静帧没有 PNG 内容。",
+  "Scene frame exceeds its published size.": "场景静帧超出了公布的大小。",
+  "Scene frame differs from its published size.":
+    "场景静帧与公布的大小不一致。",
+  "Scene frame differs from its published hash.":
+    "场景静帧与公布的内容身份不一致。",
+  "Scene frame PNG dimensions differ from its receipt.":
+    "场景静帧 PNG 尺寸与回执不一致。",
+  "Confirm the original scene frame request first.": "请先确认原场景静帧请求。",
+  "Wait for the original scene frame request.": "请等待原场景静帧请求完成。",
+  "Choose a scene frame request first.": "请先选择场景静帧请求。",
+  "This scene frame belongs to a previous view. Render the current frame again.":
+    "此静帧属于之前的视图，请重新渲染当前静帧。",
+  "Confirm the original scene frame request before cancelling its task.":
+    "取消任务前请先确认原场景静帧请求。",
+  "Scene frame cancellation requested. Check Tasks for its final state.":
+    "已请求取消场景静帧，请在任务面板查看最终状态。",
+  "Scene frame task did not complete.": "场景静帧任务未完成。",
+
+  "Media import and placement, source media preview, scene notes, history and source audio separation/restoration are available. Other element editing, scene preview, playback and video export are not available yet.":
+    "可使用素材导入与放置、源素材试看、场景备注、历史及源音频分离/恢复。其他元素编辑、场景预览、播放和视频导出尚未接入。",
+  "Source media preview": "源素材试看",
+  "Shows the original source media. Scene edits, notes and audio mixing are not included.":
+    "显示原始源素材，不包含场景编辑、备注或混音。",
+  "Place media": "放置素材",
+  "Review media changes": "确认素材变更",
+  "Review placement": "查看放置方案",
+  "Target track": "目标轨道",
+  "New audio track": "新音频轨道",
+  "New video track": "新视频轨道",
+  "New graphic track": "新图形轨道",
+  "New track name": "新轨道名称",
+  "Timeline start (seconds)": "时间线起点（秒）",
+  "Source start (seconds)": "源起点（秒）",
+  "Source duration (seconds)": "源时长（秒）",
+  "Image duration (seconds)": "图片持续时间（秒）",
+  "Speed numerator": "速度分子",
+  "Speed denominator": "速度分母",
+  "Include source audio": "启用源音频",
+  "Review the service's resolved placement before saving. Still scene frames depend on this service’s rendering capability. Playback remains unavailable.":
+    "保存前确认服务规划的实际放置方案。场景静帧取决于服务实际渲染能力，连续播放仍尚未接入。",
+  "The scene or revision changed. Close this form and choose media again.":
+    "场景或修订已改变，请关闭表单后重新选择素材。",
+  "This media needs supported type and observed duration before placement.":
+    "此素材需要支持的类型和已探测时长才能放置。",
+  "Audio presence has not been verified.": "尚未确认音轨是否存在。",
+  "Apply media changes": "保存素材变更",
+  "Retry original media changes": "重试原素材变更",
+  "Discard media plan": "放弃素材方案",
+  "Retry media planning": "重试素材规划",
+  "Media changes saved.": "素材变更已保存。",
+  "Media changes are not confirmed.": "素材变更结果尚未确认。",
+  "Media changes await review.": "素材变更等待确认。",
+  "Media changes are not confirmed. Retry the original changes to recover their receipt; do not import again.":
+    "素材变更结果尚未确认，请重试原变更以取回保存回执，无需再次导入。",
+  "The current view differs from this plan. Return to its scene; a changed revision requires a new review.":
+    "当前视图与方案不同，请返回原场景；修订变化后需要重新确认。",
+  "Unavailable scene": "场景不可用",
+  "Bind media": "绑定素材",
+  Placement: "放置结果",
+  "New track": "新轨道",
+  "Some video frame rates are unknown; the service preserved its declared settings.":
+    "部分视频帧率未知，服务保留了已声明的设置。",
+  "Import media files": "导入素材文件",
+  "Refresh available media": "刷新可用素材",
+  "Preview source": "查看源素材",
+  "Preview source {name}": "查看源素材 {name}",
+  "Place {name}": "放置 {name}",
+  "Replace {name}": "替换 {name}",
+  "Available imported media": "可恢复的已导入素材",
+  "Completed uploads remain available if binding was cancelled or failed. Recover them without uploading again.":
+    "已完成上传在绑定取消或失败后仍可恢复，无需再次上传。",
+  "Loading media…": "正在加载素材…",
+  "Recover {name}": "恢复 {name}",
+  "Recover media": "恢复素材",
+  "Unavailable media": "素材不可用",
+  "The media target changed. Return to the original scene to continue.":
+    "素材目标已改变，请返回原场景继续。",
+  "Project has changed; discard this plan and review new media changes.":
+    "工程已改变，请放弃旧方案并重新确认素材变更。",
+  "Resolve the current media changes before starting another operation.":
+    "请先处理当前素材变更，再开始其他操作。",
+  "Imported media has no verified project identity.":
+    "导入素材缺少已验证的工程身份。",
+  "Available media has no verified project identity.":
+    "可用素材缺少已验证的工程身份。",
+  "The selected project media is unavailable.": "所选工程素材不可用。",
+  "Media plan does not match the captured request.": "素材方案与原请求不匹配。",
+  "No media request is ready to plan.": "没有可规划的素材请求。",
+  "Review a media plan before saving.": "保存前请确认素材方案。",
+  "Media save returned an unexpected receipt.":
+    "素材保存返回的回执不符合原请求。",
+  "The original media changes were not saved because the project changed. Review a new plan.":
+    "工程改变导致原素材变更未保存，请重新确认方案。",
+  "Resolve the original media changes before starting another operation.":
+    "请先确认原素材变更的结果，再开始其他操作。",
+  "Speed numerator and denominator must be positive integers.":
+    "速度分子和分母必须是正整数。",
+  "New audio export": "新建音频导出",
+  "Audio WAV export is available in the toolbar.": "可在工具栏导出音频 WAV。",
+  "Wait for the original audio submission to finish.": "请等待原音频提交完成。",
+  "Export audio WAV": "导出音频 WAV",
+  "Audio WAV export": "音频 WAV 导出",
+  "Sample rate": "采样率",
+  "Exports the scene audio mix as a stereo Float32 WAV. This file contains audio only.":
+    "将场景混音导出为立体声 Float32 WAV，此文件仅包含音频。",
+  "Audio WAV export availability is being checked.":
+    "正在检查音频 WAV 导出是否可用。",
+  "Scene audio WAV export is unavailable on this service.":
+    "此服务暂不支持场景音频 WAV 导出。",
+  "This service does not support scene audio WAV export.":
+    "此服务不支持场景音频 WAV 导出。",
+  "Audio WAV export currently requires Classic scene settings.":
+    "音频 WAV 导出当前需使用 Classic 场景设置。",
+  "Resolve the previous audio WAV export before starting another.":
+    "请先处理上一项音频 WAV 导出，再开始另一项。",
+  "Choose an available audio sample rate.": "请选择服务支持的音频采样率。",
+  "The selected scene is unavailable.": "所选场景不可用。",
+  "Confirm the original audio WAV submission before starting another.":
+    "请先确认原音频 WAV 提交结果，再开始另一项。",
+  "Choose an audio WAV export first.": "请先选择音频 WAV 导出。",
+  "Project view changed before starting the audio export.":
+    "开始音频导出前工程视图已更改。",
+  "Audio export returned an unexpected task receipt.":
+    "音频导出的任务回执与当前请求不匹配。",
+  "The audio export submission is not confirmed. Retry the original submission to find its task.":
+    "尚无法确认音频导出提交结果，请重试原提交以获取对应任务。",
+  "Audio WAV task accepted. Progress and downloads are in Tasks.":
+    "音频 WAV 任务已接受，可在“任务”中查看进度和下载。",
+  "Starting audio WAV export…": "正在开始音频 WAV 导出…",
+  "Audio WAV export was not accepted.": "音频 WAV 导出未被接受。",
+  "View tasks": "查看任务",
+  "Retry original export": "重试原导出",
+  "Reset export": "重设导出",
+  "Closing this window does not cancel an accepted task. Use Tasks to request cancellation.":
+    "关闭此窗口不会取消已接受的任务，请在“任务”中请求取消。",
+  "Start audio export": "开始音频导出",
+
+  "The original operation was not saved because the project changed. Choose the operation again on the current revision.":
+    "工程已更改，原操作未保存。请在当前修订中重新选择操作。",
+  "Saved changes have not appeared in this view. Refresh the saved changes.":
+    "已保存的更改尚未显示在当前视图中，请刷新。",
+  "Source audio controls": "源音频操作",
+  "Source audio": "源音频",
+  "Separate source audio": "分离源音频",
+  "Restore source audio": "恢复源音频",
+  "Restoring source audio keeps separated audio in the scene. Both may play together.":
+    "恢复源音频会保留场景中已分离的音频，两者可能同时播放。",
+  "The source video track is locked.": "源视频所在轨道已锁定。",
+  "Source video media is unavailable.": "源视频素材不可用。",
+  "Audio presence must be checked before separating or restoring source audio.":
+    "需先探测视频是否包含音频，再分离或恢复源音频。",
+  "This video has no source audio.": "此视频没有源音频。",
+  "Select a video element to edit its source audio.":
+    "请选择视频元素以编辑源音频。",
+  "This source audio state is already active.": "源音频已处于所选状态。",
+  "Resolve the previous source audio operation first.":
+    "请先处理上一项源音频操作。",
+  "The saved outcome is not confirmed. Check and retry the original operation before making another change.":
+    "尚无法确认保存结果。请先检查并重试原操作，再进行其他源音频更改。",
+  "Source audio changes saved.": "源音频更改已保存。",
+  "Saving source audio changes…": "正在保存源音频更改…",
+  "Source audio changes were not saved.": "源音频更改未保存。",
+  "Return to source video": "返回源视频",
+  "Retry operation": "重试操作",
+  "Check and retry operation": "检查并重试操作",
+  "Refresh saved changes": "刷新已保存的更改",
+  "Return to the original video before retrying its source audio operation.":
+    "请先返回原视频再重试源音频操作。",
+  "Check the saved outcome before starting another operation.":
+    "请先确认保存结果，再开始其他操作。",
+  "Could not check the saved outcome.": "无法检查保存结果。",
+  "Source audio plan does not match the captured request.":
+    "源音频规划与当前操作不匹配。",
+  "Source audio save returned an unexpected receipt.":
+    "源音频保存回执不符合当前操作。",
+  "No saved source audio receipt is available.": "暂无已保存的源音频回执。",
+  "Scene bookmarks": "场景书签",
+  "Project settings": "工程设置",
+  "Project contents": "工程内容",
+  "Changed after the selected edit": "该内容在所选更改之后又被修改",
+  "Restoring this change would invalidate the project":
+    "恢复此更改将导致工程内容不合法",
+  "A track is locked": "相关轨道已锁定",
+  "Nothing to change": "无需更改",
+  "History plan": "历史计划",
+  "New project with scene notes": "新建带场景备注的工程",
+  "Scene notes, history and source audio separation/restoration are available. Media import, other element editing, preview, playback and video export are not available yet.":
+    "可使用场景备注、历史记录和源音频分离/恢复。素材导入、其他元素编辑、预览、播放和视频导出尚未接入。",
+  "V4 editor": "场景备注工作区",
+  "V4 scene": "场景选择",
+  "Global settings": "全局设置",
+  "Per-scene settings": "各场景设置",
+  "Viewing a saved revision · Read only": "查看已保存的修订 · 只读",
+  "Preview unavailable": "预览尚未接入",
+  "Canvas notes": "画布备注",
+  "Playhead (seconds)": "播放位置（秒）",
+  "Go to time": "定位到时间",
+  Inspector: "检查器",
+  Bookmark: "书签",
+  "New bookmark": "新建书签",
+  "Edit bookmark": "编辑书签",
+  "Bookmark time (seconds)": "书签时间（秒）",
+  "Note duration (seconds, optional)": "备注时长（秒，可选）",
+  "Canvas note": "画布备注",
+  "Bookmark color": "书签颜色",
+  "Save bookmark": "保存书签",
+  "No canvas note": "暂无画布备注",
+  "Move to playhead": "移动到播放位置",
+  "Delete bookmark": "删除书签",
+  "Add bookmark": "添加书签",
+  "Toggle bookmark at playhead": "切换当前位置书签",
+  "Bookmark at {time}": "{time} 的书签",
+  "Select an element, track, caption or bookmark to inspect it.":
+    "选择元素、轨道、字幕或书签以查看属性。",
+  "Project settings and resources": "工程设置与资源",
+  "Scene transitions": "场景转场",
+  "Select a change to undo. A plan checks conflicts against the current revision before saving.":
+    "选择需要撤销的更改。提交前会基于当前修订检查冲突。",
+  "Undo plan": "撤销计划",
+  "Redo plan": "重做计划",
+  "Apply undo": "确认撤销",
+  "Apply redo": "确认重做",
+  "Project revision": "工程修订",
+  "View revision": "查看修订",
+  "Undo this change": "撤销此更改",
+  "Older revisions": "更早的修订",
+  "Other element controls and animation editing are not available yet. All saved properties are preserved.":
+    "元素属性和动画编辑尚未接入，已保存的全部属性会完整保留。",
+  "Animation channels": "动画通道",
+  "Source duration": "源素材时长",
+  "Source trim start": "源素材起始裁切",
+  "Source trim end": "源素材末尾裁切",
+  "Source start": "源素材开始",
+  "Source audio enabled": "源音频已启用",
+  "Playback rate": "播放速度",
+  "Maintain pitch": "保持音高",
+  Fonts: "字体资源",
+  Font: "字体",
+  "Font style": "字体样式",
+  "Font weight": "字重",
+  "Line height": "行高",
+  "Unavailable font": "字体不可用",
+  "Blend mode": "混合模式",
+  Elements: "元素",
+  "No transitions": "暂无转场",
+  Start: "开始",
+  linear: "线性",
+  Disabled: "已停用",
+  Yes: "是",
+  No: "否",
+  Image: "图片",
+  Sticker: "贴纸",
+  Graphic: "图形",
+  "Effect layer": "效果层",
+  Effect: "效果",
+  Unknown: "尚未探测",
+  "No audio": "无音频",
+  "Has audio": "包含音频",
+  Normal: "常规",
+  Bold: "粗体",
+  Italic: "斜体",
+  Trimmed: "已裁切",
+  Schema: "工程格式",
+  "Open a V4 project first.": "请先打开带场景备注的工程。",
+  "Project view changed before saving.": "保存前工程视图已切换。",
+  "Choose a conflict-free history plan for the current revision.":
+    "请选择当前修订下没有冲突的历史计划。",
+  "Recover Classic projects": "恢复 Classic 旧工程",
+  "Recover old browser projects into this workspace. Original databases and media are preserved.":
+    "将旧浏览器工程恢复到当前工作区，原数据库和媒体会完整保留。",
+  "Looking for Classic projects…": "正在查找旧工程…",
+  "Classic project on this site": "当前站点的 Classic 旧工程",
+  "Choose an old project": "选择旧工程",
+  Damaged: "已损坏",
+  "No Classic projects were found on this origin.":
+    "当前站点未发现 Classic 旧工程。",
+  "Projects saved on another site": "保存在其他站点的工程",
+  "Drag the exporter link to your bookmarks bar.":
+    "将导出链接拖到浏览器书签栏。",
+  "Export old Classic projects": "导出旧 Classic 工程",
+  "Open the original Classic site and run that bookmark to export a recovery bundle containing its projects and media.":
+    "打开原 Classic 站点，运行此书签，导出包含工程与媒体的恢复包。",
+  "Return here and choose the exported recovery bundle.":
+    "返回此处，选择导出的恢复包。",
+  "The exporter runs only on the old site, reads locally and leaves the original data intact. A project JSON alone cannot recover missing media.":
+    "导出脚本在旧站点本机运行，只读原数据。单独的工程 JSON 无法恢复缺失媒体。",
+  "Classic recovery bundle": "Classic 恢复包",
+  "Recovery bundle from {origin}": "恢复包来源：{origin}",
+  "media files": "个媒体文件",
+  "Checking original files…": "正在检查原文件…",
+  "Uploading original files…": "正在上传原文件…",
+  "Preparing recovered media…": "正在准备恢复媒体…",
+  "Review recovery": "检查恢复结果",
+  "Publishing recovered project…": "正在保存恢复工程…",
+  "Recovery upload progress": "恢复上传进度",
+  "{count} original library files are ready.":
+    "已准备好 {count} 个原媒体库文件。",
+  "This project contains unsupported content. Nothing has been published; the original is preserved.":
+    "工程包含尚不支持的内容，未发布恢复工程，原工程已保留。",
+  "Review what will be excluded from the new project. Original data stays available.":
+    "请检查新工程中不包含的内容，原数据仍可使用。",
+  "{count} recovery differences": "{count} 项恢复差异",
+  "I accept these listed differences for the recovered copy.":
+    "我接受恢复副本中列出的这些差异。",
+  "Recovery complete. Your old project remains untouched.":
+    "恢复完成，旧工程保持不变。",
+  "Pause recovery": "暂停恢复",
+  "Recovery paused. Uploaded files remain ready to resume.":
+    "恢复已暂停，已上传的文件保留，可继续恢复。",
+  "Open recovered project": "打开恢复工程",
+  "Retry recovery": "重试恢复",
+  "Prepare recovery": "准备恢复",
+  "Recover project": "恢复工程",
+  "Old-site exporter is unavailable": "旧站点导出脚本暂不可用",
+  "Recovery completed. Temporary preparation cleanup remains pending.":
+    "恢复已完成，临时准备文件仍待清理。",
+  "Choose a Classic recovery bundle containing media, not a standalone project JSON":
+    "请选择包含媒体的 Classic 恢复包，不能使用单独的工程 JSON。",
+  "Recovered project is no longer available": "恢复工程已不再可用",
+  "Classic project changed during recovery. Retry to capture its current data.":
+    "恢复期间旧工程发生变化，请重试以读取当前数据。",
+  "Cover of {name}": "{name} 的封面",
+  "Cover unavailable": "封面暂不可用",
+  "Cover unavailable. Refresh it from the project menu.":
+    "封面暂不可用，可从工程菜单重试。",
+  "Refresh cover": "刷新封面",
+  "Split and remove left": "分割并移除左侧",
+  "Split and remove right": "分割并移除右侧",
+  "Split and remove left · Q": "分割并移除左侧 · Q",
+  "Split and remove right · W": "分割并移除右侧 · W",
+  "Remove left": "移除左侧",
+  "Remove right": "移除右侧",
+  "Ripple editing": "波纹编辑",
+  "Ripple editing · R": "波纹编辑 · R",
+  Ripple: "波纹",
+  "Delete track": "删除轨道",
+  "Delete track {name}": "删除轨道 {name}",
+  "Delete {name} and its {count} elements?":
+    "删除 {name} 及其中的 {count} 个元素？",
+  "Related effects, masks, transitions and animation will also be removed. You can undo this edit. Media stays in the library.":
+    "关联效果、蒙版、转场和动画也将移除。可撤销此操作，素材保留在素材库中。",
+  "The project changed. Close this dialog and review the track again.":
+    "项目已变化，请关闭对话框后重新检查轨道。",
+  "This track no longer exists.": "该轨道已不存在。",
+  "Unlock this track before deleting it.": "删除前请解锁该轨道。",
+  "This track exceeds the atomic edit limit. Remove some elements first.":
+    "该轨道超出单次原子编辑上限，请先移除部分元素。",
+  "Selected clips": "已选片段",
+  "Move the selection in the timeline, or select one element to edit its properties.":
+    "可在时间线中移动所选片段；选择单个元素可编辑属性。",
+  "{count} clips selected": "已选择 {count} 个片段",
+  "Choose a compatible track.": "请选择兼容的轨道。",
+  "Unlock the selected and target tracks before moving clips.":
+    "移动前请解锁所选轨道和目标轨道。",
   Name: "名称",
   Save: "保存",
-  "Discover the community’s plans for OpenCut.": "了解 OpenCut 社区的未来计划。",
+  "Discover the community’s plans for OpenCut.":
+    "了解 OpenCut 社区的未来计划。",
   None: "无",
   Custom: "自定义",
   "TikTok layout": "TikTok 界面参考",

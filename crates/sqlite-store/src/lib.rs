@@ -16,12 +16,16 @@ mod sqlite_classic_import;
 mod sqlite_collaboration;
 mod sqlite_denials;
 mod sqlite_edit_control;
+mod sqlite_edit_recovery_shared;
+mod sqlite_edit_recovery_v1;
+mod sqlite_edit_recovery_v2;
 mod sqlite_gc;
 mod sqlite_history_navigation;
 mod sqlite_jobs;
 mod sqlite_maintenance;
 mod sqlite_new_project;
 mod sqlite_plugin_v2;
+mod sqlite_project_document;
 mod sqlite_project_edit;
 mod sqlite_project_library;
 mod sqlite_project_package;
@@ -31,10 +35,16 @@ mod sqlite_project_v3;
 mod sqlite_project_v3_branching;
 mod sqlite_project_v3_collaboration;
 pub mod sqlite_project_v3_jobs;
+mod sqlite_project_v4;
+pub mod sqlite_project_v4_audio_jobs;
+pub mod sqlite_project_v4_frame_jobs;
+mod sqlite_project_v4_history;
+mod sqlite_project_v4_jobs;
 mod sqlite_projects;
 mod sqlite_queries;
 mod sqlite_render_v3;
 mod sqlite_resources;
+mod sqlite_source_art_v1;
 mod sqlite_upload_retention;
 mod sqlite_uploads;
 use std::{path::Path, time::Duration};
@@ -50,7 +60,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 26;
+const DATABASE_SCHEMA_VERSION: i64 = 29;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -62,6 +72,9 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.export",
     "render.project",
     "render.project.v3",
+    "render.project_audio.v4",
+    "render.project_audio_range.v4",
+    "render.project_frame.v4",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
@@ -448,6 +461,21 @@ impl EditorApplication {
         if version == 25 {
             tx.execute_batch(sqlite_project_library::DELETE_MIGRATION)
                 .map_err(storage_error)?;
+            version = 26;
+        }
+        if version == 26 {
+            tx.execute_batch(sqlite_project_v4::MIGRATION)
+                .map_err(storage_error)?;
+            version = 27;
+        }
+        if version == 27 {
+            tx.execute_batch(sqlite_edit_recovery_v1::MIGRATION)
+                .map_err(storage_error)?;
+            version = 28;
+        }
+        if version == 28 {
+            tx.execute_batch(sqlite_edit_recovery_v2::MIGRATION)
+                .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
@@ -597,6 +625,25 @@ impl EditorApplication {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
         sqlite_access::require_submission(&tx, &context, &request)?;
+        if matches!(
+            request.kind.as_str(),
+            "render.project_audio.v4" | "render.project_audio_range.v4"
+        ) {
+            sqlite_project_v4_audio_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
+        if request.kind == "render.project_frame.v4" {
+            sqlite_project_v4_frame_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
         if context.caller().is_owner() {
             sqlite_access::require_live_input(&tx, &execution_input)?;
         }
@@ -993,7 +1040,7 @@ fn load_snapshot(
             EditorError::new("NOT_FOUND", format!("project {project_id} was not found"))
         })?;
     Ok(ProjectSnapshot {
-        project: sqlite_project_v3::decode_legacy_project(&stored.0)?,
+        project: sqlite_project_document::decode_legacy_project(&stored.0)?,
         revision: stored.1,
     })
 }
@@ -1102,6 +1149,29 @@ fn load_idempotent(
     identity: &RequestIdentity,
     result_kind: &str,
 ) -> Result<Option<String>, EditorError> {
+    // Legacy families keep their published independent key spaces. New V4
+    // project intents share a key scope across families; neither direction may
+    // reuse one of their receipts as a different mutation.
+    let v4_collision: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM idempotency
+             WHERE scope=?1 AND idempotency_key=?2 AND operation_family<>?3
+             AND (?4 OR operation_family GLOB 'project_v4_*'))",
+            params![
+                scope,
+                key,
+                operation_family,
+                operation_family.starts_with("project_v4_")
+            ],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if v4_collision {
+        return Err(EditorError::new(
+            "IDEMPOTENCY_KEY_REUSED",
+            "idempotency key was already used for a different project operation",
+        ));
+    }
     let stored: Option<(String, String, String)> = connection
         .query_row(
             "SELECT request_hash, result_kind, result_json FROM idempotency
@@ -2186,7 +2256,7 @@ mod tests {
             .unwrap();
         connection
             .execute_batch(
-                "DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
+                "DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
              DROP TABLE access_grants;
@@ -2350,7 +2420,7 @@ mod tests {
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
-             DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
+             DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
              DROP TABLE project_merge_parents;
              DROP TABLE project_branches;
              DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;

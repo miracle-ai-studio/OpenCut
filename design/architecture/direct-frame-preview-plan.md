@@ -33,4 +33,4 @@
 - 真实执行中取消及 Worker 恢复，不残留私有输入／帧，不发布部分产物。
 - 时域效果未来必须声明历史帧需求；无法保证正确窗口化时显式拒绝，不能静默改变效果。
 
-接口已冻结为 `preview.composited_frame`、`CompositedProjectFrameJobResult`、`composited_project_frame` 质量标记；契约由同一任务注册表生成，旧编码帧接口保持。实际已通过的场景和剩余范围以 `implementation-status.md` 为准。
+接口已冻结为 `preview.composited_frame`、`CompositedProjectFrameJobResult`、`composited_project_frame` 质量标记；契约由同一任务注册表生成，旧编码帧接口保持。实际已通过的场景和剩余范围以 `headless-completion-ledger.md` 为准。

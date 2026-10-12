@@ -756,6 +756,17 @@ fn probes_extracts_exports_and_verifies_real_media() {
             input: first.clone(),
         })
         .unwrap();
+    let uploaded = backend
+        .probe_upload(&first, &CancellationToken::new())
+        .unwrap();
+    let primary_audio = uploaded
+        .streams
+        .iter()
+        .find(|s| s.codec_type == StreamKind::Audio)
+        .unwrap();
+    assert_eq!(primary_audio.sample_rate, Some(48000));
+    assert_eq!(primary_audio.channels, Some(1));
+    assert_eq!(primary_audio.channel_layout.as_deref(), Some("mono"));
     assert_eq!(
         metadata
             .streams

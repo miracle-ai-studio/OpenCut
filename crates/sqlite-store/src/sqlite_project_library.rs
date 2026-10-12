@@ -2,7 +2,7 @@
 use super::*;
 use opencut_api_contracts::project_library::*;
 use opencut_editor_application::project_library;
-use sqlite_project_v3::VersionedProjectDocument;
+use sqlite_project_document::VersionedProjectDocument;
 
 pub(super) const MIGRATION: &str = "
 CREATE TABLE project_media_bindings(
@@ -74,7 +74,7 @@ impl EditorApplication {
             tx.commit().map_err(storage_error)?;
             raw
         };
-        match sqlite_project_v3::decode_versioned_project(&raw)? {
+        match sqlite_project_document::decode_versioned_project(&raw)? {
             VersionedProjectDocument::Legacy(document) => self.apply(
                 &input.project_id,
                 &TransactionRequest {
@@ -97,6 +97,10 @@ impl EditorApplication {
                     )?,
                 })
             }
+            VersionedProjectDocument::V4(_) => Err(EditorError::new(
+                "UNSUPPORTED_PROJECT_VERSION",
+                "Schema 4 media removal requires schema 4 aggregate operations",
+            )),
         }
     }
     pub fn delete_projects(
@@ -124,7 +128,7 @@ impl EditorApplication {
         }
         let mut staging_upload_ids = Vec::new();
         for item in &input.projects {
-            let head = sqlite_project_v3::project_head_revision(&tx, &item.project_id)?;
+            let head = sqlite_project_document::project_head_revision(&tx, &item.project_id)?;
             if head != item.expected_revision {
                 return Err(revision_conflict(&item.expected_revision, &head));
             }
@@ -224,11 +228,15 @@ impl EditorApplication {
         } else {
             String::new()
         };
+        // Frozen library DTOs describe only V1/V2/V3. Filter V4 before LIMIT,
+        // so one newer project cannot fail the page or hide later legacy rows.
+        // The V4 library operation reads every schema under the same authority.
         let mut statement = tx.prepare("SELECT p.project_id,p.head_revision,r.document_json,
             strftime('%Y-%m-%dT%H:%M:%SZ',(SELECT min(created_at) FROM revisions c WHERE c.project_id=p.project_id)),
             strftime('%Y-%m-%dT%H:%M:%SZ',r.created_at)
             FROM projects p JOIN revisions r ON r.project_id=p.project_id AND r.revision=p.head_revision
-            WHERE p.project_id>?1 AND NOT EXISTS(SELECT 1 FROM deleted_projects d WHERE d.project_id=p.project_id) AND (?2 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.project_id=p.project_id AND g.principal_id=?2 AND g.action_mask & 1 != 0))
+            WHERE p.project_id>?1 AND COALESCE(json_extract(r.document_json,'$.schema_version'),1) != 4
+            AND NOT EXISTS(SELECT 1 FROM deleted_projects d WHERE d.project_id=p.project_id) AND (?2 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.project_id=p.project_id AND g.principal_id=?2 AND g.action_mask & 1 != 0))
             ORDER BY p.project_id LIMIT ?3").map_err(storage_error)?;
         let rows = statement
             .query_map(params![after, principal, input.limit + 1], |r| {
@@ -244,11 +252,17 @@ impl EditorApplication {
         let mut items = Vec::new();
         for row in rows {
             let (id, revision, raw, created_at, modified_at) = row.map_err(storage_error)?;
-            let document = sqlite_project_v3::decode_versioned_project(&raw)?;
+            let document = sqlite_project_document::decode_versioned_project(&raw)?;
             let (base, visual, format) = match &document {
                 VersionedProjectDocument::Legacy(base) => (base, None, ProjectFormat::Base),
                 VersionedProjectDocument::V3(visual) => {
                     (&visual.base, Some(visual), ProjectFormat::Visual)
+                }
+                VersionedProjectDocument::V4(_) => {
+                    return Err(EditorError::new(
+                        "STORAGE_ERROR",
+                        "Legacy library query returned a schema 4 project",
+                    ));
                 }
             };
             if base.id != id {
@@ -329,7 +343,7 @@ impl EditorApplication {
                 return Err(revision_conflict(&item.expected_revision, &head));
             }
             let payload = json!({"source_project_id":item.source_project_id,"source_revision":head,"project_id":item.target_project_id});
-            let revision = match sqlite_project_v3::decode_versioned_project(&raw)? {
+            let revision = match sqlite_project_document::decode_versioned_project(&raw)? {
                 VersionedProjectDocument::Legacy(base) => {
                     let document = project_library::copy_base(&base, item)?;
                     let revision = project_library::base_revision(&document)?;
@@ -355,6 +369,12 @@ impl EditorApplication {
                         &payload,
                     )?;
                     revision
+                }
+                VersionedProjectDocument::V4(_) => {
+                    return Err(EditorError::new(
+                        "UNSUPPORTED_PROJECT_VERSION",
+                        "Schema 4 copies require schema 4 project operations",
+                    ));
                 }
             };
             tx.execute("INSERT INTO project_media_bindings(project_id,media_id) SELECT ?1,media_id FROM available_project_media WHERE project_id=?2",params![item.target_project_id,item.source_project_id]).map_err(storage_error)?;
@@ -662,7 +682,7 @@ mod tests {
         let path = dir.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&path).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&path).is_err());
         let conn = Connection::open(&path).unwrap();
@@ -888,6 +908,103 @@ mod tests {
         );
     }
     #[test]
+    fn legacy_library_paginates_past_v4_without_losing_scope_or_later_rows() {
+        use opencut_contracts::project_v4_ops::{CreateV4Project, ListV4Projects};
+        let mut app = EditorApplication::open(":memory:").unwrap();
+        for id in ["a", "d", "f"] {
+            create(&mut app, id);
+        }
+        for id in ["b", "c", "e"] {
+            let request: CreateV4Project = serde_json::from_value(json!({
+                "project":{"id":id,"name":id,"sequence_id":"main",
+                    "width":64,"height":48,"fps":{"numerator":25,"denominator":1}},
+                "idempotency_key":format!("v4-{id}")
+            }))
+            .unwrap();
+            app.create_v4_project(&request).unwrap();
+        }
+        let mut ids = Vec::new();
+        let mut cursor = None;
+        loop {
+            let page = app
+                .project_library(&LibraryInput { cursor, limit: 1 })
+                .unwrap();
+            assert_eq!(page.items.len(), 1);
+            ids.push(page.items[0].project_id.clone());
+            cursor = page.next_cursor;
+            if cursor.is_none() {
+                break;
+            }
+        }
+        assert_eq!(ids, ["a", "d", "f"]);
+        assert_eq!(
+            app.list_v4_projects(&ListV4Projects {
+                cursor: None,
+                limit: 100
+            })
+            .unwrap()
+            .items
+            .len(),
+            6
+        );
+        app.set_principal_policy(PrincipalPolicy {
+            principal_id: "mixed-reader".into(),
+            expected_revision: "0".into(),
+            enabled: true,
+            grants: ["b", "d", "e", "f"]
+                .into_iter()
+                .map(|id| ProjectGrant {
+                    project_id: id.into(),
+                    actions: vec![ProjectAction::Read],
+                })
+                .collect(),
+        })
+        .unwrap();
+        let credential = app.issue_credential("mixed-reader").unwrap();
+        app.set_caller(app.authenticate(&credential.secret).unwrap());
+        let first = app
+            .project_library(&LibraryInput {
+                cursor: None,
+                limit: 1,
+            })
+            .unwrap();
+        assert_eq!(first.items[0].project_id, "d");
+        let cursor = first.next_cursor.unwrap();
+        let second = app
+            .project_library(&LibraryInput {
+                cursor: Some(cursor.clone()),
+                limit: 1,
+            })
+            .unwrap();
+        assert_eq!(second.items[0].project_id, "f");
+        assert!(second.next_cursor.is_none());
+        let modern = app
+            .list_v4_projects(&ListV4Projects {
+                cursor: None,
+                limit: 100,
+            })
+            .unwrap();
+        assert_eq!(
+            modern
+                .items
+                .iter()
+                .map(|p| p.project_id.as_str())
+                .collect::<Vec<_>>(),
+            ["b", "d", "e", "f"]
+        );
+        app.set_caller(Caller::LocalOwner);
+        assert_eq!(
+            app.project_library(&LibraryInput {
+                cursor: Some(cursor),
+                limit: 1
+            })
+            .unwrap_err()
+            .code,
+            "INVALID_CURSOR"
+        );
+    }
+
+    #[test]
     fn library_duration_uses_exact_main_scene_end_and_metadata() {
         let mut app = EditorApplication::open(":memory:").unwrap();
         let initial = create(&mut app, "source");
@@ -985,7 +1102,7 @@ mod tests {
         let db = temp.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&db).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&db).is_err());
         let conn = rusqlite::Connection::open(&db).unwrap();

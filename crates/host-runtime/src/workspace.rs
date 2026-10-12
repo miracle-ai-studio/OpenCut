@@ -106,6 +106,18 @@ impl WorkspacePort for SqliteWorkspace {
     fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
         self.0.authorize_chunk(input)
     }
+    fn revalidate_v4_resource_read(
+        &self,
+        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
+    ) -> Result<(), EditorError> {
+        self.0.revalidate_v4_resource_read(input)
+    }
+    fn project_v4_resource(
+        &self,
+        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
+    ) -> Result<opencut_contracts::project_v4_resources::ResourceViewV4, EditorError> {
+        self.0.inspect_v4_resource(input)
+    }
     fn project_media(
         &self,
         input: &ProjectMediaInput,

@@ -279,6 +279,83 @@ pub(super) async fn read_project(
         Ok(Err(error)) => return into_http(opencut_automation::response(Err(error))),
         Err(_) => return error_response("INTERNAL_ERROR", "Cannot read project media"),
     };
+    serve_verified_file(file, size, mime, headers).await
+}
+
+pub(super) async fn read_v4_resource(
+    AuthorizedHost(host): AuthorizedHost,
+    Query(input): Query<opencut_contracts::project_v4_resources::InspectResourceV4>,
+    headers: HeaderMap,
+) -> Response {
+    let database = host.database.clone();
+    let identity = host.identity.clone();
+    let scope = input.clone();
+    let opened = tokio::task::spawn_blocking(move || {
+        let mut app = opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref())?;
+        identity.validate(&mut app)?;
+        app.set_caller(identity.caller.clone());
+        let resource = app.project_v4_resource(&input)?;
+        let (file, size) = opencut_host_runtime::transport_io::open_verified_v4_resource(
+            &database,
+            &resource.version,
+        )?;
+        // Hashing may take time. Recheck current authority before response bytes.
+        identity.validate(&mut app)?;
+        let current = app.project_v4_resource(&input)?;
+        if current != resource {
+            return Err(EditorError::new(
+                "ARTIFACT_VERIFICATION_FAILED",
+                "Fixed resource changed",
+            ));
+        }
+        Ok::<_, EditorError>((file, size, resource.mime_type))
+    })
+    .await;
+    let (file, size, mime) = match opened {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) => return into_http(opencut_automation::response(Err(error))),
+        Err(_) => return error_response("INTERNAL_ERROR", "Cannot read project resource"),
+    };
+    // A typed metadata field is not permission to serve active HTML/SVG content.
+    let mime = mime
+        .filter(|value| {
+            matches!(
+                value.as_str(),
+                "image/png"
+                    | "image/jpeg"
+                    | "image/webp"
+                    | "image/gif"
+                    | "image/avif"
+                    | "video/mp4"
+                    | "video/webm"
+                    | "video/quicktime"
+                    | "audio/mpeg"
+                    | "audio/mp4"
+                    | "audio/ogg"
+                    | "audio/wav"
+                    | "audio/x-wav"
+                    | "audio/flac"
+                    | "audio/webm"
+                    | "font/ttf"
+                    | "font/otf"
+                    | "font/woff"
+                    | "font/woff2"
+            )
+        })
+        .unwrap_or_else(|| "application/octet-stream".into());
+    let mut response = serve_verified_file(file, size, Some(mime), headers).await;
+    response
+        .extensions_mut()
+        .insert(crate::http_identity::RevalidateV4Resource(scope));
+    response
+}
+
+async fn serve_verified_file(
+    file: std::fs::File,
+    size: u64,
+    mime: Option<String>,
+    headers: HeaderMap,
+) -> Response {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     let range = match headers.get("range") {
         Some(value) => match value

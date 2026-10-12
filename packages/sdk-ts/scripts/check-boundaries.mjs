@@ -9,11 +9,22 @@ const sourceRoots = ["packages/sdk-ts/src","apps/web/src"];
 const bridges = new Map([
   ["apps/web/src/lib/editor-sdk.ts",new Set(["packages/sdk-ts/src/index"])],
   ["apps/web/src/lib/editor-contracts.generated.ts",new Set(["packages/sdk-ts/src/contracts.generated"])],
+  // One pure WebAudio graph definition keeps live preview and the reviewed
+  // renderer parameters identical; no decoder, host or execution is imported.
+  ["apps/web/src/editor/workspace/v4/audio-preview-mastering.ts",new Set(["packages/classic-audio-renderer/src/mastering"])],
 ]);
 // Historical generator lives under src but is a build entry, never a runtime dependency.
 const buildOnly = "apps/web/src/editor/generate-contracts.mjs";
 const norm = file => file.replaceAll("\\", "/");
 const stem = file => file.replace(/\.(?:mjs|cjs|jsx?|tsx?)$/, "");
+
+// Fixtures are test helpers, never runtime dependencies. Use the same precise
+// filename classification for traversal and every resolved import target.
+export function isTestOnlySource(file) {
+  file = norm(file);
+  return /\.(?:test|spec)(?:\.[cm]?[jt]sx?)?$/.test(file)
+    || /(?:^|\/)(?:fixture|[^/]+-fixture)(?:\.[cm]?[jt]sx?)?$/.test(file);
+}
 
 export function violations(file, code, dependencies = new Set()) {
   file = norm(file);
@@ -32,7 +43,7 @@ export function violations(file, code, dependencies = new Set()) {
       if (isBuiltin(specifier) || !dependencies.has(name)) fail(`Undeclared or native runtime dependency: ${specifier}`);
       return;
     }
-    if (/\.(?:test|spec)(?:\.[cm]?[jt]sx?)?$/.test(resolved)) return fail("Runtime source cannot import test-only code");
+    if (isTestOnlySource(resolved)) return fail("Runtime source cannot import test-only code");
     if (stem(resolved) === stem(buildOnly)) return fail("Runtime source cannot import the contract build entry");
     if (resolved.startsWith(owner+"/")) return;
     if (bridges.get(file)?.has(stem(resolved))) return;
@@ -71,7 +82,7 @@ export function inspect() {
         const file=norm(path.posix.join(dir,entry.name));
         if (entry.isSymbolicLink()) {errors.push(`${file}: source symlinks require boundary review`);continue;}
         if (entry.isDirectory()) {walk(file);continue;}
-        if (!/\.(?:[cm]?js|jsx|tsx?)$/.test(file) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) || file===buildOnly) continue;
+        if (!/\.(?:[cm]?js|jsx|tsx?)$/.test(file) || isTestOnlySource(file) || file===buildOnly) continue;
         files++; errors.push(...violations(file,fs.readFileSync(path.join(root,file),"utf8"),dependencies));
       }
     };

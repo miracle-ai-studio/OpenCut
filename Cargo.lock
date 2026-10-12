@@ -4693,7 +4693,9 @@ dependencies = [
  "opencut-sqlite-store",
  "opencut-storage-budget",
  "opencut-time",
+ "png 0.18.1",
  "rustix 1.1.4",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
@@ -4726,6 +4728,7 @@ dependencies = [
 name = "opencut-project-render"
 version = "0.1.0"
 dependencies = [
+ "image",
  "opencut-api-contracts",
  "opencut-composition",
  "opencut-contracts",

@@ -36,6 +36,16 @@ pub trait WorkspacePort: DenialStore {
     fn get_job(&self, job_id: &str) -> Result<JobRecord, EditorError>;
     fn repair_cancel_job(&mut self, job_id: &str) -> Result<JobRecord, EditorError>;
     fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError>;
+    /// Only for an already selected fixed resource stream; this verifies live
+    /// read scope, not resource membership or CAS bytes. Resolve those first.
+    fn revalidate_v4_resource_read(
+        &self,
+        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
+    ) -> Result<(), EditorError>;
+    fn project_v4_resource(
+        &self,
+        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
+    ) -> Result<opencut_contracts::project_v4_resources::ResourceViewV4, EditorError>;
     fn project_media(&self, input: &ProjectMediaInput)
     -> Result<MediaImportJobResult, EditorError>;
 }

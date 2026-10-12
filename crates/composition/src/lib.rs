@@ -2,6 +2,7 @@
 mod compiler;
 pub mod coverage_v3;
 pub mod project_v3;
+pub mod project_v4;
 mod selection;
 pub use compiler::compile;
 pub use selection::{select_project_frame_time, select_project_range};

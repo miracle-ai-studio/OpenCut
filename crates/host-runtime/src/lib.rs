@@ -1,10 +1,17 @@
 //! Shared typed automation entry points. Transports must not implement editing rules.
+pub use opencut_api_contracts::audio_preview_v4 as audio_preview_contracts;
 pub use opencut_api_contracts::preview;
 pub use opencut_api_contracts::{context, event_stream};
 pub use opencut_automation::capabilities;
 pub use opencut_editor_application::access::Caller;
 pub use opencut_editor_application::audit::{CallSource, ExecutionContext};
+pub mod audio_preview_v4;
+mod browser_runtime;
+mod classic_audio_runtime;
+mod classic_visual_runtime;
 pub mod denials;
+mod source_art_runtime;
+mod source_art_v1;
 pub use opencut_editor_application::uploads;
 use std::path::Path;
 use uploads::{ImportStore, UploadRetentionStore};
@@ -128,6 +135,13 @@ impl Automation {
         &self,
         input: &opencut_api_contracts::classic_import::ClassicAnalyze,
     ) -> Result<opencut_api_contracts::classic_import::ClassicAnalysis, EditorError> {
+        self.analyze_classic_source(input, false)
+    }
+    fn analyze_classic_source(
+        &self,
+        input: &opencut_api_contracts::classic_import::ClassicAnalyze,
+        recovery: bool,
+    ) -> Result<opencut_api_contracts::classic_import::ClassicAnalysis, EditorError> {
         if input.media_mappings.len() > 256 {
             return Err(EditorError::new(
                 "INVALID_ARGUMENT",
@@ -167,9 +181,21 @@ impl Automation {
             self.app.asset_store_root(),
             &assets.values().cloned().collect::<Vec<_>>(),
         )?;
-        Ok(opencut_editor_application::classic_import::analyze(
-            input, &assets,
-        ))
+        Ok(if recovery {
+            opencut_editor_application::classic_import::analyze_recovery(input, &assets)
+        } else {
+            opencut_editor_application::classic_import::analyze(input, &assets)
+        })
+    }
+
+    pub fn audio_preview_stream(
+        &mut self,
+        input: opencut_api_contracts::audio_preview_v4::AudioPreviewStreamV4,
+    ) -> Result<audio_preview_v4::AudioPreviewStream, EditorError> {
+        audio_preview_v4::open_stream(self, input)
+    }
+    pub fn authorize_audio_preview(&mut self, session_id: &str) -> Result<(), EditorError> {
+        audio_preview_v4::authorize_stream(self, session_id)
     }
 
     pub fn authorize_preview(&mut self, session: &str, run: bool) -> Result<(), EditorError> {
@@ -218,6 +244,49 @@ impl Automation {
 
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value, EditorError> {
         match name {
+            "opencut_media_import_plan_v1" => {
+                let input: opencut_contracts::media_import::MediaImportRequestV1 =
+                    parse(arguments)?;
+                opencut_editor_application::media_import::validate(&input)?;
+                let snapshot = self.app.inspect_v3_project(
+                    &opencut_contracts::project_v3_ops::InspectV3Project {
+                        project_id: input.project_id.clone(),
+                        revision: Some(input.expected_revision.clone()),
+                    },
+                )?;
+                let assets = input
+                    .media
+                    .iter()
+                    .map(|binding| {
+                        self.app
+                            .project_media(
+                                &opencut_editor_application::uploads::ProjectMediaInput {
+                                    project_id: input.project_id.clone(),
+                                    media_id: binding.media_id.clone(),
+                                },
+                            )
+                            .map(|resource| resource.asset)
+                    })
+                    .collect::<Result<Vec<_>, EditorError>>()?;
+                let result =
+                    opencut_editor_application::media_import::plan(&snapshot, &input, &assets)?;
+                self.app.plan_v3_project(&result.transaction)?;
+                to_value(result)
+            }
+            "opencut_edit_classic_plan_v1" => {
+                let input: opencut_contracts::timeline_edit::ClassicEditRequestV1 =
+                    parse(arguments)?;
+                let snapshot = self.app.inspect_v3_project(
+                    &opencut_contracts::project_v3_ops::InspectV3Project {
+                        project_id: input.project_id.clone(),
+                        revision: Some(input.expected_revision.clone()),
+                    },
+                )?;
+                let result =
+                    opencut_editor_application::timeline_edit::classic::plan(&snapshot, &input)?;
+                self.app.plan_v3_project(&result.plan.transaction)?;
+                to_value(result)
+            }
             "opencut_edit_timeline_plan" => {
                 let input: opencut_contracts::timeline_edit::TimelineEditRequest =
                     parse(arguments)?;
@@ -239,6 +308,43 @@ impl Automation {
                 let job = self.app.artifact_job(&input.job_id)?;
                 to_value(worker::receipts::inspect(&self.database, &job)?)
             }
+            "opencut_project_v4_audio_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_audio_runtime::capability())
+            }
+            "opencut_project_v4_audio_range_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_audio_runtime::range_capability())
+            }
+            "opencut_job_v4_audio_range_wav" => {
+                let result =
+                    opencut_sqlite_store::sqlite_project_v4_audio_jobs::start_audio_range_wav(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_job_v4_audio_wav" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_audio_jobs::start_audio_wav(
+                    &mut self.app,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_project_v4_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::capability())
+            }
+            "opencut_job_v4_frame_png" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_frame_jobs::start_frame_png(
+                    &mut self.app,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
             "opencut_job_v3_render" | "opencut_job_v3_frame" | "opencut_job_v3_range" => {
                 use opencut_sqlite_store::sqlite_project_v3_jobs as v3_jobs;
                 let result = match name {
@@ -258,6 +364,98 @@ impl Automation {
             }
             "opencut_project_edit_apply" => {
                 to_value(self.app.apply_project_edit(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_list" => to_value(self.app.list_v4_projects(&parse(arguments)?)?),
+            "opencut_project_v4_create" => {
+                let snapshot = self.app.create_v4_project(&parse(arguments)?)?;
+                to_value(opencut_editor_application::project_v4::public::project(
+                    &snapshot,
+                ))
+            }
+            "opencut_project_v4_promote" => {
+                to_value(self.app.promote_v4_project(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_inspect" => {
+                let snapshot = self.app.inspect_v4_project(&parse(arguments)?)?;
+                to_value(opencut_editor_application::project_v4::public::project(
+                    &snapshot,
+                ))
+            }
+            "opencut_project_v4_media_import_plan" => {
+                to_value(self.app.plan_v4_media_import(&parse(arguments)?)?)
+            }
+            "opencut_media_workspace_plan_v4" => {
+                to_value(self.app.plan_v4_media_workspace(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_audio_gain_plan" => {
+                to_value(self.app.plan_v4_audio_gain(&parse(arguments)?)?)
+            }
+            "opencut_edit_timeline_plan_v4" => {
+                to_value(self.app.plan_v4_timeline(&parse(arguments)?)?)
+            }
+            "opencut_timeline_v4_copy" => to_value(
+                opencut_editor_application::timeline_clipboard_v4::copy_selection(
+                    &self.app,
+                    &parse(arguments)?,
+                )?,
+            ),
+            "opencut_timeline_v4_paste_plan" => to_value(
+                opencut_editor_application::timeline_clipboard_v4::plan_paste(
+                    &self.app,
+                    &parse(arguments)?,
+                )?,
+            ),
+            "opencut_edit_recovery_v1_stage" => {
+                to_value(self.app.stage_edit_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v1_read" => {
+                to_value(self.app.read_edit_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v1_inspect" => to_value(
+                opencut_contracts::edit_recovery_v1::EditRecoveryInspectionV1 {
+                    schema_version: 1,
+                    record: self.app.read_edit_recovery_v1(&parse(arguments)?)?,
+                },
+            ),
+            "opencut_edit_recovery_v1_ack" => {
+                to_value(self.app.ack_edit_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v2_stage" => {
+                to_value(self.app.stage_edit_recovery_v2(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v2_inspect" => {
+                to_value(self.app.inspect_edit_recovery_v2(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v2_ack" => {
+                to_value(self.app.ack_edit_recovery_v2(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_source_audio_plan" => {
+                to_value(self.app.plan_v4_source_audio(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_resource_inspect" => {
+                to_value(self.app.inspect_v4_resource(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_copy" => {
+                let snapshot = self.app.copy_v4_project(&parse(arguments)?)?;
+                to_value(opencut_editor_application::project_v4::public::project(
+                    &snapshot,
+                ))
+            }
+            "opencut_project_v4_restore" => {
+                to_value(self.app.restore_v4_revision(&parse(arguments)?)?)
+            }
+            "opencut_edit_v4_plan" => {
+                to_value(self.app.plan_public_v4_project(&parse(arguments)?)?)
+            }
+            "opencut_edit_v4_apply" => {
+                to_value(self.app.apply_public_v4_project(&parse(arguments)?)?)
+            }
+            "opencut_edit_v4_undo_plan" => to_value(self.app.plan_v4_undo(&parse(arguments)?)?),
+            "opencut_edit_v4_undo_apply" => to_value(self.app.apply_v4_undo(&parse(arguments)?)?),
+            "opencut_edit_v4_redo_plan" => to_value(self.app.plan_v4_redo(&parse(arguments)?)?),
+            "opencut_edit_v4_redo_apply" => to_value(self.app.apply_v4_redo(&parse(arguments)?)?),
+            "opencut_project_v4_history_navigation" => {
+                to_value(self.app.v4_history_navigation(&parse(arguments)?)?)
             }
             "opencut_project_v3_list" => to_value(self.app.list_v3_projects(&parse(arguments)?)?),
             "opencut_project_v3_create" => {
@@ -279,6 +477,17 @@ impl Automation {
                 }
                 let analysis = self.analyze_classic(&input.source)?;
                 to_value(self.app.classic_import_commit(&input, &analysis)?)
+            }
+            "opencut_classic_recovery_analyze_v1" => {
+                to_value(self.analyze_classic_source(&parse(arguments)?, true)?)
+            }
+            "opencut_classic_recovery_import_v1" => {
+                let input: opencut_api_contracts::classic_import::ClassicImport = parse(arguments)?;
+                if let Some(receipt) = self.app.classic_recovery_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let analysis = self.analyze_classic_source(&input.source, true)?;
+                to_value(self.app.classic_recovery_commit(&input, &analysis)?)
             }
             "opencut_subtitle_generate" => {
                 to_value(self.app.generate_captions(&parse(arguments)?)?)
@@ -365,6 +574,38 @@ impl Automation {
                         &snapshot, &input,
                     )?,
                 )
+            }
+            "opencut_audio_preview_v4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_audio_runtime::preview_capability())
+            }
+            "opencut_source_art_v1_get" => to_value(source_art_v1::get(self, parse(arguments)?)?),
+            "opencut_source_art_v1_cancel" => {
+                to_value(source_art_v1::cancel(self, parse(arguments)?)?)
+            }
+            "opencut_source_art_waveform_display_v1_get" => {
+                to_value(source_art_v1::waveform_display(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_v4_create" => {
+                if matches!(self.source, CallSource::Cli | CallSource::McpStdio) {
+                    return Err(EditorError::new(
+                        "LONG_LIVED_HOST_REQUIRED",
+                        "Audio preview requires a long-lived host",
+                    ));
+                }
+                to_value(audio_preview_v4::create(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_v4_inspect" => {
+                to_value(audio_preview_v4::inspect(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_v4_events" => {
+                to_value(audio_preview_v4::events(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_v4_control" => {
+                to_value(audio_preview_v4::control(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_v4_acquire" => {
+                to_value(audio_preview_v4::acquire(self, parse(arguments)?)?)
             }
             "opencut_preview_v3_create" => {
                 if matches!(self.source, CallSource::Cli | CallSource::McpStdio) {
@@ -1241,3 +1482,6 @@ pub mod worker;
 
 pub mod transport_io;
 pub mod workspace;
+
+#[cfg(test)]
+mod project_v4_public_tests;

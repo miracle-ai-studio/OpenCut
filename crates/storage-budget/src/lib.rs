@@ -37,6 +37,30 @@ impl Budget {
             Err(unavailable())
         }
     }
+    /// Admit an exact-size WAV against the same output quota and attempt owner.
+    pub fn reserve_audio_wav(
+        &self,
+        bytes: u64,
+        writer: budget::Writer,
+    ) -> Result<Reservation, EditorError> {
+        self.reserve_output_bytes(bytes, writer)
+    }
+    /// Admit a known output ceiling before an adapter creates its attempt file.
+    pub fn reserve_output_bytes(
+        &self,
+        bytes: u64,
+        writer: budget::Writer,
+    ) -> Result<Reservation, EditorError> {
+        #[cfg(unix)]
+        {
+            unix::reserve_inner(self, "media_output", Some(bytes), Some(writer))
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (bytes, writer);
+            Err(unavailable())
+        }
+    }
     pub fn reserve_caption(
         &self,
         bytes: u64,
@@ -1590,6 +1614,14 @@ mod unix {
         let control_held = ledger.control_total()?;
         let id = uuid::Uuid::new_v4().to_string();
         let bytes = if let Some(bytes) = requested {
+            if category == "media_output"
+                && bytes > budget::decimal(&ledger.media_output_limit_bytes)?
+            {
+                return Err(EditorError::new(
+                    "MEDIA_OUTPUT_LIMIT_EXCEEDED",
+                    "Audio output exceeds the configured media output limit",
+                ));
+            }
             bytes
         } else {
             // Reject zero headroom with the appropriate public capacity reason.

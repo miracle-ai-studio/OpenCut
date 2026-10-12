@@ -253,6 +253,16 @@ pub fn audit(
                 }};
             }
             match track.kind {
+                TrackKind::Video
+                    if snapshot.project.assets.iter().any(|asset| {
+                        Some(asset.id.as_str()) == clip.asset_id.as_deref()
+                            && asset.kind == opencut_contracts::AssetKind::Image
+                    }) =>
+                {
+                    visual!(t.image_clips.get(image));
+                    image += 1;
+                    entry(&clip.id, "image", "compiled");
+                }
                 TrackKind::Video => {
                     let a = visual!(t.video_clips.get(video));
                     video += 1;
@@ -281,6 +291,15 @@ pub fn audit(
     for kind in [TrackKind::Video, TrackKind::Audio] {
         for track in seq.tracks.iter().filter(|t| t.kind == kind) {
             for clip in &track.clips {
+                if kind == TrackKind::Video
+                    && snapshot.project.assets.iter().any(|asset| {
+                        Some(asset.id.as_str()) == clip.asset_id.as_deref()
+                            && asset.kind == opencut_contracts::AssetKind::Image
+                    })
+                {
+                    entry(&clip.id, "audio", "image_has_no_audio");
+                    continue;
+                }
                 let excluded = if !track.enabled {
                     Some("disabled_track")
                 } else if track.muted {

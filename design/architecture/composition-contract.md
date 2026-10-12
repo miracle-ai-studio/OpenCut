@@ -56,4 +56,25 @@ FFmpeg 目前混音到 48 kHz stereo，混合不自动归一化；时间延迟�
 
 改变上述时间、默认几何、层叠或音频语义需要新的 Composition format；未知 format 拒绝。当前格式没有对不认识的字段静默放行。新增后端应消费此描述，通过共享时间夹具、像素/PCM 及字幕语义检查后再声明支持，不能另写一套工程解释逻辑。
 
-依赖/源码门禁检查纯编译器闭包；Rust 可移植测试证明无宿主资源编译和非文件句柄绑定。原生测试和公共 CLI/HTTP 任务验证真实 full/direct/range 产物、固定修订、取消与清理。结果见 [本轮验收](../qa/r2-composition-2026-09-21.md)。连续预览 Session 尚未由本轮实现，后续应消费同一描述，不通过循环创建帧 Job 代替。
+依赖/源码门禁检查纯编译器闭包；Rust 可移植测试证明无宿主资源编译和非文件句柄绑定。原生测试和公共 CLI/HTTP 任务验证真实 full/direct/range 产物、固定修订、取消与清理。结果见 [当前交付台账](headless-completion-ledger.md)。连续预览 Session 尚未由本轮实现，后续应消费同一描述，不通过循环创建帧 Job 代替。
+
+## V4 直接帧边界
+
+`composition::project_v4::compile_frame_v4` 消费完整 V4 固定修订，输出不含文件路径的独立 IR4；采样值直接进入执行字段，资源请求时钟、资源内读取窗口和实际 EOF 状态分别表达。Visual scope 明确排除音频；帧的音量点样本不构成音频范围编译。
+
+`ProjectFrameAdapterV4` 经宿主 resolver 验证并绑定 CAS，保留源确点、显式 Floor/Exact 策略与实际 PTS 回执。当前只支持受检 Legacy 媒体/矩形/椭圆、旧效果/蒙版和交叉淡化；Classic、文字字体、复杂合成和未解析 EOF 明确拒绝。六项手写小型输入的独立像素样本已验；V4 Worker、范围、完整导出与跨后端等价仍未实现；下述未母带 PCM 阶段不作为完整渲染结果。临时解码使用独占子目录并自动清理，取消及处理策略沿用宿主原生后端。
+
+
+纯 `prepare_audio_v4` 一次验证固定修订，`compile_audio_block_v4` 每块最多4096帧、总声部采样预算65536。Classic placement start floor、duration ceil，元素增益使用量化起点后的局部 sample clock，轨道增益使用场景 clock；120000 tick 动画时钟与精确源 sample 位置分开。 authored rate/source request 保留原义，Classic 有效取样速率另行按原版限制为0.01–5；保持音高在单位/epsilon速率仍要求中间Float32写入，不允许 Native 线性路径冒充。Unknown/Present无格式保留 probe 要求，Disabled/Muted/Absent 在增益和资源采样前排除；长字幕及无音频场景保留静音尾。
+
+`ProjectAudioAdapterV4` 只产生顺序 `UnmasteredPcmStageV4`：实际 FFmpeg PCM、首帧 PTS=0、原生采样率、mono双复制/多声道前两路、线性插值、实际 EOF 零尾、稳定逐声部 float32 混合及逐 sample gain。真实 PTS/声道/已观察采样数与已证实 EOF 独立记入回执。输入只允许本机自包含容器，MOV 私有选项按实际 demuxer 绑定；子进程由 admission 管理，有限队列/总解码预算/取消 kill/reap，无中间导出文件。八项手写 WAV/恶意引用样本已验，不能据此推断 Browser decodeAudioData 的 priming/重采样等价。
+
+原生适配器继续拒绝保持音高、旧 Native resampling、非零解码原点及 Classic whole-scene peak/compressor。不能把 SoundTouch C++、FFmpeg atempo/asetrate/amix 当作原 soundtouchjs0.3.0 或浏览器母带等价；完成前不发布 V4 完整音频或 Worker 渲染结果。范围/seek 必须保留 DSP 历史与全段 peak 判定，不能逐块重置或局部峰值决定母带。
+
+### Classic 浏览器音频适配边界
+
+`packages/classic-audio-renderer` 为 Web 与后续隔离浏览器 Worker 共用的执行适配器。独立包的理由是共享真实解码、SoundTouch 与母带实现；它不拥有工程或修订，不解释时间线/曲线，不调用内部 CLI。宿主通过 typed in-process ports 供应固定修订的准备事实、精确源位置、逐样本幅度、CAS字节、资源保护、处理策略及执行身份；公共跨进程桥仍需版本化声明，当前类型不作为新公开协议。
+
+纯准备事实从实际 authored duration 而非量化放置帧数计算，保留 decoded 的全部声道预算与 sliced/resampled/output 三个Float32缓冲；保持音高分为单位/epsilon的prepared-linear和非单位的prepared-soundtouch。浏览器使用44100Hz目标解码、视频经固定mediabunny1.41.0串接/OfflineAudioContext重采样，以及未修改soundtouchjs0.3.0；vendor保留完整LGPL与包/源码身份。母带只对整场peak>0.98启用真实WebAudio压缩、0.98输出增益和clamp，范围最后截取。预览始终压缩及系统音量为另一个尚未接入profile。
+
+适配器的数组预算不能替代隔离进程的RSS/时间限制。`abortRendering`必须真正终止realm/进程并确认；普通promise拒绝或OfflineAudioContext不可用的close不算完成取消。生产Rust桥、隔离Worker装配、CAS租约与发布围栏仍待贯通；独立浏览器WAV/DSP接受不证明固定工程端到端导出或视频解码等价。

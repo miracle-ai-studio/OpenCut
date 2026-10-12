@@ -54,6 +54,15 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
         || matches!(
             name,
             "opencut_capabilities"
+                | "opencut_audio_preview_v4_capability"
+                | "opencut_audio_preview_v4_create"
+                | "opencut_audio_preview_v4_inspect"
+                | "opencut_audio_preview_v4_control"
+                | "opencut_audio_preview_v4_events"
+                | "opencut_audio_preview_v4_acquire"
+                | "opencut_source_art_v1_get"
+                | "opencut_source_art_v1_cancel"
+                | "opencut_source_art_waveform_display_v1_get"
                 | "opencut_access_inspect"
                 | "opencut_project_list"
                 | "opencut_project_inspect"
@@ -62,11 +71,35 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
                 | "opencut_project_library"
                 | "opencut_revision_inspect"
                 | "opencut_revision_restore"
+                | "opencut_project_v4_list"
+                | "opencut_project_v4_inspect"
+                | "opencut_project_v4_resource_inspect"
+                | "opencut_project_v4_media_import_plan"
+                | "opencut_media_workspace_plan_v4"
+                | "opencut_project_v4_source_audio_plan"
+                | "opencut_project_v4_audio_gain_plan"
+                | "opencut_project_v4_restore"
+                | "opencut_project_v4_history_navigation"
+                | "opencut_edit_v4_plan"
+                | "opencut_edit_timeline_plan_v4"
+                | "opencut_timeline_v4_copy"
+                | "opencut_timeline_v4_paste_plan"
+                | "opencut_edit_recovery_v1_stage"
+                | "opencut_edit_recovery_v1_read"
+                | "opencut_edit_recovery_v1_inspect"
+                | "opencut_edit_recovery_v1_ack"
+                | "opencut_edit_v4_apply"
+                | "opencut_edit_v4_undo_plan"
+                | "opencut_edit_v4_undo_apply"
+                | "opencut_edit_v4_redo_plan"
+                | "opencut_edit_v4_redo_apply"
                 | "opencut_project_v3_list"
                 | "opencut_project_v3_inspect"
                 | "opencut_render_v3_preflight"
                 | "opencut_edit_v3_plan"
                 | "opencut_edit_timeline_plan"
+                | "opencut_edit_classic_plan_v1"
+                | "opencut_media_import_plan_v1"
                 | "opencut_project_edit_plan"
                 | "opencut_project_edit_apply"
                 | "opencut_edit_v3_apply"
@@ -87,6 +120,12 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
                 | "opencut_job_v3_render"
                 | "opencut_job_v3_frame"
                 | "opencut_job_v3_range"
+                | "opencut_job_v4_audio_wav"
+                | "opencut_job_v4_audio_range_wav"
+                | "opencut_project_v4_audio_capability"
+                | "opencut_project_v4_audio_range_capability"
+                | "opencut_job_v4_frame_png"
+                | "opencut_project_v4_frame_capability"
                 | "opencut_job_submit"
                 | "opencut_analysis_speaker_turns"
                 | "opencut_analysis_transcribe"
@@ -251,4 +290,27 @@ pub trait ProjectExecutionRead {
         project_id: &str,
         revision: &str,
     ) -> Result<ExecutionSnapshot, EditorError>;
+}
+
+#[cfg(test)]
+mod recovery_authorization_tests {
+    use super::*;
+
+    #[test]
+    fn recovery_tools_remain_owner_only_before_project_or_media_resolution() {
+        let restricted = Caller::Credential(VerifiedCredential::from_verified(
+            "agent".into(),
+            "credential".into(),
+        ));
+        for name in [
+            "opencut_classic_recovery_analyze_v1",
+            "opencut_classic_recovery_import_v1",
+        ] {
+            assert_eq!(
+                authorize_tool(&restricted, name).unwrap_err().code,
+                "NOT_AUTHORIZED"
+            );
+            assert!(authorize_tool(&Caller::LocalOwner, name).is_ok());
+        }
+    }
 }

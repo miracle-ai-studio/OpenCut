@@ -3,10 +3,26 @@ use std::{collections::BTreeMap, error::Error, fmt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub mod audio_gain_v4;
+pub mod edit_recovery_v1;
+pub mod edit_recovery_v2;
+pub mod media_import;
+pub mod media_import_v4;
 pub mod project_edit;
 pub mod project_v3;
 pub mod project_v3_ops;
+pub mod project_v4;
+pub mod project_v4_history;
+pub mod project_v4_ops;
+pub mod project_v4_public;
+pub mod project_v4_resources;
+pub mod scene_bookmarks;
+pub mod source_art_v1;
+pub mod source_art_waveform_display_v1;
+pub mod source_audio_v4;
+pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
+pub mod timeline_v4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

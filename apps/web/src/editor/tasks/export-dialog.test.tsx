@@ -51,6 +51,7 @@ const snap = (revision = "head"): Snapshot => ({
 async function setup() {
   const api = new EditorApi("http://localhost:8788", "token");
   vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({} as never);
+  vi.spyOn(api, "authenticateConnection").mockResolvedValue(undefined);
   vi.spyOn(api, "projects").mockResolvedValue([projectRef(snap())]);
   vi.spyOn(api, "inspect").mockResolvedValue(snap());
   vi.spyOn(api, "history").mockResolvedValue({

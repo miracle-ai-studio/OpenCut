@@ -25,6 +25,37 @@ fn open(_: &Path) -> io::Result<File> {
     ))
 }
 impl AttemptLease {
+    /// Create an admitted output at the held inode. The caller must reserve its
+    /// complete bounded size before creating or extending this file.
+    pub fn create_readwrite_child(&self, name: &OsStr) -> io::Result<File> {
+        valid_child(name)?;
+        #[cfg(unix)]
+        {
+            use rustix::fs::{Mode, OFlags, openat};
+            let fd = openat(
+                &*self.0,
+                Path::new(name),
+                OFlags::RDWR
+                    | OFlags::CREATE
+                    | OFlags::EXCL
+                    | OFlags::NOFOLLOW
+                    | OFlags::CLOEXEC
+                    | OFlags::NONBLOCK,
+                Mode::RUSR | Mode::WUSR,
+            )?;
+            Ok(fd.into())
+        }
+        #[cfg(not(unix))]
+        {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Attempt child creation requires Unix",
+            ))
+        }
+    }
+    pub fn sync_directory(&self) -> io::Result<()> {
+        self.0.sync_all()
+    }
     pub fn still_names(&self, path: &Path) -> io::Result<bool> {
         same_directory(&self.0, path)
     }

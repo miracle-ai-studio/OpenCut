@@ -304,7 +304,7 @@ fn load_revision(
         .optional()
         .map_err(storage_error)?;
     Ok(ProjectSnapshot {
-        project: sqlite_project_v3::decode_legacy_project(&document.ok_or_else(|| {
+        project: sqlite_project_document::decode_legacy_project(&document.ok_or_else(|| {
             EditorError::new(
                 "NOT_FOUND",
                 "Target revision does not belong to this project",

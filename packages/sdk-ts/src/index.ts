@@ -1,8 +1,10 @@
 export { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
 import { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
 export * from "./contracts.generated.js";
-import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap } from "./contracts.generated.js";
+import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap, type AudioPreviewPcmV4, type AudioPreviewStreamV4 } from "./contracts.generated.js";
 
+export type AudioPreviewPcmHeaderV4 = AudioPreviewPcmV4.AudioPreviewPcmHeaderV4;
+export type AudioPreviewStreamInputV4 = AudioPreviewStreamV4.AudioPreviewStreamV4;
 export type ToolName = keyof ToolMap;
 export type ToolInput<N extends ToolName> = ToolMap[N]["input"];
 export type ToolOutput<N extends ToolName> = ToolMap[N]["output"];
@@ -19,7 +21,7 @@ export type ArtifactReference = PublicJob["artifacts"][number];
 export type PublicJobResult = NonNullable<PublicJob["result"]>;
 type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
 export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
-  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns"> & {
+  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4"> & {
   "render.project.v3": LegacyPublicResultMap["render.project"];
   "preview.project_frame.v3": LegacyPublicResultMap["preview.composited_frame"];
   "preview.project_range.v3": LegacyPublicResultMap["preview.project_range"];
@@ -27,6 +29,7 @@ export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
 const extendedPublicKinds = new Set<string>([
   "media.import", "analysis.transcribe", "analysis.silence", "analysis.shots", "analysis.waveform", "analysis.speaker_turns",
   "render.project.v3", "preview.project_frame.v3", "preview.project_range.v3",
+  "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4",
 ]);
 export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
   if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {
@@ -66,6 +69,11 @@ export interface ClientOptions {
   fetch?: typeof globalThis.fetch;
 }
 export interface CallOptions { signal?: AbortSignal }
+export interface AdmissionRetryOptions extends CallOptions {
+  /** Opt-in deferral of explicit budget-lock contention; never retries an unknown outcome. */
+  admissionTimeoutMs?: number;
+  beforeAttempt?: () => void;
+}
 export interface WaitOptions extends CallOptions {
   /** Local deadline, including network time. Does not cancel the durable job. */
   timeoutMs?: number;
@@ -85,7 +93,7 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** No automatic retries, revision refreshes, implicit job cancellation or UI state. */
+/** Calls are one-shot unless admission deferral is explicitly requested. No revision refreshes, implicit job cancellation or UI state. */
 
 export class OpenCutClient {
   readonly baseUrl: string;
@@ -104,6 +112,26 @@ export class OpenCutClient {
 
   async call<N extends ToolName>(name: N, input: ToolInput<N>, options: CallOptions = {}): Promise<ToolOutput<N>> {
     return (await this.callEnvelope(name, input, options)).data;
+  }
+
+  /** Repeat only explicit STORAGE_BUDGET_BUSY rejection, with the same captured input.
+   * Network/protocol errors, capacity faults and revision conflicts remain one-shot. */
+  async callWithAdmissionRetry<N extends ToolName>(name: N, input: ToolInput<N>, options: AdmissionRetryOptions = {}): Promise<ToolOutput<N>> {
+    const timeout = options.admissionTimeoutMs ?? 5000;
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 30000) throw new TypeError("Admission retry deadline must be 1 to 30000 milliseconds.");
+    const captured = JSON.parse(JSON.stringify(input)) as ToolInput<N>;
+    const deadline = performance.now() + timeout;
+    const signal = options.signal ?? new AbortController().signal;
+    for (;;) {
+      signal.throwIfAborted();
+      options.beforeAttempt?.();
+      try { return await this.call(name, captured, { signal }); }
+      catch (error) {
+        if (!(error instanceof OpenCutApiError) || error.code !== "STORAGE_BUDGET_BUSY" || performance.now() >= deadline) throw error;
+        await pause(Math.min(100, Math.max(1, deadline - performance.now())), signal);
+        if (performance.now() >= deadline) throw error;
+      }
+    }
   }
 
   /** Call one typed action through the compact domain surface. */
@@ -204,6 +232,21 @@ export class OpenCutClient {
   downloadProjectMedia(resource: ToolOutput<"opencut_project_media_inspect">, options: CallOptions = {}): Promise<Response> {
     return this.#downloadBytes(this.projectMediaUrl(resource), "project media", options);
   }
+  /** Recompute the scoped URL; a descriptor cannot select an external URL or global CAS path. */
+  projectV4ResourceUrl(resource: ToolOutput<"opencut_project_v4_resource_inspect">): string {
+    const ids = [resource.project_id, resource.revision, resource.resource_id];
+    if (ids.some(id => !id.trim() || new TextEncoder().encode(id).length > 1024 || /[\u0000-\u001f\u007f-\u009f]/u.test(id)) ||
+      !["asset", "font"].includes(resource.kind) ||
+      !/^[a-f0-9]{64}$/.test(resource.version.content_hash) ||
+      resource.version.id !== `av_${resource.version.content_hash}`) throw new TypeError("Invalid V4 resource descriptor");
+    const query = (id: string) => encodeURIComponent(id).replace(/[!'()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    const path = `/v1/project-v4-resources/content?project_id=${query(resource.project_id)}&revision=${query(resource.revision)}&kind=${resource.kind}&resource_id=${query(resource.resource_id)}`;
+    if (resource.content_path !== path) throw new TypeError("V4 resource path differs from its scoped identity");
+    return `${this.baseUrl}${path}`;
+  }
+  downloadProjectV4Resource(resource: ToolOutput<"opencut_project_v4_resource_inspect">, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(this.projectV4ResourceUrl(resource), "V4 resource", options);
+  }
   /** Return a streaming response. The server verifies the published hash before serving bytes. */
   downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
     return this.#downloadBytes(this.artifactUrl(reference), "artifact", options);
@@ -213,6 +256,13 @@ export class OpenCutClient {
     const { session_id, generation, owner_id, lease_id } = session;
     return this.#downloadBytes(`${this.baseUrl}/v1/preview/stream`, "preview stream", options,
       JSON.stringify({ session_id, generation, owner_id, lease_id }));
+  }
+  /** Open the bounded pre-master PCM stream for one fixed V4 audio generation.
+   * Consumer reports return server-authored Time; queued frames are not playback. */
+  openV4AudioPreviewStream(session: Pick<ToolOutput<"opencut_audio_preview_v4_create">, "session_id" | "generation" | "overlay_epoch" | "owner_id" | "lease_id">, options: CallOptions = {}): Promise<Response> {
+    const { session_id, generation, overlay_epoch, owner_id, lease_id } = session;
+    return this.#downloadBytes(`${this.baseUrl}/v1/preview/v4/audio/stream`, "V4 audio preview stream", options,
+      JSON.stringify({ session_id, generation, overlay_epoch, owner_id, lease_id }));
   }
   async #downloadBytes(url: string, kind: string, options: CallOptions, body?: string): Promise<Response> {
     options.signal?.throwIfAborted();

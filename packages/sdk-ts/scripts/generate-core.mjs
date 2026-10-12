@@ -2,6 +2,210 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+const pascal = (value) => value.split(/[^a-zA-Z0-9]+/).filter(Boolean)
+  .map((part) => part[0].toUpperCase() + part.slice(1)).join("");
+const isSchema = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const rootTitle = (schema) => isSchema(schema) && /^[A-Z][A-Za-z0-9]*$/.test(schema.title);
+
+// Resolve against the complete local root, not a definition's name: identical
+// definition bodies can have different meanings in different $defs scopes.
+export function validateLocalRefs(schema, label = "schema") {
+  function visit(value) {
+    if (!value || typeof value !== "object") return;
+    if (Object.hasOwn(value, "$ref")) {
+      const ref = value.$ref;
+      if (typeof ref !== "string" || (ref !== "#" && !ref.startsWith("#/"))) {
+        throw new Error(`Unsupported schema ref in ${label}: ${ref}`);
+      }
+      let target = schema;
+      for (const token of ref === "#" ? [] : ref.slice(2).split("/")) {
+        if (/~(?![01])/.test(token)) throw new Error(`Invalid schema pointer in ${label}: ${ref}`);
+        const key = token.replaceAll("~1", "/").replaceAll("~0", "~");
+        if (!target || typeof target !== "object" || !Object.hasOwn(target, key)) {
+          throw new Error(`Unresolved schema ref in ${label}: ${ref}`);
+        }
+        target = target[key];
+      }
+      if (typeof target !== "boolean" && !isSchema(target)) {
+        throw new Error(`Ref does not select a schema in ${label}: ${ref}`);
+      }
+    }
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(schema);
+}
+
+export function preflightRegistry({ tools, jobs, domains, eventSchema, audioStream, uploads }) {
+  if (!Array.isArray(tools) || !Array.isArray(jobs) || !Array.isArray(domains)) {
+    throw new Error("Invalid registry arrays");
+  }
+  const names = new Set(), namespaces = new Set();
+  function namespace(name) {
+    if (namespaces.has(name)) throw new Error(`Colliding generated namespace: ${name}`);
+    namespaces.add(name);
+  }
+  function schema(value, label) {
+    if (!isSchema(value)) throw new Error(`Missing schema: ${label}`);
+    validateLocalRefs(value, label);
+  }
+  for (const tool of tools) {
+    if (!tool || !/^opencut_[a-z0-9_]+$/.test(tool.name) || names.has(tool.name)) {
+      throw new Error(`Invalid or duplicate tool: ${tool?.name}`);
+    }
+    names.add(tool.name);
+    for (const side of ["input_schema", "output_schema"]) {
+      schema(tool[side], `${tool.name}.${side}`);
+      namespace(`${pascal(tool.name)}${side === "input_schema" ? "Input" : "Output"}`);
+    }
+    if (!rootTitle(tool.input_schema) || tool.output_schema.title !== "Response") {
+      throw new Error(`Unsupported root type in ${tool.name}`);
+    }
+  }
+  const jobNames = new Set();
+  for (const job of jobs) {
+    if (!job || typeof job.name !== "string" || !job.name || jobNames.has(job.name)) {
+      throw new Error(`Invalid or duplicate job: ${job?.name}`);
+    }
+    jobNames.add(job.name);
+    for (const side of ["input_schema", "result_schema"]) {
+      schema(job[side], `${job.name}.${side}`);
+      namespace(`Job${pascal(job.name)}${side === "input_schema" ? "Input" : "Result"}`);
+    }
+    if (!rootTitle(job.result_schema)) throw new Error(`Unsupported result type in ${job.name}`);
+  }
+  const domainNames = new Set(), mapped = new Set();
+  for (const domain of domains) {
+    if (!domain || !/^[a-z][a-z0-9_]*$/.test(domain.domain)
+        || domainNames.has(domain.domain) || !Array.isArray(domain.actions)) {
+      throw new Error("Invalid or duplicate domain descriptor");
+    }
+    domainNames.add(domain.domain);
+    const actions = new Set();
+    for (const entry of domain.actions) {
+      if (!entry || typeof entry.action !== "string" || !/^[a-z][a-z0-9.]*$/.test(entry.action)
+          || actions.has(entry.action) || !names.has(entry.operation) || mapped.has(entry.operation)) {
+        throw new Error(`Invalid or duplicate domain action in ${domain.domain}`);
+      }
+      actions.add(entry.action);
+      mapped.add(entry.operation);
+    }
+  }
+  if (mapped.size !== names.size) throw new Error("Domain registry does not cover every operation");
+  schema(eventSchema, "event stream");
+  for (const [name, value] of [["AudioPreviewStreamV4", audioStream?.input], ["AudioPreviewPcmV4", audioStream?.header]]) {
+    namespace(name);
+    schema(value, name);
+    if (!rootTitle(value)) throw new Error(`Unsupported root type in ${name}`);
+  }
+  if (uploads && (uploads.chunk_method !== "PUT" || uploads.chunk_path_template !== "/v1/uploads/{upload_id}/chunks/{offset}"
+      || !Array.isArray(uploads.chunk_query_fields) || uploads.chunk_query_fields.join(",") !== "size_bytes,content_hash")) {
+    throw new Error("Unsupported upload byte transport in host capabilities");
+  }
+}
+
+export function memoizeSchemaCompiler(compile) {
+  const cache = new Map();
+  return (schema, title, options) => {
+    // Preserve property/enum order too: compiler output bytes can depend on it.
+    const key = JSON.stringify([schema, title, options]);
+    if (!cache.has(key)) cache.set(key, Promise.resolve().then(() => compile(schema, title, options)));
+    return cache.get(key);
+  };
+}
+
+export function createComponentRegistry() {
+  const schemas = {}, roots = new Map(), definitions = new Map();
+  function hasScopedIdentity(value) {
+    if (!value || typeof value !== "object") return false;
+    return ["$id", "$anchor", "$dynamicAnchor", "$dynamicRef", "$recursiveAnchor", "$recursiveRef"]
+      .some((key) => Object.hasOwn(value, key)) || Object.values(value).some(hasScopedIdentity);
+  }
+  const pointerToken = (key) => key.replaceAll("~", "~0").replaceAll("/", "~1");
+  function references(value, found = new Set()) {
+    if (!value || typeof value !== "object") return found;
+    if (Object.hasOwn(value, "$ref")) found.add(value.$ref);
+    for (const child of Object.values(value)) references(child, found);
+    return found;
+  }
+  function hasDefinitionContainer(value) {
+    if (!value || typeof value !== "object") return false;
+    return Object.hasOwn(value, "$defs") || Object.hasOwn(value, "definitions")
+      || Object.values(value).some(hasDefinitionContainer);
+  }
+  function definitionKey(schema, body) {
+    const targets = new Map(), pending = [...references(body)];
+    while (pending.length) {
+      const ref = pending.pop();
+      if (targets.has(ref)) continue;
+      let target = schema;
+      for (const key of ref === "#" ? [] : ref.slice(2).split("/")) {
+        target = target[key.replaceAll("~1", "/").replaceAll("~0", "~")];
+      }
+      targets.set(ref, target);
+      pending.push(...references(target));
+    }
+    // Ref names are part of the complete context, including root-dependent
+    // targets. Visited pointers terminate cycles without deleting semantics.
+    return JSON.stringify([body, [...targets].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)]);
+  }
+  function component(schema, name) {
+    if (Object.hasOwn(schemas, name)) throw new Error(`Duplicate OpenAPI component: ${name}`);
+    validateLocalRefs(schema, name);
+    const key = JSON.stringify(schema);
+    // Base IDs and dynamic scopes are not closed local roots; retain their
+    // existing representation rather than changing resolution through aliases.
+    const shareable = !hasScopedIdentity(schema);
+    const refs = [...references(schema)];
+    const nestedEntries = refs.some((ref) => /^#\/(?:\$defs|definitions)\/[^/]+\//.test(ref))
+      || ["$defs", "definitions"].some((field) => Object.values(schema[field] ?? {}).some(hasDefinitionContainer));
+    const existing = shareable && !nestedEntries ? roots.get(key) : undefined;
+    // Share only an entire closed root. Keep every operation's component name.
+    if (existing) {
+      schemas[name] = { $ref: `#/components/schemas/${existing}` };
+      // Preserve old definition-entry links as well as the public root name.
+      for (const field of ["$defs", "definitions"]) {
+        if (schema[field]) schemas[name][field] = Object.fromEntries(Object.keys(schema[field]).map((key) =>
+          [key, { $ref: `#/components/schemas/${existing}/${field}/${pointerToken(key)}` }]));
+      }
+    }
+    else {
+      function rebase(value) {
+        if (Array.isArray(value)) return value.map(rebase);
+        if (!value || typeof value !== "object") return value;
+        return Object.fromEntries(Object.entries(value).map(([key, val]) =>
+          [key, key === "$ref" ? `#/components/schemas/${name}${val.slice(1)}` : rebase(val)]));
+      }
+      schemas[name] = rebase(schema);
+      if (shareable) {
+        if (!nestedEntries) roots.set(key, name);
+        for (const field of ["$defs", "definitions"]) {
+          for (const [definition, body] of Object.entries(schema[field] ?? {})) {
+            const pointer = `#/${field}/${pointerToken(definition)}`;
+            // An alias would erase physical descendant-pointer entries. Keep
+            // their parent definition intact; ordinary named entries still share.
+            if (hasDefinitionContainer(body) || refs.some((ref) => ref.startsWith(pointer + "/"))) continue;
+            const closure = definitionKey(schema, body);
+            const canonical = definitions.get(closure);
+            if (canonical) schemas[name][field][definition] = { $ref: canonical };
+            else definitions.set(closure, `#/components/schemas/${name}${pointer.slice(1)}`);
+          }
+        }
+      }
+    }
+    return { $ref: `#/components/schemas/${name}` };
+  }
+  return { schemas, component };
+}
+
+export function writeGeneratedFile(path, content, check = false) {
+  let existing;
+  try { existing = readFileSync(path, "utf8"); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
+  if (existing === content) return false;
+  if (check) throw new Error(`Generated contracts are stale: ${path}. Run npm run contracts:generate in packages/sdk-ts.`);
+  writeFileSync(path, content);
+  return true;
+}
 
 export async function generateContracts(compile, args = process.argv.slice(2)) {
 const root = resolve(import.meta.dirname, "../../..");
@@ -38,21 +242,22 @@ if (!skipBuild && !suppliedBinary) {
   });
 }
 
+// Versioned complete aggregate schemas exceed Node's default 1 MiB pipe
+// buffer. Keep registry capture bounded; media payloads never enter it.
+const registryOptions = { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 };
 const envelope = JSON.parse(
-  execFileSync(binary, ["system", "schema", "--json"], { encoding: "utf8" }),
+  execFileSync(binary, ["system", "schema", "--json"], registryOptions),
 );
 if (envelope.error || !Array.isArray(envelope.data))
   throw new Error(envelope.error?.message ?? "Invalid schema registry");
 const capabilitiesEnvelope = JSON.parse(
-  execFileSync(binary, ["system", "capabilities", "--json"], {
-    encoding: "utf8",
-  }),
+  execFileSync(binary, ["system", "capabilities", "--json"], registryOptions),
 );
 const domainsEnvelope = JSON.parse(
-  execFileSync(binary, ["system", "domains", "--json"], { encoding: "utf8" }),
+  execFileSync(binary, ["system", "domains", "--json"], registryOptions),
 );
 const eventSchemaEnvelope = JSON.parse(
-  execFileSync(binary, ["system", "events-schema", "--json"], { encoding: "utf8" }),
+  execFileSync(binary, ["system", "events-schema", "--json"], registryOptions),
 );
 if (domainsEnvelope.error || !Array.isArray(domainsEnvelope.data)) {
   throw new Error(domainsEnvelope.error?.message ?? "Invalid domain registry");
@@ -70,39 +275,20 @@ if (eventSchemaEnvelope.error || !eventSchemaEnvelope.data ||
     typeof eventSchemaEnvelope.data !== "object" || Array.isArray(eventSchemaEnvelope.data)) {
   throw new Error(eventSchemaEnvelope.error?.message ?? "Invalid event stream schema");
 }
-const pascal = (value) =>
-  value
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join("");
-const isSchema = (value) =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-const jobNames = new Set();
-const jobNamespaces = new Set();
-for (const job of capabilitiesEnvelope.data.job_kinds) {
-  if (!job || typeof job !== "object" || typeof job.name !== "string" || !job.name) {
-    throw new Error("Job schema registry contains an entry without a name");
-  }
-  if (jobNames.has(job.name)) {
-    throw new Error(`Duplicate job schema name: ${job.name}`);
-  }
-  jobNames.add(job.name);
-  const namespace = `Job${pascal(job.name)}`;
-  if (jobNamespaces.has(namespace)) {
-    throw new Error(`Job schema names collide as TypeScript namespace: ${namespace}`);
-  }
-  jobNamespaces.add(namespace);
-  if (!isSchema(job.input_schema) || !isSchema(job.result_schema)) {
-    throw new Error(`Job schema ${job.name} is missing input_schema or result_schema`);
-  }
+const audioStreamEnvelope = JSON.parse(execFileSync(binary,
+  ["system", "audio-preview-schema", "--json"], registryOptions));
+if (audioStreamEnvelope.error || !audioStreamEnvelope.data ||
+    !audioStreamEnvelope.data.input || !audioStreamEnvelope.data.header) {
+  throw new Error("Invalid V4 audio stream schema registry");
 }
+preflightRegistry({ tools: envelope.data, jobs: capabilitiesEnvelope.data.job_kinds,
+  domains: domainsEnvelope.data, eventSchema: eventSchemaEnvelope.data,
+  audioStream: audioStreamEnvelope.data, uploads: capabilitiesEnvelope.data.uploads });
+compile = memoizeSchemaCompiler(compile);
 let output =
   "// Generated from the Rust automation registry. Do not edit.\n\n";
-const toolNames = new Set();
+const toolNames = new Set(envelope.data.map((tool) => tool.name));
 for (const tool of envelope.data) {
-  if (!/^opencut_[a-z0-9_]+$/.test(tool.name) || toolNames.has(tool.name)) throw new Error(`Invalid or duplicate tool: ${tool.name}`);
-  toolNames.add(tool.name);
   for (const side of ["input_schema", "output_schema"]) {
     const namespace = `${pascal(tool.name)}${side === "input_schema" ? "Input" : "Output"}`;
     const source = await compile(tool[side], "Schema", {
@@ -125,65 +311,42 @@ for (const job of capabilitiesEnvelope.data.job_kinds) {
   }
 }
 
+for (const [namespace, schema] of [
+  ["AudioPreviewStreamV4", audioStreamEnvelope.data.input],
+  ["AudioPreviewPcmV4", audioStreamEnvelope.data.header],
+]) {
+  const source = await compile(schema, "Schema", {
+    bannerComment: "", style: { singleQuote: true }, unknownAny: false,
+  });
+  output += `export namespace ${namespace} {\n${source.replace(/^export /gm, "  export ")}\n}\n\n`;
+}
 output += "export interface ToolMap {\n";
 for (const tool of envelope.data) {
   const title = tool.input_schema.title;
-  if (!/^[A-Z][A-Za-z0-9]*$/.test(title) || tool.output_schema.title !== "Response") {
-    throw new Error(`Unsupported root type in ${tool.name}`);
-  }
   output += `  ${tool.name}: { input: ${pascal(tool.name)}Input.${title}; output: NonNullable<${pascal(tool.name)}Output.Response["data"]> };\n`;
 }
 output += "}\n";
-const mappedTools = new Set();
 output += "export interface DomainMap {\n";
 for (const domain of domainsEnvelope.data) {
-  if (!/^[a-z][a-z0-9_]*$/.test(domain.domain) || !Array.isArray(domain.actions)) {
-    throw new Error("Invalid domain descriptor");
-  }
   output += `  ${JSON.stringify(domain.domain)}: {\n`;
-  const actions = new Set();
   for (const entry of domain.actions) {
-    if (typeof entry.action !== "string" || !/^[a-z][a-z0-9.]*$/.test(entry.action)
-        || actions.has(entry.action) || !toolNames.has(entry.operation)
-        || mappedTools.has(entry.operation)) {
-      throw new Error(`Invalid or duplicate domain action in ${domain.domain}`);
-    }
-    actions.add(entry.action);
-    mappedTools.add(entry.operation);
     output += `    ${JSON.stringify(entry.action)}: ToolMap[${JSON.stringify(entry.operation)}];\n`;
   }
   output += "  };\n";
 }
 output += "}\n";
-if (mappedTools.size !== toolNames.size) throw new Error("Domain registry does not cover every operation");
 output += "export const domainNames = " + JSON.stringify(domainsEnvelope.data.map(d => d.domain), null, 2) + " as const;\n";
 output += "export const domainActions = " + JSON.stringify(Object.fromEntries(domainsEnvelope.data.map(d => [d.domain, d.actions.map(a => a.action)])), null, 2) + " as const;\n";
 output += "export interface JobResultMap {\n";
 for (const job of capabilitiesEnvelope.data.job_kinds) {
   const title = job.result_schema.title;
-  if (!/^[A-Z][A-Za-z0-9]*$/.test(title)) throw new Error(`Unsupported result type in ${job.name}`);
   output += `  "${job.name}": Job${pascal(job.name)}Result.${title};\n`;
 }
 output += "}\n";
 output += "export const toolNames = " + JSON.stringify([...toolNames], null, 2) + " as const;\n";
 
 // JSON Schema local refs must be rebased when embedded into an OpenAPI document.
-const schemas = {};
-function component(schema, name) {
-  function rebase(value) {
-    if (Array.isArray(value)) return value.map(rebase);
-    if (value === null || typeof value !== "object") return value;
-    return Object.fromEntries(Object.entries(value).map(([key, val]) => {
-      if (key === "$ref") {
-        if (typeof val !== "string" || !val.startsWith("#")) throw new Error("External schema refs are unsupported");
-        return [key, `#/components/schemas/${name}${val.slice(1)}`];
-      }
-      return [key, rebase(val)];
-    }));
-  }
-  schemas[name] = rebase(schema);
-  return { $ref: `#/components/schemas/${name}` };
-}
+const { schemas, component } = createComponentRegistry();
 const paths = {};
 for (const tool of envelope.data) {
   const input = component(tool.input_schema, `${pascal(tool.name)}Input`);
@@ -272,13 +435,18 @@ const transportError = {
   description: "Structured OpenCut error envelope; inspect error.code before retrying.",
   content: { "application/json": { schema: { $ref: "#/components/schemas/OpenCutErrorEnvelope" } } },
 };
+const audioStreamInput = component(audioStreamEnvelope.data.input, "AudioPreviewStreamV4");
+component(audioStreamEnvelope.data.header, "AudioPreviewPcmHeaderV4");
+paths["/v1/preview/v4/audio/stream"] = { post: {
+  operationId: "opencut_audio_preview_v4_stream",
+  description: "Bounded fixed-generation unmastered stereo Float32. Each OCA4 frame has 12-byte little-endian lengths, a generated JSON header and a maximum 32768-byte interleaved payload. Actual consumption is acknowledged through the control operation.",
+  requestBody: { required: true, content: { "application/json": { schema: audioStreamInput } } },
+  responses: { "200": { description: "OCA4 framed PCM; maximum two unconsumed blocks.", content: {
+    "application/vnd.opencut.audio-preview-v4": { schema: { type: "string", format: "binary" } },
+  } }, default: transportError },
+} };
 const uploads = capabilitiesEnvelope.data.uploads;
 if (uploads) {
-  if (uploads.chunk_method !== "PUT" || uploads.chunk_path_template !== "/v1/uploads/{upload_id}/chunks/{offset}"
-      || !Array.isArray(uploads.chunk_query_fields)
-      || uploads.chunk_query_fields.join(",") !== "size_bytes,content_hash") {
-    throw new Error("Unsupported upload byte transport in host capabilities");
-  }
   paths[uploads.chunk_path_template] = { put: {
     operationId: "opencut_upload_chunk",
     description: `Send sequential raw bytes with a complete SHA-256 and canonical decimal offset/size. Maximum ${uploads.max_chunk_bytes} bytes per chunk, ${uploads.max_upload_bytes} bytes per upload, ${uploads.max_inflight_chunks} concurrent requests and ${uploads.chunk_timeout_seconds} seconds receiving. A lost response has an unknown outcome: inspect the confirmed next_offset before retrying identical bytes. Project read, edit and run_jobs permissions are required.`,
@@ -318,6 +486,24 @@ paths["/v1/projects/{project}/media/{media_id}/content"] = { get: {
   responses: {
     "200": { description: "Verified media bytes with detected Content-Type and Content-Length.",
       content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } },
+    default: transportError,
+  },
+} };
+paths["/v1/project-v4-resources/content"] = { get: {
+  operationId: "opencut_project_v4_resource_content",
+  description: "Read exact verified asset/font bytes selected from a fixed V4 revision under live project authorization. Query identifiers never become path segments. Current credentials, grant and project presence are checked before bytes and during streaming.",
+  "x-opencut-read-only": true,
+  parameters: [
+    { name: "project_id", in: "query", required: true, schema: { type: "string" } },
+    { name: "revision", in: "query", required: true, schema: { type: "string" } },
+    { name: "kind", in: "query", required: true, schema: { type: "string", enum: ["asset", "font"] } },
+    { name: "resource_id", in: "query", required: true, schema: { type: "string" } },
+    { name: "Range", in: "header", schema: { type: "string" } },
+  ],
+  responses: {
+    "200": { description: "Verified bytes.", content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } } },
+    "206": { description: "Verified byte range; Content-Range describes the served span." },
+    "416": { description: "Invalid or unsatisfiable byte range." },
     default: transportError,
   },
 } };
@@ -374,11 +560,7 @@ const files = new Map([
   [resolve(root, "apps/web/src/lib/editor-contracts.generated.ts"), '// Compatibility re-export; authoritative types live in the standalone SDK.\nexport * from "../../../../packages/sdk-ts/src/contracts.generated";\n'],
 ]);
 for (const [path, content] of files) {
-  if (check) {
-    if (readFileSync(path, "utf8") !== content) throw new Error(`Generated contracts are stale: ${path}. Run npm run contracts:generate in packages/sdk-ts.`);
-  } else {
-    writeFileSync(path, content);
-  }
+  writeGeneratedFile(path, content, check);
 }
 console.log(check ? "Generated contracts are current." : "Generated SDK types, tool and event fixtures, OpenAPI and Web compatibility export.");
 }

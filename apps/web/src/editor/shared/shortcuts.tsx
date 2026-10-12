@@ -11,6 +11,9 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
         {[
           ["Playback", "Space"],
           ["Split clip", "S"],
+          ["Split and remove left", "Q"],
+          ["Split and remove right", "W"],
+          ["Ripple editing", "R"],
           ["Delete clip", "⌫"],
           ["Undo", `${modifier} Z`],
           ["Redo", `${modifier} ⇧ Z`],

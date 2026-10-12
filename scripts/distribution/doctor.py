@@ -2,6 +2,7 @@
 """Inspect a local bundle and its actual media runtime without opening a workspace."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -46,12 +47,19 @@ def inspect(root):
         return subprocess.run([str(p) for p in args], capture_output=True, text=True, timeout=20, check=True)
 
     installed = {}
-    for name in ['ffmpeg', 'ffprobe']:
-        path = shutil.which(name)
+    needs_node = 'classic_packet_rate_runtime' in manifest or 'node' in manifest.get('external_dependencies', [])
+    for name in ['ffmpeg', 'ffprobe'] + (['node'] if needs_node else []):
+        override = os.environ.get('OPENCUT_CLASSIC_AUDIO_NODE') if name == 'node' else None
+        path = override if override is not None else shutil.which(name)
         try:
+            if override is not None:
+                configured = Path(override)
+                if not configured.is_absolute() or not configured.is_file() or not os.access(configured, os.X_OK):
+                    raise FileNotFoundError('Configured Node executable is unavailable')
+                path = str(configured.resolve())
             if not path:
                 raise FileNotFoundError(f'{name} not found on PATH')
-            value = run([path, '-version'])
+            value = run([path, '--version' if name == 'node' else '-version'])
             installed[name] = path
             checks.append({'check': 'external_tool', 'tool': name, 'passed': True,
                            'path': path, 'version': value.stdout.splitlines()[0]})
@@ -71,7 +79,7 @@ def inspect(root):
                 checks.append({'check': 'media_capabilities', 'profile': profile, 'passed': not missing, 'missing': missing})
         except (OSError, subprocess.SubprocessError) as error:
             checks.append({'check': 'media_capabilities', 'passed': False, 'error': str(error)})
-    if len(installed) == 2:
+    if {'ffmpeg', 'ffprobe'} <= installed.keys():
         try:
             with tempfile.TemporaryDirectory(prefix='opencut-doctor-') as temporary:
                 output = Path(temporary) / 'smoke.mp4'
@@ -85,7 +93,8 @@ def inspect(root):
             checks.append({'check': 'media_encode_probe', 'passed': False, 'error': str(error)})
     return {'status': 'passed' if all(item['passed'] for item in checks) else 'failed',
             'target': manifest['target'], 'checks': checks,
-            'scope': 'Bundle integrity and baseline H.264/AAC runtime; project fonts, alternate codecs and exact rendering require project preflight'}
+            'scope': 'Bundle integrity and baseline H.264/AAC runtime; project fonts, alternate codecs and exact rendering require project preflight'
+                     + ('; declared packet runtime Node executable checked, packet media acceptance remains separate' if needs_node else '')}
 
 
 if __name__ == '__main__':

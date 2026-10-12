@@ -27,9 +27,10 @@ fn project_revision(c: &Connection, project: &str) -> Result<String, EditorError
         "SELECT r.document_json,p.head_revision FROM projects p JOIN revisions r ON r.revision=p.head_revision WHERE p.project_id=?1",
         [project], |row| Ok((row.get(0)?,row.get(1)?)),
     ).optional().map_err(storage_error)?.ok_or_else(||EditorError::new("NOT_FOUND","Project does not exist"))?;
-    let id = match sqlite_project_v3::decode_versioned_project(&raw)? {
-        sqlite_project_v3::VersionedProjectDocument::Legacy(doc) => doc.id,
-        sqlite_project_v3::VersionedProjectDocument::V3(doc) => doc.base.id,
+    let id = match sqlite_project_document::decode_versioned_project(&raw)? {
+        sqlite_project_document::VersionedProjectDocument::Legacy(doc) => doc.id,
+        sqlite_project_document::VersionedProjectDocument::V3(doc) => doc.base.id,
+        sqlite_project_document::VersionedProjectDocument::V4(doc) => doc.id,
     };
     if id != project {
         return Err(EditorError::new(

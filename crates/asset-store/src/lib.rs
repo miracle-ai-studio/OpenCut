@@ -242,6 +242,15 @@ impl AssetStore {
                 "Project media has no fixed content version",
             )
         })?;
+        self.open_version_verified(version)
+    }
+
+    /// The caller must authorize this version through a project resource port.
+    /// Verification identifies immutable bytes; it does not grant project access.
+    pub fn open_version_verified(
+        &self,
+        version: &AssetVersion,
+    ) -> Result<(File, u64), EditorError> {
         if version.id != format!("av_{}", version.content_hash) {
             return Err(error(
                 "ASSET_VERSION_INVALID",

@@ -2,13 +2,17 @@
 """Real CLI + SQLite fault injection for aggregate project transaction ports."""
 import hashlib
 import json
+import argparse
 from pathlib import Path
 import sqlite3
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BIN = ROOT / 'target/debug/opencut'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--binary', type=Path, help='Reuse this built CLI without invoking Cargo')
+arguments = parser.parse_args()
+BIN = arguments.binary.resolve() if arguments.binary else ROOT / 'target/debug/opencut'
 RUN = Path(tempfile.mkdtemp(prefix='opencut-project-transactions-')).resolve()
 DB = RUN / 'workspace.sqlite'
 checks, trace = [], []
@@ -54,7 +58,8 @@ def snapshot(label):
     return call('opencut_project_inspect',{'project_id':'p'},label)
 
 try:
-    subprocess.run(['cargo','build','-p','opencut-cli'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    if arguments.binary is None:
+        subprocess.run(['cargo','build','-p','opencut-cli'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     call('opencut_project_list',{},'initialize')
     create={'idempotency_key':'create','project':{'id':'p','name':'Port QA','sequence_id':'main','width':320,'height':180,'fps':{'numerator':24,'denominator':1}}}
     before=counts();reject('project.created')

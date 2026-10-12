@@ -53,3 +53,58 @@ pub struct TimelineEditPlan {
     /// Explicit consequences to review, including transitions removed at a cut.
     pub notes: Vec<String>,
 }
+
+/// Versioned Classic actions; the original TimelineCommand schema stays frozen.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClassicEditRequestV1 {
+    pub project_id: String,
+    pub expected_revision: String,
+    pub sequence_id: String,
+    pub idempotency_key: String,
+    pub label: String,
+    pub ripple: bool,
+    pub command: ClassicCommandV1,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ClassicCommandV1 {
+    /// Explicit selection; out-of-range split boundaries leave elements intact.
+    Split {
+        clip_ids: Vec<String>,
+        caption_ids: Vec<String>,
+        shape_ids: Vec<String>,
+        at: Time,
+        retain: SplitRetainV1,
+    },
+    /// Plan an explicit visual transaction plus per-track Classic ripple.
+    Apply {
+        operations: Vec<crate::project_v3_ops::VisualOperation>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitRetainV1 {
+    Both,
+    Left,
+    Right,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClassicSelectionV1 {
+    pub clip_ids: Vec<String>,
+    pub caption_ids: Vec<String>,
+    pub shape_ids: Vec<String>,
+    pub playhead: Option<Time>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClassicEditPlanV1 {
+    pub plan: TimelineEditPlan,
+    /// Split's explicit selection override; generic edits have no override.
+    pub selection: Option<ClassicSelectionV1>,
+}

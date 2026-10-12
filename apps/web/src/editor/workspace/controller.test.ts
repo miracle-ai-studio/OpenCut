@@ -38,6 +38,7 @@ const deferred = <T>() => {
 function setup() {
   const api = new EditorApi("http://localhost:8788", "test");
   vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({} as never);
+  vi.spyOn(api, "authenticateConnection").mockResolvedValue(undefined);
   vi.spyOn(api, "projects").mockResolvedValue([
     projectRef(snapshot("a")),
     projectRef(snapshot("b")),
@@ -399,4 +400,15 @@ describe("workspace isolation and transactions", () => {
     expect(controller.getSnapshot().snapshot?.revision).toBe("new");
     expect(controller.getSnapshot().historical?.revision).toBe("older");
   });
+});
+
+it("does not send an intent computed from an older visible revision against a newer head", async () => {
+  const { controller, api } = setup();
+  await controller.connect("x", "t");
+  await controller.open(projectRef(snapshot("a")));
+  const apply = vi.spyOn(api, "apply");
+  await expect(
+    controller.mutate("stale intent", [], [], "old-head"),
+  ).rejects.toThrow("Project has changed");
+  expect(apply).not.toHaveBeenCalled();
 });

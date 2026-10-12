@@ -46,6 +46,13 @@ impl Drop for TemporaryArtifacts {
 }
 
 impl FfmpegBackend {
+    pub(crate) fn audio_ffmpeg_command(&self) -> Command {
+        Command::new(&self.ffmpeg)
+    }
+    pub(crate) fn audio_ffprobe_command(&self) -> Command {
+        Command::new(&self.ffprobe)
+    }
+
     pub fn output_admission(&self) -> Option<std::sync::Arc<dyn OutputAdmission>> {
         self.admission.clone()
     }
@@ -188,7 +195,7 @@ impl FfmpegBackend {
                 "-v", "error", "-protocol_whitelist", "file",
                 "-format_whitelist", "mov,matroska,avi,wav,mp3,flac,ogg,aac,mpeg,mpegts,png_pipe,jpeg_pipe,webp_pipe,bmp_pipe,tiff_pipe,gif",
                 "-enable_drefs", "0", "-use_absolute_path", "0",
-                "-show_entries", "format=format_name,duration,bit_rate:format_tags=major_brand:stream=index,codec_type,codec_name,width,height",
+                "-show_entries", "format=format_name,duration,bit_rate:format_tags=major_brand:stream=index,codec_type,codec_name,width,height,avg_frame_rate,sample_rate,channels,channel_layout",
                 "-of", "json", "-i",
             ]).arg(input), "ffprobe", cancel, Duration::from_secs(30), self.admission.as_deref(),
         )?;

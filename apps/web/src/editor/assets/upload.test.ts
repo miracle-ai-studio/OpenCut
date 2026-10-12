@@ -23,7 +23,10 @@ function fixture() {
     size_bytes: "9",
     next_offset: "0",
   };
-  const asset = { version: { content_hash: digest } };
+  const asset = {
+    id: "independent-asset-id",
+    version: { content_hash: digest },
+  };
   const call = vi.spyOn(sdk, "call").mockImplementation(async (name, input) => {
     events.push(name);
     switch (name) {
@@ -34,7 +37,7 @@ function fixture() {
         expect(input).toEqual({ upload_id: "u", content_hash: digest });
         return { ...session, job_id: "j" } as never;
       case "opencut_project_media_inspect":
-        return { asset } as never;
+        return { asset, project_id: "p", media_id: "m" } as never;
       default:
         return {} as never;
     }
@@ -66,6 +69,18 @@ function fixture() {
 }
 
 describe("single-pass media import", () => {
+  it("rejects an observed media identity from another project before returning it", async () => {
+    const f = fixture(),
+      previous = f.call.getMockImplementation()!;
+    f.call.mockImplementation(async (name, input, options) => {
+      if (name === "opencut_project_media_inspect")
+        return { asset: f.asset, project_id: "other", media_id: "m" } as never;
+      return previous(name, input, options);
+    });
+    await expect(
+      uploadMedia(f.sdk, "p", f.file, vi.fn(), new AbortController().signal),
+    ).rejects.toThrow("project resource identity");
+  });
   it("reads ahead only one chunk while waiting for durable acknowledgement", async () => {
     const f = fixture();
     let acknowledge!: () => void;
@@ -99,6 +114,9 @@ describe("single-pass media import", () => {
       new AbortController().signal,
     );
     expect(result.asset).toEqual(f.asset);
+    expect(result.media_id).toBe("m");
+    expect(result.media.asset.id).toBe("independent-asset-id");
+    expect(result.version).toEqual(f.asset.version);
     expect(f.events).toEqual([
       "opencut_upload_stream_begin",
       "read:0:3",
@@ -128,5 +146,23 @@ describe("single-pass media import", () => {
     expect(f.events).toContain("opencut_upload_stream_abort");
     expect(f.events).toContain("opencut_upload_release");
     expect(f.events).not.toContain("opencut_upload_stream_complete");
+  });
+  it("requests cancellation of a sealed native import instead of aborting its upload session", async () => {
+    const f = fixture(),
+      request = new AbortController();
+    const cancel = vi
+      .spyOn(f.sdk, "cancelPublicJob")
+      .mockResolvedValue({} as never);
+    vi.mocked(f.sdk.waitForPublicJob).mockImplementationOnce(async () => {
+      request.abort();
+      request.signal.throwIfAborted();
+      return {} as never;
+    });
+    await expect(
+      uploadMedia(f.sdk, "p", f.file, vi.fn(), request.signal),
+    ).rejects.toThrow();
+    expect(cancel).toHaveBeenCalledWith("j");
+    expect(f.events).not.toContain("opencut_upload_stream_abort");
+    expect(f.events).not.toContain("opencut_project_media_inspect");
   });
 });

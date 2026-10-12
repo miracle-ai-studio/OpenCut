@@ -21,7 +21,6 @@ import { formatTime } from "../model/time";
 import { Button, Empty, Panel, Modal } from "../shared/ui";
 import { SourcePreview } from "./source-preview";
 import type { Asset } from "../model/types";
-import { uploadMedia } from "./upload";
 import { placeAsset } from "../model/edit-requests";
 import { sortMedia, type MediaSort } from "../model/media-library";
 export function AssetsPanel({
@@ -62,39 +61,15 @@ export function AssetsPanel({
     const request = new AbortController();
     abort.current = request;
     const replacing = replacement.current;
+    setProgress(t("Preparing media…"));
     try {
-      for (const file of files) {
-        setProgress(t("Importing {name}", { name: file.name }));
-        const imported = await uploadMedia(
-          api.sdk,
-          snapshot.project.id,
-          file,
-          setProgress,
-          request.signal,
-        );
-        const current = controller.getSnapshot();
-        if (
-          current.api !== api ||
-          current.snapshot?.project.id !== snapshot.project.id
-        )
-          return;
-        if (replacing && replacing.kind !== imported.asset.kind)
-          throw new Error(
-            "Replacement media must have the same type as the original.",
-          );
-        await controller.mutate(
-          replacing ? `Replace ${replacing.name}` : `Import ${file.name}`,
-          [
-            replacing
-              ? {
-                  type: "asset.replace",
-                  asset: { ...imported.asset, id: replacing.id },
-                }
-              : { type: "asset.bind", asset: imported.asset },
-          ],
-        );
-        if (imported.warning) controller.notify(imported.warning);
-      }
+      await controller.importMedia(
+        Array.from(files),
+        setProgress,
+        request.signal,
+        undefined,
+        replacing ?? undefined,
+      );
     } catch (error) {
       controller.report(error);
     } finally {

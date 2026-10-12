@@ -8,7 +8,7 @@ tasks:
     outputs: ['dist']
   test:
     command: 'npm test'
-    inputs: ['src/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    inputs: ['src/**/*', 'scripts/**/*', 'tests/**/*', '/packages/contract-fixtures/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
   contracts-check:
     command: 'npm run contracts:check'
     inputs: ['scripts/**/*', 'src/contracts.generated.ts', '/packages/contract-fixtures/**/*', '/apps/web/src/lib/editor-contracts.generated.ts', '/Cargo.toml', '/Cargo.lock', '/crates/**/*', '/apps/cli/**/*']

@@ -29,15 +29,16 @@ export type LibraryMetadata =
   ToolOutput<"opencut_project_library">["items"][number];
 export type ProjectRef = {
   library?: LibraryMetadata;
+  v4?: ToolOutput<"opencut_project_v4_list">["items"][number];
   id: string;
   name: string;
   revision: string;
-  format: "base" | "visual";
+  format: "base" | "visual" | "v4";
 };
 export type Snapshot = {
   project: BaseSnapshot["project"];
   revision: string;
-  format: ProjectRef["format"];
+  format: "base" | "visual";
   visual: VisualGraph[];
   curves: Curve[];
 };

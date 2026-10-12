@@ -831,46 +831,52 @@ fn composites_image_above_video_with_transform_and_opacity() {
         },
         revision: "r".into(),
     };
-    let output = dir.path().join("layers.mp4");
-    let plan = ProjectRenderAdapter::plan(&ProjectRenderRequest {
-        snapshot,
-        sequence_id: "s".into(),
-        output: output.clone(),
-        container: Container::Mp4,
-        video_codec: VideoCodec::H264,
-        overwrite: false,
-    })
-    .unwrap();
-    assert_eq!(plan.media_request.image_clips.len(), 1);
-    ProjectRenderAdapter::execute(&plan, &backend, &CancellationToken::new(), &mut |_| {}).unwrap();
-    let raw = Command::new(ffmpeg)
-        .args(["-v", "error", "-ss", "0.2", "-i"])
-        .arg(&output)
-        .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
-        .output()
-        .unwrap()
-        .stdout;
-    let pixel = |x: usize, y: usize| {
-        let i = (y * 100 + x) * 3;
-        (raw[i], raw[i + 1], raw[i + 2])
-    };
-    let outside = pixel(5, 50);
-    assert!(outside.0 > 180 && outside.1 < 60, "outside={outside:?}");
-    let layered = pixel(40, 50);
-    assert!(layered.2 > 120, "video layers={layered:?}");
-    let mixed = pixel(70, 35);
-    assert!(mixed.1 > 70 && mixed.2 > 70, "mixed={mixed:?}");
-    let pcm = Command::new(ffmpeg)
-        .args(["-v", "error", "-i"])
-        .arg(&output)
-        .args(["-map", "0:a:0", "-f", "s16le", "-"])
-        .output()
-        .unwrap()
-        .stdout;
-    assert!(
-        pcm.chunks_exact(2)
-            .any(|s| i16::from_le_bytes([s[0], s[1]]).unsigned_abs() > 10)
-    );
+    for kind in [TrackKind::Graphic, TrackKind::Video] {
+        let mut snapshot = snapshot.clone();
+        snapshot.project.sequences[0].tracks[2].kind = kind.clone();
+        let output = dir.path().join(format!("layers-{kind:?}.mp4"));
+        let plan = ProjectRenderAdapter::plan(&ProjectRenderRequest {
+            snapshot,
+            sequence_id: "s".into(),
+            output: output.clone(),
+            container: Container::Mp4,
+            video_codec: VideoCodec::H264,
+            overwrite: false,
+        })
+        .unwrap();
+        assert_eq!(plan.media_request.image_clips.len(), 1);
+        assert_eq!(plan.media_request.audio_clips.len(), 2);
+        ProjectRenderAdapter::execute(&plan, &backend, &CancellationToken::new(), &mut |_| {})
+            .unwrap();
+        let raw = Command::new(ffmpeg)
+            .args(["-v", "error", "-ss", "0.2", "-i"])
+            .arg(&output)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap()
+            .stdout;
+        let pixel = |x: usize, y: usize| {
+            let i = (y * 100 + x) * 3;
+            (raw[i], raw[i + 1], raw[i + 2])
+        };
+        let outside = pixel(5, 50);
+        assert!(outside.0 > 180 && outside.1 < 60, "outside={outside:?}");
+        let layered = pixel(40, 50);
+        assert!(layered.2 > 120, "video layers={layered:?}");
+        let mixed = pixel(70, 35);
+        assert!(mixed.1 > 70 && mixed.2 > 70, "mixed={mixed:?}");
+        let pcm = Command::new(ffmpeg)
+            .args(["-v", "error", "-i"])
+            .arg(&output)
+            .args(["-map", "0:a:0", "-f", "s16le", "-"])
+            .output()
+            .unwrap()
+            .stdout;
+        assert!(
+            pcm.chunks_exact(2)
+                .any(|s| i16::from_le_bytes([s[0], s[1]]).unsigned_abs() > 10)
+        );
+    }
 }
 
 #[test]

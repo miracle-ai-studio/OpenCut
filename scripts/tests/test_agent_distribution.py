@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import tomllib
 import unittest
 from unittest.mock import patch
@@ -61,6 +62,47 @@ class AgentDistributionTest(unittest.TestCase):
     def test_filter_and_encoder_flags_are_not_assumed_to_have_fixed_width(self):
         names = doctor.registered_names(' T. = Timeline support\n TS geq V->V Generic\n TSC overlay VV->V Overlay\n V....D libx264 Encode\n A....D aac Encode\n')
         self.assertEqual(names, {'geq', 'overlay', 'libx264', 'aac'})
+
+    def test_doctor_requires_node_only_for_declared_packet_runtime_and_keeps_media_smoke(self):
+        def execute(args, **_):
+            if '-filters' in args:
+                stdout = '\n'.join(f'TS {name} V->V fixture' for names in doctor.FILTERS.values() for name in names)
+            elif '-encoders' in args:
+                stdout = '\n'.join(f'V....D {name} Encode fixture' for name in doctor.ENCODERS)
+            elif '-show_streams' in args:
+                stdout = json.dumps({'streams': [{'codec_type': 'video', 'codec_name': 'h264'},
+                                                {'codec_type': 'audio', 'codec_name': 'aac'}]})
+            else:
+                stdout = 'fixture version\n'
+            return SimpleNamespace(stdout=stdout)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = {'target': 'fixture', 'files': {}}
+            for declaration in [{}, {'external_dependencies': ['node']}, {'classic_packet_rate_runtime': {'profile': 'packet-only'}}]:
+                with self.subTest(declaration=declaration):
+                    (root / 'manifest.json').write_text(json.dumps({**manifest, **declaration}))
+                    with patch.dict(doctor.os.environ, {}, clear=True), \
+                         patch.object(doctor.shutil, 'which', side_effect=lambda name: f'/fixture/{name}' if name != 'node' else None), \
+                         patch.object(doctor.subprocess, 'run', side_effect=execute):
+                        report = doctor.inspect(root)
+                    self.assertEqual(report['status'], 'failed' if declaration else 'passed')
+                    node_checks = [c for c in report['checks'] if c.get('tool') == 'node']
+                    self.assertEqual(len(node_checks), 1 if declaration else 0)
+                    if declaration:
+                        self.assertFalse(node_checks[0]['passed'])
+                    self.assertTrue(next(c['passed'] for c in report['checks'] if c['check'] == 'media_encode_probe'))
+
+            node = root / 'fixed-node'
+            node.write_text('fixture'); node.chmod(0o700)
+            with patch.dict(doctor.os.environ, {'OPENCUT_CLASSIC_AUDIO_NODE': str(node)}, clear=True), \
+                 patch.object(doctor.shutil, 'which', side_effect=lambda name: f'/fixture/{name}') as which, \
+                 patch.object(doctor.subprocess, 'run', side_effect=execute) as run:
+                report = doctor.inspect(root)
+            self.assertEqual(report['status'], 'passed')
+            self.assertNotIn(unittest.mock.call('node'), which.call_args_list)
+            self.assertIn([str(node.resolve()), '--version'], [c.args[0] for c in run.call_args_list])
+            self.assertTrue(next(c['passed'] for c in report['checks'] if c['check'] == 'media_encode_probe'))
 
     def test_traversing_manifest_cannot_validate_external_file(self):
         with tempfile.TemporaryDirectory() as temporary:

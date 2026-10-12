@@ -1,13 +1,13 @@
 use super::*;
 use serde_json::json;
 
-fn t(n: i64) -> Time {
+pub(super) fn t(n: i64) -> Time {
     Time {
         ticks: n.to_string(),
         timebase: 1,
     }
 }
-fn fixture() -> ProjectSnapshotV3 {
+pub(super) fn fixture() -> ProjectSnapshotV3 {
     let mut project=crate::project_v3::create(&serde_json::from_value(json!({"id":"p","name":"Editorial","sequence_id":"s","width":160,"height":90,"fps":{"numerator":10,"denominator":1}})).unwrap()).unwrap();
     project.base.assets = serde_json::from_value(json!([
         {"id":"video","name":"V","kind":"video","uri":"fixture.mp4","duration":t(100)},

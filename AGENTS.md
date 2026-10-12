@@ -38,3 +38,26 @@ For public protocol changes also run the generated-contract and wire-compatibili
 checks documented in `crates/sdk-rust/moon.yml`. Run affected behavior tests and
 update the completion ledger with actual evidence. Do not label the whole project
 complete after a scoped check or a successful build.
+
+## Change and verification discipline
+
+- Finish one reviewable feature slice before producing another release candidate.
+  Assign disjoint file ownership to agents; one integrator owns shared contracts,
+  generated files, Cargo builds and stateful browser/media acceptance.
+- Before building, check the complete registration path: DTO/export, tool registry,
+  domain action, host dispatch, access/error policy and generated-client consumer.
+  Use targeted searches; do not repeatedly read generated schemas or whole modules.
+- Choose checks from the actual changed behavior. Documentation-only changes need
+  reference/data consistency checks, not product builds or media runs. Reuse prior
+  results only for their recorded source/candidate and scope. Re-run or broaden
+  when code, dependencies, runtime identity or a demonstrated coverage gap changes.
+  The boundary/protocol requirements above still apply when those boundaries change.
+- Build once after integration, generate and check against that same explicit
+  binary, and run affected browser suites serially in one owned synthetic workspace.
+  Do not rebuild Rust for a verifier-only correction or create another fixture copy.
+- Keep the migration plan forward-looking, the ledger focused on current delivery,
+  and acceptance.json scoped to necessary evidence and unresolved limits. Replace
+  superseded summaries; do not append per-attempt logs or duplicate file hash lists.
+- Generated schemas and SDK types remain derived from Rust and reviewable. Do not
+  minify, ignore or change public contracts merely to reduce the displayed diff.
+  Delete a test/helper only after proving it is obsolete or its behavior is covered.

@@ -7,6 +7,9 @@ import { createHash } from "node:crypto";
 
 const binary = path.resolve(process.env.OPENCUT_BINARY ?? "target/release/opencut");
 const web = path.resolve(process.env.OPENCUT_WEB_ROOT ?? "apps/web/dist");
+// Only mkdtemp-owned data is removed. Failed runs or an explicit keep request
+// retain their report/media for diagnosis; success prints the small receipt.
+const keepWorkspace = process.env.OPENCUT_KEEP_WORKSPACE === "1";
 const directory = await fs.mkdtemp(path.join(os.tmpdir(), "opencut-upload-"));
 const file = path.join(directory, "performance.wav");
 const dataSize = 64 * 1024 * 1024;
@@ -22,8 +25,12 @@ const report = { bytes: wav.length, sha256: digest, platform: process.platform, 
 async function measure(label, executable, webRoot, round) {
   const workspace = path.join(directory, `${label}-${round}`);
   await fs.mkdir(workspace);
-  const cli = (...args) => JSON.parse(execFileSync(executable, ["--json", "--database", path.join(workspace, "workspace.sqlite"),
-    "server", "--directory", path.join(workspace, "service"), ...args], { cwd: workspace, encoding: "utf8", timeout: 60000 })).data;
+  const cli = (...args) => {
+    const reply = JSON.parse(execFileSync(executable, ["--json", "--database", path.join(workspace, "workspace.sqlite"),
+      "server", "--directory", path.join(workspace, "service"), ...args], { cwd: workspace, encoding: "utf8", timeout: 60000 }));
+    if (reply.error !== null) throw new Error(`Server ${args[0]} failed: ${JSON.stringify(reply.error)}`);
+    return reply.data;
+  };
   const page = await browser.newPage({ locale: "en-US", viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -99,7 +106,10 @@ async function measure(label, executable, webRoot, round) {
       expect(validation.releaseError).toBeNull();
       report.checks.push("complete replay accepts one job; conflicting digest returns 409; independent worker rejects wrong whole-file digest; terminal staging releases");
     }
-  } finally { await page.close(); cli("stop"); }
+  } finally {
+    try { await page.close(); }
+    finally { expect(cli("stop").state, "Owned service must stop before its workspace can be deleted").toBe("stopped"); }
+  }
 }
 try {
   for (let round = 0; round < 3; round++) {
@@ -111,7 +121,9 @@ try {
 } catch (error) { report.status="failed"; report.error=String(error); process.exitCode=1; }
 finally {
   await browser.close();
+  report.workspace_retained = report.status !== "passed" || keepWorkspace;
   const output = path.join(directory, "report.json");
   await fs.writeFile(output, JSON.stringify(report,null,2)+"\n");
-  console.log(output);
+  if (report.workspace_retained) console.log(output);
+  else { await fs.rm(directory, { recursive: true }); console.log(JSON.stringify(report)); }
 }

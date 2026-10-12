@@ -101,9 +101,9 @@ impl JobSubmissionStore for EditorApplication {
             .optional()
             .map_err(crate::storage_error)?
             .ok_or_else(|| EditorError::new("NOT_FOUND", "Project revision does not exist"))?;
-        let project = match crate::sqlite_project_v3::decode_versioned_project(&raw)? {
-            crate::sqlite_project_v3::VersionedProjectDocument::Legacy(project) => project,
-            crate::sqlite_project_v3::VersionedProjectDocument::V3(project) => {
+        let project = match crate::sqlite_project_document::decode_versioned_project(&raw)? {
+            crate::sqlite_project_document::VersionedProjectDocument::Legacy(project) => project,
+            crate::sqlite_project_document::VersionedProjectDocument::V3(project) => {
                 if !self.connection.1.caller().is_owner()
                     && project
                         .base
@@ -117,6 +117,12 @@ impl JobSubmissionStore for EditorApplication {
                     ));
                 }
                 project.base
+            }
+            crate::sqlite_project_document::VersionedProjectDocument::V4(_) => {
+                return Err(EditorError::new(
+                    "UNSUPPORTED_PROJECT_VERSION",
+                    "Schema 4 analysis requires a schema 4 execution snapshot",
+                ));
             }
         };
         if project.id != project_id {

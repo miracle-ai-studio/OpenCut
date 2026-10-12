@@ -40,7 +40,7 @@
 
 `enforces_all_workspace_writes=false` 保持明确：SQLite/WAL、系统控制元数据增长及完整保留/回收策略尚未接入。观察这些目录不能替代写入拦截。此增量不抵扣完整物理配额、完整 R2 或 R3–R7。
 
-2026-09-24 增量：owner 可单独配置 `control_limit_bytes`，持久账本 v2 分别记录控制与 payload 预留，控制报告单独呈现；两类活动预留共同参与卷余量判断。SQLite 本身仍通过原生连接直接写入，`control.write_interception_enabled=false`，参见[控制账本验收](../qa/r2-database-control-ledger-2026-09-24.md)。配置控制额度尚不限制实际数据库事务，不可把该字段解释成已生效的硬数据库配额。
+2026-09-24 增量：owner 可单独配置 `control_limit_bytes`，持久账本 v2 分别记录控制与 payload 预留，控制报告单独呈现；两类活动预留共同参与卷余量判断。SQLite 本身仍通过原生连接直接写入，`control.write_interception_enabled=false`，参见[当前交付台账](headless-completion-ledger.md)。配置控制额度尚不限制实际数据库事务，不可把该字段解释成已生效的硬数据库配额。
 
 2026-09-24 后续增量：管理型 CLI／HTTP／MCP／Worker SQLite 连接已切到具名 VFS，主库、WAL、主 journal 和 SHM 增长会先申请独立控制预留；`opencut_database_inspect.managed_vfs_enabled` 说明当前连接实际入口。固定读者的 CLI 动线已证明紧额度拒绝编辑、head 不动，扩大额度后原幂等键只提交一次。上段是账本增量当时的历史状态；目前仍不能将 `control.write_interception_enabled` 或 `enforces_all_workspace_writes` 改为 true，因为临时文件、外部写者、修复预留和全工作区物理边界尚未覆盖。详见[控制写入契约](database-control-admission.md)。
 

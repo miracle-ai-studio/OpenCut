@@ -1,6 +1,8 @@
 //! Internal persisted worker inputs; never imported by a client SDK.
 use opencut_contracts::{AssetLockManifest, ProjectSnapshot, Time, TimeRange};
 pub mod project_v3;
+pub mod project_v4_audio;
+pub mod project_v4_frame;
 use opencut_media_contracts::{Container, FrameAlignment, VideoCodec};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

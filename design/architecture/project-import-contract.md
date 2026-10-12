@@ -42,7 +42,7 @@ JobView.result 保留旧八类的封闭枚举。新增任务使用可选 extende
 
 ## 当前实施状态（2026-09-21）
 
-上传基础已验证，见 [上传基础 QA](../qa/r2-upload-foundation-2026-09-21.md)。本轮已接通原生 ImportStore 封存、Worker 整体校验／实际探测／CAS、合法 attempt 成功与素材登记原子提交、项目素材查询和受限 asset.bind／asset.replace。真实图片删除原源后导入／绑定／预览／独立 RGB 解码、视频／音频分类、取消和回滚均通过，见 [导入核心 QA](../qa/r2-import-core-2026-09-21.md)。
+上传基础已验证，见 [当前交付台账](headless-completion-ledger.md)。本轮已接通原生 ImportStore 封存、Worker 整体校验／实际探测／CAS、合法 attempt 成功与素材登记原子提交、项目素材查询和受限 asset.bind／asset.replace。真实图片删除原源后导入／绑定／预览／独立 RGB 解码、视频／音频分类、取消和回滚均通过，见 [当前交付台账](headless-completion-ledger.md)。
 
 公开入口及暂存增量已接通 46 个工具／9 种任务描述、HTTP 原始分块、CLI upload put、固定范围项目素材分页和双 SDK 分块／扩展结果读取。六个新增工具为 upload_create、upload_inspect、upload_abort、upload_seal、project_media_inspect、project_media_query（均带 opencut_ 前缀）。media.import 由 seal 接受，旧 JobStartInput 不增加枚举变体。能力发现 uploads 返回实际接入路径、限制与结果版本；OpenAPI 49 条路径。
 
@@ -50,4 +50,4 @@ abort 先持久提交 aborted 再持与写块相同的 OS 锁删除该会话私�
 
 导入 Worker 的真实进程组 SIGKILL 已验证：在实际组装输入后、探测前终止，不修改数据库时钟；30 秒自然租约到期后 attempt 2 用真实 FFprobe 恢复，恰好一份资源和成功审计，工程 head 不变，旧私有输入被清除。证据由 `scripts/verify-project-import-recovery.py` 重现。
 
-源码及最近已验交付库格式为 v9。dev-46d52b41f70b 已通过仓库外 30 组验收，32 条命令全成功，含独立双 SDK 的发现／释放／预留查询、历史 18 格和真实媒体回归；见 [暂存 QA](../qa/r2-upload-staging-2026-09-21.md)。此前公开导入记录见 [历史 QA](../qa/r2-public-import-2026-09-21.md)，完整磁盘治理等边界保持。
+源码及最近已验交付库格式为 v9。dev-46d52b41f70b 已通过仓库外 30 组验收，32 条命令全成功，含独立双 SDK 的发现／释放／预留查询、历史 18 格和真实媒体回归；见 [当前交付台账](headless-completion-ledger.md)。此前公开导入记录见 [当前交付台账](headless-completion-ledger.md)，完整磁盘治理等边界保持。

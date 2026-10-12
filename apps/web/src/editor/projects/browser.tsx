@@ -1,4 +1,6 @@
 import { RenameProject } from "./rename";
+import { ProjectCover } from "./cover";
+import { MigrateClassic } from "./migrate";
 import { DeleteProjects } from "./delete";
 import { t, useLocale } from "../shared/locale";
 import { useEntrance } from "../shared/motion";
@@ -12,7 +14,6 @@ import { ProjectInfo, projectDate } from "./info";
 import { formatTime } from "../model/time";
 import type { ProjectRef } from "../model/types";
 import {
-  Film,
   FolderOpen,
   Plus,
   RefreshCw,
@@ -34,7 +35,7 @@ export function ProjectBrowser({
   onOpen: () => void;
 }) {
   const { language } = useLocale();
-  const { controller, projects, connection } = useWorkspace();
+  const { controller, projects, connection, api } = useWorkspace();
   const ref = useEntrance<HTMLElement>();
   const [initialPreferences] = useState(readLibraryPreferences);
   const [search, setSearch] = useState(""),
@@ -45,6 +46,8 @@ export function ProjectBrowser({
     [copying, setCopying] = useState(false),
     [info, setInfo] = useState<ProjectRef | null>(null);
   const [deleting, setDeleting] = useState<ProjectRef[] | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [coverRefresh, setCoverRefresh] = useState<Record<string, number>>({});
   const anchor = useRef<string | null>(null),
     shift = useRef(false);
   const selectAll = useRef<HTMLInputElement>(null);
@@ -86,6 +89,7 @@ export function ProjectBrowser({
       setCopying(false);
     }
   };
+  const [newVersion, setNewVersion] = useState<"visual" | "v4">("visual");
   const [creating, setCreating] = useState(false),
     [name, setName] = useState(t("Untitled project")),
     [format, setFormat] = useState("landscape"),
@@ -100,7 +104,9 @@ export function ProjectBrowser({
           : format === "square"
             ? [1080, 1080]
             : [1920, 1080];
-      await controller.create(name.trim(), size[0], size[1], fps);
+      if (newVersion === "v4")
+        await controller.createV4(name.trim(), size[0], size[1], fps);
+      else await controller.create(name.trim(), size[0], size[1], fps);
       setCreating(false);
       onOpen();
     } catch (error) {
@@ -119,6 +125,12 @@ export function ProjectBrowser({
         </div>
         <div className="toolbar">
           <Button
+            disabled={connection !== "connected"}
+            onClick={() => setRecovering(true)}
+          >
+            {t("Recover Classic projects")}
+          </Button>
+          <Button
             aria-label={t("Refresh projects")}
             disabled={connection !== "connected"}
             icon={<RefreshCw size={16} />}
@@ -129,10 +141,22 @@ export function ProjectBrowser({
             }
           />
           <Button
+            disabled={connection !== "connected"}
+            onClick={() => {
+              setNewVersion("v4");
+              setCreating(true);
+            }}
+          >
+            {t("New project with scene notes")}
+          </Button>
+          <Button
             className="primary"
             icon={<Plus size={16} />}
             disabled={connection !== "connected"}
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setNewVersion("visual");
+              setCreating(true);
+            }}
           >
             {t("New project")}
           </Button>
@@ -202,7 +226,11 @@ export function ProjectBrowser({
               <span>{t("{count} selected", { count: chosen.length })}</span>
               <Button
                 icon={<Copy size={14} />}
-                disabled={copying || chosen.length > 64}
+                disabled={
+                  copying ||
+                  chosen.length > 64 ||
+                  chosen.some((p) => p.format === "v4")
+                }
                 onClick={() => void duplicate(chosen)}
               >
                 {t("Duplicate selected")}
@@ -297,10 +325,15 @@ export function ProjectBrowser({
                     .catch((error) => controller.report(error))
                 }
               >
-                <div className="project-cover">
-                  <Film size={40} />
-                </div>
-                <strong>{project.name}</strong>
+                <ProjectCover
+                  api={api}
+                  project={project}
+                  refresh={coverRefresh[project.id] ?? 0}
+                />
+                <strong>
+                  {project.name}
+                  {project.format === "v4" && <small> · V4</small>}
+                </strong>
                 <span className="project-metadata">
                   <span>
                     {project.library
@@ -332,8 +365,24 @@ export function ProjectBrowser({
                 <div className="project-action-menu">
                   <RenameProject project={project} compact menu />
                   <Button
+                    icon={<RefreshCw size={14} />}
+                    disabled={project.format === "v4"}
+                    onClick={(e) => {
+                      e.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open");
+                      api?.covers.invalidate(project.id);
+                      setCoverRefresh((values) => ({
+                        ...values,
+                        [project.id]: (values[project.id] ?? 0) + 1,
+                      }));
+                    }}
+                  >
+                    {t("Refresh cover")}
+                  </Button>
+                  <Button
                     icon={<Copy size={14} />}
-                    disabled={copying}
+                    disabled={copying || project.format === "v4"}
                     onClick={(e) => {
                       e.currentTarget
                         .closest("details")
@@ -387,13 +436,27 @@ export function ProjectBrowser({
         <DeleteProjects projects={deleting} onClose={() => setDeleting(null)} />
       )}
       {creating && (
-        <Modal title={t("New project")} onClose={() => setCreating(false)}>
+        <Modal
+          title={
+            newVersion === "v4"
+              ? t("New project with scene notes")
+              : t("New project")
+          }
+          onClose={() => setCreating(false)}
+        >
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void create();
             }}
           >
+            {newVersion === "v4" && (
+              <p>
+                {t(
+                  "Media import and placement, source media preview, scene notes, history and source audio separation/restoration are available. Other element editing, scene preview, playback and video export are not available yet.",
+                )}
+              </p>
+            )}
             <Field label={t("Project name")}>
               <input
                 required
@@ -439,6 +502,9 @@ export function ProjectBrowser({
             </div>
           </form>
         </Modal>
+      )}
+      {recovering && (
+        <MigrateClassic onClose={() => setRecovering(false)} onOpen={onOpen} />
       )}
     </main>
   );

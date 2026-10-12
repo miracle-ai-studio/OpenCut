@@ -1,222 +1,74 @@
 # 功能交付台账
 
-历史范围（2026-09-24）：完成供外部 Agent 调用的剪辑工具与媒体执行能力，Web 页面与 Desktop 界面可以暂缓。此项调整不免除 Rust 内核、媒体执行、预览后端、CLI／MCP／API／SDK、插件与工程恢复能力，也不把 `capability=false` 当作功能完成。
+更新：2026-10-12。唯一实施顺序、36项完整任务与验收条件见[迁移执行计划](../plans/classic-migration-plan.md)；被测候选、独立预期和范围见[验收摘要](../qa/acceptance.json)。本页维护当前状态，不把历史结果当作最新工作树全量通过。
 
-本文件记录当前执行范围，历史 R0–R7 审计仍可追溯。状态分为「动线已验」「实现待集成／验收」「未完成」，不以新增工具数量替代验收。收据中的 binary SHA 是实际被测版本，早先 release 包不能证明当前源码已经通过发行验收。
+## 当前范围与状态
 
-## 2026-10-07 本机外部 Agent 插件第一步
+目标是本机 Rust Server + Web 的 Classic 全量迁移。用户已排除 Classic 云账户/登录；字体/贴纸沿用 Classic 来源及允许的许可；音效允许开放许可来源或自行生成；反馈先用本机 mock。Desktop、移动端、跨平台签名发行及原版之外的专业能力仍是独立目标。
 
-已交付独立的 Codex / Claude Code 本机插件包生成器、共享剪辑 skill、两种 marketplace 与 MCP 配置。
-没有给 OpenCut 增加内置聊天。现有 `agent-config.py` 连接验证、九个 domain tools、应用事务与 Worker 保持原有语义。
+|Classic状态|数量|
+|---|---:|
+|指定动线已验|20|
+|部分迁移|20|
+|未迁移|14|
+|实现待等价验收|2|
+|原版占位|1|
 
-同一 release binary `be86a50b6e265692df6f463151e85df1a280c3dcde3a502c40a3621b8c83d7b8`，
-从两个交付包的实际配置分别通过独立测试工程的读取/导入、原子剪辑、预览、精确撤销/重做和导出，
-两次实际 H.264 文件均为 3 秒，独立预期蓝色像素及产物哈希一致。Python 26 项、架构与契约边界检查通过。
-Codex CLI 0.157.1 原生目录发现/manifest 解析及 Claude Code 2.1.251 严格插件/marketplace 校验通过。
+57组中36组仍需实施或验收；S1–S6主责组为8/5/10/8/2/3。另有13页面与X01–X03覆盖核对，不重复加入功能总数。迁移未完成，不按组数计算百分比；全部F ID/状态及未完成集合保存在摘要和计划。
 
-这是本机确定性 MCP 验收，不是外部模型自然语言对话或桌面安装验收；未修改全局 Agent 配置、创建持久凭据、
-写入真实工程或重启生产服务。合成无声视频不代表音频/ASR、Classic 全量迁移、远程接入或公开发布完成。
-使用与复现见[本机插件说明](local-agent-plugins.md)，原始报告、trace、文件哈希见[收据](../qa/evidence/local-agent-plugins-2026-10-07.json)。
+## 已实现及有效证据边界
 
-## 2026-10-07 Classic 全量范围核对
-
-**全面迁移尚未完成。** 按源码核对原版 13 个页面入口：8 个公共页面指定动线已验，博客/文章/贡献者3个入口已实现但上游实时成功未验，项目库和编辑器2个入口仍部分迁移。原版九个工具标签、属性/图形/蒙版/贴纸注册表、30 个快捷动作与 53 个命令源文件已纳入清单；57 个功能组中仍有 23 组未迁移，另有部分迁移和待等价验收项。这些分组用于追踪，不按数量计算整体完成率。
-
-完整逐页/逐功能发现见[Web 审查](../qa/web-migration-review.md#2026-10-07-classic-全量迁移检查)及[源码清单收据](../qa/evidence/classic-parity-audit-2026-10-07.json)。用户要求的首页、博客、更新日志、品牌、贡献者、路线图、赞助、隐私与条款页面不再从全量范围中排除。原版占位页和架构规划的新专业能力分开记账；WebM/Matroska、自由文字/caption、参数化图形/SVG 图片不作为功能等价替代。
-
-## 2026-10-07 本地自动字幕与预览视口
-
-新增场景固定修订语音分析与字幕生成两个公共操作；CLI/HTTP/MCP/SDK/Web共用应用用例，原144个工具声明全部保持不变。宿主配置本机语音模型与可执行程序，原生适配器沿用剪辑混音的裁剪、变速、延时、增益与静音语义，再做真实whisper.cpp识别。纯字幕规划一次验证完整提案，SQLite沿用固定修订、授权、幂等、单个原子日志与撤销；公共结果不带原生路径，并拒绝伪造的素材锁。浏览器提供语言/词数、生成、任务恢复与取消，冲突后要求针对当前场景重做。词块时序仍是段内估算，不能冒充准确词级对齐或完整自由文字等价。
-
-预览还原Fit与实际画布百分比、边界平移、中键/空格拖动、可调Grid、原版TikTok SVG及Custom辅助线增删/编辑/刷新恢复。手柄与图像共用实际画布坐标，辅助线只属于视图，不进入原生预览快照和导出。弹层使用有界portal，避免面板裁剪；GSAP仅用于可减少动效的弹层进入。任意合法单段工程身份支持直接打开/刷新，严格解码不用于选择文件路径。
-
-Rust workspace（排除Desktop）442项、6项父测试触发的子进程夹具、Web53项与边界9项、SDK20项、Python架构14项和分发5项通过；Clippy/fmt、生成契约、冻结22工具与全部144原操作对比、22模块/0例外通过，当前146工具/schema26。最终Web45项流程和字幕/视口9组通过，其中4组视口与45项有重叠。实际交付包的CLI/Agent生成器12组剪辑通过；同一包的原生ASR7组与网页9组联合验收通过。源合成语音上传后删除，真实转写、原子字幕、精确撤销重做、字幕像素和独立PCM确认1秒延时、半音量、静音/禁用排除，RMSE约0.00113；通用成片3秒、红/蓝/蒙版黑像素及330/660Hz、排除440Hz亦保留。
-
-交付包37条清单/17个Web文件全部校验；常用服务在备份数据库、配置、程序和页面后更新，schema26及既有项目/素材数保持不变，实际HTTP字节匹配验收包。程序安装至`~/.opencut/bin/opencut`，模型在服务配置文件中，页面不显示连接或模型路径输入。精确身份、原始报告、调用轨迹和限制见[自动字幕与视口收据](../qa/evidence/auto-captions-and-preview-2026-10-07.json)。本机英文合成语音已验，其他语言准确率、只锁音频依赖的优化、完整Classic文字/诊断、跨平台与完整R0–R7发行仍待完成。
-
-当前57组为16组指定动线已验、23组未迁移、14组部分迁移、3组待等价验收、1组原版占位；全量迁移继续未完成。
-
-## 2026-10-07 公共页面、快照与外壳还原
-
-原版首页、品牌素材与 SVG 复制/单项下载/ZIP、路线图、赞助、隐私/条款、3份已发布更新记录的分组/技术折叠/Markdown复制及前后版本导航已接入独立公共页面。复用原版图像、标志、内容结构，不迁入其浏览器工程权威。中英明暗与移动菜单已验；法律页改正本机服务存储、删除归档保留和无分析集成的事实。博客/贡献者的固定公开端点、取消/限流重试及安全内容展示已实现；列表/详情/分页用明确夹具验收，本机上游429/403，实时读取不能记为成功。RSS/站点地图及服务端分享元数据仍未迁完。
-
-快照保存和实际图像剪贴板接既有原生固定修订帧，完整画布与指定非主场景由独立白色中心/黑色角点和PNG解码核验；取消保存不提交任务，项目文档不变。外壳补齐横/纵面板真实拖动后刷新恢复、双语三步引导与重开、原版更新提示与去重。偏好只有尺寸、引导标记和原版已读版本；公共站点和编辑权威之间有独立负向边界门禁。
-
-当前 Rust433项、Web48项与边界9项、Python架构14项/打包4项、服务8项通过；Clippy/fmt、生成契约、冻结22工具与22模块/0例外检查通过，仍为144工具/schema26。最终生产构建41项浏览器流程和12组真实Agent工具剪辑通过；实际交付包配置启动的12组验收绑定相同CLI/生成器字节。独立三秒导出、红/蓝/蒙版黑像素及330/660Hz、排除440Hz的PCM证据保留。本机备份更新，原项目/素材数不变，16个HTTP文件与被测/包内资源一致。36个交付清单条目全部校验；打包改为独立临时Web根，重复构建没有修改运行中页面且归档一致。它仍是开发包，未替代完整R0–R7发行验收。
-
-详情与精确身份见[公共页面与外壳收据](../qa/evidence/public-pages-and-presentation-2026-10-07.json)。此增量验收时57组为15组指定动线已验、25组未迁移、13组部分迁移、3组待等价验收、1组原版占位；全面迁移仍未完成。
-
-## 2026-10-07 时间线视图恢复
-
-补齐每个项目/场景的缩放、横向滚动和精确播放头恢复。偏好只包含UI视图，最多64条，200ms合并并在pagehide立即保存；读取服务端当前文档后，以精确整数时间约束在独占结束点之前的有效帧。历史浏览不覆盖当前视图，坏数据和浏览器存储拒绝不影响编辑。模型和偏好模块不反向依赖界面，没有新增Rust/SDK/公共DTO或依赖例外。
-
-Web41项与边界8项、Python架构14项通过；同一release与最终Web的31项实际浏览器流程通过，验证刷新/重开、新项目独立视图及工程文档完全不变。未重复无变动的Rust/media运行源码测试；433项回归与11组Agent验收以及实际交付包配置启动的12组验收仍绑定同一CLI hash。本机备份更新页面，schema26与已有项目/素材数不变，7个实际HTTP资源一致。身份与证据见[时间线视图收据](../qa/evidence/timeline-view-2026-10-07.json)。全量迁移未完成。
-
-## 2026-10-07 项目删除、素材库管理与 Agent 剪辑验收
-
-项目单个/批量删除接入共享 owner 用例，固定当前修订并在一个事务中写入删除、撤销授权与发现入口、审计及重试回执；活跃任务阻止删除，接收中的上传原子中止。提交后的暂存清理由已有端口处理，失败可按原请求重试。保留不可变归档和媒体根，确保副本与历史任务不受破坏；这不是安全擦除。新增 schema26 迁移碰撞和回滚、关闭重开、批次失败、幂等与晚到任务拒绝测试。
-
-素材库新增网格/列表、四种排序、Shift 范围选择、单个/批量移除和真实文件字节粘贴；项目库布局/排序刷新后恢复。素材移除由纯应用规划及原子编辑实现，清理各场景引用与相关效果、蒙版、转场，字幕保留文字并解除素材来源；锁轨、权限/hold、撤销、审计沿用既有编辑语义。每批64项，展开128操作上限。复查修复删除后暂存清理被权限检查阻断、视觉节点删除顺序、双面板粘贴处理及替换上传时的目标漂移；CLI 增加独立 stream-put 字节适配，原 put 行为不变。
-
-当前 Rust workspace（排除 Desktop）433 项、SQLite 142 项、Web 34 项及边界8项、SDK20项、Python 架构14项通过；Clippy/fmt、生成契约、22模块/0例外检查通过，原142个工具输入/输出/只读声明保持不变，当前144工具。最终 release + Web 的30项浏览器流程通过，完成中英明暗界面截图复查，无页面异常或失败请求。
-
-Agent 实际通过 MCP 流式上传两段视频及音频、CLI 传输字节、固定素材关联、联动删除、蒙版、撤销/重做、预览及导出，再复制项目、删除原项目并清理实际未完成上传、移除副本素材后完整撤销再导出。11组验收通过，源视频上传后删除，仍可从导入库完成渲染；独立红/蓝/黑像素和3秒成片的330/660Hz音频确认正确，已删440Hz区间未残留。自动化使用外部剪辑接口，不代表模型自主审美质量验收。
-
-备份后本机 schema25→26，原有项目/素材条目保留，7个实际 HTTP 页面文件与被测构建 hash 一致，服务就绪。当前构建、完整报告、Agent调用轨迹、暂存释放及升级证据见[项目与素材管理收据](../qa/evidence/project-and-media-management-2026-10-07.json)。封面、书签、自由文字/字体、远程音效、更多蒙版/图形、时间线多选、WebM及其余页面继续未完成；不以这项增量关闭全量迁移目标。
-
-## 2026-10-07 项目库元数据与原子复制增量
-
-新增共享只读项目库与 owner 单个/批量复制用例；完整当前文档、全部场景、项目插件授权和已导入素材关联在一个事务内复制。所有源修订必须仍为当前 head，任何目标冲突或审计失败回滚全部批次，同请求重试返回原回执。副本使用独立项目身份和授权关联，复用不可变素材，不重新读取或上传文件；不复制历史、任务、凭证、分支或锁。首修订发布复用已有导入发布函数，未增加模块依赖或政策例外。
-
-Rust workspace（排除 Desktop）428 项、SQLite 139 项（含 5 项复制/迁移专项）、Web 32 项与边界 7 项、SDK 20 项、Python 架构 14 项通过。Clippy/fmt、22 模块边界和生成契约通过；原 140 个工具声明精确不变，当前 142 个工具。最终 release + Web 的 27 项浏览器流程通过，无页面异常或失败请求；副本按完整文档比对，并实际预览与导出，独立 ffprobe/PCM 检查四秒声画和参考音。复查修复菜单内重命名弹窗被隐藏，以及列表菜单旧位移问题。
-
-本机升级前备份旧程序、页面和数据库，schema24→25 后原有项目/素材数不变；7 个 HTTP 页面资源 hash 与验收构建一致，现有项目库只读浏览器检查通过。详情以[项目库收据](../qa/evidence/project-library-2026-10-07.json)为准。项目删除、封面、范围选择、视图偏好及全量 Classic 迁移清单仍未完成，不能将本增量标成整项目交付。
-
-## 2026-09-30 连续撤销与重做
-
-补齐 Classic 的连续撤销、反向重做与新编辑清空重做规则。服务端只读导航从固定修订的第一父链重建目标，合并作为一次编辑，创建/格式提升不进入普通撤销栈；Web 不再猜测最新 transaction 或只记一个本地 redo ID。刷新、重新打开及远端编辑后可重新获取导航，执行仍使用已有原子选择性 plan/apply。没有新增数据表、依赖边或临时例外，原 139 个工具声明保持不变。
-
-Rust workspace（排除 Desktop）421 项通过，6 个子进程夹具由父测试执行；追加的跨格式升级和跨分页用例包含在最终 5 项存储测试中，另有 2 项纯应用测试。存储测试实际执行 55 次撤销再 55 次重做、数据库关闭重开、新编辑截断重做、分支/合并、跨项目修订拒绝、撤权和过期修订拒绝。Web 30 项、模块边界 7 项、SDK 20 项与 Python 架构 14 项通过；Clippy 和格式检查通过。
-
-最终 release 与 Web 的 25 项浏览器动线通过，独立声画/像素检查保留；本机服务已备份更新，schema24 与现有工程/素材数不变，7 个在用页面文件与验收构建逐项一致。构建身份和本机服务状态以[历史导航收据](../qa/evidence/history-navigation-2026-09-30.json)为准。此节关闭上一节“完整连续撤销目标解析”的缺口；恢复被撤销删除前的活动场景/选中对象仍未迁移。项目复制/删除、书签、其余 Classic 功能以及跨平台正式发行继续未完成。
-
-## 2026-09-30 项目命名与场景管理
-
-项目库及编辑器标题重命名、场景创建/重命名/切换/批量删除已接入共享固定修订事务；删除主场景由应用层拒绝，删除其他场景同步删除其可视节点和曲线并保留素材库。浏览器 URL 保留场景选择，远端删除当前场景时回落主场景。两项独立 plan/apply 工具的类型统一生成，既有 137 个工具声明不变；未增加依赖边、迁移例外或数据库版本。
-
-原子性、幂等冲突、撤权、owner hold、审计失败回滚和精确文档撤销/重做通过存储回归。复审修复三方合并遗留空 visual 节点及历史标签缺失。Rust workspace（排除 Desktop）416 项通过、6 个子进程夹具由父测试执行；最后标签修复另由受影响 SQLite 15 项覆盖，核心协作 6 项通过。Web 27 项、模块边界 7 项、SDK 20 项、Python 架构 14 项、Clippy/fmt、生成契约、冻结兼容及 22 模块/0 例外架构检查通过。
-
-最终 release 与 Web 的 24 项浏览器动线通过，包含非主场景独立期望像素、批量删除、精确文档恢复以及中英明暗界面。备份后本机更新，数据库保持 schema24，现有工程与素材条目数未变。构建身份、原始报告和运行时证据见[项目与场景收据](../qa/evidence/project-scenes-2026-09-30.json)。项目复制/删除、场景书签、完整连续撤销栈、恢复被撤销删除前的活动场景选择及其余 Classic 差异继续未完成；不把本次检查视作全功能交付。
-
-## 2026-09-30 浏览器素材导入单次读取
-
-修复迁移后浏览器先扫描整文件再重新读取上传的重复开销。新增独立流式上传契约；浏览器边读取、累计摘要和发送，最多预读下一块，网络提交与持久化确认仍严格顺序。应用内部使用未序列化的可空摘要状态，SQLite 在一个事务中固定整文件摘要、封存完整清单并接受唯一任务。完整性校验、撤权重验、配额、取消清理、崩溃恢复及独立 worker 校验保留；旧 132 个工具声明逐项不变，原有 22 个冻结工具兼容。
-
-实测同一份 64 MiB 合成 WAV 三轮：浏览器读取量从 134,217,816 字节减为 67,108,908 字节；首块等待中位数 1,501 → 101.2 ms，传输阶段 8,590.9 → 6,905.1 ms，全部导入 11,972.9 → 10,407.2 ms。第一组与其他检查尾段重叠，属于本机小样本观察，不能外推到所有编码、大文件或其他设备。格式探测、内容校验和不可变素材保存仍需时间。
-
-Rust workspace（排除 Desktop）412 项通过，6 项子进程夹具由父测试执行；后续 SDK/调度变动再次通过受影响测试。Web 25 项、边界 7 项、TypeScript SDK 20 项、Python 23 项、Clippy/fmt、生成契约和架构检查通过，仍为 22 个模块、0 条依赖例外。最终 release + Web 的 20 项浏览器流程通过；额外真实 HTTP 流程验证同摘要重放、409 摘要冲突、错误整文件摘要被 worker 拒绝以及终态释放。构建包清单及 CLI/Web 字节与验收构建一致；未对本次包重跑完整发行验收。
-
-本地服务已在备份后更新，内部数据库写协议从 23 升至 24，现有工程和素材条目保留，7 个线上静态文件与验收文件一致。运行状态以 CLI 实时查询为准。性能、测试、备份和产物身份见[导入优化收据](../qa/evidence/stream-upload-2026-09-30.json)。此增量只交付导入链路优化，下述 Classic 功能缺口继续有效。
-
-## 2026-09-29 原版界面还原与浏览器偏好
-
-继续按 Classic 的既有结构还原项目库、素材/音频/文字/贴纸/字幕/效果/调整/设置区域；复用品牌图形、标尺和 Bézier 图形编辑器。界面新增中英切换及亮暗主题，偏好与项目数据分离。页面不再要求地址或令牌；独立服务读取 `~/.opencut/server/config.json`，浏览器自动建立同源 HttpOnly 会话，Agent 凭证不进入页面。GSAP 与 React 适配只用于展示动画，支持减少动态效果偏好，不进入领域或媒体执行层。
-
-实现了原始媒体 Range 预览、受控并发缩略图/波形、复制/粘贴/副本及撤销快捷键、字幕列表、真实效果/转场和可拖拽曲线；定帧画布提供移动、缩放和旋转辅助框并在松手时原子提交。复审修复末帧曲线入口、曲线清理、属性面板关键帧标识、无变化提交、轮询草稿覆盖和锁轨入口。没有新增公共工具或改动冻结 wire schema。
-
-当前源码全 workspace（排除 Desktop）408 项通过，6 项崩溃恢复子进程夹具由父测试启动；CLI 单元 5 项、独立服务 8 项包含在其中。Web 22 项、模块边界 7 项、SDK 19 项、Python 23 项及 CLI Clippy/fmt 通过。架构仍为 22 个模块、0 条临时依赖例外，22 个冻结工具兼容，当前 132 工具。最终交付包在仓库外通过 20 项真实浏览器动线，7 个在用页面文件与验收包 hash 一致；独立 ffprobe/PCM 核验通过。交付包与真实浏览器结果见[界面还原收据](../qa/evidence/web-interface-2026-09-29.json)，逐区域差异和复查记录见[Web 审查](../qa/web-migration-review.md)。
-
-此增量不是 Classic 全功能等价验收。项目管理完整操作、多场景/多选/分组、远程音效/贴纸库、完整自由文字/字体/背景、曲线过冲、实时画布内容变换和多级媒体缓存仍有缺口；4K/大型工程性能、其他浏览器及正式发行未验证。下节的“画布手柄/自由曲线未实现”是本增量之前的状态，以本节及逐区域表为准。
-
-## 2026-09-29 Web 迁移与全仓审查
-
-用户将范围调整为 Web 优先，并要求原位重构、模块独立、删除冗余和最终全仓审查。Web 已从单体工作区迁移为独立的工程状态、素材、时间线、预览、属性、任务及历史模块。服务可同源托管静态页面，CLI 仍独立负责启动与状态，关闭页面不结束导出。新模块按职责命名，未新增带版本后缀的平行页面或实现；既有协议名称保留兼容。
-
-修复通用历史查询不能打开视觉工程、导入素材丢失内容身份、字幕交换不支持视觉工程、旧回包覆盖当前视图、导出预检/幂等键串用、任务分页和历史视图拖放入口等问题。清理旧路由/SSR、重复客户端、未使用组件、Cloudflare 示例及部署配置；Web 静态资源纳入带 hash 清单的本机开发包。
-
-全仓 Rust 回归 403 项通过；最后改动后受影响 application/SQLite/host/CLI 203 项通过。Web 20 项行为测试、7 项模块边界测试、SDK 19 项、Python 23 项、Clippy/fmt、22 模块架构及契约检查通过；没有新增迁移例外或公共工具 schema。22 个冻结工具兼容，当前 132 工具。Chromium + release 的真实动线覆盖新建、上传、时间线、合成帧、连续播放、分割、撤销/重做、字幕、刷新后导出继续及认证下载；下载文件由 ffprobe/PCM 独立验证。证据和详细审查见 [Web 迁移审查](../qa/web-migration-review.md) 与 [机器收据](../qa/evidence/web-migration-2026-09-29.json)。
-
-当前服务入口为 `http://127.0.0.1:8788/editor`，数据库仍为 `~/.opencut/workspace.sqlite`。状态会变化，运行时以 `server status` 为准。此次是现有编辑链路的 Web 迁移验收，不声明 Classic 全功能等价：完整波形/缩略图缓存、画布手柄、自由曲线交互及协作/插件/分析工作台仍有 UI 缺口；大规模/4K/跨浏览器性能、专业能力和正式发行仍未放行。Desktop 仍独立保留，本轮没有 Metal/原生窗口验收。
-
-## 2026-09-29 独立本地服务
-
-新增 `opencut server start/status/stop`。Agent 可启动独立后台 HTTP/MCP + Worker，启动命令退出后服务继续执行；状态结合运行锁、认证 API 和有界数据库读取，停止按实例 UUID 请求既有优雅退出。PID 仅供诊断，重复启动同配置幂等，异常退出释放锁后可重新启动。默认私有运行目录为 `~/.opencut/server`，原 `serve` 前台入口保留。新增模块只属于 CLI 宿主生命周期，不新增依赖、政策例外或编辑用例，也不改变既有公开工具 schema。
-
-本机 CLI 15 项测试通过（其中独立服务 6 项）；架构负向测试 14 项、架构/契约边界、CLI Clippy、格式检查通过。当前 release CLI SHA-256 `fd8c35678b26b8d8ea286e560e92f28a2053b9ec261f9c61b9e058cde2d626af` 通过生成契约检查、22 个旧工具精确兼容（当前 132 个工具）、9 项既有 MCP HTTP 验收及 8 项独立服务真实动线验收。合成蓝色视频取帧由后台 Worker 在提交 CLI 退出后完成，认证下载哈希匹配，独立解码中心 RGB 为 `[0, 0, 254]`。证据见[独立服务收据](../qa/evidence/local-service-2026-09-29.json)，复跑入口 `scripts/verify-service.py --binary target/release/opencut`。
-
-服务已留在本机 `127.0.0.1:8788`，数据库为 `~/.opencut/workspace.sqlite`；运行状态是本次验收时刻的事实，后续应重新执行 `server status`。未安装开机启动、崩溃自动拉起或日志轮转，Windows/Linux 独立进程行为和正式打包发行未验。这一条是先前独立服务阶段的收据，后续 Web 结果见上节；客户端顺序及后续性能验收见[客户端顺序分析](service-and-client-priority.md)。
-
-## 2026-09-27 联动剪辑与外部 Agent 接入增量
-
-应用层新增 `timeline_edit`，七种高层命令统一生成现有原子编辑事务：ripple 删除、插入空隙、slip、roll、slide、显式选择整体移动、轨道排序。CLI、HTTP、MCP、SDK 通过公共 registry 共用该实现。固定修订、权限、幂等性、锁轨、源范围和冲突校验继续生效；计划可审阅，最多 128 个底层操作。片段拆分保留已有曲线、效果和蒙版，转场失去邻接时明确报告删除，不静默丢弃。
-
-本机 owner 的 stdio MCP 可托管 Worker，复用原调度与执行端口；断线停止宿主，未完成任务仍走持久恢复。受限凭证禁止启动 Worker。开发包增加 Codex/Claude Code 配置生成器，输出绝对路径和文件凭证引用，不改用户配置；doctor 增加基础滤镜/编码器及真实编码探测。没有加入模型或内部 Agent。
-
-开发包 `opencut-0.1.0-dev-195e065f2ce1-x86_64-apple-darwin.tar.gz` 已在仓库外通过 41 项基础整包验收；同一程序补跑的 11 组官方 MCP SDK/WASM 路径全部通过。另有 9 组新增剪辑/生命周期验收、72 项受影响 Rust 测试、22 项 Python 检查和 19 项 TS SDK 测试通过。原有 131 个工具契约保持不变，22 个 Rust 模块无临时依赖例外。Codex 配置经实际 CLI 解析，Claude Code 经隔离配置连接成功；未把这些结果等同于模型自主完成剪片任务。
-
-三入口计划一致；合成片由 4 秒缩短至 3 秒，独立红/蓝/黑像素及 330/660 Hz PCM 检查验证剪辑后声画、蒙版与被删声音区间，撤销/重做恢复准确文档。EOF 与保持输入管道打开时的 SIGTERM 均能结束宿主，重启后处理持久排队任务。结果、被测归档/程序身份及完整复验命令见[验收收据](../qa/evidence/editorial-agent-delivery-2026-09-27.json)。此增量不关闭整个审计：持久同步组、Marker/BeatGrid、更多转场、Bezier/动画/跟踪蒙版、稳像、速度曲线、素材选片、专业色彩/音频、预览性能、字体及完整工程复现、跨平台签名发行仍未完成。
-
-## 2026-09-27 交付清理与重新验收
-
-删除已被回归覆盖的一次性审计脚本，合并重复宿主逻辑，把 Worker 测试移到独立测试模块，精简过时说明并修正验收脚本的旧配额、上传缓冲和崩溃回收假设。SDK 构建先清除旧输出，打包校验拒绝未声明内容；必要回归、历史夹具及恢复资料保留。
-
-本次 release 构建对应的本机开发包 `opencut-0.1.0-dev-94f1fa63b8a7-x86_64-apple-darwin.tar.gz` 在仓库外通过 **45 项完整包验收**；受影响 Rust 26 项、Python 22 项、TypeScript SDK 19 项测试通过，另有 6 项独立像素及 2 项 PCM 检查。22 个 Rust 模块的依赖检查无临时例外。包与程序哈希、缓存清理清单、失败用例修正及最终验收来源统一见[交付清理收据](../qa/evidence/delivery-cleanup-2026-09-27.json)。此记录只确认本轮清理和本机开发包，以下 P0/P1、跨平台、签名及升级交付缺口仍保留。
-
-## 2026-09-27 P0/P1 代码修复增补
-
-最新实现见 [P0/P1 修复与核验](../qa/p0-p1-repair-2026-09-27.md)：host-runtime、ToolExecution/WorkspacePort 和 Worker 执行/存储端口已抽出，D01/D02/D03 共 12 条临时依赖已移除；补齐现有声画/字幕/关键帧编译覆盖、发布前工程任务执行收据，并贯通 16 GiB 单素材上限；Web 控制请求共用 SDK，TS 导入边界检查已接入 CI。下节及旧审计中的 12 条待迁移边和 1 GiB 限制是历史状态。**严格包复现、正式选片/打点/稳像/跟踪、专业声画和预览性能等 P0/P1 缺口仍未全部完成**，以新报告未完成清单为准。
-
-## 历史治理记录
-
-[架构治理](../qa/architecture-governance-2026-09-27.md)和[代码完成度核验](../qa/code-completion-audit-2026-09-27.md)记录修复前基线。其依赖数量、缺口和候选程序哈希按当时状态阅读，最新状态以上方修复记录为准。
-
-## 原 R0–R7 验收记录
-
-| 需求 | 当前非 UI 状态 | 剩余边界 |
+|功能范围|已实现与独立验证|尚未证明|
 |---|---|---|
-| R0 真实动线、性能基线 | 已有本机导入／编辑／渲染／存储故障证据 | 指定硬件的完整长素材、VFR／混合采样率、冷／热 p50/p95、真实访谈人工质量评审仍未完整冻结／放行 |
-| R1 核心可靠性 | 固定修订、精确时间、原子编辑、持久任务及发布窗口恢复有真实动线；QA-05/06 的媒体识别、截断拒绝、sidecar 检查修复及产物完整性通过公共 HTTP／CLI 验收（[媒体动线](../qa/evidence/r1-media-integrity-2026-09-25.json)、[媒体维护](../qa/evidence/r1-media-maintenance-2026-09-25.json)）；所有上传探测白名单容器族在本机 release CLI 的 25 项 MP4/未知 brand/MOV/3GP/3G2、Matroska/WebM、音视频和图像变体中通过错误扩展名判型、MIME 和字节回读（[格式矩阵](../qa/evidence/r1-media-format-matrix-2026-09-25.json)）；公共 render Job 的 44.1→48 kHz 常速、4/5 变速和变速后拆分脉冲均精确落点（[音频同步收据](../qa/evidence/r1-audio-sample-sync-2026-09-25.json)）；24 次、6 路并发的完整小型合成媒体旅程通过，描述性 p50/p95 见[并发成本收据](../qa/evidence/r1-concurrent-journey-cost-2026-09-25.json) | QA-01–03 的真实浏览器状态／回包门槛按用户要求暂缓；QA-05 尚缺其他 FFmpeg 版本／平台和更广编码参数矩阵；QA-06 已有单机 963,923,861 字节上传→30 秒 1080p render→94,498,818 字节下载样本（10.87 秒上传、49.07 秒渲染、0.87 秒下载，详见[大产物成本收据](../qa/evidence/r1-large-artifact-cost-2026-09-25.json)）；并发样本只覆盖单一小素材配置和隔离工作区，不是共享数据库、多尺寸或单 API 性能门槛；跨平台临时文件语义仍待验；Composition v1 未表达保音高 |
-| R2 分层与统一契约 | contracts／core／composition／application／native／SQLite 边界检查通过；旧 22 个工具契约仍兼容；重建的 schema v1–v23 历史夹具在 46 个 legacy/v2 矩阵单元中全部迁移通过 | 全工作区写入准入、多宿主、非 Unix 与新发行矩阵未整体放行；历史覆盖是重建格式，不等于旧发行二进制的升级保证 |
-| R3 撤销／分支／接管 | schema2/3 的选择性撤销、重做、分支 create/edit/compare/merge、双父 DAG 及 owner 接管均有公共 CLI 收据；schema2 历史编辑在 promotion 后仍可于 schema3 中撤销／重做，并保留后续独立视觉编辑 | promotion 是格式迁移而非用户内容编辑，仍不提供“撤销 promotion”；协作 UI 暂缓 |
-| R4 连续预览 | HTTP 固定修订单 FFmpeg fMP4 流、lease/generation、播放暂停 seek、独立 presentation、交接、重启终结和客户端断开取消（PREVIEW_DISCONNECTED）动线已验；当前候选 60 秒和 300 秒合成 A/V 流分别完整解码为 60.02 秒和 300.02 秒 | 这些样本验证媒体时长与进程路径，不是实时持续播放或 p50/p95 基线；超过 300 秒素材性能、完整故障矩阵、浏览器实际呈现／出声未放行；浏览器 UI 暂缓，不能宣称低延迟或已观看 |
-| R5 素材分析 | 真实 Whisper 转写、三种 FFmpeg 分析、来源查询分页与取消重放动线已验；固定英语 Apollo 13 正例经 release CLI/Worker 检出 4 个说话人边界，且 EOF 之外标记被过滤（[正例收据](../qa/evidence/r5-speaker-turns-positive-boundaries-2026-09-25.json)） | 英语词级时间与固定模型 SHA 已验；统一 evidence query 已对转写、静音、镜头、波形、说话人边界做真实来源投影；此处对照的是 whisper.cpp 上游示例时间而非独立人工标注，TinyDiarize 本身为实验特性；多说话人精确率／召回率、重叠语音、多语言质量与真实访谈闭环未完成 |
-| R6-A 编辑语义 | 当前编辑操作、字幕人工修正与 SRT／ASS 交换后渲染已验；schema3 cubic Bezier v1 关键帧曲线已贯通计划／应用、校验、选择性撤销、剪辑拆分、持久化、composition、固定修订帧与完整导出；debug 与打包 release CLI 得到相同真实像素及工件哈希 | Classic v31 非空工程转换、明确损失接受与独立渲染已验；schema3 的图形、调色、硬蒙版/羽化模糊、交叉淡化及曲线在真实 FFmpeg 帧／片段路径通过像素验收；ASS 子集会拒绝无法表达的样式；本轮曲线端到端样本为 opacity 标量通道 |
-| R6-B 插件 | 受限 WASM planner 与 Plugin V2 声明式模板／字幕样式的安装、授权、计划、应用、真实渲染和篡改／撤销拒绝已验 | 声明式模板／样式包在 schema3 工程中完成授权、计划、应用、真实渲染、篡改和撤销拒绝验收；效果／转场仍由内核图节点表达；分析器、生成器、provider、导入导出插件等类别与完整兼容治理未完成 |
-| R6-C 工程包 | schema2–4 旧包与 schema5（schema3 工程文档）linked／self-contained 固定修订包均可导入。schema5 锁定 FFmpeg／ffprobe 版本与二进制 SHA，携带精确 planner-v1 WASM 和 preset-v2 包字节、项目授权快照及 V1 全局权限提案；包校验受 128 项／256 MiB 上限约束。release CLI 16 项动线验过，含导入后替换成结构有效的新包仍因 expected_package_sha256 不匹配而拒绝安装；导入零安装／授权副作用，恢复计划使用新增 pinned-install 工具且保持旧 22 个工具 schema 不变，安装动作先于授权动作，Owner 显式执行并可幂等重放；插件字节与权限提案篡改拒绝、继续编辑及像素渲染均通过（[schema5 契约](project-package-schema5-contract.md)、[验收摘要](../qa/evidence/r6-v5-plugin-bundles-2026-09-25.json)、[原始动线报告](../qa/evidence/r6-v5-plugin-bundles-run-2026-09-25.json)）。目标机缺失字体族仍会报告；schema2–4 兼容与旧回执重放继续保留 | 字体文件／版本仍外置；安装与多条授权调用是分步原子操作，不是整体事务；恢复动作路径依赖导入包目录继续存在；完整历史可复现归档与跨平台工具指纹验收仍未完成 |
-| R7 发行与平台 | 当前源码 development 包 `opencut-0.1.0-dev-30c3db6b4ed7-x86_64-apple-darwin.tar.gz` 已在仓库外完整通过 40 项验收；归档 SHA `3ebe6f8ff8a09e18cbd44a63834d9d2bd93c70d69957dacaea835e7a05d83f7f`，CLI SHA `0737e8122508ce58c18caa10b2f77ab9f3ccaa03e8d5faa47e07c4c20c97409a`，包含 SHA 固定的 schema5 插件恢复动作契约（[验收摘要](../qa/evidence/r7-local-package-x86_64-apple-darwin-2026-09-25.json)、[包外原始报告](../qa/evidence/r7-local-package-run-x86_64-apple-darwin-2026-09-25.json)） | 包 manifest 标记为 development；其他平台矩阵、签名／升级交付链和正式发行验收仍缺；Web/Desktop 页面开发暂缓 |
+|旧产品与恢复|工程库/场景/素材、上传/断点续传、字幕交换、基本动画/视口、独立Server HTTP/MCP/Worker；F06旧库只读发现、损失确认、跨源桥及恢复后编辑有历史产品验收|生产旧源CSP、全部浏览器/非空历史矩阵；旧包/PID不证明当前就绪|
+|F57反馈|编辑器入口、5000字校验、草稿/回执/最近20条、失败重试/删除、真实浏览器无反馈网络请求|范围采用mock，不发送真实邮箱|
+|V4权威与历史|完整typed快照、固定授权资源、原样原子事务/幂等、重开、选择性Undo/Redo；DB26→27、27→28及28→29保持原历史/回执与V1恢复原json/digest，碰撞回滚；稳定ID与单位/通道绑定/精确时间/速率保持原子语义|完整Classic转换、branch/merge、历史包6与用户库升级；旧不兼容接口明确拒绝V4|
+|纯IR及Legacy帧|全局/显式Legacy设置、原始时间值Bezier/旧native曲线profile、过冲物理参数、音频参与排除；六项实际Legacy像素覆盖媒体/形状/效果/蒙版/交叉淡化|纯模型/IR不证明所有后端能力；源request span不是解码窗口，实际PTS保留|
+|F08全局FPS与VFR导入|锁定Mediabunny直接computePacketStats(100)，保留旧header；raw先比较后标准化、unknown抑制header回退及实际放置告警；fixed-revision/版本授权观察、旧V3兼容。真实180帧77KB VFR：header675/26、前100包约60→全局60；两非空场景完整内容/源1/7/关键帧/书签不变，一次原事务、apply/refresh/Undo播放头1001/2000保持，Undo及reload恢复内容/settings，0pageerror|F08部分迁移；真实unknown视频、当前V4 VFR视频导出及更广格式/长素材未验；reload播放头按产品归零；Node heap/cache非hard RSS配额|
+|F10书签及Classic静帧|同V4工作区时间线标记/inclusive备注/选择性历史；1/3与2/3时间保持；Video/静态PNG/JPEG normal持久PNG、contain/翻转/旋转/层序/透明度/纯色背景有独立像素，HUD排除PNG|F10部分迁移；连续画面/声画同步、完整视觉类型和备注排除视频导出|
+|媒体工作区与时间线|真实media ID/version贯穿上传、恢复、源试看、绑定/替换/放置；Video/Audio/Image多选Move、双边Trim/Split/Delete逐轨ripple、状态/空轨、原样Review/重开/UndoRedo；1.5x非零源跨度有独立预期|动画/非媒体完整矩阵、全元素命中；只新绑定比较导入FPS，不把重复插入当重新导入|
+|手势、剪贴板和恢复|实际跨轨Move/Trim、S/Q/W、缩放滚动命中、框选Escape；同工程历史跨场景Copy/Paste/Duplicate及原生C/V；历史timeline-only整页reload原receipt/原key证据保留，迟到API/read不能降级Saved或复活pointer|完整选择URL、真实files/系统IME/跨应用及跨工程未交付；通用V2当前范围单列，不以旧timeline证据代替|
+|通用未知写恢复V2|typed PublicApply/Undo/Redo/Restore，新stage/inspect/ack三操作；DB29兼容原V1，混合单条2MiB/32条/64MiB及原凭据scope互斥；当前原动作权限/write-control、只读原family/key/full-intent与完整事务/因果回执、Immediate精确重复与原子ack；Web共同协调器仅存sessionStorage非敏感指针，整页原意图/原key恢复不replan；最终四family×两路径8案例及aggregate全部通过，0 pageexception；Restore实际替换默认场景、删除main后恢复历史main与独立书签，原意图/key、一次提交、无replan均断言|限定四类fixed-head写已交付；创建/复制、Job/upload、跨工程不混入此恢复证明。旧Web尾项分段证据不能当最终网页全套通过|
+|F42完整/范围WAV|分离保留trim/rate/gain/通道并关闭视频音频，恢复保留独立音频；持久任务原caller权限/CAS/预算/取消/租约发布与下载贯通；真实1.5x/−6dB输出64000帧/512058字节、独立660Hz；范围6000/24000输出192058字节|F42部分迁移；范围为整场母带后裁切，不是实时seek。全量codec/edit/音高矩阵和视频导出仍待|
+|独立PCM与decoder|Float脉冲trim/placement/EOF及0/−60/+20dB、mute；−60是非零；PCM PTS间隙在export拼接；first mono/default stereo实际primary；aligned AAC25包/ELST1024/末包448→24576帧，峰4096/16384及trim后3089/15377|AAC仅单个aligned LC夹具；非整包edit、任意codec、显式stream/复杂ISO明确未验或拒绝，不静默当primary|
+|Classic DSP及实时声音|锁定SoundTouch0.3.0：441Hz两倍线性→882Hz/保音高→441Hz；真实WebAudio整场peak2后母带再裁切；ordinary保留PTS/EOF gap，prepared拼接/60Hz amplitude ramp；实际PCM659.95/440.07Hz、固定seek/目标临时gain、Worklet消费4096、暂停8896/48000、同session新gen继续|独立pre-master/whole-master/range证据分开；完整realtime PTS/AAC/post-master声学和物理设备未验；普通>2声道/显式stream/不支持edit拒绝|
+|F44音量线|−60…20dB/0.1dB、14px命中、草稿/Escape不写、松手一次原事务、键盘/独立mute；动画不被静态覆盖、Legacy linear不偷换；实际两声部只变目标gain，误差6.47e−9；新head停止旧session|F44部分迁移；缩放/所有元素完整命中矩阵，Track无音量线；Video入口为明确扩展|
+|真实权限/取消退出|四项分阶段真实生命周期/六源realm覆盖凭据idle/8192背压、Read-only撤RunJobs/空grants撤工程、自然30s lease及Stop；Node/Chrome身份树退出、CAS独占gate恢复；启动期延迟started取消实际无孤儿|完整HTTP断开/多宿主故障与全部codec矩阵；macOS为monitored-terminate，非hard内存/VRAM配额|
+|密集工程|100片段/5轨/300秒同4秒CAS，private PackedV2保事实、单次decode、20独立Float seek；最终实际AAC打开846ms、冷声音3181ms、seek145–211ms、输入p95 32.6/max33.3ms、heap增量30021656B/retained增长231132B；10s消费477824帧、stall0%、deficit0.149%通过冻结1%门槛，场景URL刷新成立|仅指定合成fixture/宿主；不是长文件/VFR/物理声音或无限时长漏内存证明。4条seek中断控制台信息未精确关联，不能称0网络噪声|
+|F17源层/Classic显示|历史独立JPEG/四声道PCM/PTS/无帧/300秒源证据单列；当前host纯10+实际1证明100请求复用、pinned容量/淘汰/停机/原凭据。最终CLI/Web10组通过固定head刷新、rapid部分裁切、PNG/JPEG/短CFR末帧/12秒PCM；隔离生产浏览器cache实际峰32830700B/256项，302个URL全部释放、最终0B；主UI性能另计|F17部分迁移；其他支持图片/源格式及完整长素材组合未验，隔离cache不冒充主UI/native实际占用；旧首次thumbnail不可用原因未确认|
 
-此前完整本机集成验收候选为 SQLite schema23、127 个叶工具，binary SHA-256 `7a404e8984318356e18e3cf71e5aa7d8ad86cfaad1afc0fde9af6cc7136ab59f`。同一二进制通过旧 22 个工具兼容、contracts/core/application/composition 边界检查、TypeScript SDK 13 项测试、契约生成检查和 schema3 作业／预览／工程包公共动线。源码级 `cargo test --workspace --exclude opencut-desktop --offline` 全量回归通过；受影响 media 与 project-render 的 Clippy `-D warnings`、`cargo fmt --all -- --check` 也通过。完整 workspace 命令会尝试编译 GPUI Desktop，在此机器因 Apple `metal` utility 缺失而停在 shader 构建；页面和 Desktop 当前按用户范围暂缓。该候选仍未封装正式发行包或通过跨平台与升级恢复验收。
+## 候选与检查如何引用
 
-本轮 R4 60／300 秒 HTTP 预览与断连清理收据使用当前 Rust 源码构建的 debug CLI SHA-256 `893c57d289da5afd86da7a1957d253abe0fc4075d2735b79ede08835a5ff472e`。它通过对应 R4 全动线和流媒体哈希／时长复核；这不替代上一段完整集成候选的全 workspace 回归，也不构成实时播放性能基线。
+摘要以13条功能证据保留各自CLI、Web入口、native测试/执行身份及独立预期；旧候选明确historical。不同候选、staged库检查、浏览器前缀/专项不能合为同一最终候选全过。单后端输出相等、注册工具或构建成功不能替代独立像素/PCM及权限生命周期。
 
-上一候选包 `opencut-0.1.0-dev-3ffa8f86d659-x86_64-apple-darwin.tar.gz` 的 archive SHA-256 为 `efcaab0a7c1aa9f26faed6508ede6fcf15e4f045e40e204bec10e00ed81312ae`，CLI SHA-256 为 `bfb1ebb7fec36b04f52565fd8b4bf559c21c5c462f5db9df7a057e6f4ab36c90`；它已被本轮当前源码包取代。
+|最近已验范围|结果与边界|
+|---|---|
+|历史手势/剪贴板/timeline恢复|Rust373/Web82/SDK30分阶段；真实22组为前缀14、恢复/手势5、剪贴板3，各自CLI身份保留；不是最终CLI连续22组全跑。历史187工具，旧181及inspect前186不变，不作为本批工具数|
+|密集声音|受影响host7并发/native20/Web19、真实四生命周期及最终release性能通过；上述Float原生与AAC浏览器是不同候选/夹具|
+|F17缓存维护最终候选|host纯10及单项真实Chromium1、Web19、类型/生产构建/Web边界181、架构14/22模块/0例外/契约边界、22旧wire通过；190工具无声明变更；同最终release/Web实际10组通过。早期native/应用/Clippy/SDK结果单列为历史证据|
+|F17实际浏览器独立范围|原WAV字节峰/高度/burn/Canvas像素及−12dB原事务回归；密集首中末/20zoom+4次rapid半clip，DOM打开837.3ms、首次video/audio艺术3156.5/3286.7ms、输入p95 26.1/max26.9ms、heap增量15716540B；0pageerror/0未分类失败。38主动waiter abort和6笔同request fulfilled204单列。isolated cache峰32830700B、256项、淘汰重建后0B，不将heap当cache占用|
+|通用恢复V2本批分阶段|App5/SQLite197/API1、Rust SDK3/TS SDK38/Web96（含新增Restore定位回归）；架构14/22模块/0例外、Web边界15/176、SDK边界179、旧wire22项、193工具且旧190声明不变、生成检查通过。最终CLI/Web8恢复案例及aggregate全部通过，0 pageexception；此前同CLI旧Web分段10前缀+9尾项通过，含双声部gain手势、media恢复/替换、timeline两组、gesture/rubberband及clipboard三组，0 pageerror/failed request，不能合为最终网页一次全套。已增加CDP完成状态与应用实际消费text观测，本轮body-unavailable completed为0；旧失败原完成状态未采集，不能据后续通过宣称根因已修|
+|F08当前候选|App25/SQLite6/DTO2/host4、打包5/doctor6、架构14/22模块/0例外及契约边界通过；旧wire22、193工具及生成产物保持。一CLI构建复用Web，真实V4场景通过；最小runtime6文件/1066929字节复制验证并已清理，不冒充完整包安装通过|
+|历史不可替代证据|旧F06产品77+恢复9及独立红像素/800Hz PCM、原生462排除Desktop；Legacy六像素；原生未母带八PCM；早期共享DSP整场母带；P0路径别名修复与CFR导出独立帧。各自限原候选，不推为当前全仓/整包通过|
 
-前一源码候选 `opencut-0.1.0-dev-c6e0ea2b0f5e-x86_64-apple-darwin.tar.gz`（archive SHA-256 `bb33e064bec277cb330d766a9b42000aaa74e3289c353b737b0e3b81b7fbafa4`，CLI SHA-256 `e1476a950c70fe6fc477456f5164a8f146cb84b6e1a89a77b006d668b52c5d7c`）已在仓库外解包通过 40 项验收。随后代码复审将 HTTP chunk 缓冲改为按需分配和批次复用，当前源码包 `opencut-0.1.0-dev-545a0ee9980b-x86_64-apple-darwin.tar.gz` 的 archive SHA-256 为 `3d9f8aac74a8c009c178a667f8ae452f92b270315f145af70e4bc6fb30b778ec`，CLI SHA-256 为 `dbd042e79d4c1f6ae3e2389b092671b6a3ec9f9add205dc9debc93b5fa1b8d1b`；仓库外 40 项验收全部通过，报告 SHA-256 为 `dce1eb0f86c52a71bac4cedc2e1a3d083222637e8e8f4be7b157993c86da69f4`。所有本机包的清单与验收范围标记为 `development`，不代替其他平台、签名／升级或正式发行验收。
+## 待完成与卡点
 
-随后 R5 复核发现 TinyDiarize 将最后一段的终端标记错误发布为媒体内边界，已修复并新增正例基准。当前源码包 `opencut-0.1.0-dev-6eecf43c516c-x86_64-apple-darwin.tar.gz` 的 archive SHA-256 为 `c73246f411f17b8619cc12502b26d2d636649a3a7edd201e62c4c3c44fb8ad78`，CLI SHA-256 为 `978d9657b32db170fb9f047e24aa7ea3cd8c5a13637f13601ed1e3809c0f3429`；仓库外 40 项验收全部通过，报告 SHA-256 为 `45f706c397074a5b14cb9cccc1b9a58d1fe452a673ee1cdc89afe6ae01ff9ce6`。全部本机验收仍限定于 development 包。
+|范围|必要剩余工作|
+|---|---|
+|S1基础|F08真实unknown视频、当前V4 VFR视频导出及更广格式矩阵；连续画面/声画同步；完整元素/动画/锁轨/ripple命中矩阵；F17完整源/格式与长素材矩阵及真实系统files/IME交互|
+|S2文字字幕|合法字体bytes/license/固定face与glyph、独立文字全字段/布局/画布编辑、字幕语言/时间/内容等价；实施前置与分工见计划3.3|
+|S3图形合成|图形/描边/动画、17混合、复杂路径蒙版/手柄/多蒙版动画、效果栈/轨道及背景|
+|S4动画交互|过冲/Pop/预设、关键帧多选复制、速度/音高、全元素/轨道与实际内容拖动预览|
+|S5/S6导出与收口|WebM/质量/音轨开关、完整取消发布窗口、线上资源许可、完整快捷键、真实公共数据/元数据、13页及X01–X03、冻结全量本机交付|
 
-全仓回归发现并修复了一个真实音频渲染停滞：多轨混音在 `atrim` 前使用无界 `apad`，本机 FFmpeg 8.1.2 的简单一秒渲染无法输出首个媒体包；改成按目标绝对结束时间做有限补齐后，同一动线 1.25 秒通过，真实项目渲染测试 7/7 通过。详见 [媒体与全 workspace 回归](../qa/evidence/r0-r7-backend-regression-audiofix-2026-09-25.json)。
+P0产物缺陷已修复：canonical `/private/var`发布与`/var`清理根别名导致误删，现规范化可信根，保留原租约/inode/下载保护；34受影响原生及原导出下载/独立帧通过。原故障丢失文件没有恢复。单场景CFR精确播放头、非零source/timeline origin、变化opacity已验；F08保持部分迁移。
 
-预算 VFS 已将逐页同步改为有界提前预留，并在同步边界释放余量；额度拒绝／回滚／恢复测试通过。110 万字节 track name 在该 debug 构建的一次真实 CLI 样本中耗时 3.50 秒，原受影响 MCP 全动线已通过。此样本不是长媒体 p95 指标。
+容量阻塞已解除，账户/资源/反馈决策已确定，持久WAV发布/单帧normal/受限声音前置已验；F17当前缓存维护批已验且旧首次thumbnail原因仍未确认；通用V2四类fixed-head恢复已交付，F08当前V4跨场景与限定VFR导入已验；后续按计划3.4补真实unknown/VFR视频导出、更广格式、真实系统交互与连续声画。S1及36项仍未全量交付。F18已核Kenney官方CC0，受限Freesound401仅是可选来源；目录/试听/获取/生成/放置尚未交付。F24 Classic Logos禁用且provider为空，不能伪造品牌来源；形状/国旗可独立推进。Google字体可访问不等于合法固定字体链交付。
 
-当前真实动线收据：
+更广R0–R7保留：指定硬件/长素材混格式、全工作区与多宿主故障、严格字体/插件/引擎恢复及全局事务、专业选片/打点/稳像/跟踪、完整色彩/音频/provider、跨平台安装/签名/升级。目标见[完整产品设计](agent-friendly-editor-v1.md)，当前迁移不关闭这些工作。
 
-- [R3 协作与持久接管](../qa/evidence/r3-collaboration-2026-09-24.json)
-- [英语词级时间与模型来源](../qa/evidence/r5-word-timestamps-2026-09-24.json)
-- [预览崩溃恢复与多宿主保护](../qa/evidence/r4-preview-crash-recovery-2026-09-24.json)
-- [Classic 工程迁移](../qa/evidence/r6-classic-import-2026-09-24.json)
-- [Plugin V2](../qa/evidence/r6-plugin-v2-2026-09-24.json)
-- [预算写入性能样本](../qa/evidence/r2-control-admission-performance-2026-09-24.json)
-- [连续预览](../qa/evidence/r4-continuous-preview-2026-09-24.json)
-- [静音、镜头、波形](../qa/evidence/r5-analysis-jobs-2026-09-24.json)
-- [跨分析 evidence 分页及身份游标](../qa/evidence/r5-analysis-evidence-2026-09-25.json)
-- [真实中文转写与统一 evidence query](../qa/evidence/r5-transcription-evidence-2026-09-25.json)
-- [说话人边界与统一 evidence query](../qa/evidence/r5-speaker-turns-evidence-2026-09-25.json)
-- [转写证据分页与搜索](../qa/evidence/r5-analysis-query-2026-09-24.json)
-- [独立工作区工程包](../qa/evidence/r6-project-package-2026-09-24.json)
-- [字幕交换并解码验证](../qa/evidence/r6-subtitle-exchange-2026-09-24.json)
-- [Schema 3 协作与撤销](../qa/evidence/r3-v3-collaboration-2026-09-25.json)
-- [跨 schema promotion 的历史编辑撤销与重做](../qa/evidence/r3-history-after-schema3-promotion-2026-09-25.json)
-- [Schema 3 固定修订任务](../qa/evidence/r6-v3-jobs-2026-09-25.json)
-- [Schema 3 连续预览与帧导出一致性](../qa/evidence/r4-v3-preview-2026-09-25.json)
-- [Schema 3 插件模板](../qa/evidence/r6-plugin-v3-2026-09-25.json)
-- [Schema 3 工程包恢复、编辑与渲染](../qa/evidence/r6-v3-package-2026-09-25.json)
-- [修复后 schema3 固定修订作业与真实渲染](../qa/evidence/r6-v3-jobs-audiofix-2026-09-25.json)
-- [修复后 schema3 连续预览像素对比](../qa/evidence/r4-v3-preview-audiofix-2026-09-25.json)
-- [修复后当前候选 schema2 连续预览与进程清理](../qa/evidence/r4-continuous-preview-audiofix-2026-09-25.json)
-- [60 秒合成音视频连续预览时长与传输验收](../qa/evidence/r4-preview-60s-audiofix-2026-09-25.json)
-- [300 秒合成音视频连续预览时长与传输验收](../qa/evidence/r4-preview-300s-2026-09-25.json)
-- [修复后 schema3 工程包导入与渲染](../qa/evidence/r6-v3-package-audiofix-2026-09-25.json)
-- [Schema3 Bezier 关键帧曲线端到端计划、持久化、帧与导出](../qa/evidence/r6-keyframe-curves-2026-09-25.json)
-- [打包 release CLI 的 Bezier 关键帧曲线端到端验收](../qa/evidence/r6-keyframe-curves-release-x86_64-2026-09-25.json)
-- [SQLite schema v1–v23 历史迁移矩阵与回滚验收](../qa/evidence/r2-history-v1-v23-2026-09-25.json)
-- [R1 媒体识别、截断输入与产物完整性 HTTP 验收](../qa/evidence/r1-media-integrity-2026-09-25.json)
-- [R1 媒体元数据 sidecar 并发修复与发布 journal 验收](../qa/evidence/r1-media-maintenance-2026-09-25.json)
-- [R1 全部上传探测容器族 25 项媒体格式矩阵](../qa/evidence/r1-media-format-matrix-2026-09-25.json)
-- [R1 大产物上传、渲染、下载单机成本样本](../qa/evidence/r1-large-artifact-cost-2026-09-25.json)
-- [当前源码 macOS x86_64 本机开发包 40 项包外验收](../qa/evidence/r7-local-package-x86_64-apple-darwin-2026-09-25.json)
-- [Schema 3 FFmpeg／ffprobe 精确工具锁、迁移兼容与真实渲染验收](../qa/evidence/r6-v3-tool-locks-2026-09-25.json)
-- [Schema 3 目标机字体缺失诊断与渲染预检拒绝验收](../qa/evidence/r6-v3-font-availability-2026-09-25.json)
-- [Schema 4 插件授权快照、显式恢复计划与拒绝路径验收](../qa/evidence/r6-v4-plugin-grant-restore-2026-09-25.json)
+## 维护与资源治理
 
-执行原则：先关闭真实功能和执行路径缺口，再冻结二进制、生成契约并做整包发行验收；已验证的专项收据均记录二进制 SHA 与原始报告。早期页面暂缓已由本轮 Web 迁移取代；Desktop 继续独立排期，不降低内核、协议、执行、恢复与 SDK 的要求。
+仅维护计划、台账和必要验收摘要，不积累逐轮hash清单/失败尝试/过程报告。此前契约治理压缩文档、按完整引用闭包去重OpenAPI并限制验收数据/复用构建；OpenAPI本次从3495769降至1713729字节，387组件语义与209路径保持，工具/SDK/event/Web四项产物字节不变。8项生成器测试、生成检查、22项旧协议检查及4项打包单测通过；合并重复Moon契约任务、补齐SDK测试缓存输入、复用打包工具清单。未重编Rust或运行真实媒体，该治理批不新增产品通过声明；本次F17维护独立按上表留证；57项状态、36项未完成集合、用户排除及独立像素/PCM/取消权限证据保持。
+
+已识别的合成现场/数据库/媒体/log/临时报告、过期测试/CLI与无用增量构建在确认所属服务停止、进程退出和无打开文件后清理；当前必要产物/回归、Classic参考和用户媒体保留。后续用可复用脚本与小型TempDir合成夹具验证，实际结果绑定冻结候选，现场提取后删除。

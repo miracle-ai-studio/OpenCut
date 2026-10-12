@@ -1,3 +1,7 @@
+import { verifyMediaFps } from "./verify-media-fps.mjs";
+import { verifyFeedback } from "./verify-feedback.mjs";
+import { verifyProjectCovers } from "./verify-project-covers.mjs";
+import { verifyTimelineSelection } from "./verify-timeline-selection.mjs";
 import { verifyViewport } from "./verify-viewport.mjs";
 import { verifyGuide, verifyPanelLayouts } from "./verify-presentation.mjs";
 import { verifySite } from "./verify-site.mjs";
@@ -9,10 +13,10 @@ import { chromium, expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-const root = path.resolve(import.meta.dirname, "../../..");
-const directory =
-  process.env.OPENCUT_WEB_WORKSPACE ?? path.join(root, "tmp/web-acceptance");
-const endpoint = process.env.OPENCUT_WEB_URL ?? "http://127.0.0.1:8792";
+const directory = process.env.OPENCUT_WEB_WORKSPACE;
+const endpoint = process.env.OPENCUT_WEB_URL;
+if (!directory || !endpoint)
+  throw new Error("Run scripts/verify-web.py with an isolated workspace.");
 const executablePath = process.env.OPENCUT_CHROME;
 const browser = await chromium.launch({ headless: true, executablePath });
 const page = await browser.newPage({
@@ -23,10 +27,45 @@ page.setDefaultTimeout(120000);
 const projectName = `Browser acceptance ${Date.now()}`;
 const errors = [],
   requests = [];
+const responseChecks = [],
+  transientProjectBusyResponses = [],
+  deletionReceipts = [];
 page.on("pageerror", (error) => errors.push(error.message));
 page.on("response", (response) => {
-  if (response.status() >= 400)
-    requests.push({ url: response.url(), status: response.status() });
+  const entry = { url: response.url(), status: response.status() };
+  const deletion =
+    new URL(response.url()).pathname === "/v1/tools/opencut_project_delete";
+  if (!deletion) {
+    if (entry.status >= 400) requests.push(entry);
+    return;
+  }
+  responseChecks.push(
+    (async () => {
+      try {
+        const reply = await response.json(),
+          input = response.request().postDataJSON();
+        if (entry.status >= 400 && reply.error?.code === "PROJECT_BUSY") {
+          transientProjectBusyResponses.push({
+            ...entry,
+            code: reply.error.code,
+            request_id: reply.request_id,
+            input,
+          });
+        } else if (entry.status >= 400) {
+          requests.push({ ...entry, code: reply.error?.code });
+        } else if (reply.error === null && reply.data?.receipt) {
+          deletionReceipts.push({ input, receipt: reply.data.receipt });
+        } else {
+          requests.push({
+            ...entry,
+            error: "Invalid deletion acknowledgement",
+          });
+        }
+      } catch (error) {
+        requests.push({ ...entry, error: String(error) });
+      }
+    })(),
+  );
 });
 const report = {
   browser: await browser.version(),
@@ -34,6 +73,8 @@ const report = {
   checks: [],
   consoleErrors: errors,
   failedRequests: requests,
+  transientProjectBusyResponses,
+  deletionReceipts,
 };
 const check = (name) => {
   report.checks.push(name);
@@ -426,6 +467,18 @@ try {
   await verifyPanelLayouts(page, inspect, directory, check);
   await verifyLibrary(page, inspect, directory, check);
   await verifySite(browser, endpoint, directory, check);
+  await verifyTimelineSelection(browser, endpoint, directory, check);
+  await verifyMediaFps(browser, endpoint, directory, check);
+  await verifyProjectCovers(browser, endpoint, directory, check);
+  await verifyFeedback(browser, endpoint, directory, check);
+  await Promise.all(responseChecks);
+  for (const rejected of transientProjectBusyResponses) {
+    expect(
+      deletionReceipts.some(
+        (ack) => JSON.stringify(ack.input) === JSON.stringify(rejected.input),
+      ),
+    ).toBe(true);
+  }
   if (errors.length || requests.length)
     throw new Error(JSON.stringify({ errors, requests }));
   report.status = "passed";
@@ -439,6 +492,7 @@ try {
   console.error(error);
   process.exitCode = 1;
 } finally {
+  await Promise.all(responseChecks);
   await fs.writeFile(
     path.join(directory, "browser-report.json"),
     JSON.stringify(report, null, 2),

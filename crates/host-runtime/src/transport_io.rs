@@ -112,6 +112,28 @@ pub fn open_verified_media(
         )
     })
 }
+/// Native host opens bytes only after application resource authorization.
+pub fn open_verified_v4_resource(
+    database: &Path,
+    version: &opencut_contracts::AssetVersion,
+) -> Result<(std::fs::File, u64), EditorError> {
+    let root = database
+        .parent()
+        .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing workspace root"))?
+        .join("asset-store");
+    let store = opencut_asset_store::AssetStore::read_only(root).map_err(|_| {
+        EditorError::new(
+            "ARTIFACT_VERIFICATION_FAILED",
+            "Project resource is unavailable",
+        )
+    })?;
+    store.open_version_verified(version).map_err(|_| {
+        EditorError::new(
+            "ARTIFACT_VERIFICATION_FAILED",
+            "Project resource content is missing or corrupt",
+        )
+    })
+}
 pub fn release_upload_in_repair(
     database: &Path,
     context: ExecutionContext,
@@ -136,7 +158,10 @@ pub fn recover_previews(database: &Path) -> Result<(), EditorError> {
     opencut_native_services::preview::recover_workspace(database).map(|_| ())
 }
 pub fn shutdown_previews(database: &Path) -> Result<(), EditorError> {
-    opencut_native_services::preview::shutdown_workspace(database)
+    let audio = crate::audio_preview_v4::shutdown(database);
+    let art = crate::source_art_v1::shutdown(database);
+    let preview = opencut_native_services::preview::shutdown_workspace(database);
+    audio.and(art).and(preview)
 }
 pub struct PreviewStream(pub(crate) opencut_native_services::preview::Stream);
 pub enum StreamRead {

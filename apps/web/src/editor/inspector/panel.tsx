@@ -24,6 +24,7 @@ export function InspectorPanel() {
     historical,
     sequenceId,
     selection,
+    selections,
     playhead,
     busy,
   } = useWorkspace();
@@ -63,6 +64,18 @@ export function InspectorPanel() {
       </Panel>
     );
   const readonly = !!historical || busy;
+  if (selections.length > 1)
+    return (
+      <Panel title={t("Properties")}>
+        <Empty
+          title={t("{count} clips selected", { count: selections.length })}
+        >
+          {t(
+            "Move the selection in the timeline, or select one element to edit its properties.",
+          )}
+        </Empty>
+      </Panel>
+    );
   return (
     <Panel title={t("Properties")}>
       {selected && (

@@ -16,4 +16,4 @@ owner lease 为 30 秒，需显式 heartbeat；Session TTL 一小时。当前 ow
 
 公开 API 与 SDK 的控制面只含 DTO；Path、进程、临时文件与队列留在 native adapter。TS SDK 提供 `openPreviewStream` 返回流式 Response，调用者应取消旧 Response 后处理新 generation，定期 heartbeat，并仅从真实媒体时钟报告 presentation。CLI 可使用 `opencut --endpoint http://127.0.0.1:8788 --credential-file <host-token> call ...`；不会自动刷新 revision、重试控制写入或伪造呈现上报。
 
-[真实 HTTP/FFmpeg 动线收据](../qa/evidence/r4-continuous-preview-2026-09-24.json)证明一条 generation 流包含可解码音视频及控制隔离。它不证明浏览器播放、音频设备出声、长播放性能或所有硬件上的低延迟。
+[当前交付台账](headless-completion-ledger.md)证明一条 generation 流包含可解码音视频及控制隔离。它不证明浏览器播放、音频设备出声、长播放性能或所有硬件上的低延迟。

@@ -183,5 +183,10 @@ pub fn project_events(
             "event limit must be between 1 and 500",
         ));
     }
-    store.read_project_events(after, limit)
+    store.read_project_events(after, limit).map(|events| {
+        events
+            .into_iter()
+            .map(crate::events::public_project_event)
+            .collect()
+    })
 }

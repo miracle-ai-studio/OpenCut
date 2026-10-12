@@ -46,6 +46,8 @@ pub trait JobStoreFactory {
 /// success never publishes: the scheduler rechecks durable lease ownership.
 pub trait ExecutorPort {
     fn clean_abandoned_inputs(&self) -> Result<(), EditorError>;
+    /// Release resources held through publication, including failed fences.
+    fn publication_finished(&self) {}
     fn execute(
         &self,
         worker: &str,
@@ -106,6 +108,10 @@ pub fn publish_with_busy_retry(
             Ok(Publication::Published)
         })();
         match publication {
+            // The atomic publication check can lose a lease after the earlier
+            // observation (including expiration with the same owner/attempt).
+            // This is a normal fence outcome, not a broken storage host.
+            Err(error) if error.code == "JOB_LEASE_LOST" => return Ok(Publication::LostLease),
             Err(error) if error.code == "DATABASE_BUSY" && Instant::now() < deadline => {
                 std::thread::sleep(Duration::from_millis(100));
             }
@@ -157,7 +163,9 @@ pub fn run(
                     "DATABASE_CAPACITY_EXHAUSTED" | "STORAGE_CAPACITY_LOW"
                 )
             });
-            match publish_with_busy_retry(factory, &worker, &job, &result, &stop) {
+            let publication = publish_with_busy_retry(factory, &worker, &job, &result, &stop);
+            executor.publication_finished();
+            match publication {
                 Ok(Publication::Published | Publication::AlreadyTerminal) => (),
                 Ok(Publication::HostShutdown) => return Ok(()),
                 Ok(Publication::LostLease) => eprintln!(
@@ -259,8 +267,12 @@ mod port_tests {
     struct Executor {
         store: Memory,
         steal: bool,
+        released: AtomicBool,
     }
     impl ExecutorPort for Executor {
+        fn publication_finished(&self) {
+            self.released.store(true, Ordering::SeqCst);
+        }
         fn clean_abandoned_inputs(&self) -> Result<(), EditorError> {
             Ok(())
         }
@@ -270,6 +282,7 @@ mod port_tests {
             _: &JobRecord,
             _: Arc<AtomicBool>,
         ) -> Result<Value, EditorError> {
+            assert!(!self.released.load(Ordering::SeqCst));
             if self.steal {
                 let mut j = self.store.0.lock().unwrap();
                 j.attempt += 1;
@@ -300,8 +313,10 @@ mod port_tests {
             let executor = Executor {
                 store: store.clone(),
                 steal,
+                released: AtomicBool::new(false),
             };
             run(&store, &executor, true, Arc::new(AtomicBool::new(false))).unwrap();
+            assert!(executor.released.load(Ordering::SeqCst));
             let job = store.0.lock().unwrap();
             if steal {
                 assert_eq!(job.state, JobState::Running);
@@ -318,8 +333,114 @@ mod port_tests {
         let executor = Executor {
             store: store.clone(),
             steal: false,
+            released: AtomicBool::new(false),
         };
         run(&store, &executor, true, Arc::new(AtomicBool::new(true))).unwrap();
+        assert!(!executor.released.load(Ordering::SeqCst));
         assert_eq!(store.0.lock().unwrap().state, JobState::Queued);
+    }
+    #[derive(Clone)]
+    struct FencedStore {
+        inner: Memory,
+        code: &'static str,
+    }
+    impl JobStoreFactory for FencedStore {
+        fn open(&self) -> Result<Box<dyn JobStore>, EditorError> {
+            Ok(Box::new(self.clone()))
+        }
+    }
+    impl JobStore for FencedStore {
+        fn recover(&mut self) -> Result<usize, EditorError> {
+            self.inner.recover()
+        }
+        fn claim(&mut self, w: &str, l: i64) -> Result<Option<JobRecord>, EditorError> {
+            self.inner.claim(w, l)
+        }
+        fn get_job(&self, id: &str) -> Result<JobRecord, EditorError> {
+            self.inner.get_job(id)
+        }
+        fn complete(
+            &mut self,
+            _: &str,
+            _: &str,
+            _: u32,
+            _: Value,
+        ) -> Result<JobRecord, EditorError> {
+            Err(EditorError::new(self.code, "atomic publication rejected"))
+        }
+        fn fail(&mut self, _: &str, _: &str, _: u32, _: Value) -> Result<JobRecord, EditorError> {
+            Err(EditorError::new(self.code, "atomic publication rejected"))
+        }
+        fn finish_cancelled(&mut self, _: &str, _: &str, _: u32) -> Result<JobRecord, EditorError> {
+            Err(EditorError::new(self.code, "atomic publication rejected"))
+        }
+    }
+    #[test]
+    fn expiration_between_observation_and_publication_is_a_normal_fence_for_every_outcome() {
+        for outcome in [
+            Ok(json!({"answer":42})),
+            Err(EditorError::new("EXECUTION_FAILED", "failed")),
+        ] {
+            for cancelled in [false, true] {
+                let inner = memory();
+                let job = inner.clone().claim("worker", LEASE_MS).unwrap().unwrap();
+                inner.0.lock().unwrap().cancel_requested = cancelled;
+                let store = FencedStore {
+                    inner: inner.clone(),
+                    code: "JOB_LEASE_LOST",
+                };
+                assert!(matches!(
+                    publish_with_busy_retry(
+                        &store,
+                        "worker",
+                        &job,
+                        &outcome,
+                        &AtomicBool::new(false)
+                    )
+                    .unwrap(),
+                    Publication::LostLease
+                ));
+                let state = inner.0.lock().unwrap();
+                assert_eq!(state.state, JobState::Running);
+                assert!(state.result.is_none());
+            }
+        }
+        let inner = memory();
+        run(
+            &FencedStore {
+                inner: inner.clone(),
+                code: "JOB_LEASE_LOST",
+            },
+            &Executor {
+                store: inner.clone(),
+                steal: false,
+                released: AtomicBool::new(false),
+            },
+            true,
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+        assert!(inner.0.lock().unwrap().result.is_none());
+    }
+    #[test]
+    fn real_capacity_faults_are_not_suppressed_as_lease_loss() {
+        let inner = memory();
+        let store = FencedStore {
+            inner: inner.clone(),
+            code: "DATABASE_CAPACITY_EXHAUSTED",
+        };
+        let error = run(
+            &store,
+            &Executor {
+                store: inner.clone(),
+                steal: false,
+                released: AtomicBool::new(false),
+            },
+            true,
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "DATABASE_CAPACITY_EXHAUSTED");
+        assert!(inner.0.lock().unwrap().result.is_none());
     }
 }

@@ -206,111 +206,106 @@ fn compile_visual_clips(
     let mut image_clips = Vec::new();
     let mut audio_clips = Vec::new();
     let mut end = None;
-    for (track_index, track) in sequence
-        .tracks
-        .iter()
-        .enumerate()
-        .filter(|(_, track)| track.kind == TrackKind::Video && track.enabled)
-    {
-        validate_params(&track.params, &["volume", "opacity"], "video track")?;
-        let track_gain = if include_video_audio {
-            volume(&track.params)?
+    for (track_index, track) in sequence.tracks.iter().enumerate().filter(|(_, track)| {
+        matches!(track.kind, TrackKind::Video | TrackKind::Graphic) && track.enabled
+    }) {
+        let track_gain = if track.kind == TrackKind::Video {
+            validate_params(&track.params, &["volume", "opacity"], "video track")?;
+            if include_video_audio {
+                volume(&track.params)?
+            } else {
+                1.0
+            }
         } else {
+            validate_params(&track.params, &["opacity"], "graphic track")?;
             1.0
         };
         let track_opacity = opacity(&track.params)?;
         for clip in &track.clips {
-            validate_channels(clip, VIDEO_PARAMS)?;
-            validate_params(&clip.params, VIDEO_PARAMS, "video clip")?;
             let asset = clip_asset(assets, clip)?;
-            if asset.kind != AssetKind::Video {
-                return Err(error(
-                    "INVALID_PROJECT",
-                    "video track clip must reference a video asset",
-                ));
-            }
-            let source = clip
-                .source_range
-                .as_ref()
-                .ok_or_else(|| error("INVALID_PROJECT", "media clips require source_range"))?;
-            let input = SourceRef {
-                asset_id: asset.id.clone(),
-                version: asset.version.clone(),
-            };
-            video_clips.push(TimelineVideoClip {
-                input: input.clone(),
-                source_start: time(&source.start)?,
-                source_duration: time(&source.duration)?,
-                timeline_start: time(&clip.timeline_range.start)?,
-                timeline_duration: time(&clip.timeline_range.duration)?,
-                stream: None,
-                opacity: track_opacity * opacity(&clip.params)?,
-                position_x: number(&clip.params, "position_x", 0.0)?,
-                position_y: number(&clip.params, "position_y", 0.0)?,
-                scale_x: number(&clip.params, "scale_x", 1.0)?,
-                scale_y: number(&clip.params, "scale_y", 1.0)?,
-                rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
-                z_index: i32::try_from(track_index)
-                    .map_err(|_| capability("too many visual tracks"))?,
-                curves: visual_curves(clip, track_opacity as f64, &sequence.id, keyframe_curves)?,
-            });
-            if include_video_audio && !track.muted {
-                audio_clips.push(TimelineAudioClip {
-                    input,
-                    source_start: time(&source.start)?,
-                    source_duration: time(&source.duration)?,
+            if asset.kind == AssetKind::Image {
+                validate_channels(clip, VISUAL_PARAMS)?;
+                validate_params(&clip.params, VISUAL_PARAMS, "image clip")?;
+                image_clips.push(TimelineImageClip {
+                    input: SourceRef {
+                        asset_id: asset.id.clone(),
+                        version: asset.version.clone(),
+                    },
                     timeline_start: time(&clip.timeline_range.start)?,
                     timeline_duration: time(&clip.timeline_range.duration)?,
-                    gain: track_gain * volume(&clip.params)?,
-                    optional: true,
                     stream: None,
-                    gain_curve: curve(
+                    opacity: track_opacity * opacity(&clip.params)?,
+                    position_x: number(&clip.params, "position_x", 0.0)?,
+                    position_y: number(&clip.params, "position_y", 0.0)?,
+                    scale_x: number(&clip.params, "scale_x", 1.0)?,
+                    scale_y: number(&clip.params, "scale_y", 1.0)?,
+                    rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
+                    z_index: i32::try_from(track_index)
+                        .map_err(|_| capability("too many visual tracks"))?,
+                    curves: visual_curves(
                         clip,
-                        "volume",
-                        track_gain as f64,
+                        track_opacity as f64,
                         &sequence.id,
                         keyframe_curves,
                     )?,
                 });
-            }
-            include_end(&mut end, &clip.timeline_range)?;
-        }
-    }
-    for (track_index, track) in sequence
-        .tracks
-        .iter()
-        .enumerate()
-        .filter(|(_, track)| track.kind == TrackKind::Graphic && track.enabled)
-    {
-        validate_params(&track.params, &["opacity"], "graphic track")?;
-        let track_opacity = opacity(&track.params)?;
-        for clip in &track.clips {
-            validate_channels(clip, VISUAL_PARAMS)?;
-            validate_params(&clip.params, VISUAL_PARAMS, "image clip")?;
-            let asset = clip_asset(assets, clip)?;
-            if asset.kind != AssetKind::Image {
-                return Err(capability(
-                    "only image assets are implemented on graphic tracks",
-                ));
-            }
-            image_clips.push(TimelineImageClip {
-                input: SourceRef {
+            } else if track.kind == TrackKind::Video && asset.kind == AssetKind::Video {
+                validate_channels(clip, VIDEO_PARAMS)?;
+                validate_params(&clip.params, VIDEO_PARAMS, "video clip")?;
+                let source = clip
+                    .source_range
+                    .as_ref()
+                    .ok_or_else(|| error("INVALID_PROJECT", "media clips require source_range"))?;
+                let input = SourceRef {
                     asset_id: asset.id.clone(),
                     version: asset.version.clone(),
-                },
-                timeline_start: time(&clip.timeline_range.start)?,
-                timeline_duration: time(&clip.timeline_range.duration)?,
-                stream: None,
-                opacity: track_opacity * opacity(&clip.params)?,
-                position_x: number(&clip.params, "position_x", 0.0)?,
-                position_y: number(&clip.params, "position_y", 0.0)?,
-                scale_x: number(&clip.params, "scale_x", 1.0)?,
-                scale_y: number(&clip.params, "scale_y", 1.0)?,
-                rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
-                z_index: i32::try_from(track_index)
-                    .map_err(|_| capability("too many visual tracks"))?,
-                curves: visual_curves(clip, track_opacity as f64, &sequence.id, keyframe_curves)?,
-            });
+                };
+                video_clips.push(TimelineVideoClip {
+                    input: input.clone(),
+                    source_start: time(&source.start)?,
+                    source_duration: time(&source.duration)?,
+                    timeline_start: time(&clip.timeline_range.start)?,
+                    timeline_duration: time(&clip.timeline_range.duration)?,
+                    stream: None,
+                    opacity: track_opacity * opacity(&clip.params)?,
+                    position_x: number(&clip.params, "position_x", 0.0)?,
+                    position_y: number(&clip.params, "position_y", 0.0)?,
+                    scale_x: number(&clip.params, "scale_x", 1.0)?,
+                    scale_y: number(&clip.params, "scale_y", 1.0)?,
+                    rotation_degrees: number(&clip.params, "rotation_degrees", 0.0)?,
+                    z_index: i32::try_from(track_index)
+                        .map_err(|_| capability("too many visual tracks"))?,
+                    curves: visual_curves(
+                        clip,
+                        track_opacity as f64,
+                        &sequence.id,
+                        keyframe_curves,
+                    )?,
+                });
+                if include_video_audio && !track.muted {
+                    audio_clips.push(TimelineAudioClip {
+                        input,
+                        source_start: time(&source.start)?,
+                        source_duration: time(&source.duration)?,
+                        timeline_start: time(&clip.timeline_range.start)?,
+                        timeline_duration: time(&clip.timeline_range.duration)?,
+                        gain: track_gain * volume(&clip.params)?,
+                        optional: true,
+                        stream: None,
+                        gain_curve: curve(
+                            clip,
+                            "volume",
+                            track_gain as f64,
+                            &sequence.id,
+                            keyframe_curves,
+                        )?,
+                    });
+                }
+            } else {
+                return Err(capability(
+                    "visual tracks require a compatible video or image asset",
+                ));
+            }
             include_end(&mut end, &clip.timeline_range)?;
         }
     }

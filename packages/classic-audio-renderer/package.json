@@ -1,0 +1,21 @@
+{
+  "name": "@opencut/classic-audio-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Classic v31 browser audio execution of fixed Rust composition facts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.mts",
+      "import": "./src/index.mjs"
+    },
+    "./internal-host-runtime": "./host/shared.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "mediabunny": "1.41.0",
+    "playwright-core": "1.63.0"
+  }
+}

@@ -596,6 +596,80 @@ fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers()
 }
 
 #[test]
+fn exact_audio_output_respects_current_media_limit_without_leaking_a_reservation() {
+    use opencut_editor_application::budget::Writer;
+    let root = tempfile::tempdir().unwrap();
+    let budget = Budget::new(root.path());
+    let context = ExecutionContext::local(CallSource::Cli);
+    budget
+        .configure(
+            Configure {
+                expected_revision: 0,
+                idempotency_key: "audio-ceiling".into(),
+                payload_limit_bytes: "1024".into(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: Some("80".into()),
+                control_limit_bytes: None,
+            },
+            &context,
+        )
+        .unwrap();
+    let writer = Writer {
+        job_id: "job_00000000000000000000000000000001".into(),
+        attempt: 1,
+    };
+    assert_eq!(
+        budget
+            .reserve_audio_wav(81, writer.clone())
+            .err()
+            .unwrap()
+            .code,
+        "MEDIA_OUTPUT_LIMIT_EXCEEDED"
+    );
+    let report = budget.inspect(false).unwrap();
+    assert_eq!(report.reserved_bytes, "0");
+    assert!(report.reservations.is_empty());
+    let live = budget.reserve_audio_wav(80, writer.clone()).unwrap();
+    assert_eq!(live.reserved_bytes(), 80);
+    budget
+        .configure(
+            Configure {
+                expected_revision: 1,
+                idempotency_key: "lower-audio-ceiling".into(),
+                payload_limit_bytes: "1024".into(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: Some("10".into()),
+                control_limit_bytes: None,
+            },
+            &context,
+        )
+        .unwrap();
+    // An admitted writer remains held; a new exact reservation uses current
+    // policy, despite otherwise ample workspace payload capacity.
+    assert_eq!(
+        budget
+            .reserve_audio_wav(
+                11,
+                Writer {
+                    attempt: 2,
+                    ..writer.clone()
+                }
+            )
+            .err()
+            .unwrap()
+            .code,
+        "MEDIA_OUTPUT_LIMIT_EXCEEDED"
+    );
+    let report = budget.inspect(false).unwrap();
+    assert_eq!(report.reserved_bytes, "80");
+    assert_eq!(report.reservations.len(), 1);
+    assert_eq!(report.reservations[0].writer.as_ref(), Some(&writer));
+    drop(live);
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+    assert!(budget.inspect(true).unwrap().reservations.is_empty());
+}
+
+#[test]
 fn control_ledger_is_independent_of_payload_and_recovers_a_killed_writer() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();

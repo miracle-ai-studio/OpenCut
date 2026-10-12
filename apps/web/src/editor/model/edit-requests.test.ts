@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeAsset } from "./edit-requests";
+import { placeAsset, placeAssets } from "./edit-requests";
 import {
   addTime,
   atFrame,
@@ -118,5 +118,44 @@ describe("exact editor time", () => {
         "track",
       ),
     ).toThrow("Unlock");
+  });
+  it("does not silently retarget a missing explicit track and preserves multi-file order", () => {
+    const asset = {
+      id: "new",
+      name: "new",
+      kind: "video",
+      duration: fromSeconds(3),
+    } as Asset;
+    expect(() => placeAsset(asset, sequence, undefined, "deleted")).toThrow(
+      "no longer exists",
+    );
+    const plan = placeAssets(
+      [asset, { ...asset, id: "next" }],
+      sequence,
+      fromSeconds(10),
+      "track",
+    );
+    expect(
+      plan.map((op) =>
+        op.type === "clip.insert" ? op.clip.timeline_range.start : null,
+      ),
+    ).toEqual([fromSeconds(10), fromSeconds(13)]);
+    expect(sequence.tracks[0].clips).toHaveLength(1);
+    const empty = { ...sequence, tracks: [] };
+    const audio = { ...asset, kind: "audio" as const };
+    const mixed = placeAssets(
+      [asset, audio, { ...audio, id: "a2" }],
+      empty,
+      fromSeconds(1),
+    );
+    expect(mixed.filter((op) => op.type === "track.create")).toHaveLength(2);
+    expect(
+      mixed
+        .filter((op) => op.type === "clip.insert")
+        .map((op) => op.clip.timeline_range.start),
+    ).toEqual([fromSeconds(1), fromSeconds(1), fromSeconds(4)]);
+    expect(() =>
+      placeAssets([asset, audio], sequence, fromSeconds(1), "track"),
+    ).toThrow("compatible");
   });
 });

@@ -58,11 +58,13 @@ console.log(plan, committed.revision, metadata.streams);
 
 ## 生成与验证
 
+V4源音频分离/恢复先调用`opencut_project_v4_source_audio_plan`，检查返回的`transaction`后原样提交`opencut_edit_v4_apply`。规划只读且要求当前read/edit权限、固定head及可用源音轨；提交继续复查权限与写入围栏。分离复制精确源范围、速率、增益及音量通道并关闭视频音频；恢复重新启用视频音频，保留已分离元素。幂等重试沿用同一transaction，不重新规划新ID。此工具不代表已接入Web播放或完整音频导出。
+
 `npm run contracts:check` 检查 SDK 类型、工具 Schema、OpenAPI 3.1 和 Web 兼容导出是否漂移。已构建正确原生 binary 时可加 `-- --binary /path/to/opencut --skip-build`。Web 旧生成命令仍可调用相同生成实现。
 
 仓库根运行 `node scripts/verify-sdk.mjs`：打包、在仓库外安装、编译外部消费者、启动真实认证服务、经 SDK 编辑、通过独立 CLI 回读、注入真实响应丢失、验证冲突及真实 FFmpeg Worker。使用隔离临时数据库，证据目录保留报告、包与服务日志。
 
-OpenAPI 当前覆盖 61 个叶操作、9 个领域动作入口、2 个领域发现入口，以及原始上传分块、产物字节下载和公共 SSE，共 75 条路径；每个领域入口的 `action` 与精确输入 schema、叶操作映射由同一注册表生成。事件流记录 Schema 也从当前 Rust 宿主生成，并以 `x-opencut-data-schema` 关联到 SSE 响应。SDK 提供单块上传助手和游标读取，但不自动重连 SSE 或重试写请求。
+OpenAPI 从同一注册表生成，覆盖叶操作、领域动作与发现入口，以及原始上传分块、产物字节下载和公共 SSE；具体范围以生成声明为准。领域 action 与精确输入 schema、叶操作映射保持同源，事件记录通过 `x-opencut-data-schema` 关联到 SSE。SDK 不自动重连或重试写请求。
 
 新增公共 JobView 隐去 prepared input、租约和原生路径；源任务输入仍是 v1 宿主路径，旧 JobRecord 接口仍存在，不构成新的权限边界。完整约定见仓库 `design/architecture/public-job-view-contract.md`。运行 `python3 scripts/verify-public-job-views.py` 会验证八类真实结果、产物字节、游标恢复及外部安装包中的公共 SDK 流程。
 
@@ -119,3 +121,73 @@ CAS collection: discover with `opencut_cas_gc_query`, persist a review with `ope
 
 
 全局 owner 可用 `opencut_storage_budget_inspect/configure/recover` 管理持久写入准入。configure 使用 expected_revision 与稳定幂等键，返回带原 request_id/actor 的策略回执；重放不创建新策略。字节量是规范十进制字符串。默认 64 GiB payload 准入上限和 64 MiB 卷余量；当前覆盖 12 类受控写入（详见仓库的 `design/architecture/storage-admission-contract.md`），但 SQLite/WAL、控制元数据及完整保留/回收尚未覆盖，`enforces_all_workspace_writes=false`。inspect 不恢复或创建状态，recover 是显式写操作；已写内容与完整活动预留可能重复计入，headroom 不是物理容量承诺。公开任务和上传保留明确的容量错误；终态 Job 需要新的显式尝试。
+
+`callWithAdmissionRetry(name, input, options)` explicitly defers only a structured
+`STORAGE_BUDGET_BUSY` response, using the same captured JSON and idempotency key.
+The default deferral deadline is five seconds (configurable from 1–30000 ms).
+`signal` cancels the wait; `beforeAttempt` can recheck the caller's captured view
+before every send. Capacity, revision, transport and protocol errors are returned
+without retry. Ordinary `call`, domain calls and raw upload chunks remain one-shot;
+a network failure still requires inspecting the confirmed state.
+
+V4 工程使用 `opencut_project_v4_*` 和 `opencut_edit_v4_*`，输入/输出类型从 Rust 同源生成。inspect/create/copy 返回完整公共快照；promote/restore/apply 返回事务结果。资源绑定选择同一授权工程的固定资产/字体记录或已发布 media ID/version，不接受私有路径。undo/redo/navigation 使用版本化因果历史，计划只公开摘要和冲突原因。字体目前只能复用固定项目记录；完整场景 WAV 和 normal 场景静帧 PNG 已有版本化 Job 与 Web 动线，完整视频、工程包和其他视觉类型仍待完成。旧执行工具明确拒绝 V4。
+
+
+`opencut_project_v4_resource_inspect` 描述固定修订中的资产/字体；`projectV4ResourceUrl` 按范围重新计算 URL，`downloadProjectV4Resource` 以授权请求流式读取服务端校验过的 bytes。描述本身不保证 CAS 仍可用，hash 不是访问凭证。服务端复查当前授权与工程存活；查询参数不会成为路径片段。
+
+`opencut_project_v4_media_import_plan` 返回原样可提交的 `opencut_edit_v4_apply` 事务与明确的设置/放置决定。计划无 receipt，`original_request_digest` 不代替提交事务的幂等身份；apply 再检查素材范围、固定 head 和权限。Classic 首视频可能覆盖为较低全局 FPS；旧 Legacy scene profile 保持独立规则。
+
+`opencut_project_v4_audio_gain_plan` 在固定 head 上规划元素音量或独立静音。`set_decibels` 使用 −600…200 的整数 `decibels_tenths`，仅编辑静态 Decibels gain；−60dB 保留非零增益，静音和曲线另行保留。有元素音量关键帧或 Legacy linear gain 时拒绝静态改值，静音仍保留原音量语义。Audio 和已知有源音频的 Video 可用，Video 不会因此重新启用源音频。无变化返回 `transaction: null`，否则原样提交唯一 ElementPut；计划本身不写修订，不代表提交成功。
+
+## V4 范围音频 WAV
+
+先用 `opencut_project_v4_audio_range_capability` 查询当前宿主的执行配置；返回版本为 1，采样率仅支持 44100/48000 Hz。`available` 不代替当前工程的 read/run_jobs 权限、资源可读性或预算校验。整场工具 `opencut_job_v4_audio_wav` 保持原请求，不接受 `range`；范围任务使用独立工具 `opencut_job_v4_audio_range_wav` 和 kind `render.project_audio_range.v4`，不通过旧 `submitJob` 枚举提交。
+
+区间是目标采样率下的半开样本区间 `[start_sample, start_sample + frame_count)`，两个字段均为规范无符号十进制字符串；禁止前导零，`frame_count` 必须大于零，结束位置不能超过整场帧数。工程先按固定修订完整混音和母带处理，再裁切该区间，因此区间之外的峰值也可能影响输出增益。这是范围导出，不是实时播放、decoder seek 或局部母带模式。
+
+以下沿用已创建的 `client`，假设 `demo` 的默认场景至少两秒：
+
+```ts
+import type { ToolInput } from '@opencut/sdk';
+
+const capability = await client.call('opencut_project_v4_audio_range_capability', {});
+if (capability.schema_version !== 1 || !capability.available ||
+    !capability.sample_rates.includes(48000)) {
+  throw new Error(capability.unavailable_reason ?? 'Range WAV is unavailable');
+}
+const fixed = await client.call('opencut_project_v4_inspect', { project_id: 'demo' });
+const rangeRequest: ToolInput<'opencut_job_v4_audio_range_wav'> = {
+  idempotency_key: crypto.randomUUID(),
+  project_id: fixed.project.id,
+  revision: fixed.revision,
+  sequence_id: fixed.project.default_sequence_id,
+  sample_rate: 48000,
+  range: { start_sample: '48000', frame_count: '48000' }, // [1s, 2s)
+};
+const rangeJob = await client.call('opencut_job_v4_audio_range_wav', rangeRequest);
+const rangeFinished = await client.waitForPublicJob(rangeJob.job_id);
+const rangeResult = publicJobResult(rangeFinished, 'render.project_audio_range.v4');
+if (rangeResult.schema_version !== 1 ||
+    rangeResult.identity.project_id !== rangeRequest.project_id ||
+    rangeResult.identity.revision !== rangeRequest.revision ||
+    rangeResult.identity.sequence_id !== rangeRequest.sequence_id ||
+    rangeResult.identity.sample_rate !== rangeRequest.sample_rate ||
+    rangeResult.identity.channels !== 2 ||
+    rangeResult.identity.sample_format !== 'ieee_float32_le' ||
+    rangeResult.identity.start_sample !== rangeRequest.range.start_sample ||
+    rangeResult.identity.frame_count !== rangeRequest.range.frame_count) {
+  throw new Error('Unexpected range WAV identity');
+}
+const reference = rangeFinished.artifacts.find(a => a.role === 'primary');
+if (!reference || reference.content_hash !== rangeResult.artifact.content_hash ||
+    reference.size_bytes !== rangeResult.artifact.size_bytes) {
+  throw new Error('Missing matching WAV artifact');
+}
+const response = await client.downloadArtifact(reference);
+const wavBytes = await response.arrayBuffer(); // 本例只有一秒；大结果应流式消费 response.body。
+console.log(rangeResult.identity.whole_scene_frame_count, wavBytes.byteLength);
+```
+
+也可调用同源领域动作 `client.callDomain('project', 'v4.audio.range.capability', {})` 和 `client.callDomain('task', 'v4.audio.range.wav', rangeRequest)`。结果通过 `extended_result` 版本 1 投影，包含固定 project/revision/sequence、输出 start/frame count、整场帧数、stereo Float32 格式、完整输入摘要、asset lock、执行摘要和无路径产物元数据；生成类型为 `JobRenderProjectAudioRangeV4Result.V4AudioRangeWavResultV1`。
+
+保存原始请求及幂等键；提交响应未知时重发同一请求恢复接受回执，不更新 revision 或重新生成键。等待超时可继续观察同一 job_id，不自动取消后台任务；取消使用 `cancelPublicJob(job_id)` 并等待终态。服务端在接受、执行和发布时复查原提交者授权、工程存活及任务围栏；下载仍独立鉴权和校验实际文件。

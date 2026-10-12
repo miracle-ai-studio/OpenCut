@@ -108,6 +108,16 @@ fn persist(
         return Ok(change.record);
     }
     let next = change.record;
+    if matches!(
+        next.kind.as_str(),
+        "render.project_audio.v4" | "render.project_audio_range.v4"
+    ) && next.state == JobState::Succeeded
+    {
+        sqlite_project_v4_audio_jobs::require_completion(tx, &next)?;
+    }
+    if next.kind == "render.project_frame.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_frame_jobs::require_completion(tx, &next)?;
+    }
     let result = next
         .result
         .as_ref()

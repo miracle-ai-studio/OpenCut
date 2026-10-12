@@ -1,6 +1,6 @@
 # 独立服务与客户端开发顺序
 
-2026-09-29。范围：本地独立服务生命周期、外部 Agent 调用方式，以及 Web/Desktop 的开发优先级；随后按用户要求执行 Web 迁移，验收见[迁移审查](../qa/web-migration-review.md)。
+2026-09-29。范围：本地独立服务生命周期、外部 Agent 调用方式，以及 Web/Desktop 的开发优先级；随后按用户要求执行 Web 迁移，验收见[当前交付台账](headless-completion-ledger.md)。
 
 ## 决策
 
@@ -62,4 +62,4 @@ target/release/opencut --json server stop
 
 ## 本轮本机观测
 
-当前 release 的合成媒体验收中，后台启动至认证就绪为 1.01 秒；10 次独立 `server status` CLI 调用中位数 75.61 ms、最大 86.66 ms，包含进程启动和两次 HTTP 检查。数据来自同机小样本，无跨机器或 UI/导出性能推论；详细收据见[本机服务验收](../qa/evidence/local-service-2026-09-29.json)。
+当前 release 的合成媒体验收中，后台启动至认证就绪为 1.01 秒；10 次独立 `server status` CLI 调用中位数 75.61 ms、最大 86.66 ms，包含进程启动和两次 HTTP 检查。数据来自同机小样本，无跨机器或 UI/导出性能推论；详细收据见[当前交付台账](headless-completion-ledger.md)。

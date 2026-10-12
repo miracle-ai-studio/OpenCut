@@ -49,17 +49,22 @@ export function SequenceSettings({
             "25/1",
             "30/1",
             "30000/1001",
+            "48/1",
             "50/1",
             "60/1",
             "60000/1001",
-          ].map((value) => (
-            <option key={value} value={value}>
-              {(
-                Number(value.split("/")[0]) / Number(value.split("/")[1])
-              ).toFixed(3)}{" "}
-              {t("fps")}
-            </option>
-          ))}
+            "120/1",
+          ]
+            .concat([rate])
+            .filter((value, index, all) => all.indexOf(value) === index)
+            .map((value) => (
+              <option key={value} value={value}>
+                {(
+                  Number(value.split("/")[0]) / Number(value.split("/")[1])
+                ).toFixed(3)}{" "}
+                {t("fps")}
+              </option>
+            ))}
         </select>
       </Field>
       <Button
@@ -93,7 +98,7 @@ export function SettingsPanel() {
       <div className="padded scroll">
         {sequence && (
           <SequenceSettings
-            key={`${sequence.id}-${sequence.width}-${sequence.height}`}
+            key={`${(historical ?? snapshot)?.project.id}-${sequence.id}-${sequence.width}-${sequence.height}-${sequence.fps.numerator}-${sequence.fps.denominator}`}
             sequence={sequence}
             readonly={busy || !!historical}
           />

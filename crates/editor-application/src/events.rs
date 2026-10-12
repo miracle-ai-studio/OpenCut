@@ -6,6 +6,32 @@ use crate::{
 pub use opencut_api_contracts::event_stream::*;
 use opencut_contracts::EditorError;
 
+pub(crate) fn public_project_event(mut event: StoredEvent) -> StoredEvent {
+    // Older V4 outbox rows contain the internal snapshot, including private
+    // legacy provenance. Public observations use only authorized outer columns.
+    if matches!(
+        event.event_type.as_str(),
+        "project.v4_created" | "project.v4_copied"
+    ) {
+        event.payload = serde_json::json!({"project_id":event.project_id,"revision":event.revision,"schema_version":4});
+    }
+    event
+}
+
+fn project_change(scope: &EventScope, event: StoredEvent) -> EventChange {
+    let event = public_project_event(event);
+    EventChange {
+        cursor: cursor(scope, event.sequence, &event.event_id),
+        event: EventData::Project(ProjectEvent {
+            event_id: event.event_id,
+            project_id: event.project_id,
+            revision: event.revision,
+            event_type: event.event_type,
+            payload: event.payload,
+        }),
+    }
+}
+
 pub trait ProjectEventRead {
     /// Validate filter and anchor and read records in one storage snapshot.
     fn read_project_changes(
@@ -81,16 +107,7 @@ pub fn changes(
         EventScope::Projects { project_id } => store
             .read_project_changes(anchor.as_ref(), project_id.as_deref(), input.limit)?
             .into_iter()
-            .map(|e| EventChange {
-                cursor: cursor(&input.scope, e.sequence, &e.event_id),
-                event: EventData::Project(ProjectEvent {
-                    event_id: e.event_id,
-                    project_id: e.project_id,
-                    revision: e.revision,
-                    event_type: e.event_type,
-                    payload: e.payload,
-                }),
-            })
+            .map(|event| project_change(&input.scope, event))
             .collect::<Vec<_>>(),
         EventScope::Jobs { job_id } => store
             .read_job_changes(anchor.as_ref(), job_id.as_deref(), input.limit)?
@@ -107,3 +124,6 @@ pub fn changes(
         next_cursor,
     })
 }
+
+#[cfg(test)]
+mod tests;

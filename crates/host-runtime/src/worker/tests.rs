@@ -5,6 +5,75 @@ use opencut_editor_application::JobRequest;
 use opencut_job_runtime::Publication;
 
 #[test]
+fn publication_resource_release_allows_idle_worker_output_collection() {
+    let directory = tempfile::tempdir().unwrap();
+    let lease = opencut_storage_budget::AttemptLease::acquire(directory.path()).unwrap();
+    let executor = NativeExecutor {
+        database: Path::new("unused"),
+        output_root: directory.path().into(),
+        publication_attempt: Mutex::new(Some(lease)),
+    };
+    assert!(
+        opencut_storage_budget::AttemptLease::try_cleanup(directory.path())
+            .unwrap()
+            .is_none()
+    );
+    executor.publication_finished();
+    assert!(
+        opencut_storage_budget::AttemptLease::try_cleanup(directory.path())
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
+fn rejected_audio_completion_ends_the_same_attempt_without_a_published_result() {
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("workspace.sqlite");
+    let mut app = EditorApplication::open_managed(&database).unwrap();
+    let job = app
+        .create_job(JobRequest {
+            kind: "render.project".into(),
+            input: json!({}),
+            idempotency_key: "corrupt-private-audio".into(),
+        })
+        .unwrap();
+    let running = app.live_jobs().claim("worker", LEASE_MS).unwrap().unwrap();
+    // A malformed persisted preparation must fail publication without causing
+    // the worker to exit and strand a running lease. DSP is tested separately.
+    rusqlite::Connection::open(&database)
+        .unwrap()
+        .execute(
+            "UPDATE jobs SET kind='render.project_audio.v4' WHERE job_id=?1",
+            [&job.job_id],
+        )
+        .unwrap();
+    let mut store = SqliteJobStore(app);
+    let final_job = store
+        .complete(
+            &job.job_id,
+            "worker",
+            running.attempt,
+            json!({"untrusted":"result"}),
+        )
+        .unwrap();
+    assert_eq!(final_job.state, JobState::Failed);
+    assert_eq!(final_job.attempt, running.attempt);
+    assert!(final_job.result.is_none() && final_job.lease_owner.is_none());
+    assert!(store.0.job_view(&job.job_id).unwrap().artifacts.is_empty());
+    assert_eq!(
+        store
+            .0
+            .job_events_after(0, 100, Some(&job.job_id))
+            .unwrap()
+            .iter()
+            .filter(|e| e.event_type == "failed")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn publication_retries_a_real_sqlite_writer_lock_without_duplicating_the_result() {
     let directory = tempfile::tempdir().unwrap();
     let database = directory.path().join("workspace.sqlite");
@@ -322,8 +391,16 @@ fn recovery_cleans_unpublished_attempts_and_preserves_only_published_artifacts()
         })
         .unwrap();
         let job = app.claim_job("first", now(), LEASE_MS).unwrap().unwrap();
-        let root =
-            std::env::temp_dir().join(format!("opencut-direct-cleanup-{}", uuid::Uuid::new_v4()));
+        let workspace = tempfile::tempdir().unwrap();
+        let parent = workspace.path().join("real");
+        fs::create_dir(&parent).unwrap();
+        #[cfg(unix)]
+        let parent = {
+            let alias = workspace.path().join("alias");
+            std::os::unix::fs::symlink(&parent, &alias).unwrap();
+            alias
+        };
+        let root = parent.join("artifacts");
         let first = root.join(&job.job_id).join("attempt-1");
         fs::create_dir_all(first.join("inputs")).unwrap();
         fs::write(first.join(output_name), b"unpublished preview").unwrap();
@@ -341,8 +418,8 @@ fn recovery_cleans_unpublished_attempts_and_preserves_only_published_artifacts()
         let next = app.claim_job("second", now(), LEASE_MS).unwrap().unwrap();
         let second = root.join(&job.job_id).join("attempt-2");
         fs::create_dir_all(second.join("inputs")).unwrap();
-        let published = second.join(output_name);
-        fs::write(&published, b"published preview").unwrap();
+        fs::write(second.join(output_name), b"published preview").unwrap();
+        let published = fs::canonicalize(second.join(output_name)).unwrap();
         app.complete_job(
             &job.job_id,
             "second",
@@ -355,6 +432,15 @@ fn recovery_cleans_unpublished_attempts_and_preserves_only_published_artifacts()
         .unwrap();
         clean_abandoned_inputs(&app, &root).unwrap();
         assert!(published.exists());
+        assert!(!second.join("inputs").exists());
+        // Publication recovery must not destroy a successful attempt's remaining
+        // data when its public file is missing; artifact repair owns that state.
+        fs::remove_file(&published).unwrap();
+        fs::create_dir(second.join("inputs")).unwrap();
+        fs::write(second.join("inputs/source"), b"private media").unwrap();
+        fs::write(second.join("receipt"), b"retained publication data").unwrap();
+        clean_abandoned_inputs(&app, &root).unwrap();
+        assert!(second.join("receipt").exists());
         assert!(!second.join("inputs").exists());
         fs::remove_dir_all(root).unwrap();
     }

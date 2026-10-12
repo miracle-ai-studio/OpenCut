@@ -150,7 +150,7 @@ impl JobRead for SqliteConnection {
 impl WorkspaceRead for SqliteConnection {
     fn read_head_revision(&self, project_id: &str) -> Result<String, EditorError> {
         sqlite_access::require(self, &self.1, project_id, ProjectAction::Read)?;
-        sqlite_project_v3::project_head_revision(self, project_id)
+        sqlite_project_document::project_head_revision(self, project_id)
     }
     fn read_projects(&self) -> Result<Vec<ProjectSnapshot>, EditorError> {
         let principal = sqlite_access::principal(self, &self.1)?;
@@ -170,7 +170,7 @@ impl WorkspaceRead for SqliteConnection {
         let mut projects = Vec::new();
         for row in rows {
             let (document, revision) = row.map_err(storage_error)?;
-            match sqlite_project_v3::decode_legacy_project(&document) {
+            match sqlite_project_document::decode_legacy_project(&document) {
                 Ok(project) => projects.push(ProjectSnapshot { project, revision }),
                 Err(error) if error.code == "UNSUPPORTED_PROJECT_VERSION" => {}
                 Err(error) => return Err(error),
@@ -310,7 +310,7 @@ impl opencut_editor_application::events::ProjectEventRead for SqliteConnection {
         let principal = sqlite_access::principal(&tx, &self.1)?;
         if let Some(id) = project_id {
             sqlite_access::require(&tx, &self.1, id, ProjectAction::Read)?;
-            sqlite_project_v3::project_head_revision(&tx, id)?;
+            sqlite_project_document::project_head_revision(&tx, id)?;
         }
         let after = if let Some(anchor) = anchor {
             let row: Option<(String, String)> = tx

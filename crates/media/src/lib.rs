@@ -6,11 +6,18 @@
 
 mod admission;
 mod analysis;
+mod audio_pcm;
+pub use audio_pcm::{
+    NativeChannelMap, NativePcmBlock, NativePcmSource, NativePcmStream, PcmDecodeLimits,
+};
 mod backend;
 mod caption;
 mod composition_v3;
 mod dto;
 mod error;
+pub mod packet_rate;
+pub use opencut_media_contracts::{CLASSIC_PACKET_RATE_METADATA_KEY_V1, ClassicPacketRateV1};
+pub use packet_rate::{ClassicPacketRateConfig, run_classic_packet_rate_v1};
 mod preview_stream;
 mod process;
 mod speaker_turns;

@@ -143,10 +143,16 @@ def verify(archive, mcp_sdk_root=None, component=None):
                           *(f"/v1/tools/opencut_{domain['domain']}" for domain in domains),
                           '/v1/domains', '/v1/domains/{domain}',
                           '/v1/uploads/{upload_id}/chunks/{offset}',
+                          '/v1/stream-uploads/{upload_id}/chunks/{offset}',
                           '/v1/projects/{project}/media/{media_id}/content',
+                          '/v1/project-v4-resources/content',
+                          '/v1/preview/v4/audio/stream',
                           '/v1/artifacts/{artifact}', '/v1/changes/stream',
                           '/v1/preview/stream'}
         assert set(paths) == expected_paths
+        assert paths['/v1/stream-uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_stream_chunk'
+        assert paths['/v1/project-v4-resources/content']['get']['operationId'] == 'opencut_project_v4_resource_content'
+        assert paths['/v1/preview/v4/audio/stream']['post']['operationId'] == 'opencut_audio_preview_v4_stream'
         assert paths['/v1/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
         assert paths['/v1/projects/{project}/media/{media_id}/content']['get']['operationId'] == 'opencut_project_media_content'
         assert paths['/v1/artifacts/{artifact}']['get']['operationId'] == 'opencut_artifact_download'

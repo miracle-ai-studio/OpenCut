@@ -1,6 +1,6 @@
 # 声明式插件 V2
 
-状态：2026-09-24 本机真实 CLI 动线已验；[验收回执](../qa/evidence/r6-plugin-v2-2026-09-24.json)。这是一组新增工具与包格式，旧 planner-v1 manifest、WIT 和旧 22 工具 schema 不变。
+状态：2026-09-24 本机真实 CLI 动线已验；[当前交付台账](headless-completion-ledger.md)。这是一组新增工具与包格式，旧 planner-v1 manifest、WIT 和旧 22 工具 schema 不变。
 
 ## 包与安装
 

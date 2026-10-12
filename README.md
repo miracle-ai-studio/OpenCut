@@ -4,6 +4,8 @@ OpenCut 是供外部 Agent 和应用调用的剪辑工具与媒体执行系统�
 
 当前可用于本地开发与集成验证，尚未完成全部专业剪辑能力、跨平台发行和升级验收。当前状态以[交付台账](design/architecture/headless-completion-ledger.md)为准。
 
+迁移范围、模块分工、实施顺序和验收门槛统一见[全量迁移执行计划](design/plans/classic-migration-plan.md)。实际检查范围记录在[验收摘要](design/qa/acceptance.json)；临时日志、媒体和数据库按计划清理，不维护重复的过程报告。
+
 ## 构建与启动
 
 需要 Rust 工具链；媒体任务另需 `ffmpeg`、`ffprobe`。Web 构建与 TypeScript SDK 使用 Node 22.12+ 与 npm。
@@ -37,6 +39,8 @@ target/release/opencut --json server stop
 ```
 
 开发时 `npm run dev --prefix apps/web` 使用本地 Vite 代理，`OPENCUT_SERVER_URL` 可配置开发服务目标；后台服务仍独立运行。
+
+V4 场景声音试听、WAV 与单帧 PNG 需配置共享浏览器运行时，分别见[音频运行时](packages/classic-audio-renderer/README.md)和[视觉运行时](packages/classic-visual-renderer/README.md)。安装锁定依赖并指定已有 Chromium 后，在启动服务前设置 `OPENCUT_CLASSIC_AUDIO_PACKAGE`、`OPENCUT_CLASSIC_AUDIO_CHROMIUM`、`OPENCUT_CLASSIC_VISUAL_PACKAGE`、`OPENCUT_CLASSIC_VISUAL_CHROMIUM` 的绝对路径；Node 可通过对应的 `OPENCUT_CLASSIC_AUDIO_NODE` / `OPENCUT_CLASSIC_VISUAL_NODE` 指定。配置变化需重新启动服务。Web 根据服务能力提供固定修订声音播放、暂停/继续、WAV 导出和场景静帧；播放头来自实际 AudioWorklet 消费，场景画面仍为静帧。PNG 当前支持视频、静态 PNG/JPEG、normal 混合、变换、透明度和纯色背景。文字、效果、蒙版、连续画面与视频导出仍待迁移；这些运行时尚未完成正式发行包验收。
 
 `start` 等待认证 API 与数据库读取成功，`status` 只有 `ready=true` 时退出 0。默认运行目录为 `~/.opencut/server`，凭证在其 `api-token`，日志在 `server.log`。CLI 退出不停止后台服务；不安装开机启动或崩溃自动拉起。多实例、Agent 调用及 Web/Desktop 开发顺序见[独立服务与客户端优先级](design/architecture/service-and-client-priority.md)。
 
@@ -84,7 +88,7 @@ target/release/opencut --database .opencut/workspace.sqlite --json domain edit p
 | `job-runtime` | 任务领取、恢复和结果发布检查 |
 | 存储与媒体适配器 | SQLite、素材固定、资源预算、FFmpeg 和插件执行 |
 
-依赖边界由[架构政策](design/architecture/dependency-policy.json)和自动检查约束。Web 由工程状态、素材、时间线、预览、属性、任务和历史模块组成，通过共享 SDK 接入唯一 Rust 服务；Desktop 尚未接入完整服务。Web 边界和复查证据见[迁移审查](design/qa/web-migration-review.md)。
+依赖边界由[架构政策](design/architecture/dependency-policy.json)和自动检查约束。Web 由工程状态、素材、时间线、预览、属性、任务和历史模块组成，通过共享 SDK 接入唯一 Rust 服务；Desktop 尚未接入完整服务。Web 边界和复查证据见[当前交付台账](design/architecture/headless-completion-ledger.md)。
 
 ## 开发检查
 

@@ -135,6 +135,86 @@ fn description_is_uri_independent_roundtrips_and_binds_to_non_file_handles() {
 }
 
 #[test]
+fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_audio() {
+    use opencut_composition::project_v3::{VisualTargetKind, compile_v3};
+    use opencut_contracts::project_v3::{ProjectDocumentV3, ProjectSnapshotV3};
+    let mut source = fixture();
+    let mut image = source.project.sequences[0].tracks[0].clips[0].clone();
+    image.id = "image-on-video".into();
+    image.timeline_range.start = Time {
+        ticks: "2".into(),
+        timebase: 1,
+    };
+    image.params.insert("opacity".into(), json!(0.5));
+    source.project.sequences[0].tracks[1].clips.push(image);
+    let visual = ProjectSnapshotV3 {
+        revision: source.revision.clone(),
+        project: ProjectDocumentV3 {
+            schema_version: 3,
+            base: source.project.clone(),
+            visual: vec![],
+            keyframe_curves: vec![],
+        },
+    };
+    for scope in [CompositionScope::Visual, CompositionScope::AudioVisual] {
+        let result = compile_v3(&visual, "main", scope).unwrap();
+        assert_eq!(result.base.timeline.video_clips.len(), 1);
+        assert_eq!(result.base.timeline.image_clips.len(), 2);
+        assert_eq!(result.base.timeline.image_clips[0].z_index, 0);
+        assert_eq!(result.base.timeline.image_clips[1].z_index, 1);
+        assert_eq!(result.base.timeline.image_clips[1].opacity, 0.5);
+        assert_eq!(
+            result.base.timeline.image_clips[1].timeline_start.seconds(),
+            2.0
+        );
+        assert_eq!(
+            result.base.timeline.audio_clips.len(),
+            if scope == CompositionScope::Visual {
+                0
+            } else {
+                2
+            }
+        );
+        let target = result
+            .visual
+            .targets
+            .iter()
+            .find(|item| item.target_id == "image-on-video")
+            .unwrap();
+        assert_eq!(target.kind, VisualTargetKind::ImageClip);
+        assert_eq!(target.index, 1);
+        assert_eq!(target.z_index, 1);
+        opencut_composition::coverage_v3::audit_visual_coverage(&visual, &result).unwrap();
+        let receipt =
+            opencut_composition::semantic_coverage::audit(&source, &result.base, &[]).unwrap();
+        assert!(
+            receipt
+                .entries
+                .iter()
+                .any(|entry| entry.source_id == "image-on-video"
+                    && entry.semantic == "audio"
+                    && entry.disposition == "image_has_no_audio")
+        );
+        let mut damaged = result.clone();
+        damaged.base.timeline.image_clips[1].z_index = 0;
+        assert!(
+            opencut_composition::semantic_coverage::audit(&source, &damaged.base, &[]).is_err()
+        );
+        damaged = result;
+        damaged
+            .visual
+            .targets
+            .iter_mut()
+            .find(|item| item.target_id == "image-on-video")
+            .unwrap()
+            .kind = VisualTargetKind::VideoClip;
+        assert!(
+            opencut_composition::coverage_v3::audit_visual_coverage(&visual, &damaged).is_err()
+        );
+    }
+}
+
+#[test]
 fn disabled_and_muted_tracks_have_explicit_duration_and_audio_semantics() {
     let mut snapshot = fixture();
     snapshot.project.sequences[0].tracks[2].muted = true;

@@ -1,0 +1,243 @@
+{
+  "source": "tmp/opencut-classic",
+  "purpose": "Read-only legacy input decoding; never writes persisted data or constructs modern project DTOs.",
+  "files": [
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/types.ts",
+      "sha256": "d07945cfadc00681dd4d81fc4779eb731ac0048ecb9474a19f72ba21d2833439",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/types.ts",
+      "adapted": false,
+      "copied_sha256": "d07945cfadc00681dd4d81fc4779eb731ac0048ecb9474a19f72ba21d2833439"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/utils.ts",
+      "sha256": "0003d722e7ddf9903a935005962ca1684aa84bd1476372ee916a23003ca54ca8",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/utils.ts",
+      "adapted": true,
+      "copied_sha256": "f6516cd7c1b491004f5a158f2690df8743b018ab67f0bf6bf7abe97db3b48736"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v0-to-v1.ts",
+      "sha256": "5b0adb7543a2827aa82f853b9cc0304c109851bea698681afdd5aa8a8d909fd9",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v0-to-v1.ts",
+      "adapted": true,
+      "copied_sha256": "dc13a27b4f13f8c574a04c58860e2e39381ca27d60cb42be88299860146639a7"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v1-to-v2.ts",
+      "sha256": "5f68a42832f65cdcbe35163998a52866f9f07b646eb198e54e2ba683d61a7333",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v1-to-v2.ts",
+      "adapted": true,
+      "copied_sha256": "53d7ecdc3eccfa902af77b6852f630420de77007cb05f0baa1525663b0a4729f"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v10-to-v11.ts",
+      "sha256": "4b2828bbfe09cc2f419cac54d3793d2fba624766822d54f756062546203f9826",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v10-to-v11.ts",
+      "adapted": true,
+      "copied_sha256": "633cc526d481072023abd2ed6c4552c95911d0beee5557e5c2831bb0a01f6c5c"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v11-to-v12.ts",
+      "sha256": "a6fb0592bba612372d5fe4da906a2bab5eae29d49cbaa2add8f4e7010444c537",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v11-to-v12.ts",
+      "adapted": true,
+      "copied_sha256": "9852af0e9193284b87c4a32edf6519748f9eb5c44d27cb8af425f3b15dc478ba"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v12-to-v13.ts",
+      "sha256": "d8dfc8edfb5eb77a42e1ad0a69d555c60baaacb52094154875c256535488f01b",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v12-to-v13.ts",
+      "adapted": true,
+      "copied_sha256": "f414d357e261eef5f534af64d540fada8fe4670a42e80aaff9af0decc87a2df6"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v13-to-v14.ts",
+      "sha256": "f3a00a6f4324a1d480f90bfec833fd09be5efcdfa30cf7b51d69b6886d4bf69e",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v13-to-v14.ts",
+      "adapted": true,
+      "copied_sha256": "b7b57ee653f131374236f53bfc367f8945121335b22acb223acf00f02d0efa0e"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v14-to-v15.ts",
+      "sha256": "959d4461cbfe5277fe01912f44e643feb90644a6bc478d50c5f4aa9469a28bac",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v14-to-v15.ts",
+      "adapted": false,
+      "copied_sha256": "959d4461cbfe5277fe01912f44e643feb90644a6bc478d50c5f4aa9469a28bac"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v15-to-v16.ts",
+      "sha256": "224e128a0ff02ec045bcd8b044d838977e4ba7aed834f980ddf9a3b7195f53cb",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v15-to-v16.ts",
+      "adapted": true,
+      "copied_sha256": "0f7bc75f6602950c3841a57c66c3df92847e3dfd042f1e61f1eb8fe558d2c7ca"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v16-to-v17.ts",
+      "sha256": "558f2ee628ad3d56f9d20389ee233b1a10be37e39c1791507e3bd55407693de4",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v16-to-v17.ts",
+      "adapted": true,
+      "copied_sha256": "c6f0b681b0ee43846cd24fb757b4191082abbf669995fb8ba838273ad1ec3faf"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v17-to-v18.ts",
+      "sha256": "fb129cf5d89bcd5a9cd6d1320cc2f13ccf167f70835591a2cbe5ac3e595b2b82",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v17-to-v18.ts",
+      "adapted": false,
+      "copied_sha256": "fb129cf5d89bcd5a9cd6d1320cc2f13ccf167f70835591a2cbe5ac3e595b2b82"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v18-to-v19.ts",
+      "sha256": "2ffc4a1b6bfc5b3199fe1ae86af68bdac06dd0ac64cecc734e7af541a34d4f61",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v18-to-v19.ts",
+      "adapted": true,
+      "copied_sha256": "9dbd02dac783e73514b390501a0d794ad3b51705e78d74d77920872c84fef2f2"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v19-to-v20.ts",
+      "sha256": "3869e06651022b7992d45c4f58b1056bc79f850d182da6d0f26eff41ccee9a67",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v19-to-v20.ts",
+      "adapted": false,
+      "copied_sha256": "3869e06651022b7992d45c4f58b1056bc79f850d182da6d0f26eff41ccee9a67"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v2-to-v3.ts",
+      "sha256": "27ecdc06ac1a975faa80f4e247e6eb1410d05dfa18f623cea1d25c6399c56b77",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v2-to-v3.ts",
+      "adapted": false,
+      "copied_sha256": "27ecdc06ac1a975faa80f4e247e6eb1410d05dfa18f623cea1d25c6399c56b77"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v20-to-v21.ts",
+      "sha256": "58e43b5027e4890dbe96e9db2f0d5d679fac7a8549e7e8bc1aed7499018ddf81",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v20-to-v21.ts",
+      "adapted": false,
+      "copied_sha256": "58e43b5027e4890dbe96e9db2f0d5d679fac7a8549e7e8bc1aed7499018ddf81"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v21-to-v22.ts",
+      "sha256": "bd62b99e2d5d107d25783499544b1ae4a85fe9db145b459f4620e32bc115b790",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v21-to-v22.ts",
+      "adapted": true,
+      "copied_sha256": "7ead60bd95d620efcdeeb9e33eaa9234a59256d2839c6d99fb5f923470bbc742"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v22-to-v23.ts",
+      "sha256": "e402bf84d5b43cb1f1bbffa7cf140054878c66fc7f37e290e533bf20ee86e609",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v22-to-v23.ts",
+      "adapted": false,
+      "copied_sha256": "e402bf84d5b43cb1f1bbffa7cf140054878c66fc7f37e290e533bf20ee86e609"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v23-to-v24.ts",
+      "sha256": "790232b31c05df752e0a255142312e898cb883b334e7d85992c82c6f9846a583",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v23-to-v24.ts",
+      "adapted": true,
+      "copied_sha256": "55fff20e6d6cdf497a052684869d9e1b7cccb5b37bf8680633f4884304fb0c41"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v24-to-v25.ts",
+      "sha256": "dce9e479282c323e0f1313fe38a1d43fb8589355b106a77d69a18ac5c3a9312c",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v24-to-v25.ts",
+      "adapted": false,
+      "copied_sha256": "dce9e479282c323e0f1313fe38a1d43fb8589355b106a77d69a18ac5c3a9312c"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v25-to-v26.ts",
+      "sha256": "b1c563a25b5513173b93c13af9368d01d5fec71c1897d59a41ab36cc881dffcf",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v25-to-v26.ts",
+      "adapted": true,
+      "copied_sha256": "04c9ffbea69bcaf341ec89fab68021d0078b44b674ee0e47a987ccc416cc10bf"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v26-to-v27.ts",
+      "sha256": "9bbfeb5f8003df536ea2fe111d0f73ea54fcd02bbcace0f23a7789455f0ba682",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v26-to-v27.ts",
+      "adapted": false,
+      "copied_sha256": "9bbfeb5f8003df536ea2fe111d0f73ea54fcd02bbcace0f23a7789455f0ba682"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v27-to-v28.ts",
+      "sha256": "1287c588ec3e067bf375ed3fd6149fb9065aa38276f444e8bbfb4c6292569710",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v27-to-v28.ts",
+      "adapted": true,
+      "copied_sha256": "3526e25b9298067c5148220cff88bca0efc8b4770a81ef8d11d99155ba719a70"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v28-to-v29.ts",
+      "sha256": "e221b7efe2d5a42355510c91a31d0004e64f6e7f28eb26329d03e056409cb6db",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v28-to-v29.ts",
+      "adapted": false,
+      "copied_sha256": "e221b7efe2d5a42355510c91a31d0004e64f6e7f28eb26329d03e056409cb6db"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v29-to-v30.ts",
+      "sha256": "9f5fd0861891f9b4693deec11efb8aa1b166cee90d9ab702424c82e35f98da4e",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v29-to-v30.ts",
+      "adapted": false,
+      "copied_sha256": "9f5fd0861891f9b4693deec11efb8aa1b166cee90d9ab702424c82e35f98da4e"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v3-to-v4.ts",
+      "sha256": "0279eab83b296b36ba104370f20f06624fb713b0587169b42f937ab25e8cf95e",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v3-to-v4.ts",
+      "adapted": true,
+      "copied_sha256": "24543d59368b9c9de69d237211d9164ebd178ec9c5706fb7c6be50d6b072ad1d"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v30-to-v31.ts",
+      "sha256": "5c781e3352262e78a8e00302e0935340f1c711787f3c7ec6b6ceda4e1d4607c0",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v30-to-v31.ts",
+      "adapted": false,
+      "copied_sha256": "5c781e3352262e78a8e00302e0935340f1c711787f3c7ec6b6ceda4e1d4607c0"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v4-to-v5.ts",
+      "sha256": "bbb6fdf963b4e79d65fd9974f3cceb6da8c6818f167c958acd11d36b828da6f0",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v4-to-v5.ts",
+      "adapted": true,
+      "copied_sha256": "b3e9fb41b2f9b8a4e98e43e6cad1451aa9a8870e6c68457f35000e12cdae82a8"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v5-to-v6.ts",
+      "sha256": "450f097797537a9bb709638238d6f559384f9b6ba33879afd16c2517bd308ad0",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v5-to-v6.ts",
+      "adapted": true,
+      "copied_sha256": "e178af1e27c48084bd57e4195b02849e364d99bc8f2ac5318a7bbf75c4892486"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v6-to-v7.ts",
+      "sha256": "dd695c84f4f600ef17b160983cde3a767033610b1a4c6c545b946b7ed41769e8",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v6-to-v7.ts",
+      "adapted": true,
+      "copied_sha256": "ee0e8d0f34e1cdf88b57b1946b81b893797631a5afb9f68d08e789b980cd77b4"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v7-to-v8.ts",
+      "sha256": "e4c71fc60d0a3ccd19931d283d85264d5f3c6ec99ae1cb1525dfd99b1a805cc7",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v7-to-v8.ts",
+      "adapted": true,
+      "copied_sha256": "7862747abd529cb12adf0b969c5dc66fe7604f0be4f4a7ab42faace05b29134a"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v8-to-v9.ts",
+      "sha256": "b6ba4936174740de3fdfe5a0d7de32afb7ba6663da6f0dbae8e3b028f658d6f6",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v8-to-v9.ts",
+      "adapted": true,
+      "copied_sha256": "fd6d8d72c8587c391fe99f3e2e21111a1d988c5c1ac5572f8639e7f8e1206a4b"
+    },
+    {
+      "path": "tmp/opencut-classic/apps/web/src/services/storage/migrations/transformers/v9-to-v10.ts",
+      "sha256": "95145b348f3e48a283d95a21f9108de965e3055d80644239683af27cecdbe234",
+      "copied_path": "apps/web/src/editor/workspace/classic/legacy/v9-to-v10.ts",
+      "adapted": true,
+      "copied_sha256": "e8888e3c476cf4500ea0ee005f6e5194083ff4065769e51ec6df700ca2fdc96f"
+    }
+  ],
+  "adaptations": [
+    "Deterministic IDs and epoch fallbacks replace random/time-dependent decoder defaults.",
+    "The time rounding helper is local historical input normalization, never a modern editing authority.",
+    "Culori 4.0.2 is pinned to the Classic source codec color parser.",
+    "Record checks reject arrays; unused legacy type declaration removed for strict typechecking."
+  ]
+}

@@ -6,6 +6,45 @@ use opencut_api_contracts::history_navigation::{
 use opencut_editor_application::history_navigation::{HistoryStep, Navigation};
 use std::collections::HashSet;
 
+/// This navigation protocol exposes targets for the frozen legacy undo tools.
+/// Validate document scope and version before interpreting their journal.
+fn require_supported_revision(
+    connection: &Connection,
+    project: &str,
+    revision: &str,
+) -> Result<(), EditorError> {
+    let raw: Option<String> = connection
+        .query_row(
+            "SELECT document_json FROM revisions WHERE project_id=?1 AND revision=?2",
+            params![project, revision],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(storage_error)?;
+    let raw = raw
+        .ok_or_else(|| EditorError::new("NOT_FOUND", "Revision does not belong to this project"))?;
+    use sqlite_project_document::VersionedProjectDocument;
+    let document = sqlite_project_document::decode_versioned_project(&raw)?;
+    let id = match &document {
+        VersionedProjectDocument::Legacy(value) => &value.id,
+        VersionedProjectDocument::V3(value) => &value.base.id,
+        VersionedProjectDocument::V4(value) => &value.id,
+    };
+    if id != project {
+        return Err(EditorError::new(
+            "STORAGE_ERROR",
+            "History document identity differs from project scope",
+        ));
+    }
+    if matches!(document, VersionedProjectDocument::V4(_)) {
+        return Err(EditorError::new(
+            "UNSUPPORTED_PROJECT_VERSION",
+            "Schema 4 history requires versioned navigation and undo tools",
+        ));
+    }
+    Ok(())
+}
+
 impl EditorApplication {
     pub fn history_navigation(
         &self,
@@ -21,15 +60,13 @@ impl EditorApplication {
             &input.project_id,
             ProjectAction::Read,
         )?;
-        let head: String = tx
-            .query_row(
-                "SELECT head_revision FROM projects WHERE project_id=?1",
-                [&input.project_id],
-                |r| r.get(0),
-            )
-            .optional()
-            .map_err(storage_error)?
-            .ok_or_else(|| EditorError::new("NOT_FOUND", "Project does not exist"))?;
+        let head = sqlite_project_document::project_head_revision(&tx, &input.project_id)?;
+        require_supported_revision(&tx, &input.project_id, &head)?;
+        if let Some(revision) = &input.revision
+            && revision != &head
+        {
+            require_supported_revision(&tx, &input.project_id, revision)?;
+        }
         let revision = input.revision.clone().unwrap_or(head);
         let mut current = Some(revision.clone());
         let mut visited = HashSet::new();

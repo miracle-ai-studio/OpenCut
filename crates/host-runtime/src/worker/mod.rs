@@ -1,6 +1,9 @@
 #[cfg(unix)]
 mod media_output;
+mod output_attempt;
 mod project_v3;
+mod project_v4_audio;
+mod project_v4_frame;
 pub(crate) mod receipts;
 use opencut_job_execution::{
     AnalysisOptions, PreparedAnalysisInput, PreparedProjectFrameInput, PreparedProjectRangeInput,
@@ -11,7 +14,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant},
@@ -73,7 +76,28 @@ impl JobStore for SqliteJobStore {
         attempt: u32,
         value: Value,
     ) -> Result<JobRecord, EditorError> {
-        self.0.live_jobs().complete(id, worker, attempt, value)
+        let original = self.0.get_job(id)?;
+        match self.0.live_jobs().complete(id, worker, attempt, value) {
+            Err(error)
+                if matches!(
+                    original.kind.as_str(),
+                    "render.project_audio.v4"
+                        | "render.project_audio_range.v4"
+                        | "render.project_frame.v4"
+                ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
+            {
+                // Completion revalidates the original caller inside its SQL
+                // transaction. A refusal leaves the lease unchanged; fail with
+                // that same fence rather than abandoning a running attempt.
+                self.0.live_jobs().fail(
+                    id,
+                    worker,
+                    attempt,
+                    json!({"code":error.code,"message":error.message}),
+                )
+            }
+            result => result,
+        }
     }
     fn fail(
         &mut self,
@@ -96,8 +120,15 @@ impl JobStore for SqliteJobStore {
 struct NativeExecutor<'a> {
     database: &'a Path,
     output_root: PathBuf,
+    publication_attempt: Mutex<Option<opencut_storage_budget::AttemptLease>>,
 }
 impl ExecutorPort for NativeExecutor<'_> {
+    fn publication_finished(&self) {
+        self.publication_attempt
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+    }
     fn clean_abandoned_inputs(&self) -> Result<(), EditorError> {
         clean_abandoned_inputs(
             &EditorApplication::open_managed(self.database)?,
@@ -110,12 +141,24 @@ impl ExecutorPort for NativeExecutor<'_> {
         job: &JobRecord,
         stop: Arc<AtomicBool>,
     ) -> Result<Value, EditorError> {
-        execute_monitored(self.database, &self.output_root, worker, job, stop)
+        self.publication_attempt
+            .lock()
+            .map_err(|_| EditorError::new("INTERNAL_ERROR", "Attempt guard lock failed"))?
+            .take();
+        execute_monitored(
+            self.database,
+            &self.output_root,
+            worker,
+            job,
+            stop,
+            &self.publication_attempt,
+        )
     }
 }
 pub fn run(database: &Path, once: bool, stop: Arc<AtomicBool>) -> Result<(), EditorError> {
     let executor = NativeExecutor {
         database,
+        publication_attempt: Mutex::new(None),
         output_root: database
             .parent()
             .unwrap_or_else(|| Path::new("."))
@@ -130,6 +173,7 @@ fn execute_monitored(
     worker: &str,
     job: &JobRecord,
     stop: Arc<AtomicBool>,
+    publication_attempt: &Mutex<Option<opencut_storage_budget::AttemptLease>>,
 ) -> Result<Value, EditorError> {
     let cancel = CancellationToken::new();
     let done = Arc::new(AtomicBool::new(false));
@@ -207,7 +251,17 @@ fn execute_monitored(
             ProgressReporter::new(progress_app, Some(database), worker, job, &cancel)
                 .with_heartbeat_priority(heartbeat_pending);
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            execute(root, job, &cancel, &mut |update| reporter.report(update))
+            if matches!(
+                job.kind.as_str(),
+                opencut_job_contracts::project_v4_audio::V4_AUDIO_WAV_KIND
+                    | opencut_job_contracts::project_v4_audio::V4_AUDIO_RANGE_WAV_KIND
+            ) {
+                project_v4_audio::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind == opencut_job_contracts::project_v4_frame::V4_FRAME_PNG_KIND {
+                project_v4_frame::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else {
+                execute(root, job, &cancel, &mut |update| reporter.report(update))
+            }
         }));
         done.store(true, Ordering::SeqCst);
         let monitor_error = monitor
@@ -381,6 +435,9 @@ fn clean_abandoned_inputs(app: &EditorApplication, root: &Path) -> Result<(), Ed
         }
         Ok(_) => (),
     }
+    // Execution publishes canonical attempt paths. Parent aliases such as
+    // /var and /private/var must identify the same publication during recovery.
+    let root = fs::canonicalize(root).map_err(io)?;
     for job_directory in fs::read_dir(root).map_err(io)? {
         let job_directory = job_directory.map_err(io)?;
         if !job_directory.file_type().map_err(io)?.is_dir() {
@@ -907,6 +964,7 @@ fn execute(
                     .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing workspace root"))?;
                 opencut_asset_store::uploads::UploadChunks::managed(workspace.join("uploads"))
                     .assemble(&input, &file, &|| cancel.is_cancelled())?;
+                let file = fs::canonicalize(&file).map_err(io_error)?;
                 let metadata = backend.probe_upload(&file, cancel).map_err(media_error)?;
                 let mut asset = opencut_editor_application::media::describe(
                     &metadata,
@@ -918,6 +976,33 @@ fn execute(
                 asset.id = input.media_id.clone();
                 // This project resource does not grant access to the owner-only catalog.
                 asset.metadata.remove("media_url");
+                if asset.kind == opencut_contracts::AssetKind::Video {
+                    let config = crate::classic_audio_runtime::packet_rate_config()?;
+                    #[cfg(unix)]
+                    let packet_admission: Option<
+                        &dyn opencut_media::OutputAdmission,
+                    > = Some(admission.as_ref());
+                    #[cfg(not(unix))]
+                    let packet_admission: Option<
+                        &dyn opencut_media::OutputAdmission,
+                    > = None;
+                    let observed = opencut_media::run_classic_packet_rate_v1(
+                        &config,
+                        &file,
+                        cancel,
+                        packet_admission,
+                    )
+                    .map_err(media_error)?;
+                    asset.metadata.insert(
+                        opencut_media::CLASSIC_PACKET_RATE_METADATA_KEY_V1.into(),
+                        serde_json::to_value(observed).map_err(|_| {
+                            EditorError::new(
+                                "MEDIA_INVALID_TOOL_OUTPUT",
+                                "Could not encode Classic packet-rate observation",
+                            )
+                        })?,
+                    );
+                }
                 if cancel.is_cancelled() {
                     return Err(EditorError::new("JOB_CANCELLED", "Import was cancelled"));
                 }

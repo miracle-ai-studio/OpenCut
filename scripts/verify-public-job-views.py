@@ -2,6 +2,7 @@
 """Public task projections, snapshot pagination, durable cursors and content-bound downloads."""
 import hashlib
 import json
+import argparse
 from pathlib import Path
 import signal
 import socket
@@ -13,7 +14,10 @@ import urllib.parse
 import urllib.request
 
 ROOT=Path(__file__).resolve().parents[1]
-BIN=ROOT/'target/debug/opencut'
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--binary',type=Path,help='Reuse this built CLI without invoking Cargo')
+arguments=parser.parse_args()
+BIN=arguments.binary.resolve() if arguments.binary else ROOT/'target/debug/opencut'
 run=Path(tempfile.mkdtemp(prefix='opencut-job-views-')).resolve()
 db=run/'workspace.sqlite'; token_file=run/'token'; logs=(run/'host.log').open('wb')
 trace=[];checks=[];host=None;token=None
@@ -71,7 +75,8 @@ def stop():
 def t(n,b=10):return {'ticks':str(n),'timebase':b}
 def span(s,d):return {'start':t(s),'duration':t(d)}
 try:
-    command(['cargo','build','-p','opencut-cli'],cwd=ROOT)
+    if arguments.binary is None:
+        command(['cargo','build','-p','opencut-cli'],cwd=ROOT)
     video=run/'private-source.mp4'
     command(['ffmpeg','-v','error','-f','lavfi','-i','color=red:s=160x90:r=10:d=1','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=1','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',video])
     seeds=[]

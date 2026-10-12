@@ -1,5 +1,7 @@
 //! Transport-neutral contracts for durable native media jobs.
 pub mod project_v3;
+pub mod project_v4_audio;
+pub mod project_v4_frame;
 
 use opencut_contracts::AssetLockManifest;
 use opencut_contracts::{EditorError, Time, TimeRange};
@@ -608,6 +610,9 @@ job_kinds! {
     RenderProjectV3: (project_v3::SubmitV3Render, ProjectRenderJobResult, "render.project.v3"),
     PreviewProjectFrameV3: (project_v3::SubmitV3Frame, CompositedProjectFrameJobResult, "preview.project_frame.v3"),
     PreviewProjectRangeV3: (project_v3::SubmitV3Range, ProjectRangeJobResult, "preview.project_range.v3"),
+    RenderProjectAudioV4: (project_v4_audio::SubmitV4AudioWav, project_v4_audio::V4AudioWavResultV1, "render.project_audio.v4"),
+    RenderProjectAudioRangeV4: (project_v4_audio::SubmitV4AudioRangeWav, project_v4_audio::V4AudioRangeWavResultV1, "render.project_audio_range.v4"),
+    RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
 }
 
 fn descriptor<I: JsonSchema, O: JsonSchema>(name: &str) -> JobKindDescriptor {
@@ -820,7 +825,36 @@ mod tests {
         assert_eq!(time["type"], "string");
 
         let descriptors = job_kind_descriptors();
-        assert_eq!(descriptors.len(), 18);
+        assert_eq!(descriptors.len(), 21);
+        let audio_range = descriptors
+            .iter()
+            .find(|d| d.name == project_v4_audio::V4_AUDIO_RANGE_WAV_KIND)
+            .unwrap();
+        assert_eq!(
+            audio_range.input_schema["$defs"]["V4AudioSampleRangeV1"]["properties"]["start_sample"]
+                ["type"],
+            "string"
+        );
+        assert!(
+            audio_range
+                .result_schema
+                .to_string()
+                .contains("whole_scene_frame_count")
+        );
+        let classic_frame = descriptors
+            .iter()
+            .find(|d| d.name == project_v4_frame::V4_FRAME_PNG_KIND)
+            .unwrap();
+        assert!(
+            classic_frame
+                .result_schema
+                .to_string()
+                .contains("classic-v31-gpu-normal-frame")
+        );
+        assert_eq!(
+            classic_frame.input_schema["$defs"]["Time"]["properties"]["ticks"]["type"],
+            "string"
+        );
         assert_eq!(descriptors[2].name, "preview.project_frame");
         assert!(
             descriptors[2]
