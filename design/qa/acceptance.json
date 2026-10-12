@@ -289,7 +289,7 @@
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
     "scope": "21 scoped feature records preserve actual candidate identities. Latest consumer-quantum coverage uses one built Web with unchanged Rust/audio modules; HD boundaries passed. Dense actual supply loss and delayed credit/refill are now independently observed; three continuity gates remain open.",
-    "latest_candidate": "audio_preview_worker_pcm_pump",
+    "latest_candidate": "audio_preview_sustained_quantum_resource_observations",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -4617,12 +4617,246 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_sustained_quantum_resource_observations",
+        "status": "verified_sustained_scope_with_open_window_gates",
+        "candidate": {
+          "base_commit": "ab3843f0c1d7f3390f2cf314aa39775d0c78c8a1",
+          "source_files": [
+            "apps/web/package.json",
+            "apps/web/scripts/scene-preview-continuity.mjs",
+            "apps/web/scripts/scene-preview-continuity.test.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-continuity.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "c6afdc355d68b805fdd1977a42d5a60d13b36754af66eebe4d00bca6fc179846",
+          "product_ref": "audio_preview_worker_pcm_pump.candidate",
+          "binary_byte_identical": true,
+          "web_byte_identical": true,
+          "audio_runtime_byte_identical": true,
+          "browser": "154.0.8037.99",
+          "necessary_failed_receipt_sha256": "68872587e650881fe10ef5fdc45083c2d93a6b776d997bbf9c7128b4ea21b740",
+          "scope": "Original ab3843f Web entrypoints/full manifest, ff8019c Rust and4037ed audio module. Verifier-only changes; no product build. One original retained workspace/project/revision/media; first300s sustained run, not repeated unchanged10s acceptance.",
+          "post_run_verifier_guard": "Supply overflow guard and explicit retained-dense-metadata prerequisite added after run; observed bounded arrays/full device accounting and numeric gates unchanged. Pure/syntax checks only, no second300s run."
+        },
+        "scope": "Complete device render accounting over actual300s authored scene, independent all-placement pixels/PTS, actual Worker entry credit correlation, split memory observations and terminal resource cleanup. Does not close local supply tails or complete S1.",
+        "implementation": [
+          "Bounded raw page/Worker progress queues are periodically drained; pure continuity observer carries one real boundary point and validates every join. Initial copied quantum and terminal exact cursor are checked separately, at most64 window summaries; lost/overflow/inconsistent data fail.",
+          "Actual Worker MessagePort onmessage accessor is wrapped by the verifier to timestamp event entry before the production handler can issue credit. Correlation retains bounded pending completions across drains and block k+2; no product clock/queue/PCM algorithm change.",
+          "Independent authored placement/interval interiors select bounded bitmap pixels; sourcePTS gate remains144 per8s placement. Worker heap uses actual browser Target/CDP Runtime.getHeapUsage, separate from page V8 and owned native service/descendant ps RSS byPID/start. End requires Rust-authoritative final receipt, AudioContext closed, Worker target gone and captured native children exited."
+        ],
+        "checks": {
+          "new_observation_tests": 4,
+          "existing_quantum_observation_tests": 4,
+          "verifier_and_runner_syntax": "passed",
+          "product_builds": 0,
+          "architecture_contract_and_behavior_reuse": "No product/public/boundary dependency change. Original Worker35/HD4/10s13 and14 architecture/22modules/0exceptions/contract-boundaries/194tools/22 frozen wire retain their source/candidate scope; not re-run.",
+          "fresh_whole_workspace_run": false
+        },
+        "sustained": {
+          "status": "failed_window_continuity",
+          "fixture": {
+            "project_id": "scene-preview-dense-7b4ffe9a-45e5-4c4c-bcca-23c1af75316e",
+            "revision": "rev_bf2ac2ef6fde247d9f66ed4f125aab89c66e68a24129c11038f11af4e5872f1e",
+            "seconds": 300,
+            "source_seconds": 8,
+            "placements": 100,
+            "tracks": 5
+          },
+          "cold_ms": 4678,
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14421504,
+            "copied_frames": 14400000,
+            "missing_frames": 21504,
+            "elapsed_ms": 300441.59999999404,
+            "render_quantum_deficit_ratio": 0.0014911066141229097,
+            "stalled_ratio": 0.0014495329543565648,
+            "deficit_ratio": 0.0014787122244744877,
+            "max_raw_points": 3751
+          },
+          "windows": {
+            "count": 31,
+            "maximum_stalled_ratio": 0.016730167302855148,
+            "maximum_deficit_ratio": 0.0170568372356249,
+            "maximum_quantum_loss_ratio": 0.017066666666666667,
+            "failed": [
+              {
+                "index_zero_based": 12,
+                "start_frame": "5757568",
+                "end_frame": "6229376",
+                "elapsed_ms": 9999.90000000596,
+                "copied_frames": 471808,
+                "rendered_frames": 480000,
+                "missing_frames": 8192,
+                "stalled_ratio": 0.016730167302855148,
+                "deficit_ratio": 0.0170568372356249,
+                "render_quantum_deficit_ratio": 0.017066666666666667,
+                "maximum_message_lag_ms": 104,
+                "reports": 3751
+              },
+              {
+                "index_zero_based": 22,
+                "start_frame": "10544000",
+                "end_frame": "11019136",
+                "elapsed_ms": 9999.90000000596,
+                "copied_frames": 475136,
+                "rendered_frames": 480000,
+                "missing_frames": 4864,
+                "stalled_ratio": 0.009610096103339492,
+                "deficit_ratio": 0.010123434568268919,
+                "render_quantum_deficit_ratio": 0.010133333333333333,
+                "maximum_message_lag_ms": 72,
+                "reports": 3751
+              }
+            ],
+            "method": "Contiguous <=8192-point raw windows with one carry; every10s render window and total retain<=1% thresholds. Initial observed positive quantum plus all subsequent exact increments cover initial0 to14400000."
+          },
+          "source_pts_per_placement": [
+            160,
+            160,
+            154,
+            155,
+            155,
+            158,
+            160,
+            154,
+            154,
+            152,
+            155,
+            155,
+            153,
+            157,
+            155,
+            156,
+            155,
+            160,
+            162,
+            161
+          ],
+          "max_skew_ms": 122.66666666667447,
+          "minimum_skew_ms": 0,
+          "independent_pixels": {
+            "observations": 386,
+            "source_placements_covered": 20,
+            "color_intervals_per_placement": 8,
+            "authored_gaps_covered": 19,
+            "oracle": "Interior red/green sample per externally authored source second; black gaps. All160 intervals and19 gaps asserted, not inferred from compiled frame plans."
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "credit": {
+            "completion_to_report": {
+              "count": 3502,
+              "mean_ms": 1.1386921759216122,
+              "maximum_ms": 91,
+              "p95_ms": 6.5
+            },
+            "completion_to_next_supply": {
+              "count": 3502,
+              "mean_ms": 49.60314106194888,
+              "maximum_ms": 214.7999999821186,
+              "p95_ms": 73.09999999403954
+            },
+            "report_to_next_supply": {
+              "count": 3502,
+              "mean_ms": 48.46444888602727,
+              "maximum_ms": 214.69999998807907,
+              "p95_ms": 70.30000001192093
+            },
+            "completions_observed": 3502,
+            "unmatched_terminal_completions": 0,
+            "method": "Actual Worker MessagePort receipt entry, covering serialized report and transfer block k+2; all timestamps converted with performance.timeOrigin. Not native-only or DAC latency."
+          },
+          "resources": {
+            "page": {
+              "baseline": 4177824,
+              "peak": 36690616,
+              "delta": 32512792
+            },
+            "worker": {
+              "samples": 266,
+              "peak_used": 21628244,
+              "peak_backing": 13724502,
+              "method": "Actual dedicated Worker CDP Runtime.getHeapUsage; no steady-window GC"
+            },
+            "native": {
+              "samples": 54,
+              "peak_tree_rss": 1555865600,
+              "peak_processes": 11,
+              "owned_children_after_end": 0,
+              "method": "ps RSS of live owned Rust service and descendants, captured PID/start identity; separate from verification-browser RSS, not a kernel quota"
+            },
+            "peak_gpu_accounted": 18432212,
+            "peak_execution_accounted": 35414841,
+            "device_closed": true,
+            "worker_target_closed": true
+          },
+          "main_thread": {
+            "task_ms": 95810.623,
+            "script_ms": 32185.230000000003
+          },
+          "readonly": true,
+          "errors": [],
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": false,
+            "deficit_ratio": false,
+            "render_quantum_deficit_ratio": false,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": true,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "worker_credit_scope": "3502 observed completion correlations; final target termination prevents retrieving the last partial Worker batch. No claim of complete terminal credit-timing span. Page device span and final native cursor are complete.",
+          "pcm_scope": "Independent frequency/amplitude for initial4096 left-channel pre-master samples only, not every subsequent placement/gap or physical post-master output.",
+          "memory_scope": "Page heap, Worker used/backing maxima (sum conservative, not necessarily co-timed), native RSS sum and GPU allocation are separate. RSS may double-count shared mappings; sampled native tree excludes verifier-browser RSS and is not kernel quota/total-system memory."
+        },
+        "findings": [
+          "Actual300.442s reaches14400000 consumed frames and ends cleanly, but rendered14421504:21504 genuine missing frames. Whole-span quantum loss0.1491% passes the mean; windows120-130/220-230 render-seconds lose8192/4864 frames (1.7067%/1.0133%) and fail the unchanged per-window1% gate.",
+          "Worker actual entry-to-covering reportp95 6.5ms/max91ms; entry-to-refillp95 73.1ms/max214.8ms. This is genuine Worker-origin evidence, unlike previous page-later-covering-report values. No causal native attribution from mixed IPC/production/scheduling time.",
+          "All20 useful sourcePTS counts152-162,20x8 color intervals/19 gaps, skew<=122.67ms, initial440Hz PCM, split resource limits and terminal cleanup pass. These do not erase the three window gate failures."
+        ],
+        "next": "Keep the current product and necessary failed receipt; instrument affected native producer/compile callback/mix-byte-marshalling/publication stages to locate the rare credit-to-refill tail before optimizing. Retain two-slot4096 budget and per-window<=1%; do not repeat unchanged sustained/short acceptance to hunt green. Then gain/rapid-seek/scene-revision/real-permission matrix and independent later PCM/long-source formats.",
+        "reuse": {
+          "prior_import_copy_repeated": false,
+          "one_owned_synthetic_workspace": true,
+          "rust_web_audio_rebuilt": false,
+          "broader_suites_rerun": false
+        },
+        "limits": [
+          "S1 and36 groups remain partial; sustained per-window continuity fails despite valid terminal/resource/pixel evidence.",
+          "Not true long-file/VFR/non-unit-rate/all sample rates/control matrix/cross-browser/DAC or whole migration proof.",
+          "Native scheduling/GC/observer overhead/OS contention contributions are not causally isolated."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "lsof_owned_workspace_handles": 0,
+          "owned_workspace_reused": true,
+          "necessary_failed_receipt_retained": true,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG now has scoped720p/8s correctness and one dense~10s all-gates pass: sourcePTS154/144, page-weighted stalls/actual quantum loss/confirmed deficit all0%, skew117.33ms. This does not prove300s actual playback or sustained performance. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG: prior scoped720p/8s and dense10s pass. Same product now has complete actual300s end/cursor,20x8 source intervals/19 gaps, sourcePTS152-162/skew122.67ms and split resource cleanup evidence; overall quantum loss0.1491%, but10s windows1.7067%/1.0133% fail<=1%, so sustained continuity remains open. Initial PCM only; later PCM, long-file/VFR/full control and complete visual/export matrix remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -4670,7 +4904,27 @@
       "limits": "No real long-file/physical device/derived cache acceptance;whole migration remains incomplete."
     }
   ],
-  "open_failures": [],
+  "open_failures": [
+    {
+      "evidence_id": "audio_preview_sustained_quantum_resource_observations",
+      "feature": "S1 sustained continuous picture/audio preview",
+      "gates": {
+        "stalled_ratio": {
+          "maximum_window_ratio": 0.016730167302855148,
+          "maximum": 0.01
+        },
+        "deficit_ratio": {
+          "maximum_window_ratio": 0.0170568372356249,
+          "maximum": 0.01
+        },
+        "render_quantum_deficit_ratio": {
+          "maximum_window_ratio": 0.017066666666666667,
+          "maximum": 0.01
+        }
+      },
+      "next": "Keep the current product and necessary failed receipt; instrument affected native producer/compile callback/mix-byte-marshalling/publication stages to locate the rare credit-to-refill tail before optimizing. Retain two-slot4096 budget and per-window<=1%; do not repeat unchanged sustained/short acceptance to hunt green. Then gain/rapid-seek/scene-revision/real-permission matrix and independent later PCM/long-source formats."
+    }
+  ],
   "resource_constraints": [
     {
       "id": "F18",

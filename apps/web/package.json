@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "node scripts/generate-site-content.mjs --check && node scripts/build-classic-exporter.mjs --check && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run && node --test scripts/check-boundaries.test.mjs scripts/scene-preview-consumption.test.mjs",
+    "test": "vitest run && node --test scripts/check-boundaries.test.mjs scripts/scene-preview-consumption.test.mjs scripts/scene-preview-continuity.test.mjs",
     "typecheck": "tsc --noEmit",
     "boundaries:check": "node scripts/check-boundaries.mjs",
     "contracts:check": "node ../../packages/sdk-ts/scripts/generate.mjs --check",

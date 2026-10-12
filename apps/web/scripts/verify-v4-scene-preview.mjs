@@ -3,10 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { importProductMedia, placeProductMedia } from "./verify-v4-editor.mjs";
 
-export function installScenePreviewWitness({ deferReadback = false } = {}) {
+export function installScenePreviewWitness({ deferReadback = false, rolling = false, sampleSchedule = null } = {}) {
     const deferred = [], sampledSeconds = new Set();
     const w = (window.__scenePreviewWitness = {
       session: null,
+      endedSession: null,
+      overflows: 0,
       progress: null,
       frames: [],
       progresses: [],
@@ -45,6 +47,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
     const observe = (data, context) => {
       if (data.kind !== "progress" || data.token !== w.progress?.token) return;
       w.progress = data;
+      if (rolling && Number(data.consumedFrames) > 0 && w.progresses.length >= 8192) w.overflows++;
       if (Number(data.consumedFrames) > 0 && w.progresses.length < 8192)
         w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now(),
           copied: data.copied, completedBlocks: data.completedBlocks,
@@ -52,6 +55,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
           contextFrame: Math.round(context.currentTime * context.sampleRate) });
       if (Number(data.consumedFrames) > 0 && !w.firstSoundAt) w.firstSoundAt = Date.now();
     };
+    window.__scenePreviewDeviceStates = () => [...contexts.values()].map(context => context.state);
     const OriginalWorker = window.Worker;
     window.Worker = class extends OriginalWorker {
       constructor(...args) {
@@ -60,7 +64,10 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
         this.addEventListener("message", ({data}) => {
           if (data.channel !== "opencut-audio-pump" || data.version !== 1 || data.token !== w.progress?.token) return;
           if (data.kind === "progress") observe(data.receipt, contexts.get(data.token));
-          if (data.kind === "session" || data.kind === "reply" && data.session) w.session = data.session;
+          if (data.kind === "session" || data.kind === "reply" && data.session) {
+            w.session = data.session;
+            if (data.session.state === "ended") w.endedSession = data.session;
+          }
         });
       }
     };
@@ -80,7 +87,8 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
           }
           if (data.kind === "block") {
             w.blocks++;
-            if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
+            if (rolling && w.supplies.length >= 512) w.overflows++;
+      if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
             if (w.pcm.length < 4096)
               w.pcm.push(
                 ...new Float32Array(data.pcm)
@@ -135,6 +143,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
     };
     const transfer = ImageBitmapRenderingContext.prototype.transferFromImageBitmap;
     ImageBitmapRenderingContext.prototype.transferFromImageBitmap = function (bitmap) {
+      if (rolling && bitmap && this.canvas.classList.contains("v4-scene-frame") && w.frames.length >= 512) w.overflows++;
       if (bitmap && this.canvas.classList.contains("v4-scene-frame") && w.frames.length < 512) {
         // Read one independently selected center pixel before ownership moves.
         // Avoid a full-frame GPU readback in the measurement itself.
@@ -155,8 +164,13 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
           // Freeze one actual center pixel per authored second, at most 16.
           // Materialize its CPU bytes after the measured playback window; a
           // synchronous GPU read every paint otherwise dominates this test.
-          const second = Math.floor(t);
-          if (!sampledSeconds.has(second) && deferred.length < 16) {
+          let second = Math.floor(t), eligible = true;
+          if (sampleSchedule) {
+            const k = sampleSchedule.starts.findLastIndex(start => start <= t), local = t - sampleSchedule.starts[k];
+            second = `${k}:${local < sampleSchedule.duration ? Math.floor(local) : "gap"}`;
+            eligible = local < sampleSchedule.duration ? local % 1 >= .15 && local % 1 <= .85 : local >= sampleSchedule.duration + .15;
+          }
+          if (eligible && !sampledSeconds.has(second) && deferred.length < 16) {
             sampledSeconds.add(second);
             deferred.push({ record, bitmap: createImageBitmap(bitmap, Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1), read });
           }
@@ -176,24 +190,46 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
         try { item.read(bitmap); } finally { bitmap.close(); }
       }
       deferred.length = 0;
+      if (rolling) sampledSeconds.clear();
     };
 }
 
 // Observe transferred PCM and control RTT in the owning Worker. Injection is
 // required before its start message; otherwise acceptance fails rather than
 // silently treating a missing supply trace as an empty/healthy stream.
-export function installScenePreviewPumpWitness() {
+export function installScenePreviewPumpWitness({ rolling = false } = {}) {
   const w = globalThis.__scenePumpWitness = { token: null, startObserved: false,
-    timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [] };
+    timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [], progresses: [], overflows: 0 };
   addEventListener("message", ({data}) => {
     if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
       w.token = data.token; w.startObserved = true;
     }
   });
+  if (rolling) {
+    // Capture receipt entry before the production handler can release credit.
+    const descriptor = Object.getOwnPropertyDescriptor(MessagePort.prototype, "onmessage"), handlers = new WeakMap();
+    if (!descriptor?.set || !descriptor.get) throw new Error("No observable native MessagePort receipt entry.");
+    Object.defineProperty(MessagePort.prototype, "onmessage", { ...descriptor,
+      get() { return handlers.has(this) ? handlers.get(this) : descriptor.get.call(this); },
+      set(handler) {
+        handlers.set(this, handler);
+        descriptor.set.call(this, handler && function(event) {
+          const data = event.data;
+          if (data?.kind === "progress" && data.token === w.token && Number(data.consumedFrames) > 0) {
+            if (w.progresses.length >= 8192) w.overflows++;
+            else w.progresses.push({renderFrame: data.renderFrame, frames: data.consumedFrames,
+              completedBlocks: data.completedBlocks, at: performance.now()});
+          }
+          return handler.call(this, event);
+        });
+      }
+    });
+  }
   const post = MessagePort.prototype.postMessage;
   MessagePort.prototype.postMessage = function(data, ...rest) {
     if (data.kind === "block" && data.token === w.token) {
       w.blocks++;
+      if (rolling && w.supplies.length >= 512) w.overflows++;
       if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
       if (w.pcm.length < 4096) w.pcm.push(...new Float32Array(data.pcm)
         .subarray(0, Math.min(8192, (4096 - w.pcm.length) * 2)).filter((_, i) => i % 2 === 0));
@@ -205,25 +241,41 @@ export function installScenePreviewPumpWitness() {
     const began = performance.now(), url = String(args[0]);
     const input = url.endsWith("opencut_audio_preview_v4_control") ? JSON.parse(args[1]?.body ?? "null") : null;
     const response = await originalFetch(...args);
+    if (rolling && input?.command && w.controls.length >= 2048) w.overflows++;
     if (input?.command && w.controls.length < 2048) w.controls.push({ kind: input.command.kind,
       frames: input.command.consumed_frames ?? null, began, ended: performance.now() });
     return response;
   };
 }
-export function trackScenePreviewPumps(page) {
+export function trackScenePreviewPumps(page, {rolling = false} = {}) {
   const pumps = [];
   page.on("worker", worker => {
     if (!/pump-worker/.test(worker.url())) return;
-    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness) };
+    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling}) };
     // Preserve the rejection for the reader, without an unhandled rejection if
     // the user cancels before this otherwise idle worker starts playback.
     worker.on("close", () => { entry.closed = true; });
     void entry.installed.catch(() => {}); pumps.push(entry);
   });
   return async () => {
-    const w = await page.evaluate(() => ({ ...structuredClone(window.__scenePreviewWitness), timeOrigin: performance.timeOrigin }));
+    const w = await page.evaluate(async rolling => {
+      if (rolling) await window.__readScenePreviewSamples();
+      const w = { ...structuredClone(window.__scenePreviewWitness), timeOrigin: performance.timeOrigin,
+        deviceStates: window.__scenePreviewDeviceStates() };
+      if (rolling) {
+        window.__scenePreviewWitness.progresses.length = 0;
+        window.__scenePreviewWitness.frames.length = 0;
+        window.__scenePreviewWitness.controls.length = 0;
+        window.__scenePreviewWitness.bindings.splice(0, Math.max(0,window.__scenePreviewWitness.bindings.length-8));
+      }
+      return w;
+    }, rolling);
     for (const entry of pumps) {
-      try { await entry.installed; entry.cached = await entry.worker.evaluate(() => structuredClone(globalThis.__scenePumpWitness)); }
+      try { await entry.installed; entry.cached = await entry.worker.evaluate(rolling => {
+        const w = structuredClone(globalThis.__scenePumpWitness);
+        if (rolling) for (const key of ["supplies", "controls", "progresses"]) globalThis.__scenePumpWitness[key].length = 0;
+        return w;
+      }, rolling); }
       catch (error) { if (!entry.cached && !entry.closed) throw error; }
     }
     const current = pumps.map(p => p.cached).find(p => p?.token === w.progress?.token);
@@ -233,8 +285,11 @@ export function trackScenePreviewPumps(page) {
       w.blocks = current.blocks; w.pcm = current.pcm;
       w.supplies = current.supplies.map(s => ({...s, at: s.at + offset}));
       w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset})));
+      w.workerProgresses = current.progresses.map(p => ({...p, at: p.at + offset}));
+      w.workerOverflows = current.overflows;
       w.pumpWitness = { startObserved: true, owner: "dedicated-worker", timeOriginConverted: true };
     } else if (w.firstSoundAt) throw new Error("No actual audio pump supply witness.");
+    if (rolling && current) for (const key of ["supplies", "controls", "progresses"]) current[key].length = 0;
     return w;
   };
 }
