@@ -7,6 +7,7 @@ declare function registerProcessor(
   name: string,
   processor: typeof AudioWorkletProcessor,
 ): void;
+declare const currentFrame: number;
 
 class PreviewOutputProcessor extends AudioWorkletProcessor {
   private queue = new PreviewPcmQueue();
@@ -54,7 +55,8 @@ class PreviewOutputProcessor extends AudioWorkletProcessor {
       return true;
     }
     const receipt = this.queue.render(output[0], output[1]);
-    this.port.postMessage({ kind: "progress", token: this.token, ...receipt });
+    this.port.postMessage({ kind: "progress", token: this.token, ...receipt,
+      renderFrame: currentFrame, quantumFrames: output[0].length });
     return true;
   }
 }

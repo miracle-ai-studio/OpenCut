@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { installScenePreviewWitness } from "./verify-v4-scene-preview.mjs";
+import { summarizePreviewConsumption } from "./scene-preview-consumption.mjs";
 
 const time = (n, base = 1) => ({ ticks: String(n), timebase: base });
 // Freeze these gates before measurement. Eight seconds of actual 24fps video
@@ -147,6 +148,7 @@ export async function verifyV4ScenePreviewPerformance(browser, endpoint, directo
       block_sizes: [...new Set(supplies.map(s=>s.frames))],
       method: "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference",
     };
+    evidence.device_observations = summarizePreviewConsumption(reports, controls, steady.supplies, 48000);
     evidence.resources = {
       peak_gpu_bytes: Math.max(...runtimes.map(r => Number(r.peakGpuBytes))),
       peak_accounted_bytes: Math.max(...runtimes.map(r => Number(r.peakAccountedBytes))),
@@ -172,6 +174,10 @@ export async function verifyV4ScenePreviewPerformance(browser, endpoint, directo
     gate("extent", () => expect(steady.session.total_frames).toBe("14400000"));
     gate("cold", () => expect(evidence.cold_ms).toBeLessThanOrEqual(budget.cold_ms));
     gate("stalls", () => expect(evidence.consumption.stalled_ratio).toBeLessThanOrEqual(budget.deficit_ratio));
+    gate("device_quantum_supply", () => {
+      expect(evidence.device_observations.status).toBe("complete_observed_span");
+      expect(evidence.device_observations.render_quantum_deficit_ratio).toBeLessThanOrEqual(budget.deficit_ratio);
+    });
     gate("deficit", () => expect(evidence.consumption.deficit_ratio).toBeLessThanOrEqual(budget.deficit_ratio));
     gate("useful_video_pts", () => expect(distinct).toBeGreaterThanOrEqual(budget.distinct_video_frames));
     gate("synchronization", () => {

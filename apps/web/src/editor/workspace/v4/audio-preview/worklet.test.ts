@@ -7,6 +7,7 @@ it("primes only the existing two-block FIFO; short EOF and stopped cursor cannot
   }
   let Current = Processor;
   vi.stubGlobal("AudioWorkletProcessor", Processor);
+  vi.stubGlobal("currentFrame", 128);
   vi.stubGlobal("registerProcessor", (_name: string, ctor: typeof Processor) => { Current = ctor; });
   await import("./worklet");
   const p = new Current();
@@ -18,7 +19,7 @@ it("primes only the existing two-block FIFO; short EOF and stopped cursor cannot
   quantum(); expect([...left]).toEqual([0, 0]); expect(p.port.postMessage).not.toHaveBeenCalled();
   send({ kind: "block", token: "first", pcm: new Float32Array([.5, .6, .7, .8]).buffer });
   quantum(); expect(left[0]).toBeCloseTo(.1);
-  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "2", copied: 2 }));
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "2", copied: 2, renderFrame: 128, quantumFrames: 2 }));
   send({ kind: "stop" });
   expect(p.port.postMessage).toHaveBeenLastCalledWith({ kind: "stopped", token: "first", consumedFrames: "2" });
   send({ kind: "reset", token: "short" });
@@ -26,4 +27,7 @@ it("primes only the existing two-block FIFO; short EOF and stopped cursor cannot
   send({ kind: "end", token: "first" }); quantum(); expect([...left]).toEqual([0, 0]);
   send({ kind: "end", token: "short" }); quantum(); expect([...left]).toEqual([.25, 0]);
   expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 1 }));
+  vi.stubGlobal("currentFrame", 256);
+  quantum();
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 0, renderFrame: 256, quantumFrames: 2 }));
 });

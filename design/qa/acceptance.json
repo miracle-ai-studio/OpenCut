@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "20 scoped feature records retain actual candidate identities; latest private PCM bridge uses the unchanged explicit Rust/Web and a separately identified audio module. HD boundaries passed; dense useful source PTS and stalls passed, confirmed deficit remains open.",
-    "latest_candidate": "audio_preview_single_page_pcm_result",
+    "scope": "21 scoped feature records preserve actual candidate identities. Latest consumer-quantum coverage uses one built Web with unchanged Rust/audio modules; HD boundaries passed. Dense actual supply loss and delayed credit/refill are now independently observed; three continuity gates remain open.",
+    "latest_candidate": "audio_preview_device_quantum_observations",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -4138,12 +4138,245 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_device_quantum_observations",
+        "status": "verified_observability_with_open_performance_gates",
+        "candidate": {
+          "base_commit": "82108a16769e807cdd969659427256c0b3a50f0d",
+          "source_files": [
+            "apps/web/package.json",
+            "apps/web/scripts/scene-preview-consumption.mjs",
+            "apps/web/scripts/scene-preview-consumption.test.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-performance.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "apps/web/src/editor/workspace/v4/audio-preview/worklet.test.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview/worklet.ts"
+          ],
+          "source_manifest_sha256": "7f06a2b84d81d07fe690600bec67edf5e58f8ace8e80880e596db71a9500ad38",
+          "binary_ref": "audio_preview_retained_source_binding.candidate.binary_sha256",
+          "binary_byte_identical": true,
+          "audio_runtime_ref": "audio_preview_single_page_pcm_result.candidate.audio_runtime_module_sha256",
+          "web_entrypoints": {
+            "assets/editor-workspace-Dm76AgX5.js": "06fdec6cde71ea930f884e023d9e205025ca3e6a73c404470a9313d3a206680e",
+            "assets/index-CMzQD1U0.js": "bd9618b510da06f8c37526bd10ddca2ec7e9f8b56d366f46eed6edfb465489e8",
+            "assets/worklet-Bgq1Jdar.js": "b75b590a721db386b915471452852925979d9c769b4d8182e27fc57503351bfe",
+            "index.html": "b0ceea269445ed63caec98256b7864185166755007c7634d41ec3620c86c4910"
+          },
+          "web_files_manifest_sha256": "ee0ba4e18b0f390bca4ea92e0666440af4113934988be96523f54148835e6ba8",
+          "browser": "154.0.8037.99",
+          "scope": "One Web build; same explicit Rust binary and existing audio module. Both HD and dense use these exact built Web bytes and original fixed synthetic workspace."
+        },
+        "scope": "Independent consumer-quantum and credit-to-refill observations expose real supply loss and page weighting bias. This slice changes observability/coverage, not claimed throughput improvement.",
+        "implementation": [
+          "Original per-quantum Worklet progress adds currentFrame and quantumFrames; copied/consumed/queue behavior, two-slot FIFO and production controls unchanged.",
+          "Verifier retains bounded raw copied/completed/device-frame/context-frame facts. Pure verifier-only helper requires contiguous render intervals and exact cumulative-cursor increments; missing/reordered/inconsistent data cannot establish a complete span.",
+          "Existing stalls/confirmed-deficit gates remain at1%; additional device_quantum_supply requires complete observed span and <=1% actual missing render frames. No page-message batching can replace device-frame accounting.",
+          "Completion receipt k is correlated with original transfer block k+2 and a covering report_consumed. Observed graph-message lag and report-to-refill timing isolate consumer-side evidence without claiming native-only or DAC timing. Helper is wired into the normal Web test command; no new product module/dependency/allowlist extension."
+        ],
+        "checks": {
+          "web_worklet_queue_output_tests": 6,
+          "independent_observation_tests": 4,
+          "observation_oracles": "Batched arrival with two independently known silent quanta; partial copy and exact cursor above2^53; missing/duplicate/reordered/invalid/inconsistent facts; original two-slot credit/refill correlation without counting heartbeat or stale consumption.",
+          "web_boundary_files": 178,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "typecheck_and_web_build": "passed, one production build",
+          "rust_builds": 0,
+          "generated_wire_reuse": "Exact unchanged ff8019c release binary; prior194 current/22 frozen checks retained at their actual candidate. No public declarations/registration/generated consumer delta.",
+          "fresh_whole_workspace_run": false
+        },
+        "hd_correctness": {
+          "status": "passed",
+          "checks_passed": 4,
+          "oracle_scope_ref": "visual_preview_prepared_frame_reuse.hd_correctness.checks",
+          "cold_ms": 7543,
+          "distinct_requested_time_presentations": 69,
+          "max_skew_ms": 101.33333333333327,
+          "frequency_hz": 439.99991601772865,
+          "rms": 0.08831585190797463,
+          "seek_ms": 465,
+          "resource_downloads": 1,
+          "scope": "Same720p/8s24fps BT709 and independent440Hz PCM. Request-time presentation count is not unique sourcePTS. Paused permission denial is HTTP injection; prior genuine native-revocation evidence retains its source identity."
+        },
+        "dense_performance": {
+          "status": "failed",
+          "fixture_ref": "visual_preview_prepared_frame_reuse.dense_performance.fixture",
+          "fixed_fixture_reused": true,
+          "budget_ref": "visual_preview_prepared_frame_reuse.dense_performance.budget",
+          "coverage_addition": "Complete device quantum receipt span and actual missing-frame ratio <=existing1% budget, in addition to all prior gates.",
+          "cold_ms": 4812,
+          "distinct_presented_source_pts": 149,
+          "max_skew_ms": 117.33333333333285,
+          "minimum_skew_ms": 0,
+          "consumption": {
+            "elapsed_ms": 9999.800000011921,
+            "frames": 461440,
+            "reports": 3752,
+            "stalled_ratio": 0.027410548210335485,
+            "deficit_ratio": 0.038647439616605106,
+            "stalled_reports_by_second": {
+              "0": 0,
+              "1": 0,
+              "2": 6,
+              "3": 2,
+              "4": 10,
+              "5": 22,
+              "6": 24,
+              "7": 30,
+              "8": 22,
+              "9": 30
+            }
+          },
+          "device_observations": {
+            "status": "complete_observed_span",
+            "sample_rate": 48000,
+            "rendered_frames": 480128,
+            "copied_frames": 461440,
+            "missing_frames": 18688,
+            "render_quantum_deficit_ratio": 0.03892295387896561,
+            "quantum_delivery_lag": {
+              "count": 3752,
+              "mean_ms": 5.457711442786056,
+              "maximum_ms": 120,
+              "p95_ms": 37.333333333333336
+            },
+            "context_before_quantum_end_count": 0,
+            "completion_to_report": {
+              "count": 112,
+              "mean_ms": 2.4758928580475703,
+              "maximum_ms": 21.400000005960464,
+              "p95_ms": 15.599999994039536
+            },
+            "completion_to_next_supply": {
+              "count": 112,
+              "mean_ms": 66.41607142931649,
+              "maximum_ms": 129.5,
+              "p95_ms": 96.30000001192093
+            },
+            "report_to_next_supply": {
+              "count": 112,
+              "mean_ms": 63.940178571268916,
+              "maximum_ms": 129.30000001192093,
+              "p95_ms": 96.2000000178814
+            },
+            "completion_receipts_observed": 112,
+            "method": "Contiguous device renderFrame/quantumFrames and exact copied/cursor deltas. Context lag is page-observed AudioContext graph-frame lag, not DAC latency. Completion k is correlated with transferred block k+2 under the existing two-slot FIFO; HTTP timing includes native production and page scheduling, not a causal native breakdown."
+          },
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "main_thread": {
+            "task_ms": 5090.182,
+            "script_ms": 1218.477,
+            "method": "CDP page main-thread time during the real steady window; excludes driver/native CPU"
+          },
+          "heap": {
+            "baseline_bytes": 4629560,
+            "peak_bytes": 32630912,
+            "delta_bytes": 28001352,
+            "method": "CDP page V8 heap, one baseline GC; no steady-window GC"
+          },
+          "execution": {
+            "planMs": {
+              "mean": 11.44638297786104,
+              "maximum": 60.30000001192093
+            },
+            "bindMs": {
+              "mean": 8.451063829153142,
+              "maximum": 101.19999998807907
+            },
+            "totalMs": {
+              "mean": 35.28255319113427,
+              "maximum": 1324.4000000059605
+            }
+          },
+          "transport": {
+            "controls": {
+              "report_consumed": {
+                "count": 281,
+                "mean_ms": 8.104982205981461,
+                "maximum_ms": 44.70000001788139,
+                "p95_ms": 11.400000005960464
+              },
+              "heartbeat": {
+                "count": 18,
+                "mean_ms": 9.383333335320154,
+                "maximum_ms": 13.300000011920929,
+                "p95_ms": 13.300000011920929
+              }
+            },
+            "pcm_arrival_gaps": {
+              "count": 111,
+              "mean_ms": 88.50720720731461,
+              "maximum_ms": 201.5,
+              "p95_ms": 143.90000000596046
+            },
+            "block_sizes": [
+              4096
+            ],
+            "method": "Page-observed authenticated control RTT and bounded PCM transfer arrival gaps; no native/device latency inference"
+          },
+          "resources": {
+            "peak_gpu_bytes": 18432212,
+            "peak_accounted_bytes": 35414841,
+            "retained_decoded_bytes": 11059200,
+            "retained_encoded_bytes": 11475,
+            "method": "Classic execution allocation accounting; excludes driver/native RSS and process GPU overhead"
+          },
+          "gates": {
+            "independent_pixels": true,
+            "extent": true,
+            "cold": true,
+            "stalls": false,
+            "device_quantum_supply": false,
+            "deficit": false,
+            "useful_video_pts": true,
+            "synchronization": true,
+            "heap": true,
+            "gpu": true,
+            "independent_pcm": true,
+            "readonly": true,
+            "page_errors": true
+          },
+          "independent_pixels": "All eight externally authored red/green interval oracles passed.",
+          "scope": "Actual10s page-observed window/contiguous device render span over the original300s authored extent and two8sCAS sources. Complete render span establishes real underrun, not physicalDAC or whole-source performance."
+        },
+        "findings": [
+          "Observed480128 rendered frames but461440 copied:18688 missing frames,3.892% device-quantum supply loss. Page-weighted stalled2.741% undercounts the actual device loss; confirmed deficit3.865% independently remains red.",
+          "Graph-message delivery lag p95=37.33ms/max120ms; observed completion-to-refill p95=96.3ms exceeds4096/48000=85.33ms block playtime. Covering report starts p95=15.6ms after completion observation; HTTP RTT p95=11.4ms alone does not explain the whole tail.",
+          "No causal attribution to the metadata change or native producer from one run. Fresh candidate does not inherit the previous candidate's one-run stalls pass; repeated unchanged acceptance was not used to hunt green."
+        ],
+        "next": "Extract the existing PCM stream/credit data pump from GPU/UI scheduling with one owner and a versioned private port contract; reuse original exact sample receipts, serialized authority checks and parser/SDK. Verify late generation, final-stop cursor, cancellation and two-slot budget before running the retained fixture once after integration.",
+        "reuse": {
+          "broader_suites_rerun": false,
+          "unchanged_candidate_rerun": false,
+          "prior_media_import_or_project_copy_repeated": false,
+          "one_owned_synthetic_workspace": true,
+          "foundation": "Original Rust/application/compiled-fact bridge/native sampler/Classic renderer/Worklet queue and SDK. Only changed consumer observations/coverage plus required boundaries and actual HD/dense Web candidate checked."
+        },
+        "limits": [
+          "Fresh dense stalls/device supply/confirmed deficit remain red. Metadata/observer overhead and run-to-run variability are not causally isolated; no claimed performance improvement.",
+          "No5min continuous playback, true long-file/VFR/non-unit-rate/full control matrix, physicalDAC/cross-browser or whole migration acceptance. S1/F10/F42 and36 groups remain partial."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "lsof_owned_workspace_handles": 0,
+          "owned_workspace_reused": true,
+          "necessary_failed_dense_receipt_retained": true,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG preview has bounded720p/8s correctness evidence; dense confirmed deficit remains above1%, while stalls0.914% and useful sourcePTS156/144 passed on the latest candidate. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG has bounded720p/8s correctness evidence. Latest dense candidate: sourcePTS149/144 passed; page-weighted stalls2.741%, actual device-quantum loss3.892% and confirmed deficit3.865% exceed1%. Prior single-run stalls passes are not sustained/current-candidate guarantees. Long-file/VFR/full transport, text/fonts/layout/graphics/stickers/blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -4193,15 +4426,23 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "audio_preview_single_page_pcm_result",
+      "evidence_id": "audio_preview_device_quantum_observations",
       "feature": "S1 dense continuous picture/audio preview",
       "gates": {
+        "stalls": {
+          "actual_ratio": 0.027410548210335485,
+          "maximum": 0.01
+        },
+        "device_quantum_supply": {
+          "actual_ratio": 0.03892295387896561,
+          "maximum": 0.01
+        },
         "deficit": {
-          "actual_ratio": 0.0124839575312099,
+          "actual_ratio": 0.038647439616605106,
           "maximum": 0.01
         }
       },
-      "next": "Separate credit-release-to-production and production-to-page/Worklet delivery from delayed consumption confirmations in the retained fixed fixture. Keep original10s confirmed-deficit gate, two-block budget and authority fences; do not rerun an unchanged candidate to hunt a pass. Page arrival p95 remains128.6ms vs85.33ms per4096-frame block."
+      "next": "Extract the existing PCM stream/credit data pump from GPU/UI scheduling with one owner and a versioned private port contract; reuse original exact sample receipts, serialized authority checks and parser/SDK. Verify late generation, final-stop cursor, cancellation and two-slot budget before running the retained fixture once after integration."
     }
   ],
   "resource_constraints": [

@@ -301,3 +301,5 @@ Worklet只在原两块FIFO内预填，短EOF由匹配token的end解除预填；�
 实时声音的已验证`BoundPreviewAudioV4`由原`ClassicAudioSession`持有，借用同一固定准备并只保留一份声源格式及原生PTS索引；每个PCM块复用绑定，避免再次校验、克隆完整voice/segment集合。输入顺序单独保存为有界索引，原绑定/回执的精确比较和编译voice顺序保持；重复绑定仍核验，变更或未授权绑定拒绝且不替换原事实。每次块编译仍先执行实时资源checkpoint，宿主保留生产/发布的权限及代际围栏。无关键帧的element/track物理增益每voice每块求值一次，动画保持原60Hz采样插值与generation anchor；临时gain沿用原应用准入。该复用不扩展两块FIFO或PCM/进程预算，不新增源时钟算法、公开wire、模块或依赖。
 
 隔离浏览器一次`next`执行在原4096帧上限内返回双声道Float32小端字节文本及原完成回执，省去逐声道串行的page→Node回调。Node先对两声道完整长度/规范hex和捕获command一致性准入，再逐包检查取消，沿用原两条私有PCM包；Rust仍逐包校验原权限、command/generation/overlay及最终固定声源回执，并在宿主状态机围栏后发布。只有同一块的有界字节返回方式改变，未增加生产并发、消费credit或缓存；精确源/增益事实和PCM采样保持原实现。执行模块身份包含host/page源文件，不能仅以未变的Rust二进制或Web产物认定运行身份未变。
+
+Worklet原消费回执附带实际`currentFrame`与量子帧数，生产控制器仍只使用原累计消费帧。验收脚本在原8192条观察上限内核对连续设备帧区间、逐量子copied及累计cursor增量，再计算真实缺帧；缺失/乱序/不一致回执标为证据不足。原页面时间加权停顿与confirmed deficit门槛保留，并补设备量子缺帧≤1%的独立检查。新增`apps/web/scripts/scene-preview-consumption.mjs`只做验收观察算术，不进入运行时、源时钟/IR、credit算法或SDK；这是验证边界内的纯辅助文件，不新增产品模块、依赖或allowlist例外。完成块k与原两槽FIFO后继传输块k+2关联；图时钟消息滞后及report→补块耗时都不是DAC延迟或独立原生生产耗时。

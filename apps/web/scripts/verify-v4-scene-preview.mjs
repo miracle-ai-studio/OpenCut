@@ -55,7 +55,7 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
             };
           if (data.kind === "block") {
             w.blocks++;
-            if (w.supplies.length < 512) w.supplies.push({ frames: data.pcm.byteLength / 8, at: performance.now() });
+            if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames: data.pcm.byteLength / 8, at: performance.now() });
             if (w.pcm.length < 4096)
               w.pcm.push(
                 ...new Float32Array(data.pcm)
@@ -69,7 +69,10 @@ export function installScenePreviewWitness({ deferReadback = false } = {}) {
           if (data.kind === "progress" && data.token === w.progress?.token) {
             w.progress = data;
             if (Number(data.consumedFrames) > 0 && w.progresses.length < 8192)
-              w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now() });
+              w.progresses.push({ frames: data.consumedFrames, stalled: data.copied === 0, at: performance.now(),
+                copied: data.copied, completedBlocks: data.completedBlocks,
+                renderFrame: data.renderFrame, quantumFrames: data.quantumFrames,
+                contextFrame: Math.round(args[0].currentTime * args[0].sampleRate) });
             if (Number(data.consumedFrames) > 0 && !w.firstSoundAt)
               w.firstSoundAt = Date.now();
           }
