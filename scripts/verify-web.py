@@ -10,6 +10,7 @@ import subprocess
 import struct
 import sys
 import tempfile
+import uuid
 import zlib
 from fractions import Fraction
 
@@ -24,8 +25,21 @@ def main():
     parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
     parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
     parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
+    parser.add_argument('--profile-native-preview', action='store_true', help='Observe native preview phases in the retained continuity fixture; changes observation runtime identity, not a performance release')
     args = parser.parse_args()
     suites = list(dict.fromkeys(args.suite or ['full']))
+    if args.profile_native_preview and (suites != ['scene-preview-continuity'] or not args.reuse_workspace or not args.web_root):
+        parser.error('Native phase observation requires continuity alone, retained workspace and explicit built Web tree')
+    if args.profile_native_preview:
+        for kind in ['AUDIO', 'VISUAL']:
+            prefix = 'OPENCUT_CLASSIC_' + kind
+            package = os.environ.get(prefix + '_PACKAGE')
+            if not package or Path(package).resolve() != ROOT / ('packages/classic-' + kind.lower() + '-renderer'):
+                parser.error('Native observation requires explicit repository package: ' + prefix + '_PACKAGE')
+            for suffix in ['NODE', 'CHROMIUM']:
+                executable = os.environ.get(prefix + '_' + suffix)
+                if not executable or not Path(executable).is_absolute() or not os.access(executable, os.X_OK):
+                    parser.error('Native observation requires explicit executable: ' + prefix + '_' + suffix)
     if len(suites) > 1 and any(suite in {'full', 'classic-recovery'} for suite in suites):
         parser.error('full and classic-recovery must run alone')
     binary = args.binary.resolve()
@@ -52,9 +66,19 @@ def main():
     service = workspace / 'service'
     report = None
     succeeded = False
+    run_env = dict(os.environ)
+    profile_directory = None
+    if args.profile_native_preview:
+        profile_directory = workspace / ('native-preview-profile-' + uuid.uuid4().hex)
+        profile_directory.mkdir(mode=0o700)
+        probe = ROOT / 'apps/web/scripts/profile-native-preview-preload.mjs'
+        run_env['OPENCUT_PREVIEW_PROFILE_DIR'] = str(profile_directory)
+        run_env['NODE_OPTIONS'] = run_env.get('NODE_OPTIONS', '') + ' --import=' + json.dumps(str(probe))
+        probe_files = {name: hashlib.sha256((ROOT / 'apps/web/scripts' / name).read_bytes()).hexdigest()
+                       for name in ['native-preview-timing.mjs', 'profile-native-preview-preload.mjs']}
     def cli(*arguments):
         result = subprocess.run([str(binary), '--json', '--database', str(workspace / 'workspace.sqlite'),
-                                 'server', '--directory', str(service), *arguments], capture_output=True, text=True, timeout=60, cwd=workspace)
+                                 'server', '--directory', str(service), *arguments], capture_output=True, text=True, timeout=60, cwd=workspace, env=run_env)
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
         return json.loads(result.stdout)['data']
@@ -137,7 +161,7 @@ def main():
                                                 for index in range(48480)))
         state = cli('start', '--listen', '127.0.0.1:0', '--web-root', str(web))
         assert state['ready'] and state['web_url']
-        env = {**os.environ, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace), 'OPENCUT_WEB_BINARY': str(binary), 'OPENCUT_WEB_SUITE': ','.join(suites)}
+        env = {**run_env, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace), 'OPENCUT_WEB_BINARY': str(binary), 'OPENCUT_WEB_SUITE': ','.join(suites)}
         verifier = {'full': 'verify-browser.mjs', 'classic-recovery': 'verify-classic-ui.mjs'}.get(suites[0], 'verify-suite.mjs')
         result = subprocess.run(['node', str(ROOT / 'apps/web/scripts' / verifier)], env=env, cwd=ROOT, timeout=600)
         report_path = workspace / 'browser-report.json'
@@ -161,6 +185,21 @@ def main():
         if succeeded and not args.keep_workspace and not args.reuse_workspace:
             shutil.rmtree(workspace)
         if report is not None:
+            if profile_directory:
+                try:
+                    summary = subprocess.run(['node', str(ROOT / 'apps/web/scripts/summarize-native-preview-timing.mjs'), str(profile_directory)],
+                                             capture_output=True, text=True, cwd=ROOT, env=os.environ, timeout=30)
+                    observed = json.loads(summary.stdout) if summary.returncode == 0 else {
+                        'status': 'incomplete', 'summary_error': summary.stderr[-2048:]}
+                except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+                    observed = {'status': 'incomplete', 'summary_error': type(error).__name__}
+                report['native_phase_observation'] = observed
+                if observed.get('status') == 'incomplete':
+                    report['status'] = 'failed'
+                    succeeded = False
+                report['native_phase_observation']['directory'] = str(profile_directory)
+                report['native_phase_observation']['probe_files'] = probe_files
+                report['native_phase_observation']['identity_scope'] = 'Original module registry plus explicitly injected observer; not the uninstrumented production execution'
             report['workspace_retained'] = workspace.exists()
             encoded = json.dumps(report, indent=2)+'\n'
             if args.report:
@@ -171,6 +210,8 @@ def main():
                 print(encoded)
         elif workspace.exists():
             print(f'Failed workspace retained: {workspace}', file=sys.stderr)
+    if not succeeded:
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

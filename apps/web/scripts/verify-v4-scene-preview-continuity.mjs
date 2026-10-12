@@ -143,7 +143,7 @@ export async function verifyV4ScenePreviewContinuity(browser,endpoint,directory,
     evidence.gates=gates;const failed=Object.entries(gates).filter(([,ok])=>!ok).map(([k])=>k);if(failed.length)throw Error(`Sustained scene gates unmet: ${failed.join(", ")}`);
     check("300s continuous dense scene: complete device quantum coverage, every source interval/gap, actual Worker credit/resources and terminal cleanup",{scene_preview_continuity:evidence});
   }catch(error){
-    await fs.writeFile(path.join(directory,"scene-preview-continuity-failure.json"),JSON.stringify({error:String(error),evidence,
+    await fs.writeFile(path.join(process.env.OPENCUT_PREVIEW_PROFILE_DIR??directory,"scene-preview-continuity-failure.json"),JSON.stringify({error:String(error),evidence,
       progress:last?.progress,terminal:last?.endedSession,windows:account.windows,alerts:await page.getByRole("alert").allTextContents()},null,2));throw error;
   }finally{await worker.close();await page.close();}
 }
