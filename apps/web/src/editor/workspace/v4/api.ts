@@ -2,6 +2,7 @@ import type {
   OpenCutClient,
   ToolInput,
   ToolOutput,
+  CallOptions,
 } from "../../../lib/editor-sdk";
 import type { V4Operation, V4Snapshot } from "./types";
 
@@ -49,9 +50,11 @@ export class V4Api {
   audioPreviewControl(
     request: ToolInput<"opencut_audio_preview_v4_control">,
     signal?: AbortSignal,
+    options: Pick<CallOptions, "keepalive"> = {},
   ) {
     return this.sdk.call("opencut_audio_preview_v4_control", request, {
       signal,
+      ...options,
     });
   }
   audioGainPlan(request: ToolInput<"opencut_project_v4_audio_gain_plan">) {

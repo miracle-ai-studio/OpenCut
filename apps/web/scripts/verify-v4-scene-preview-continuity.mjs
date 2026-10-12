@@ -8,13 +8,13 @@ import { PreviewContinuity, PreviewCreditObservations } from "./scene-preview-co
 const budget=Object.freeze({seconds:300,window_ms:10000,deficit_ratio:.01,skew_ms:150,
   useful_pts_per_placement:144,page_heap_delta:64*1024*1024,worker_heap:64*1024*1024,
   native_tree_rss:2*1024*1024*1024,gpu:256*1024*1024,cold_ms:10000,deadline_ms:340000});
-function processes() {
+export function processes() {
   return execFileSync("ps",["-axo","pid=,ppid=,rss=,lstart=,comm="],{encoding:"utf8",maxBuffer:8*1024*1024}).trim().split("\n").map(line=>{
     const p=line.trim().split(/\s+/);return {pid:Number(p[0]),ppid:Number(p[1]),rss:Number(p[2])*1024,start:p.slice(3,8).join(" "),
       role:/Chrome/.test(p.slice(8).join(" "))?"chromium":/node/.test(p.slice(8).join(" "))?"node":"host"};
   });
 }
-function nativeTree(root, rows) {
+export function nativeTree(root, rows) {
   const ids=new Set([root]);let changed=true;
   while(changed){changed=false;for(const r of rows)if(ids.has(r.ppid)&&!ids.has(r.pid)){ids.add(r.pid);changed=true;}}
   const selected=rows.filter(r=>ids.has(r.pid));if(!selected.some(r=>r.pid===root))throw Error("Owned native service is not live");

@@ -10,6 +10,178 @@ const flush = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
 
+it.each(["playing", "paused"])(
+  "retires a known %s document with original authority and keepalive, without inventing a stopped cursor",
+  async (phase) => {
+    const f = await setupAudioPreview();
+    try {
+      await f.preview.play();
+      if (phase === "paused") {
+        f.outputs[0].finalFrames = "128";
+        await f.preview.pause();
+      }
+      const session = f.state().audioPreview.session!;
+      const reports = f.controls.filter(
+        (r) => r.command.kind === "report_consumed",
+      ).length;
+      f.outputs[0].finalFrames = "256";
+      f.preview.retireDocument();
+      f.preview.retireDocument();
+      await flush();
+      const stops = f.control.mock.calls.filter(
+        ([r]) => r.command.kind === "stop",
+      );
+      expect(stops).toHaveLength(1);
+      expect(stops[0][0]).toMatchObject({
+        session_id: session.session_id,
+        generation: session.generation,
+        owner_id: session.owner_id,
+        lease_id: session.lease_id,
+        command: { kind: "stop" },
+      });
+      expect(stops[0][1]).toBeUndefined();
+      expect(stops[0][2]).toEqual({ keepalive: true });
+      expect(
+        f.controls.filter((r) => r.command.kind === "report_consumed"),
+      ).toHaveLength(reports);
+      expect(f.outputs[0].silenced).toBe(true);
+      expect(f.state().audioPreview).toMatchObject({
+        phase: "paused",
+        session: null,
+        request: null,
+      });
+    } finally {
+      f.cleanup();
+    }
+  },
+);
+it("retires a late accepted create using its validated identity and keeps the departed document silent", async () => {
+  const f = await setupAudioPreview();
+  let release!: () => void;
+  const original = f.create.getMockImplementation()!;
+  f.create.mockImplementationOnce(async (...args) => {
+    const session = await original(...args);
+    await new Promise<void>((r) => {
+      release = r;
+    });
+    return session;
+  });
+  try {
+    const play = f.preview.play();
+    await flush();
+    f.preview.retireDocument();
+    release();
+    await play;
+    await flush();
+    expect(f.stream).not.toHaveBeenCalled();
+    const stops = f.control.mock.calls.filter(
+      ([r]) => r.command.kind === "stop",
+    );
+    expect(stops).toHaveLength(1);
+    expect(stops[0][2]).toEqual({ keepalive: true });
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+it("stops a known device failure once and ignores the retired output after a replacement starts", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play();
+    const first = f.state().audioPreview.session!;
+    f.outputs[0].failure(new Error("device failed"));
+    await flush();
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "stop")
+        .map((r) => r.session_id),
+    ).toEqual([first.session_id]);
+    expect(f.state().audioPreview.phase).toBe("failed");
+    await f.preview.play();
+    const next = f.state().audioPreview.session!;
+    expect(next.session_id).not.toBe(first.session_id);
+    f.outputs[0].failure(new Error("late device failure"));
+    await flush();
+    expect(f.controls.filter((r) => r.command.kind === "stop")).toHaveLength(1);
+    expect(f.state().audioPreview.session!.session_id).toBe(next.session_id);
+  } finally {
+    f.cleanup();
+  }
+});
+it("a late resumed Play receipt retires its new generation even after departure sent an old-generation Stop", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play();
+    await f.preview.pause();
+    const original = f.control.getMockImplementation()!;
+    let release!: () => void;
+    f.control.mockImplementationOnce(async (...args) => {
+      const result = await original(...args);
+      await new Promise<void>((r) => {
+        release = r;
+      });
+      return result;
+    });
+    const resumed = f.preview.play();
+    await flush();
+    f.preview.retireDocument();
+    await flush();
+    release();
+    await resumed;
+    await flush();
+    const stops = f.control.mock.calls.filter(
+      ([r]) => r.command.kind === "stop",
+    );
+    expect(stops).toHaveLength(2);
+    expect(stops.map(([r]) => r.generation)).toEqual(["1", "2"]);
+    expect(stops.map(([, , options]) => options)).toEqual([
+      { keepalive: true },
+      { keepalive: true },
+    ]);
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+it.each(["create", "play"])(
+  "BFCache retirement preserves an unknown %s request for original-key recovery",
+  async (kind) => {
+    const f = await setupAudioPreview();
+    try {
+      if (kind === "create") {
+        const original = f.create.getMockImplementation()!;
+        f.create.mockImplementationOnce(async (...args) => {
+          await original(...args);
+          throw new Error("lost original create");
+        });
+      } else {
+        await f.preview.play();
+        await f.preview.pause();
+        const original = f.control.getMockImplementation()!;
+        f.control.mockImplementationOnce(async (...args) => {
+          await original(...args);
+          throw new Error("lost original play");
+        });
+      }
+      await expect(f.preview.play()).rejects.toThrow("lost original");
+      const request = kind === "create" ? f.requests.at(-1) : f.controls.at(-1);
+      f.preview.retireDocument();
+      await flush();
+      expect(f.state().audioPreview.phase).toBe("unconfirmed");
+      expect(f.controls.filter((r) => r.command.kind === "stop")).toHaveLength(
+        0,
+      );
+      await f.preview.retry();
+      expect(kind === "create" ? f.requests.at(-1) : f.controls.at(-1)).toBe(
+        request,
+      );
+      expect(f.state().audioPreview.session).not.toBeNull();
+    } finally {
+      f.cleanup();
+    }
+  },
+);
+
 it("reports completed endpoints immediately, coalesces in-flight endpoints and ignores ordinary quantum progress", async () => {
   const f = await setupAudioPreview();
   vi.useFakeTimers();

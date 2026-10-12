@@ -2,6 +2,26 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { OpenCutClient, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, JobWaitTimeoutError } from "../dist/index.js";
 
+test("document retirement keepalive preserves the original typed command, bearer and response semantics", async () => {
+  const input = { session_id: "session", generation: "9", owner_id: "owner", lease_id: "lease", control_id: "original-stop", command: { kind: "stop" } };
+  const calls = [];
+  const data = { state: "stopped" };
+  const client = new OpenCutClient({ baseUrl: "http://localhost", token: "private", fetch: async (url, init) => {
+    calls.push({ url, init });
+    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer private");
+    assert.equal(init.redirect, "error");
+    assert.deepEqual(JSON.parse(init.body), input);
+    return Response.json({ api_version: "1", request_id: "stop", warnings: [], error: null, data });
+  } });
+  assert.deepEqual(await client.call("opencut_audio_preview_v4_control", input, { keepalive: true }), data);
+  assert.equal(calls[0].init.keepalive, true);
+  await client.call("opencut_audio_preview_v4_control", input);
+  assert.equal(Object.hasOwn(calls[1].init, "keepalive"), false);
+  const reason = new Error("cancelled original caller");
+  await assert.rejects(client.call("opencut_audio_preview_v4_control", input, { keepalive: true, signal: AbortSignal.abort(reason) }), e => e === reason);
+  assert.equal(calls.length, 2);
+});
+
 test("ambiguous transport failure is surfaced once without retry", async () => {
   let calls = 0;
   const client = new OpenCutClient({ baseUrl: "http://localhost:8788", token: "private", fetch: async () => {

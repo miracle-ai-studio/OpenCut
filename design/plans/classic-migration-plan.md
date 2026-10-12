@@ -140,13 +140,13 @@ V2已实现独立typed PublicApply/Undo/Redo/Restore意图及新stage/inspect/ac
 
 **连续声画后续出口。** 复用固定修订的实时声音session/原凭据/lease/generation与Classic normal源→IR→WebGPU，不重新开发播放器、帧计算、上传或历史。帧接口只读且不启动持久PNG任务；主线程保持一帧执行及一个最新意图，Rust确认时间窗口≤150ms，本地Worklet消费观察再围住显示，播放无新观察清画面。缓存保留会话内已校验编码字节、GPU管线及受原预算约束的三画布解码池，停止/修订切换/权限失效回收。默认prepared-linear采样位置沿用Rust精确事实，私有桥以受限JSON文本封送，不能在JS重算源时钟。
 
-按优先级完成一个可评审切片后再进入下一项：①先收口局部补给长尾和原生资源门槛，保留每个10秒窗口及全程的页面停顿、confirmed deficit、真实量子缺帧≤1%，完整owned native树RSS≤2GiB；不以全程平均替代逐窗、不排除旧子进程或扩大heap/两槽预算。当前消费优先切片已在共享pump实现，单调时钟扣除整次报告耗时，保留原3秒控制超时加2秒调度余量，紧迫租约和持续backpressure仍续期；控制串行、真实最新cursor合并、final cursor和代际/取消围栏保持。33项受影响测试、Web边界184及一次成功Web生产构建通过；原Rust/native没有重建。复用同一媒体/工程/固定修订串行HD4通过，实际300秒14门槛10过，第1/9窗缺帧5120/6656、原生树峰2614415360B/31进程仍失败，当前证据见audio_preview_consumption_report_priority。不重复相同候选追绿或回跑未影响DSP/导出。
+当前推进依据audio_preview_document_retirement：消费优先/租约保护和已知文档退出已交付，原SDK keepalive Stop保留owner/lease/generation、迟到新代际单独清理；未知create/Play在BFCache离开保留原请求/key，常规pause/seek/gain的实际final cursor流程保持。最终21生命周期与未影响7桥接/Worker用例、SDK23/边界9及架构/契约检查过，真实playing/paused整页导航后原session/捕获native子进程/Worker退出。前置集成Web c6f8087候选同一现场HD4及实际300秒14/14冻结门槛过；末尾BFCache未知key修正后的90f996c最终Web只补恢复单测、构建和真实文档退出，持续结果保留原执行身份，不冒充最终全树复测。原Rust/native未重建，旧失败/Native诊断保留，单次通过不证明稀有长尾消失或因果性能收益。
 
-下一步先只读检查原服务所拥有preview actor的退出/叠加、串行control及实际native/SDK/监控同步调度。当前最慢待报告样本只有前序report body135.6ms等待、没有后续heartbeat；无Native探针的本次补块值不能直接归因于native。历史有界诊断曾观察到Native evaluate返回122–123ms与Node事件循环迟到重叠，这个长尾仍独立收口，selected GC无命中不证明全无GC或OS原因。现有RSS证据仅总树峰/进程数，需归因时只补缺失的有界逐进程身份/阶段观察，复用现有command ID/sample/时钟校准、控制响应体及Worker receipt→报告→k+2补块观察；不新建播放器、混合器缓存或重复源计算。先证实阶段再改造，额外观察RPC与诊断执行身份单列，不能作为原产品性能收益或量子精确因果证明；新产品集成后才做一次必要的受影响验收。
+下一切片优先补①后续声源区间与间隙的独立PCM预期，复用既有播放器、实际转移字节/sample起点和原source→IR→backend；初始440Hz PCM、全程cursor与独立颜色不能证明后续声音正确。②同一播放器临时gain、快速连续seek、结束/停止、场景/修订切换和原凭据撤权的真实产品矩阵，沿用final cursor→等待在途并串行最后报告→原控制围栏→取消旧流；还需真实BFCache未知结果恢复、文档/进程无pagehide退出、网络/keepalive不可达及原30秒lease后备，不能使用无版本强制清理。③真实长源/VFR/不同采样率/非单位速率保音高与更广格式、跨浏览器/物理DAC，复用现有PCM/PTS/DSP预期，不在JS重算源时钟或IR。
 
-②同一播放器临时gain、快速连续seek、结束/停止、场景/修订切换及真实权限失效产品矩阵；沿用实际final cursor→等待在途并串行最后报告→原控制围栏→取消旧流顺序。补选定后续声源区间与间隙的独立PCM预期，初始440Hz PCM和全程cursor不能证明所有后续块语义。③真实长源/VFR/不同采样率/非单位速率保音高与更广格式、跨浏览器和物理DAC边界，复用现有PCM/PTS/DSP预期，不在JS重算源时钟或IR。
+每个10秒窗口及全程仍保持停顿、confirmed deficit和真实量子缺帧≤1%，完整owned native树RSS≤2GiB；page/Worker/GPU分列预算及实际子进程退出不能被全程平均或缩小子树替代。新失败若复现前序report等待或Native返回长尾，复用command ID/sample、控制响应体、Worker receipt→报告→k+2补块、起终时钟/有界GC和实际进程身份观察，先证实阶段再修正；旧诊断曾观察到Native evaluate返回122–123ms与Node迟到重叠，但selected GC无命中不证明全无GC/OS原因。不为已过相同夹具反复跑旧身份追捕稀有尾部，也不猜测混合器缓存、移除监控或扩大heap/两槽预算；诊断RPC与注入身份单列，不冒充量子精确因果或原产品性能收益。
 
-已交付同帧准备、固定声源绑定、常量增益、双声道一次page返回、Worker两槽泵和持续观察不重复开发。原凭据/lease/generation/overlay、源时钟/IR、parser/SDK与取消围栏保持；终态cursor、20源区间/19间隙、独立PTS/像素/同步、分列page/Worker/native/GPU预算和实际退出各按候选保留。只有公共协议、依赖、执行身份或受影响语义变化才补对应检查；仍用一个合成工作区串行验收，文件导入、恢复与旧DSP不全套回跑。观察队列仅周期清空有界原始点并携带一个窗口边界，溢出/缺失/不一致不能算通过。S1、F10/F42/F44和36组按完整要求保持部分/待验。
+已交付同帧准备、固定声源绑定、常量增益、双声道一次page返回、Worker泵和持续观察不重复开发。旧原凭据/lease/generation/overlay、源时钟/IR、parser/SDK和取消围栏保持；终态cursor、20源区间/19间隙、PTS/像素/同步、分列资源和退出各按候选保留。只有协议、依赖、执行身份或受影响语义/覆盖缺口变化才补对应检查；仍用一个合成工作区串行验收，文件导入、恢复与旧DSP不全套回跑。观察队列仅周期清空有界原始点并携带一个窗口边界，溢出/缺失/不一致不能算通过。S1、F10/F42/F44和36组保持部分/待验。
 
 **冻结小样本门槛。** 合成8秒160×90、24fps、明确BT709红/绿交替H264及独立440Hz/48000Hz PCM16 WAV。普通preserve-pts与默认unit-rate prepared-linear分别记录候选；连续4秒至少20个不同时间帧，真实Worklet消费与显示偏差≤150ms且不超前（只容许已声明量化观察误差）；首画+首音冷启≤10秒，热seek/恢复首画≤1秒；暂停冻结、迟到旧generation不可发布、无工程写入/持久PNG。颜色与PCM使用外部常量，不能以渲染器自比较证明。720p沿用这些独立色块/PCM及同步门槛；密集另以有效解码PTS/消费连续性冻结门槛，不能用不同请求时间帧数替代源PTS。长期播放、跨浏览器与DAC输出延迟归独立范围。
 

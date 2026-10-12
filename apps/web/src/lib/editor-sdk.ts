@@ -17,6 +17,7 @@ export type {
   HostCapabilities,
   Envelope,
   ClientOptions,
+  CallOptions,
 } from "../../../../packages/sdk-ts/src/index";
 
 import { OpenCutClient as Client } from "../../../../packages/sdk-ts/src/index";

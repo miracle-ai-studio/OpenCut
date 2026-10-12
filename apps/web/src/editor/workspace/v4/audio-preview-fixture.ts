@@ -162,6 +162,7 @@ export async function setupAudioPreview() {
     pushed: Float32Array[];
     progress(p: AudioOutputProgress): void;
     completedBlock(): void;
+    failure(error: Error): void;
   }[] = [];
   const preview = new V4AudioPreview(
     {
@@ -179,13 +180,14 @@ export async function setupAudioPreview() {
     (time) => {
       state = { ...state, playhead: time };
     },
-    (_token, rate, progress, _failure, completedBlock) => {
+    (_token, rate, progress, failure, completedBlock) => {
       const output = {
         silenced: false,
         finalFrames: "0",
         pushed: [] as Float32Array[],
         progress,
         completedBlock,
+        failure,
       };
       outputs.push(output);
       return {

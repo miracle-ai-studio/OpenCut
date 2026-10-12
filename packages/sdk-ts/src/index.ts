@@ -68,7 +68,11 @@ export interface ClientOptions {
   /** Standard fetch by default; injectable for a host's network policy. */
   fetch?: typeof globalThis.fetch;
 }
-export interface CallOptions { signal?: AbortSignal }
+export interface CallOptions {
+  signal?: AbortSignal;
+  /** Standard fetch best-effort delivery during document departure. */
+  keepalive?: boolean;
+}
 export interface AdmissionRetryOptions extends CallOptions {
   /** Opt-in deferral of explicit budget-lock contention; never retries an unknown outcome. */
   admissionTimeoutMs?: number;
@@ -125,7 +129,7 @@ export class OpenCutClient {
     for (;;) {
       signal.throwIfAborted();
       options.beforeAttempt?.();
-      try { return await this.call(name, captured, { signal }); }
+      try { return await this.call(name, captured, { signal, keepalive: options.keepalive }); }
       catch (error) {
         if (!(error instanceof OpenCutApiError) || error.code !== "STORAGE_BUDGET_BUSY" || performance.now() >= deadline) throw error;
         await pause(Math.min(100, Math.max(1, deadline - performance.now())), signal);
@@ -195,6 +199,7 @@ export class OpenCutClient {
     options: CallOptions): Promise<Envelope<T>> {
     return requestEnvelope(this.#fetch, this.baseUrl, this.#token, path, {
       method, body, signal: options.signal, headers: { "Content-Type": contentType },
+      ...(options.keepalive === undefined ? {} : { keepalive: options.keepalive }),
     });
   }
 
@@ -269,6 +274,7 @@ export class OpenCutClient {
     let response: Response;
     try {
       response = await this.#fetch(url, { redirect: "error", signal: options.signal,
+        ...(options.keepalive === undefined ? {} : { keepalive: options.keepalive }),
         method: body === undefined ? "GET" : "POST", body,
         headers: { Authorization: `Bearer ${this.#token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) } });
     } catch (cause) {

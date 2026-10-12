@@ -55,6 +55,8 @@ type Active = {
   draining: boolean;
   pump: PreviewPump | null;
   leaseDeadline: number;
+  documentDeparted: boolean;
+  stopRequest: V4AudioPreviewControl | null;
 };
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -284,6 +286,8 @@ export class V4AudioPreview {
       draining: false,
       pump: null,
       leaseDeadline: 0,
+      documentDeparted: false,
+      stopRequest: null,
     };
     this.active = a;
     this.publish({ phase: "loading", request, session: null, error: null });
@@ -461,23 +465,58 @@ export class V4AudioPreview {
     return session;
   }
   private stopRemote(a: Active) {
-    if (a.session)
+    const s = a.session,
+      old = a.stopRequest;
+    if (
+      s &&
+      !(
+        old &&
+        old.session_id === s.session_id &&
+        old.generation === s.generation &&
+        old.owner_id === s.owner_id &&
+        old.lease_id === s.lease_id
+      )
+    ) {
+      const request = this.command(a, { kind: "stop" });
+      a.stopRequest = request;
       void a.api.v4
-        .audioPreviewControl(this.command(a, { kind: "stop" }))
+        .audioPreviewControl(
+          request,
+          undefined,
+          a.documentDeparted ? { keepalive: true } : {},
+        )
         .catch(() => {});
+    }
   }
   private localStop(a: Active) {
     a.picture?.suspend();
     a.output.silence();
     a.pump?.freeze();
   }
-  invalidate(clearPending = true) {
+  /** Discard this document's sound, including BFCache departure. No fabricated
+   * final cursor: Stop uses only the last validated owner/lease/generation. */
+  retireDocument() {
+    this.invalidate(false, true);
+    // BFCache can restore this same object: unknown admission/control must
+    // retain its original request rather than create another session.
+    this.publish(
+      this.pending
+        ? {
+            phase: "unconfirmed",
+            session: this.pending.session,
+            request: this.pending.request,
+          }
+        : { phase: "paused", session: null, request: null, error: null },
+    );
+  }
+  invalidate(clearPending = true, documentDeparted = false) {
     this.epoch++;
     const a = this.active;
     this.active = null;
     this.desired = null;
     if (clearPending) this.pending = null;
     if (a) {
+      a.documentDeparted = documentDeparted;
       a.picture?.close();
       this.localStop(a);
       a.abort.abort();
@@ -490,6 +529,7 @@ export class V4AudioPreview {
     this.localStop(a);
     a.abort.abort();
     a.controls.abort();
+    if (!unknown) this.stopRemote(a);
     void a.output.stop().catch(() => {});
     if (this.active === a) {
       a.picture?.close();

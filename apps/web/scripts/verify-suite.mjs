@@ -20,10 +20,12 @@ import {
 import { verifyV4ScenePreviewPerformance } from "./verify-v4-scene-preview-performance.mjs";
 
 import { verifyV4ScenePreviewContinuity } from "./verify-v4-scene-preview-continuity.mjs";
+import { verifyV4ScenePreviewRetirement } from "./verify-v4-scene-preview-retirement.mjs";
 
 const suites = new Map([
   ["scene-preview", verifyV4ScenePreview],
   ["scene-preview-continuity", verifyV4ScenePreviewContinuity],
+  ["scene-preview-retirement", verifyV4ScenePreviewRetirement],
   ["scene-preview-performance", verifyV4ScenePreviewPerformance],
   ["scene-preview-hd", (...args) => verifyV4ScenePreview(...args, { width: 1280, height: 720 })],
   ["scene-preview-boundaries", verifyV4ScenePreviewBoundaries],

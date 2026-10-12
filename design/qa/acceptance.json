@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "29 unique scoped records. Latest Web pump prioritizes pending consumption with mandatory lease renewal;33 affected tests andHD4 pass. Same-workspace actual300s10/14 gates pass; per-window deficits and native tree RSS remain open. No Rust/native rebuild, threshold expansion or unchanged rerun.",
-    "latest_candidate": "audio_preview_consumption_report_priority",
+    "scope": "30 unique scoped records. Actual document retirement gap fixed through original SDK Stop; final21 lifecycle plus7 unchanged affected bridge/transport cases,SDK23/boundary9 and final actual playing/paused document departures pass. Pre-BFCache-correction explicitly identified known candidate300s passes14/14 gates; final source only received targeted correction/build/document checks. No whole-tree/S1 completion claim.",
+    "latest_candidate": "audio_preview_document_retirement",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -6395,12 +6395,244 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_document_retirement",
+        "status": "known_document_lifecycle_verified_synthetic_sustained_candidate_passed_full_S1_incomplete",
+        "candidate": {
+          "base_commit": "a8d43f7919bae851873f62d1c43b83ba7db98c13",
+          "source_files": [
+            "apps/web/scripts/verify-suite.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-continuity.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-retirement.mjs",
+            "apps/web/src/editor/workspace/v4/api.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview-controls.test.tsx",
+            "apps/web/src/editor/workspace/v4/audio-preview-controls.tsx",
+            "apps/web/src/editor/workspace/v4/audio-preview-fixture.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.test.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/lib/editor-sdk.ts",
+            "packages/sdk-ts/scripts/check-boundaries.mjs",
+            "packages/sdk-ts/src/index.ts",
+            "packages/sdk-ts/tests/boundaries.test.mjs",
+            "packages/sdk-ts/tests/transport.test.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "dcf82950edf6187946f17a4f810e3b3be37dacbc53b8392072827b016cb2f1ec",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "rust_native_sources_unchanged": true,
+          "web_dist_manifest_sha256": "90f996ceb990d91391db8c9564d373c26592640d063c7fcce0ee77c68119d5ba",
+          "sdk_dist_manifest_sha256": "58936bafdc31197a1075033cf03e8d3665d5ad400c82ebe1d9a59b94806dd90c",
+          "runtime": "preview-direct-v1; Node24.19.0; Chromium154.0.8037.99; Playwright1.63.0. Existing browser/Worker witnesses, no Native profiling preload.",
+          "identity_limit": "Final source adds preservation of unknown pending requests on BFCache departure. Its targeted lifecycle tests/build/real document checks passed; sustained300s retains the preceding explicitly identified Web candidate below. No final-source sustained remeasurement or exact DAC reproducibility claim."
+        },
+        "scope": "Original sole retained synthetic workspace, source media and fixed revisions; no new media/import/fixture copy. Whole owned native tree kept in budgets and child PID/start exit checks.",
+        "implemented": [
+          "pagehide including BFCache performs immediate local silence/freeze/cancel and sends original typed Stop via the existing SDK with standard fetch keepalive. Last validated session/owner/lease/generation retained; no fabricated final cursor.",
+          "Known device/PCM failure retires known remote session. One Stop per same identity; a late accepted create/resumed Play with new generation still retires its returned identity. Old receipts cannot publish or stop replacement output.",
+          "Unknown create/Play retains original request/key/control for BFCache retry; no invented identity or forced owner/generation bypass. Normal pause/seek/gain retain their real final-cursor sequencing.",
+          "SDK option forwards fetch keepalive without changing DTO/envelope/auth/error/idempotency semantics. Existing reviewed visual browser export bridge aligned between SDK and Web gates; public host/sibling/other file escapes remain rejected, dependency-policy baseline unchanged."
+        ],
+        "checks": {
+          "affected_vitest_unique_tests": 28,
+          "scope_detail": "Final21 audio-preview cases; previously passed7 controls binding/Worker/SDK cookie-bearer cases retain unchanged scope. Original unknown-key tests and new BFCache create/Play preservation covered; component persisted-pagehide is simulated, not real BFCache restore acceptance.",
+          "sdk_transport_tests": 23,
+          "sdk_boundary_tests": 9,
+          "sdk_web_boundary_files": 187,
+          "web_boundary_files": 184,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_exception_edges": 0,
+          "contract_boundaries": "passed",
+          "sdk_builds": 1,
+          "web_production_builds": 2,
+          "build_reason": "One integrated build for real retirement+HD+300s. Final BFCache unknown-key coverage gap required a second Web build and only the affected document retirement check; no second300s/native/Cargo build.",
+          "rust_builds": 0,
+          "registration": "Existing versioned control DTO -> tool registry -> domain/application dispatch -> original authority check -> native actor Stop/real exit -> shared generated SDK consumer. New retirement verification suite registered in Web runner and Python reuse-fixture requirements.",
+          "reuse": "Unchanged Rust/native194 tools/22 frozen wire, independent DSP/parser/export and remaining media scopes retain original candidate identities; no full workspace/package rerun."
+        },
+        "baseline": {
+          "source_ref": "audio_preview_consumption_report_priority.candidate",
+          "status": "known_document_departure_failed",
+          "phase": "paused",
+          "state_after_departure": "paused",
+          "after_native_tree_rss": 996442112,
+          "after_processes": 10,
+          "after_node_actors": 1,
+          "finding": "Actual full navigation followed by3s inspect remains paused with original Node/Chromium tree live (~996MB). Missing document retirement established; does not explain whole prior2.614GB peak or native return tail.",
+          "report": "/private/tmp/opencut-preview-retirement-before-20261013.json",
+          "necessary_receipt": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/preview-retirement-before-evidence/scene-preview-retirement-evidence.json",
+          "receipt_bytes": 4133,
+          "receipt_sha256": "850f7d6ec6d061df23cf50e5836f97cc9f9f27e349e737d50954fdec5b985650"
+        },
+        "final_document_retirement": {
+          "status": "passed",
+          "phases": [
+            {
+              "phase": "paused",
+              "state_after_departure": "stopped",
+              "before_native_tree_rss": 1019240448,
+              "before_processes": 10,
+              "after_native_tree_rss": 38436864,
+              "after_processes": 1,
+              "after_node_actors": 0
+            },
+            {
+              "phase": "playing",
+              "state_after_departure": "stopped",
+              "before_native_tree_rss": 1042870272,
+              "before_processes": 10,
+              "after_native_tree_rss": 39354368,
+              "after_processes": 1,
+              "after_node_actors": 0
+            }
+          ],
+          "captured_native_children_exited": true,
+          "pcm_worker_target_closed": true,
+          "readonly": true,
+          "report": "/private/tmp/opencut-preview-retirement-final-20261013.json"
+        },
+        "sustained_candidate": {
+          "status": "passed_for_recorded_known_synthetic_fixture",
+          "runtime_source_files": [
+            "packages/sdk-ts/src/index.ts",
+            "apps/web/src/lib/editor-sdk.ts",
+            "apps/web/src/editor/workspace/v4/api.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview-controls.tsx"
+          ],
+          "runtime_source_manifest_sha256": "aba3a8db0672022f8789c4aa26b46ef7eeb61961b604f1a290c583d582a68d74",
+          "web_dist_manifest_sha256": "c6f80878427c87269dc4c790219c039c4117b7c919d05e07b9c6742100ebf7ae",
+          "report": "/private/tmp/opencut-preview-document-retirement-20261013.json",
+          "scope_delta": "Before final pending-key correction. Known completed create clears pending before stream; that steady consumption/HD path was unchanged by the correction. Keep this actual media result at its recorded source/Web identity, not a whole final-tree claim.",
+          "hd": {
+            "width": 1280,
+            "height": 720,
+            "cold_ms": 4770,
+            "distinct_frames": 96,
+            "max_skew_ms": 85.33333333333326,
+            "frequency_hz": 439.99991601772865,
+            "rms": 0.08831585190797463
+          },
+          "seek_ms": 603,
+          "hd_checks": 4,
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": true,
+            "deficit_ratio": true,
+            "render_quantum_deficit_ratio": true,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": true,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14405632,
+            "copied_frames": 14400000,
+            "missing_frames": 5632,
+            "elapsed_ms": 300111,
+            "render_quantum_deficit_ratio": 0.00039095820301393233,
+            "stalled_ratio": 0.00038119229210578133,
+            "deficit_ratio": 0.0003787487518506216,
+            "max_raw_points": 3751
+          },
+          "windows": 31,
+          "maximum_window_ratios": {
+            "stalled_ratio": 0.007911107554466295,
+            "deficit_ratio": 0.007861100553486211,
+            "render_quantum_deficit_ratio": 0.008
+          },
+          "source_pts_range": [
+            152,
+            172
+          ],
+          "independent_pixel_observations": 384,
+          "max_skew_ms": 122.66666666667447,
+          "independent_pcm_scope": "First4096 left pre-master only; later clips/gaps and physical output remain outside.",
+          "resources": {
+            "page": {
+              "baseline": 4225172,
+              "peak": 36821676,
+              "delta": 32596504
+            },
+            "worker": {
+              "samples": 266,
+              "peak_used": 22740468,
+              "peak_backing": 16865148,
+              "method": "Actual dedicated Worker CDP Runtime.getHeapUsage; no steady-window GC"
+            },
+            "native": {
+              "samples": 54,
+              "peak_tree_rss": 2061082624,
+              "peak_processes": 21,
+              "owned_children_after_end": 0,
+              "method": "ps RSS of live owned Rust service and descendants, captured PID/start identity; separate from verification-browser RSS, not a kernel quota"
+            },
+            "peak_gpu_accounted": 18432212,
+            "peak_execution_accounted": 35414841,
+            "device_closed": true,
+            "worker_target_closed": true
+          },
+          "credit": {
+            "completion_to_report": {
+              "count": 3505,
+              "mean_ms": 0.9759486445346675,
+              "maximum_ms": 60,
+              "p95_ms": 6.299999982118607
+            },
+            "completion_to_next_supply": {
+              "count": 3505,
+              "mean_ms": 42.984479315109155,
+              "maximum_ms": 169.7999999821186,
+              "p95_ms": 63.20000001788139
+            },
+            "report_to_next_supply": {
+              "count": 3505,
+              "mean_ms": 42.00853067057449,
+              "maximum_ms": 169.69999998807907,
+              "p95_ms": 60.5
+            },
+            "completions_observed": 3506,
+            "unmatched_terminal_completions": 1,
+            "method": "Actual Worker MessagePort receipt entry, covering serialized report and transfer block k+2; all timestamps converted with performance.timeOrigin. Not native-only or DAC latency."
+          },
+          "readonly": true,
+          "errors": []
+        },
+        "findings": [
+          "Actual document retirement gap and scoped fix independently proven; both known playing/paused final-source departures stop original session, captured native children and Worker, leaving only Rust service.",
+          "Recorded known-scene300s all14 frozen gates pass; copies14400000/render14405632/missing5632, worst10s quantum loss0.8%, native tree2061082624B<2GiB. No budget expansion or unchanged retries. Old failure receipts retained at their own source identities.",
+          "One scoped pass is not a causal performance comparison or absence of rare native return/report tails. S1/F10/F42/F44 and36 groups remain incomplete."
+        ],
+        "next": "Prioritize later independent source/gap PCM and full gain/rapidseek/end/stop/scene-revision/original-credential control acceptance using existing player/SDK/IR. Expand genuine BFCache unknown outcome/abrupt close/TTL/network boundaries and long/VFR/non-unit-rate formats separately. Existing rare report/native return observations remain available if a new affected failure requires attribution; do not reprofile unchanged candidates to seek green.",
+        "limits": [
+          "Final source has no new300s measurement; previous measured candidate preserves its scope and identity. No full S1 or whole-tree/package acceptance.",
+          "Real BFCache restore of unknown requests, browser/process kill without pagehide, unavailable keepalive and stale unknown generation may rely on original30s lease; no unversioned force cleanup.",
+          "Synthetic300s repeats8s sources. Later independentPCM/full controls/long/VFR/non-unit-rate/cross-browser/DAC and Linux strict hard quotas remain incomplete."
+        ],
+        "cleanup": {
+          "verifier_services_stopped": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: pending consumption priority with monotonic aged-lease safety implemented;33 lifecycle tests andHD4 pass. Latest uninstrumented-Native product300s10/14 gates: copies14400000/renders14417152/misses17152(overall0.11897%); windows1/9 miss5120/6656(loss1.0667%/1.3867%), worststall1.4250%/confirmed deficit1.3896% fail<=1%; native tree2614415360B>2GiB with31 processes, phase/process cause unproven. SourcePTS150-168/skew122.67ms/391 independent pixels, page/Worker/GPU and cleanup pass. Initial PCM only; laterPCM, long/VFR/full controls and complete visual/export scope remain incomplete. Historical product failures/Native diagnostics keep identities. Selected32 slow refills now have no preceding heartbeat, longest admission135.7ms overlaps prior report body; not pure native/DAC or optimization proof.",
+    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web after pending-key correction has targeted real retirement only, not another300s run. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Initial PCM only; laterPCM, full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -6446,35 +6678,18 @@
       "binary_sha256": "79a49f4f8541b6127c536911f0d12453b2afabea4b09f340db416928979f1edf",
       "verification": "Independent20 Float PCM seeks,4 actual lifecycle tests/6 source realms,final synthetic AAC browser all frozen gates passed;stall0,deficit0.001487871340923208.",
       "limits": "No real long-file/physical device/derived cache acceptance;whole migration remains incomplete."
-    }
-  ],
-  "open_failures": [
+    },
     {
-      "evidence_id": "audio_preview_consumption_report_priority",
-      "baseline_evidence_id": "audio_preview_owned_collocated_transport",
-      "observation_ref": "audio_preview_credit_native_correlation",
-      "feature": "S1 sustained continuous picture/audio preview",
-      "gates": {
-        "stalled_ratio": {
-          "maximum_window_ratio": 0.014249572512807628,
-          "maximum": 0.01
-        },
-        "deficit_ratio": {
-          "maximum_window_ratio": 0.013896249780348757,
-          "maximum": 0.01
-        },
-        "render_quantum_deficit_ratio": {
-          "maximum_window_ratio": 0.013866666666666666,
-          "maximum": 0.01
-        },
-        "native_rss": {
-          "peak_tree_rss": 2614415360,
-          "maximum": 2147483648
-        }
-      },
-      "next": "Inspect existing owned preview lifecycle and serialized control/native/SDK scheduling before another candidate. Current report-body wait and native2.614GB/31-process peak need phase and process ownership attribution; preserve full owned-tree accounting and2GiB/two-slot/heap gates. Reuse existing command/clock/credit observers, add only missing bounded peak identity/phase evidence if necessary, then fix the evidenced stage. No unchanged reruns to seek green, budget expansion, monitor removal or speculative mixer cache. Then later independentPCM, gain/rapidseek/scene-revision/original-authority and real long/VFR/non-unit-rate matrices."
+      "id": "S1-document-departure-actor-retirement",
+      "status": "resolved_for_known_document_navigation",
+      "cause": "React disposal cleanup does not run on full document departure; original known paused actor remained live until lease expiry. Known device/PCM failure also dropped client active state without remote Stop.",
+      "repair": "Owned pagehide listener, original SDK keepalive Stop, per-identity dedup with late new-generation cleanup; known failure Stop and unknown original-key preservation.",
+      "baseline_evidence_id": "audio_preview_document_retirement.baseline",
+      "verification": "Original real navigation failed paused/live-node3s; final playing and paused real navigation stop original session/captured process identities/Worker, original revision unchanged. SDK transport and scoped lifecycle tests pass.",
+      "limits": "Best-effort keepalive/pagehide; unknown outcome/actualBFCache restoration/network/browserkill/TTL and broad resource/control matrices remain incomplete. No sole-cause claim for old RSS or deficits."
     }
   ],
+  "open_failures": [],
   "resource_constraints": [
     {
       "id": "F18",

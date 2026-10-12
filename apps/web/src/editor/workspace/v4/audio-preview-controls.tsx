@@ -12,7 +12,12 @@ export function V4AudioPreviewControls() {
   const [rate, setRate] = useState(48000);
   useEffect(() => {
     void preview.capability();
-    return () => preview.invalidate();
+    const departed = () => preview.retireDocument();
+    window.addEventListener("pagehide", departed);
+    return () => {
+      window.removeEventListener("pagehide", departed);
+      preview.invalidate();
+    };
   }, [preview, api, identity]);
   const capability = v4?.audioPreview.capability;
   const rates =
