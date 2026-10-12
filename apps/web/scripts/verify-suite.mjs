@@ -12,7 +12,14 @@ import { verifySourceArt } from "./verify-source-art.mjs";
 import { verifyEditRecovery } from "./verify-edit-recovery.mjs";
 import { verifyV4FileImport } from "./verify-v4-file-import.mjs";
 
+import {
+  verifyV4ScenePreview,
+  verifyV4ScenePreviewBoundaries,
+} from "./verify-v4-scene-preview.mjs";
+
 const suites = new Map([
+  ["scene-preview", verifyV4ScenePreview],
+  ["scene-preview-boundaries", verifyV4ScenePreviewBoundaries],
   ["timeline-selection", verifyTimelineSelection],
   ["media-fps", verifyMediaFps],
   ["v4-media-fps", verifyV4MediaFps],

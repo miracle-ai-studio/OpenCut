@@ -201,6 +201,18 @@ impl AudioPreviewMachineV4 {
         principal: &str,
         now: u64,
     ) -> Result<(), EditorError> {
+        self.verify_visual_frame(input, principal, now)?;
+        if self.view.state != AudioPreviewStateV4::Playing {
+            return Err(err("PREVIEW_NOT_PLAYING"));
+        }
+        Ok(())
+    }
+    pub fn verify_visual_frame(
+        &self,
+        input: &AudioPreviewStreamV4,
+        principal: &str,
+        now: u64,
+    ) -> Result<(), EditorError> {
         self.verify_owner(&input.session_id, &input.owner_id, &input.lease_id, now)?;
         if principal != self.view.owner_id {
             return Err(err("NOT_AUTHORIZED"));
@@ -210,8 +222,11 @@ impl AudioPreviewMachineV4 {
         {
             return Err(err("PREVIEW_GENERATION_CONFLICT"));
         }
-        if self.view.state != AudioPreviewStateV4::Playing {
-            return Err(err("PREVIEW_NOT_PLAYING"));
+        if matches!(
+            self.view.state,
+            AudioPreviewStateV4::Stopped | AudioPreviewStateV4::Failed
+        ) {
+            return Err(err("PREVIEW_STOPPED"));
         }
         Ok(())
     }

@@ -591,3 +591,29 @@ fn explicit_stop_reaps_backpressured_source_realm_before_returning() {
     drop(Gate::exclusive(&fixture.cas).unwrap());
     fixture.assert_terminated(AudioPreviewStateV4::Stopped);
 }
+
+#[test]
+#[ignore = "Requires pinned OPENCUT_CLASSIC_AUDIO_* runtime and permitted ps; run serially"]
+fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
+    let _serial = serial();
+    let mut fixture = Fixture::new();
+    let old = fixture.stream_input();
+    let request = json!({"session":old,"time":null,"decoded":null});
+    let frame = call(&mut fixture.host, "opencut_visual_preview_v4_frame", request.clone()).unwrap();
+    assert_eq!(frame["plan"]["identity"]["revision"], fixture.session.identity.revision);
+    assert_eq!(frame["plan"]["identity"]["time"], json!({"ticks":"0","timebase":48000}));
+    assert!(frame["plan"]["layers"].as_array().unwrap().is_empty());
+    assert_eq!(frame["max_lag_ms"],150);
+    fixture.control(AudioPreviewCommandV4::Pause);
+    assert_eq!(call(&mut fixture.host,"opencut_visual_preview_v4_frame",request).unwrap_err().code,"PREVIEW_GENERATION_CONFLICT");
+    let current=json!({"session":fixture.stream_input(),"time":null,"decoded":[]});
+    let paused=call(&mut fixture.host,"opencut_visual_preview_v4_frame",current.clone()).unwrap();
+    assert!(paused["bound"].is_object());
+    fixture.owner.revoke_credential(&fixture.credential).unwrap();
+    // A fresh owner host cannot substitute its stronger credential for the
+    // original session grant, even when supplied the correct live lease token.
+    let mut owner=Automation::open(&fixture.database).unwrap();
+    let denied=call(&mut owner,"opencut_visual_preview_v4_frame",current).unwrap_err();
+    assert!(matches!(denied.code.as_str(),"NOT_AUTHORIZED"|"PREVIEW_STOPPED"));
+    fixture.assert_terminated(AudioPreviewStateV4::Failed);
+}

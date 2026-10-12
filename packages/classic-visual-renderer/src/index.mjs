@@ -25,7 +25,7 @@ async function encodedResource(resource,host,budget,signal) {
   } catch(error) {release();throw error;}
   finally {if(transfer)await host.callback("releaseVerifiedBytes",{transferId:transfer.transferId});}
 }
-export async function renderClassicFrame(fixedPlan,host,realm,signal) {
+export async function renderClassicFrame(fixedPlan,host,realm,signal,cache) {
   checkAbort(signal);const plan=clone(fixedPlan),admission=host.admission;
   const width=integer(plan.identity.width,"frame width",1,16384),height=integer(plan.identity.height,"frame height",1,16384);
   const rgba=BigInt(width)*BigInt(height)*4n;
@@ -33,6 +33,14 @@ export async function renderClassicFrame(fixedPlan,host,realm,signal) {
   const budget=byteBudget(admission.maxRgbaBytes),sources=new Map(),encoded=new Map(),decoded=[],releases=[];
   // Output readback is admitted separately from all decoded source canvases.
   releases.push(budget.reserve(Number(rgba)));
+  // Optional session cache contains verified immutable encoded bytes only.
+  // Its complete retained set is charged to every frame; changed resource sets
+  // evict obsolete entries before admission. Decoded canvases remain per-frame.
+  if(cache) {
+    const keys=new Set(plan.resources.map(r=>`${r.assetId}:${r.contentHash}:${r.size}`));
+    for(const key of cache.keys())if(!keys.has(key))cache.delete(key);
+    for(const bytes of cache.values())releases.push(budget.reserve(bytes.byteLength*3));
+  }
   try {
     for(const layer of plan.layers) {
       checkAbort(signal);const permit=clone(await host.callback("admitDecode",{elementId:layer.elementId}));checkAbort(signal);
@@ -42,7 +50,19 @@ export async function renderClassicFrame(fixedPlan,host,realm,signal) {
         decoded.push({kind:"noFrame",elementId:layer.elementId,requestedTime:clone(decode.requestedTime),reason:"outside_read_window"});continue;
       }
       let encodedSource=encoded.get(layer.resource.assetId);
-      if(!encodedSource) {encodedSource=await encodedResource(layer.resource,host,budget,signal);encoded.set(layer.resource.assetId,encodedSource);}
+      if(!encodedSource) {
+        const key=`${layer.resource.assetId}:${layer.resource.contentHash}:${layer.resource.size}`,hit=cache?.get(key);
+        if(hit)encodedSource={bytes:hit,release:()=>{}};
+        else {
+          encodedSource=await encodedResource(layer.resource,host,budget,signal);
+          if(cache) {
+            const retained=[...cache.values()].reduce((n,b)=>n+b.byteLength,0)+encodedSource.bytes.byteLength;
+            if(retained>Number(admission.maxEncodedBytes)){encodedSource.release();reject("VISUAL_BUDGET_EXCEEDED","Retained preview bytes exceed admission");}
+            cache.set(key,encodedSource.bytes);
+          }
+        }
+        encoded.set(layer.resource.assetId,encodedSource);
+      }
       // Admission is checked before the decoder allocates; the cap remains
       // reserved until actual output dimensions replace it with factual bytes.
       const cap=natural(permit.maxDecodedBytes,"decoded byte cap");

@@ -1,5 +1,824 @@
 [
   {
+    "description": "Plan or bind a bounded Classic media frame at confirmed audio consumer time; original caller, fixed revision, owner lease and generation are revalidated. No durable job or project edit.",
+    "input_schema": {
+      "$defs": {
+        "AudioPreviewStreamV4": {
+          "additionalProperties": false,
+          "properties": {
+            "generation": {
+              "type": "string"
+            },
+            "lease_id": {
+              "type": "string"
+            },
+            "overlay_epoch": {
+              "type": "string"
+            },
+            "owner_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id",
+            "generation",
+            "overlay_epoch",
+            "owner_id",
+            "lease_id"
+          ],
+          "type": "object"
+        },
+        "DecodedVisualSourceV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyImage",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "actualTimestampSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "elementId": {
+                  "type": "string"
+                },
+                "frameDurationSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyVideo",
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "selectedVideoStream": {
+                  "description": "None is primary-track selection, not an invented FFmpeg stream index.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height",
+                "requestedTime",
+                "actualTimestampSeconds",
+                "frameDurationSeconds"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "noFrame",
+                  "type": "string"
+                },
+                "reason": {
+                  "$ref": "#/$defs/VisualNoFrameReasonV4"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "requestedTime",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "VisualNoFrameReasonV4": {
+          "enum": [
+            "outside_read_window",
+            "eof",
+            "timestamp_gap"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "decoded": {
+          "items": {
+            "$ref": "#/$defs/DecodedVisualSourceV4"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "session": {
+          "$ref": "#/$defs/AudioPreviewStreamV4"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None plans the current confirmed consumer time. Bind uses that exact Time."
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "title": "VisualPreviewFrameV4",
+      "type": "object"
+    },
+    "name": "opencut_visual_preview_v4_frame",
+    "output_schema": {
+      "$defs": {
+        "BoundVisualFrameV4": {
+          "additionalProperties": false,
+          "properties": {
+            "background": {
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "clear": {
+              "description": "Original compositor clear, followed by one normal background color layer.",
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "decoded": {
+              "items": {
+                "$ref": "#/$defs/DecodedVisualSourceV4"
+              },
+              "type": "array"
+            },
+            "identity": {
+              "$ref": "#/$defs/VisualFrameIdentityV4"
+            },
+            "layers": {
+              "items": {
+                "$ref": "#/$defs/BoundVisualLayerV4"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "clear",
+            "background",
+            "layers",
+            "decoded"
+          ],
+          "type": "object"
+        },
+        "BoundVisualLayerV4": {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "type": "string"
+            },
+            "elementId": {
+              "type": "string"
+            },
+            "quad": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/VisualQuadV4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "NoFrame or a zero-sized authored transform draws no quad."
+            }
+          },
+          "required": [
+            "elementId",
+            "assetId"
+          ],
+          "type": "object"
+        },
+        "ClassicVisualLayerPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "decode": {
+              "$ref": "#/$defs/VisualDecodeRequest"
+            },
+            "elementId": {
+              "type": "string"
+            },
+            "resource": {
+              "$ref": "#/$defs/VisualResource"
+            }
+          },
+          "required": [
+            "elementId",
+            "resource",
+            "decode"
+          ],
+          "type": "object"
+        },
+        "ClassicVisualPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "identity": {
+              "$ref": "#/$defs/VisualFrameIdentityV4"
+            },
+            "layers": {
+              "items": {
+                "$ref": "#/$defs/ClassicVisualLayerPlan"
+              },
+              "type": "array"
+            },
+            "resources": {
+              "items": {
+                "$ref": "#/$defs/VisualResource"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "resources",
+            "layers"
+          ],
+          "type": "object"
+        },
+        "DecodedVisualSourceV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyImage",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "actualTimestampSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "elementId": {
+                  "type": "string"
+                },
+                "frameDurationSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyVideo",
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "selectedVideoStream": {
+                  "description": "None is primary-track selection, not an invented FFmpeg stream index.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height",
+                "requestedTime",
+                "actualTimestampSeconds",
+                "frameDurationSeconds"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "noFrame",
+                  "type": "string"
+                },
+                "reason": {
+                  "$ref": "#/$defs/VisualNoFrameReasonV4"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "requestedTime",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "VisualDecodeAdmission": {
+          "additionalProperties": false,
+          "properties": {
+            "maxDecodedBytes": {
+              "type": "string"
+            },
+            "maxHeight": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxPixels": {
+              "type": "string"
+            },
+            "maxWidth": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "maxWidth",
+            "maxHeight",
+            "maxPixels",
+            "maxDecodedBytes"
+          ],
+          "type": "object"
+        },
+        "VisualDecodeRequest": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "video",
+                  "type": "string"
+                },
+                "noFrameReason": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/VisualNoFrameReasonV4"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pointProfile": {
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "requestedTimeSeconds": {
+                  "description": "Decoder API projection supplied by Rust; the browser never divides\ncross-process integer ticks or applies retime itself.",
+                  "format": "double",
+                  "type": "number"
+                },
+                "selectedVideoStream": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "requestedTime",
+                "requestedTimeSeconds",
+                "pointProfile"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "VisualFrameIdentityV4": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profile": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequenceId": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "projectId",
+            "revision",
+            "sequenceId",
+            "time",
+            "width",
+            "height",
+            "profile"
+          ],
+          "type": "object"
+        },
+        "VisualNoFrameReasonV4": {
+          "enum": [
+            "outside_read_window",
+            "eof",
+            "timestamp_gap"
+          ],
+          "type": "string"
+        },
+        "VisualPreviewAdmissionV4": {
+          "additionalProperties": false,
+          "properties": {
+            "maxDecodedPixels": {
+              "type": "string"
+            },
+            "maxEncodedBytes": {
+              "type": "string"
+            },
+            "maxFramePixels": {
+              "type": "string"
+            },
+            "maxGpuBytes": {
+              "type": "string"
+            },
+            "maxRgbaBytes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "maxFramePixels",
+            "maxDecodedPixels",
+            "maxGpuBytes",
+            "maxRgbaBytes",
+            "maxEncodedBytes"
+          ],
+          "type": "object"
+        },
+        "VisualPreviewFrameResultV4": {
+          "additionalProperties": false,
+          "properties": {
+            "admission": {
+              "$ref": "#/$defs/VisualPreviewAdmissionV4"
+            },
+            "bound": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BoundVisualFrameV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consumer_time_seconds": {
+              "format": "double",
+              "type": "number"
+            },
+            "decode_admissions": {
+              "additionalProperties": {
+                "$ref": "#/$defs/VisualDecodeAdmission"
+              },
+              "type": "object"
+            },
+            "max_lag_ms": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "plan": {
+              "$ref": "#/$defs/ClassicVisualPlan"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "time_seconds": {
+              "description": "Presentation projection only. No client-side source clock/layout evaluation.",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "schema_version",
+            "plan",
+            "admission",
+            "decode_admissions",
+            "time_seconds",
+            "consumer_time_seconds",
+            "max_lag_ms"
+          ],
+          "type": "object"
+        },
+        "VisualQuadV4": {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "description": "GPU uniform values match the Classic descriptor's f64→f32 conversion.",
+              "format": "float",
+              "type": "number"
+            },
+            "centerY": {
+              "format": "float",
+              "type": "number"
+            },
+            "flipX": {
+              "type": "boolean"
+            },
+            "flipY": {
+              "type": "boolean"
+            },
+            "height": {
+              "format": "float",
+              "type": "number"
+            },
+            "opacity": {
+              "description": "Raw layer multiplier; UNORM render targets perform the later clamp.",
+              "format": "float",
+              "type": "number"
+            },
+            "rotationRadians": {
+              "description": "Classic casts degrees to f32 before its radians conversion.",
+              "format": "float",
+              "type": "number"
+            },
+            "width": {
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "width",
+            "height",
+            "rotationRadians",
+            "flipX",
+            "flipY",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        "VisualResource": {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "type": "string"
+            },
+            "contentHash": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/VisualResourceKind"
+            },
+            "size": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "assetId",
+            "contentHash",
+            "size",
+            "kind"
+          ],
+          "type": "object"
+        },
+        "VisualResourceKind": {
+          "enum": [
+            "video",
+            "image"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisualPreviewFrameResultV4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
     "description": "Inspect the configured fixed-revision realtime audio preview profile and bounded PCM stream limits; capability does not grant project access.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

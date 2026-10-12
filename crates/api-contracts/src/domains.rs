@@ -70,7 +70,10 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
         ("system", "capabilities".to_owned())
     } else if suffix.starts_with("analysis_") || suffix.starts_with("source_art_") {
         ("media", suffix.replace('_', "."))
-    } else if suffix.starts_with("preview_") || suffix.starts_with("audio_preview_v4_") {
+    } else if suffix.starts_with("preview_")
+        || suffix.starts_with("audio_preview_v4_")
+        || suffix.starts_with("visual_preview_v4_")
+    {
         ("task", suffix.replace('_', "."))
     } else if suffix.starts_with("subtitle_") || suffix.starts_with("timeline_v4_") {
         ("edit", suffix.replace('_', "."))

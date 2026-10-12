@@ -184,7 +184,7 @@ test("only compiled preview facts cross the page bridge as bounded JSON text wit
   assert.equal(typeof envelope.value, "string");
   assert.deepEqual(JSON.parse(envelope.value), packed);
   assert.equal(operations[0], "compilePreviewBlockPackedV2");
-  assert.deepEqual(await callback("compileSourcePositions", { elementId: "clip-0", frameCount: 2 }), { ok: true, value: block });
+  assert.deepEqual(await callback("compileSourcePositions", { elementId: "clip-0", frameCount: 2 }), { ok: false, error: { code: "AUDIO_PROTOCOL_ERROR" } });
 
   // Route only the browser module import to a tiny consumer. The serialized
   // production page function, including its callback parser, runs unchanged.
@@ -379,4 +379,39 @@ test("expanded source admission refuses before host binding and releases the pre
   assert.equal(bound, 0);
   assert.equal(released, 1);
   assert.equal(closed, 1);
+});
+
+
+test("prepared source position bridge keeps exact integer fractions and rejects malformed replies", async () => {
+  const positions = [
+    { lower: "9007199254740993", fractionNumerator: "340282366920938463463374607431768211454", fractionDenominator: "340282366920938463463374607431768211455" },
+    { lower: "1", fractionNumerator: "1", fractionDenominator: "3" },
+  ];
+  const handlers = new Map(), { plan } = sharedFixture(1, 1);
+  const realm = { begin: { plan, resources: [], admission: {} }, signal: new AbortController().signal,
+    page: { exposeFunction: async (name, fn) => handlers.set(name, fn) }, broker: { request: async () => positions } };
+  await configurePreviewPage(realm);
+  const callback = handlers.get("__opencutPreviewCallback"), args = { elementId: "clip-0", localStartSample: "0", frameCount: 2, sourceSampleRate: 48000 };
+  const envelope = await callback("compileSourcePositions", args);
+  assert.equal(typeof envelope.value, "string");
+  assert.deepEqual(JSON.parse(envelope.value), positions);
+  const moduleUrl = "data:text/javascript," + encodeURIComponent("export async function prepareClassicPreview(plan,host){return {receipt:await host.compileSourcePositions(" + JSON.stringify(args) + ")}}");
+  const source = preparePreviewPage.toString()
+    .replace('import("/renderer/src/preview.mjs")', `import(${JSON.stringify(moduleUrl)})`)
+    .replace('import("/renderer/src/preview-packet.mjs")', `import(${JSON.stringify(new URL("../src/preview-packet.mjs", import.meta.url).href)})`);
+  const page = new Function("return (" + source + ")")();
+  const prior = globalThis.__opencutPreviewCallback, priorProducer = globalThis.__opencutPreviewProducer;
+  try {
+    globalThis.__opencutPreviewCallback = callback;
+    assert.deepEqual(await page({ plan, engineIdentity: "fixed", admission: {} }), { ok: true, value: positions });
+    for (const value of [positions, undefined, "{bad-json", "[]", "{}"]) {
+      globalThis.__opencutPreviewCallback = async () => ({ ok: true, value });
+      assert.deepEqual(await page({ plan, engineIdentity: "fixed", admission: {} }), { ok: false, error: { code: "AUDIO_PROTOCOL_ERROR" } });
+    }
+  } finally {
+    if (prior === undefined) delete globalThis.__opencutPreviewCallback; else globalThis.__opencutPreviewCallback = prior;
+    if (priorProducer === undefined) delete globalThis.__opencutPreviewProducer; else globalThis.__opencutPreviewProducer = priorProducer;
+  }
+  realm.broker.request = async () => [];
+  assert.deepEqual(await callback("compileSourcePositions", args), { ok: false, error: { code: "AUDIO_PROTOCOL_ERROR" } });
 });

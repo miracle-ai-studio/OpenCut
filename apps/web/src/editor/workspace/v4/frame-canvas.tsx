@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "../context";
 import { Button } from "../../shared/ui";
 import { t, useLocale } from "../../shared/locale";
@@ -19,6 +19,17 @@ export function V4FrameCanvas({
 }) {
   useLocale();
   const { controller, api, v4, jobs } = useWorkspace();
+  const visual = controller.v4.visualPreview;
+  const live = useSyncExternalStore(visual.subscribe, visual.snapshot);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const node = canvas.current;
+    if (node && live.pixels) {
+      node.width = live.pixels.width;
+      node.height = live.pixels.height;
+      node.getContext("2d")?.putImageData(live.pixels, 0, 0);
+    }
+  }, [live.pixels]);
   const [image, setImage] = useState<{ url: string; stamp: string } | null>(
     null,
   );
@@ -193,13 +204,28 @@ export function V4FrameCanvas({
           {formatTime(attempt.request.time)}
         </small>
       )}
+      {live.error && (
+        <p className="padded error" role="alert">
+          {live.error}
+        </p>
+      )}
       <div
         className="v4-canvas"
         style={{ aspectRatio: `${width} / ${height}` }}
         role="region"
         aria-label={t("Canvas notes")}
       >
-        {image?.stamp === stamp ? (
+        {live.pixels ? (
+          <canvas
+            role="img"
+            ref={canvas}
+            className="v4-scene-frame"
+            aria-label={t("Live scene preview")}
+            data-time={live.time ?? ""}
+            data-generation={live.generation ?? ""}
+            data-runtime={live.runtime ?? ""}
+          />
+        ) : live.phase === "idle" && image?.stamp === stamp ? (
           <img
             className="v4-scene-frame"
             src={image.url}
@@ -211,7 +237,13 @@ export function V4FrameCanvas({
           />
         ) : (
           <span className="v4-preview-status" role="status">
-            {t(working ? "Preparing scene frame…" : "Preview unavailable")}
+            {t(
+              live.phase === "loading"
+                ? "Waiting for synchronized picture…"
+                : working
+                  ? "Preparing scene frame…"
+                  : "Preview unavailable",
+            )}
           </span>
         )}
         <div className="v4-note-hud" aria-live="polite">

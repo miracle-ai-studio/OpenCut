@@ -2,8 +2,13 @@ import { afterEach, expect, it, vi } from "vitest";
 import { OpenCutApiError } from "../../../lib/editor-sdk";
 import { setupAudioPreview } from "./audio-preview-fixture";
 
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
-const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+const flush = async () => {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+};
 
 it("reports completed endpoints immediately, coalesces in-flight endpoints and ignores ordinary quantum progress", async () => {
   const f = await setupAudioPreview();
@@ -14,37 +19,83 @@ it("reports completed endpoints immediately, coalesces in-flight endpoints and i
     let release!: () => void;
     f.control.mockImplementationOnce(async (r, signal) => {
       const result = await actual(r, signal);
-      await new Promise<void>(resolve => { release = resolve; });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
       return result;
     });
     const output = f.outputs[0];
     output.progress({ consumedFrames: "128", stalled: false, contextTime: 1 });
-    expect(f.controls.filter(r => r.command.kind === "report_consumed")).toHaveLength(0);
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(0);
     output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 });
     output.completedBlock();
-    expect(f.controls.at(-1)?.command).toMatchObject({ kind: "report_consumed", consumed_frames: "4096", sequence: "1" });
+    expect(f.controls.at(-1)?.command).toMatchObject({
+      kind: "report_consumed",
+      consumed_frames: "4096",
+      sequence: "1",
+    });
     await flush();
     for (const consumedFrames of ["8192", "12288"]) {
-      output.progress({ consumedFrames, stalled: false, contextTime: 2 }); output.completedBlock();
+      output.progress({ consumedFrames, stalled: false, contextTime: 2 });
+      output.completedBlock();
     }
-    expect(f.controls.filter(r => r.command.kind === "report_consumed")).toHaveLength(1);
-    release(); await flush();
-    expect(f.controls.filter(r => r.command.kind === "report_consumed").map(r => r.command)).toEqual([
-      { kind: "report_consumed", consumed_frames: "4096", sequence: "1", playing: true, stalled: false },
-      { kind: "report_consumed", consumed_frames: "12288", sequence: "2", playing: true, stalled: false },
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(1);
+    release();
+    await flush();
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "report_consumed")
+        .map((r) => r.command),
+    ).toEqual([
+      {
+        kind: "report_consumed",
+        consumed_frames: "4096",
+        sequence: "1",
+        playing: true,
+        stalled: false,
+      },
+      {
+        kind: "report_consumed",
+        consumed_frames: "12288",
+        sequence: "2",
+        playing: true,
+        stalled: false,
+      },
     ]);
     f.control.mockImplementationOnce(async (r, signal) => {
       const result = await actual(r, signal);
-      await new Promise<void>(resolve => { release = resolve; });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
       return result;
     });
-    output.progress({ consumedFrames: "16384", stalled: false, contextTime: 3 }); output.completedBlock();
-    await flush();
-    output.progress({ consumedFrames: "20480", stalled: false, contextTime: 4 }); output.completedBlock();
-    f.invalidateGeneration(); release(); await flush();
+    output.progress({
+      consumedFrames: "16384",
+      stalled: false,
+      contextTime: 3,
+    });
     output.completedBlock();
-    expect(f.controls.filter(r => r.command.kind === "report_consumed")).toHaveLength(3);
-  } finally { f.cleanup(); }
+    await flush();
+    output.progress({
+      consumedFrames: "20480",
+      stalled: false,
+      contextTime: 4,
+    });
+    output.completedBlock();
+    f.invalidateGeneration();
+    release();
+    await flush();
+    output.completedBlock();
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(3);
+  } finally {
+    f.cleanup();
+  }
 });
 
 it("releases consumption credit before heartbeat and flushes completions queued during renewal", async () => {
@@ -56,19 +107,37 @@ it("releases consumption credit before heartbeat and flushes completions queued 
     let release!: () => void;
     f.control.mockImplementation(async (r, signal) => {
       const result = await actual(r, signal);
-      if (r.command.kind === "heartbeat") await new Promise<void>(resolve => { release = resolve; });
+      if (r.command.kind === "heartbeat")
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
       return result;
     });
     vi.setSystemTime(Date.now() + 501);
     const output = f.outputs[0];
-    output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 }); output.completedBlock();
+    output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 });
+    output.completedBlock();
     await flush();
-    expect(f.controls.slice(1).map(r => r.command.kind)).toEqual(["report_consumed", "heartbeat"]);
-    output.progress({ consumedFrames: "8192", stalled: false, contextTime: 2 }); output.completedBlock();
-    release(); await flush();
-    expect(f.controls.slice(1).map(r => r.command.kind)).toEqual(["report_consumed", "heartbeat", "report_consumed"]);
-    expect(f.controls.at(-1)?.command).toMatchObject({ consumed_frames: "8192", sequence: "2" });
-  } finally { f.cleanup(); }
+    expect(f.controls.slice(1).map((r) => r.command.kind)).toEqual([
+      "report_consumed",
+      "heartbeat",
+    ]);
+    output.progress({ consumedFrames: "8192", stalled: false, contextTime: 2 });
+    output.completedBlock();
+    release();
+    await flush();
+    expect(f.controls.slice(1).map((r) => r.command.kind)).toEqual([
+      "report_consumed",
+      "heartbeat",
+      "report_consumed",
+    ]);
+    expect(f.controls.at(-1)?.command).toMatchObject({
+      consumed_frames: "8192",
+      sequence: "2",
+    });
+  } finally {
+    f.cleanup();
+  }
 });
 
 it("discards a queued endpoint when draining and reports the final stopped cursor before pause", async () => {
@@ -80,25 +149,51 @@ it("discards a queued endpoint when draining and reports the final stopped curso
     let release!: () => void;
     f.control.mockImplementationOnce(async (r, signal) => {
       const result = await actual(r, signal);
-      await new Promise<void>(resolve => { release = resolve; });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
       return result;
     });
     const output = f.outputs[0];
-    output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 }); output.completedBlock();
+    output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 });
+    output.completedBlock();
     await flush();
-    output.progress({ consumedFrames: "8192", stalled: false, contextTime: 2 }); output.completedBlock();
+    output.progress({ consumedFrames: "8192", stalled: false, contextTime: 2 });
+    output.completedBlock();
     output.finalFrames = "9000";
     const pause = f.preview.pause();
     output.completedBlock();
-    release(); await flush(); await vi.advanceTimersByTimeAsync(5); await pause;
-    expect(f.controls.filter(r => r.command.kind === "report_consumed").map(r => r.command)).toEqual([
-      { kind: "report_consumed", consumed_frames: "4096", sequence: "1", playing: true, stalled: false },
-      { kind: "report_consumed", consumed_frames: "9000", sequence: "2", playing: false, stalled: false },
+    release();
+    await flush();
+    await vi.advanceTimersByTimeAsync(5);
+    await pause;
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "report_consumed")
+        .map((r) => r.command),
+    ).toEqual([
+      {
+        kind: "report_consumed",
+        consumed_frames: "4096",
+        sequence: "1",
+        playing: true,
+        stalled: false,
+      },
+      {
+        kind: "report_consumed",
+        consumed_frames: "9000",
+        sequence: "2",
+        playing: false,
+        stalled: false,
+      },
     ]);
     expect(f.controls.at(-1)?.command.kind).toBe("pause");
-    output.completedBlock(); await flush();
+    output.completedBlock();
+    await flush();
     expect(f.controls.at(-1)?.command.kind).toBe("pause");
-  } finally { f.cleanup(); }
+  } finally {
+    f.cleanup();
+  }
 });
 
 it("ignores the replaced output's endpoint after a playing seek", async () => {
@@ -106,19 +201,39 @@ it("ignores the replaced output's endpoint after a playing seek", async () => {
   vi.useFakeTimers();
   try {
     await f.preview.play();
-    const old = f.outputs[0]; old.finalFrames = "128";
-    f.preview.seek({ ticks: "1", timebase: 1 }); await flush();
+    const old = f.outputs[0];
+    old.finalFrames = "128";
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await flush();
     expect(f.outputs).toHaveLength(2);
-    const reports = f.controls.filter(r => r.command.kind === "report_consumed").length;
-    old.progress({ consumedFrames: "4096", stalled: false, contextTime: 3 }); old.completedBlock();
+    const reports = f.controls.filter(
+      (r) => r.command.kind === "report_consumed",
+    ).length;
+    old.progress({ consumedFrames: "4096", stalled: false, contextTime: 3 });
+    old.completedBlock();
     await flush();
-    expect(f.controls.filter(r => r.command.kind === "report_consumed")).toHaveLength(reports);
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(reports);
     await vi.advanceTimersByTimeAsync(50);
-    expect(f.controls.at(-1)).toMatchObject({ generation: "2", command: { consumed_frames: "0", sequence: "1" } });
-    f.outputs[1].progress({ consumedFrames: "4096", stalled: false, contextTime: 4 }); f.outputs[1].completedBlock();
+    expect(f.controls.at(-1)).toMatchObject({
+      generation: "2",
+      command: { consumed_frames: "0", sequence: "1" },
+    });
+    f.outputs[1].progress({
+      consumedFrames: "4096",
+      stalled: false,
+      contextTime: 4,
+    });
+    f.outputs[1].completedBlock();
     await flush();
-    expect(f.controls.at(-1)).toMatchObject({ generation: "2", command: { consumed_frames: "4096", sequence: "2" } });
-  } finally { f.cleanup(); }
+    expect(f.controls.at(-1)).toMatchObject({
+      generation: "2",
+      command: { consumed_frames: "4096", sequence: "2" },
+    });
+  } finally {
+    f.cleanup();
+  }
 });
 it("binds historical revision and publishes only service consumption Time, with no clock movement while stalled", async () => {
   const f = await setupAudioPreview();
@@ -336,4 +451,83 @@ it("resumes a paused fixed session without recreating native preparation and rep
   } finally {
     f.cleanup();
   }
+});
+
+it("gates PCM behind first picture and reuses the same picture port after seek", async () => {
+  const f = await setupAudioPreview();
+  const prepare = vi.fn(async () => {}),
+    observe = vi.fn(),
+    suspend = vi.fn(),
+    close = vi.fn();
+  try {
+    let release!: () => void;
+    prepare.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const playing = f.preview.play(undefined, {
+      prepare,
+      observe,
+      suspend,
+      close,
+    });
+    await flush();
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(f.stream).not.toHaveBeenCalled();
+    release();
+    await playing;
+    expect(f.controls.some((r) => r.command.kind === "play")).toBe(true);
+    f.preview.seek({ ticks: "1", timebase: 2 });
+    await flush();
+    expect(suspend).toHaveBeenCalled();
+    expect(prepare).toHaveBeenCalledTimes(2);
+  } finally {
+    f.preview.invalidate();
+  }
+});
+
+it("known first-picture failure stops its created session and never opens PCM", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await expect(
+      f.preview.play(undefined, {
+        prepare: async () => {
+          throw new Error("Unsupported picture");
+        },
+        observe: () => {},
+        suspend: () => {},
+        close: () => {},
+      }),
+    ).rejects.toThrow("Unsupported picture");
+    expect(f.stream).not.toHaveBeenCalled();
+    expect(f.controls.some((r) => r.command.kind === "stop")).toBe(true);
+    expect(f.state().audioPreview.phase).toBe("failed");
+  } finally {
+    f.preview.invalidate();
+  }
+});
+
+it("producer EOF during pause cannot replace its final confirmed pause receipt with failure", async () => {
+  const f = await setupAudioPreview();
+  let producer!: ReadableStreamDefaultController<Uint8Array>;
+  f.stream.mockResolvedValue(new Response(new ReadableStream<Uint8Array>({
+    start(controller) { producer = controller; },
+  }), { headers: { "content-type": "application/vnd.opencut.audio-preview-v4" } }));
+  try {
+    await f.preview.play();
+    await flush();
+    const actual = f.control.getMockImplementation()!;
+    f.control.mockImplementation(async (request, signal) => {
+      if (request.command.kind === "pause") {
+        producer.close();
+        await flush();
+      }
+      return actual(request, signal);
+    });
+    await f.preview.pause();
+    expect(f.state().audioPreview).toMatchObject({ phase: "paused", error: null });
+    expect(f.controls.filter(r => r.command.kind === "stop")).toHaveLength(0);
+  } finally { f.cleanup(); }
 });

@@ -36,6 +36,8 @@ export function violations(file, code) {
       )
     )
       errors.push(`${file}: renderer imports require the pure mastering bridge`);
+    if (name.includes("classic-visual-renderer") && !(file === "editor/workspace/v4/visual-preview-renderer.ts" && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs"))
+      errors.push(`${file}: visual renderer imports require the bounded preview bridge`);
     if (!name.startsWith(".") && !/^(?:@|#)\//.test(name)) return;
     const target = path.posix.normalize(
       /^(?:@|#)\//.test(name)

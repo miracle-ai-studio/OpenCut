@@ -1,5 +1,219 @@
 // Generated from the Rust automation registry. Do not edit.
 
+export namespace OpencutVisualPreviewV4FrameInput {
+  export type DecodedVisualSourceV4 =
+  | {
+      elementId: string;
+      height: number;
+      kind: 'readyImage';
+      width: number;
+    }
+  | {
+      actualTimestampSeconds: number;
+      elementId: string;
+      frameDurationSeconds: number;
+      height: number;
+      kind: 'readyVideo';
+      requestedTime: Time;
+      /**
+       * None is primary-track selection, not an invented FFmpeg stream index.
+       */
+      selectedVideoStream?: number | null;
+      width: number;
+    }
+  | {
+      elementId: string;
+      kind: 'noFrame';
+      reason: VisualNoFrameReasonV4;
+      requestedTime: Time;
+    };
+  export type VisualNoFrameReasonV4 = 'outside_read_window' | 'eof' | 'timestamp_gap';
+
+  export interface VisualPreviewFrameV4 {
+  decoded?: DecodedVisualSourceV4[] | null;
+  session: AudioPreviewStreamV4;
+  /**
+   * None plans the current confirmed consumer time. Bind uses that exact Time.
+   */
+  time?: Time | null;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface AudioPreviewStreamV4 {
+  generation: string;
+  lease_id: string;
+  overlay_epoch: string;
+  owner_id: string;
+  session_id: string;
+}
+
+}
+
+export namespace OpencutVisualPreviewV4FrameOutput {
+  export type DecodedVisualSourceV4 =
+  | {
+      elementId: string;
+      height: number;
+      kind: 'readyImage';
+      width: number;
+    }
+  | {
+      actualTimestampSeconds: number;
+      elementId: string;
+      frameDurationSeconds: number;
+      height: number;
+      kind: 'readyVideo';
+      requestedTime: Time;
+      /**
+       * None is primary-track selection, not an invented FFmpeg stream index.
+       */
+      selectedVideoStream?: number | null;
+      width: number;
+    }
+  | {
+      elementId: string;
+      kind: 'noFrame';
+      reason: VisualNoFrameReasonV4;
+      requestedTime: Time;
+    };
+  export type VisualNoFrameReasonV4 = 'outside_read_window' | 'eof' | 'timestamp_gap';
+  export type VisualDecodeRequest =
+  | {
+      kind: 'image';
+    }
+  | {
+      kind: 'video';
+      noFrameReason?: VisualNoFrameReasonV4 | null;
+      pointProfile: string;
+      requestedTime: Time;
+      /**
+       * Decoder API projection supplied by Rust; the browser never divides
+       * cross-process integer ticks or applies retime itself.
+       */
+      requestedTimeSeconds: number;
+      selectedVideoStream?: number | null;
+    };
+  export type VisualResourceKind = 'video' | 'image';
+
+  export interface Response {
+  api_version: string;
+  data?: VisualPreviewFrameResultV4 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface VisualPreviewFrameResultV4 {
+  admission: VisualPreviewAdmissionV4;
+  bound?: BoundVisualFrameV4 | null;
+  consumer_time_seconds: number;
+  decode_admissions: {
+    [k: string]: VisualDecodeAdmission;
+  };
+  max_lag_ms: number;
+  plan: ClassicVisualPlan;
+  schema_version: number;
+  /**
+   * Presentation projection only. No client-side source clock/layout evaluation.
+   */
+  time_seconds: number;
+}
+  export interface VisualPreviewAdmissionV4 {
+  maxDecodedPixels: string;
+  maxEncodedBytes: string;
+  maxFramePixels: string;
+  maxGpuBytes: string;
+  maxRgbaBytes: string;
+}
+  export interface BoundVisualFrameV4 {
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  background: [number, number, number, number];
+  /**
+   * Original compositor clear, followed by one normal background color layer.
+   *
+   * @minItems 4
+   * @maxItems 4
+   */
+  clear: [number, number, number, number];
+  decoded: DecodedVisualSourceV4[];
+  identity: VisualFrameIdentityV4;
+  layers: BoundVisualLayerV4[];
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface VisualFrameIdentityV4 {
+  height: number;
+  profile: string;
+  projectId: string;
+  revision: string;
+  sequenceId: string;
+  time: Time;
+  width: number;
+}
+  export interface BoundVisualLayerV4 {
+  assetId: string;
+  elementId: string;
+  /**
+   * NoFrame or a zero-sized authored transform draws no quad.
+   */
+  quad?: VisualQuadV4 | null;
+}
+  export interface VisualQuadV4 {
+  /**
+   * GPU uniform values match the Classic descriptor's f64→f32 conversion.
+   */
+  centerX: number;
+  centerY: number;
+  flipX: boolean;
+  flipY: boolean;
+  height: number;
+  /**
+   * Raw layer multiplier; UNORM render targets perform the later clamp.
+   */
+  opacity: number;
+  /**
+   * Classic casts degrees to f32 before its radians conversion.
+   */
+  rotationRadians: number;
+  width: number;
+}
+  export interface VisualDecodeAdmission {
+  maxDecodedBytes: string;
+  maxHeight: number;
+  maxPixels: string;
+  maxWidth: number;
+}
+  export interface ClassicVisualPlan {
+  identity: VisualFrameIdentityV4;
+  layers: ClassicVisualLayerPlan[];
+  resources: VisualResource[];
+}
+  export interface ClassicVisualLayerPlan {
+  decode: VisualDecodeRequest;
+  elementId: string;
+  resource: VisualResource;
+}
+  export interface VisualResource {
+  assetId: string;
+  contentHash: string;
+  kind: VisualResourceKind;
+  size: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutAudioPreviewV4CapabilityInput {
   export interface EmptyInput {}
 
@@ -42618,6 +42832,7 @@ export namespace AudioPreviewPcmV4 {
 }
 
 export interface ToolMap {
+  opencut_visual_preview_v4_frame: { input: OpencutVisualPreviewV4FrameInput.VisualPreviewFrameV4; output: NonNullable<OpencutVisualPreviewV4FrameOutput.Response["data"]> };
   opencut_audio_preview_v4_capability: { input: OpencutAudioPreviewV4CapabilityInput.EmptyInput; output: NonNullable<OpencutAudioPreviewV4CapabilityOutput.Response["data"]> };
   opencut_source_art_v1_get: { input: OpencutSourceArtV1GetInput.SourceArtRequestV1; output: NonNullable<OpencutSourceArtV1GetOutput.Response["data"]> };
   opencut_source_art_v1_cancel: { input: OpencutSourceArtV1CancelInput.SourceArtCancelV1; output: NonNullable<OpencutSourceArtV1CancelOutput.Response["data"]> };
@@ -42938,6 +43153,7 @@ export interface DomainMap {
     "project.media.remove": ToolMap["opencut_project_media_remove"];
   };
   "task": {
+    "visual.preview.v4.frame": ToolMap["opencut_visual_preview_v4_frame"];
     "audio.preview.v4.capability": ToolMap["opencut_audio_preview_v4_capability"];
     "audio.preview.v4.create": ToolMap["opencut_audio_preview_v4_create"];
     "audio.preview.v4.inspect": ToolMap["opencut_audio_preview_v4_inspect"];
@@ -43162,6 +43378,7 @@ export const domainActions = {
     "project.media.remove"
   ],
   "task": [
+    "visual.preview.v4.frame",
     "audio.preview.v4.capability",
     "audio.preview.v4.create",
     "audio.preview.v4.inspect",
@@ -43273,6 +43490,7 @@ export interface JobResultMap {
   "render.project_frame.v4": JobRenderProjectFrameV4Result.V4FramePngResultV1;
 }
 export const toolNames = [
+  "opencut_visual_preview_v4_frame",
   "opencut_audio_preview_v4_capability",
   "opencut_source_art_v1_get",
   "opencut_source_art_v1_cancel",

@@ -1,6 +1,6 @@
 {
   "format": "opencut.acceptance-summary.v1",
-  "updated": "2026-10-12",
+  "updated": "2026-10-13",
   "whole_migration_complete": false,
   "scope": "Local Rust Server + Web Classic migration under the recorded user decisions",
   "feature_status_counts": {
@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values.",
   "current_worktree_validation": {
-    "scope": "Latest scoped F16 precise review/failure-recovery supplement uses one new Web build and unchanged hash-verified F08 release CLI. Prior evidence retains its own candidate; no whole-project run.",
-    "latest_candidate": "v4_file_import_boundaries",
+    "scope": "Scoped candidate records below; main color/PCM AV and final affected boundaries retain their own Web entrypoint identities.",
+    "latest_candidate": "visual_preview_v4",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -2905,14 +2905,213 @@
           "removed_bytes": 11236116,
           "user_media_touched": false
         }
+      },
+      {
+        "evidence_id": "visual_preview_v4",
+        "status": "passed_scoped",
+        "candidate": {
+          "base_commit": "7200078beaa66cd7ea9195adc966b3adb625f435",
+          "source_files": [
+            "apps/web/scripts/check-boundaries.mjs",
+            "apps/web/scripts/check-boundaries.test.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "apps/web/src/editor/shared/messages.ts",
+            "apps/web/src/editor/workspace/v4/api.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview-controls.tsx",
+            "apps/web/src/editor/workspace/v4/audio-preview.test.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/editor/workspace/v4/frame-canvas.tsx",
+            "apps/web/src/editor/workspace/v4/product.tsx",
+            "apps/web/src/editor/workspace/v4/session.ts",
+            "apps/web/src/editor/workspace/v4/visual-preview-renderer.ts",
+            "apps/web/src/editor/workspace/v4/visual-preview.test.ts",
+            "apps/web/src/editor/workspace/v4/visual-preview.ts",
+            "apps/web/vite.config.ts",
+            "apps/web/vitest.config.ts",
+            "crates/api-contracts/src/domains.rs",
+            "crates/api-contracts/src/lib.rs",
+            "crates/api-contracts/src/tools.rs",
+            "crates/api-contracts/src/visual_preview_v4.rs",
+            "crates/composition/src/project_v4/visual_execution.rs",
+            "crates/contracts/src/lib.rs",
+            "crates/contracts/src/visual_frame_v4.rs",
+            "crates/editor-application/src/access.rs",
+            "crates/editor-application/src/audio_preview_v4/machine.rs",
+            "crates/editor-application/src/audio_preview_v4/tests.rs",
+            "crates/editor-application/src/classic_visual/protocol.rs",
+            "crates/editor-application/src/classic_visual/session.rs",
+            "crates/editor-application/src/lib.rs",
+            "crates/editor-application/src/project_v4_frame_jobs.rs",
+            "crates/editor-application/src/project_v4_frame_jobs/tests.rs",
+            "crates/editor-application/src/visual_preview_v4.rs",
+            "crates/host-runtime/src/audio_preview_v4/mod.rs",
+            "crates/host-runtime/src/lib.rs",
+            "crates/host-runtime/tests/audio_preview_lifecycle.rs",
+            "packages/classic-audio-renderer/host/preview-browser.mjs",
+            "packages/classic-audio-renderer/host/preview-page.mjs",
+            "packages/classic-audio-renderer/tests/preview.test.mjs",
+            "packages/classic-visual-renderer/src/gpu.mjs",
+            "packages/classic-visual-renderer/src/index.d.mts",
+            "packages/classic-visual-renderer/src/index.mjs",
+            "packages/contract-fixtures/openapi.generated.json",
+            "packages/contract-fixtures/tools.generated.json",
+            "packages/sdk-ts/src/contracts.generated.ts",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "948d449689a8b99a942401288de2c71a9f31a83f3790b50b8d94601a2bec564f",
+          "source_manifest_method": "SHA256 of sorted-key compact UTF-8 JSON mapping relative source paths to SHA256(file bytes)",
+          "source_identity_scope": "Final source tree and final quota-restoration binary. Browser AV and supplemental boundaries retain their original binary/Web identities; final production Rust change only restores zero per-layer budget rejection. Positive-budget media checks are reused in their stated scopes.",
+          "binary_sha256": "384191b20c4ab7e640782809f7fe0e1ef61bc21487bbb89e548288108d48082b",
+          "web_entrypoints": {
+            "assets/editor-workspace-DgHB-sXs.js": "78a75c8278851246d16efb4a13cb7f6646784025e6eb74d711619daabc5ae515",
+            "assets/index-ByFb-Lxc.js": "cb3e5ca9d260ba224b29446af629acf3de260c461dbd3a33641e3154e721415d",
+            "index.html": "baf3614bd475dd723c09d03ddfb1bb728b4406ce443a9a11c7b57775c14454ca"
+          },
+          "browser": "154.0.8037.99",
+          "web_candidates": [
+            {
+              "scope": "default unit-rate maintain_pitch=true prepared-linear: independent color/PCM/consumer clock, pause, hot resume/seek and delayed old generation. Two passed main checks; following supplemental run did not pass at this candidate.",
+              "web_entrypoints": {
+                "assets/editor-workspace-DrHO5-SW.js": "4c1f478e851eb402a08b270e95a123fa5566c8c592011fe922bfd7357763edf5",
+                "assets/index-CtbFHgoy.js": "8d9f763be457b5a85cd2d17e51e7abd57645b31760c008288a0761198ecc4ecb",
+                "index.html": "29e6a668fb2c64c8a584750683b4da2fa24aedfbc6de3725afc5af18c0f7c2de"
+              },
+              "browser": "154.0.8037.99",
+              "completed_checks": [
+                "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+                "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs"
+              ],
+              "final_delta": "Only expected old-producer EOF during draining is ignored; source clocks, pixels/PCM execution and display lag fence unchanged. Final supplemental candidate covers the affected pause/resume behavior.",
+              "binary_sha256": "0acf0704130ccef5234b24634e994b9b5db75c4f47db09bace0821857ffdc180"
+            },
+            {
+              "scope": "final pause/resume EOF fence, Chinese entry/canvas, one verified video download across frames/resume, paused versioned permission rejection clears pixels",
+              "web_entrypoints": {
+                "assets/editor-workspace-DgHB-sXs.js": "78a75c8278851246d16efb4a13cb7f6646784025e6eb74d711619daabc5ae515",
+                "assets/index-ByFb-Lxc.js": "cb3e5ca9d260ba224b29446af629acf3de260c461dbd3a33641e3154e721415d",
+                "index.html": "baf3614bd475dd723c09d03ddfb1bb728b4406ce443a9a11c7b57775c14454ca"
+              },
+              "browser": "154.0.8037.99",
+              "completed_checks": [
+                "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+                "paused preview revalidates authority within one second and clears cached pixels after a versioned permission rejection; genuine original-credential revocation is covered by the native host test"
+              ],
+              "binary_sha256": "0acf0704130ccef5234b24634e994b9b5db75c4f47db09bace0821857ffdc180"
+            },
+            {
+              "scope": "earlier preserve-pts AV candidate; separate original scope, not a fresh assertion against final Web or updated private audio bridge",
+              "web_entrypoints": {
+                "assets/editor-workspace-BTGkoZXm.js": "05b1e813090b1c9d211a1cc7d46a8978cb12414b04dabc66173838f6fc616fe6",
+                "assets/index-oy8s7Wnl.js": "a039fdd824a7ed6c5e293e9d7dced2177941cb431b04e98025f521e6bbc86734",
+                "index.html": "78f3fe85e3ec416c26e8212ecb87eef8769ecf753b102a8aab37c500094b8f87"
+              },
+              "browser": "154.0.8037.99",
+              "scene_preview": {
+                "cold_ms": 6038,
+                "distinct_frames": 103,
+                "max_skew_ms": 95.99999999999997,
+                "frequency_hz": 439.99991601772865,
+                "rms": 0.08831585190797463,
+                "runtime": {
+                  "gpuBackend": "webgpu",
+                  "gpuDevice": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+                  "textureFormat": "bgra8unorm"
+                }
+              },
+              "binary_sha256": "0acf0704130ccef5234b24634e994b9b5db75c4f47db09bace0821857ffdc180"
+            }
+          ],
+          "final_rust_delta": "Shared decode admission restores VISUAL_BUDGET_EXCEEDED for a zero per-layer allotment; dedicated two-layer/one-pixel test covers both reused admission and original callback. Positive-budget browser fixtures retain their original explicit binary identity; no duplicate media run."
+        },
+        "scope": "S1 bounded continuous normal Video/static PNG-JPEG execution through existing Classic renderer and sound session; actual browser acceptance uses one synthetic 8s 160x90 H264 BT709 video and independent PCM16 WAV. Full S1/F10/F42 remain partial.",
+        "checks": {
+          "rust_application_exact_picture_time": 1,
+          "rust_audio_session_tests": 6,
+          "real_native_host_authority_lifecycle": 1,
+          "latest_affected_web_files": 2,
+          "latest_affected_web_tests": 18,
+          "private_audio_bridge_tests": 17,
+          "existing_visual_renderer_tests": 5,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "migration_exceptions": 0,
+          "contract_boundaries": "passed",
+          "web_boundaries_files": 178,
+          "negative_web_boundary_tests": 16,
+          "generated_contract_check": "passed against the explicit integrated binary",
+          "legacy_wire_checks": 22,
+          "registered_tools": 194,
+          "prior_193_tool_declarations": "exact input/output/readonly equality",
+          "typecheck": "passed",
+          "production_web_build": "passed for each changed candidate; no rebuild for verifier-only corrections",
+          "rust_release_builds": 2,
+          "fresh_whole_rust_workspace_run": false,
+          "rust_per_layer_zero_budget_regression": 1
+        },
+        "independent_oracles": [
+          {
+            "check": "continuous normal preview: independent alternating red/green pixels, 440Hz PCM and actual Worklet-consumer skew <=150ms; pause freezes clock",
+            "scene_preview": {
+              "cold_ms": 9429,
+              "distinct_frames": 96,
+              "max_skew_ms": 111.99999999999987,
+              "frequency_hz": 439.99991601772865,
+              "rms": 0.08831585190797463,
+              "runtime": {
+                "gpuBackend": "webgpu",
+                "gpuDevice": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+                "textureFormat": "bgra8unorm"
+              }
+            }
+          },
+          {
+            "check": "hot resume/seek first picture <=1s, late old-generation bind cannot paint; no project edits or durable frame jobs",
+            "seek_ms": 272
+          },
+          {
+            "check": "Chinese preview entry/canvas and hot resume share the verified encoded video cache; only one scoped resource download",
+            "preview_cache": {
+              "resource_downloads": 1
+            }
+          }
+        ],
+        "authority_and_lifecycle": "Real native host test checks fixed revision, ownership/generation, paused empty-frame binding and revoked original credential cannot be replaced by stronger caller; actual native process/CAS teardown. HTTP paused 403 is explicit fault injection, not genuine revocation evidence by itself.",
+        "reuse": {
+          "implementation": [
+            "existing project_v4_frame preparation and ClassicVisualSession decoder binding",
+            "existing Classic WGSL/WebGPU renderer and immutable verified-byte transfers",
+            "existing realtime audio owner/lease/generation/overlay and AudioWorklet output",
+            "existing SDK-generated declarations, public registration, UI import/place helpers and one owned synthetic workspace"
+          ],
+          "prior_checks_rerun": false,
+          "scope": "Unchanged F08/F16/recovery/source-art/DSP broad suites are retained against their original candidates. Only new or affected time/authority/bridge/display/EOF behavior checked; Rust not rebuilt for JS or verifier corrections."
+        },
+        "limits": [
+          "8s 160x90 CFR/BT709, mono PCM16/48000Hz, unit rate: not normal-resolution/dense/long-file/VFR/other-codec or non-unit-rate SoundTouch proof.",
+          "No complete all-elements/blends/fonts/effects/masks/transitions/export parity or physical DAC sync acceptance.",
+          "Local Worklet observations fence display; Rust confirmed consumer clock compiles IR. 125ms publication margin and 150ms clearing/freshness window are bounded UI policy, not OS scheduling or device latency guarantees.",
+          "Private position transport preserves full Rust integer/fraction strings; existing 4096-frame and 16MiB reply budgets remain. Whole-resource preparation remains bounded rather than streaming long-file pitch preparation.",
+          "Encoded resource cache and GPU pipelines are session scoped; decoded canvases/frame allocations remain per frame. No strict browser/kernel GPU/RSS quota or complete renderer reproducibility claim.",
+          "No fresh whole workspace/Desktop/signed package/user database acceptance."
+        ],
+        "cleanup": {
+          "service_stopped": true,
+          "synthetic_workspace_and_report_removed": true,
+          "user_media_touched": false,
+          "open_handles": 0,
+          "removed_files": 53,
+          "removed_bytes": 11521758,
+          "scope": "Exact owned opencut-web-f75qlux3 plus explicitly named task diagnostics; unrelated S1 history/ASR workspace and prior services retained."
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous picture/audio sync; text/fonts/layout/graphics/stickers/all blends/effects/masks/transitions/background and complete MP4/WebM export are incomplete.",
+    "Continuous normal Video/static PNG-JPEG picture/audio preview is implemented and verified for the recorded 160x90/8s scope; normal-resolution/dense/long-file/VFR/full transport matrices, text/fonts/layout/graphics/stickers/all blends/effects/masks/transitions/background and complete MP4/WebM export remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
-    "Audio preparation remains bounded whole-resource; long-file/VFR/real-device performance and full element/zoom/interaction matrices are not established by repeated four-second CAS fixtures.",
+    "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
     "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",

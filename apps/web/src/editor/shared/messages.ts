@@ -1,33 +1,50 @@
 export const zh: Record<string, string> = {
-  "The service returned a different restore receipt.": "服务返回了不同类型的恢复回执。",
-  "Choose a saved project revision to restore.": "请选择要恢复的已保存工程修订。",
-  "The service returned a different history receipt.": "服务返回了不同类型的历史回执。",
+  "The service returned a different restore receipt.":
+    "服务返回了不同类型的恢复回执。",
+  "Choose a saved project revision to restore.":
+    "请选择要恢复的已保存工程修订。",
+  "The service returned a different history receipt.":
+    "服务返回了不同类型的历史回执。",
   "The edit target changed.": "编辑目标已变化。",
-  "Resolve the original timeline operation before starting another edit.": "请先处理原时间线操作，再开始其他编辑。",
-  "Edit recovery storage is unavailable or invalid. Resolve the original edit before continuing.": "编辑恢复存储不可用或已损坏。请先处理原编辑操作，再继续。",
-  "Resolve the original edit before dismissing it.": "请先确认原编辑操作的结果，再关闭。",
+  "Resolve the original timeline operation before starting another edit.":
+    "请先处理原时间线操作，再开始其他编辑。",
+  "Edit recovery storage is unavailable or invalid. Resolve the original edit before continuing.":
+    "编辑恢复存储不可用或已损坏。请先处理原编辑操作，再继续。",
+  "Resolve the original edit before dismissing it.":
+    "请先确认原编辑操作的结果，再关闭。",
   "No original edit needs recovery.": "没有需要恢复的原编辑操作。",
-  "Open the original current project to recover this edit.": "请打开原工程的当前修订，恢复此编辑操作。",
-  "The service returned a different edit family.": "服务返回了不同类型的编辑回执。",
-  "The staged edit differs from the original request.": "暂存的编辑操作与原请求不匹配。",
+  "Open the original current project to recover this edit.":
+    "请打开原工程的当前修订，恢复此编辑操作。",
+  "The service returned a different edit family.":
+    "服务返回了不同类型的编辑回执。",
+  "The staged edit differs from the original request.":
+    "暂存的编辑操作与原请求不匹配。",
   "The original edit was not staged.": "原编辑操作尚未暂存。",
-  "Resolve the original edit before starting another operation.": "请先处理原编辑操作，再开始其他操作。",
-  "The recovery acknowledgment differs from the original receipt.": "恢复确认与原回执不匹配。",
-  "The service returned a different original edit.": "服务返回了其他编辑操作的记录。",
+  "Resolve the original edit before starting another operation.":
+    "请先处理原编辑操作，再开始其他操作。",
+  "The recovery acknowledgment differs from the original receipt.":
+    "恢复确认与原回执不匹配。",
+  "The service returned a different original edit.":
+    "服务返回了其他编辑操作的记录。",
   "The service returned invalid edit recovery.": "服务返回的编辑恢复记录无效。",
-  "The redo receipt differs from its original target.": "重做回执与原目标不匹配。",
-  "The undo receipt differs from its original target.": "撤销回执与原目标不匹配。",
-  "The recovered receipt differs from the original edit.": "恢复回执与原编辑操作不匹配。",
+  "The redo receipt differs from its original target.":
+    "重做回执与原目标不匹配。",
+  "The undo receipt differs from its original target.":
+    "撤销回执与原目标不匹配。",
+  "The recovered receipt differs from the original edit.":
+    "恢复回执与原编辑操作不匹配。",
   "Authenticate the connection before editing.": "请先认证连接，再进行编辑。",
   "Release resolved edit": "清理已确认的恢复记录",
   "Retry original edit": "重试原编辑操作",
   "Repair recovery pointer": "修复恢复指针",
   "Refresh recovery": "刷新恢复记录",
-  "Retry sends the original request and key. The project head is not an edit receipt.": "重试会发送原请求和原标识。工程当前修订不等于编辑回执。",
+  "Retry sends the original request and key. The project head is not an edit receipt.":
+    "重试会发送原请求和原标识。工程当前修订不等于编辑回执。",
   "Restore project revision": "恢复工程修订",
   "Redo project changes": "重做工程修改",
   "Undo project changes": "撤销工程修改",
-  "The original edit needs recovery before another change.": "请先恢复原编辑操作的结果，再进行其他修改。",
+  "The original edit needs recovery before another change.":
+    "请先恢复原编辑操作的结果，再进行其他修改。",
   "Reading original edit recovery…": "正在读取原编辑操作的恢复记录…",
   "Original edit saved.": "原编辑操作已保存。",
   "Recover original edit": "恢复原编辑操作",
@@ -48,8 +65,8 @@ export const zh: Record<string, string> = {
   "New start for {name} (seconds)": "{name} 的新起点（秒）",
   "Current start": "当前起点",
   "Trim edge": "修剪边缘",
-  "Left": "左侧",
-  "Right": "右侧",
+  Left: "左侧",
+  Right: "右侧",
   "Boundary (scene seconds)": "边界位置（场景秒数）",
   "Keep after split": "分割后保留",
   "Both parts": "左右两段",
@@ -58,8 +75,10 @@ export const zh: Record<string, string> = {
   "Track name": "轨道名称",
   "Track type": "轨道类型",
   "Ripple affected tracks": "联动受影响轨道的后续片段",
-  "Animated trim and split are not yet supported. Move and delete preserve saved animation.": "动画片段的修剪和分割尚未支持，移动和删除会保留已有动画。",
-  "Review the planned changes before saving. Timing and ripple are validated by the editor service.": "请先审阅计划再保存，时间边界和后续片段联动由编辑器服务校验。",
+  "Animated trim and split are not yet supported. Move and delete preserve saved animation.":
+    "动画片段的修剪和分割尚未支持，移动和删除会保留已有动画。",
+  "Review the planned changes before saving. Timing and ripple are validated by the editor service.":
+    "请先审阅计划再保存，时间边界和后续片段联动由编辑器服务校验。",
   "Review timeline changes": "审阅时间线修改",
   "Apply timeline changes": "保存时间线修改",
   "Cancel planning": "取消规划",
@@ -73,32 +92,51 @@ export const zh: Record<string, string> = {
   "Moved by ripple": "联动移动的片段",
   "Removed transitions": "移除的转场",
   "Selection after saving": "保存后选择",
-  "Operation": "操作",
+  Operation: "操作",
   "Preparing timeline changes…": "正在规划时间线修改…",
   "Saving timeline changes…": "正在保存时间线修改…",
   "Timeline changes saved.": "时间线修改已保存。",
   "Timeline changes await review.": "时间线修改等待审阅。",
-  "Timeline save is unconfirmed. Retry the original operation to recover its receipt.": "时间线保存结果尚未确认，请重试原操作找回保存回执。",
-  "The original timeline operation was not saved. Discard it before making a new plan.": "原时间线操作未保存，请放弃此计划后再重新规划。",
+  "Timeline save is unconfirmed. Retry the original operation to recover its receipt.":
+    "时间线保存结果尚未确认，请重试原操作找回保存回执。",
+  "The original timeline operation was not saved. Discard it before making a new plan.":
+    "原时间线操作未保存，请放弃此计划后再重新规划。",
   "The plan makes no changes.": "此计划没有修改。",
   "Review timeline changes before saving.": "请先审阅时间线修改再保存。",
-  "The project head is not a receipt. Retry sends the original transaction and key; it does not create a new plan.": "当前修订不等于保存回执。重试会发送原事务和原标识，不会创建新计划。",
-  "Select video, audio or images in the timeline.": "请在时间线选择视频、音频或图片。",
+  "The project head is not a receipt. Retry sends the original transaction and key; it does not create a new plan.":
+    "当前修订不等于保存回执。重试会发送原事务和原标识，不会创建新计划。",
+  "Select video, audio or images in the timeline.":
+    "请在时间线选择视频、音频或图片。",
   "The timeline selection is no longer available.": "所选时间线片段已不可用。",
-  "Unlock the selected tracks before editing their elements.": "请先解锁所选轨道再编辑片段。",
+  "Unlock the selected tracks before editing their elements.":
+    "请先解锁所选轨道再编辑片段。",
   "Wait for the timeline operation to finish.": "请等待时间线操作完成。",
-  "The timeline target changed. Return to the original scene to continue.": "时间线目标已变化，请返回原场景继续。",
-  "The project changed. Discard this plan and review a new timeline operation.": "工程已变化，请放弃此计划后重新规划时间线操作。",
-  "The timeline target changed. Close this form and review a new operation.": "时间线目标已变化，请关闭此表单后重新规划。",
-  "Resolve the previous timeline operation before starting another.": "请先处理上一项时间线操作，再开始新的操作。",
-  "Recover the original timeline operation before discarding it.": "请先恢复原时间线操作的结果，再放弃此操作。",
-  "The original timeline operation was not saved because the project changed. Discard it before reviewing a new plan.": "工程已变化，原时间线操作未保存。请放弃此计划后重新规划。",
-  "Return to the original scene before retrying this timeline operation.": "请返回原场景，再重试此时间线操作。",
-  "Click video, audio or images to select. Ctrl/Command-click toggles selection; Shift-click adds an element.": "点击视频、音频或图片选择。Ctrl/Command 加点击可切换选择，Shift 加点击可添加片段。",
-  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, continuous picture playback and video export are not available yet.": "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑、连续画面播放和视频导出尚未接入。",
+  "The timeline target changed. Return to the original scene to continue.":
+    "时间线目标已变化，请返回原场景继续。",
+  "The project changed. Discard this plan and review a new timeline operation.":
+    "工程已变化，请放弃此计划后重新规划时间线操作。",
+  "The timeline target changed. Close this form and review a new operation.":
+    "时间线目标已变化，请关闭此表单后重新规划。",
+  "Resolve the previous timeline operation before starting another.":
+    "请先处理上一项时间线操作，再开始新的操作。",
+  "Recover the original timeline operation before discarding it.":
+    "请先恢复原时间线操作的结果，再放弃此操作。",
+  "The original timeline operation was not saved because the project changed. Discard it before reviewing a new plan.":
+    "工程已变化，原时间线操作未保存。请放弃此计划后重新规划。",
+  "Return to the original scene before retrying this timeline operation.":
+    "请返回原场景，再重试此时间线操作。",
+  "Click video, audio or images to select. Ctrl/Command-click toggles selection; Shift-click adds an element.":
+    "点击视频、音频或图片选择。Ctrl/Command 加点击可切换选择，Shift 加点击可添加片段。",
+  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, video export is not available yet. Scene preview supports normal video/static image composition on WebGPU browsers.":
+    "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑、视频导出尚未接入。WebGPU 浏览器支持普通视频和静态图片的场景声画预览。",
   "Scene sound": "场景声音",
   "Audio preview sample rate": "声音试听采样率",
   "Play scene audio": "播放场景声音",
+  "Play scene preview": "播放场景声画",
+  "Live scene preview": "连续声画预览",
+  "Waiting for synchronized picture…": "正在等待同步画面…",
+  "Scene preview follows confirmed sound consumption. Video and static PNG/JPEG with normal blending are supported; other visual features require separate rendering support.":
+    "场景预览跟随已确认的声音播放位置。支持普通混合的视频和静态 PNG/JPEG；其他视觉功能需要对应的渲染支持。",
   "Pause scene audio": "暂停场景声音",
   "Retry original audio session": "重试原声音试听请求",
   "Preparing scene sound…": "正在准备场景声音…",
@@ -137,7 +175,7 @@ export const zh: Record<string, string> = {
   "Play scene audio to hear volume drafts while dragging.":
     "播放场景声音后，可在拖动时试听音量草稿。",
   "Media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Other element editing, continuous picture playback and video export are not available yet.":
-    "已支持素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和场景声音依赖当前服务的渲染能力，其余元素编辑、连续画面播放和视频导出尚未接入。",
+    "已支持素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和场景声音依赖当前服务的渲染能力，其余元素编辑、视频导出尚未接入。WebGPU 浏览器支持普通视频和静态图片的场景声画预览。",
   "Audio range WAV export": "音频范围 WAV 导出",
   "Export scope": "导出范围",
   "Whole scene": "整个场景",
@@ -274,7 +312,8 @@ export const zh: Record<string, string> = {
   "Requested duration": "请求时长",
   "Requested source start": "请求源起点",
   "Timeline duration": "时间线时长",
-  "The main track moved this placement to the scene start.": "主轨规则将此片段移到了场景起点。",
+  "The main track moved this placement to the scene start.":
+    "主轨规则将此片段移到了场景起点。",
   "Frame alignment changed the requested position.": "帧对齐调整了请求落点。",
   "New track": "新轨道",
   "Some video frame rates are unknown; the service preserved its declared settings.":
@@ -282,10 +321,13 @@ export const zh: Record<string, string> = {
   "Import media files": "导入素材文件",
   "Import and place media": "导入并放置素材",
   "File placement cannot replace existing media.": "文件放置不能替换已有素材。",
-  "The file import target changed. Choose the current scene again.": "文件导入目标已变化，请重新选择当前场景。",
-  "Choose an unlocked video, audio or graphic track for these files.": "请为这些文件选择未锁定的视频、音频或图形轨道。",
+  "The file import target changed. Choose the current scene again.":
+    "文件导入目标已变化，请重新选择当前场景。",
+  "Choose an unlocked video, audio or graphic track for these files.":
+    "请为这些文件选择未锁定的视频、音频或图形轨道。",
   "File placement time must be non-negative.": "文件放置时间不能小于零。",
-  "This media type cannot be placed on the timeline.": "此素材类型无法放置到时间线上。",
+  "This media type cannot be placed on the timeline.":
+    "此素材类型无法放置到时间线上。",
   "Refresh available media": "刷新可用素材",
   "Preview source": "查看源素材",
   "Preview source {name}": "查看源素材 {name}",

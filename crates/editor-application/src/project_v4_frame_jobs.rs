@@ -117,7 +117,7 @@ pub fn validate_policy(policy: &LocalVisualExecutionPolicyV1) -> Result<(), Edit
     }
     Ok(())
 }
-fn prepare(
+pub(crate) fn prepare(
     snapshot: &ProjectSnapshotV4,
     sequence_id: &str,
     at: &Time,

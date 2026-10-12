@@ -60,6 +60,7 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
                 | "opencut_audio_preview_v4_control"
                 | "opencut_audio_preview_v4_events"
                 | "opencut_audio_preview_v4_acquire"
+                | "opencut_visual_preview_v4_frame"
                 | "opencut_source_art_v1_get"
                 | "opencut_source_art_v1_cancel"
                 | "opencut_source_art_waveform_display_v1_get"

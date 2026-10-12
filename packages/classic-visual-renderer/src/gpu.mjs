@@ -37,12 +37,16 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     releases.push(budget.reserve(QUAD.byteLength));
     const vertices = device.createBuffer({ size: QUAD.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
     buffers.push(vertices); device.queue.writeBuffer(vertices, 0, QUAD);
-    const vertex = device.createShaderModule({ code: vertexSource });
-    const layer = device.createShaderModule({ code: layerSource });
-    const blend = device.createShaderModule({ code: blendSource });
-    const pipeline = module => device.createRenderPipeline({ layout: "auto", vertex: { module: vertex, entryPoint: "vertex_main", buffers: [{ arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }] }] }, fragment: { module, entryPoint: "fragment_main", targets: [{ format: FORMAT }] }, primitive: { topology: "triangle-list" } });
-    const layerPipeline = pipeline(layer), blendPipeline = pipeline(blend);
-    const sampler = device.createSampler({ addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge", magFilter: "linear", minFilter: "linear", mipmapFilter: "nearest" });
+    if(!realm.pipelines) {
+      const vertex = device.createShaderModule({ code: vertexSource });
+      const layer = device.createShaderModule({ code: layerSource });
+      const blend = device.createShaderModule({ code: blendSource });
+      const pipeline = module => device.createRenderPipeline({ layout: "auto", vertex: { module: vertex, entryPoint: "vertex_main", buffers: [{ arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }] }] }, fragment: { module, entryPoint: "fragment_main", targets: [{ format: FORMAT }] }, primitive: { topology: "triangle-list" } });
+      const layerPipeline = pipeline(layer), blendPipeline = pipeline(blend);
+      const sampler = device.createSampler({ addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge", magFilter: "linear", minFilter: "linear", mipmapFilter: "nearest" });
+      realm.pipelines={layerPipeline,blendPipeline,sampler};
+    }
+    const {layerPipeline,blendPipeline,sampler}=realm.pipelines;
     function texture(w, h) {
       integer(w, "texture width", 1, device.limits.maxTextureDimension2D); integer(h, "texture height", 1, device.limits.maxTextureDimension2D);
       releases.push(budget.reserve(w * h * 4));

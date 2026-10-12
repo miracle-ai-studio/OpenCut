@@ -523,3 +523,57 @@ fn preview_admits_actual_native_pcm_without_whole_scene_output_and_refuses_unver
     receipt.decoders[0].primary.track_id = 1;
     assert!(session.validate_preview_receipt(&receipt).is_err());
 }
+
+#[test]
+fn picture_token_preserves_owner_expiry_and_generation_without_opening_ready_pcm() {
+    let mut m = machine();
+    let v = m.snapshot(0);
+    let input = AudioPreviewStreamV4 {
+        session_id: v.session_id,
+        generation: v.generation,
+        overlay_epoch: v.overlay_epoch,
+        owner_id: v.owner_id,
+        lease_id: v.lease_id,
+    };
+    m.verify_visual_frame(&input, "owner", 0).unwrap();
+    assert_eq!(
+        m.verify_stream(&input, "owner", 0).unwrap_err().code,
+        "PREVIEW_NOT_PLAYING"
+    );
+    assert_eq!(
+        m.verify_visual_frame(&input, "other", 0).unwrap_err().code,
+        "NOT_AUTHORIZED"
+    );
+    assert_eq!(
+        m.verify_visual_frame(&input, "owner", AUDIO_PREVIEW_OWNER_LEASE_MS)
+            .unwrap_err()
+            .code,
+        "PREVIEW_EXPIRED"
+    );
+    m.control(
+        &control(
+            &m,
+            "seek-picture",
+            AudioPreviewCommandV4::Seek {
+                sequence_time: time(1, 1),
+            },
+        ),
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        m.verify_visual_frame(&input, "owner", 1).unwrap_err().code,
+        "PREVIEW_GENERATION_CONFLICT"
+    );
+    let mut current = input;
+    let v = m.snapshot(1);
+    current.generation = v.generation;
+    m.verify_visual_frame(&current, "owner", 1).unwrap();
+    current.overlay_epoch = "99".into();
+    assert_eq!(
+        m.verify_visual_frame(&current, "owner", 1)
+            .unwrap_err()
+            .code,
+        "PREVIEW_GENERATION_CONFLICT"
+    );
+}

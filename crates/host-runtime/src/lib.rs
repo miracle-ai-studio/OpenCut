@@ -595,6 +595,9 @@ impl Automation {
                 }
                 to_value(audio_preview_v4::create(self, parse(arguments)?)?)
             }
+            "opencut_visual_preview_v4_frame" => {
+                to_value(audio_preview_v4::picture(self, parse(arguments)?)?)
+            }
             "opencut_audio_preview_v4_inspect" => {
                 to_value(audio_preview_v4::inspect(self, parse(arguments)?)?)
             }

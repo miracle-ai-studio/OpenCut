@@ -158,6 +158,18 @@ impl<'a> ClassicVisualSession<'a> {
         serde_json::to_value(self.typed_plan()?)
             .map_err(|_| invalid("Cannot serialize visual plan"))
     }
+    pub fn decode_admission(&self) -> Result<VisualDecodeAdmission, EditorError> {
+        let max_pixels = self.decoded_limit_pixels / (self.prepared.layers().len() as u64).max(1);
+        if max_pixels == 0 {
+            return Err(budget("No decoded pixels available"));
+        }
+        Ok(VisualDecodeAdmission {
+            max_width: 16384,
+            max_height: 16384,
+            max_pixels: max_pixels.to_string(),
+            max_decoded_bytes: (max_pixels * 16).to_string(),
+        })
+    }
     pub fn bound(&self) -> Option<&BoundVisualFrameV4> {
         self.bound.as_ref()
     }
@@ -224,17 +236,7 @@ impl<'a> ClassicVisualSession<'a> {
                         "Decode admission is unknown, repeated or already bound",
                     ));
                 }
-                let max_pixels =
-                    self.decoded_limit_pixels / (self.prepared.layers().len() as u64).max(1);
-                if max_pixels == 0 {
-                    return Err(budget("No decoded pixels available"));
-                }
-                let admission = VisualDecodeAdmission {
-                    max_width: 16384,
-                    max_height: 16384,
-                    max_pixels: max_pixels.to_string(),
-                    max_decoded_bytes: (max_pixels * 16).to_string(),
-                };
+                let admission = self.decode_admission()?;
                 serde_json::to_value(admission)
                     .map_err(|_| invalid("Cannot serialize visual admission"))
             }

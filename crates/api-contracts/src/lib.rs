@@ -33,6 +33,7 @@ pub mod project_v4_audio;
 pub mod project_v4_frame;
 pub mod render;
 pub mod stream_uploads;
+pub mod visual_preview_v4;
 pub use opencut_contracts::source_art_v1;
 pub use opencut_contracts::source_art_waveform_display_v1;
 pub mod subtitle_exchange;

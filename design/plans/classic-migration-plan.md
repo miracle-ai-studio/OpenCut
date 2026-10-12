@@ -120,7 +120,7 @@ F17当前批已按“差距定位与独立预期冻结→并行实现→主Agent
 
 F08本批复用锁定Mediabunny 1.41.0的computePacketStats(100)，取消另写FFprobe packet算法；原全局/首视频规则保留，仅补raw观察接线及unknown告警。纯media-contracts保留版本化观察，media适配器复用既有进程admission/取消，host组装Node，SQLite按授权project/media/version或固定revision读取；不新增crate依赖或扩大allowlist。旧header与V3元数据语义保持，V4消费raw后标准化。真实VFR的header675/26、packet约60→全局60已验；同一CLI构建复用既有Web与单一合成现场。最小packet运行时6文件及Node doctor已补，完整包安装仍待验。
 
-后续逐项补F08真实未知FPS/当前V4 VFR视频导出与更广格式矩阵、F16真实系统files/IME交互及当前媒体操作矩阵；连续声画/同步仍为S1未交付项，实施前先确定执行链与验收门槛。新增文字/图形的全元素矩阵仍归S4，不能把这些前置完成等同于S1或36项全量交付。S2可准备固定许可字体与独立样本，但不与本批争用公共模型或启动第二套媒体构建。
+后续逐项补F08真实未知FPS/当前V4 VFR视频导出与更广格式矩阵、F16真实系统files/IME交互及当前媒体操作矩阵；连续声画已接入复用Classic normal帧与实时声音的有界会话链；验收范围见台账，后续按下述门槛补正常分辨率、密集/长素材与操作矩阵。新增文字/图形的全元素矩阵仍归S4，不能把这些前置完成等同于S1或36项全量交付。S2可准备固定许可字体与独立样本，但不与本批争用公共模型或启动第二套媒体构建。
 
 |工作包|工程师职责|主Agent集成与出口|
 |---|---|---|
@@ -129,13 +129,20 @@ F08本批复用锁定Mediabunny 1.41.0的computePacketStats(100)，取消另写F
 
 V1/V2恢复记录共用单条2MiB、32条/64MiB配额，同owner/principal/credential/project未决记录互斥，新客户端先发现旧V1。浏览器仅在sessionStorage保存非敏感指针，原意图保存在授权宿主；clipboard/gain/media/history共用协调器，整页恢复提交原意图、原key，不重新规划。stage/读回/原请求dispatch/原子ack须构成同一证明链。工程创建/复制、Job/upload及跨工程转移不混入fixed-head证明。
 
-V2已实现独立typed PublicApply/Undo/Redo/Restore意图及新stage/inspect/ack三操作；现193工具，旧190声明冻结。DB28→29保持旧V1表/json/digest及原历史字节，旧宿主拒绝新库。PublicApply用Read+Edit，Undo/Redo/Restore用Read+Restore，均保留write-control；新inspect先发现V1，返回LegacyV1/V2/null envelope，空发现只需Read，有记录按原意图授权。PublicApply/Restore保留TransactionResult，Undo/Redo保留完整HistoryCommitV4；receipt只读查询核family/scope/key/full-intent、完整事务结果及因果日志，不调用apply或追随head。Immediate锁下先精确重复、再head与共享配额/互斥；原子ack仅在已有原receipt或无receipt但fixed head已变化时删除，撤权/断连/头未变保持unknown。
+V2已实现独立typed PublicApply/Undo/Redo/Restore意图及新stage/inspect/ack三操作；V2恢复新增后为193工具，旧190声明冻结；连续声画新增只读帧操作后为194工具，前193声明保持冻结。DB28→29保持旧V1表/json/digest及原历史字节，旧宿主拒绝新库。PublicApply用Read+Edit，Undo/Redo/Restore用Read+Restore，均保留write-control；新inspect先发现V1，返回LegacyV1/V2/null envelope，空发现只需Read，有记录按原意图授权。PublicApply/Restore保留TransactionResult，Undo/Redo保留完整HistoryCommitV4；receipt只读查询核family/scope/key/full-intent、完整事务结果及因果日志，不调用apply或追随head。Immediate锁下先精确重复、再head与共享配额/互斥；原子ack仅在已有原receipt或无receipt但fixed head已变化时删除，撤权/断连/头未变保持unknown。
 
 纯应用/存储、SDK/Web分层回归及架构、边界、旧wire、生成检查已通过，具体结果只在台账与摘要登记。最终候选四类意图各“已提交丢回执/未送达”整页恢复已验；Restore实际先替换默认场景并删除当前场景，再从历史恢复，确认原意图/原key、一次提交、无重新规划、恢复历史场景及独立书签。受影响音量、媒体、时间线、手势和剪贴板另有分段证据，不合并为同最终网页一次全套通过。混合配额、精确2MiB计量、旧V1发现、Restore-only权限、损坏回执拒绝、迟到回调与ack围栏保持回归。
 
 **冻结预算与测法。** 本机打开≤2秒、输入绘制p95≤50ms/max≤100ms、冷声音消费≤10秒、热seek/resume≤1秒、10秒消费stall及confirmed deficit各≤1%、UI增量heap≤64MiB。DOM打开与首次图像就绪分别计时。CDP GC只在指定baseline或已记录延迟后的seek采样执行，稳定消费窗口不GC；20次seek保留独立整数预期，post-GC后5/前5均值增长≤8MiB、OLS斜率≤256KiB/seek，不外推无限期无泄漏。
 
 原PCM256MiB、编码32MiB、进程树2GiB、2块/8192帧credit及派生缓存32MiB/256项/并发2保持；300秒密集场景复用ordinary短源、rate1、无gain动画/keepPitch，不能替代真实长文件证据。准备仍按voice计缓冲。已有SharedPreviewBinding/PackedV2仅压缩私有数据面，源绑定摘要仍覆盖展开事实；请求≤1MiB、展开克隆前≤16MiB，实际权限/取消/生命周期围栏不能因优化削减。
+
+
+**连续声画后续出口。** 复用固定修订的实时声音session/原凭据/lease/generation与Classic normal源→IR→WebGPU，不重新开发播放器、帧计算、上传或历史。帧接口只读且不启动持久PNG任务；主线程保持一帧执行及一个最新意图，Rust确认时间窗口≤150ms，本地Worklet消费观察再围住显示，播放无新观察清画面。缓存仅保留会话内已校验编码字节与GPU管线，停止/修订切换/权限失效回收。默认prepared-linear采样位置沿用Rust精确事实，私有桥以受限JSON文本封送，不能在JS重算源时钟。
+
+按优先级补一个可评审切片后再进入下一项：①正常分辨率与100片段/5轨/5分钟密集场景，测真实连续消费/声画偏差/帧丢弃、CPU/GPU及缓存占用；②同一播放器的临时gain、快速连续seek、结束/停止、场景/修订切换及真实权限失效产品矩阵；③真实长源/VFR/不同采样率/非单位速率保音高与更广格式，复用现有PCM/PTS/DSP独立预期。只有公共协议/依赖/执行身份或受影响语义变化时补对应验证；维持一个显式二进制与一个合成工作区串行验收，已验文件导入、恢复与旧DSP不重复开发或全套回跑。S1、F10/F42/F44和36组状态仍按完整要求保留部分/待验。
+
+**冻结小样本门槛。** 合成8秒160×90、24fps、明确BT709红/绿交替H264及独立440Hz/48000Hz PCM16 WAV。普通preserve-pts与默认unit-rate prepared-linear分别记录候选；连续4秒至少20个不同时间帧，真实Worklet消费与显示偏差≤150ms且不超前（只容许已声明量化观察误差）；首画+首音冷启≤10秒，热seek/恢复首画≤1秒；暂停冻结、迟到旧generation不可发布、无工程写入/持久PNG。颜色与PCM使用外部常量，不能以渲染器自比较证明。正常分辨率、长期播放、跨浏览器与DAC输出延迟归独立范围。
 
 ## 4. 执行顺序与阶段出口
 

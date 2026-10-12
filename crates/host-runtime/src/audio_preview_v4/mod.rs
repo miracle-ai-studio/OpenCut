@@ -6,6 +6,7 @@ use crate::{Automation, Caller, ExecutionContext};
 use opencut_composition::project_v4::{PcmFormatV4, PreparedPreviewAudioV4};
 use opencut_contracts::EditorError;
 use opencut_editor_application::audio_preview_v4::*;
+use opencut_editor_application::project_v4_frame_jobs::V4FrameJobSubmissionStore;
 use opencut_job_execution::project_v4_audio::TrustedJobAuthorityV1;
 use opencut_native_services::classic_audio_preview::new_identity;
 use std::{
@@ -412,4 +413,41 @@ pub fn shutdown(database: &Path) -> Result<(), EditorError> {
         }
     }
     Ok(())
+}
+
+/// Picture planning shares the sound session's original authorization and
+/// publication fence. No new actor, resource handle or mutable-head read.
+pub(crate) fn picture(
+    host: &mut Automation,
+    input: opencut_api_contracts::visual_preview_v4::VisualPreviewFrameV4,
+) -> Result<opencut_api_contracts::visual_preview_v4::VisualPreviewFrameResultV4, EditorError> {
+    let e = entry(&host.database, &input.session.session_id)?;
+    authorize(host, &e, true)?;
+    let view = {
+        let state = lock(&e.state)?;
+        state
+            .machine
+            .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
+        state.machine.snapshot(now())
+    };
+    let selected = host
+        .app
+        .fixed_v4_frame_snapshot(&e.request.project_id, &e.request.revision)?;
+    let result = opencut_editor_application::visual_preview_v4::prepare_picture(
+        &selected.snapshot,
+        &e.request.sequence_id,
+        &input,
+        &view.authoritative_time,
+        &selected.processing_policy,
+    )?;
+    authorize(host, &e, true)?;
+    let state = lock(&e.state)?;
+    state
+        .machine
+        .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
+    opencut_editor_application::visual_preview_v4::validate_picture_time(
+        &result.plan.identity.time,
+        &state.machine.snapshot(now()).authoritative_time,
+    )?;
+    Ok(result)
 }

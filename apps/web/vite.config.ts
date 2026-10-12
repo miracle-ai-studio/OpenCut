@@ -19,6 +19,16 @@ const proxy: ProxyOptions = {
 };
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: ["fullscreen", "layer", "blend"].map((name) => ({
+      find: `/renderer/vendor/classic-v31/${name}.wgsl`,
+      replacement:
+        new URL(
+          `../../packages/classic-visual-renderer/vendor/classic-v31/${name}.wgsl`,
+          import.meta.url,
+        ).pathname + "?raw",
+    })),
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,

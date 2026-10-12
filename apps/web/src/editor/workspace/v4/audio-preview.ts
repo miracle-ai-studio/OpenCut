@@ -31,7 +31,15 @@ type OutputFactory = (
   failure: (error: Error) => void,
   completedBlock: () => void,
 ) => Output;
+export type PicturePresentation = {
+  prepare(session: V4AudioPreviewSession, signal: AbortSignal): Promise<void>;
+  observe(state: V4AudioPreviewState): void;
+  consume?(session: V4AudioPreviewSession, frames: string): void;
+  suspend(): void;
+  close(): void;
+};
 type Active = {
+  picture?: PicturePresentation;
   api: EditorApi;
   epoch: number;
   generation: number;
@@ -65,6 +73,7 @@ export class V4AudioPreview {
     request: V4AudioPreviewCreate;
     control: V4AudioPreviewControl | null;
     session: V4AudioPreviewSession | null;
+    picture?: PicturePresentation;
   } | null = null;
   private desired: V4GainDraft | null = null;
   private overlaySequence = 0n;
@@ -81,11 +90,14 @@ export class V4AudioPreview {
   ) {}
   private publish(patch: Partial<V4AudioPreviewState>) {
     const state = this.host.state();
-    if (state)
-      this.host.publish({
+    if (state) {
+      const next = {
         ...state,
         audioPreview: { ...state.audioPreview, ...patch },
-      });
+      };
+      this.host.publish(next);
+      this.active?.picture?.observe(next.audioPreview);
+    }
   }
   private same(a: Active) {
     const s = this.host.state(),
@@ -170,7 +182,7 @@ export class V4AudioPreview {
       performance.now() + Math.min(30000, Number(s.lease_remaining_ms));
   }
   /** Called by the actual Play event, before the first asynchronous operation. */
-  play(sampleRate?: number) {
+  play(sampleRate?: number, picture?: PicturePresentation) {
     const api = this.host.api(),
       state = this.host.state();
     if (!api || !state)
@@ -216,7 +228,13 @@ export class V4AudioPreview {
       !paused.controls.signal.aborted &&
       paused.leaseDeadline > performance.now()
     )
-      return this.begin(api, paused.request, null, paused.session);
+      return this.begin(
+        api,
+        paused.request,
+        null,
+        paused.session,
+        picture ?? paused.picture,
+      );
     const request: V4AudioPreviewCreate = {
       project_id: snapshot.project.id,
       revision: snapshot.revision,
@@ -226,7 +244,7 @@ export class V4AudioPreview {
       idempotency_key: crypto.randomUUID(),
     };
     this.invalidate(false);
-    return this.begin(api, request);
+    return this.begin(api, request, null, null, picture);
   }
   retry() {
     const pending = this.pending,
@@ -246,13 +264,20 @@ export class V4AudioPreview {
         ),
       );
     this.invalidate(false);
-    return this.begin(api, pending.request, pending.control, pending.session);
+    return this.begin(
+      api,
+      pending.request,
+      pending.control,
+      pending.session,
+      pending.picture,
+    );
   }
   private begin(
     api: EditorApi,
     request: V4AudioPreviewCreate,
     originalControl: V4AudioPreviewControl | null = null,
     preparedSession: V4AudioPreviewSession | null = null,
+    picture?: PicturePresentation,
   ) {
     const epoch = this.epoch;
     let a: Active;
@@ -262,7 +287,10 @@ export class V4AudioPreview {
         request.idempotency_key + ":" + epoch,
         request.sample_rate,
         (progress) => {
-          if (this.same(a) && a.output === output && !a.draining) a.progress = progress;
+          if (this.same(a) && a.output === output && !a.draining) {
+            a.progress = progress;
+            if (a.session) a.picture?.consume?.(a.session, progress.consumedFrames);
+          }
         },
         (error) => {
           if (this.same(a) && a.output === output) this.fail(a, error);
@@ -279,6 +307,7 @@ export class V4AudioPreview {
       return Promise.reject(error);
     }
     a = {
+      picture,
       api,
       epoch,
       generation: this.host.generation(),
@@ -352,6 +381,15 @@ export class V4AudioPreview {
         this.stopRemote(a);
         return;
       }
+      // Picture preparation happens with an already-resumed AudioContext,
+      // before any PCM stream starts. Local execution failure is known.
+      dispatched = false;
+      if (a.picture)
+        await a.picture.prepare(
+          a.session,
+          AbortSignal.any([a.controls.signal, AbortSignal.timeout(10000)]),
+        );
+      if (!this.same(a)) return;
       this.pending = null;
       this.present(a.session.authoritative_time);
       this.publish({ session: a.session, phase: "loading", error: null });
@@ -359,10 +397,17 @@ export class V4AudioPreview {
       if (this.desired) this.draft(this.desired);
     } catch (e) {
       if (!this.same(a)) return;
+      if (!dispatched) this.stopRemote(a);
       const unknown =
         !!originalControl || (dispatched && !(e instanceof OpenCutApiError));
       this.pending = unknown
-        ? { api: a.api, request: a.request, control, session: preparedSession }
+        ? {
+            api: a.api,
+            request: a.request,
+            control,
+            session: preparedSession,
+            picture: a.picture,
+          }
         : null;
       this.fail(a, e, unknown);
       throw e;
@@ -425,12 +470,15 @@ export class V4AudioPreview {
           await blocks.return(undefined);
         }
       } catch (e) {
-        if (current() && !abort.signal.aborted) this.fail(a, e);
+        // Pause/seek closes the old producer at its generation fence. Its
+        // expected EOF must not race the final pause receipt into failure.
+        if (current() && !a.draining && !abort.signal.aborted) this.fail(a, e);
       }
     })();
   }
   private completedBlock(a: Active, output: Output) {
-    if (!this.same(a) || a.output !== output || a.draining || !a.session) return;
+    if (!this.same(a) || a.output !== output || a.draining || !a.session)
+      return;
     if (a.reporting) a.completedPending = true;
     else void this.report(a).catch(() => {});
   }
@@ -495,8 +543,14 @@ export class V4AudioPreview {
       throw e;
     } finally {
       a.reporting = false;
-      if (a.completedPending && this.same(a) && !a.draining && a.output === output &&
-          a.session?.generation === previous.generation && a.session.overlay_epoch === previous.overlay_epoch) {
+      if (
+        a.completedPending &&
+        this.same(a) &&
+        !a.draining &&
+        a.output === output &&
+        a.session?.generation === previous.generation &&
+        a.session.overlay_epoch === previous.overlay_epoch
+      ) {
         void this.report(a).catch(() => {});
       }
     }
@@ -508,6 +562,7 @@ export class V4AudioPreview {
         .catch(() => {});
   }
   private localStop(a: Active) {
+    a.picture?.suspend();
     a.completedPending = false;
     a.output.silence();
     if (a.timer) clearInterval(a.timer);
@@ -520,6 +575,7 @@ export class V4AudioPreview {
     this.desired = null;
     if (clearPending) this.pending = null;
     if (a) {
+      a.picture?.close();
       this.localStop(a);
       a.abort.abort();
       a.controls.abort();
@@ -533,6 +589,7 @@ export class V4AudioPreview {
     a.controls.abort();
     void a.output.stop().catch(() => {});
     if (this.active === a) {
+      a.picture?.close();
       this.active = null;
       this.epoch++;
     }
@@ -636,7 +693,10 @@ export class V4AudioPreview {
         session.overlay_epoch,
       session.identity.sample_rate,
       (p) => {
-        if (this.same(a) && a.output === output && !a.draining) a.progress = p;
+        if (this.same(a) && a.output === output && !a.draining) {
+          a.progress = p;
+          if (a.session) a.picture?.consume?.(a.session, p.consumedFrames);
+        }
       },
       (e) => {
         if (this.same(a) && a.output === output) this.fail(a, e);
@@ -645,6 +705,12 @@ export class V4AudioPreview {
     );
     a.output = output;
     await output.ready;
+    if (!this.same(a)) return;
+    if (a.picture)
+      await a.picture.prepare(
+        session,
+        AbortSignal.any([a.controls.signal, AbortSignal.timeout(10000)]),
+      );
     if (!this.same(a)) return;
     a.draining = false;
     this.present(session.authoritative_time);

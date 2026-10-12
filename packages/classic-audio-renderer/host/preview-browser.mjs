@@ -44,6 +44,14 @@ export async function configurePreviewPage(realm) {
     }
     if (op === "readVerifiedBytes") { natural(args.offset, "preview byte offset"); integer(args.count, "preview byte chunk", 1, 65536); }
     const value = await realm.broker.request(op === "compilePreviewBlock" ? "compilePreviewBlockPackedV2" : op, args);
+    if (op === "compileSourcePositions") {
+      // Keep the exact authoritative positions, but avoid Playwright recursively
+      // marshalling thousands of position objects for every preparation chunk.
+      if (!Array.isArray(value) || value.length !== args.frameCount) reject("AUDIO_PROTOCOL_ERROR", "Invalid prepared source positions");
+      const text = JSON.stringify(value);
+      if (Buffer.byteLength(text, "utf8") > PROTOCOL_LIMITS.replyBytes) reject("AUDIO_BUDGET_EXCEEDED", "Prepared positions exceed the reply budget");
+      return text;
+    }
     if (op === "compilePreviewBlock") {
       // Native returns its exact compiled JSON text. Do not parse/stringify
       // here: that adds work and normalizes signed-zero floating facts.

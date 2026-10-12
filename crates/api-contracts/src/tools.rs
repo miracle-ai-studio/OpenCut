@@ -89,6 +89,7 @@ macro_rules! tools {
     }
 }
 tools! {
+    VisualPreviewV4Frame: (visual_preview_v4::VisualPreviewFrameV4, visual_preview_v4::VisualPreviewFrameResultV4, "opencut_visual_preview_v4_frame", "Plan or bind a bounded Classic media frame at confirmed audio consumer time; original caller, fixed revision, owner lease and generation are revalidated. No durable job or project edit.", true),
     AudioPreviewV4Capability: (EmptyInput, audio_preview_v4::AudioPreviewCapabilityV4, "opencut_audio_preview_v4_capability", "Inspect the configured fixed-revision realtime audio preview profile and bounded PCM stream limits; capability does not grant project access.", true),
     SourceArtV1Get: (source_art_v1::SourceArtRequestV1, source_art_v1::SourceArtResponseV1, "opencut_source_art_v1_get", "Decode or reuse bounded source peaks or a fixed one-second thumbnail for a fixed V4 asset. Requires live read and run_jobs authority; projection clocks are evaluated by the application.", false),
     SourceArtV1Cancel: (source_art_v1::SourceArtCancelV1, source_art_v1::SourceArtCancelResponseV1, "opencut_source_art_v1_cancel", "Request cancellation of an authorized source-art waiter. The final waiter waits for actual decoder cleanup; acknowledgement alone does not prove process exit.", false),

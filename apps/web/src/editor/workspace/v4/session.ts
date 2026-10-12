@@ -1,3 +1,4 @@
+import { V4VisualPreview } from "./visual-preview";
 import { V4AudioGain } from "./audio-gain";
 import { V4AudioPreview, emptyAudioPreview } from "./audio-preview";
 import { V4AudioWav } from "./audio-wav";
@@ -34,6 +35,7 @@ export class V4Session {
   readonly clipboard: V4TimelineClipboard;
   readonly audioGain: V4AudioGain;
   readonly audioPreview: V4AudioPreview;
+  readonly visualPreview: V4VisualPreview;
   readonly sourceAudio: V4SourceAudio;
   readonly audioWav: V4AudioWav;
   readonly media: V4Media;
@@ -41,6 +43,7 @@ export class V4Session {
   constructor(private readonly host: V4SessionHost) {
     this.recovery = new V4EditRecovery(host, () => this.refresh());
     const writes: V4SessionHost = { ...host, publicApply: (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId) };
+    this.visualPreview = new V4VisualPreview(host, () => { void this.audioPreview.pause().catch(() => {}); });
     this.audioPreview = new V4AudioPreview(host, (time) =>
       this.presentAudio(time),
     );

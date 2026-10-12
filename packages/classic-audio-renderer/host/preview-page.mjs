@@ -6,6 +6,16 @@ export async function preparePreviewPage({ plan, engineIdentity, admission }) {
     const request = async (op, args) => {
       const envelope = await globalThis.__opencutPreviewCallback(op, args);
       if (envelope?.ok === true) {
+        if (op === "compileSourcePositions") {
+          try {
+            if (typeof envelope.value !== "string") throw new Error();
+            const positions = JSON.parse(envelope.value);
+            if (!Array.isArray(positions) || positions.length !== args.frameCount) throw new Error();
+            return positions;
+          } catch {
+            const error = new Error("Invalid prepared source positions JSON"); error.code = "AUDIO_PROTOCOL_ERROR"; throw error;
+          }
+        }
         if (op !== "compilePreviewBlock") return envelope.value;
         try {
           if (typeof envelope.value !== "string") throw new Error();

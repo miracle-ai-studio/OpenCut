@@ -407,3 +407,33 @@ fn runtime_unique_resource_limit_is_checked_before_queue_execution() {
     let reused = prepare_visual_frame_v4(&graph).unwrap();
     assert!(ClassicVisualSession::new(&reused, &input.processing_policy).is_ok());
 }
+
+#[test]
+fn per_layer_zero_decode_budget_is_rejected_by_shared_admission_and_callback() {
+    let input = input();
+    let prepared = validate_prepared(&input).unwrap();
+    let mut graph = prepared.graph().clone();
+    let mut second = graph.layers[0].clone();
+    second.element_id = "second-element".into();
+    graph.layers.push(second);
+    let prepared = prepare_visual_frame_v4(&graph).unwrap();
+    let mut policy = input.processing_policy;
+    policy.max_decoded_pixels = 1;
+    let mut session = ClassicVisualSession::new(&prepared, &policy).unwrap();
+    assert_eq!(
+        session.decode_admission().unwrap_err().code,
+        "VISUAL_BUDGET_EXCEEDED"
+    );
+    assert_eq!(
+        session
+            .callback(
+                VisualCallback::Admit(VisualAdmitDecode {
+                    element_id: "element".into(),
+                }),
+                &mut Resources::default()
+            )
+            .unwrap_err()
+            .code,
+        "VISUAL_BUDGET_EXCEEDED"
+    );
+}

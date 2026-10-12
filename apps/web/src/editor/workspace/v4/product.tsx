@@ -152,7 +152,7 @@ export function V4Product() {
         <Panel title={t("Scene")} className="v4-canvas-panel">
           <div className="v4-capability" role="status">
             {t(
-              "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, continuous picture playback and video export are not available yet.",
+              "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, video export is not available yet. Scene preview supports normal video/static image composition on WebGPU browsers.",
             )}
             <p>
               {t(

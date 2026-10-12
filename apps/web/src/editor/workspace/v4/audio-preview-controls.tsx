@@ -3,7 +3,7 @@ import { useWorkspace } from "../context";
 import { Button, Field } from "../../shared/ui";
 import { t } from "../../shared/locale";
 
-/** Sound transport for the same fixed scene. The canvas remains a still frame. */
+/** Sound-only transport and opt-in synchronized Classic media preview. */
 export function V4AudioPreviewControls() {
   const { controller, v4, api } = useWorkspace();
   const preview = controller.v4.audioPreview;
@@ -70,6 +70,16 @@ export function V4AudioPreviewControls() {
         >
           {t("Play scene audio")}
         </Button>
+        <Button
+          disabled={
+            !capability?.available || active || state.phase === "unconfirmed"
+          }
+          onClick={() =>
+            run(() => preview.play(rate, controller.v4.visualPreview.start()))
+          }
+        >
+          {t("Play scene preview")}
+        </Button>
         <Button disabled={!active} onClick={() => run(() => preview.pause())}>
           {t("Pause scene audio")}
         </Button>
@@ -82,7 +92,7 @@ export function V4AudioPreviewControls() {
       <p role="status">{t(status)}</p>
       <p className="muted">
         {t(
-          "Scene sound follows the fixed revision. The scene image remains a still frame.",
+          "Scene preview follows confirmed sound consumption. Video and static PNG/JPEG with normal blending are supported; other visual features require separate rendering support.",
         )}
       </p>
       {!capability?.available && (

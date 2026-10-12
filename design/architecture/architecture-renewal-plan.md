@@ -285,3 +285,11 @@ Web 的 `shared/view-preferences` 只保存项目库布局和排序到固定键 
 场景转写是固定修订的持久分析任务：应用层授权、验证与捕获素材锁，宿主装配配置中的本地引擎，原生执行器复用合成导出的音频滤镜处理裁切、时序、恒速、音量和静音。字幕规划保持纯函数；SQLite 适配器通过既有视觉 journal 一次提交有界的完整提案，保留权限、owner hold、幂等与撤销。公共意图与内部 prepared job、模型路径分开，新增独立工具并由共享声明生成 SDK/OpenAPI，原有合同不修改。当前锁包含整个场景依赖，尚未做仅音频依赖的捕获优化；不声称所有转写模型或语言准确度已验。
 
 预览 Fit/百分比、中键或空格平移只改变视图几何，画布手柄使用同一显示尺寸换算逻辑坐标。网格复用原版分割规则，TikTok 参考 SVG 从原版静态内容转换，原版空实现的自定义线补为有界可编辑视图；其他空平台定义不冒充成熟功能。偏好模块显式放行唯一字面量 opencut.preview，投影仅保存辅助线类型、1–24 行列和至多32条百分比位置，不保存工程或凭证。弹层通过既有 React portal 避免面板裁切，并复用减少动画偏好的 GSAP 入场；没有新增生产依赖、Rust crate 或迁移例外。工程 URL 编码应用标识，不再假定 Agent 的工程 ID 是 UUID；宿主只映射入口文件，静态资源的路径防护保持独立。
+
+### S1连续声画的执行边界
+
+新增`opencut_visual_preview_v4_frame`只读规划/绑定操作，附着既有声音owner lease、generation及overlay fence；宿主重查当前与原调用者Read/RunJobs，读取固定V4修订，发布前再校验。应用复用normal静帧source→IR→prepared→decoder事实绑定。纯visual事实移至contracts后由composition原名再导出，原内部序列化不变；公开计划类型移至api-contracts供内部协议再导出，不引入API→composition依赖或政策例外。
+
+Web仅通过`visual-preview-renderer.ts`桥执行既有Classic解码、WGSL及GPU合成器，不复制几何、源时钟、动画或工程权威。以AudioWorklet消费回执的服务确认时间取帧，一帧在途、一个最新待处理意图；超150ms清除旧画面。首帧准备完再开PCM流；seek/暂停/修订或授权失效沿用声音控制，取消旧generation。复用GPU管线，编码字节缓存按固定资源身份校验并计入每帧预算，解码画布逐帧释放。浏览器GPU/驱动及操作系统RSS与原生隔离进程不同，不能沿用静帧执行身份或硬RSS验收。本批仍限normal视频/静态PNG/JPEG，其他视觉类型和导出另行验收。
+
+本地Worklet累计消费帧只用于显示新旧/滞后围栏；Rust确认时间仍唯一编译源→IR。默认音频prepared-linear的原精确位置数组在私有Node/page桥中改为受限JSON文本，避免逐对象封送；恢复后按原sampler执行，公开wire与源位置算法不变。

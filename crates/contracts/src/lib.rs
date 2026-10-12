@@ -23,6 +23,7 @@ pub mod source_audio_v4;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
+pub mod visual_frame_v4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

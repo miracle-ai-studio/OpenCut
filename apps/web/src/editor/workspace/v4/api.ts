@@ -8,14 +8,32 @@ import type { V4Operation, V4Snapshot } from "./types";
 /** Versioned calls share the existing workspace SDK and authenticated session. */
 export class V4Api {
   constructor(readonly sdk: OpenCutClient) {}
-  sourceArt(request: ToolInput<"opencut_source_art_v1_get">, signal?: AbortSignal) {
+  sourceArt(
+    request: ToolInput<"opencut_source_art_v1_get">,
+    signal?: AbortSignal,
+  ) {
     return this.sdk.call("opencut_source_art_v1_get", request, { signal });
   }
-  waveformDisplay(request: ToolInput<"opencut_source_art_waveform_display_v1_get">, signal?: AbortSignal) {
-    return this.sdk.call("opencut_source_art_waveform_display_v1_get", request, { signal });
+  waveformDisplay(
+    request: ToolInput<"opencut_source_art_waveform_display_v1_get">,
+    signal?: AbortSignal,
+  ) {
+    return this.sdk.call(
+      "opencut_source_art_waveform_display_v1_get",
+      request,
+      { signal },
+    );
   }
   cancelSourceArt(request: ToolInput<"opencut_source_art_v1_cancel">) {
     return this.sdk.call("opencut_source_art_v1_cancel", request);
+  }
+  visualPreviewFrame(
+    request: ToolInput<"opencut_visual_preview_v4_frame">,
+    signal?: AbortSignal,
+  ) {
+    return this.sdk.call("opencut_visual_preview_v4_frame", request, {
+      signal,
+    });
   }
   audioPreviewCapability() {
     return this.sdk.call("opencut_audio_preview_v4_capability", {});
@@ -39,36 +57,59 @@ export class V4Api {
   audioGainPlan(request: ToolInput<"opencut_project_v4_audio_gain_plan">) {
     return this.sdk.call("opencut_project_v4_audio_gain_plan", request);
   }
-  timelinePlan(request: ToolInput<"opencut_edit_timeline_plan_v4">, signal?: AbortSignal) {
+  timelinePlan(
+    request: ToolInput<"opencut_edit_timeline_plan_v4">,
+    signal?: AbortSignal,
+  ) {
     return this.sdk.call("opencut_edit_timeline_plan_v4", request, { signal });
   }
-  timelineCopy(request: ToolInput<"opencut_timeline_v4_copy">, signal?: AbortSignal) {
+  timelineCopy(
+    request: ToolInput<"opencut_timeline_v4_copy">,
+    signal?: AbortSignal,
+  ) {
     return this.sdk.call("opencut_timeline_v4_copy", request, { signal });
   }
-  timelinePastePlan(request: ToolInput<"opencut_timeline_v4_paste_plan">, signal?: AbortSignal) {
+  timelinePastePlan(
+    request: ToolInput<"opencut_timeline_v4_paste_plan">,
+    signal?: AbortSignal,
+  ) {
     return this.sdk.call("opencut_timeline_v4_paste_plan", request, { signal });
   }
   recoveryStage(request: ToolInput<"opencut_edit_recovery_v1_stage">) {
     return this.sdk.call("opencut_edit_recovery_v1_stage", request);
   }
   async recoveryRead(projectId: string, recoveryId: string | null = null) {
-    const inspected = await this.sdk.call("opencut_edit_recovery_v1_inspect", { project_id: projectId, recovery_id: recoveryId });
-    if (inspected.schema_version !== 1 || !Object.hasOwn(inspected, "record")) throw new Error("Invalid recovery inspection result.");
+    const inspected = await this.sdk.call("opencut_edit_recovery_v1_inspect", {
+      project_id: projectId,
+      recovery_id: recoveryId,
+    });
+    if (inspected.schema_version !== 1 || !Object.hasOwn(inspected, "record"))
+      throw new Error("Invalid recovery inspection result.");
     return inspected.record ?? null;
   }
   recoveryAck(projectId: string, recoveryId: string) {
-    return this.sdk.call("opencut_edit_recovery_v1_ack", { project_id: projectId, recovery_id: recoveryId });
+    return this.sdk.call("opencut_edit_recovery_v1_ack", {
+      project_id: projectId,
+      recovery_id: recoveryId,
+    });
   }
   recoveryV2Stage(request: ToolInput<"opencut_edit_recovery_v2_stage">) {
     return this.sdk.call("opencut_edit_recovery_v2_stage", request);
   }
   async recoveryV2Inspect(projectId: string, recoveryId: string | null = null) {
-    const inspected = await this.sdk.call("opencut_edit_recovery_v2_inspect", { project_id: projectId, recovery_id: recoveryId });
-    if (inspected.schema_version !== 2 || !Object.hasOwn(inspected, "record")) throw new Error("Invalid recovery inspection result.");
+    const inspected = await this.sdk.call("opencut_edit_recovery_v2_inspect", {
+      project_id: projectId,
+      recovery_id: recoveryId,
+    });
+    if (inspected.schema_version !== 2 || !Object.hasOwn(inspected, "record"))
+      throw new Error("Invalid recovery inspection result.");
     return inspected;
   }
   recoveryV2Ack(projectId: string, recoveryId: string) {
-    return this.sdk.call("opencut_edit_recovery_v2_ack", { project_id: projectId, recovery_id: recoveryId });
+    return this.sdk.call("opencut_edit_recovery_v2_ack", {
+      project_id: projectId,
+      recovery_id: recoveryId,
+    });
   }
   frameCapability() {
     return this.sdk.call("opencut_project_v4_frame_capability", {});
@@ -91,13 +132,22 @@ export class V4Api {
   mediaPlan(request: ToolInput<"opencut_media_workspace_plan_v4">) {
     return this.sdk.call("opencut_media_workspace_plan_v4", request);
   }
-  resource(projectId: string, revision: string, resourceId: string) {
-    return this.sdk.call("opencut_project_v4_resource_inspect", {
-      project_id: projectId,
-      revision,
-      resource_id: resourceId,
-      kind: "asset",
-    });
+  resource(
+    projectId: string,
+    revision: string,
+    resourceId: string,
+    signal?: AbortSignal,
+  ) {
+    return this.sdk.call(
+      "opencut_project_v4_resource_inspect",
+      {
+        project_id: projectId,
+        revision,
+        resource_id: resourceId,
+        kind: "asset",
+      },
+      { signal },
+    );
   }
   async availableMedia(projectId: string, signal?: AbortSignal) {
     const items: ToolOutput<"opencut_project_media_inspect">[] = [];

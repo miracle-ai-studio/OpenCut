@@ -249,3 +249,9 @@ test("feedback adapter may persist only its two bounded personal-data keys", () 
     1,
   );
 });
+test("visual preview imports only the bounded execution bridge", () => {
+  const path="../../../../../../packages/classic-visual-renderer/src/index.mjs";
+  assert.deepEqual(violations("editor/workspace/v4/visual-preview-renderer.ts", `import {renderClassicFrame} from "${path}";`), []);
+  for(const [file,name] of [["editor/workspace/v4/session.ts",path],["editor/workspace/v4/visual-preview-renderer.ts","@opencut/classic-visual-renderer"],["editor/workspace/v4/visual-preview-renderer.ts","../../../../../../packages/classic-visual-renderer/host/runner.mjs"]])
+    assert.equal(violations(file, `import x from "${name}";`).length,1);
+});

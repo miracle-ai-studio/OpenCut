@@ -53,6 +53,7 @@ pub mod subtitle_exchange;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
+pub mod visual_preview_v4;
 use identity::content_id;
 pub use opencut_api_contracts::{
     JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
