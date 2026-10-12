@@ -101,6 +101,8 @@ it("reports completed endpoints immediately, coalesces in-flight endpoints and i
 it("releases consumption credit before heartbeat and flushes completions queued during renewal", async () => {
   const f = await setupAudioPreview();
   vi.useFakeTimers();
+  let monotonic = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => monotonic);
   try {
     await f.preview.play();
     const actual = f.control.getMockImplementation()!;
@@ -113,7 +115,7 @@ it("releases consumption credit before heartbeat and flushes completions queued 
         });
       return result;
     });
-    vi.setSystemTime(Date.now() + 501);
+    monotonic = 501;
     const output = f.outputs[0];
     output.progress({ consumedFrames: "4096", stalled: false, contextTime: 1 });
     output.completedBlock();

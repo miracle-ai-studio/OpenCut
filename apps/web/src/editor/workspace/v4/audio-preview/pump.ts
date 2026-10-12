@@ -23,6 +23,10 @@ export interface PreviewPump {
   abort(): void;
 }
 import { checkPreviewSession, counter } from "./session-identity";
+const CONTROL_TIMEOUT_MS = 3000;
+// One more serialized report/renewal attempt plus scheduling margin. Subtract
+// the whole report RTT: the server's lease snapshot can predate its response.
+const RENEWAL_RESERVE_MS = CONTROL_TIMEOUT_MS + 2000;
 /** Shared stream/credit delegate; no project time, source clock or DSP work. */
 export class PreviewConsumptionPump implements PreviewPump {
   private session: V4AudioPreviewSession | null = null;
@@ -37,7 +41,7 @@ export class PreviewConsumptionPump implements PreviewPump {
   private pendingCompletion = false;
   private reportingActive = false;
   private draining = false;
-  private heartbeatAt = Date.now();
+  private heartbeatAt = performance.now();
   private readonly streamAbort = new AbortController();
   private readonly controlsAbort = new AbortController();
   constructor(
@@ -148,9 +152,10 @@ export class PreviewConsumptionPump implements PreviewPump {
     this.reportingActive = true;
     const task = (async () => {
       try {
+        const began = performance.now();
         const signal = AbortSignal.any([
           this.controlsAbort.signal,
-          AbortSignal.timeout(3000),
+          AbortSignal.timeout(CONTROL_TIMEOUT_MS),
         ]);
         const session = await this.transport.control(
           command({
@@ -173,18 +178,29 @@ export class PreviewConsumptionPump implements PreviewPump {
         if (session.state === "failed" || session.state === "stopped")
           throw new Error("Scene audio is no longer available.");
         this.updated(session, this.progress);
+        const now = performance.now();
+        const leaseUrgent =
+          BigInt(session.lease_remaining_ms) <=
+          BigInt(Math.ceil(Math.max(0, now - began)) + RENEWAL_RESERVE_MS);
         if (
           this.current() &&
           !this.draining &&
-          Date.now() - this.heartbeatAt >= 500
+          (leaseUrgent || now - this.heartbeatAt >= 500) &&
+          (!this.pendingCompletion || leaseUrgent)
         ) {
           const heartbeat = await this.transport.control(
             command({ kind: "heartbeat" }),
             signal,
           );
           this.check(heartbeat, session);
-          if (!this.current()) return;
-          this.heartbeatAt = Date.now();
+          if (
+            !this.current() ||
+            this.draining ||
+            heartbeat.generation !== session.generation ||
+            heartbeat.overlay_epoch !== session.overlay_epoch
+          )
+            return;
+          this.heartbeatAt = performance.now();
         }
         return session;
       } catch (error) {

@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "28 unique scoped records. Latest bounded credit/control-body/native association separates pending-report/heartbeat wait from native evaluate return tail in the unchanged direct product. Diagnostic300s11/14 gates pass; original uninstrumented product failures remain open. No product build or speculative mixer optimization.",
-    "latest_candidate": "audio_preview_credit_native_correlation",
+    "scope": "29 unique scoped records. Latest Web pump prioritizes pending consumption with mandatory lease renewal;33 affected tests andHD4 pass. Same-workspace actual300s10/14 gates pass; per-window deficits and native tree RSS remain open. No Rust/native rebuild, threshold expansion or unchanged rerun.",
+    "latest_candidate": "audio_preview_consumption_report_priority",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -6151,12 +6151,256 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_consumption_report_priority",
+        "status": "implemented_and_scoped_lifecycle_verified_sustained_gates_incomplete",
+        "candidate": {
+          "base_commit": "5e1fc354a4cffe49284d3a8d4ccb52336ac76b95",
+          "source_files": [
+            "apps/web/src/editor/workspace/v4/audio-preview/pump.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview/pump.test.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.test.ts"
+          ],
+          "source_manifest_sha256": "6148697d10332cefd73866e8602b066b9015f0ad3771e823d5da64a3d8fbb34f",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "binary_ref": "audio_preview_retained_source_binding.candidate",
+          "rust_native_sources_unchanged": true,
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "web_dist_manifest_sha256": "baebba72ea96c122685e3d6aeafe31d72ab50db339722453030e9ef5e324749a",
+          "web_entrypoints": [
+            "assets/editor-workspace-B8pkUqDe.js",
+            "assets/index-D0Aqs5hS.js",
+            "assets/pump-worker-Dxu1_Fu4.js",
+            "assets/worklet-Bgq1Jdar.js"
+          ],
+          "runtime": "preview-direct-v1; Node24.19.0; Chromium154.0.8037.99; Playwright1.63.0. No Native profiling preload; existing bounded browser/Worker witnesses retained.",
+          "identity_limit": "Hashes identify this scoped execution; no exact renderer/DAC reproducibility claim."
+        },
+        "implemented": [
+          "Coalesce newest real device completion before nonurgent heartbeat, retain one in-flight control and original3s combined abort window.",
+          "Monotonic interval and full report elapsed deduction from validated server lease;5s reserve makes urgent renewal mandatory even before500ms or under continuous pressure. Server30s lease unchanged.",
+          "Freeze/final stopped cursor/in-flight renewal/cancel and generation/overlay fences retained; no source-time/IR/DSP, public DTO, new module or dependency."
+        ],
+        "checks": {
+          "affected_vitest_files": 5,
+          "affected_vitest_tests": 33,
+          "pump_tests": 10,
+          "pre_change_regressions": "Three targeted new cases fail against original pump before fix; final33 affected tests pass. Existing heartbeat integration clock adjusted to monotonic; no obsolete test deleted.",
+          "web_boundaries": {
+            "files": 184,
+            "errors": 0
+          },
+          "successful_web_production_builds": 1,
+          "initial_typecheck_preflight": "Stopped before Vite on test mock tuple typing; fixed then one successful integrated production build.",
+          "rust_builds": 0,
+          "scope_reuse": "Unchanged Rust/native application, architecture14/22 modules/0 exceptions, contract boundaries,194 tools/22 frozen wire retain original identities. No unaffected DSP/parser/export/full-workspace rerun."
+        },
+        "scope": "One same owned synthetic100-placement/5-track/300s project, original fixed revision/two8s media sources, no new fixture copy/import. HD+boundaries+continuity run serially once against explicit built Web and existing release.",
+        "hd": {
+          "checks": 4,
+          "preview": {
+            "width": 1280,
+            "height": 720,
+            "cold_ms": 6560,
+            "distinct_frames": 66,
+            "max_skew_ms": 122.66666666666693,
+            "frequency_hz": 439.99991601772865,
+            "rms": 0.08831585190797463
+          },
+          "seek_ms": 488,
+          "resource_downloads": 1,
+          "permission_limit": "Paused HTTP403 injection clears pixels; actual original-credential revocation retains prior native scope."
+        },
+        "continuity": {
+          "status": "failed",
+          "gates": {
+            "complete_300s": true,
+            "cold": true,
+            "stalled_ratio": false,
+            "deficit_ratio": false,
+            "render_quantum_deficit_ratio": false,
+            "source_pts": true,
+            "synchronization": true,
+            "independent_pixels": true,
+            "independent_pcm": true,
+            "page_heap": true,
+            "worker_heap": true,
+            "native_rss": false,
+            "gpu": true,
+            "worker_credit": true
+          },
+          "consumption": {
+            "complete": true,
+            "initial_cursor": "128",
+            "final_cursor": "14400000",
+            "rendered_frames": 14417152,
+            "copied_frames": 14400000,
+            "missing_frames": 17152,
+            "elapsed_ms": 300350.8000000119,
+            "render_quantum_deficit_ratio": 0.0011896940533053962,
+            "stalled_ratio": 0.0012272316237020929,
+            "deficit_ratio": 0.0011768460968925032,
+            "max_raw_points": 3751
+          },
+          "windows": 31,
+          "failed_windows": [
+            {
+              "one_based_index": 1,
+              "start_frame": "128",
+              "end_frame": "475008",
+              "elapsed_ms": 9999.200000017881,
+              "copied_frames": 474880,
+              "rendered_frames": 480000,
+              "missing_frames": 5120,
+              "stalled_ratio": 0.011530922471989,
+              "deficit_ratio": 0.01058751366952948,
+              "render_quantum_deficit_ratio": 0.010666666666666666,
+              "maximum_message_lag_ms": 66.66666666666667,
+              "reports": 3751
+            },
+            {
+              "one_based_index": 9,
+              "start_frame": "3835008",
+              "end_frame": "4308352",
+              "elapsed_ms": 10000.300000011921,
+              "copied_frames": 473344,
+              "rendered_frames": 480000,
+              "missing_frames": 6656,
+              "stalled_ratio": 0.014249572512807628,
+              "deficit_ratio": 0.013896249780348757,
+              "render_quantum_deficit_ratio": 0.013866666666666666,
+              "maximum_message_lag_ms": 93.33333333333333,
+              "reports": 3751
+            }
+          ],
+          "maximum_window_ratios": {
+            "stalled_ratio": 0.014249572512807628,
+            "deficit_ratio": 0.013896249780348757,
+            "render_quantum_deficit_ratio": 0.013866666666666666
+          },
+          "source_pts_range": [
+            150,
+            168
+          ],
+          "independent_pixel_observations": 391,
+          "max_skew_ms": 122.6666666667029,
+          "cold_ms": 4779,
+          "independent_pcm": {
+            "frequency_hz": 439.9999160180845,
+            "rms": 0.03335492108671648,
+            "expected_rms": 0.03338230108828959
+          },
+          "independent_pcm_scope": "First4096 left pre-master samples only; not later source/gap PCM or physical output.",
+          "credit": {
+            "completion_to_report": {
+              "count": 3514,
+              "mean_ms": 1.0183836082182083,
+              "maximum_ms": 135.69999998807907,
+              "p95_ms": 6.200000017881393
+            },
+            "completion_to_next_supply": {
+              "count": 3514,
+              "mean_ms": 43.39183266911238,
+              "maximum_ms": 211.19999998807907,
+              "p95_ms": 63.29999998211861
+            },
+            "report_to_next_supply": {
+              "count": 3514,
+              "mean_ms": 42.373449060894174,
+              "maximum_ms": 201.7999999821186,
+              "p95_ms": 61.400000005960464
+            },
+            "completions_observed": 3515,
+            "unmatched_terminal_completions": 1,
+            "method": "Actual Worker MessagePort receipt entry, covering serialized report and transfer block k+2; all timestamps converted with performance.timeOrigin. Not native-only or DAC latency."
+          },
+          "longest_refill": {
+            "completed_block": 982,
+            "consumed_frames": "4022272",
+            "supplied_block": 984,
+            "supplied_start_sample": "4026368",
+            "supplied_frames": 4096,
+            "receipt_at_ms": 89583.70004883409,
+            "report_began_ms": 89719.40004882216,
+            "report_headers_ended_ms": 89735.70004883409,
+            "report_ended_ms": 89736.0000488162,
+            "supplied_at_ms": 89794.90004882216,
+            "completion_to_report_ms": 135.69999998807907,
+            "completion_to_supply_ms": 211.19999998807907,
+            "preceding_control_count": 1,
+            "preceding_controls": [
+              {
+                "kind": "report_consumed",
+                "began_ms": 89560.40004882216,
+                "headers_ended_ms": 89718.90004882216,
+                "ended_ms": 89719.30004882812
+              }
+            ]
+          },
+          "selected_slow_refills": 32,
+          "preceding_heartbeat_spans_in_selected_refills": 0,
+          "resources": {
+            "page": {
+              "baseline": 4224804,
+              "peak": 36859960,
+              "delta": 32635156
+            },
+            "worker": {
+              "samples": 266,
+              "peak_used": 22708100,
+              "peak_backing": 13702458,
+              "method": "Actual dedicated Worker CDP Runtime.getHeapUsage; no steady-window GC"
+            },
+            "native": {
+              "samples": 54,
+              "peak_tree_rss": 2614415360,
+              "peak_processes": 31,
+              "owned_children_after_end": 0,
+              "method": "ps RSS of live owned Rust service and descendants, captured PID/start identity; separate from verification-browser RSS, not a kernel quota"
+            },
+            "peak_gpu_accounted": 18432212,
+            "peak_execution_accounted": 35414841,
+            "device_closed": true,
+            "worker_target_closed": true
+          },
+          "native_tree_rss_maximum": 2147483648,
+          "readonly": true,
+          "errors": []
+        },
+        "findings": [
+          "Pending-before-nonurgent-renewal behavior independently verified by regressions; selected32 real slow refills have no preceding heartbeat span. Longest Worker admission135.7ms overlaps prior report body135.6ms, refill211.2ms; not proof of a pure native or sole-cause delay.",
+          "Actual300s reaches14400000 copied frames,10/14 gates pass; windows1/9 miss5120/6656 frames, native tree peak2614415360 exceeds2147483648. Peak31 processes has no retained per-process/phase breakdown; not established as leak, resource-scope error or Web change causality.",
+          "No before/after performance-benefit claim; original product and injected native diagnostic receipts retain their identities. S1/F10/F42/F44 and36 groups remain incomplete."
+        ],
+        "next": "Inspect existing owned preview lifecycle and serialized control/native/SDK scheduling before another candidate. Current report-body wait and native2.614GB/31-process peak need phase and process ownership attribution; preserve full owned-tree accounting and2GiB/two-slot/heap gates. Reuse existing command/clock/credit observers, add only missing bounded peak identity/phase evidence if necessary, then fix the evidenced stage. No unchanged reruns to seek green, budget expansion, monitor removal or speculative mixer cache. Then later independentPCM, gain/rapidseek/scene-revision/original-authority and real long/VFR/non-unit-rate matrices.",
+        "retained_receipts": {
+          "report": "/private/tmp/opencut-preview-consumption-priority-20261013.json",
+          "necessary_failure": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/preview-consumption-priority-evidence/continuity-failure.json",
+          "failure_bytes": 57472,
+          "failure_sha256": "14c0527503b45808fe5259bc3bbd8bc644e5e10a0cb6f02d31fc2938fca7a30e",
+          "scope": "Independent current failure directory; old uninstrumented product failure and Native diagnostics preserved, no media/database/token inGit."
+        },
+        "limits": [
+          "Partial control/lifecycle behavior verified, sustained per-window and native resource gates still fail. No whole-tree/release acceptance.",
+          "Synthetic authored300s repeats8s sources; no full gain/rapidseek/revision/true authority/format/long source/VFR/non-unit-rate/cross-browser/DAC/laterPCM matrix."
+        ],
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "owned_native_children_after_end": 0,
+          "device_closed": true,
+          "worker_target_closed": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: collocated native preview lifecycle and scopedHD4 passed. New uninstrumented product300s copies14400000 frames, renders14412800, misses12800(overall0.08881%); window29 loss1.3333%/stall1.3070%/confirmed deficit1.3353% fail<=1%. SourcePTS154-167/skew122.67ms/389 independent pixels and split resource cleanup pass. Initial PCM only; laterPCM, long/VFR/full controls and complete visual/export scope remain incomplete. Old candidate/diagnostic receipts retain original identities. Current bounded diagnostic separately associates prior-report154.4ms+heartbeat17.1ms with window17 and native return122.336-123.212ms with window27; these are injected observations, not optimization or single-cause proof.",
+    "Continuous normal Video/static PNG-JPEG: pending consumption priority with monotonic aged-lease safety implemented;33 lifecycle tests andHD4 pass. Latest uninstrumented-Native product300s10/14 gates: copies14400000/renders14417152/misses17152(overall0.11897%); windows1/9 miss5120/6656(loss1.0667%/1.3867%), worststall1.4250%/confirmed deficit1.3896% fail<=1%; native tree2614415360B>2GiB with31 processes, phase/process cause unproven. SourcePTS150-168/skew122.67ms/391 independent pixels, page/Worker/GPU and cleanup pass. Initial PCM only; laterPCM, long/VFR/full controls and complete visual/export scope remain incomplete. Historical product failures/Native diagnostics keep identities. Selected32 slow refills now have no preceding heartbeat, longest admission135.7ms overlaps prior report body; not pure native/DAC or optimization proof.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -6206,25 +6450,29 @@
   ],
   "open_failures": [
     {
-      "evidence_id": "audio_preview_owned_collocated_transport",
-      "baseline_evidence_id": "audio_preview_sustained_quantum_resource_observations",
+      "evidence_id": "audio_preview_consumption_report_priority",
+      "baseline_evidence_id": "audio_preview_owned_collocated_transport",
+      "observation_ref": "audio_preview_credit_native_correlation",
       "feature": "S1 sustained continuous picture/audio preview",
       "gates": {
         "stalled_ratio": {
-          "maximum_window_ratio": 0.013069738604012456,
+          "maximum_window_ratio": 0.014249572512807628,
           "maximum": 0.01
         },
         "deficit_ratio": {
-          "maximum_window_ratio": 0.013353066273772196,
+          "maximum_window_ratio": 0.013896249780348757,
           "maximum": 0.01
         },
         "render_quantum_deficit_ratio": {
-          "maximum_window_ratio": 0.013333333333333334,
+          "maximum_window_ratio": 0.013866666666666666,
           "maximum": 0.01
+        },
+        "native_rss": {
+          "peak_tree_rss": 2614415360,
+          "maximum": 2147483648
         }
       },
-      "next": "Implement pending completion report priority over nonurgent heartbeat in existing serialized pump, with explicit remaining-lease/time-out safety and mandatory renewal under continuous backpressure. Preserve final cursor, generation/overlay/original-authority/cancel fences; targeted delayed report/heartbeat, renewal starvation, stop and stale-return tests before one integrated Web build/affected acceptance. Native return tail remains a separate exit, investigate actual synchronous native/SDK/monitor scheduling rather than expanding budgets or repeatedly profiling unchanged product. Then laterPCM/full gain/rapidseek/scene-revision/long-source matrices.",
-      "observation_ref": "audio_preview_credit_native_correlation"
+      "next": "Inspect existing owned preview lifecycle and serialized control/native/SDK scheduling before another candidate. Current report-body wait and native2.614GB/31-process peak need phase and process ownership attribution; preserve full owned-tree accounting and2GiB/two-slot/heap gates. Reuse existing command/clock/credit observers, add only missing bounded peak identity/phase evidence if necessary, then fix the evidenced stage. No unchanged reruns to seek green, budget expansion, monitor removal or speculative mixer cache. Then later independentPCM, gain/rapidseek/scene-revision/original-authority and real long/VFR/non-unit-rate matrices."
     }
   ],
   "resource_constraints": [
