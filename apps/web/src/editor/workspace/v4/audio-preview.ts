@@ -604,6 +604,10 @@ export class V4AudioPreview {
     this.publish({ phase: "paused" });
   }
   private async transition(a: Active) {
+    let unconfirmed: {
+      request: V4AudioPreviewControl;
+      previous: V4AudioPreviewSession;
+    } | null = null;
     try {
       const frames = await a.output.stop();
       if (!this.same(a)) return;
@@ -647,12 +651,15 @@ export class V4AudioPreview {
           a.pauseAfterTransition = false;
           command = { kind: "pause" };
         }
+        const request = this.command(a, command);
+        unconfirmed = { request, previous };
         const result = await a.api.v4.audioPreviewControl(
-          this.command(a, command),
+          request,
           a.controls.signal,
         );
         this.checkSession(a, result, previous);
         a.session = result;
+        unconfirmed = null;
         if (!this.same(a)) {
           this.stopRemote(a);
           return;
@@ -686,9 +693,37 @@ export class V4AudioPreview {
       }
     } catch (e) {
       if (this.same(a)) this.fail(a, e);
+      if (unconfirmed && !(e instanceof OpenCutApiError))
+        void this.retireUnconfirmedControl(
+          a,
+          unconfirmed.request,
+          unconfirmed.previous,
+        );
       // Detached seek/gain callers observe the published failure. Pause also
       // preserves its existing rejected-promise contract for the UI caller.
       return { error: e };
+    }
+  }
+  private async retireUnconfirmedControl(
+    a: Active,
+    request: V4AudioPreviewControl,
+    previous: V4AudioPreviewSession,
+  ) {
+    try {
+      // Leaving a view can abort a response after the service has reanchored.
+      // The original request/key recovers that receipt without adopting a new
+      // owner's generation or reviving this retired document's sound/picture.
+      const result = await a.api.v4.audioPreviewControl(
+        request,
+        AbortSignal.timeout(4000),
+        a.documentDeparted ? { keepalive: true } : {},
+      );
+      this.checkSession(a, result, previous);
+      a.session = result;
+      this.stopRemote(a);
+    } catch {
+      // Revocation, owner/lease change or unavailable transport cannot be
+      // bypassed; the original native authorization/lease fence still applies.
     }
   }
   private hasTransition(a: Active) {

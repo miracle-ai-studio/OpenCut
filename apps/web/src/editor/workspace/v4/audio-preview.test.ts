@@ -1227,3 +1227,236 @@ it("preserves pause caller errors while publishing failure and retiring original
     f.cleanup();
   }
 });
+
+it.each(["seek", "set_temporary_gain", "pause"] as const)(
+  "retires an accepted %s whose response was aborted by leaving the view, replaying only its original request",
+  async (kind) => {
+    const f = await setupAudioPreview();
+    try {
+      await f.preview.play(48000);
+      const actual = f.control.getMockImplementation()!;
+      let entered!: () => void;
+      const began = new Promise<void>((r) => {
+        entered = r;
+      });
+      let held = false;
+      f.control.mockImplementation(async (...args) => {
+        const result = await actual(...args);
+        if (!held && args[0].command.kind === kind) {
+          held = true;
+          entered();
+          await new Promise<void>((_, reject) =>
+            args[1]!.addEventListener(
+              "abort",
+              () => reject(new DOMException("View left", "AbortError")),
+              { once: true },
+            ),
+          );
+        }
+        return result;
+      });
+      let pending: Promise<void> | null = null;
+      if (kind === "seek") f.preview.seek({ ticks: "1", timebase: 1 });
+      else if (kind === "set_temporary_gain") f.preview.draft(gainDraft(f));
+      else pending = f.preview.pause();
+      const rejected = pending
+        ? expect(pending).rejects.toThrow("View left")
+        : null;
+      await began;
+      const original = f.control.mock.calls.find(
+        ([r]) => r.command.kind === kind,
+      )![0];
+      f.preview.seek();
+      if (rejected) await rejected;
+      await flush();
+      const recovery = f.control.mock.calls.filter(
+        ([r]) => r.command.kind === kind,
+      );
+      expect(recovery).toHaveLength(2);
+      expect(recovery[1][0]).toBe(original);
+      expect(recovery[1][1]?.aborted).toBe(false);
+      const stops = f.controls.filter((r) => r.command.kind === "stop");
+      expect(stops.map((r) => r.generation)).toEqual(
+        kind === "pause" ? ["1"] : ["1", "2"],
+      );
+      expect(
+        stops.every((r) => r.owner_id === "owner" && r.lease_id === "lease"),
+      ).toBe(true);
+      expect(f.outputs).toHaveLength(1);
+      expect(f.stream).toHaveBeenCalledTimes(1);
+      expect(f.state().audioPreview.session).toBeNull();
+    } finally {
+      f.cleanup();
+    }
+  },
+);
+
+it("failed original-key retirement cannot disturb a newer active preview or force a changed owner", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    const actual = f.control.getMockImplementation()!;
+    let entered!: () => void;
+    const began = new Promise<void>((r) => {
+      entered = r;
+    });
+    let seeks = 0;
+    f.control.mockImplementation(async (...args) => {
+      if (args[0].command.kind === "seek") {
+        seeks++;
+        if (seeks === 1) {
+          await actual(...args);
+          entered();
+          await new Promise<void>((_, reject) =>
+            args[1]!.addEventListener(
+              "abort",
+              () => reject(new DOMException("View left", "AbortError")),
+              { once: true },
+            ),
+          );
+        }
+        throw new OpenCutApiError(
+          "PREVIEW_OWNER_CONFLICT",
+          "changed owner",
+          null,
+          403,
+          "req",
+          [],
+        );
+      }
+      return actual(...args);
+    });
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    f.preview.seek();
+    await f.preview.play(48000);
+    await flush();
+    expect(seeks).toBe(2);
+    expect(f.state().audioPreview.session?.session_id).toBe("preview-1");
+    expect(f.state().audioPreview.phase).toBe("loading");
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "stop")
+        .map((r) => r.session_id),
+    ).toEqual(["preview-0"]);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("retired unknown gain replays and stops with original document keepalive authority", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    const actual = f.control.getMockImplementation()!;
+    let entered!: () => void;
+    const began = new Promise<void>((r) => {
+      entered = r;
+    });
+    let first = true;
+    f.control.mockImplementation(async (...args) => {
+      const result = await actual(...args);
+      if (first && args[0].command.kind === "set_temporary_gain") {
+        first = false;
+        entered();
+        await new Promise<void>((_, reject) =>
+          args[1]!.addEventListener(
+            "abort",
+            () => reject(new DOMException("Document left", "AbortError")),
+            { once: true },
+          ),
+        );
+      }
+      return result;
+    });
+    f.preview.draft(gainDraft(f));
+    await began;
+    f.preview.retireDocument();
+    await flush();
+    const calls = f.control.mock.calls.filter(
+      ([r]) => r.command.kind === "set_temporary_gain",
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[1][0]).toBe(calls[0][0]);
+    expect(calls[1][2]).toEqual({ keepalive: true });
+    const stops = f.control.mock.calls.filter(
+      ([r]) => r.command.kind === "stop",
+    );
+    expect(stops.map(([r]) => r.generation)).toEqual(["1", "2"]);
+    expect(stops.map(([, , options]) => options)).toEqual([
+      { keepalive: true },
+      { keepalive: true },
+    ]);
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("rejects a recovery receipt carrying a different owner before any new-generation Stop", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    const actual = f.control.getMockImplementation()!;
+    let entered!: () => void;
+    const began = new Promise<void>((r) => {
+      entered = r;
+    });
+    let seeks = 0;
+    f.control.mockImplementation(async (...args) => {
+      const result = await actual(...args);
+      if (args[0].command.kind === "seek") {
+        if (++seeks === 1) {
+          entered();
+          await new Promise<void>((_, reject) =>
+            args[1]!.addEventListener(
+              "abort",
+              () => reject(new DOMException("View left", "AbortError")),
+              { once: true },
+            ),
+          );
+        } else return { ...result, owner_id: "other-owner" };
+      }
+      return result;
+    });
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    f.preview.seek();
+    await flush();
+    expect(seeks).toBe(2);
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "stop")
+        .map((r) => r.generation),
+    ).toEqual(["1"]);
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+
+it.each(["NOT_AUTHORIZED", "PREVIEW_GENERATION_CONFLICT"])(
+  "does not replay an authoritative %s rejection",
+  async (code) => {
+    const f = await setupAudioPreview();
+    try {
+      await f.preview.play(48000);
+      const actual = f.control.getMockImplementation()!;
+      let rejected = 0;
+      f.control.mockImplementation(async (...args) => {
+        if (args[0].command.kind === "seek") {
+          rejected++;
+          throw new OpenCutApiError(code, "rejected", null, 403, "req", []);
+        }
+        return actual(...args);
+      });
+      f.preview.seek({ ticks: "1", timebase: 1 });
+      await flush();
+      expect(rejected).toBe(1);
+      expect(f.state().audioPreview.phase).toBe("failed");
+      expect(f.outputs[0].silenced).toBe(true);
+    } finally {
+      f.cleanup();
+    }
+  },
+);

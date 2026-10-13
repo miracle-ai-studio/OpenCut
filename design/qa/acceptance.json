@@ -289,7 +289,7 @@
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
     "scope": "32 unique scoped records. Current coalesced seek implementation passes32 affected lifecycle/visual/control cases and15 observers; one integrated Web build,0Rust/native/SDK builds. Same original fixture3 real control cases pass with exact latest target/original authority and independent PCM/pixels/sync. Prior300s windows/performance/document scopes keep their identities; fullS1/whole tree incomplete.",
-    "latest_candidate": "audio_preview_gain_transitions",
+    "latest_candidate": "audio_preview_identity_retirement",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -7017,12 +7017,209 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_identity_retirement",
+        "status": "implemented_and_scoped_real_scene_revision_credential_boundaries_verified_full_S1_incomplete",
+        "candidate": {
+          "base_commit": "31f6923a",
+          "source_files": [
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.test.ts",
+            "apps/web/scripts/verify-v4-scene-preview-identity.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "b59bbdfe0f2c60ed46151dabd78e28db45763653e4b7e4ff1c16780d6056f2b3",
+          "web_dist_manifest_sha256": "7db7d00660d34b760462adb8b3cbff750e7948ce707f0b4789de279eae98074d",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "binary_ref": "audio_preview_document_retirement.candidate",
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "rust_native_sources_unchanged": true,
+          "runtime": "preview-direct-v1; Node24.19.0; actual browser153.0.8010.12; Playwright1.63.0. One real accepted seek response delayed for retirement boundary; functional observation, not performance measurement."
+        },
+        "baseline": {
+          "scope": "Actual accepted seek body is aborted by UI scene change; old generation Stop cannot retire the newly accepted generation.",
+          "native_state_after_5000_ms": "playing",
+          "status": "failed_expected_retirement",
+          "identity": {
+            "base_commit": "31f6923a",
+            "observer_files": [
+              "apps/web/scripts/verify-v4-scene-preview-identity.mjs",
+              "apps/web/scripts/verify-suite.mjs",
+              "scripts/verify-web.py"
+            ],
+            "observer_manifest_sha256": "92c3a9c1c293b6b6c6e8b091a5c2ddc4e269cf13ad7efb98464d349cd533a35b",
+            "web_dist_manifest_sha256": "883ad2c486a128495767ecbf9d500297ba7727cea74e3b3ee538f278199d03b7",
+            "product_source_sha256": "bbb373a105dd35f0d6529b46099338a02db1d133a113e186e9ddeb150bd320d2"
+          },
+          "report_path": "/private/tmp/opencut-preview-identity-baseline-20261013.json"
+        },
+        "implemented": [
+          "Capture the exact original in-flight typed Seek/set-clear gain/Pause control and its previous validated identity. Unknown transport cancellation/failure after retiring the output gets one bounded4s replay with the unchanged control_id/full request, then validates fixed project/revision/scene/rate/owner/lease before Stop. Never adopts an inspected newer owner or publishes/resumes retired sound/picture.",
+          "Authoritative OpenCutApiError rejection is not replayed. Recovery failure, revocation, owner/lease change and transport timeout retain the original native authorization/lease fence. Captured API stays separate from a newer active preview; document departure preserves existing SDK keepalive.",
+          "Reuse existing scene/history/current transitions, original credential authorization monitor, visual/Worklet witness and whole owned PID/start census. CLI is used only as an external acceptance administration client to issue/revoke scoped synthetic credentials; no product shell/port substitution or public contract/dependency/budget changes."
+        ],
+        "checks": {
+          "audio_preview_tests": 42,
+          "new_lifecycle_tests": 8,
+          "visual_tests": 5,
+          "document_binding_tests": 1,
+          "session_authority_tests": 8,
+          "affected_vitest_unique_tests": 56,
+          "web_boundary_files": 184,
+          "typecheck_and_web_production_builds": 1,
+          "rust_builds": 0,
+          "native_builds": 0,
+          "sdk_builds": 0,
+          "regressions": "Four new original-source cases fail before fix: accepted Seek/gain/Pause response abort loses original replay, and retired recovery cannot be exercised against a new active preview. Final extra keepalive/changed-owner receipt/authoritative rejection cases also pass.",
+          "registration": "Original control DTO/export/tool/access -> host dispatch -> application exact-key replay before generation check -> native effect None on replay and current-generation Stop -> generated SDK -> shared player. New identity/revocation suites registered in JS and Python retained-workspace checks.",
+          "reuse": "Original Rust/native/194tools/22frozen wire and architecture14/22modules/0exceptions retain recorded unchanged-source scope. One existing synthetic workspace/media; minimal two-scene project setup only because existing fixtures have one scene. No original fixture revision mutation, uploads/media copies, old300s/HD/DSP/export/PCM/performance matrix rerun."
+        },
+        "acceptance": {
+          "scope": "Same explicit final binary/Web tree. Three real UI scene/history/head exits and playing/paused actual scoped-credential revocation run serially once after integration. No synthetic403/session/clock or forged project authority.",
+          "cases": [
+            {
+              "boundary": "scene_with_accepted_seek",
+              "project_id": "scene-preview-identity-1b653cb4-01be-4ce7-9cfd-03ebbfc64ec6",
+              "fixed_revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+              "head_revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+              "original_authority": true,
+              "stop_generations": [
+                "1",
+                "2"
+              ],
+              "no_implicit_play": true,
+              "readonly": true,
+              "captured_native_children": 10,
+              "captured_children_remaining": 0,
+              "after_owned_processes": 1,
+              "device_closed": true,
+              "worker_targets": 0
+            },
+            {
+              "boundary": "historical_revision",
+              "project_id": "scene-preview-identity-1b653cb4-01be-4ce7-9cfd-03ebbfc64ec6",
+              "fixed_revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+              "head_revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+              "original_authority": true,
+              "stop_generations": [
+                "1"
+              ],
+              "no_implicit_play": true,
+              "readonly": true,
+              "captured_native_children": 9,
+              "captured_children_remaining": 0,
+              "after_owned_processes": 1,
+              "device_closed": true,
+              "worker_targets": 0
+            },
+            {
+              "boundary": "return_to_head",
+              "project_id": "scene-preview-identity-1b653cb4-01be-4ce7-9cfd-03ebbfc64ec6",
+              "fixed_revision": "rev_82720d8f05eed7d08695482398b392c158daff2ce9453d984fb3722c5b83f75f",
+              "head_revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+              "original_authority": true,
+              "stop_generations": [
+                "1"
+              ],
+              "no_implicit_play": true,
+              "readonly": true,
+              "captured_native_children": 9,
+              "captured_children_remaining": 0,
+              "after_owned_processes": 1,
+              "device_closed": true,
+              "worker_targets": 0
+            },
+            {
+              "boundary": "credential_revoke_playing",
+              "project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+              "revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+              "original_credential_verified": true,
+              "owner_fallback": false,
+              "native_state": "failed",
+              "actual_denials": [
+                {
+                  "path": "/v1/tools/opencut_audio_preview_v4_control",
+                  "status": 403
+                },
+                {
+                  "path": "/v1/tools/opencut_visual_preview_v4_frame",
+                  "status": 403
+                }
+              ],
+              "explicit_cached_frame_denied": {
+                "status": 403,
+                "code": "NOT_AUTHORIZED",
+                "data_absent": true
+              },
+              "readonly": true,
+              "captured_native_children": 10,
+              "captured_children_remaining": 0,
+              "after_owned_processes": 1,
+              "device_closed": true,
+              "worker_targets": 0
+            },
+            {
+              "boundary": "credential_revoke_paused",
+              "project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+              "revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+              "original_credential_verified": true,
+              "owner_fallback": false,
+              "native_state": "failed",
+              "actual_denials": [
+                {
+                  "path": "/v1/tools/opencut_visual_preview_v4_frame",
+                  "status": 403
+                }
+              ],
+              "explicit_cached_frame_denied": {
+                "status": 403,
+                "code": "NOT_AUTHORIZED",
+                "data_absent": true
+              },
+              "readonly": true,
+              "captured_native_children": 9,
+              "captured_children_remaining": 0,
+              "after_owned_processes": 1,
+              "device_closed": true,
+              "worker_targets": 0
+            }
+          ],
+          "fixture": {
+            "project_id": "scene-preview-identity-1b653cb4-01be-4ce7-9cfd-03ebbfc64ec6",
+            "revision": "rev_add84ebbe296eb2fcbda0d618ceb7e8d6c6b33eae9a3bba9a2636779fa43a5c3",
+            "baseline_revision": "rev_82720d8f05eed7d08695482398b392c158daff2ce9453d984fb3722c5b83f75f",
+            "sequence_id": "main",
+            "alternate_sequence_id": "alternate",
+            "source_project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+            "source_revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d"
+          },
+          "fixture_policy": "One new reusable minimal two-scene project created by fixed-revision public copy and one SequencePut. Public asset id/version equality with original verifies shared immutable media; no reimport or filesystem media copy. readonly applies to subsequent acceptance flows; original short/dense heads remain unchanged.",
+          "credential_policy": "One synthetic principal gets Read+RunJobs only on original short project; two fresh private issued credentials are necessary because each is actually revoked. Browser context sends the original bearer while production cookie also exists; AccessInspect confirms exact principal/credential and non-owner, actual preview403 confirms no cookie owner fallback. Both credentials revoked and secret files deleted.",
+          "report_path": "/private/tmp/opencut-preview-identity-20261013.json",
+          "source_identity_scope": "All five actual cases and final unit/type/build checks bind candidate.source_manifest_sha256 and candidate.web_dist_manifest_sha256. No verifier correction/rebuild or repeat of already passed cases."
+        },
+        "limits": [
+          "Scoped ordinary scene change with one accepted seek, history/head read-only view change, and playing/paused original credential revocation. Native children are captured by PID/start and fully observed exiting; this is lifecycle proof, not new2GiB/RSS/stall/PTS/PCM/post-master/performance acceptance.",
+          "Gain/Pause lost-response cleanup, changed-owner response and document keepalive have unit scope; no new real gain/Pause-abort/pagehide/BFCache/abrupt-process-kill or unavailable-network/lease expiry matrix. One4s retirement replay is best effort and is not persistent unknown-control resume/reload recovery.",
+          "External head commits, full scene/project/control combinations, grant withdrawal/re-enable instead of credential revocation, distinct voices/stereo/post-master/DAC and long/VFR/non-unit-rate/cross-browser scopes remain. Old performance/PCM evidence retains its own candidate/runtime; S1 and36 groups incomplete."
+        ],
+        "next": "Independent distinct-voice/stereo and pre-master/post-master gain expectations using existing mastering/PCM helpers; then persistent original-key unknown control/BFCache/network/lease matrix and external-head/all control combinations. Reuse original fixture/data/runtime evidence, changing product only for demonstrated gaps.",
+        "cleanup": {
+          "verifier_services_stopped": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "revocation_secret_files_remaining": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete. Current coalesced-seek candidate adds3 real response-boundary/seek-pause cases, latestseek263/362ms and skew117.33/37.33ms. New Web identity separate; Current gain transition slice adds three real gain/seek/Escape/pause cases on integrated Web22f720b: pre-master-12dB/restored0dB stereoPCM and5 independent color frames/skew48ms; paused gain sends no new consumer reports and preserves confirmed cursor. FinalWeb883ad2c restores pause caller failure propagation with scoped unit/build evidence; actual success cases not rerun. Distinct voices/channel mapping/post-master/full controls/unknown outcomes and wider media remain pending.",
+    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete. Current coalesced-seek candidate adds3 real response-boundary/seek-pause cases, latestseek263/362ms and skew117.33/37.33ms. New Web identity separate; Current gain transition slice adds three real gain/seek/Escape/pause cases on integrated Web22f720b: pre-master-12dB/restored0dB stereoPCM and5 independent color frames/skew48ms; paused gain sends no new consumer reports and preserves confirmed cursor. FinalWeb883ad2c restores pause caller failure propagation with scoped unit/build evidence; actual success cases not rerun. Distinct voices/channel mapping/post-master/full controls/unknown outcomes and wider media remain pending. Current identity-retirement Web7db7d00 adds5 real scene/history/head and playing/paused scoped-credential-revocation cases: exact original control replay/current-generation Stop, genuine preview403 with existing owner cookie but no fallback,9-10 captured native children each exit/Worker0/deviceclosed. This does not remeasure previous performance/PCM or complete unknown/network/lease/head/full-control scopes.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -7095,6 +7292,15 @@
       "verification": "Six original-source regressions fail; final34 audio+15 gain+5 visual tests and three scoped actual success cases pass at their recorded candidate identities.",
       "evidence_id": "audio_preview_gain_transitions",
       "limits": "Actual single target pre-master PCM scope only; final error propagation has unit/build evidence. Whole S1, unknown control recovery/scene/revision/credentials, independent reference/stereo/post-master/DAC and broader media remain incomplete."
+    },
+    {
+      "id": "S1-aborted-accepted-transition-retirement",
+      "status": "resolved_for_recorded_scene_change_and_original_key_retirement",
+      "cause": "Scene change aborts an accepted seek response before client learns the new generation; only known old-generation Stop is sent, and real session remains playing after5s.",
+      "repair": "One bounded replay of captured exact original control/key, fixed identity validation and Stop for its accepted generation. No future-owner adoption, current-view publication or implicit playback.",
+      "verification": "Four old-source lifecycle cases fail;56 final affected tests, one Web type/build and5 real scene/history/credential cases pass at same candidate. Real scene seek uses byte-equivalent original replay and Stop generations1/2; captured9-10 native children each exit.",
+      "evidence_id": "audio_preview_identity_retirement",
+      "limits": "One best-effort retirement replay; no persistent unknown-control resume/reload, full BFCache/kill/network/lease matrix or whole S1 claim."
     }
   ],
   "open_failures": [],
