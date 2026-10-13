@@ -48,13 +48,25 @@ fn unlocked(track: &TrackV4) -> Result<(), EditorError> {
     }
     Ok(())
 }
-fn media(e: &TimelineElementV4) -> Result<(), EditorError> {
-    if !matches!(
-        e.content,
-        ElementContentV4::Video { .. }
-            | ElementContentV4::Audio { .. }
-            | ElementContentV4::Image { .. }
-    ) {
+#[derive(Clone, Copy)]
+enum Profile {
+    Media,
+    Elements,
+}
+impl Profile {
+    fn accepts_text(self) -> bool {
+        matches!(self, Self::Elements)
+    }
+}
+fn media(e: &TimelineElementV4, profile: Profile) -> Result<(), EditorError> {
+    if !(profile.accepts_text() && matches!(e.content, ElementContentV4::Text { .. }))
+        && !matches!(
+            e.content,
+            ElementContentV4::Video { .. }
+                | ElementContentV4::Audio { .. }
+                | ElementContentV4::Image { .. }
+        )
+    {
         return Err(unsupported(
             "This timeline version edits video, audio and static image elements",
         ));
@@ -68,7 +80,11 @@ fn track(scene: &SequenceV4, id: &str) -> Result<usize, EditorError> {
         .position(|t| t.id == id)
         .ok_or_else(|| missing("Timeline track does not exist"))
 }
-fn target(scene: &SequenceV4, value: &TimelineTargetV4) -> Result<(usize, usize), EditorError> {
+fn target(
+    scene: &SequenceV4,
+    value: &TimelineTargetV4,
+    profile: Profile,
+) -> Result<(usize, usize), EditorError> {
     id(&value.track_id)?;
     id(&value.element_id)?;
     let t = track(scene, &value.track_id)?;
@@ -78,7 +94,7 @@ fn target(scene: &SequenceV4, value: &TimelineTargetV4) -> Result<(usize, usize)
         .iter()
         .position(|e| e.id == value.element_id)
         .ok_or_else(|| missing("Element does not belong to its explicit source track"))?;
-    media(&scene.tracks[t].elements[e])?;
+    media(&scene.tracks[t].elements[e], profile)?;
     Ok((t, e))
 }
 fn no_animation(e: &TimelineElementV4) -> Result<(), EditorError> {
@@ -96,6 +112,22 @@ fn no_animation(e: &TimelineElementV4) -> Result<(), EditorError> {
 pub fn plan(
     store: &impl ProjectV4PublicResources,
     input: &TimelineEditRequestV4,
+) -> Result<TimelineEditPlanV4, EditorError> {
+    plan_with_profile(store, input, Profile::Media)
+}
+
+/// Versioned element timeline profile: media and authored free text share the
+/// same fixed-head authorization and atomic public-operation kernel.
+pub fn plan_elements(
+    store: &impl ProjectV4PublicResources,
+    input: &TimelineEditRequestV4,
+) -> Result<TimelineEditPlanV4, EditorError> {
+    plan_with_profile(store, input, Profile::Elements)
+}
+fn plan_with_profile(
+    store: &impl ProjectV4PublicResources,
+    input: &TimelineEditRequestV4,
+    profile: Profile,
 ) -> Result<TimelineEditPlanV4, EditorError> {
     crate::require_idempotency_key(&input.idempotency_key)?;
     id(&input.project_id)?;
@@ -151,9 +183,17 @@ pub fn plan(
         removed_transition_ids: vec![],
     };
     let mut ids = identities::Ids::new(&project, &input.expected_revision, &input.idempotency_key)?;
-    let ripple = edits::apply(&project, before, &mut after, input, &mut decision, &mut ids)?;
+    let ripple = edits::apply(
+        &project,
+        before,
+        &mut after,
+        input,
+        &mut decision,
+        &mut ids,
+        profile,
+    )?;
     if ripple {
-        ripple::apply(before, &mut after, &mut decision)?;
+        ripple::apply(before, &mut after, &mut decision, profile)?;
     }
     // Preserve transitions whose actual seam and source handles remain valid.
     // Caption asset anchors and unrelated scene-owned data are unchanged.
@@ -188,7 +228,10 @@ pub fn plan(
     store.authorize_v4(V4Intent::PublicApply(&tx))?;
     Ok(TimelineEditPlanV4 {
         original_request_digest: crate::identity::request_identity(
-            "project_v4_timeline",
+            match profile {
+                Profile::Media => "project_v4_timeline",
+                Profile::Elements => "project_v4_element_timeline",
+            },
             &input.project_id,
             input,
         )?

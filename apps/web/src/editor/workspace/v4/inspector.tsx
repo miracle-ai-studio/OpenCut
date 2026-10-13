@@ -1,9 +1,20 @@
 import { SourceAudioControls } from "./source-audio-controls";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useWorkspace } from "../context";
+import { Button } from "../../shared/ui";
 import { formatTime } from "../../model/time";
 import { t } from "../../shared/locale";
 import type { V4Document, V4Element, V4Sequence } from "./types";
 import { V4TextEditButton } from "./text/workspace";
+import { V4TextTransformEditor } from "./text/transform-editor";
+
+function TextTransformControl({ trackId, elementId, locked }: { trackId: string; elementId: string; locked: boolean }) {
+  const { v4, busy } = useWorkspace();
+  const [editing, setEditing] = useState(false);
+  return editing
+    ? <V4TextTransformEditor trackId={trackId} elementId={elementId} onClose={() => setEditing(false)} />
+    : <Button disabled={busy || locked || !!v4?.historical} onClick={() => setEditing(true)}>{t("Edit text position and scale")}</Button>;
+}
 const label = (kind: string) =>
   t(
     (
@@ -53,6 +64,7 @@ export function V4Inspector({
   const element = sequence.tracks
     .flatMap((t) => t.elements)
     .find((e) => e.id === selectedId);
+  const elementTrack = sequence.tracks.find(track => track.elements.some(item => item.id === selectedId));
   const track = sequence.tracks.find((t) => t.id === selectedId);
   const caption = sequence.captions.find((c) => c.id === selectedId);
   const settings =
@@ -157,7 +169,8 @@ export function V4Inspector({
           )}
           {content?.kind === "text" && (
             <>
-              <V4TextEditButton elementId={element.id} locked={sequence.tracks.find((track) => track.elements.some((item) => item.id === element.id))?.locked ?? true} />
+              <V4TextEditButton elementId={element.id} locked={elementTrack?.locked ?? true} />
+              {element.visual && elementTrack && <TextTransformControl key={`${project.id}/${sequence.id}/${element.id}`} trackId={elementTrack.id} elementId={element.id} locked={elementTrack.locked} />}
               <p className="v4-note-text">{content.text.content}</p>
               <Properties
                 rows={[

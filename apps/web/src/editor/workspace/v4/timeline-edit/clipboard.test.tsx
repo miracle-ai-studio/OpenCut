@@ -177,3 +177,25 @@ it("system paste delegates actual Files once; text/IME/gain focus is isolated an
     expect(() => clipboardFromText(text.replace('"schema_version":1', '"uri":"/private/media","schema_version":1'))).toThrow("invalid references");
   } finally { s.f.controller.dispose(); }
 });
+
+it("text copy/paste and duplicate reuse reference-only clipboard requests without treating the font as a media asset", async () => {
+  const { textTimelineSequence } = await import("./text-fixture");
+  const s = await setup();
+  try {
+    const head = structuredClone(s.f.state().head); head.project.sequences[0] = textTimelineSequence();
+    s.f.set({head}); const target = {track_id:"titles",element_id:"title"}; s.f.edit.select(target);
+    s.copy.mockImplementation(async request => ({ ...s.copyFor(request), items: [{source_track_id:"titles",source_track_kind:"text",source_element_id:"title"}] }));
+    await s.controller.copy();
+    expect(s.copy).toHaveBeenLastCalledWith({project_id:head.project.id,revision:head.revision,sequence_id:"scene",targets:[target]});
+    const serialized = s.controller.text()!;
+    expect(clipboardFromText(serialized)?.items[0].source_track_kind).toBe("text");
+    expect(serialized).not.toContain("asset_id"); expect(serialized).not.toContain("font_id");
+    await s.controller.planPaste();
+    expect(s.plan.mock.calls[0][0].placements[0].source_track_id).toBe("titles");
+    expect(s.apply).not.toHaveBeenCalled();
+    s.controller.cancel();
+    await s.controller.duplicate();
+    expect(s.copy).toHaveBeenCalledTimes(2); expect(s.plan).toHaveBeenCalledTimes(2);
+    expect(s.apply).not.toHaveBeenCalled();
+  } finally {s.f.controller.dispose();}
+});

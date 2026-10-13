@@ -37,6 +37,59 @@ fn seconds(value: &Value, expected: i64) {
 }
 
 #[test]
+fn element_timeline_public_profile_preserves_old_entry_and_rechecks_edit_authority() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut automation = Automation::open(directory.path().join("workspace.sqlite")).unwrap();
+    create(&mut automation);
+    let fixed = inspect(&mut automation);
+    let input = request(
+        &fixed,
+        "text-track",
+        json!({
+            "kind":"add_track", "id":"titles", "name":"Titles", "track_kind":"text"
+        }),
+    );
+    error(
+        automation.call("opencut_edit_timeline_plan_v4", input.clone()),
+        "INVALID_ARGUMENT",
+    );
+    let tool = "opencut_edit_element_timeline_plan_v4";
+    let planned = data(automation.call(tool, input.clone()));
+    assert_eq!(data(automation.call(tool, input.clone())), planned);
+    assert_eq!(inspect(&mut automation), fixed);
+    assert_eq!(planned["decision"]["created_ids"], json!(["titles"]));
+    policy(&mut automation, "0", vec![ProjectAction::Read]);
+    let issued = automation.app.issue_credential("agent").unwrap();
+    let caller = automation.app.authenticate(&issued.secret).unwrap();
+    automation.caller = caller.clone();
+    error(automation.call(tool, input.clone()), "NOT_AUTHORIZED");
+    error(
+        automation.call("opencut_edit_v4_apply", planned["transaction"].clone()),
+        "NOT_AUTHORIZED",
+    );
+    assert_eq!(inspect(&mut automation), fixed);
+    policy(
+        &mut automation,
+        "1",
+        vec![ProjectAction::Read, ProjectAction::Edit],
+    );
+    automation.caller = caller;
+    assert_eq!(data(automation.call(tool, input)), planned);
+    let receipt = data(automation.call("opencut_edit_v4_apply", planned["transaction"].clone()));
+    assert_eq!(
+        data(automation.call("opencut_edit_v4_apply", planned["transaction"].clone())),
+        receipt
+    );
+    let after = inspect(&mut automation);
+    assert_eq!(
+        after["project"]["sequences"][0]["tracks"][1]["kind"],
+        "text"
+    );
+    assert_eq!(after["project"]["assets"], fixed["project"]["assets"]);
+    assert_eq!(after["project"]["fonts"], fixed["project"]["fonts"]);
+}
+
+#[test]
 fn timeline_split_public_plan_is_read_only_replayable_and_restores_after_reopen() {
     let directory = tempfile::tempdir().unwrap();
     let database = directory.path().join("workspace.sqlite");

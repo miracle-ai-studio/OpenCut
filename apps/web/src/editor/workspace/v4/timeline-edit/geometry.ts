@@ -44,7 +44,7 @@ export function elementRects(sequence: V4Sequence, zoom: number): (TimelineRect 
 export function intersectingMedia(sequence: V4Sequence, zoom: number, rect: TimelineRect): TimelineTarget[] {
   return elementRects(sequence, zoom).filter(item => {
     const element = sequence.tracks.find(track => track.id === item.target.track_id)!.elements.find(e => e.id === item.target.element_id)!;
-    return ["audio", "video", "image"].includes(element.content.kind) &&
+    return ["audio", "video", "image", "text"].includes(element.content.kind) &&
       item.x < rect.x + rect.width && item.x + item.width > rect.x &&
       item.y < rect.y + rect.height && item.y + item.height > rect.y;
   }).map(item => item.target);

@@ -16,8 +16,9 @@ export function moveSelectionCommand(sequence: V4Sequence, selected: TimelineTar
     if (destination.locked) throw new Error("The destination track is locked.");
     const compatible = element.content.kind === "audio" ? destination.kind === "audio"
       : element.content.kind === "video" ? destination.kind === "video"
+      : element.content.kind === "text" ? destination.kind === "text"
       : destination.kind === "video" || destination.kind === "graphic";
-    if (!compatible) throw new Error("The destination track does not accept this media type.");
+    if (!compatible) throw new Error("The destination track does not accept this element type.");
     const start = addTime(element.timeline_range.start, delta);
     if (compareTime(start, zero) < 0) throw new Error("The selection cannot start before the scene.");
     return { target, target_track_id: destination.id, new_start: start };

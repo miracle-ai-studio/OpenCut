@@ -100,6 +100,7 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
                 | "opencut_project_v4_history_navigation"
                 | "opencut_edit_v4_plan"
                 | "opencut_edit_timeline_plan_v4"
+                | "opencut_edit_element_timeline_plan_v4"
                 | "opencut_timeline_v4_copy"
                 | "opencut_timeline_v4_paste_plan"
                 | "opencut_edit_recovery_v3_stage"

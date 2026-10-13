@@ -508,6 +508,12 @@ impl Automation {
             "opencut_edit_timeline_plan_v4" => {
                 to_value(self.app.plan_v4_timeline(&parse(arguments)?)?)
             }
+            "opencut_edit_element_timeline_plan_v4" => {
+                to_value(opencut_editor_application::timeline_v4::plan_elements(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
             "opencut_timeline_v4_copy" => to_value(
                 opencut_editor_application::timeline_clipboard_v4::copy_selection(
                     &self.app,

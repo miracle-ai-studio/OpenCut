@@ -2,7 +2,7 @@ import { vi } from "vitest";
 import { setupV4 } from "../fixture";
 import { V4TimelineEdit } from "./controller";
 import { emptyTimelineEdit } from "./types";
-import type { TimelineEditHost, TimelinePlan, TimelineRequest } from "./types";
+import type { TimelineEditHost, TimelinePlan, TimelineRequest, TimelinePlannerTool } from "./types";
 import type { ToolInput } from "../../../../lib/editor-sdk";
 import type { V4EditReceipt } from "../types";
 
@@ -36,7 +36,7 @@ export async function setupTimelineEdit() {
     decision: { created_ids: [], changed_ids: ["image"], deleted_ids: [], selection: [{ track_id: "track", element_id: "image" }],
       ripple_shifted_ids: [], removed_transition_ids: [] },
   });
-  const planner = vi.fn(async (_api: typeof base.api, request: TimelineRequest, _signal?: AbortSignal) => planFor(request));
+  const planner = vi.fn(async (_api: typeof base.api, request: TimelineRequest, _signal?: AbortSignal, _tool?: TimelinePlannerTool) => planFor(request));
   const refresh = vi.fn(async () => { state = { ...state, head: structuredClone(base.current()) }; emit(); });
   const edit = new V4TimelineEdit(host, planner, refresh);
   const receipts = new Map<string, V4EditReceipt>();

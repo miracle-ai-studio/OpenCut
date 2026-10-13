@@ -38,6 +38,7 @@ export type TimelinePanelProps = {
 };
 type Rubber = { pointerId: number; fence: GestureFence; x: number; y: number; original: TimelineTarget[]; additive: boolean };
 const media = (element: V4Element) => ["video", "audio", "image"].includes(element.content.kind);
+const editable = (element: V4Element) => media(element) || element.content.kind === "text";
 const keyOf = (target: TimelineTarget) => `${target.track_id}\u0000${target.element_id}`;
 
 /** One Session owns the project, selection, playhead and transactions. Local
@@ -92,7 +93,7 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
     if (gesture.current || rubber.current) return;
     if (event.target.closest(".v4-audio-controls,[role=slider],input,select,textarea,[data-timeline-no-gesture]")) return;
     if (props.gainDraftActive || props.attempt?.phase === "applying") return;
-    const clip = event.target.closest<HTMLElement>("[data-timeline-media]");
+    const clip = event.target.closest<HTMLElement>("[data-timeline-editable]");
     if (clip) {
       const target = { track_id: clip.dataset.trackId!, element_id: clip.dataset.elementId! };
       const modifier = event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : null;
@@ -211,13 +212,13 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
                 const left = move ? secondsForDisplay(move.new_start) : trim?.edge === "left" ? secondsForDisplay(trim.boundary) : startSeconds;
                 const right = trim?.edge === "right" ? secondsForDisplay(trim.boundary) : startSeconds + duration;
                 return <div key={element.id} className="v4-timeline-element" data-selected={selected.has(keyOf(target)) || props.selectedId === element.id}
-                  data-timeline-media={media(element) ? "true" : undefined} data-track-id={track.id} data-element-id={element.id}
+                  data-timeline-media={media(element) ? "true" : undefined} data-timeline-editable={editable(element) ? "true" : undefined} data-track-id={track.id} data-element-id={element.id}
                   style={{ left: left * scale, width: (move ? duration : Math.max(0, right - left)) * scale,
                     ...(move ? { transform: `translateY(${draft!.trackOffset * TRACK_HEIGHT}px)`, zIndex: 4 } : {}) }}>
                   <button className="v4-element-select" aria-pressed={selected.has(keyOf(target)) || props.selectedId === element.id}
                     title={`${element.name} · ${formatTime(element.timeline_range.start)}`} onClick={event => {
                     if (props.gainDraftActive || props.attempt?.phase === "applying") return;
-                    if (media(element)) { if (!event.detail) latest.current.onSelect(target, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace"); }
+                    if (editable(element)) { if (!event.detail) latest.current.onSelect(target, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace"); }
                     else latest.current.onSelectOther(element.id);
                     if (!event.shiftKey && !event.metaKey && !event.ctrlKey) latest.current.onSeek(element.timeline_range.start);
                     root.current?.focus({ preventScroll: true });
@@ -228,7 +229,7 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
                     const asset = props.sourceArt.assets.find(item => item.id === assetId);
                     return asset ? <TimelineArt api={props.sourceArt.api} scope={props.scope} trackId={track.id} element={element} asset={asset} scale={scale} gainDraft={props.sourceArt.gainDraft} /> : null;
                   })()}
-                  {media(element) && !props.disabled && !props.gainDraftActive && !track.locked && <>
+                  {editable(element) && !props.disabled && !props.gainDraftActive && !track.locked && <>
                     <span className="v4-trim-handle" data-trim-edge="left" title={t("Trim left edge")} />
                     <span className="v4-trim-handle" data-trim-edge="right" title={t("Trim right edge")} />
                   </>}
@@ -308,7 +309,7 @@ export function V4TimelinePanel(props: TimelinePanelProps) {
     </div>
     <details className="v4-timeline-item-list"><summary>{t("Select timeline items")}</summary>
       {props.sequence.tracks.flatMap(track => track.elements.map(element => <button key={element.id} aria-pressed={selected.has(keyOf({ track_id: track.id, element_id: element.id }))}
-        onClick={event => { if (media(element)) props.onSelect({ track_id: track.id, element_id: element.id }, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace");
+        onClick={event => { if (editable(element)) props.onSelect({ track_id: track.id, element_id: element.id }, event.metaKey || event.ctrlKey ? "toggle" : event.shiftKey ? "extend" : "replace");
           else props.onSelectOther(element.id); root.current?.focus({ preventScroll: true }); }}>{track.name} · {element.name} · {formatTime(element.timeline_range.start)}</button>))}
     </details>
   </div>;

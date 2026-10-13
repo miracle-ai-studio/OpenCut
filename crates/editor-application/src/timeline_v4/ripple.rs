@@ -45,6 +45,7 @@ pub(super) fn apply(
     before: &SequenceV4,
     after: &mut SequenceV4,
     decision: &mut TimelineDecisionV4,
+    profile: Profile,
 ) -> Result<(), EditorError> {
     let all_after: BTreeSet<_> = after
         .tracks
@@ -87,7 +88,7 @@ pub(super) fn apply(
                         ));
                     }
                     // This batch never silently edits a later unsupported type.
-                    media(e)?;
+                    media(e, profile)?;
                     let next = start.checked_sub(delta)?;
                     if next.ticks() < 0 {
                         return Err(invalid("Ripple would move an element before scene zero"));

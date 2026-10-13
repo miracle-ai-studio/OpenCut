@@ -8,7 +8,7 @@ const same = (a: TimelineTarget, b: TimelineTarget) =>
  * compute movement, source clocks, overlap, frame alignment or ripple. */
 export function normalizeTimelineSelection(sequence: V4Sequence, selected: readonly TimelineTarget[]) {
   return sequence.tracks.flatMap(track => track.elements
-    .filter(element => ["video", "audio", "image"].includes(element.content.kind) &&
+    .filter(element => ["video", "audio", "image", "text"].includes(element.content.kind) &&
       selected.some(target => target.track_id === track.id && target.element_id === element.id))
     .map(element => ({ track_id: track.id, element_id: element.id })));
 }
@@ -28,7 +28,7 @@ export function selectTimelineTarget(
 /** UI availability only; the planner remains the authority for locking,
  * profiles, source bounds, animation splitting and final aggregate validity. */
 export function timelineSelectionReason(sequence: V4Sequence, selection: readonly TimelineTarget[]) {
-  if (!selection.length) return "Select video, audio or images in the timeline.";
+  if (!selection.length) return "Select video, audio, images or text in the timeline.";
   if (normalizeTimelineSelection(sequence, selection).length !== selection.length)
     return "The timeline selection is no longer available.";
   if (selection.some(target => sequence.tracks.find(track => track.id === target.track_id)?.locked))

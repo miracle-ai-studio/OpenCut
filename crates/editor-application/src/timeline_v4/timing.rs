@@ -98,17 +98,19 @@ fn map(v: R, e: &TimelineElementV4, inverse: bool) -> Result<R, EditorError> {
 fn asset<'a>(
     project: &'a ProjectDocumentV4,
     e: &TimelineElementV4,
-) -> Result<&'a AssetV4, EditorError> {
+) -> Result<Option<&'a AssetV4>, EditorError> {
     let id = match &e.content {
         ElementContentV4::Video { asset_id, .. }
         | ElementContentV4::Audio { asset_id, .. }
         | ElementContentV4::Image { asset_id } => asset_id,
-        _ => return Err(unsupported("Timeline timing requires media")),
+        ElementContentV4::Text { .. } => return Ok(None),
+        _ => return Err(unsupported("Timeline timing requires media or free text")),
     };
     project
         .assets
         .iter()
         .find(|a| a.id == *id)
+        .map(Some)
         .ok_or_else(|| missing("Media asset is missing"))
 }
 
@@ -138,7 +140,7 @@ pub(super) fn trim(
             "A sub-frame historical element needs an explicit resize profile",
         ));
     }
-    let source = resolve_element_source_request_v4(e, Some(asset(project, e)?))?;
+    let source = resolve_element_source_request_v4(e, asset(project, e)?)?;
     let source_start = time(&source.start)?;
     let source_visible = time(&source.duration)?;
     let mut lo;
@@ -189,9 +191,10 @@ pub(super) fn trim(
                 ElementSourceSpanV4::ClassicTrimmed {
                     source_duration, ..
                 } => source_duration.as_ref().map(time).transpose()?,
-                ElementSourceSpanV4::LegacySourceRange { .. } => {
-                    asset(project, e)?.duration.as_ref().map(time).transpose()?
-                }
+                ElementSourceSpanV4::LegacySourceRange { .. } => asset(project, e)?
+                    .and_then(|a| a.duration.as_ref())
+                    .map(time)
+                    .transpose()?,
             };
             if let Some(extent) = extent {
                 let cap = map(extent.checked_sub(source_start)?, e, true)?.checked_sub(duration)?;
@@ -265,11 +268,23 @@ pub(super) fn split(
     at: R,
 ) -> Result<(TimelineElementV4, TimelineElementV4), EditorError> {
     no_animation(e)?;
-    let original = resolve_element_source_request_v4(e, Some(asset(project, e)?))?;
+    let original = resolve_element_source_request_v4(e, asset(project, e)?)?;
     let left_duration = at.checked_sub(time(&e.timeline_range.start)?)?;
     let right_duration = time(&e.timeline_range.duration)?.checked_sub(left_duration)?;
+    // Classic generated text still carries source trims. Round the source
+    // split once and derive its complement from the rounded total, while the
+    // requested timeline point and durations remain exact. Keep frozen media
+    // and historical LegacySourceRange behavior unchanged.
+    let classic_text = matches!(e.content, ElementContentV4::Text { .. })
+        && matches!(e.source_span, ElementSourceSpanV4::ClassicTrimmed { .. });
     let left_source = map(left_duration, e, false)?;
-    let right_source = time(&original.duration)?.checked_sub(left_source)?;
+    let total_source = time(&original.duration)?;
+    let (left_source, total_source) = if classic_text {
+        (tick(left_source)?, tick(total_source)?)
+    } else {
+        (left_source, total_source)
+    };
+    let right_source = total_source.checked_sub(left_source)?;
     if left_source.ticks() <= 0 || right_source.ticks() <= 0 {
         return Err(invalid("Rounded split must retain positive source spans"));
     }

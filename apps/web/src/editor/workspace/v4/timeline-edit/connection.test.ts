@@ -66,7 +66,7 @@ async function setupConnection() {
   const apis: EditorApi[] = [];
   const createController = () => new WorkspaceController((_endpoint, token) => {
     const api = new EditorApi("http://localhost:8788/", token);
-    vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({} as never);
+    vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({ tools: [] } as never);
     vi.spyOn(api, "projects").mockImplementation(async () => [f.ref()]);
     vi.spyOn(api, "tasks").mockResolvedValue({ jobs: [], next_cursor: null });
     vi.spyOn(api.sdk, "call").mockImplementation(async (name, input, options) => {

@@ -109,3 +109,21 @@ it("head changes disable captured trim forms; empty-track controls preserve tagg
     expect(f.applyCalls()).toHaveLength(0);
   } finally { f.controller.dispose(); }
 });
+
+it("text selection exposes formal move, trim, split, delete and only text destinations", async () => {
+  const { textTimelineSequence } = await import("./text-fixture");
+  const f = await setupTimelineEdit();
+  try {
+    const head = structuredClone(f.state().head); head.project.sequences[0] = textTimelineSequence(); f.set({head});
+    f.edit.select({track_id:"titles",element_id:"title"});
+    render(<ProductHarness fixture={f} />);
+    for (const name of ["Move selection","Trim element","Split selection","Delete selection"]) expect(screen.getByRole("button",{name}).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(screen.getByRole("button",{name:"Move selection"}));
+    const destination = screen.getByRole("combobox",{name:"Target track for Independent title"});
+    expect(within(destination).getAllByRole("option").map(option=>option.getAttribute("value"))).toEqual(["titles","titles-above"]);
+    fireEvent.click(screen.getByRole("button",{name:"Review timeline changes"}));
+    await screen.findByRole("dialog",{name:"Review timeline changes"});
+    expect(f.planner.mock.calls[0][3]).toBe("opencut_edit_element_timeline_plan_v4");
+    expect(f.applyCalls()).toHaveLength(0);
+  } finally {f.controller.dispose();}
+});

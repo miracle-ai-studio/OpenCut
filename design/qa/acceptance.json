@@ -4,8 +4,8 @@
   "whole_migration_complete": false,
   "scope": "Local Rust Server + Web Classic migration under the recorded user decisions",
   "feature_status_counts": {
-    "指定动线已验": 21,
-    "部分迁移": 22,
+    "指定动线已验": 22,
+    "部分迁移": 21,
     "未迁移": 11,
     "已实现待等价验收": 2,
     "原版占位": 1
@@ -85,7 +85,7 @@
     },
     {
       "id": "F19",
-      "status": "部分迁移"
+      "status": "指定动线已验"
     },
     {
       "id": "F20",
@@ -245,7 +245,6 @@
     "F16",
     "F17",
     "F18",
-    "F19",
     "F20",
     "F21",
     "F23",
@@ -277,7 +276,7 @@
     "F54",
     "F55"
   ],
-  "remaining_groups": 35,
+  "remaining_groups": 34,
   "product_decisions": {
     "classic_cloud_account_login": "excluded_by_user",
     "online_fonts_stickers": "Classic source and permitted license scope",
@@ -287,10 +286,10 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "42 unique scoped records. B3 caption continuous preview and one downloaded MP4 pass independent pixels/PCM; English synthetic ASR-to-SRT passes, Chinese literal CER fails with separate script-equivalence analysis. Earlier results retain candidate identities. 35 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "b3_caption_continuous_video",
+    "scope": "43 unique scoped records. F19 free-text creation, multiline/size/position, timeline operations, history/persistence and independent preview/export requirements are covered using current targeted checks and explicitly scoped prior evidence. Earlier results retain candidate identities. 34 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "f19_free_text_editing",
     "plan_coverage": {
-      "remaining_groups": 35,
+      "remaining_groups": 34,
       "routes": 13,
       "auxiliary_items": 3
     },
@@ -8368,6 +8367,123 @@
           "Full new-kind native cancellation/crash/publication fault matrix; shared lifecycle tests do not prove all real fault windows.",
           "Real system IME, text timeline operations, Classic direct V4 conversion and font package restore.",
           "Full S1 or whole migration; 35 feature groups remain."
+        ]
+      },
+      {
+        "evidence_id": "f19_free_text_editing",
+        "status": "feature_exit_closed_with_scoped_prior_evidence",
+        "candidate": {
+          "binary_sha256": "41b39f4bb0959ace782cca4355799fa63d2d36ff928e83845de24b1132bcfd2f",
+          "web_js_css_tree_sha256": "50a23edafb63b4a2e4ed95a215ec2ef9f81a92b60d687b0d5c3d18a08d9119d4",
+          "source_head": "7c9ba0e64956535b46de05b8ebbf1ffaac5a29ca",
+          "dirty_source": true,
+          "production_change_digest": "77a147129d99d6fc7f022cff10ba8e4889f03321c2add1da857e088f0c0f1d42",
+          "production_change_files": 36,
+          "digest_definition": "SHA256 of compact JSON sorted [path, SHA256(file)] for changed/untracked crates, apps/cli, apps/web/src, classic-visual-renderer and sdk-ts/src files."
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "reuse": "Original B1/B2/B3 synthetic workspace, Latin/Chinese titles and pinned fonts; public font downloads disabled. Both browser suites restore complete original project content."
+        },
+        "timeline": {
+          "candidate": {
+            "binary_sha256": "708672b6f2572f23e994b58c698fc8d5e0f71a353e24b2a10643636100b0fe8d",
+            "web_js_css_tree_sha256": "6dd2122a9527d14d24e8b5d496863032e3397beedae9939392f9984902982d4c"
+          },
+          "cases": [
+            "Move",
+            "Left trim",
+            "Right trim",
+            "Split",
+            "Delete reopen Undo Redo",
+            "Chinese copy and paste",
+            "Duplicate and reopen",
+            "Physical text Move bilateral Trim and keyboard S"
+          ],
+          "passed": 8,
+          "coverage": "Real forms, physical move and bilateral trims, keyboard split, reference copy/paste/duplicate, one original reviewed transaction per edit, reopen and selective Undo/Redo. Full text/font/style/visual/source fields retained.",
+          "restoration": {
+            "from_revision": "rev_810aca247cb34c37fa75702f5ff18185d87e09c6b6a9162bc75ad89064e20e8d",
+            "revision": "rev_3ca41cafcfdf85f98a7fab2fd147021df2b4d4cdaf27133d142685881a93a15c"
+          },
+          "failure_retention": "Original fractional-CSS-pixel split assertion retained; exact request was 13333/8000 rather than intended 5/3. Verifier switched to integral 120px -> 3/2s and resumed after the three passed phases; no product rebuild or repeated passed phases for this correction."
+        },
+        "transform": {
+          "actual_ui": "Multiline OpenCut\\nTitle, Classic font size 12, center offsets (32,-12), scale (1.25,0.75); same original public plan/apply, one element_put changes only four authored transform fields. Reopen and Undo/Redo preserve whole graph.",
+          "revision": "rev_92dcee3c3ff0f1f22fc54ac8ad0835c7fbe4b32330ca16593d05164c806bd24f",
+          "job_id": "job_70afa7ad8c43437580e6ea96f69449fa",
+          "png_sha256": "8f6d183f48fe7f52c19b9312f5a995a2e2dc328145c8529a091a64d6f1d2b87c",
+          "render_count": 1,
+          "browser_download": true,
+          "oracle": {
+            "width": 320,
+            "height": 180,
+            "lines": [
+              {
+                "text": "OpenCut",
+                "baselineY": -14.4,
+                "width": 96.04794311523438
+              },
+              {
+                "text": "Title",
+                "baselineY": 14.4,
+                "width": 46.799957275390625
+              }
+            ],
+            "center": {
+              "x": 192,
+              "y": 78
+            },
+            "fontSize": 24,
+            "lineHeight": 28.8,
+            "expectedBounds": {
+              "left": 133,
+              "top": 59,
+              "right": 251,
+              "bottom": 95,
+              "count": 1122
+            },
+            "actualBounds": {
+              "left": 133,
+              "top": 59,
+              "right": 251,
+              "bottom": 95,
+              "count": 1122
+            },
+            "iou": 1,
+            "meanChannelError": 0,
+            "blankError": 0
+          },
+          "restored_revision": "rev_61bb7707eb24e250af9d87032f4a3fcea1e62dc3b6781a247b3781ccf253d18d"
+        },
+        "checks": {
+          "current_tools": 223,
+          "original_222_declarations_unchanged": true,
+          "legacy_wire_tools_unchanged": 22,
+          "generated_contracts": "passed against both explicit binaries; final change has no protocol delta",
+          "architecture": "14 tests; 22 modules, 0 exceptions; contract boundaries passed",
+          "rust": "Initial 40 application timeline/clipboard plus 5 host timeline tests; final 7 text tests include 2 new off-grid Classic rounding/Legacy regressions. Overlapping checks are not summed.",
+          "web": "Initial 10 files / 65 tests; final transform 5 and affected product 9 passed; final type/build and 209-file boundary passed.",
+          "builds": "2 Rust release and 2 successful Web builds: initial timeline, then proven off-grid source correction and missing transform control. One transform test-fixture type error stopped tsc before a Vite build and was corrected."
+        },
+        "reused_evidence": [
+          "b1_static_font_text_png",
+          "b2_mixed_continuous_preview_cfr_mp4",
+          "b3_font_canvas_caption_static",
+          "b3_caption_continuous_video"
+        ],
+        "verification_reuse": "Timeline browser result retains its first candidate identity. Final Text+ClassicTrimmed source-span rounding affects off-120000-grid splits and is covered by independent rational tests; on-grid browser samples unchanged. New Inspector form affects only transform authoring. Final candidate therefore adds transform UI/PNG without repeating timeline, S1, MP4, PCM or font imports.",
+        "feature_exit_coverage": {
+          "creation_and_multiline": "B1 real free-text create/edit and B3 canvas editing; current actual two-line/size inputs",
+          "position_size_duration": "Current actual X/Y/nonuniform scale and size UI/independent PNG; B1 duration editor and current timeline trim/move",
+          "copy_split_history_persistence": "Current 8-stage timeline UI and current full-project transform Undo/Redo/reopen",
+          "independent_preview_and_export": "B1 independent glyph/background/transform PNG plus B2 continuous normal text preview and MP4, retained at original identities; current authored position/scale PNG has IoU1 and zero mean/blank error"
+        },
+        "not_proven": [
+          "F20 complete font sources, F21 all style controls, F47 real system IME and F29 animated trim/split remain in their own groups.",
+          "Classic direct V4 conversion and font project-package restore, full cross-type F27/F39/F46 and final release candidate remain open.",
+          "No full S1, full B3, whole-workspace or whole-migration acceptance; 34 groups remain."
         ]
       }
     ]

@@ -15,11 +15,13 @@ fn selection(targets: &[TimelineTargetV4]) -> Result<(), EditorError> {
     }
     Ok(())
 }
-fn media_track(track: &TrackV4) -> Result<(), EditorError> {
-    if !matches!(
-        track.kind,
-        TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
-    ) {
+fn media_track(track: &TrackV4, profile: Profile) -> Result<(), EditorError> {
+    if !(profile.accepts_text() && track.kind == TrackKindV4::Text)
+        && !matches!(
+            track.kind,
+            TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
+        )
+    {
         return Err(unsupported("This version manages media tracks only"));
     }
     Ok(())
@@ -31,6 +33,7 @@ pub(super) fn apply(
     input: &TimelineEditRequestV4,
     decision: &mut TimelineDecisionV4,
     ids: &mut identities::Ids<'_>,
+    profile: Profile,
 ) -> Result<bool, EditorError> {
     use TimelineCommandV4::*;
     match &input.command {
@@ -40,11 +43,11 @@ pub(super) fn apply(
             let (fps, classic) = timing::fps(project, &before.id)?;
             let mut moved = vec![];
             for movement in moves {
-                let (source, index) = target(before, &movement.target)?;
+                let (source, index) = target(before, &movement.target, profile)?;
                 id(&movement.target_track_id)?;
                 let destination = track(before, &movement.target_track_id)?;
                 unlocked(&before.tracks[destination])?;
-                media_track(&before.tracks[destination])?;
+                media_track(&before.tracks[destination], profile)?;
                 let mut e = before.tracks[source].elements[index].clone();
                 let start = timing::align(&movement.new_start, fps, classic)?;
                 let same_start =
@@ -75,7 +78,7 @@ pub(super) fn apply(
             boundary,
             ripple,
         } => {
-            let (t, e) = target(before, value)?;
+            let (t, e) = target(before, value, profile)?;
             after.tracks[t].elements[e] = timing::trim(
                 project,
                 before,
@@ -111,7 +114,7 @@ pub(super) fn apply(
                 }
             }
             for value in targets {
-                let (t, e) = target(before, &value.target)?;
+                let (t, e) = target(before, &value.target, profile)?;
                 let original = &before.tracks[t].elements[e];
                 let index = after.tracks[t]
                     .elements
@@ -156,7 +159,7 @@ pub(super) fn apply(
         Delete { targets, ripple } => {
             selection(targets)?;
             for value in targets {
-                target(before, value)?;
+                target(before, value, profile)?;
             }
             let selected: BTreeSet<_> = targets.iter().map(|t| t.element_id.as_str()).collect();
             for t in &mut after.tracks {
@@ -172,10 +175,11 @@ pub(super) fn apply(
             ids.claim(track_id)?;
             if name.trim().is_empty()
                 || name.len() > 4096
-                || !matches!(
-                    kind,
-                    TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
-                )
+                || (!(profile.accepts_text() && *kind == TrackKindV4::Text)
+                    && !matches!(
+                        kind,
+                        TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
+                    ))
             {
                 return Err(invalid(
                     "Empty media track requires a name and supported kind",
@@ -199,7 +203,7 @@ pub(super) fn apply(
             id(track_id)?;
             let t = track(before, track_id)?;
             unlocked(&before.tracks[t])?;
-            media_track(&before.tracks[t])?;
+            media_track(&before.tracks[t], profile)?;
             if *track_id == before.main_track_id
                 || !before.tracks[t].elements.is_empty()
                 || !before.tracks[t].channels.is_empty()
@@ -215,7 +219,7 @@ pub(super) fn apply(
         SetTrackLocked { track_id, locked } => {
             id(track_id)?;
             let t = track(before, track_id)?;
-            media_track(&before.tracks[t])?;
+            media_track(&before.tracks[t], profile)?;
             after.tracks[t].locked = *locked;
             Ok(false)
         }
@@ -223,7 +227,7 @@ pub(super) fn apply(
             id(track_id)?;
             let t = track(before, track_id)?;
             unlocked(&before.tracks[t])?;
-            media_track(&before.tracks[t])?;
+            media_track(&before.tracks[t], profile)?;
             after.tracks[t].enabled = *enabled;
             Ok(false)
         }
@@ -231,7 +235,7 @@ pub(super) fn apply(
             id(track_id)?;
             let t = track(before, track_id)?;
             unlocked(&before.tracks[t])?;
-            media_track(&before.tracks[t])?;
+            media_track(&before.tracks[t], profile)?;
             after.tracks[t].muted = *muted;
             Ok(false)
         }

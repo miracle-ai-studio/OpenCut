@@ -11,6 +11,8 @@ import { verifyV4FontBrowser } from "./verify-v4-font-browser.mjs";
 import { verifyV4Captions } from "./verify-v4-captions.mjs";
 import { verifyV4Asr } from "./verify-v4-asr.mjs";
 import { verifyV4CaptionVideo } from "./verify-v4-caption-video.mjs";
+import { verifyV4TextTimeline } from "./verify-v4-text-timeline.mjs";
+import { verifyV4TextTransform } from "./verify-v4-text-transform.mjs";
 import { verifyV4BookmarkLifecycle } from "./verify-v4-bookmark-lifecycle.mjs";
 import { verifyV4Text } from "./verify-v4-text.mjs";
 import { verifyV4Editor } from "./verify-v4-editor.mjs";
@@ -68,6 +70,9 @@ const suites = new Map([
   ["v4-captions", verifyV4Captions],
   ["v4-asr", verifyV4Asr],
   ["v4-caption-video", verifyV4CaptionVideo],
+  ["v4-text-timeline", verifyV4TextTimeline],
+  ["v4-text-timeline-resume", (...args) => verifyV4TextTimeline(...args, { resumeFromCheckpoint: true })],
+  ["v4-text-transform", verifyV4TextTransform],
   ["v4-video", verifyV4Video],
   ["v4-text-layout", (...args) => verifyV4Text(...args, {layoutOnly:true})],
   ["classic-audio", verifyClassicAudio],

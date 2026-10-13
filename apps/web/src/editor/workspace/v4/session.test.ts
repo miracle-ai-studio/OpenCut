@@ -3,8 +3,28 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { setupV4 } from "./fixture";
 import type { ToolInput } from "../../../lib/editor-sdk";
 import { V4Api } from "./api";
+import { textTimelineSequence } from "./timeline-edit/text-fixture";
 afterEach(() => vi.restoreAllMocks());
 describe("complete V4 workspace authority", () => {
+  it("selects free text and forwards its original content planner through the shared API", async () => {
+    const { controller, api, current } = await setupV4();
+    try {
+      current().project.sequences[0] = textTimelineSequence();
+      await controller.v4.refresh();
+      controller.v4.select("title");
+      expect(controller.getSnapshot().v4!.timelineEdit.selection).toEqual([
+        { track_id: "titles", element_id: "title" },
+      ]);
+      const plan = vi.spyOn(api.v4, "timelinePlan").mockResolvedValueOnce({
+        original_request_digest: "fixed-content-request", transaction: null,
+        decision: { created_ids: [], changed_ids: [], deleted_ids: [], selection: [], ripple_shifted_ids: [], removed_transition_ids: [] },
+      });
+      await controller.v4.timelineEdit.plan({
+        kind: "delete", targets: [{ track_id: "titles", element_id: "title" }], ripple: false,
+      });
+      expect(plan.mock.calls[0][2]).toBe("opencut_edit_element_timeline_plan_v4");
+    } finally { controller.dispose(); }
+  });
   it("restores a historical scene deleted from the current head with project-scoped recovery", async () => {
     const { controller, call, current } = await setupV4();
     try {

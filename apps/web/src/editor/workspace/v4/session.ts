@@ -76,7 +76,7 @@ export class V4Session {
         if (current) host.publish({ ...current, timelineEdit,
           ...(primaryId === undefined ? {} : { selectedId: primaryId }) });
       },
-    }, (api, request, signal) => api.v4.timelinePlan(request, signal), () => this.refresh(), true,
+    }, (api, request, signal, tool) => api.v4.timelinePlan(request, signal, tool), () => this.refresh(), true,
       (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId));
     this.clipboard = new V4TimelineClipboard({
       ...edits,
@@ -322,7 +322,7 @@ export class V4Session {
     const { state } = this.active();
     const sequence = (state.historical ?? state.head).project.sequences.find(s => s.id === state.sequenceId);
     const track = sequence?.tracks.find(t => t.elements.some(e => e.id === selectedId &&
-      ["video", "audio", "image"].includes(e.content.kind)));
+      ["video", "audio", "image", "text"].includes(e.content.kind)));
     if (track && selectedId) {
       this.timelineEdit.select({ track_id: track.id, element_id: selectedId });
       return;

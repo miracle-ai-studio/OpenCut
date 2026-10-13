@@ -172,3 +172,26 @@ it("rubberband uses scrolled content rectangles and Escape restores the captured
     expect(f.planner).not.toHaveBeenCalled(); expect(f.applyCalls()).toHaveLength(0);
   } finally { f.controller.dispose(); }
 });
+
+it("actual text clip selects for timeline editing, exposes both trim handles and never requests media art", async () => {
+  const { textTimelineSequence } = await import("./text-fixture");
+  const {f,props} = await setup();
+  try {
+    const sequence = textTimelineSequence(), target = {track_id:"titles",element_id:"title"};
+    const head = structuredClone(f.state().head); head.project.sequences[0] = sequence;
+    f.set({head}); props.sequence = sequence; props.selection = [target]; props.selectedId = "title";
+    const view = render(<V4TimelinePanel {...props} />);
+    const clip = screen.getByRole("button",{name:"Independent title · text"});
+    const body = clip.closest(".v4-timeline-element")!;
+    expect(body.hasAttribute("data-timeline-media")).toBe(false);
+    expect(body.getAttribute("data-timeline-editable")).toBe("true");
+    expect(body.querySelectorAll("[data-trim-edge]")).toHaveLength(2);
+    fireEvent.click(clip,{detail:0});
+    expect(props.onSelect).toHaveBeenCalledWith(target,"replace");
+    fireEvent.keyDown(view.container.querySelector(".v4-timeline-panel")!,{key:"s"});
+    await waitFor(()=>expect(f.planner).toHaveBeenCalledTimes(1));
+    expect(f.planner.mock.calls[0][3]).toBe("opencut_edit_element_timeline_plan_v4");
+    expect(f.planner.mock.calls[0][1].command.kind).toBe("split");
+    expect(f.applyCalls()).toHaveLength(0);
+  } finally {f.controller.dispose();}
+});

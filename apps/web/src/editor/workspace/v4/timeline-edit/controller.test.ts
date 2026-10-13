@@ -157,3 +157,23 @@ it("server unsupported animation errors stay visible and saved receipts survive 
     expect(f.applyCalls()).toHaveLength(1);
   } finally { f.controller.dispose(); }
 });
+
+it("text planning captures its versioned tool and keeps it on retry after the scene content changes", async () => {
+  const { textTimelineSequence } = await import("./text-fixture");
+  const f = await setupTimelineEdit();
+  try {
+    const head = structuredClone(f.state().head);
+    head.project.sequences[0] = textTimelineSequence();
+    f.set({head});
+    f.planner.mockRejectedValueOnce(new TypeError("Lost plan response"));
+    const target = {track_id:"titles",element_id:"title"};
+    await expect(f.edit.plan({kind:"trim",target,edge:"right",boundary:{ticks:"2",timebase:1},ripple:false})).rejects.toThrow("Lost plan");
+    const original = f.state().timelineEdit.attempt!;
+    expect(original.tool).toBe("opencut_edit_element_timeline_plan_v4");
+    // Retry identity belongs to the captured attempt, not current classification.
+    head.project.sequences[0].tracks.find(t=>t.id === "titles")!.elements = [];
+    await f.edit.retryPlan();
+    expect(f.planner.mock.calls[1][1]).toBe(original.request);
+    expect(f.planner.mock.calls[1][3]).toBe("opencut_edit_element_timeline_plan_v4");
+  } finally {f.controller.dispose();}
+});

@@ -89,7 +89,7 @@ function TimelineCommandForm({ action, targets, capturedScope, onClose, onPlanne
   const [ripple, setRipple] = useState(false);
   const [trackId] = useState(() => crypto.randomUUID());
   const [trackName, setTrackName] = useState(t("New track"));
-  const [trackKind, setTrackKind] = useState<"video" | "audio" | "graphic">("video");
+  const [trackKind, setTrackKind] = useState<"video" | "audio" | "graphic" | "text">("video");
   const [pending, setPending] = useState(false), [error, setError] = useState<string | null>(null);
   const stale = capturedScope.projectId !== props.scope.projectId || capturedScope.revision !== props.scope.revision ||
     capturedScope.sequenceId !== props.scope.sequenceId;
@@ -120,7 +120,7 @@ function TimelineCommandForm({ action, targets, capturedScope, onClose, onPlanne
           <Field label={t("Target track for {name}", { name: row.name })}>
             <select value={row.targetTrackId} onChange={e => setRows(current => current.map((item, i) => i === index ? { ...item, targetTrackId: e.target.value } : item))}>
               {props.sequence.tracks.filter(track => row.kind === "audio" ? track.kind === "audio"
-                : row.kind === "video" ? track.kind === "video" : ["video", "graphic"].includes(track.kind))
+                : row.kind === "video" ? track.kind === "video" : row.kind === "text" ? track.kind === "text" : ["video", "graphic"].includes(track.kind))
                 .map(track => <option key={track.id} value={track.id} disabled={track.locked}>{track.name} · {track.kind}</option>)}
             </select>
           </Field>
@@ -142,7 +142,7 @@ function TimelineCommandForm({ action, targets, capturedScope, onClose, onPlanne
         {action === "add_track" ? <>
           <Field label={t("Track name")}><input value={trackName} onChange={e => setTrackName(e.target.value)} /></Field>
           <Field label={t("Track type")}><select value={trackKind} onChange={e => setTrackKind(e.target.value as typeof trackKind)}>
-            <option value="video">{t("Video")}</option><option value="audio">{t("Audio")}</option><option value="graphic">{t("Graphic")}</option>
+            <option value="video">{t("Video")}</option><option value="audio">{t("Audio")}</option><option value="graphic">{t("Graphic")}</option><option value="text">{t("Text")}</option>
           </select></Field>
         </> : <Field label={t("Ripple affected tracks")}><input type="checkbox" checked={ripple} onChange={e => setRipple(e.target.checked)} /></Field>}
         {(action === "trim" || action === "split") && <p className="muted">{t("Animated trim and split are not yet supported. Move and delete preserve saved animation.")}</p>}

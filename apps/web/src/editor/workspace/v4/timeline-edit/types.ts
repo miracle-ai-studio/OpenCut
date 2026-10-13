@@ -9,7 +9,9 @@ export type TimelinePlan = ToolOutput<"opencut_edit_timeline_plan_v4">;
 export type TimelineCommand = TimelineRequest["command"];
 export type TimelineTarget = TimelinePlan["decision"]["selection"][number];
 export type TimelineScope = { projectId: string; revision: string; sequenceId: string };
+export type TimelinePlannerTool = "opencut_edit_timeline_plan_v4" | "opencut_edit_element_timeline_plan_v4";
 export type TimelineAttempt = {
+  tool?: TimelinePlannerTool;
   request: TimelineRequest;
   plan: TimelinePlan | null;
   receipt: V4EditReceipt | null;
@@ -34,4 +36,4 @@ export type TimelineEditHost = {
   publish(state: TimelineEditState, primaryId?: string | null): void;
   acquire(projectId: string): () => void;
 };
-export type TimelinePlanner = (api: EditorApi, request: TimelineRequest, signal?: AbortSignal) => Promise<TimelinePlan>;
+export type TimelinePlanner = (api: EditorApi, request: TimelineRequest, signal?: AbortSignal, tool?: TimelinePlannerTool) => Promise<TimelinePlan>;

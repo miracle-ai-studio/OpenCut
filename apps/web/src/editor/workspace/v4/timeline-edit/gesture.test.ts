@@ -48,7 +48,7 @@ it("group moves retain each rational start and relative track offset with explic
   third.locked = true;
   expect(() => moveSelectionCommand(seq, selected, { ticks: "0", timebase: 1 }, 1, false)).toThrow("locked");
   third.locked = false; third.kind = "audio";
-  expect(() => moveSelectionCommand(seq, selected, { ticks: "0", timebase: 1 }, 1, false)).toThrow("media type");
+  expect(() => moveSelectionCommand(seq, selected, { ticks: "0", timebase: 1 }, 1, false)).toThrow("element type");
 });
 
 it("a scroll-adjusted pointerup consumes one command, with no source or frame rounding", () => {

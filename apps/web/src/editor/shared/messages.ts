@@ -31,6 +31,17 @@ export const zh: Record<string, string> = {
   "Resolve the original font import before dismissing it.": "请先处理原字体导入，再关闭提示。",
   "New text": "新建文字",
   "Edit text": "编辑文字",
+  "Edit text position and scale": "编辑文字位置与缩放",
+  "Save text position and scale": "保存文字位置与缩放",
+  "Horizontal center offset (pixels)": "相对画布中心的水平偏移（像素）",
+  "Vertical center offset (pixels)": "相对画布中心的垂直偏移（像素）",
+  "Horizontal scale (multiplier)": "水平缩放（倍数）",
+  "Vertical scale (multiplier)": "垂直缩放（倍数）",
+  "Position is measured in pixels from the canvas center. Scale is a multiplier.": "位置以画布中心为原点，单位为像素；缩放以倍数表示。",
+  "Animation controls these transform fields. Editing base values preserves the channels; animation may override the result.": "这些变换属性由动画控制。修改基础值会保留动画通道，画面可能仍由动画值决定。",
+  "The text target changed. Close this form and edit the current revision.": "文字对象或工程版本已变化，请关闭此表单后重新编辑。",
+  "Unlock the text track before editing its position.": "请先解锁文字轨道，再编辑位置。",
+  "Enter finite numbers for position and scale.": "请输入有效的位置与缩放数值。",
   "Text name": "文字名称",
   "Text content": "文字内容",
   "Save text": "保存文字",
@@ -182,6 +193,10 @@ export const zh: Record<string, string> = {
     "当前修订不等于保存回执。重试会发送原事务和原标识，不会创建新计划。",
   "Select video, audio or images in the timeline.":
     "请在时间线选择视频、音频或图片。",
+  "Select video, audio, images or text in the timeline.":
+    "请在时间线选择视频、音频、图片或文字。",
+  "The destination track does not accept this element type.":
+    "目标轨道不支持此元素类型。",
   "The timeline selection is no longer available.": "所选时间线片段已不可用。",
   "Unlock the selected tracks before editing their elements.":
     "请先解锁所选轨道再编辑片段。",
@@ -202,8 +217,8 @@ export const zh: Record<string, string> = {
     "请返回原场景，再重试此时间线操作。",
   "Click video, audio or images to select. Ctrl/Command-click toggles selection; Shift-click adds an element.":
     "点击视频、音频或图片选择。Ctrl/Command 加点击可切换选择，Shift 加点击可添加片段。",
-  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split and other element editing are not available yet. Scene preview supports normal video/static image composition and fixed-font text on WebGPU browsers. Video MP4 export depends on this service’s rendering capability.":
-    "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑尚未接入。WebGPU 浏览器支持普通视频、静态图片及固定字体文字的场景声画预览。视频 MP4 导出依赖当前服务的渲染能力。",
+  "Edit video, audio, images and text on the timeline. Preview and MP4 export support normal media composition, pinned text and captions when this service provides rendering. Animated trim and split are not yet supported.":
+    "可在时间线编辑视频、音频、图片和文字。服务具备渲染能力时，预览和 MP4 导出支持普通媒体合成、固定字体文字和字幕。动画片段的裁剪与拆分尚未支持。",
   "Scene sound": "场景声音",
   "Audio preview sample rate": "声音试听采样率",
   "Play scene audio": "播放场景声音",

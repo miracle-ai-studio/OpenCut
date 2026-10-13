@@ -3639,6 +3639,45 @@
         }
       }
     },
+    "/v1/tools/opencut_edit_element_timeline_plan_v4": {
+      "post": {
+        "operationId": "opencut_edit_element_timeline_plan_v4",
+        "description": "Plan fixed-head V4 media and independent free-text move, trim, split, deletion, per-track ripple and media/text-track controls. Uses the frozen timeline request shape with an explicit content profile; text has no media asset requirement. Preserve exact timing, pinned text/font values, locks and atomic edits. Animated trim/split remains explicitly refused. Submit the returned public V4 transaction unchanged; null means no changes.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutEditElementTimelinePlanV4Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutEditElementTimelinePlanV4Output"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutEditElementTimelinePlanV4Output"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_font_recovery_v1_stage": {
       "post": {
         "operationId": "opencut_font_recovery_v1_stage",
@@ -9642,6 +9681,7 @@
           "classic.plan.v1": "opencut_edit_classic_plan_v1",
           "timeline.plan": "opencut_edit_timeline_plan",
           "timeline.plan.v4": "opencut_edit_timeline_plan_v4",
+          "element.timeline.plan.v4": "opencut_edit_element_timeline_plan_v4",
           "text.v1.plan": "opencut_text_v1_plan",
           "recovery.v3.stage": "opencut_edit_recovery_v3_stage",
           "recovery.v3.inspect": "opencut_edit_recovery_v3_inspect",
@@ -9739,6 +9779,22 @@
                       },
                       "input": {
                         "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "element.timeline.plan.v4"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutEditElementTimelinePlanV4Input"
                       }
                     },
                     "required": [
@@ -10567,6 +10623,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutEditElementTimelinePlanV4Output"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutTextV1PlanOutput"
@@ -40383,6 +40442,283 @@
         ],
         "title": "Response",
         "type": "object"
+      },
+      "OpencutEditElementTimelinePlanV4Input": {
+        "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input",
+        "$defs": {
+          "Time": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/Time"
+          },
+          "TimelineCommandV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineCommandV4"
+          },
+          "TimelineMoveV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineMoveV4"
+          },
+          "TimelineSplitRetainV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineSplitRetainV4"
+          },
+          "TimelineSplitV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineSplitV4"
+          },
+          "TimelineTargetV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineTargetV4"
+          },
+          "TimelineTrimEdgeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineTrimEdgeV4"
+          },
+          "TrackKindV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TrackKindV4"
+          }
+        }
+      },
+      "OpencutEditElementTimelinePlanV4Output": {
+        "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output",
+        "$defs": {
+          "AnimationChannelV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/AnimationChannelV4"
+          },
+          "ApplyPublicV4Project": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ApplyPublicV4Project"
+          },
+          "AssetVersion": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/AssetVersion"
+          },
+          "AudioStyleV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/AudioStyleV4"
+          },
+          "BackgroundV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/BackgroundV4"
+          },
+          "BlendModeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/BlendModeV4"
+          },
+          "BookmarkOperationV1": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/BookmarkOperationV1"
+          },
+          "BoxMaskGeometryV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/BoxMaskGeometryV4"
+          },
+          "CanvasSizeModeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CanvasSizeModeV4"
+          },
+          "CanvasSizeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CanvasSizeV4"
+          },
+          "CaptionLayoutProfileV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CaptionLayoutProfileV4"
+          },
+          "CaptionSourceAnchor": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CaptionSourceAnchor"
+          },
+          "CaptionStyleV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CaptionStyleV4"
+          },
+          "CaptionV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CaptionV4"
+          },
+          "ChannelTargetV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ChannelTargetV4"
+          },
+          "ColorComponentV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ColorComponentV4"
+          },
+          "ColorEncodingV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ColorEncodingV4"
+          },
+          "ColorParameterV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ColorParameterV4"
+          },
+          "ColorV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ColorV4"
+          },
+          "CubicBezierV1": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CubicBezierV1"
+          },
+          "CurveHandleV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/CurveHandleV4"
+          },
+          "DiscreteKeyV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/DiscreteKeyV4"
+          },
+          "DiscreteParameterV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/DiscreteParameterV4"
+          },
+          "DiscreteValueV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/DiscreteValueV4"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/EditorError"
+          },
+          "EffectKindV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/EffectKindV4"
+          },
+          "EffectV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/EffectV4"
+          },
+          "ElementContentV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ElementContentV4"
+          },
+          "ElementSourceSpanV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ElementSourceSpanV4"
+          },
+          "ExtrapolationModeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ExtrapolationModeV4"
+          },
+          "ExtrapolationV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ExtrapolationV4"
+          },
+          "FontBindingV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FontBindingV4"
+          },
+          "FontResolutionPolicy": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FontResolutionPolicy"
+          },
+          "FontSizeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FontSizeV4"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FontWeightV4"
+          },
+          "FrameRate": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FrameRate"
+          },
+          "FreeformMaskV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FreeformMaskV4"
+          },
+          "FreeformPointV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/FreeformPointV4"
+          },
+          "GainV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/GainV4"
+          },
+          "GraphicGeometryV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/GraphicGeometryV4"
+          },
+          "GraphicV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/GraphicV4"
+          },
+          "LegacySequenceFormatV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/LegacySequenceFormatV4"
+          },
+          "MaskFeatherV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/MaskFeatherV4"
+          },
+          "MaskShapeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/MaskShapeV4"
+          },
+          "MaskV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/MaskV4"
+          },
+          "ProjectSettingsV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ProjectSettingsV4"
+          },
+          "PublicAssetSelectorV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/PublicAssetSelectorV4"
+          },
+          "PublicFontSelectorV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/PublicFontSelectorV4"
+          },
+          "PublicProjectOperationV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/PublicProjectOperationV4"
+          },
+          "RationalRateV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/RationalRateV4"
+          },
+          "RetimeMappingV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/RetimeMappingV4"
+          },
+          "RetimeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/RetimeV4"
+          },
+          "ScalarBindingV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ScalarBindingV4"
+          },
+          "ScalarKeyV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ScalarKeyV4"
+          },
+          "ScalarParameterV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ScalarParameterV4"
+          },
+          "ScalarSegmentV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/ScalarSegmentV4"
+          },
+          "SceneBookmarkV1": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/SceneBookmarkV1"
+          },
+          "SequenceV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/SequenceV4"
+          },
+          "SettingsProfileV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/SettingsProfileV4"
+          },
+          "StrokeAlignV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/StrokeAlignV4"
+          },
+          "StrokeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/StrokeV4"
+          },
+          "TangentModeV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TangentModeV4"
+          },
+          "TextAlignV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TextAlignV4"
+          },
+          "TextBackgroundV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TextBackgroundV4"
+          },
+          "TextDecorationV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TextDecorationV4"
+          },
+          "TextMaskV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TextMaskV4"
+          },
+          "TextV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TextV4"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/Time"
+          },
+          "TimeRange": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TimeRange"
+          },
+          "TimelineDecisionV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TimelineDecisionV4"
+          },
+          "TimelineEditPlanV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TimelineEditPlanV4"
+          },
+          "TimelineElementV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TimelineElementV4"
+          },
+          "TimelineTargetV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TimelineTargetV4"
+          },
+          "TrackKindV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TrackKindV4"
+          },
+          "TrackV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TrackV4"
+          },
+          "TransformV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TransformV4"
+          },
+          "TransitionKindV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TransitionKindV4"
+          },
+          "TransitionV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/TransitionV4"
+          },
+          "VisualProfileV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/VisualProfileV4"
+          },
+          "VisualStyleV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Output/$defs/VisualStyleV4"
+          }
+        }
       },
       "OpencutFontRecoveryV1StageInput": {
         "$defs": {

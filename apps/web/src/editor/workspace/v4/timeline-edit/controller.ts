@@ -84,6 +84,7 @@ export class V4TimelineEdit {
       if (prior?.plan && (exact(prior.request) !== exact(request) || exact(prior.plan) !== exact(plan)))
         throw new Error("The durable recovery record differs from the original review.");
       const attempt: TimelineAttempt = {
+        tool: prior?.tool ?? "opencut_edit_timeline_plan_v4",
         request: prior?.request ?? freeze(request), plan: prior?.plan ?? freeze(plan),
         phase: record.receipt ? "saved" : "unconfirmed", receipt: record.receipt ?? prior?.receipt ?? null,
         error: null, recoveryId: record.recovery_id,
@@ -265,7 +266,16 @@ export class V4TimelineEdit {
       throw new Error("The timeline target changed. Close this form and review a new operation.");
     if (state.timelineEdit.attempt)
       throw new Error("Resolve the previous timeline operation before starting another.");
+    const sequence = state.head.project.sequences.find(scene => scene.id === state.sequenceId)!;
+    const targets = command.kind === "move_selection" ? command.moves.map(move => move.target)
+      : command.kind === "trim" ? [command.target]
+      : command.kind === "split" ? command.targets.map(split => split.target)
+      : command.kind === "delete" ? command.targets : [];
+    const includesText = command.kind === "add_track" ? command.track_kind === "text"
+      : ("track_id" in command && sequence.tracks.find(track => track.id === command.track_id)?.kind === "text") ||
+        targets.some(target => sequence.tracks.find(track => track.id === target.track_id)?.elements.some(element => element.id === target.element_id && element.content.kind === "text"));
     const attempt: TimelineAttempt = {
+      tool: includesText ? "opencut_edit_element_timeline_plan_v4" : "opencut_edit_timeline_plan_v4",
       request: freeze({ project_id: state.head.project.id, expected_revision: state.head.revision,
         sequence_id: state.sequenceId, idempotency_key: crypto.randomUUID(), label,
         command: structuredClone(command) }),
@@ -292,7 +302,7 @@ export class V4TimelineEdit {
     try {
       release = this.host.acquire(attempt.request.project_id);
       this.check(api, attempt, generation, view, epoch);
-      const plan = await this.planner(api, attempt.request, planning.abort.signal);
+      const plan = await this.planner(api, attempt.request, planning.abort.signal, attempt.tool ?? "opencut_edit_timeline_plan_v4");
       this.check(api, attempt, generation, view, epoch);
       const tx = plan.transaction;
       if (tx && (tx.project_id !== attempt.request.project_id ||
