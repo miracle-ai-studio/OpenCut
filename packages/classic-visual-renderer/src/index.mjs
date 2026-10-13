@@ -1,3 +1,4 @@
+export { prepareCaptionTextV3 } from "./caption-layout-v3.mjs";
 export { renderClassicCaptionFrameV3 } from "./text-frame-v3.mjs";
 import { decodeImage, decodeVideo } from "./decoder.mjs";
 export { VisualDecoderCache } from "./decoder.mjs";

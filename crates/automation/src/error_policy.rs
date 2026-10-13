@@ -85,6 +85,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "PREVIEW_VIEWPORT_LIMIT"
         | "UNSUPPORTED_ANALYSIS_QUERY"
         | "SUBTITLE_INVALID"
+        | "INVALID_SUBTITLE_TEXT_PLAN"
         | "PACKAGE_INVALID"
         | "PACKAGE_DEPENDENCY_UNSUPPORTED"
         | "UNSUPPORTED_JOB_KIND"

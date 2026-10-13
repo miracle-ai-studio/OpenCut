@@ -58,6 +58,8 @@ pub mod source_audio_v4;
 pub mod speaker_turns;
 pub mod subtitle_exchange;
 pub mod text_authoring_v1;
+pub mod subtitle_text_v1;
+pub mod subtitle_text_export_v1;
 pub mod text_canvas_v1;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;

@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 mod clipboard;
 mod classic_import;
 mod timeline;
+mod subtitle_text;
 
 fn data(response: Response) -> Value {
     assert!(response.error.is_none(), "{:?}", response.error);

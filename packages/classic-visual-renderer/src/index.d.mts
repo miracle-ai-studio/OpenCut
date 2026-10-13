@@ -31,3 +31,6 @@ export function renderClassicCaptionFrameV3(plan: unknown, host: {
   rgba(offset: number, bytes: Uint8Array): Promise<void>;
   observeExecution?(observation: Record<string, string>): void;
 }, realm: GpuRealm, signal: AbortSignal, cache?: Map<string, Uint8Array>, decoders?: VisualDecoderCache, fontCache?: ClassicTextFontCache): Promise<unknown>;
+
+/** Private Classic caption preparation; public receipt types remain generated. */
+export function prepareCaptionTextV3(ctx: CanvasRenderingContext2D, original: unknown, fontFamily: string, font: { style: string; weight: number }, directive: unknown, dimensions: { width: number; height: number }): { text: unknown; wrappedText: string; measurements: { content: string; width: number }[] };

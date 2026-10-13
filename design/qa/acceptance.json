@@ -285,8 +285,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "45 unique scoped records. F21 full free-text styles and original Classic subtitle TextElement editing are closed using actual UI/history/duplicate and independent combination pixels plus scoped prior evidence. 39 static font sources added with all prior identities preserved. 33 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "f21_complete_text_styles_and_static_font_sources",
+    "scope": "47 unique scoped records. F23 now has actual editable TextV4 subtitle import, full existing text editor/history, SRT/ASS downloads and independent wrap/placement PNG. Offline F20 variable-font derivation has deterministic source/tool/license evidence but is not integrated. F10/F19/F21 remain closed; 33 groups remain. No whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "f23_editable_text_subtitle_authoring_exchange",
     "plan_coverage": {
       "remaining_groups": 33,
       "routes": 13,
@@ -8799,6 +8799,213 @@
           "Real OS IME, human Chinese/English ASR, animation and schema6 full-history/font restore remain open.",
           "No complete B3/S1, full workspace or final migration acceptance."
         ]
+      },
+      {
+        "evidence_id": "f23_editable_text_subtitle_authoring_exchange",
+        "status": "passed_scoped",
+        "candidate": {
+          "source_head": "bb02f5726959dc72d4c3e96fef848965265feebd",
+          "dirty_source": true,
+          "production_change_digest": "6328490cbb6ffdea2393865280a472bc1132442d0303921af8529da23439a8e6",
+          "production_change_files": 30,
+          "binary_sha256": "1391a16379ef64809b53ee4181f19d816771c2464d03cfeda183e4c10ef870ac",
+          "web_js_css_tree_sha256": "c3e9ed0b44ff12e62c2f641f8347f8b634a21a88660ecdf01d88919eb4799644",
+          "browser": "153.0.8010.12",
+          "digest_definition": "SHA256 of compact JSON sorted [path, SHA256(file)] for changed/untracked crates, apps/cli, apps/web/src, classic-visual-renderer and sdk-ts/src files."
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "original_revision": "rev_fa2074ea96de766b7b6bf4cbcbb01ebec2a89cb5b2173aa6fd48d21d12c8c086",
+          "imported_revision": "rev_c1fc685e00e950d303e9917e262c6e96b5eabf19f72af0c7c63d06b9981f19a3",
+          "edited_revision": "rev_ae5d59da3d9dc7835956f4b50b2e100d30b956b4ec6c268d332a3b9a93d50fd6",
+          "restored_revision": "rev_3d273ba8c1ce5de287df9324f058c9a7125751e5fd17a3711a25d355d28fba15",
+          "source": "Two synthetic English SRT cues, existing 320x180 workspace and fixed Lato 400 normal; no font/media import or new fixture copy.",
+          "original_project_restored": true
+        },
+        "behavior": {
+          "default_target": "new ordinary TextV4 subtitle track, one public SequencePut transaction",
+          "imported_cues": 2,
+          "isolated_track_id": "ff4266f2-8a9d-49d3-87d4-0480646f5bba",
+          "original_other_nodes_unchanged": true,
+          "edit": "Actual text form changes first cue body, underline and 1.5px letter spacing; original planned transaction applied once.",
+          "history": "Whole-project equality after reopen, undo and redo; final original-project equality.",
+          "downloads": {
+            "srt": {
+              "cue_count": 2,
+              "sha256": "c2e30ae5b31ecc8e2b2783bd92b81a68ca959589731ab0d0c9ea7f0e4dfb8f0c",
+              "losses": [
+                "SRT does not represent text styles, fonts, transforms or visual stacks",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            },
+            "ass": {
+              "cue_count": 2,
+              "sha256": "9ea6f13506c047657783f7b00feb78d7bb355adbab10306b9e018709765a1571",
+              "losses": [
+                "ASS font family and face flags do not embed pinned font bytes, license, or CAS identity",
+                "ASS font metrics, multiline layout and renderer behavior may differ from Classic pixels",
+                "Color and combined opacity are quantized to ASS 8-bit channels",
+                "Text line-height multiplier is not represented",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            }
+          },
+          "pageerrors": []
+        },
+        "render": {
+          "job_id": "job_5a35a16ed66245779f7032e5ba224acc",
+          "identity": {
+            "height": 180,
+            "profile": "classic-v31-gpu-normal-text-frame-v2",
+            "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+            "revision": "rev_bc9a3d0380f391f4bd3c7f50090adaa61659791504c19845b21e760de1107559",
+            "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+            "time": {
+              "ticks": "1",
+              "timebase": 2
+            },
+            "width": 320
+          },
+          "execution": {
+            "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+            "browser_version": "153.0.8010.12",
+            "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+            "gpu_backend": "webgpu",
+            "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+            "host_sha256": "1391a16379ef64809b53ee4181f19d816771c2464d03cfeda183e4c10ef870ac",
+            "mediabunny_version": "1.41.0",
+            "module_sha256": "e81c60bc28445609377d527ac236c253c36b3e5110e3eddc5ba4c01eea7fa015",
+            "playwright_version": "1.63.0",
+            "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+            "texture_format": "bgra8unorm"
+          },
+          "render_input_sha256": "b58fb2118e0010343012c76a4f3ae5a3fccafebce98b81f06fd9278f302f6839",
+          "artifact": {
+            "content_hash": "146f77449c74c129c4dd1b0145b407077c9ea2256e4d38867d68c5c3f08ee6a7",
+            "mime_type": "image/png",
+            "size_bytes": "231377"
+          },
+          "font_lock": [
+            {
+              "content_hash": "d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251",
+              "font_id": "09b9a839-b402-42c5-978a-66bd33240982",
+              "size": 656568
+            }
+          ],
+          "oracle": {
+            "width": 320,
+            "height": 180,
+            "lines": [
+              "Editable subtitles wrap",
+              "this English sentence",
+              "into clear lines near the",
+              "bottom margin."
+            ],
+            "widths": [
+              239.09982299804688,
+              219.85189819335938,
+              245.44786071777344,
+              160.07989501953125
+            ],
+            "maxWidth": 256,
+            "bottomMargin": 9,
+            "center": {
+              "x": 160,
+              "y": 113.4
+            },
+            "lineHeight": 28.799999999999997,
+            "expectedBounds": {
+              "left": 38,
+              "top": 60,
+              "right": 281,
+              "bottom": 168,
+              "count": 6557
+            },
+            "actualBounds": {
+              "left": 38,
+              "top": 60,
+              "right": 281,
+              "bottom": 168,
+              "count": 6557
+            },
+            "iou": 1,
+            "meanChannelError": 0
+          },
+          "reference": "Independent Canvas with external fixed Lato bytes; literal English cue, 24px, greedy 80% width wrap, 1.2 line height and 5% bottom margin. Does not call production text measurement/layout.",
+          "normal_png_jobs": 1
+        },
+        "checks": {
+          "application_subtitle_tests": 11,
+          "application_legacy_caption_tests": 2,
+          "host_public_dispatch_access_tests": 2,
+          "sqlite_caption_persistence_recovery_tests": 5,
+          "web_subtitle_helper_component_tests": 10,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_dependency_exceptions": 0,
+          "contract_boundaries": "passed",
+          "web_boundary_files": 213,
+          "rust_release_builds": 1,
+          "successful_web_production_builds": 1,
+          "generated_contract_check": "passed against explicit same release; 227 tools, all prior 225 full declarations and 22 legacy wire tools unchanged",
+          "fresh_rust_workspace_run": false
+        },
+        "verification_reuse": "One Rust release and one successful Web production build, one serial suite in existing workspace. Initial Web typecheck rejected an unsupported Testing Library test option; corrected test only. Browser suite passed on first execution, one normal PNG. Existing MP4/PCM/continuous preview, font imports and ASR quality results retain their earlier candidate identities and were not rerun.",
+        "not_proven": [
+          "Actual successful ASR job through the new public TextV4 planning/UI path; positive timing equivalence currently covered in pure application tests.",
+          "ASS import preserves cue text/times with explicit selected style, not complete original appearance.",
+          "Chinese and human-speech quality, real system IME, full font loading and package6 history/font restore remain open.",
+          "No complete F23/B3/S1, whole-workspace or whole-migration claim; 33 groups remain."
+        ]
+      },
+      {
+        "evidence_id": "f20_offline_static_variable_font_derivation",
+        "status": "passed_scoped_not_integrated",
+        "scope": "Offline build-time helper only; public catalog/import/native execution are unchanged. F20 remains partial.",
+        "derivation": {
+          "schema_version": 1,
+          "source": {
+            "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+            "source_path": "ofl/karla/Karla[wght].ttf",
+            "source_sha256": "ed3ca4cd9bdd899c543927c30bf5ff50706b24b3f2b7328e64b25f7d2a9d23dc",
+            "source_size": 94016,
+            "source_git_blob": "939d29ef1f5aaa6c481dc8a1944d89d389c78ae5",
+            "license_path": "ofl/karla/OFL.txt",
+            "license_sha256": "edf2c840acb9570fe02f40721126aa0da4e4011a0030cc6dce30780569f609b6",
+            "license_git_blob": "d76ce0e18e7e5aeb52e5c3b5d2ac88c2b5b9d3db",
+            "license_identifier": "OFL-1.1",
+            "family": "Karla",
+            "weight": 400,
+            "style": "normal",
+            "axes": {
+              "wght": 400
+            }
+          },
+          "tool": {
+            "fonttools_wheel_sha256": "17d2bf5d541add43822bcf0c43d7d847b160c9bb01d15d5007d84e2217aaa371",
+            "fonttools_version": "4.61.1",
+            "fonttools_implementation_sha256": "dc54bf6fd23f9bd6db71259ad6f4a9d481bdcc3080a0ac853358f17812716fd3",
+            "python_version": "3.14.7",
+            "derivation_sha256": "df1af2d6fc7f00ae29d1bc26aa73b14f0640aa75d70f05b53072e0ab59ce5ee1",
+            "static_validator_sha256": "948dce6b6727f6243315b466f6cba6db53c42f8325e555320ed8e5d95ac8cb73"
+          },
+          "output_sha256": "020253eac2f832850ce691eb650c60cae7ce29927b7f7c50bc7975f9376af91a",
+          "output_size": 45884,
+          "license_notice": "Copyright 2019 The Karla Project Authors (https://github.com/googlefonts/karla)\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license is copied below, and is also available with a FAQ at:\nhttps://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License (OFL) are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded, \nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license does not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license and clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license does not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license becomes null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE.\n",
+          "derivation_id": "font-derived_528ca1f8e522f1b3a05e5e4c37cae50a014cd1c4ee94afbff49ee8f87afa65ac"
+        },
+        "checks": {
+          "font_catalog_python_tests": 9,
+          "real_source": "Pinned Google Karla variable font; wght=400 full instantiation repeated with identical output.",
+          "static_validation": "Existing Python static-face validator passed; no native/browser acceptance of this derived face yet.",
+          "negative_fixtures": "Unpinned source/license/tool, missing/out-of-range axes, residual variable output and Reserved Font Name sources are rejected."
+        },
+        "not_proven": [
+          "No derived-face catalog records or user-facing loader are wired.",
+          "No reduction in the 621 families/1490 applicable faces lacking fixed usable sources.",
+          "Reserved Font Name sources require a separately reviewed rename profile."
+        ]
       }
     ]
   },
@@ -8811,8 +9018,8 @@
     "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
-    "Google browse/search/family preview covers 1920 families; 1836 validated static faces cover1299 families. 621 families lack normal400 sources; unavailable400/700 normal/italic faces total1490. All prior1797 source records are unchanged; newly discovered Candal and Inconsolata passed actual public import. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
-    "B1/B2/B3 evidence remain scoped. F19 free-text editing and F21 full text styles/original Classic subtitle TextElement compatibility are closed with recorded candidates and independent reference pixels. New V4 CaptionStyle still lacks decoration, letter spacing and complete background editing; ASS import uses selected style and does not preserve full appearance. F23 must reuse the editable TextV4 path or a versioned model while retaining frozen operations. English synthetic ASR-to-subtitles/SRT passed; Chinese inference succeeded but literal CER failed, and human speech remains unverified. Real OS IME, animation, unavailable font sources, unsupported Classic mappings and schema6 full-history/font restore remain open."
+    "Google browse/search/family preview covers 1920 families; 1836 validated static faces cover1299 families. 621 families lack normal400 sources; unavailable400/700 normal/italic faces total1490. All prior1797 source records are unchanged; newly discovered Candal and Inconsolata passed actual public import. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent. Offline variable-font derivation passed deterministic tests and one real Karla instance; catalog/public/native loading is not yet integrated, so these counts are unchanged.",
+    "B1/B2/B3 evidence remain scoped. F19/F21 are closed with recorded candidates and independent pixels. F23 now defaults to editable TextV4 cues, preserving the frozen legacy Caption path; actual SRT import, existing full editor/history and SRT/ASS downloads passed. Actual successful ASR-to-new-Text public integration and full ASS appearance-preserving import remain unverified/incomplete. English synthetic ASR quality retains earlier proof; Chinese literal CER failed and human speech is unverified. Real OS IME, animation, unsupported Classic mappings and schema6 full-history/font restore remain open."
   ],
   "retained_delivery_packages": [
     {

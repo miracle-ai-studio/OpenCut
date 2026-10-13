@@ -1,4 +1,18 @@
 export const zh: Record<string, string> = {
+  "New editable subtitle track": "新建可编辑字幕轨",
+  "Editable text": "可编辑文字",
+  "Legacy captions": "旧字幕",
+  "Add subtitle text track": "添加文字字幕轨",
+  "Subtitle text track created. Transcribe this saved revision next.": "文字字幕轨已创建。接下来转写此保存修订。",
+  "Choose an unlocked subtitle track before transcribing.": "转写前请选择未锁定的字幕轨。",
+  "Choose an unlocked subtitle track.": "请选择未锁定的字幕轨。",
+  "Choose a subtitle track to export.": "请选择要导出的字幕轨。",
+  "{count} editable subtitles saved. {warnings}": "已保存 {count} 条可编辑字幕。{warnings}",
+  "New subtitles are editable text. Select a legacy caption track to keep its existing caption workflow.": "新字幕是可编辑文字。选择旧字幕轨可继续使用其原字幕流程。",
+  "The subtitle plan differs from the fixed revision.": "字幕计划与固定修订不一致。",
+  "Subtitle text measurement is unavailable.": "无法测量字幕文字。",
+  "The subtitle layout target changed.": "字幕排版目标已改变。",
+
   "Text background": "文字背景",
   "Enable text background": "启用文字背景",
   "Background color": "背景颜色",

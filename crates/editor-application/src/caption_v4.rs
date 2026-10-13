@@ -93,23 +93,18 @@ fn scope(snapshot: &ProjectSnapshotV4, p: &str, r: &str) -> Result<(), EditorErr
     }
     Ok(())
 }
-pub fn generate(
-    snapshot: &ProjectSnapshotV4,
-    input: &GenerateCaptionsV4,
+#[derive(Clone, Debug)]
+pub(crate) struct TranscriptCueV4 {
+    pub segment_index: usize,
+    pub chunk_index: usize,
+    pub timeline_range: TimeRange,
+    pub text: String,
+}
+pub(crate) fn transcript_cues(
+    words_per_caption: u8,
     result: &SequenceTranscribeResultV4,
-) -> Result<ApplyV4Project, EditorError> {
-    scope(snapshot, &input.project_id, &input.expected_revision)?;
-    if result.project_id != input.project_id
-        || result.revision != input.expected_revision
-        || result.sequence_id != input.sequence_id
-    {
-        return Err(EditorError::new(
-            "REVISION_CONFLICT",
-            "Captions require the original transcribed V4 scene",
-        ));
-    }
-    owning_track(snapshot, &input.sequence_id, &input.track_id, &input.style)?;
-    if !(1..=20).contains(&input.words_per_caption) {
+) -> Result<Vec<TranscriptCueV4>, EditorError> {
+    if !(1..=20).contains(&words_per_caption) {
         return Err(invalid("Words per caption must be between 1 and 20"));
     }
     if !opencut_media_contracts::validate_public_transcription_result(&result.transcription) {
@@ -123,11 +118,8 @@ pub fn generate(
     for (segment_index, segment) in result.transcription.segments.iter().enumerate() {
         let words: Vec<_> = segment.text.split_whitespace().collect();
         let duration = segment.end.ticks - segment.start.ticks;
-        for (chunk_index, chunk) in words
-            .chunks(usize::from(input.words_per_caption))
-            .enumerate()
-        {
-            let first = chunk_index * usize::from(input.words_per_caption);
+        for (chunk_index, chunk) in words.chunks(usize::from(words_per_caption)).enumerate() {
+            let first = chunk_index * usize::from(words_per_caption);
             let next = first + chunk.len();
             let from = RationalTime::new(
                 segment.start.ticks
@@ -152,26 +144,53 @@ pub fn generate(
                     "Generated captions exceed 5000 cues",
                 ));
             }
-            cues.push(CaptionV4 {
-                id: crate::content_id(
-                    "caption",
-                    format!(
-                        "v4:{}:{}:{}:{}",
-                        input.project_id, input.idempotency_key, segment_index, chunk_index
-                    )
-                    .as_bytes(),
-                ),
-                track_id: input.track_id.clone(),
+            cues.push(TranscriptCueV4 {
+                segment_index,
+                chunk_index,
                 timeline_range: TimeRange {
                     start: Time::from(from),
                     duration: Time::from(to.checked_sub(from)?),
                 },
                 text: chunk.join(" "),
-                source_anchor: None,
-                style: input.style.clone(),
             });
         }
     }
+    Ok(cues)
+}
+pub fn generate(
+    snapshot: &ProjectSnapshotV4,
+    input: &GenerateCaptionsV4,
+    result: &SequenceTranscribeResultV4,
+) -> Result<ApplyV4Project, EditorError> {
+    scope(snapshot, &input.project_id, &input.expected_revision)?;
+    if result.project_id != input.project_id
+        || result.revision != input.expected_revision
+        || result.sequence_id != input.sequence_id
+    {
+        return Err(EditorError::new(
+            "REVISION_CONFLICT",
+            "Captions require the original transcribed V4 scene",
+        ));
+    }
+    owning_track(snapshot, &input.sequence_id, &input.track_id, &input.style)?;
+    let cues = transcript_cues(input.words_per_caption, result)?
+        .into_iter()
+        .map(|cue| CaptionV4 {
+            id: crate::content_id(
+                "caption",
+                format!(
+                    "v4:{}:{}:{}:{}",
+                    input.project_id, input.idempotency_key, cue.segment_index, cue.chunk_index
+                )
+                .as_bytes(),
+            ),
+            track_id: input.track_id.clone(),
+            timeline_range: cue.timeline_range,
+            text: cue.text,
+            source_anchor: None,
+            style: input.style.clone(),
+        })
+        .collect();
     edit(
         snapshot,
         &input.sequence_id,

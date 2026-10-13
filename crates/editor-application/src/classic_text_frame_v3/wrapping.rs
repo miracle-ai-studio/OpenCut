@@ -12,7 +12,7 @@ fn js_space(c: char) -> bool {
                 | '\u{feff}'
     )
 }
-pub(super) fn verify_wrap(
+pub(crate) fn verify_wrap(
     original: &str,
     max_width: f64,
     measurements: &[CaptionWrapMeasurementV3],
@@ -81,7 +81,7 @@ pub(super) fn verify_wrap(
     }
     Ok(wrapped)
 }
-pub(super) fn verify_line_widths(
+pub(crate) fn verify_line_widths(
     wrapped: &str,
     measurements: &[CaptionWrapMeasurementV3],
     lines: &[TextLineMetricsV2],

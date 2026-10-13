@@ -14,13 +14,25 @@ pub(super) fn require_generation_source(
     context: &ExecutionContext,
     input: &GenerateCaptionsV4,
 ) -> Result<SequenceTranscribeResultV4, EditorError> {
-    sqlite_access::require_job(
+    require_transcript_source(
         connection,
         context,
+        &input.project_id,
+        &input.expected_revision,
+        &input.sequence_id,
         &input.analysis_job_id,
-        ProjectAction::Read,
-    )?;
-    let job = load_job(connection, &input.analysis_job_id)?;
+    )
+}
+fn require_transcript_source(
+    connection: &Connection,
+    context: &ExecutionContext,
+    project_id: &str,
+    revision: &str,
+    sequence_id: &str,
+    analysis_job_id: &str,
+) -> Result<SequenceTranscribeResultV4, EditorError> {
+    sqlite_access::require_job(connection, context, analysis_job_id, ProjectAction::Read)?;
+    let job = load_job(connection, analysis_job_id)?;
     if job.kind != SEQUENCE_TRANSCRIBE_V4_KIND || job.state != JobState::Succeeded {
         return Err(EditorError::new(
             "ANALYSIS_NOT_READY",
@@ -32,9 +44,9 @@ pub(super) fn require_generation_source(
     // A formerly authorized job cannot be used after the original caller loses
     // access. Completion validation also binds its exact snapshot/mix evidence.
     sqlite_sequence_transcribe_v4::require_completion(connection, &job)?;
-    if prepared.audio.snapshot.project.id != input.project_id
-        || prepared.audio.snapshot.revision != input.expected_revision
-        || prepared.audio.sequence_id != input.sequence_id
+    if prepared.audio.snapshot.project.id != project_id
+        || prepared.audio.snapshot.revision != revision
+        || prepared.audio.sequence_id != sequence_id
     {
         return Err(EditorError::new(
             "REVISION_CONFLICT",
@@ -103,6 +115,34 @@ fn cue_count(request: &ApplyV4Project, source: &ProjectSnapshotV4, sequence_id: 
     sequence.captions.len() - before
 }
 impl EditorApplication {
+    /// Read-only authoring uses the same successful-job, original-caller and
+    /// fixed-mix checks as the frozen caption mutation. The eventual text edit
+    /// uses the existing public apply transaction and its own recovery receipt.
+    pub fn subtitle_text_transcript_v1(
+        &self,
+        input: &opencut_contracts::subtitle_text_v1::SubtitleTextPlanRequestV1,
+    ) -> Result<Option<SequenceTranscribeResultV4>, EditorError> {
+        use opencut_contracts::subtitle_text_v1::SubtitleTextSourceV1;
+        let SubtitleTextSourceV1::Transcript {
+            analysis_job_id, ..
+        } = &input.source
+        else {
+            return Ok(None);
+        };
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        require_transcript_source(
+            &tx,
+            &self.connection.1,
+            &input.project_id,
+            &input.expected_revision,
+            &input.sequence_id,
+            analysis_job_id,
+        )
+        .map(Some)
+    }
     pub fn generate_captions_v4(
         &mut self,
         input: &GenerateCaptionsV4,

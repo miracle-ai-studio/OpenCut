@@ -109,7 +109,7 @@ fn identity(prepared: &composition::PreparedTextFrameV2) -> TextFrameIdentityV2 
         profile: i.profile.clone(),
     }
 }
-fn text_input(text: &composition::ClassicTextRasterV1) -> TextRasterInputV2 {
+pub(crate) fn text_input(text: &composition::ClassicTextRasterV1) -> TextRasterInputV2 {
     let bg = text.background;
     let t = text.transform;
     TextRasterInputV2 {

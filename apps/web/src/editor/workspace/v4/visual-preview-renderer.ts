@@ -1,5 +1,6 @@
 import {
   measureClassicText,
+  prepareCaptionTextV3,
   openGpuRealm,
   renderClassicTextFrameV2,
   renderClassicCaptionFrameV3,
@@ -11,7 +12,7 @@ import { readPreviewBytes } from "./visual-preview-bytes";
 import { previewExecutionAdmission } from "./visual-preview-admission";
 import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
 // Keep canvas editing on the same Classic measurement implementation as preview.
-export { measureClassicText };
+export { measureClassicText, prepareCaptionTextV3 };
 
 type Input = ToolInput<"opencut_visual_preview_v4_text_frame">;
 type CaptionInput = ToolInput<"opencut_visual_preview_v4_caption_frame">;

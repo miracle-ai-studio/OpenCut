@@ -89,6 +89,8 @@ pub fn authorize_tool(caller: &Caller, name: &str) -> Result<(), EditorError> {
                 | "opencut_subtitle_generate_v4"
                 | "opencut_subtitle_import_v4"
                 | "opencut_subtitle_export_v4"
+                | "opencut_subtitle_text_v1_plan"
+                | "opencut_subtitle_text_v1_export"
                 | "opencut_font_v1_catalog"
                 | "opencut_font_v1_import"
                 | "opencut_font_recovery_v1_stage"

@@ -600,6 +600,7 @@ pub struct CatalogEntry {
 }
 
 pub mod subtitle_v4;
+pub mod subtitle_text_v1;
 
 pub mod edit_recovery_v3;
 

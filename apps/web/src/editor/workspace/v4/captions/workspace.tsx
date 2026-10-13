@@ -17,7 +17,10 @@ import {
   writeTranscriptionRequest,
 } from "./submission";
 import type { TranscriptionRequestV4 } from "./submission";
+import { planEditableSubtitles } from "./planned-subtitles";
+import type { SubtitleTextRequest } from "./planned-subtitles";
 import "./workspace.css";
+const NEW_TEXT_TRACK = "__new_subtitle_text_track__";
 export type CaptionWorkspaceOptions = {
   recovery: V4CaptionRecovery;
   mutateCaption(context: CaptionContext): Promise<CaptionReceipt>;
@@ -42,7 +45,7 @@ export function V4CaptionWorkspace({
     [words, setWords] = useState(3),
     [fontId, setFontId] = useState("");
   const [fontSize, setFontSize] = useState(24),
-    [trackId, setTrackId] = useState(""),
+    [trackId, setTrackId] = useState(NEW_TEXT_TRACK),
     [jobId, setJobId] = useState("");
   const [format, setFormat] = useState<"srt" | "ass">("srt"),
     [content, setContent] = useState("");
@@ -51,13 +54,26 @@ export function V4CaptionWorkspace({
     [error, setError] = useState<string | null>(null);
   const [original, setOriginal] = useState<TranscriptionRequestV4 | null>(null);
   const epoch = useRef(0),
-    writing = useRef(false);
+    writing = useRef(false),
+    measuring = useRef<AbortController | null>(null);
   const snapshot = v4?.historical ?? v4?.head,
     scene = snapshot?.project.sequences.find((s) => s.id === v4?.sequenceId);
   const tracks =
-      scene?.tracks.filter((track) => track.kind === "caption") ?? [],
+      scene?.tracks.filter(
+        (track) => track.kind === "caption" || track.kind === "text",
+      ) ?? [],
     fonts = snapshot?.project.fonts ?? [];
   const selectedTrack = tracks.find((track) => track.id === trackId);
+  const editableTarget =
+    trackId === NEW_TEXT_TRACK || selectedTrack?.kind === "text";
+  const validTarget =
+    trackId === NEW_TEXT_TRACK || (!!selectedTrack && !selectedTrack.locked);
+  const exportable =
+    selectedTrack?.kind === "text"
+      ? selectedTrack.elements.some(
+          (element) => element.content.kind === "text",
+        )
+      : scene?.captions.some((cue) => cue.track_id === selectedTrack?.id);
   const fixedJobs = jobs.filter(
     (job) =>
       job.kind === "analysis.sequence_transcribe.v4" &&
@@ -114,6 +130,7 @@ export function V4CaptionWorkspace({
   };
   useEffect(() => {
     epoch.current++;
+    measuring.current?.abort();
     setNotice(null);
     setError(null);
     setJobId("");
@@ -133,9 +150,21 @@ export function V4CaptionWorkspace({
       setError(message(e));
     }
   }, [api, api?.connectionIdentity, v4?.head.project.id, v4?.sequenceId]);
+  useEffect(
+    () => () => {
+      measuring.current?.abort();
+    },
+    [],
+  );
   useEffect(() => {
-    if (!tracks.some((track) => track.id === trackId))
-      setTrackId(tracks[0]?.id ?? "");
+    if (
+      trackId !== NEW_TEXT_TRACK &&
+      !tracks.some((track) => track.id === trackId)
+    )
+      setTrackId(
+        tracks.find((track) => track.kind === "text" && !track.locked)?.id ??
+          NEW_TEXT_TRACK,
+      );
   }, [tracks, trackId]);
   useEffect(() => {
     if (!fonts.some((font) => font.id === fontId))
@@ -200,14 +229,14 @@ export function V4CaptionWorkspace({
   const createTrack = () =>
     run(async (active) => {
       const scope = current();
-      await controller.v4.write("Add caption track", [
+      await controller.v4.write("Add subtitle text track", [
         {
           type: "track_put",
           sequence_id: scope.sequence_id,
           track: {
             id: crypto.randomUUID(),
-            name: "Captions",
-            kind: "caption",
+            name: "Editable subtitles",
+            kind: "text",
             enabled: true,
             muted: false,
             locked: false,
@@ -219,16 +248,18 @@ export function V4CaptionWorkspace({
         },
       ]);
       if (!active()) return;
-      setNotice("Caption track created. Transcribe this saved revision next.");
+      setNotice(
+        "Subtitle text track created. Transcribe this saved revision next.",
+      );
     });
   const transcribe = (retry: boolean) =>
     run(async (active) => {
       if (!api?.connectionIdentity)
         throw new Error("Authenticate the connection first.");
       const scope = current();
-      if (!selectedTrack || selectedTrack.locked)
+      if (!validTarget)
         throw new Error(
-          "Choose an unlocked caption track before transcribing.",
+          "Choose an unlocked subtitle track before transcribing.",
         );
       if (!capability?.available)
         throw new Error(
@@ -270,13 +301,94 @@ export function V4CaptionWorkspace({
         "Local transcription queued. The task list retains progress and cancellation.",
       );
     });
+  const saveEditable = async (
+    scope: ReturnType<typeof current>,
+    source: SubtitleTextRequest["source"],
+    active: () => boolean,
+  ) => {
+    if (!api || !validTarget)
+      throw new Error("Choose an unlocked subtitle track.");
+    const font = fonts.find((font) => font.id === fontId);
+    if (
+      !font ||
+      ![400, 700].includes(font.weight) ||
+      !Number.isFinite(fontSize) ||
+      fontSize <= 0 ||
+      fontSize > 500
+    )
+      throw new Error(
+        "Select a pinned project font and a size between 1 and 500 px.",
+      );
+    measuring.current?.abort();
+    const abort = new AbortController();
+    measuring.current = abort;
+    const defaults = await api.sdk.call(
+      "opencut_text_v1_plan",
+      {
+        ...scope,
+        idempotency_key: crypto.randomUUID(),
+        command: {
+          kind: "defaults",
+          font_id: fontId,
+          start: { kind: "exact", time: { ticks: "0", timebase: 120000 } },
+        },
+      },
+      { signal: abort.signal },
+    );
+    if (!defaults.initial || defaults.revision !== scope.expected_revision)
+      throw new Error("The subtitle plan differs from the fixed revision.");
+    const text = structuredClone(defaults.initial.text);
+    text.content = "";
+    text.font_size = { unit: "canvas_pixels", value: fontSize };
+    const request: SubtitleTextRequest = {
+      ...scope,
+      idempotency_key: crypto.randomUUID(),
+      track:
+        selectedTrack?.kind === "text"
+          ? { kind: "existing", track_id: selectedTrack.id }
+          : { kind: "new", track_id: crypto.randomUUID() },
+      source,
+      style: text,
+      max_width_px: null,
+      observations: null,
+    };
+    const plan = await planEditableSubtitles(api, request, abort.signal);
+    if (!active() || current().expected_revision !== scope.expected_revision)
+      throw new Error("The caption target changed.");
+    if (!plan.transaction || !plan.selection)
+      throw new Error("The subtitle plan differs from the fixed revision.");
+    // Original public transaction is staged by the existing durable recovery port.
+    // A lost acknowledgement blocks all new operations; never re-transcribe/rekey.
+    await controller.v4.applyPlanned(plan.transaction, scope.sequence_id);
+    if (!active()) return;
+    controller.v4.select(plan.selection.element_id);
+    setTrackId(plan.selection.track_id);
+    setNotice(
+      t("{count} editable subtitles saved. {warnings}", {
+        count: plan.cues.length,
+        warnings: plan.warnings.join(" "),
+      }),
+    );
+  };
   const generate = () =>
     run(async (active) => {
       const scope = current();
-      if (!ready || !selectedJob || !selectedTrack || selectedTrack.locked)
+      if (!ready || !selectedJob || !validTarget)
         throw new Error(
           "Select a successful transcript from this exact saved revision and an unlocked caption track.",
         );
+      if (editableTarget) {
+        await saveEditable(
+          scope,
+          {
+            kind: "transcript",
+            analysis_job_id: selectedJob.job_id,
+            words_per_caption: words,
+          },
+          active,
+        );
+        return;
+      }
       const receipt = await mutateCaption({
         sequence_id: scope.sequence_id,
         intent: {
@@ -299,13 +411,17 @@ export function V4CaptionWorkspace({
   const importFile = () =>
     run(async (active) => {
       const scope = current();
-      if (!selectedTrack || selectedTrack.locked)
-        throw new Error("Choose an unlocked caption track.");
+      if (!validTarget) throw new Error("Choose an unlocked subtitle track.");
       if (
         new TextEncoder().encode(content).length > 2 * 1024 * 1024 ||
         !content.trim()
       )
         throw new Error("Provide an SRT or ASS file up to 2 MiB.");
+      if (editableTarget) {
+        await saveEditable(scope, { kind: "file", format, content }, active);
+        if (active()) setContent("");
+        return;
+      }
       const receipt = await mutateCaption({
         sequence_id: scope.sequence_id,
         intent: {
@@ -330,13 +446,23 @@ export function V4CaptionWorkspace({
   const exportFile = () =>
     run(async (active) => {
       if (!api || !snapshot || !scene) return;
-      const result = await api.sdk.call("opencut_subtitle_export_v4", {
+      if (!selectedTrack) throw new Error("Choose a subtitle track to export.");
+      const scope = {
         project_id: snapshot.project.id,
         revision: snapshot.revision,
         sequence_id: scene.id,
-        track_id: trackId || null,
         format,
-      });
+      };
+      const result =
+        selectedTrack.kind === "text"
+          ? await api.sdk.call("opencut_subtitle_text_v1_export", {
+              ...scope,
+              track_id: selectedTrack.id,
+            })
+          : await api.sdk.call("opencut_subtitle_export_v4", {
+              ...scope,
+              track_id: selectedTrack.id,
+            });
       if (
         result.project_id !== snapshot.project.id ||
         result.revision !== snapshot.revision ||
@@ -422,17 +548,20 @@ export function V4CaptionWorkspace({
             disabled={disabled}
             onChange={(e) => setTrackId(e.target.value)}
           >
-            <option value="">{t("Choose a caption track")}</option>
+            <option value={NEW_TEXT_TRACK}>
+              {t("New editable subtitle track")}
+            </option>
             {tracks.map((track) => (
               <option key={track.id} value={track.id}>
-                {track.name}
+                {track.name} ·{" "}
+                {t(track.kind === "text" ? "Editable text" : "Legacy captions")}
                 {track.locked ? " · " + t("locked") : ""}
               </option>
             ))}
           </select>
         </Field>
         <Button disabled={disabled} onClick={() => void createTrack()}>
-          {t("Add caption track")}
+          {t("Add subtitle text track")}
         </Button>
         <Field label={t("Pinned font")}>
           <select
@@ -459,6 +588,11 @@ export function V4CaptionWorkspace({
           />
         </Field>
       </div>
+      <p>
+        {t(
+          "New subtitles are editable text. Select a legacy caption track to keep its existing caption workflow.",
+        )}
+      </p>
       <div className="caption-columns">
         <section aria-label={t("Automatic captions")}>
           <h3>{t("Automatic captions")}</h3>
@@ -498,11 +632,7 @@ export function V4CaptionWorkspace({
           <div className="toolbar">
             <Button
               disabled={
-                disabled ||
-                !capability?.available ||
-                !selectedTrack ||
-                selectedTrack.locked ||
-                !!original
+                disabled || !capability?.available || !validTarget || !!original
               }
               onClick={() => void transcribe(false)}
             >
@@ -639,19 +769,13 @@ export function V4CaptionWorkspace({
           </Field>
           <div className="toolbar">
             <Button
-              disabled={
-                disabled ||
-                !content.trim() ||
-                !fontId ||
-                !selectedTrack ||
-                selectedTrack.locked
-              }
+              disabled={disabled || !content.trim() || !fontId || !validTarget}
               onClick={() => void importFile()}
             >
               {t("Import subtitles")}
             </Button>
             <Button
-              disabled={!api || pending || busy || !scene.captions.length}
+              disabled={!api || pending || busy || !exportable}
               onClick={() => void exportFile()}
             >
               {t("Export subtitles")}

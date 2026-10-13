@@ -4224,6 +4224,84 @@
         }
       }
     },
+    "/v1/tools/opencut_subtitle_text_v1_plan": {
+      "post": {
+        "operationId": "opencut_subtitle_text_v1_plan",
+        "description": "Plan editable TextV4 subtitles from an authorized fixed-revision transcript or bounded subtitle file. First prepares pinned-font measurements, then validates observations and returns one public V4 edit for ordinary atomic apply, recovery and undo. Does not commit or create a job.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_subtitle_text_v1_export": {
+      "post": {
+        "operationId": "opencut_subtitle_text_v1_export",
+        "description": "Export one explicitly selected fixed-revision TextV4 track as SRT or ASS, with retained editable styles where representable and explicit interchange losses. Does not include titles on other tracks.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_subtitle_generate_v4": {
       "post": {
         "operationId": "opencut_subtitle_generate_v4",
@@ -9805,6 +9883,8 @@
           "recovery.v3.inspect": "opencut_edit_recovery_v3_inspect",
           "recovery.v3.ack": "opencut_edit_recovery_v3_ack",
           "text.v1.canvas.plan": "opencut_text_v1_canvas_plan",
+          "subtitle.text.v1.plan": "opencut_subtitle_text_v1_plan",
+          "subtitle.text.v1.export": "opencut_subtitle_text_v1_export",
           "subtitle.generate.v4": "opencut_subtitle_generate_v4",
           "subtitle.import.v4": "opencut_subtitle_import_v4",
           "subtitle.export.v4": "opencut_subtitle_export_v4",
@@ -9993,6 +10073,38 @@
                       },
                       "input": {
                         "$ref": "#/components/schemas/OpencutTextV1CanvasPlanInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "subtitle.text.v1.plan"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "subtitle.text.v1.export"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportInput"
                       }
                     },
                     "required": [
@@ -10759,6 +10871,12 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutTextV1CanvasPlanOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutSubtitleGenerateV4Output"
@@ -43277,6 +43395,712 @@
         "title": "Response",
         "type": "object"
       },
+      "OpencutSubtitleTextV1PlanInput": {
+        "$defs": {
+          "CaptionLayoutReceiptV3": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/CaptionLayoutReceiptV3"
+          },
+          "CaptionWrapMeasurementV3": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/CaptionWrapMeasurementV3"
+          },
+          "ColorEncodingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorEncodingV4"
+          },
+          "ColorV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorV4"
+          },
+          "FontBindingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontBindingV4"
+          },
+          "FontResolutionPolicy": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
+          },
+          "FontSizeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          },
+          "SubtitleFormatV4": {
+            "$ref": "#/components/schemas/OpencutEditRecoveryV3StageInput/$defs/SubtitleFormatV4"
+          },
+          "SubtitleTextObservationV1": {
+            "additionalProperties": false,
+            "properties": {
+              "caption": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/CaptionLayoutReceiptV3"
+              },
+              "raster": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/TextRasterReceiptV2"
+              }
+            },
+            "required": [
+              "caption",
+              "raster"
+            ],
+            "type": "object"
+          },
+          "SubtitleTextSourceV1": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "analysis_job_id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "transcript",
+                    "type": "string"
+                  },
+                  "words_per_caption": {
+                    "format": "uint8",
+                    "maximum": 255,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "analysis_job_id",
+                  "words_per_caption"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/SubtitleFormatV4"
+                  },
+                  "kind": {
+                    "const": "file",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "format",
+                  "content"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TextAlignV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
+          },
+          "TextBackgroundRectV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextBackgroundRectV2"
+          },
+          "TextBackgroundV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextBackgroundV4"
+          },
+          "TextBlockMetricsV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextBlockMetricsV2"
+          },
+          "TextDecorationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextDecorationV4"
+          },
+          "TextLayoutV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextLayoutV2"
+          },
+          "TextLineMetricsV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextLineMetricsV2"
+          },
+          "TextRasterReceiptV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextRasterReceiptV2"
+          },
+          "TextRasterTransformV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextRasterTransformV2"
+          },
+          "TextRectV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextRectV2"
+          },
+          "TextTrackTargetV1": {
+            "$ref": "#/components/schemas/OpencutTextV1PlanInput/$defs/TextTrackTargetV1"
+          },
+          "TextV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "max_width_px": {
+            "description": "None selects the Classic 80% canvas width. Placement uses its 5% bottom margin.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observations": {
+            "description": "None prepares measurement inputs. Some validates them and returns one edit.",
+            "items": {
+              "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/SubtitleTextObservationV1"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "sequence_id": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/SubtitleTextSourceV1"
+          },
+          "style": {
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/TextV4",
+            "description": "Content must be empty. Cue content comes exclusively from the source."
+          },
+          "track": {
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanInput/$defs/TextTrackTargetV1"
+          }
+        },
+        "required": [
+          "project_id",
+          "expected_revision",
+          "sequence_id",
+          "idempotency_key",
+          "track",
+          "source",
+          "style"
+        ],
+        "title": "SubtitleTextPlanRequestV1",
+        "type": "object"
+      },
+      "OpencutSubtitleTextV1PlanOutput": {
+        "$defs": {
+          "AnimationChannelV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AnimationChannelV4"
+          },
+          "ApplyPublicV4Project": {
+            "$ref": "#/components/schemas/OpencutProjectV4MediaImportPlanOutput/$defs/ApplyPublicV4Project"
+          },
+          "AssetVersion": {
+            "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
+          },
+          "AudioStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AudioStyleV4"
+          },
+          "BackgroundV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BackgroundV4"
+          },
+          "BlendModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BlendModeV4"
+          },
+          "BookmarkOperationV1": {
+            "$ref": "#/components/schemas/OpencutProjectV4MediaImportPlanOutput/$defs/BookmarkOperationV1"
+          },
+          "BoxMaskGeometryV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BoxMaskGeometryV4"
+          },
+          "CanvasSizeModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CanvasSizeModeV4"
+          },
+          "CanvasSizeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CanvasSizeV4"
+          },
+          "CaptionLayoutProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionLayoutProfileV4"
+          },
+          "CaptionRasterPlanV3": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/CaptionRasterPlanV3"
+          },
+          "CaptionSourceAnchor": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CaptionSourceAnchor"
+          },
+          "CaptionStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionStyleV4"
+          },
+          "CaptionV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionV4"
+          },
+          "ChannelTargetV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ChannelTargetV4"
+          },
+          "ColorComponentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorComponentV4"
+          },
+          "ColorEncodingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorEncodingV4"
+          },
+          "ColorParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorParameterV4"
+          },
+          "ColorV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorV4"
+          },
+          "CubicBezierV1": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
+          },
+          "CurveHandleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CurveHandleV4"
+          },
+          "DiscreteKeyV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteKeyV4"
+          },
+          "DiscreteParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteParameterV4"
+          },
+          "DiscreteValueV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "EffectKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
+          },
+          "EffectV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectV4"
+          },
+          "ElementContentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ElementContentV4"
+          },
+          "ElementSourceSpanV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ElementSourceSpanV4"
+          },
+          "ExtrapolationModeV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/KeyframeInterpolation"
+          },
+          "ExtrapolationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ExtrapolationV4"
+          },
+          "FontBindingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontBindingV4"
+          },
+          "FontResolutionPolicy": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
+          },
+          "FontSizeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          },
+          "FrameRate": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
+          },
+          "FreeformMaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FreeformMaskV4"
+          },
+          "FreeformPointV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FreeformPointV4"
+          },
+          "GainV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GainV4"
+          },
+          "GraphicGeometryV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GraphicGeometryV4"
+          },
+          "GraphicV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GraphicV4"
+          },
+          "LegacySequenceFormatV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/LegacySequenceFormatV4"
+          },
+          "MaskFeatherV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskFeatherV4"
+          },
+          "MaskShapeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskShapeV4"
+          },
+          "MaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskV4"
+          },
+          "ProjectSettingsV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ProjectSettingsV4"
+          },
+          "PublicAssetSelectorV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4MediaImportPlanOutput/$defs/PublicAssetSelectorV4"
+          },
+          "PublicFontSelectorV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4MediaImportPlanOutput/$defs/PublicFontSelectorV4"
+          },
+          "PublicProjectOperationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4MediaImportPlanOutput/$defs/PublicProjectOperationV4"
+          },
+          "RationalRateV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
+          },
+          "RetimeMappingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/RetimeMappingV4"
+          },
+          "RetimeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/RetimeV4"
+          },
+          "ScalarBindingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarBindingV4"
+          },
+          "ScalarKeyV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarKeyV4"
+          },
+          "ScalarParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarParameterV4"
+          },
+          "ScalarSegmentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarSegmentV4"
+          },
+          "SceneBookmarkV1": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SceneBookmarkV1"
+          },
+          "SequenceV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SequenceV4"
+          },
+          "SettingsProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SettingsProfileV4"
+          },
+          "StrokeAlignV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/StrokeAlignV4"
+          },
+          "StrokeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/StrokeV4"
+          },
+          "SubtitleTextCuePlanV1": {
+            "additionalProperties": false,
+            "properties": {
+              "directive": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/CaptionRasterPlanV3"
+              },
+              "layer": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/TextLayerPlanV2"
+              },
+              "timeline_range": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/TimeRange"
+              }
+            },
+            "required": [
+              "timeline_range",
+              "layer",
+              "directive"
+            ],
+            "type": "object"
+          },
+          "SubtitleTextPlanResultV1": {
+            "additionalProperties": false,
+            "properties": {
+              "cues": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/SubtitleTextCuePlanV1"
+                },
+                "type": "array"
+              },
+              "height": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "selection": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/TimelineTargetV4"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "transaction": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/ApplyPublicV4Project"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "warnings": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "width": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "schema_version",
+              "revision",
+              "width",
+              "height",
+              "cues",
+              "warnings"
+            ],
+            "type": "object"
+          },
+          "TangentModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TangentModeV4"
+          },
+          "TextAlignV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
+          },
+          "TextBackgroundV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextBackgroundV4"
+          },
+          "TextDecorationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextDecorationV4"
+          },
+          "TextLayerPlanV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/TextLayerPlanV2"
+          },
+          "TextMaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextMaskV4"
+          },
+          "TextRasterBackgroundV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/TextRasterBackgroundV2"
+          },
+          "TextRasterInputV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/TextRasterInputV2"
+          },
+          "TextRasterTransformV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/TextRasterTransformV2"
+          },
+          "TextV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/Time"
+          },
+          "TimeRange": {
+            "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
+          },
+          "TimelineElementV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TimelineElementV4"
+          },
+          "TimelineTargetV4": {
+            "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineTargetV4"
+          },
+          "TrackKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TrackKindV4"
+          },
+          "TrackV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TrackV4"
+          },
+          "TransformV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransformV4"
+          },
+          "TransitionKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransitionKindV4"
+          },
+          "TransitionV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransitionV4"
+          },
+          "ValidatedTextFontV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/ValidatedTextFontV2"
+          },
+          "VisualProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/VisualProfileV4"
+          },
+          "VisualStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/VisualStyleV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/SubtitleTextPlanResultV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1PlanOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutSubtitleTextV1ExportInput": {
+        "$defs": {
+          "SubtitleFormatV4": {
+            "$ref": "#/components/schemas/OpencutEditRecoveryV3StageInput/$defs/SubtitleFormatV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportInput/$defs/SubtitleFormatV4"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "sequence_id": {
+            "type": "string"
+          },
+          "track_id": {
+            "description": "Explicit scope prevents ordinary titles on other tracks entering subtitles.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "revision",
+          "sequence_id",
+          "track_id",
+          "format"
+        ],
+        "title": "SubtitleTextExportV1",
+        "type": "object"
+      },
+      "OpencutSubtitleTextV1ExportOutput": {
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "SubtitleExportReceipt": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "cue_count": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "format": {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleFormat"
+              },
+              "losses": {
+                "description": "Interchange limitations, never hidden from the caller.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "sequence_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project_id",
+              "revision",
+              "sequence_id",
+              "format",
+              "content",
+              "cue_count",
+              "losses"
+            ],
+            "type": "object"
+          },
+          "SubtitleFormat": {
+            "$ref": "#/components/schemas/OpencutEditRecoveryV3StageInput/$defs/SubtitleFormatV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleExportReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
       "OpencutSubtitleGenerateV4Input": {
         "$defs": {
           "CaptionLayoutProfileV4": {
@@ -43526,98 +44350,18 @@
         "type": "object"
       },
       "OpencutSubtitleExportV4Output": {
+        "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput",
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/EditorError"
           },
           "SubtitleExportReceipt": {
-            "additionalProperties": false,
-            "properties": {
-              "content": {
-                "type": "string"
-              },
-              "cue_count": {
-                "format": "uint",
-                "minimum": 0,
-                "type": "integer"
-              },
-              "format": {
-                "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/SubtitleFormat"
-              },
-              "losses": {
-                "description": "Interchange limitations, never hidden from the caller.",
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "project_id": {
-                "type": "string"
-              },
-              "revision": {
-                "type": "string"
-              },
-              "sequence_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "project_id",
-              "revision",
-              "sequence_id",
-              "format",
-              "content",
-              "cue_count",
-              "losses"
-            ],
-            "type": "object"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleExportReceipt"
           },
           "SubtitleFormat": {
-            "$ref": "#/components/schemas/OpencutEditRecoveryV3StageInput/$defs/SubtitleFormatV4"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleFormat"
           }
-        },
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "properties": {
-          "api_version": {
-            "type": "string"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/SubtitleExportReceipt"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/EditorError"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "warnings": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "api_version",
-          "request_id",
-          "warnings"
-        ],
-        "title": "Response",
-        "type": "object"
+        }
       },
       "OpencutFontV1CatalogInput": {
         "$ref": "#/components/schemas/OpencutAudioPreviewV4CapabilityInput"
@@ -56865,16 +57609,16 @@
         "type": "object"
       },
       "OpencutSubtitleExportOutput": {
-        "$ref": "#/components/schemas/OpencutSubtitleExportV4Output",
+        "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput",
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/EditorError"
           },
           "SubtitleExportReceipt": {
-            "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/SubtitleExportReceipt"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleExportReceipt"
           },
           "SubtitleFormat": {
-            "$ref": "#/components/schemas/OpencutSubtitleExportV4Output/$defs/SubtitleFormat"
+            "$ref": "#/components/schemas/OpencutSubtitleTextV1ExportOutput/$defs/SubtitleFormat"
           }
         }
       },

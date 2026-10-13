@@ -178,6 +178,35 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
     ) -> Result<Self, EditorError> {
         Self::new_inner(root, prepared, font_policy, checkpoint, false, None, None)
     }
+    /// Draft subtitle elements are ordinary TextV4, but their observed greedy
+    /// wrapping normalizes whitespace and can introduce an ASCII space. Use
+    /// the existing caption coverage rules without weakening free-text V2.
+    pub fn new_subtitle_authoring_fonts_v1(
+        root: &Path,
+        prepared: &PreparedTextFrameV2,
+        font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        let caption_ids = prepared
+            .texts()
+            .iter()
+            .map(|text| text.identity.element_id.clone())
+            .collect::<BTreeSet<_>>();
+        let space_fonts = prepared
+            .texts()
+            .iter()
+            .map(|text| text.font.id.clone())
+            .collect::<BTreeSet<_>>();
+        Self::new_inner(
+            root,
+            prepared,
+            font_policy,
+            checkpoint,
+            false,
+            Some(&space_fonts),
+            Some(&caption_ids),
+        )
+    }
     fn new_inner(
         root: &Path,
         prepared: &PreparedTextFrameV2,
