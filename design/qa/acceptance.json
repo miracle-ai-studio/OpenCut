@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "35 unique scoped records; this observer-only slice reuses unchanged product/Rust/native/Web7db7d00. Three independent tagged-voice/stereo gain/Escape interior cases plus one narrow linked-hot post-master/pixel/cleanup case have actual evidence. First hot residual failure remains open; no repeated300s/DSP matrices, builds or whole S1 acceptance.57 feature statuses/36 remaining groups unchanged.",
-    "latest_candidate": "audio_preview_distinct_stereo_mastering",
+    "scope": "36 unique scoped records. B0 adds bounded failed PCM retention and actual quantum correlation proved by an explicitly controlled delivery gap. Original hot residual remains open; existing binary/Web/audio reused, visual registry includes unconnected B1 source at its recorded identity. No product build, old300s/DSP rerun or whole S1 acceptance;57 statuses/36 remaining unchanged.",
+    "latest_candidate": "audio_preview_bounded_failure_capture",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -7461,6 +7461,80 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_bounded_failure_capture",
+        "status": "controlled_fault_diagnosis_pass_original_failure_open",
+        "candidate": {
+          "source_head": "ffed4a6c",
+          "dirty_source": true,
+          "source_files": [
+            "apps/web/scripts/scene-preview-acoustic-diagnosis.mjs",
+            "apps/web/scripts/scene-preview-acoustic-diagnosis.test.mjs",
+            "apps/web/scripts/scene-preview-acoustics.mjs",
+            "apps/web/scripts/scene-preview-acoustics.test.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-acoustics.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "931d676afb5cd4a1050a8f68f5fd931ec3ace7be1b5d7179842adaf9534895a2",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "web_manifest_sha256": "7db7d00660d34b760462adb8b3cbff750e7948ce707f0b4789de279eae98074d",
+          "native_audio_module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+          "native_visual_module_sha256": "1b030ff9a6cf259f5cb6ee2413acc458dd41008d90fcb4f28d2e07660fa62558",
+          "visual_identity_note": "Includes the then-unconnected B1 text-layout module captured during an explicit source-write freeze. It is not the previous visual package identity or a claim about the later edited text module. Existing visual execution entry was unchanged.",
+          "browser": "153.0.8010.12",
+          "injection": "Hold original PCM block10 and next original transfer credit until30 actual copied=0 receipts; max2 held; no PCM/token/cursor edits."
+        },
+        "checks": {
+          "new_diagnosis_and_affected_acoustics": 15,
+          "affected_pcm_and_consumption_observers": 11,
+          "web_boundary_files": 188,
+          "product_builds": 0,
+          "protocol_changed": false
+        },
+        "actual": {
+          "fixture_project_id": "scene-preview-acoustics-65f2535d-1fcc-49c9-9dd3-2b2d2151a1d2",
+          "revision": "rev_a388e4941d05bf23fe037da1dccda2f1c87aef7f8103f0450909eaa278ebaaf0",
+          "actual_start_sample": "300000",
+          "frames_per_point": 4096,
+          "pre_dc": [
+            2,
+            1
+          ],
+          "post_residual_rms": [
+            0.3982028503371442,
+            0.1991014251685721
+          ],
+          "measured_first_output_delay_frames": 288,
+          "quantum_records": 316,
+          "missing_frames": 3232,
+          "post_zero_frames": 3232,
+          "zero_mask_mismatches": 0,
+          "source_consumed_start": "36000",
+          "source_consumed_end": "36864",
+          "retained_event_bytes": 132598,
+          "retention_max_bytes": 327680,
+          "pixel_frames": 10,
+          "max_skew_ms": 69.3333333333328,
+          "device_closed": true,
+          "worker_targets": 0,
+          "head_preserved": true,
+          "page_errors": 0,
+          "owned_open_handles": 0,
+          "preview_native_actors": 0
+        },
+        "retention": {
+          "report": "/private/tmp/opencut-preview-acoustics-gap-capture-20261013.json",
+          "window_directory": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/acoustic-window-KHD67Y",
+          "contents": "Two byte-exact32768B Float32 stereo windows and bounded actual-quantum metadata, unique directory outside Git. Original non-controlled failure remains retained separately."
+        },
+        "limits": [
+          "Controlled gap proves bounded retention and measured first-output alignment for this authored DC event, not the cause/fix of S1_HOT_POST_MASTER_RESIDUAL, phase equivalence, DAC or performance.",
+          "First controlled run reached end before default poll collected the short window; retained timeout report, corrected only observation polling and catch-time raw capture, then reran this affected case. No old low-voice/300s/DSP tests or product builds.",
+          "B0 diagnosis is now bounded and closed as an implementation slice; original product failure stays open. B1 independent font/text modules are in progress, not part of product or rendering acceptance here."
+        ]
       }
     ]
   },
@@ -7556,7 +7630,7 @@
       "evidence_id": "audio_preview_distinct_stereo_mastering",
       "status": "unresolved_scoped_post_master_residual",
       "reason": "First actual high DC post-master interior residual exceeded0.0001 while pre-master2/1 passed; original failed PCM/statistics absent. Same product later diagnostic observer success is scoped evidence, not a fix/cause proof.",
-      "next": "Keep original failure; correlate bounded pre/post window and actual product quantum consumption without excluding zeros or rebuilding unchanged product."
+      "next": "B0 capture/correlation capability is implemented and proved only by a controlled gap. Preserve original untraceable failure; re-enter diagnosis on a new naturally failing captured window or relevant product change, and close before full audio release. Proceed with independent B1 text work."
     }
   ],
   "resource_constraints": [

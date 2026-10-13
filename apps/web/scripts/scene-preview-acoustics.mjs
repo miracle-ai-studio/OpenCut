@@ -132,6 +132,16 @@ export function installMasteringWitness({processorSource}) {
     constructor(...args) {
       super(...args);
       if (args[1]?.name !== "opencut-audio-pump") return;
+      this.addEventListener("message", ({data}) => {
+        if (data.channel !== "opencut-audio-pump" || data.version !== 1 || data.kind !== "progress") return;
+        const record = records.find(r => r.token === data.token);
+        if (!record) throw Error("Missing mastering quantum owner");
+        const q = data.receipt;
+        if (record.window && q.renderFrame >= record.window.start_context_frame + record.window.frames) return;
+        if (record.quanta.length === 1024) { record.quantum_overflows++; return; }
+        record.quanta.push({token:q.token,copied:q.copied,consumedFrames:q.consumedFrames,
+          completedBlocks:q.completedBlocks,renderFrame:q.renderFrame,quantumFrames:q.quantumFrames});
+      });
       const post = this.postMessage.bind(this);
       this.postMessage = (data, ...rest) => {
         if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
@@ -162,7 +172,7 @@ export function installMasteringWitness({processorSource}) {
       throw Error("Mastering observation exceeds8 contexts");
     }
     const record = {token: null, sample_rate: this.context.sampleRate,
-      output_gain: this.gain.value, window: null};
+      output_gain: this.gain.value, window: null, quanta: [], quantum_overflows: 0};
     const node = new Native(this.context, "opencut-mastering-acceptance", {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
       channelCount: 2, channelCountMode: "explicit", channelInterpretation: "discrete",

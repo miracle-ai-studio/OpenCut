@@ -296,11 +296,12 @@ export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [
     return response;
   };
 }
-export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = [], controlGate = null} = {}) {
+export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = [], controlGate = null, installDeliveryGate = null} = {}) {
   const pumps = [];
   page.on("worker", worker => {
     if (!/pump-worker/.test(worker.url())) return;
     const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling, pcmWindows, controlGate}) };
+    if (installDeliveryGate) entry.installed = entry.installed.then(() => worker.evaluate(installDeliveryGate));
     // Preserve the rejection for the reader, without an unhandled rejection if
     // the user cancels before this otherwise idle worker starts playback.
     worker.on("close", () => { entry.closed = true; });
@@ -333,6 +334,7 @@ export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = [], 
       if (!current.startObserved) throw new Error("Audio pump witness missed the start fence.");
       w.blocks = current.blocks; w.pcm = current.pcm;
       w.selectedPcm = current.selectedPcm.slice(); w.pcmCapture = current.pcmCapture;
+      w.deliveryGate = current.deliveryGate ?? null;
       w.supplies = current.supplies.map(s => ({...s, at: s.at + offset}));
       w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset,
         ...(c.headers_ended===undefined?{}:{headers_ended:c.headers_ended+offset})})));

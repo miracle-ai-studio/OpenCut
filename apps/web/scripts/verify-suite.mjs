@@ -31,6 +31,7 @@ const suites = new Map([
   ["scene-preview", verifyV4ScenePreview],
   ["scene-preview-acoustics", verifyV4ScenePreviewAcoustics],
   ["scene-preview-acoustics-hot", (...args) => verifyV4ScenePreviewAcoustics(...args, {hotOnly:true})],
+  ["scene-preview-acoustics-gap", (...args) => verifyV4ScenePreviewAcoustics(...args, {hotOnly:true,controlledGap:true})],
   ["scene-preview-continuity", verifyV4ScenePreviewContinuity],
   ["scene-preview-retirement", verifyV4ScenePreviewRetirement],
   ["scene-preview-identity", verifyV4ScenePreviewIdentity],

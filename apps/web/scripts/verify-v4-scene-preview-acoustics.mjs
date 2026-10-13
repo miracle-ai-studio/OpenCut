@@ -1,6 +1,7 @@
 import {expect} from "@playwright/test";
 import fs from "node:fs/promises";
 import path from "node:path";
+import {correlateHotWindow, retainAcousticWindow, installAcousticDeliveryGate} from "./scene-preview-acoustic-diagnosis.mjs";
 import {installScenePreviewWitness, trackScenePreviewPumps} from "./verify-v4-scene-preview.mjs";
 import {importProductMedia, placeProductMedia} from "./verify-v4-editor.mjs";
 import {assertTaggedStereo, measureTaggedStereo, acousticCaptureMatches, masteringWitnessProcessor, installMasteringWitness} from "./scene-preview-acoustics.mjs";
@@ -97,7 +98,8 @@ async function fixtureFor(page, endpoint, directory, writes) {
   return fixture;
 }
 
-export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,check,{hotOnly=false}={}) {
+export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,check,{hotOnly=false,controlledGap=false}={}) {
+  if(controlledGap && !hotOnly)throw Error("Controlled gap requires the retained hot fixture only");
   const page=await browser.newPage({locale:"en-US",viewport:{width:1440,height:1100}});
   const errors=[],writes=[],controls=[];
   page.on("pageerror",e=>{if(errors.length<8)errors.push(e.message);});
@@ -107,11 +109,13 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
   });
   await page.addInitScript(installScenePreviewWitness);
   await page.addInitScript(installMasteringWitness,{processorSource:`(${masteringWitnessProcessor.toString()})()`});
-  const witness=trackScenePreviewPumps(page,{pcmWindows:[{id:"interior",start_sample:36000,frames:4096}]});
+  const witness=trackScenePreviewPumps(page,{pcmWindows:[{id:"interior",start_sample:36000,frames:4096}],
+    installDeliveryGate:controlledGap?installAcousticDeliveryGate:null});
   const tool=toolFor(page);
   const results=[];
   let failure=null;
   let observedSignal=null;
+  const retained=[];
   try{
     await ready(page,endpoint);
     const fixture=await fixtureFor(page,endpoint,directory,writes);
@@ -136,7 +140,7 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
           return window.__sceneMasteringWitness.records.find(r=>r.token===token)??null;
         });
         return sampled.selectedPcm?.length===1 && acousticCaptureMatches(sampled.session,sampled.progress,post,{db,hot});
-      },{timeout:15000}).toBe(true);
+      },{timeout:15000,intervals:[50,100,100]}).toBe(true);
       original??=sampled.session;
       expect(sampled.overflows).toBe(0);expect(sampled.pcmCapture.completed).toBe(1);
       expect(post.sample_rate).toBe(48000);expect(post.window.frames).toBe(4096);
@@ -153,8 +157,28 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
           const values=post.window.values.filter((_,i)=>i%2===c);
           return {min:Math.min(...values),max:Math.max(...values),first:values[0],last:values.at(-1),zeros:values.filter(v=>v===0).length};
         })};
-      const pre=assertTaggedStereo(sampled.selectedPcm[0].values,{db,hot});
-      const mastered=assertTaggedStereo(post.window.values,{db,hot,postMaster:true});
+      let pre,mastered,correlation=null,acousticFailure=null;
+      try{
+        pre=assertTaggedStereo(sampled.selectedPcm[0].values,{db,hot});
+        mastered=assertTaggedStereo(post.window.values,{db,hot,postMaster:true});
+      }catch(error){
+        acousticFailure=error.message;
+        try{if(hot)correlation=correlateHotWindow(post);}catch(cause){correlation={error:cause.message};}
+        retained.push(await retainAcousticWindow(directory,{pre:sampled.selectedPcm[0],post,
+          session:post.session,correlation,gate:sampled.deliveryGate,failure:acousticFailure}));
+        if(!controlledGap)throw error;
+      }
+      if(controlledGap){
+        expect(acousticFailure).toBe("Unexpected acoustic residual");
+        expect(pre).toHaveLength(2);
+        expect(sampled.deliveryGate).toMatchObject({released:true,timed_out:false,cancelled:false,zero_quanta:30});
+        expect(sampled.deliveryGate.max_held).toBeLessThanOrEqual(2);
+        expect(correlation.error).toBeUndefined();
+        expect(correlation.missing_frames).toBeGreaterThan(0);
+        expect(correlation.post_zero_frames).toBe(correlation.missing_frames);
+        expect(correlation.zero_mask_mismatches).toBe(0);
+        mastered=measureTaggedStereo(post.window.values);
+      }
       const frames=sampled.frames.filter(f=>f.generation===sampled.session.generation);
       expect(frames.length).toBeGreaterThanOrEqual(4);
       for(const f of frames){
@@ -164,11 +188,13 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
       }
       const result={name,generation:sampled.session.generation,actual_start_sample:sampled.session.actual_start_sample,
         pre_master:pre,post_master:mastered,frames_per_point:4096,
+        controlled_gap:controlledGap,expected_acoustic_failure:acousticFailure,correlation,
         post_context_first_nonzero_frame:post.window.first_nonzero_frame,
         post_context_window_start_frame:post.window.start_context_frame,
         pixel_frames:frames.length,max_skew_ms:Math.max(...frames.map(f=>(f.actual-f.time)*1000))};
       results.push(result);
-      check(`actual stereo/${name}: independent voices and PCM at native supply and real mastering output`,{scene_preview_acoustics:result});
+      check(controlledGap?"controlled delivery gap: failed post-master PCM retained and matched to actual missing quanta":
+        `actual stereo/${name}: independent voices and PCM at native supply and real mastering output`,{scene_preview_acoustics:result});
     };
     if(!hotOnly){
       await capture("baseline",0);
@@ -207,6 +233,18 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
         physical_dac_verified:false,phase_boundary_history_verified:false,performance_matrix_repeated:false},
     });
   }catch(error){
+    // Even a polling/identity assertion failure must preserve the actual raw
+    // window if it arrived. Do not lose it because the short stream has ended.
+    if(!retained.length){
+      const raw=await witness().catch(()=>null);
+      const post=await page.evaluate(()=>window.__sceneMasteringWitness?.records.find(r=>r.window)??null).catch(()=>null);
+      if(raw?.selectedPcm?.length===1 && post?.window){
+        let correlation;
+        try{correlation=hotOnly?correlateHotWindow(post):null;}catch(cause){correlation={error:cause.message};}
+        retained.push(await retainAcousticWindow(directory,{pre:raw.selectedPcm[0],post,session:post.session,
+          correlation,gate:raw.deliveryGate,failure:error.message}));
+      }
+    }
     failure=await page.evaluate(()=>{
       const w=window.__scenePreviewWitness,s=w?.session;
       return {session_state:s?.state??null,generation:s?.generation??null,progress:w?.progress??null,
@@ -217,7 +255,7 @@ export async function verifyV4ScenePreviewAcoustics(browser,endpoint,directory,c
     }).catch(()=>({page_closed:true}));
     throw error;
   }finally{
-    await fs.writeFile(path.join(directory,hotOnly?"scene-preview-acoustics-hot-evidence.json":"scene-preview-acoustics-evidence.json"),JSON.stringify({cases:results,errors,failure,failed_signal:failure?observedSignal:null},null,2));
+    await fs.writeFile(path.join(directory,controlledGap?"scene-preview-acoustics-gap-evidence.json":hotOnly?"scene-preview-acoustics-hot-evidence.json":"scene-preview-acoustics-evidence.json"),JSON.stringify({cases:results,errors,failure,retained_windows:retained,failed_signal:failure?observedSignal:null},null,2));
     await page.close();
   }
 }

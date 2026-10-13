@@ -83,7 +83,7 @@ test("graph tee preserves original connections/results, waits for observation mo
   class GainNode extends AudioNode {constructor(c){super(c);this.gain={value:.98};}}
   class AudioWorklet {async addModule(url){modules.push(url);}}
   class Native extends AudioNode {constructor(c,name,options){super(c);this.name=name;this.options=options;this.sent=[];this.port={postMessage:(...args)=>this.sent.push(args)};}}
-  class Worker {constructor(){this.sent=[];}postMessage(...args){this.sent.push(args);}}
+  class Worker {constructor(){this.sent=[];this.listeners=[];}postMessage(...args){this.sent.push(args);}addEventListener(_,fn){this.listeners.push(fn);}}
   const context={sampleRate:48000,destination:{},audioWorklet:new AudioWorklet()};
   const env=vm.createContext({window:{AudioWorkletNode:Native,Worker},AudioNode,GainNode,AudioWorklet,Blob,structuredClone,
     URL:{createObjectURL:()=>"blob:observer",revokeObjectURL:()=>{}}});
@@ -103,6 +103,9 @@ test("graph tee preserves original connections/results, waits for observation mo
   assert.equal(worker.sent[0][0],message);assert.equal(worker.sent[0][1],transfer);
   assert.equal(record.session.session_id,"different-from-gesture-token");
   assert.equal(record.session.identity.revision,"fixed");
+  worker.listeners[0]({data:{channel:"opencut-audio-pump",version:1,kind:"progress",token:"owned",
+    receipt:{token:"owned",copied:128,consumedFrames:"128",renderFrame:1024,quantumFrames:128,completedBlocks:0}}});
+  assert.equal(record.quanta.length,1);assert.equal(record.quanta[0].copied,128);
   assert.throws(()=>worker.postMessage({...message,token:"other"}),/ownership/);
   observer.port.onmessage({data:{kind:"window",token:"owned",frames:4096,values:new Float32Array(8192).buffer}});
   assert.equal(record.window.values.length,8192);
