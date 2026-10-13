@@ -53,10 +53,13 @@ test("Worker-to-page conversion includes response headers and body when time ori
   const {trackScenePreviewPumps}=await import("./verify-v4-scene-preview.mjs");
   let born,calls=0;
   const worker={url:()=>"http://localhost/pump-worker-synthetic.js",on(){},async evaluate(){if(++calls===1)return;return {token:"synthetic",startObserved:true,timeOrigin:6000,blocks:3,pcm:[],overflows:0,
+    selectedPcm:[{id:"later",start_sample:42,frames:1,values:[.1,.1]}],pcmCapture:{completed:1},
     supplies:[{ordinal:3,frames:4096,start_sample:"8192",at:45}],controls:[{kind:"report_consumed",frames:"4224",began:12,headers_ended:13,ended:20}],progresses:[{at:10,frames:"4096",completedBlocks:1}]};}};
   const page={on(_name,fn){born=fn;},async evaluate(){return {progress:{token:"synthetic"},timeOrigin:1000,controls:[]};}};
   const collect=trackScenePreviewPumps(page,{rolling:true});born(worker);
   const w=await collect();assert.equal(w.controls[0].headers_ended,5013);assert.equal(w.controls[0].ended,5020);
+  assert.deepEqual(w.selectedPcm,[{id:"later",start_sample:42,frames:1,values:[.1,.1]}]);
+  assert.equal(w.pcmCapture.completed,1);
   const account=new PreviewCreditObservations();account.add(w.workerProgresses,w.controls,w.supplies);
   assert.equal(account.result().completion_to_report.maximum_ms,2);
 });

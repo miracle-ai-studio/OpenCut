@@ -197,10 +197,23 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
 // Observe transferred PCM and control RTT in the owning Worker. Injection is
 // required before its start message; otherwise acceptance fails rather than
 // silently treating a missing supply trace as an empty/healthy stream.
-export function installScenePreviewPumpWitness({ rolling = false } = {}) {
+export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [] } = {}) {
+  // Acceptance-only interiors, from the authored fixture, not renderer plans.
+  // At most one partial4096-frame stereo window and eight completed windows;
+  // the reader drains completed bytes and retains only derived measurements.
+  if (pcmWindows.length > 39) throw Error("PCM window declaration exceeds39");
+  let previousEnd = 0;
+  for (const window of pcmWindows) {
+    if (!Number.isSafeInteger(window.start_sample) || window.start_sample < previousEnd ||
+        !Number.isInteger(window.frames) || window.frames < 1 || window.frames > 4096)
+      throw Error("Invalid or overlapping PCM observation window");
+    previousEnd = window.start_sample + window.frames;
+  }
+  let selected = 0, partial = [];
   let suppliedFrames = 0n;
   const w = globalThis.__scenePumpWitness = { token: null, startObserved: false,
-    timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [], progresses: [], overflows: 0 };
+    timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [], progresses: [], overflows: 0,
+    selectedPcm: [], pcmCapture: { expected: pcmWindows.length, completed: 0, partial_frames: 0, transferred_frames: "0" } };
   addEventListener("message", ({data}) => {
     if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
       w.token = data.token; w.startObserved = true;
@@ -232,8 +245,22 @@ export function installScenePreviewPumpWitness({ rolling = false } = {}) {
       w.blocks++;
       if (rolling && w.supplies.length >= 512) w.overflows++;
       const frames = data.pcm.byteLength / 8;
+      if (!Number.isInteger(frames)) throw Error("PCM transfer is not stereoFloat32");
       if (w.supplies.length < 512) w.supplies.push({ ordinal: w.blocks, frames, start_sample: String(suppliedFrames), at: performance.now() });
+      const begin = Number(suppliedFrames), end = begin + frames;
+      while (selected < pcmWindows.length && pcmWindows[selected].start_sample < end) {
+        const window = pcmWindows[selected], stop = window.start_sample + window.frames;
+        const from = Math.max(begin, window.start_sample), until = Math.min(end, stop);
+        if (from !== window.start_sample + partial.length / 2) throw Error("PCM observation lost sample coverage");
+        partial.push(...new Float32Array(data.pcm).subarray((from - begin) * 2, (until - begin) * 2));
+        if (until < stop) break;
+        if (w.selectedPcm.length >= 8) w.overflows++;
+        else w.selectedPcm.push({ ...window, values: partial });
+        partial = []; selected++; w.pcmCapture.completed++;
+      }
       suppliedFrames += BigInt(frames);
+      w.pcmCapture.partial_frames = partial.length / 2;
+      w.pcmCapture.transferred_frames = String(suppliedFrames);
       if (w.pcm.length < 4096) w.pcm.push(...new Float32Array(data.pcm)
         .subarray(0, Math.min(8192, (4096 - w.pcm.length) * 2)).filter((_, i) => i % 2 === 0));
     }
@@ -260,11 +287,11 @@ export function installScenePreviewPumpWitness({ rolling = false } = {}) {
     return response;
   };
 }
-export function trackScenePreviewPumps(page, {rolling = false} = {}) {
+export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = []} = {}) {
   const pumps = [];
   page.on("worker", worker => {
     if (!/pump-worker/.test(worker.url())) return;
-    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling}) };
+    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling, pcmWindows}) };
     // Preserve the rejection for the reader, without an unhandled rejection if
     // the user cancels before this otherwise idle worker starts playback.
     worker.on("close", () => { entry.closed = true; });
@@ -286,7 +313,7 @@ export function trackScenePreviewPumps(page, {rolling = false} = {}) {
     for (const entry of pumps) {
       try { await entry.installed; entry.cached = await entry.worker.evaluate(rolling => {
         const w = structuredClone(globalThis.__scenePumpWitness);
-        if (rolling) for (const key of ["supplies", "controls", "progresses"]) globalThis.__scenePumpWitness[key].length = 0;
+        if (rolling) for (const key of ["supplies", "controls", "progresses", "selectedPcm"]) globalThis.__scenePumpWitness[key].length = 0;
         return w;
       }, rolling); }
       catch (error) { if (!entry.cached && !entry.closed) throw error; }
@@ -296,6 +323,7 @@ export function trackScenePreviewPumps(page, {rolling = false} = {}) {
       const offset = current.timeOrigin - w.timeOrigin;
       if (!current.startObserved) throw new Error("Audio pump witness missed the start fence.");
       w.blocks = current.blocks; w.pcm = current.pcm;
+      w.selectedPcm = current.selectedPcm.slice(); w.pcmCapture = current.pcmCapture;
       w.supplies = current.supplies.map(s => ({...s, at: s.at + offset}));
       w.controls.push(...current.controls.map(c => ({...c, began: c.began + offset, ended: c.ended + offset,
         ...(c.headers_ended===undefined?{}:{headers_ended:c.headers_ended+offset})})));
@@ -303,7 +331,7 @@ export function trackScenePreviewPumps(page, {rolling = false} = {}) {
       w.workerOverflows = current.overflows;
       w.pumpWitness = { startObserved: true, owner: "dedicated-worker", timeOriginConverted: true };
     } else if (w.firstSoundAt) throw new Error("No actual audio pump supply witness.");
-    if (rolling && current) for (const key of ["supplies", "controls", "progresses"]) current[key].length = 0;
+    if (rolling && current) for (const key of ["supplies", "controls", "progresses", "selectedPcm"]) current[key].length = 0;
     return w;
   };
 }

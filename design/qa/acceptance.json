@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "30 unique scoped records. Actual document retirement gap fixed through original SDK Stop; final21 lifecycle plus7 unchanged affected bridge/transport cases,SDK23/boundary9 and final actual playing/paused document departures pass. Pre-BFCache-correction explicitly identified known candidate300s passes14/14 gates; final source only received targeted correction/build/document checks. No whole-tree/S1 completion claim.",
-    "latest_candidate": "audio_preview_document_retirement",
+    "scope": "31 unique scoped records. Retained39 real later-stereoPCM windows use original fixed fixture/current90f996c Web with no product builds.20source/19gap interiors pass independent440Hz/three-voice gain/exact silence. Terminal-verifier correction passes actual8s scoped run; no final300s aggregate rerun. Original document lifecycle and preceding c6f8087 frozen14 gates retain their execution identities. No whole-tree/S1 completion claim.",
+    "latest_candidate": "audio_preview_later_stereo_pcm",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -6627,12 +6627,122 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_later_stereo_pcm",
+        "status": "independent_synthetic_source_and_gap_interiors_verified_full_S1_incomplete",
+        "candidate": {
+          "base_commit": "d3381aa27b9c31ef2cf5de603daffb68150d2744",
+          "source_files": [
+            "apps/web/package.json",
+            "apps/web/scripts/scene-preview-pcm.mjs",
+            "apps/web/scripts/scene-preview-pcm.test.mjs",
+            "apps/web/scripts/scene-preview-continuity.test.mjs",
+            "apps/web/scripts/verify-v4-scene-preview.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-pcm.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "670cd129aff416540ce9a1bd1243fa718123e56141a0289ebe59d83157ec95f1",
+          "binary_ref": "audio_preview_document_retirement.candidate",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "web_dist_manifest_sha256": "90f996ceb990d91391db8c9564d373c26592640d063c7fcce0ee77c68119d5ba",
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "product_sources_unchanged": true,
+          "runtime": "preview-direct-v1; Node24.19.0; Chromium154.0.8037.99; Playwright1.63.0. Bounded browser/Worker byte observation, no Native profiling preload.",
+          "identity_limit": "Only new PCM coverage; prior14 frozen performance gates retain c6f8087 execution identity. No new performance or exact DAC reproducibility claim."
+        },
+        "implemented": [
+          "Acceptance-only selected windows at existing actualWorker stereoFloat32 transfer hook, exact cumulative supplied-frame start and zero-start session fence. One partial4096-frame window/eight completed windows drained on existing reader;39 declarations maximum, overflow/missing/stereo/nonfinite data cannot pass. Original transferable bytes and Response.text remain unchanged.",
+          "Dedicated scene-preview-pcm suite registered in Python retained-fixture requirements and JS runner. Existing player, native source-to-IR/DSP/renderer, media/CAS, authority/lease/generation, two-slot credit, public DTO/194tools/22frozen wire unchanged."
+        ],
+        "checks": {
+          "terminal_browser_checks": 1,
+          "observer_tests": 14,
+          "new_pcm_tests": 7,
+          "existing_affected_observer_tests": 7,
+          "actual_pcm_playbacks": 2,
+          "verifier_correction": "Initial metadata-only preflight corrected; first actual300s rejected terminal actual_start_sample14400000 as origin0. Observer now retains original zero origin and bounded failure measurements, new terminal-origin regression passes. Second actual300s preserved39 acoustic windows but terminal aggregate rejected subsequentStop cursor. Final first-origin correction verified by pure regression and one actual8s terminal-only run; full300s aggregate not rerun; no product rebuild or prior performance/lifecycle matrices repeated.",
+          "syntax_and_runner_registration": "passed, Python compile/help and actual registered suite invoked",
+          "rust_builds": 0,
+          "web_builds": 0,
+          "sdk_builds": 0,
+          "reuse": "Original explicit Rust/Web/native bytes checked; no repeated HD/lifecycle/DSP/parser/export/generated-contract/full-workspace or performance gate run. Architecture/contract results retain original unchanged product scope."
+        },
+        "acceptance": {
+          "project_id": "scene-preview-dense-7b4ffe9a-45e5-4c4c-bcca-23c1af75316e",
+          "revision": "rev_bf2ac2ef6fde247d9f66ed4f125aab89c66e68a24129c11038f11af4e5872f1e",
+          "authored_seconds": 300,
+          "source_interiors": 20,
+          "silent_gap_interiors": 19,
+          "window_frames": 4096,
+          "observed_frames": 159744,
+          "channels": 2,
+          "observed_transfer_cursor": null,
+          "dense_terminal_aggregate": "failed_verifier_origin_assertion_not_rerun",
+          "frequency_hz_range": [
+            439.9999160180845,
+            440.0001726302337
+          ],
+          "rms_range": [
+            0.03335492108671648,
+            0.03335560262728294
+          ],
+          "expected": {
+            "frequency_hz": 440,
+            "rms": 0.03338230108828959,
+            "rms_tolerance": 0.0005,
+            "gap_peak": 0,
+            "stereo_tolerance": 1e-07
+          },
+          "all_gap_channels_exact_zero": true,
+          "stereo_max_difference": 0,
+          "bounds": {
+            "partial_frames": 4096,
+            "queued_windows": 8,
+            "declared_windows": 39
+          },
+          "readonly": "No new product/fixture edits; final short project head unchanged. Dense after-head assertion not reached.",
+          "page_errors": 0,
+          "raw_samples_retained": false
+        },
+        "terminal_only": {
+          "report": "/private/tmp/opencut-preview-pcm-terminal-20261013.json",
+          "consumed_frames": "384000",
+          "final_control_state": "stopped",
+          "final_control_start_sample": "384000",
+          "readonly": true,
+          "scope": "Original8s project, corrected final-source origin/ended-toStop/device closure; not a final300s aggregate or PCM remeasurement."
+        },
+        "dense_observation": {
+          "source_manifest_sha256": "1dc5454f727213e91d458cb769c94f2eb0486e02c95b8aa1fc9bcef5b78ed740",
+          "source_files_ref": "candidate.source_files",
+          "receipt": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/preview-later-pcm-evidence/pcm-window-evidence.json",
+          "bytes": 16921,
+          "sha256": "b38325aa513e3f3d5004fba8bf480d75ebb4edd1392798d4992d0f74ce34dc17",
+          "browser_report": "/private/tmp/opencut-preview-later-pcm-20261013.json",
+          "aggregate_status": "failed_terminal_verifier",
+          "independent_window_status": "39_passed_and_preserved"
+        },
+        "scope": "Retained actual300s PCM window receipt for previously missing laterPCM coverage. Same original100-placement/5-track fixed revision and two8s synthetic sources; no import/fixture copy/media or credential inGit.",
+        "limits": [
+          "Interior pre-masterPCM only. Three identical mono voices duplicated into stereo do not prove distinct source/channel assignment, exact edge/phase, arbitrary stereo/format/retime or post-master/physicalDAC.",
+          "No new frozen continuous-performance measurement; prior candidate pass and historical failures/diagnostics remain separate. Full gain/rapidseek/end/stop/scene-revision/original-credential/BFCache/abrupt close/network/TTL/long/VFR/cross-browser matrices incomplete; S1/F10/F42/F44 and36groups not complete."
+        ],
+        "next": "Reuse current scene player/final cursor and original identity fences for focused actual temporarygain/rapidseek/end-stop/scene-revision/original credential matrices; add only missing independent acoustic/visual/control expectations. Expand BFCache unknown recovery and abruptclose/keepalive/lease, then long/VFR/non-unit-rate formats. No unchanged300s/performance reruns chasing rare tails.",
+        "cleanup": {
+          "verifier_service_stopped": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web after pending-key correction has targeted real retirement only, not another300s run. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Initial PCM only; laterPCM, full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete.",
+    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
