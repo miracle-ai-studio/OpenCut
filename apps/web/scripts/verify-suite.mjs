@@ -20,6 +20,7 @@ import {
 import { verifyV4ScenePreviewPerformance } from "./verify-v4-scene-preview-performance.mjs";
 
 import { verifyV4ScenePreviewContinuity } from "./verify-v4-scene-preview-continuity.mjs";
+import { verifyV4ScenePreviewSeek } from "./verify-v4-scene-preview-seek.mjs";
 import { verifyV4ScenePreviewRetirement } from "./verify-v4-scene-preview-retirement.mjs";
 import { verifyV4ScenePreviewPcm } from "./verify-v4-scene-preview-pcm.mjs";
 
@@ -27,6 +28,8 @@ const suites = new Map([
   ["scene-preview", verifyV4ScenePreview],
   ["scene-preview-continuity", verifyV4ScenePreviewContinuity],
   ["scene-preview-retirement", verifyV4ScenePreviewRetirement],
+  ["scene-preview-seek", verifyV4ScenePreviewSeek],
+  ["scene-preview-seek-pause", (...args) => verifyV4ScenePreviewSeek(...args, {pauseAfterSeek: true})],
   ["scene-preview-pcm", verifyV4ScenePreviewPcm],
   ["scene-preview-pcm-terminal", (...args) => verifyV4ScenePreviewPcm(...args, {terminalOnly: true})],
   ["scene-preview-performance", verifyV4ScenePreviewPerformance],

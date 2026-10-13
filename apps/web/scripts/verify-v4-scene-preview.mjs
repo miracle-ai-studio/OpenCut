@@ -197,7 +197,7 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
 // Observe transferred PCM and control RTT in the owning Worker. Injection is
 // required before its start message; otherwise acceptance fails rather than
 // silently treating a missing supply trace as an empty/healthy stream.
-export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [] } = {}) {
+export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [], controlGate = null } = {}) {
   // Acceptance-only interiors, from the authored fixture, not renderer plans.
   // At most one partial4096-frame stereo window and eight completed windows;
   // the reader drains completed bytes and retains only derived measurements.
@@ -213,7 +213,8 @@ export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [
   let suppliedFrames = 0n;
   const w = globalThis.__scenePumpWitness = { token: null, startObserved: false,
     timeOrigin: performance.timeOrigin, blocks: 0, supplies: [], controls: [], pcm: [], progresses: [], overflows: 0,
-    selectedPcm: [], pcmCapture: { expected: pcmWindows.length, completed: 0, partial_frames: 0, transferred_frames: "0" } };
+    selectedPcm: [], pcmCapture: { expected: pcmWindows.length, completed: 0, partial_frames: 0, transferred_frames: "0" },
+    controlGate: controlGate && {...controlGate, armed: false, held: false} };
   addEventListener("message", ({data}) => {
     if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
       w.token = data.token; w.startObserved = true;
@@ -276,7 +277,15 @@ export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [
       // The shared SDK reads text before decoding its typed envelope. Headers
       // alone do not acknowledge the body or release its serialized control.
       response.text=async function(...readArgs) {
-        try { return await text.apply(this,readArgs); }
+        try {
+          const body = await text.apply(this,readArgs), gate = w.controlGate;
+          if (gate?.armed && !gate.held && gate.kind === input.command.kind &&
+              (!gate.stoppedReport || input.command.playing === false)) {
+            gate.held = true;
+            await new Promise(resolve => { globalThis.__releaseScenePreviewControl = resolve; });
+          }
+          return body;
+        }
         finally {
           if (rolling && w.controls.length >= 2048) w.overflows++;
           if (w.controls.length < 2048) w.controls.push({ kind: input.command.kind,
@@ -287,11 +296,11 @@ export function installScenePreviewPumpWitness({ rolling = false, pcmWindows = [
     return response;
   };
 }
-export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = []} = {}) {
+export function trackScenePreviewPumps(page, {rolling = false, pcmWindows = [], controlGate = null} = {}) {
   const pumps = [];
   page.on("worker", worker => {
     if (!/pump-worker/.test(worker.url())) return;
-    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling, pcmWindows}) };
+    const entry = { worker, closed: false, cached: null, installed: worker.evaluate(installScenePreviewPumpWitness, {rolling, pcmWindows, controlGate}) };
     // Preserve the rejection for the reader, without an unhandled rejection if
     // the user cancels before this otherwise idle worker starts playback.
     worker.on("close", () => { entry.closed = true; });

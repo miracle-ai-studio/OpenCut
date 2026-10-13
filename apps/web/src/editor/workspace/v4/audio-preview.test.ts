@@ -686,9 +686,18 @@ it("known first-picture failure stops its created session and never opens PCM", 
 it("producer EOF during pause cannot replace its final confirmed pause receipt with failure", async () => {
   const f = await setupAudioPreview();
   let producer!: ReadableStreamDefaultController<Uint8Array>;
-  f.stream.mockResolvedValue(new Response(new ReadableStream<Uint8Array>({
-    start(controller) { producer = controller; },
-  }), { headers: { "content-type": "application/vnd.opencut.audio-preview-v4" } }));
+  f.stream.mockResolvedValue(
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          producer = controller;
+        },
+      }),
+      {
+        headers: { "content-type": "application/vnd.opencut.audio-preview-v4" },
+      },
+    ),
+  );
   try {
     await f.preview.play();
     await flush();
@@ -701,7 +710,248 @@ it("producer EOF during pause cannot replace its final confirmed pause receipt w
       return actual(request, signal);
     });
     await f.preview.pause();
-    expect(f.state().audioPreview).toMatchObject({ phase: "paused", error: null });
-    expect(f.controls.filter(r => r.command.kind === "stop")).toHaveLength(0);
-  } finally { f.cleanup(); }
+    expect(f.state().audioPreview).toMatchObject({
+      phase: "paused",
+      error: null,
+    });
+    expect(f.controls.filter((r) => r.command.kind === "stop")).toHaveLength(0);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("coalesces rapid seeks during final consumption without stopping or inventing a local clock", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    f.outputs[0].finalFrames = "256";
+    const actual = f.control.getMockImplementation()!;
+    let release!: () => void;
+    f.control.mockImplementationOnce(async (r, signal) => {
+      const result = await actual(r, signal);
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return result;
+    });
+    expect(f.preview.seek({ ticks: "1", timebase: 1 })).toBe(true);
+    await flush();
+    expect(f.preview.seek({ ticks: "2", timebase: 1 })).toBe(true);
+    expect(f.preview.seek({ ticks: "5", timebase: 2 })).toBe(true);
+    release();
+    await vi.waitFor(() => expect(f.outputs).toHaveLength(2));
+    await flush();
+    const seeks = f.controls.filter((r) => r.command.kind === "seek");
+    expect(seeks).toHaveLength(1);
+    expect(seeks[0].command).toEqual({
+      kind: "seek",
+      sequence_time: { ticks: "5", timebase: 2 },
+    });
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(1);
+    expect(f.controls.some((r) => r.command.kind === "stop")).toBe(false);
+    expect(f.state().playhead).toEqual({ ticks: "12345", timebase: 48000 });
+    expect(f.requests).toHaveLength(1);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("serializes rapid seeks while an accepted generation is in flight and skips its superseded output", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play();
+    f.outputs[0].finalFrames = "128";
+    const actual = f.control.getMockImplementation()!;
+    let release!: () => void, entered!: () => void;
+    const began = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let active = 0,
+      maximum = 0;
+    f.control.mockImplementation(async (r, signal) => {
+      active++;
+      maximum = Math.max(maximum, active);
+      try {
+        const result = await actual(r, signal);
+        if (r.command.kind === "seek" && r.generation === "1") {
+          entered();
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return result;
+      } finally {
+        active--;
+      }
+    });
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    expect(f.preview.seek({ ticks: "2", timebase: 1 })).toBe(true);
+    expect(f.preview.seek({ ticks: "3", timebase: 1 })).toBe(true);
+    release();
+    await vi.waitFor(() =>
+      expect(f.state().audioPreview.session?.generation).toBe("3"),
+    );
+    expect(f.outputs).toHaveLength(2);
+    expect(maximum).toBe(1);
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "seek")
+        .map((r) => [r.generation, r.command]),
+    ).toEqual([
+      ["1", { kind: "seek", sequence_time: { ticks: "1", timebase: 1 } }],
+      ["2", { kind: "seek", sequence_time: { ticks: "3", timebase: 1 } }],
+    ]);
+    expect(f.controls.some((r) => r.command.kind === "stop")).toBe(false);
+    expect(f.stream.mock.calls.map(([s]) => s.generation)).toEqual(["1", "3"]);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("pause during a rapid seek waits for its accepted generation and never restarts sound", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play();
+    f.outputs[0].finalFrames = "128";
+    const actual = f.control.getMockImplementation()!;
+    let release!: () => void, entered!: () => void;
+    const began = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    f.control.mockImplementation(async (r, signal) => {
+      const result = await actual(r, signal);
+      if (r.command.kind === "seek") {
+        entered();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+      return result;
+    });
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    const paused = f.preview.pause();
+    release();
+    await paused;
+    expect(f.state().audioPreview.phase).toBe("paused");
+    expect(f.controls.at(-1)).toMatchObject({
+      generation: "2",
+      command: { kind: "pause" },
+    });
+    expect(f.outputs).toHaveLength(1);
+    expect(f.stream).toHaveBeenCalledTimes(1);
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(1);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("retires a late accepted seek generation after document departure without reviving output", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play();
+    const actual = f.control.getMockImplementation()!;
+    let release!: () => void, entered!: () => void;
+    const began = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    f.control.mockImplementation(async (r, signal) => {
+      const result = await actual(r, signal);
+      if (r.command.kind === "seek") {
+        entered();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+      return result;
+    });
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    f.preview.retireDocument();
+    release();
+    await flush();
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "stop")
+        .map((r) => r.generation),
+    ).toEqual(["1", "2"]);
+    expect(
+      f.control.mock.calls
+        .filter(([r]) => r.command.kind === "stop")
+        .at(-1)?.[2],
+    ).toEqual({ keepalive: true });
+    expect(f.outputs).toHaveLength(1);
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("cancels a superseded seek picture preparation before starting its PCM and preserves only the last target", async () => {
+  const f = await setupAudioPreview();
+  let entered!: () => void;
+  const began = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const generations: string[] = [];
+  const picture = {
+    suspend: vi.fn(),
+    close: vi.fn(),
+    observe: vi.fn(),
+    prepare: vi.fn(async (s: { generation: string }, signal: AbortSignal) => {
+      generations.push(s.generation);
+      if (s.generation === "2") {
+        entered();
+        await new Promise<void>((_, reject) =>
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Replaced", "AbortError")),
+            { once: true },
+          ),
+        );
+      }
+    }),
+  };
+  try {
+    await f.preview.play(48000, picture);
+    f.outputs[0].finalFrames = "256";
+    f.preview.seek({ ticks: "1", timebase: 1 });
+    await began;
+    expect(f.preview.seek({ ticks: "7", timebase: 2 })).toBe(true);
+    await vi.waitFor(() =>
+      expect(f.state().audioPreview.session?.generation).toBe("3"),
+    );
+    expect(generations).toEqual(["1", "2", "3"]);
+    expect(f.outputs).toHaveLength(3);
+    expect(f.outputs[1].silenced).toBe(true);
+    expect(f.stream.mock.calls.map(([s]) => s.generation)).toEqual(["1", "3"]);
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "report_consumed")
+        .map((r) => [r.generation, r.command]),
+    ).toEqual([
+      [
+        "1",
+        {
+          kind: "report_consumed",
+          consumed_frames: "256",
+          sequence: "1",
+          playing: false,
+          stalled: false,
+        },
+      ],
+    ]);
+    expect(
+      f.controls.filter((r) => r.command.kind === "seek").at(-1)?.command,
+    ).toEqual({ kind: "seek", sequence_time: { ticks: "7", timebase: 2 } });
+    expect(f.state().audioPreview.phase).toBe("loading");
+    expect(picture.close).not.toHaveBeenCalled();
+  } finally {
+    f.cleanup();
+  }
 });

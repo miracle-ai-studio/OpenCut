@@ -77,3 +77,19 @@ test("refill detail keeps only greatest32 numeric samples and distinguishes prio
   for(const bad of [{ordinal:1,frames:4097,start_sample:"0",at:1},{ordinal:1,frames:4096,start_sample:"01",at:1}])assert.throws(()=>new PreviewCreditObservations().add([],[],[bad]),/Invalid supply/);
   assert.throws(()=>new PreviewCreditObservations().add([],[{kind:"heartbeat",began:2,ended:1}],[]),/Invalid control/);
 });
+test("armed stopped-report gate holds the real body once, preserving original text and unrelated controls",async()=>{
+  const {installScenePreviewPumpWitness}=await import("./verify-v4-scene-preview.mjs");
+  const original={fetch:globalThis.fetch,MessagePort:globalThis.MessagePort,addEventListener:globalThis.addEventListener};
+  globalThis.fetch=async()=>new Response('{"fixed":true}');globalThis.MessagePort=class{postMessage(){}};globalThis.addEventListener=()=>{};
+  try {
+    installScenePreviewPumpWitness({controlGate:{kind:"report_consumed",stoppedReport:true}});
+    const read=async command=>(await fetch("/v1/tools/opencut_audio_preview_v4_control",{body:JSON.stringify({command})})).text();
+    const w=globalThis.__scenePumpWitness;w.controlGate.armed=true;
+    assert.equal(await read({kind:"heartbeat"}),'{"fixed":true}');
+    assert.equal(await read({kind:"report_consumed",playing:true}),'{"fixed":true}');
+    let completed=false;const reading=read({kind:"report_consumed",playing:false}).then(text=>{completed=true;return text;});
+    while(!w.controlGate.held)await Promise.resolve();assert.equal(completed,false);
+    globalThis.__releaseScenePreviewControl();assert.equal(await reading,'{"fixed":true}');
+    assert.equal(await read({kind:"report_consumed",playing:false}),'{"fixed":true}');
+  } finally {Object.assign(globalThis,original);delete globalThis.__scenePumpWitness;delete globalThis.__releaseScenePreviewControl;}
+});

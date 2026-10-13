@@ -53,6 +53,10 @@ type Active = {
   controls: AbortController;
   progress: AudioOutputProgress;
   draining: boolean;
+  seekTarget: Time | null;
+  seekTask: Promise<void> | null;
+  pauseAfterSeek: boolean;
+  seekPreparation: AbortController | null;
   pump: PreviewPump | null;
   leaseDeadline: number;
   documentDeparted: boolean;
@@ -284,6 +288,10 @@ export class V4AudioPreview {
       progress: { consumedFrames: "0", stalled: true, contextTime: 0 },
       controls: new AbortController(),
       draining: false,
+      seekTarget: null,
+      seekTask: null,
+      pauseAfterSeek: false,
+      seekPreparation: null,
       pump: null,
       leaseDeadline: 0,
       documentDeparted: false,
@@ -544,6 +552,13 @@ export class V4AudioPreview {
   }
   async pause() {
     const a = this.active;
+    if (a?.seekTask && this.same(a)) {
+      a.pauseAfterSeek = true;
+      this.localStop(a);
+      a.seekPreparation?.abort();
+      await a.seekTask;
+      return;
+    }
     if (!a || !this.same(a) || !a.session) {
       this.invalidate();
       this.publish({ phase: "paused" });
@@ -580,15 +595,24 @@ export class V4AudioPreview {
       time &&
       a?.session &&
       this.same(a) &&
-      !a.draining &&
-      ["playing", "stalled", "loading"].includes(
-        this.host.state()?.audioPreview.phase ?? "",
-      )
+      (a.seekTask ||
+        (!a.draining &&
+          ["playing", "stalled", "loading"].includes(
+            this.host.state()?.audioPreview.phase ?? "",
+          )))
     ) {
+      a.seekTarget = time;
       a.draining = true;
       this.localStop(a);
+      a.seekPreparation?.abort();
       this.publish({ phase: "loading" });
-      void this.seekPlaying(a, time);
+      if (!a.seekTask) {
+        const task = this.seekPlaying(a);
+        a.seekTask = task;
+        void task.finally(() => {
+          if (a.seekTask === task) a.seekTask = null;
+        });
+      }
       return true;
     }
     this.invalidate();
@@ -601,25 +625,64 @@ export class V4AudioPreview {
     this.invalidate(false);
     this.publish({ phase: "paused" });
   }
-  private async seekPlaying(a: Active, time: Time) {
+  private async seekPlaying(a: Active) {
     try {
       const frames = await a.output.stop();
       if (!this.same(a)) return;
       await this.report(a, frames);
       if (!this.same(a)) return;
-      const previous = a.session!;
-      const result = await a.api.v4.audioPreviewControl(
-        this.command(a, { kind: "seek", sequence_time: time }),
-        a.controls.signal,
-      );
-      this.checkSession(a, result, previous);
-      if (!this.same(a)) return;
-      await this.replaceOutput(a, result);
+      // One latest target, one control in flight. Adopt every accepted identity
+      // before the next command, but never prepare/publish a superseded target.
+      while (this.same(a) && (a.seekTarget || a.pauseAfterSeek)) {
+        const time = a.seekTarget;
+        a.seekTarget = null;
+        const previous = a.session!;
+        const result = await a.api.v4.audioPreviewControl(
+          this.command(
+            a,
+            time ? { kind: "seek", sequence_time: time } : { kind: "pause" },
+          ),
+          a.controls.signal,
+        );
+        this.checkSession(a, result, previous);
+        a.session = result;
+        if (!this.same(a)) {
+          this.stopRemote(a);
+          return;
+        }
+        if (a.seekTarget || (a.pauseAfterSeek && result.state !== "paused"))
+          continue;
+        if (result.state === "paused") {
+          a.pauseAfterSeek = false;
+          a.abort.abort();
+          this.present(result.authoritative_time);
+          this.publish({ session: result, phase: "paused" });
+          return;
+        }
+        const started = await this.replaceOutput(a, result, true);
+        if (!this.same(a)) return;
+        if (!a.seekTarget && !a.pauseAfterSeek) return;
+        this.localStop(a);
+        a.draining = true;
+        const finalFrames = await a.output.stop();
+        if (!this.same(a)) return;
+        if (started) await this.report(a, finalFrames);
+        else if (finalFrames !== "0")
+          throw new Error(
+            "Superseded scene preparation consumed unexpected sound.",
+          );
+        a.abort.abort();
+      }
     } catch (e) {
       if (this.same(a)) this.fail(a, e);
     }
   }
-  private async replaceOutput(a: Active, session: V4AudioPreviewSession) {
+  private async replaceOutput(
+    a: Active,
+    session: V4AudioPreviewSession,
+    seeking = false,
+  ) {
+    const superseded = () => seeking && !!(a.seekTarget || a.pauseAfterSeek);
     a.abort.abort();
     a.pump = null;
     a.session = session;
@@ -646,19 +709,34 @@ export class V4AudioPreview {
     );
     a.output = output;
     await output.ready;
-    if (!this.same(a)) return;
+    if (!this.same(a) || superseded()) return false;
     await this.attachPump(a);
-    if (!this.same(a)) return;
-    if (a.picture)
-      await a.picture.prepare(
-        session,
-        AbortSignal.any([a.controls.signal, AbortSignal.timeout(10000)]),
-      );
-    if (!this.same(a)) return;
+    if (!this.same(a) || superseded()) return false;
+    if (a.picture) {
+      const preparation = new AbortController();
+      if (seeking) a.seekPreparation = preparation;
+      try {
+        await a.picture.prepare(
+          session,
+          AbortSignal.any([
+            a.controls.signal,
+            preparation.signal,
+            AbortSignal.timeout(10000),
+          ]),
+        );
+      } catch (error) {
+        if (superseded() && preparation.signal.aborted) return false;
+        throw error;
+      } finally {
+        if (a.seekPreparation === preparation) a.seekPreparation = null;
+      }
+    }
+    if (!this.same(a) || superseded()) return false;
     a.draining = false;
     this.present(session.authoritative_time);
     this.publish({ session, phase: "loading" });
     this.stream(a);
+    return true;
   }
   draft(draft: V4GainDraft | null, preserve = false) {
     if (preserve) return;

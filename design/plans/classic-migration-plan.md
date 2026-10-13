@@ -144,7 +144,9 @@ V2已实现独立typed PublicApply/Undo/Redo/Restore意图及新stage/inspect/ac
 
 后续独立PCM已补：audio_preview_later_stereo_pcm复用最终90f996c Web/原Rust与native、同一固定修订和媒体，实际300秒20声源/19间隙各4096帧双声道interior窗口按外部440Hz/三声部−18dB/精确零预期通过，159744帧；原播放起点与终态控制游标分开观察。只补验收观察，0产品构建，性能14门槛仍引用原c6f8087身份；39完整声学窗口保留；300秒终态汇总的游标误判已修正并补实际8秒结束回归，最终源未重复300秒全汇总。相同mono素材不证明不同声部/立体声映射、精确边界或post-master/DAC。
 
-下一切片优先补①同一播放器临时gain、快速连续seek、结束/停止、场景/修订切换和原凭据撤权的真实产品矩阵，沿用final cursor→等待在途并串行最后报告→原控制围栏→取消旧流，补独立声部/双声道与边界预期，不重跑相同300秒PCM或既有HD/DSP/生命周期。②真实BFCache未知结果恢复、文档/进程无pagehide退出、网络/keepalive不可达及原30秒lease后备，不能使用无版本强制清理。③真实长源/VFR/不同采样率/非单位速率保音高与更广格式、跨浏览器/物理DAC，复用现有PCM/PTS/DSP预期，不在JS重算源时钟或IR。
+最新audio_preview_coalesced_seek已修播放中连续seek第二次输入误停播：一个最新目标、串行原控制，采用每次服务端接受代际，取消过时画面准备且不打开其PCM；暂停意图保持到最新目标，迟到accepted seek的文档离开用原身份补Stop。四项旧源回归先失败；最终32受影响生命周期/显示/绑定用例及15观察用例过，一次Web集成构建，0Rust/native/SDK构建。原8秒夹具三个真实边界通过：final report等待时只发最新seek、accepted seek等待时串行第二代、Pause再重锚第三代停在156000/48000且新消费0/设备closed/Worker0；最新输入到恢复263/362ms、独立双声道440Hz及颜色/同步117.33/37.33ms过。Worker真实响应体观察点与主线程路由分别拥有控制门，不重复延迟同一消息；最后只修验收器Pause代际预期并补暂停专项，没有重跑已过两项或构建。Web40f17df的新身份不替代旧300秒性能/PCM/文档证据。
+
+下一切片优先补①临时目标gain、Escape取消及与seek/pause交叠的真实连续声画矩阵，补独立声部/双声道和pre-master/post-master预期；复用现有音量线/覆盖、最终真实cursor与原控制，不重新开发播放器或跑旧300秒/HD/DSP。②场景/修订切换、原凭据撤权以及完整结束/Stop组合；已过快速seek/暂停只是指定边界。③真实BFCache未知结果恢复、文档/进程无pagehide退出、网络/keepalive不可达及原30秒lease后备，不能使用无版本强制清理。④真实长源/VFR/不同采样率/非单位速率保音高与更广格式、跨浏览器/物理DAC，复用现有PCM/PTS/DSP预期，不在JS重算源时钟或IR。
 
 每个10秒窗口及全程仍保持停顿、confirmed deficit和真实量子缺帧≤1%，完整owned native树RSS≤2GiB；page/Worker/GPU分列预算及实际子进程退出不能被全程平均或缩小子树替代。新失败若复现前序report等待或Native返回长尾，复用command ID/sample、控制响应体、Worker receipt→报告→k+2补块、起终时钟/有界GC和实际进程身份观察，先证实阶段再修正；旧诊断曾观察到Native evaluate返回122–123ms与Node迟到重叠，但selected GC无命中不证明全无GC/OS原因。不为已过相同夹具反复跑旧身份追捕稀有尾部，也不猜测混合器缓存、移除监控或扩大heap/两槽预算；诊断RPC与注入身份单列，不冒充量子精确因果或原产品性能收益。
 
