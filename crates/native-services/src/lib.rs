@@ -19,6 +19,7 @@ pub mod classic_audio_preview;
 pub mod classic_video;
 pub mod classic_visual;
 pub mod font_import_v1;
+pub mod font_derived_v1;
 pub mod gc;
 
 pub mod artifacts;

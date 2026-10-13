@@ -90,7 +90,7 @@ export function V4Product() {
   const captionBlocked = controller.v4.captionRecovery.blocked();
   const fontBlocked = fontRecoveryBlocked(v4.fontRecovery);
   const textAvailable = v4.textFrameCapability?.schema_version === 2 && v4.textFrameCapability.available && v4.textFrameCapability.submit_tool === "opencut_job_v4_text_frame_png";
-  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0]) => controller.v4.importFont(request) : undefined;
+  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0], protocol?: "derived") => controller.v4.importFont(request, protocol) : undefined;
   const fontImportBlockedReason = captionBlocked ? "Resolve the original caption edit before starting another operation." : fontBlocked ? "Resolve the original font import before starting another operation." : null;
   const readonly = !!v4.historical || busy || pending || fontBlocked || captionBlocked;
   const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {

@@ -88939,6 +88939,1417 @@
     "read_only": true
   },
   {
+    "description": "Discover reviewed variable-font derivations with pinned static output identities and trusted host runtime availability. Does not fetch, derive or authorize project resources.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "EmptyInput",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_catalog",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontDerivedCatalogV1": {
+          "additionalProperties": false,
+          "properties": {
+            "fonts": {
+              "items": {
+                "$ref": "#/$defs/FontDerivedFaceV1"
+              },
+              "type": "array"
+            },
+            "import_available": {
+              "type": "boolean"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source_commit": {
+              "type": "string"
+            },
+            "unavailable_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "schema_version",
+            "import_available",
+            "source_commit",
+            "fonts"
+          ],
+          "type": "object"
+        },
+        "FontDerivedFaceV1": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "derivation_id": {
+              "type": "string"
+            },
+            "family": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "weight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "family",
+            "weight",
+            "style",
+            "derivation_id",
+            "content_hash",
+            "size_bytes"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FontDerivedCatalogV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Read one fixed variable-font recipe, full original license, all axis coordinates, tool identity and canonical derivation proof. Caller-provided URLs, axes and runtimes are not accepted.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog_id"
+      ],
+      "title": "FontDerivedSourceRequestV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_source",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontDerivedAxisV1": {
+          "additionalProperties": false,
+          "properties": {
+            "coordinate": {
+              "description": "Exact decimal coordinate retained from the canonical derivation record.",
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tag",
+            "coordinate"
+          ],
+          "type": "object"
+        },
+        "FontDerivedFaceV1": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "derivation_id": {
+              "type": "string"
+            },
+            "family": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "weight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "family",
+            "weight",
+            "style",
+            "derivation_id",
+            "content_hash",
+            "size_bytes"
+          ],
+          "type": "object"
+        },
+        "FontDerivedSourceV1": {
+          "additionalProperties": false,
+          "properties": {
+            "axes": {
+              "items": {
+                "$ref": "#/$defs/FontDerivedAxisV1"
+              },
+              "type": "array"
+            },
+            "face": {
+              "$ref": "#/$defs/FontDerivedFaceV1"
+            },
+            "license_id": {
+              "type": "string"
+            },
+            "license_notice": {
+              "type": "string"
+            },
+            "license_url": {
+              "type": "string"
+            },
+            "proof_json": {
+              "description": "Original canonical UTF-8 derivation record, including source/license/tool\nidentity and all axes. Hash its object without derivation_id to verify ID.",
+              "type": "string"
+            },
+            "source_commit": {
+              "type": "string"
+            },
+            "source_sha256": {
+              "type": "string"
+            },
+            "source_size_bytes": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "face",
+            "source_commit",
+            "source_url",
+            "source_sha256",
+            "source_size_bytes",
+            "license_url",
+            "license_id",
+            "license_notice",
+            "axes",
+            "proof_json"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FontDerivedSourceV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Import the exact static output of a reviewed variable-font recipe, inspect face and glyph coverage, and atomically retain immutable provenance with the fixed-revision font edit. Original request identity, publication lease, permission and recovery fences apply.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "type": "string"
+        },
+        "expected_revision": {
+          "type": "string"
+        },
+        "font_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "required_text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "catalog_id",
+        "font_id",
+        "required_text"
+      ],
+      "title": "ImportDerivedFontV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_import",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransactionResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Read the retained derivation proof authorized by one exact project revision and font. Verify the original source, license, axes, implementation and derived output against the committed font resource.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "font_id": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "revision",
+        "font_id"
+      ],
+      "title": "ReadDerivedFontProofV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_proof",
+    "output_schema": {
+      "$defs": {
+        "DerivedFontProofV1": {
+          "additionalProperties": false,
+          "properties": {
+            "font_id": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source": {
+              "$ref": "#/$defs/FontDerivedSourceV1"
+            }
+          },
+          "required": [
+            "schema_version",
+            "project_id",
+            "revision",
+            "font_id",
+            "source"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontDerivedAxisV1": {
+          "additionalProperties": false,
+          "properties": {
+            "coordinate": {
+              "description": "Exact decimal coordinate retained from the canonical derivation record.",
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tag",
+            "coordinate"
+          ],
+          "type": "object"
+        },
+        "FontDerivedFaceV1": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "derivation_id": {
+              "type": "string"
+            },
+            "family": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size_bytes": {
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "weight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "family",
+            "weight",
+            "style",
+            "derivation_id",
+            "content_hash",
+            "size_bytes"
+          ],
+          "type": "object"
+        },
+        "FontDerivedSourceV1": {
+          "additionalProperties": false,
+          "properties": {
+            "axes": {
+              "items": {
+                "$ref": "#/$defs/FontDerivedAxisV1"
+              },
+              "type": "array"
+            },
+            "face": {
+              "$ref": "#/$defs/FontDerivedFaceV1"
+            },
+            "license_id": {
+              "type": "string"
+            },
+            "license_notice": {
+              "type": "string"
+            },
+            "license_url": {
+              "type": "string"
+            },
+            "proof_json": {
+              "description": "Original canonical UTF-8 derivation record, including source/license/tool\nidentity and all axes. Hash its object without derivation_id to verify ID.",
+              "type": "string"
+            },
+            "source_commit": {
+              "type": "string"
+            },
+            "source_sha256": {
+              "type": "string"
+            },
+            "source_size_bytes": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "face",
+            "source_commit",
+            "source_url",
+            "source_sha256",
+            "source_size_bytes",
+            "license_url",
+            "license_id",
+            "license_notice",
+            "axes",
+            "proof_json"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DerivedFontProofV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Retain an exact original derived-font import in the existing authenticated unresolved-write slot before dispatch. Does not derive or commit a font; enforces scope, fixed head and shared quota.",
+    "input_schema": {
+      "$defs": {
+        "DerivedFontRecoveryContextV1": {
+          "additionalProperties": false,
+          "properties": {
+            "request": {
+              "$ref": "#/$defs/ImportDerivedFontV1"
+            },
+            "sequence_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "request"
+          ],
+          "type": "object"
+        },
+        "ImportDerivedFontV1": {
+          "additionalProperties": false,
+          "properties": {
+            "catalog_id": {
+              "type": "string"
+            },
+            "expected_revision": {
+              "type": "string"
+            },
+            "font_id": {
+              "type": "string"
+            },
+            "idempotency_key": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "required_text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision",
+            "idempotency_key",
+            "catalog_id",
+            "font_id",
+            "required_text"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/DerivedFontRecoveryContextV1"
+        }
+      },
+      "required": [
+        "context"
+      ],
+      "title": "StageDerivedFontRecoveryV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_recovery_stage",
+    "output_schema": {
+      "$defs": {
+        "DerivedFontRecoveryContextV1": {
+          "additionalProperties": false,
+          "properties": {
+            "request": {
+              "$ref": "#/$defs/ImportDerivedFontV1"
+            },
+            "sequence_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "request"
+          ],
+          "type": "object"
+        },
+        "DerivedFontRecoveryRecordV1": {
+          "additionalProperties": false,
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/DerivedFontRecoveryContextV1"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "receipt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TransactionResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "recovery_id": {
+              "type": "string"
+            },
+            "request_digest": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version",
+            "recovery_id",
+            "project_id",
+            "request_digest",
+            "context"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ImportDerivedFontV1": {
+          "additionalProperties": false,
+          "properties": {
+            "catalog_id": {
+              "type": "string"
+            },
+            "expected_revision": {
+              "type": "string"
+            },
+            "font_id": {
+              "type": "string"
+            },
+            "idempotency_key": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "required_text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision",
+            "idempotency_key",
+            "catalog_id",
+            "font_id",
+            "required_text"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DerivedFontRecoveryRecordV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Discover this caller scope's original derived-font import and receipt without executing it or resolving another recovery protocol.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "recovery_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "ReadDerivedFontRecoveryV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_recovery_read",
+    "output_schema": {
+      "$defs": {
+        "DerivedFontRecoveryContextV1": {
+          "additionalProperties": false,
+          "properties": {
+            "request": {
+              "$ref": "#/$defs/ImportDerivedFontV1"
+            },
+            "sequence_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "request"
+          ],
+          "type": "object"
+        },
+        "DerivedFontRecoveryInspectionV1": {
+          "additionalProperties": false,
+          "properties": {
+            "record": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DerivedFontRecoveryRecordV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version"
+          ],
+          "type": "object"
+        },
+        "DerivedFontRecoveryRecordV1": {
+          "additionalProperties": false,
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/DerivedFontRecoveryContextV1"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "receipt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TransactionResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "recovery_id": {
+              "type": "string"
+            },
+            "request_digest": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version",
+            "recovery_id",
+            "project_id",
+            "request_digest",
+            "context"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ImportDerivedFontV1": {
+          "additionalProperties": false,
+          "properties": {
+            "catalog_id": {
+              "type": "string"
+            },
+            "expected_revision": {
+              "type": "string"
+            },
+            "font_id": {
+              "type": "string"
+            },
+            "idempotency_key": {
+              "type": "string"
+            },
+            "project_id": {
+              "type": "string"
+            },
+            "required_text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "expected_revision",
+            "idempotency_key",
+            "catalog_id",
+            "font_id",
+            "required_text"
+          ],
+          "type": "object"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DerivedFontRecoveryInspectionV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Release a derived-font recovery record only when its exact committed receipt or inability to commit is proven under live authorization and write control.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "recovery_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "recovery_id"
+      ],
+      "title": "AckDerivedFontRecoveryV1",
+      "type": "object"
+    },
+    "name": "opencut_font_derived_v1_recovery_ack",
+    "output_schema": {
+      "$defs": {
+        "DerivedFontRecoveryAckV1": {
+          "additionalProperties": false,
+          "properties": {
+            "receipt": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TransactionResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "recovery_id": {
+              "type": "string"
+            },
+            "resolution": {
+              "$ref": "#/$defs/FontRecoveryResolutionV1"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version",
+            "recovery_id",
+            "resolution"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontRecoveryResolutionV1": {
+          "enum": [
+            "saved",
+            "not_saved"
+          ],
+          "type": "string"
+        },
+        "TransactionResult": {
+          "additionalProperties": false,
+          "properties": {
+            "base_revision": {
+              "type": "string"
+            },
+            "changed_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "deleted_ids": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "transaction_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "base_revision",
+            "revision",
+            "created_ids",
+            "changed_ids",
+            "deleted_ids"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DerivedFontRecoveryAckV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
     "description": "Transcribe a fixed V4 whole-scene Classic PCM mix using the configured local model. Returns a durable cancellable job bound to the original caller, revision, policy and source bytes.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

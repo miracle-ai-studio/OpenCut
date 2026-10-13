@@ -534,7 +534,12 @@ fn db28_to29_preserves_old_raw_context_digest_history_and_rollback_on_table_coll
                 |r| r.get(0),
             )
             .unwrap();
-        app.connection.execute_batch("DROP TRIGGER recovery_v1_excludes_v2; DROP TABLE edit_recovery_v2; UPDATE metadata SET value='28' WHERE key='schema_version';").unwrap();
+        app.connection
+            .execute_batch(
+                "DROP TRIGGER recovery_v1_excludes_v2; DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; UPDATE metadata SET value='28' WHERE key='schema_version';",
+            )
+            .unwrap();
         if collision {
             app.connection
                 .execute_batch("CREATE TABLE edit_recovery_v2(collision TEXT)")
@@ -573,7 +578,7 @@ fn db28_to29_preserves_old_raw_context_digest_history_and_rollback_on_table_coll
                     |r| r.get(0)
                 )
                 .unwrap(),
-            "29"
+            crate::DATABASE_SCHEMA_VERSION.to_string()
         );
         assert_eq!(
             app.connection

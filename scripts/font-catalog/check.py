@@ -55,8 +55,19 @@ native=json.loads((BASE/'catalog_native_report.json').read_text())
 assert native['verified_current_pinned_faces']==len(records)
 assert native['current_failures']==[]
 assert native['catalog_generated_sha256']==hashlib.sha256((BASE/'catalog_generated.rs').read_bytes()).hexdigest()
-assert native['inspector_source_sha256']==hashlib.sha256((ROOT/'crates/native-services/src/font_import_v1/mod.rs').read_bytes()).hexdigest()
+inspector=(ROOT/'crates/native-services/src/font_import_v1/mod.rs').read_bytes()
+inspector_hash=hashlib.sha256(inspector).hexdigest()
+visibility_bridge=False
+if native['inspector_source_sha256']!=inspector_hash:
+    # The derived adapter shares the fixed source reader. Its only change to
+    # this parser module is fetch visibility; every other byte must still match
+    # the original native inventory receipt. Do not rebind that receipt to a
+    # different parser or claim the old inventory ran on the current candidate.
+    assert inspector.count(b'pub(crate) mod fetch;')==1
+    original=inspector.replace(b'pub(crate) mod fetch;',b'mod fetch;',1)
+    assert native['inspector_source_sha256']==hashlib.sha256(original).hexdigest()
+    visibility_bridge=True
 # B1 remains exactly pinned.
 assert records['google-lato-regular-v1']['content_hash']=='d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251'
 assert records['google-mashanzheng-regular-v1']['content_hash']=='6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb'
-print(json.dumps(dict(families=len(families),pinned_faces=len(records),face_availability=counts),sort_keys=True))
+print(json.dumps(dict(families=len(families),pinned_faces=len(records),face_availability=counts,native_parser_visibility_only_reuse=visibility_bridge),sort_keys=True))

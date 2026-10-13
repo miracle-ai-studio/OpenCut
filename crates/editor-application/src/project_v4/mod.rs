@@ -20,7 +20,8 @@ pub mod public;
 pub mod resources;
 pub use edits::plan;
 pub use persistence::{
-    apply, copy, create, import_font_v1, inspect, list, prepare_caption_commit, promote, restore,
+    apply, copy, create, import_derived_font_v1, import_font_v1, inspect, list,
+    prepare_caption_commit, promote, restore,
 };
 pub use ports::*;
 #[cfg(test)]

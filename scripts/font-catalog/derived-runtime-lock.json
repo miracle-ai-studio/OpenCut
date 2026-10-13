@@ -1,0 +1,8 @@
+{
+  "derivation_sha256": "df1af2d6fc7f00ae29d1bc26aa73b14f0640aa75d70f05b53072e0ab59ce5ee1",
+  "fonttools_implementation_sha256": "dc54bf6fd23f9bd6db71259ad6f4a9d481bdcc3080a0ac853358f17812716fd3",
+  "fonttools_version": "4.61.1",
+  "fonttools_wheel_sha256": "17d2bf5d541add43822bcf0c43d7d847b160c9bb01d15d5007d84e2217aaa371",
+  "python_version": "3.14.7",
+  "static_validator_sha256": "948dce6b6727f6243315b466f6cba6db53c42f8325e555320ed8e5d95ac8cb73"
+}

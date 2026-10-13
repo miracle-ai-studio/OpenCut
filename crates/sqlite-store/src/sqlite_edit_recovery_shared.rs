@@ -46,12 +46,16 @@ pub(super) fn reserve(connection: &Connection, bytes: usize) -> Result<(), Edito
 pub(super) enum V2SlotKind {
     Edit { key: String },
     Font { key: String },
+    DerivedFont { key: String },
     CaptionV3 { key: String },
 }
 impl V2SlotKind {
     pub(super) fn key(&self) -> &str {
         match self {
-            Self::Edit { key } | Self::Font { key } | Self::CaptionV3 { key } => key,
+            Self::Edit { key }
+            | Self::Font { key }
+            | Self::DerivedFont { key }
+            | Self::CaptionV3 { key } => key,
         }
     }
 }
@@ -73,6 +77,14 @@ pub(super) fn classify_v2_payload(
             key: opencut_editor_application::edit_recovery_v3::intent(&input.context)
                 .key()
                 .into(),
+        });
+    }
+    if value.get("kind").and_then(Value::as_str) == Some("derived_font_import_v1") {
+        let input = opencut_editor_application::font_derived_v1::recovery::decode_payload(
+            payload, digest, project,
+        )?;
+        return Ok(V2SlotKind::DerivedFont {
+            key: input.context.request.idempotency_key,
         });
     }
     if value.get("kind").is_some() {

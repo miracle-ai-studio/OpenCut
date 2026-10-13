@@ -87,6 +87,7 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
         || suffix.starts_with("media_")
         || suffix.starts_with("font_v1_")
         || suffix.starts_with("font_v2_")
+        || suffix.starts_with("font_derived_v1_")
         || suffix.starts_with("font_recovery_v1_")
     {
         ("media", suffix.replace('_', "."))

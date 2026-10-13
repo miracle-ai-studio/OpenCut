@@ -421,6 +421,7 @@ impl ProjectV4Store for EditorApplication {
             .map_err(storage_error)?;
         authorize(&tx, &context, intent)?;
         require_prepared_request(intent, prepared.request_json())?;
+        sqlite_font_derived_v1::require_derived_proposal(&tx, intent, prepared.snapshot())?;
         // Original analysis authority and the exact caption transformation are
         // rechecked under this same IMMEDIATE publication lock, including replay.
         sqlite_caption_v4::require_caption_proposal(&tx, &context, intent, prepared.snapshot())?;
@@ -470,6 +471,7 @@ impl ProjectV4Store for EditorApplication {
             receipt.clone()
         };
         insert_receipt(&tx, intent, "transaction", &original_receipt)?;
+        sqlite_font_derived_v1::persist_proof(&tx, intent, prepared.snapshot())?;
         let event = match intent {
             V4Intent::Promote(_) => "project.v4_promoted",
             V4Intent::Restore(_) => "project.v4_restored",

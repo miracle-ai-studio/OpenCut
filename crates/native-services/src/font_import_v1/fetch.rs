@@ -42,7 +42,7 @@ fn check(
 /// The fixed HTTPS source prefers its scheme-specific proxy. Ureq's default
 /// ALL_PROXY precedence can select SOCKS without a compiled SOCKS transport.
 /// Explicit configuration prevents that transport from silently bypassing it.
-fn source_proxy(
+pub(crate) fn source_proxy(
     source_url: &str,
     mut environment: impl FnMut(&str) -> Option<String>,
 ) -> Result<Option<ureq::Proxy>, EditorError> {
@@ -102,7 +102,7 @@ fn proxy_error() -> EditorError {
     )
 }
 
-fn read_pinned_bytes(
+pub(crate) fn read_pinned_bytes(
     mut reader: impl Read,
     size: u64,
     hash: &str,

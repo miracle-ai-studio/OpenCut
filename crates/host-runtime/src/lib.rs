@@ -11,6 +11,7 @@ mod browser_runtime;
 mod classic_audio_runtime;
 mod classic_visual_runtime;
 pub mod denials;
+mod font_derived_v1;
 mod font_import_v1;
 mod source_art_runtime;
 mod source_art_v1;
@@ -296,6 +297,37 @@ impl Automation {
                 to_value(font_import_v1::browser_catalog())
             }
             "opencut_font_v2_source" => to_value(font_import_v1::source(&parse(arguments)?)?),
+            "opencut_font_derived_v1_catalog" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(font_derived_v1::catalog()?)
+            }
+            "opencut_font_derived_v1_source" => {
+                to_value(font_derived_v1::source(&parse(arguments)?)?)
+            }
+            "opencut_font_derived_v1_import" => {
+                to_value(font_derived_v1::import(self, &parse(arguments)?)?)
+            }
+            "opencut_font_derived_v1_proof" => {
+                to_value(font_derived_v1::proof(self, &parse(arguments)?)?)
+            }
+            "opencut_font_derived_v1_recovery_stage" => to_value(
+                opencut_editor_application::font_derived_v1::recovery::stage(
+                    &mut self.app,
+                    &parse(arguments)?,
+                )?,
+            ),
+            "opencut_font_derived_v1_recovery_read" => to_value(
+                opencut_editor_application::font_derived_v1::recovery::inspect(
+                    &self.app,
+                    &parse(arguments)?,
+                )?,
+            ),
+            "opencut_font_derived_v1_recovery_ack" => {
+                to_value(opencut_editor_application::font_derived_v1::recovery::ack(
+                    &mut self.app,
+                    &parse(arguments)?,
+                )?)
+            }
             "opencut_analysis_sequence_transcribe_v4_capability" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(worker::sequence_transcribe_capability())

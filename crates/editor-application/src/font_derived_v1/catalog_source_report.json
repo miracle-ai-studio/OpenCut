@@ -1,0 +1,3180 @@
+{
+  "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+  "attempted": 1347,
+  "derived": 1182,
+  "families": 479,
+  "failures": [
+    {
+      "family": "Assistant",
+      "source_path": "ofl/assistant/Assistant[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Assistant",
+      "source_path": "ofl/assistant/Assistant[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitcount Grid Double Ink",
+      "source_path": "ofl/bitcountgriddoubleink/BitcountGridDoubleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Double Ink",
+      "source_path": "ofl/bitcountgriddoubleink/BitcountGridDoubleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Single Ink",
+      "source_path": "ofl/bitcountgridsingleink/BitcountGridSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Single Ink",
+      "source_path": "ofl/bitcountgridsingleink/BitcountGridSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Ink",
+      "source_path": "ofl/bitcountink/BitcountInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Ink",
+      "source_path": "ofl/bitcountink/BitcountInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Double Ink",
+      "source_path": "ofl/bitcountpropdoubleink/BitcountPropDoubleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Double Ink",
+      "source_path": "ofl/bitcountpropdoubleink/BitcountPropDoubleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Single Ink",
+      "source_path": "ofl/bitcountpropsingleink/BitcountPropSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Single Ink",
+      "source_path": "ofl/bitcountpropsingleink/BitcountPropSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Single Ink",
+      "source_path": "ofl/bitcountsingleink/BitcountSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Single Ink",
+      "source_path": "ofl/bitcountsingleink/BitcountSingleInk[CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitter",
+      "source_path": "ofl/bitter/Bitter-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "source_path": "ofl/bitter/Bitter[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "source_path": "ofl/bitter/Bitter-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "source_path": "ofl/bitter/Bitter[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cairo Play",
+      "source_path": "ofl/cairoplay/CairoPlay[slnt,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Cairo Play",
+      "source_path": "ofl/cairoplay/CairoPlay[slnt,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Cascadia Code",
+      "source_path": "ofl/cascadiacode/CascadiaCode-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "source_path": "ofl/cascadiacode/CascadiaCode[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "source_path": "ofl/cascadiacode/CascadiaCode-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "source_path": "ofl/cascadiacode/CascadiaCode[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "source_path": "ofl/cascadiamono/CascadiaMono-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "source_path": "ofl/cascadiamono/CascadiaMono[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "source_path": "ofl/cascadiamono/CascadiaMono-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "source_path": "ofl/cascadiamono/CascadiaMono[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Chiron GoRound TC",
+      "source_path": "ofl/chirongoroundtc/ChironGoRoundTC[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "source exceeds font envelope"
+    },
+    {
+      "family": "Chiron GoRound TC",
+      "source_path": "ofl/chirongoroundtc/ChironGoRoundTC[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "source exceeds font envelope"
+    },
+    {
+      "family": "Comfortaa",
+      "source_path": "ofl/comfortaa/Comfortaa[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Comfortaa",
+      "source_path": "ofl/comfortaa/Comfortaa[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "source_path": "ofl/cuprum/Cuprum-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "source_path": "ofl/cuprum/Cuprum[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "source_path": "ofl/cuprum/Cuprum-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "source_path": "ofl/cuprum/Cuprum[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Dancing Script",
+      "source_path": "ofl/dancingscript/DancingScript[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Dancing Script",
+      "source_path": "ofl/dancingscript/DancingScript[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Domine",
+      "source_path": "ofl/domine/Domine[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Domine",
+      "source_path": "ofl/domine/Domine[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans",
+      "source_path": "ofl/encodesans/EncodeSans[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans",
+      "source_path": "ofl/encodesans/EncodeSans[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans SC",
+      "source_path": "ofl/encodesanssc/EncodeSansSC[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans SC",
+      "source_path": "ofl/encodesanssc/EncodeSansSC[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Foldit",
+      "source_path": "ofl/foldit/Foldit[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Foldit",
+      "source_path": "ofl/foldit/Foldit[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Honk",
+      "source_path": "ofl/honk/Honk[MORF,SHLN].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Hubot Sans",
+      "source_path": "ofl/hubotsans/HubotSans-Italic[wdth,wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "source_path": "ofl/hubotsans/HubotSans[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "source_path": "ofl/hubotsans/HubotSans-Italic[wdth,wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "source_path": "ofl/hubotsans/HubotSans[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "source_path": "ofl/ibmplexsans/IBMPlexSans-Italic[wdth,wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "source_path": "ofl/ibmplexsans/IBMPlexSans[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "source_path": "ofl/ibmplexsans/IBMPlexSans-Italic[wdth,wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "source_path": "ofl/ibmplexsans/IBMPlexSans[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "source_path": "ofl/josefinsans/JosefinSans-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "source_path": "ofl/josefinsans/JosefinSans[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "source_path": "ofl/josefinsans/JosefinSans-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "source_path": "ofl/josefinsans/JosefinSans[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "source_path": "ofl/josefinslab/JosefinSlab-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "source_path": "ofl/josefinslab/JosefinSlab[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "source_path": "ofl/josefinslab/JosefinSlab-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "source_path": "ofl/josefinslab/JosefinSlab[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Kalnia Glaze",
+      "source_path": "ofl/kalniaglaze/KalniaGlaze[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Kalnia Glaze",
+      "source_path": "ofl/kalniaglaze/KalniaGlaze[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Kreon",
+      "source_path": "ofl/kreon/Kreon[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Kreon",
+      "source_path": "ofl/kreon/Kreon[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend",
+      "source_path": "ofl/lexend/Lexend[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend",
+      "source_path": "ofl/lexend/Lexend[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Deca",
+      "source_path": "ofl/lexenddeca/LexendDeca[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Deca",
+      "source_path": "ofl/lexenddeca/LexendDeca[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Exa",
+      "source_path": "ofl/lexendexa/LexendExa[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Exa",
+      "source_path": "ofl/lexendexa/LexendExa[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Giga",
+      "source_path": "ofl/lexendgiga/LexendGiga[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Giga",
+      "source_path": "ofl/lexendgiga/LexendGiga[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Mega",
+      "source_path": "ofl/lexendmega/LexendMega[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Mega",
+      "source_path": "ofl/lexendmega/LexendMega[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Peta",
+      "source_path": "ofl/lexendpeta/LexendPeta[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Peta",
+      "source_path": "ofl/lexendpeta/LexendPeta[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Tera",
+      "source_path": "ofl/lexendtera/LexendTera[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Tera",
+      "source_path": "ofl/lexendtera/LexendTera[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Zetta",
+      "source_path": "ofl/lexendzetta/LexendZetta[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Zetta",
+      "source_path": "ofl/lexendzetta/LexendZetta[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "source_path": "ofl/librebaskerville/LibreBaskerville-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "source_path": "ofl/librebaskerville/LibreBaskerville[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "source_path": "ofl/librebaskerville/LibreBaskerville-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "source_path": "ofl/librebaskerville/LibreBaskerville[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "source_path": "ofl/lora/Lora-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "source_path": "ofl/lora/Lora[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "source_path": "ofl/lora/Lora-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "source_path": "ofl/lora/Lora[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mada",
+      "source_path": "ofl/mada/Mada[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mada",
+      "source_path": "ofl/mada/Mada[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Maven Pro",
+      "source_path": "ofl/mavenpro/MavenPro[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Maven Pro",
+      "source_path": "ofl/mavenpro/MavenPro[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merienda",
+      "source_path": "ofl/merienda/Merienda[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merienda",
+      "source_path": "ofl/merienda/Merienda[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "source_path": "ofl/merriweather/Merriweather-Italic[opsz,wdth,wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "source_path": "ofl/merriweather/Merriweather[opsz,wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "source_path": "ofl/merriweather/Merriweather-Italic[opsz,wdth,wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "source_path": "ofl/merriweather/Merriweather[opsz,wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "source_path": "ofl/merriweathersans/MerriweatherSans-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "source_path": "ofl/merriweathersans/MerriweatherSans[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "source_path": "ofl/merriweathersans/MerriweatherSans-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "source_path": "ofl/merriweathersans/MerriweatherSans[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "source_path": "ofl/monasans/MonaSans-Italic[wdth,wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "source_path": "ofl/monasans/MonaSans[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "source_path": "ofl/monasans/MonaSans-Italic[wdth,wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "source_path": "ofl/monasans/MonaSans[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Nabla",
+      "source_path": "ofl/nabla/Nabla[EDPT,EHLT].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Noto Sans HK",
+      "source_path": "ofl/notosanshk/NotoSansHK[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans HK",
+      "source_path": "ofl/notosanshk/NotoSansHK[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans JP",
+      "source_path": "ofl/notosansjp/NotoSansJP[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans JP",
+      "source_path": "ofl/notosansjp/NotoSansJP[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans KR",
+      "source_path": "ofl/notosanskr/NotoSansKR[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans KR",
+      "source_path": "ofl/notosanskr/NotoSansKR[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans SC",
+      "source_path": "ofl/notosanssc/NotoSansSC[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans SC",
+      "source_path": "ofl/notosanssc/NotoSansSC[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans TC",
+      "source_path": "ofl/notosanstc/NotoSansTC[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans TC",
+      "source_path": "ofl/notosanstc/NotoSansTC[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Serif HK",
+      "source_path": "ofl/notoserifhk/NotoSerifHK[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Serif HK",
+      "source_path": "ofl/notoserifhk/NotoSerifHK[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Orbitron",
+      "source_path": "ofl/orbitron/Orbitron[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Orbitron",
+      "source_path": "ofl/orbitron/Orbitron[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "source_path": "ofl/playfairdisplay/PlayfairDisplay-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "source_path": "ofl/playfairdisplay/PlayfairDisplay[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "source_path": "ofl/playfairdisplay/PlayfairDisplay-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "source_path": "ofl/playfairdisplay/PlayfairDisplay[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Quicksand",
+      "source_path": "ofl/quicksand/Quicksand[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Quicksand",
+      "source_path": "ofl/quicksand/Quicksand[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "source_path": "ofl/raleway/Raleway-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "source_path": "ofl/raleway/Raleway[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "source_path": "ofl/raleway/Raleway-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "source_path": "ofl/raleway/Raleway[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Readex Pro",
+      "source_path": "ofl/readexpro/ReadexPro[HEXP,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Readex Pro",
+      "source_path": "ofl/readexpro/ReadexPro[HEXP,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi",
+      "source_path": "ofl/reemkufi/ReemKufi[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi",
+      "source_path": "ofl/reemkufi/ReemKufi[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi Fun",
+      "source_path": "ofl/reemkufifun/ReemKufiFun[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi Fun",
+      "source_path": "ofl/reemkufifun/ReemKufiFun[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "source_path": "ofl/stixtwotext/STIXTwoText-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "source_path": "ofl/stixtwotext/STIXTwoText[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "source_path": "ofl/stixtwotext/STIXTwoText-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "source_path": "ofl/stixtwotext/STIXTwoText[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Sixtyfour Convergence",
+      "source_path": "ofl/sixtyfourconvergence/SixtyfourConvergence[BLED,SCAN,XELA,YELA].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Source Code Pro",
+      "source_path": "ofl/sourcecodepro/SourceCodePro-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "source_path": "ofl/sourcecodepro/SourceCodePro[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "source_path": "ofl/sourcecodepro/SourceCodePro-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "source_path": "ofl/sourcecodepro/SourceCodePro[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "source_path": "ofl/sourcesans3/SourceSans3-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "source_path": "ofl/sourcesans3/SourceSans3[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "source_path": "ofl/sourcesans3/SourceSans3-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "source_path": "ofl/sourcesans3/SourceSans3[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "source_path": "ofl/zalandosans/ZalandoSans-Italic[wdth,wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "source_path": "ofl/zalandosans/ZalandoSans[wdth,wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "source_path": "ofl/zalandosans/ZalandoSans-Italic[wdth,wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "source_path": "ofl/zalandosans/ZalandoSans[wdth,wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "source_path": "ofl/zalandosansexpanded/ZalandoSansExpanded-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "source_path": "ofl/zalandosansexpanded/ZalandoSansExpanded[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "source_path": "ofl/zalandosansexpanded/ZalandoSansExpanded-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "source_path": "ofl/zalandosansexpanded/ZalandoSansExpanded[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "source_path": "ofl/zalandosanssemiexpanded/ZalandoSansSemiExpanded-Italic[wght].ttf",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "source_path": "ofl/zalandosanssemiexpanded/ZalandoSansSemiExpanded[wght].ttf",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "source_path": "ofl/zalandosanssemiexpanded/ZalandoSansSemiExpanded-Italic[wght].ttf",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "source_path": "ofl/zalandosanssemiexpanded/ZalandoSansSemiExpanded[wght].ttf",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    }
+  ],
+  "catalog_sha256": "ede8bf18b7d47dad0e0b09d680f2c0b34a05d187c722e1e95139f97bd28ab18a",
+  "static_pinned_faces": 1836,
+  "derived_pinned_faces": 1182,
+  "applicable_classic_faces": 3326,
+  "combined_pinned_applicable_faces": 3018,
+  "missing_applicable_faces": [
+    {
+      "family": "Anonymous Pro",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Anonymous Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Anonymous Pro",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Anonymous Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Aref Ruqaa Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Aref Ruqaa Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Arima Madurai",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Arima Madurai",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Assistant",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Assistant",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Averia Gruesa Libre",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "BBH Sans Bartle",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "BBH Sans Bogle",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "BBH Sans Hegarty",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Bitcount Grid Double Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Double Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Single Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Grid Single Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Double Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Double Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Single Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Prop Single Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Single Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitcount Single Ink",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bitter",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Bitter",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Blaka Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Bona Nova",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Bona Nova SC",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Bungee Spice",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Bungee Tint",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Cairo Play",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Cairo Play",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Cardo",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Cascadia Code",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Code",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cascadia Mono",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Chiron GoRound TC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "source exceeds font envelope"
+    },
+    {
+      "family": "Chiron GoRound TC",
+      "weight": 700,
+      "style": "normal",
+      "reason": "source exceeds font envelope"
+    },
+    {
+      "family": "Comfortaa",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Comfortaa",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Coral Pixels",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Cuprum",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Cuprum",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Dancing Script",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Dancing Script",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Della Respira",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Domine",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Domine",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Edu NSW ACT Cursive",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu NSW ACT Cursive",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu NSW ACT Hand Pre",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu NSW ACT Hand Pre",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu QLD Hand",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu QLD Hand",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu SA Hand",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu SA Hand",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu VIC WA NT Hand",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu VIC WA NT Hand",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu VIC WA NT Hand Pre",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Edu VIC WA NT Hand Pre",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Encode Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Encode Sans SC",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Fascinate",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Fascinate Inline",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Fjord One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Foldit",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Foldit",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Fredoka One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Gentium Book Basic",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Gentium Book Basic",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Gentium Book Basic",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Gentium Book Basic",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Geo",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Geo",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Gudea",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Headland One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Honk",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Hubot Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Hubot Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IBM Plex Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "IM Fell DW Pica",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell DW Pica",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell DW Pica SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Double Pica",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Double Pica",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Double Pica SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell English",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell English",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell English SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell French Canon",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell French Canon",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell French Canon SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Great Primer",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Great Primer",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "IM Fell Great Primer SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Iceland",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Jaldi",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Josefin Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Josefin Slab",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Judson",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Kalnia Glaze",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Kalnia Glaze",
+      "weight": 700,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Kaushan Script",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Kreon",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Kreon",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Kristi",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Kumar One Outline",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Lekton",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Lexend",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Deca",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Deca",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Exa",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Exa",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Giga",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Giga",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Mega",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Mega",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Peta",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Peta",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Tera",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Tera",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Zetta",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lexend Zetta",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libertinus Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Libre Baskerville",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Libre Baskerville",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Lora",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "M PLUS Rounded 1c",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "M PLUS Rounded 1c",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Mada",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mada",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Magra",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Icons",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Icons Outlined",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Icons Round",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Icons Sharp",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Icons Two Tone",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Outlined",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Outlined",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Rounded",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Rounded",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Sharp",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Material Symbols Sharp",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Maven Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Maven Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "MedievalSharp",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Megrim",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Merienda",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merienda",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merienda One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Merriweather",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Merriweather Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Modern Antiqua",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Mona Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Mona Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Nabla",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Nanum Gothic",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Gothic",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Gothic Coding",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Gothic Coding",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Myeongjo",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Myeongjo",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nanum Pen Script",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Neuton",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Noto Sans HK",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans HK",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans JP",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans JP",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans KR",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans KR",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans SC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans SC",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans TC",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Sans TC",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Serif HK",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Serif HK",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Noto Znamenny Musical Notation",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nova Mono",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Nova Script",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Old Standard TT",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Orbitron",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Orbitron",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playfair Display",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Playwrite NZ Basic Guides",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Poetsen One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Pushster",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Quicksand",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Quicksand",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Raleway",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Readex Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Readex Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi Fun",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi Fun",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Reem Kufi Ink",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Reenie Beanie",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "STIX Two Text",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "STIX Two Text",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Saira Extra Condensed",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Saira Extra Condensed",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Saira Semi Condensed",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Saira Semi Condensed",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Shrikhand",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Sirin Stencil",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Sixtyfour Convergence",
+      "weight": 400,
+      "style": "normal",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Source Code Pro",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Code Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans 3",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Source Sans Pro",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Sans Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Sans Pro",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Sans Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Serif Pro",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Serif Pro",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Serif Pro",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Source Serif Pro",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Supermercado One",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Tinos",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Tinos",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Tinos",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Tinos",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Trochut",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Condensed",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Mono",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Mono",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Mono",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Mono",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans Mono",
+      "weight": 400,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans Mono",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans Mono",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Ubuntu Sans Mono",
+      "weight": 700,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Waiting for the Sunrise",
+      "weight": 400,
+      "style": "normal",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Zain",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_reviewed_pinned_recipe"
+    },
+    {
+      "family": "Zalando Sans",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans Expanded",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "weight": 400,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "weight": 400,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "weight": 700,
+      "style": "italic",
+      "reason": "reserved font name requires reviewed renaming"
+    },
+    {
+      "family": "Zalando Sans SemiExpanded",
+      "weight": 700,
+      "style": "normal",
+      "reason": "reserved font name requires reviewed renaming"
+    }
+  ],
+  "covered_400_normal_families": 1778,
+  "remaining_400_normal_families": [
+    "Anonymous Pro",
+    "Aref Ruqaa Ink",
+    "Arima Madurai",
+    "Assistant",
+    "Averia Gruesa Libre",
+    "BBH Sans Bartle",
+    "BBH Sans Bogle",
+    "BBH Sans Hegarty",
+    "Bitcount Grid Double Ink",
+    "Bitcount Grid Single Ink",
+    "Bitcount Ink",
+    "Bitcount Prop Double Ink",
+    "Bitcount Prop Single Ink",
+    "Bitcount Single Ink",
+    "Bitter",
+    "Blaka Ink",
+    "Bungee Spice",
+    "Bungee Tint",
+    "Cairo Play",
+    "Cascadia Code",
+    "Cascadia Mono",
+    "Chiron GoRound TC",
+    "Comfortaa",
+    "Coral Pixels",
+    "Cuprum",
+    "Dancing Script",
+    "Della Respira",
+    "Domine",
+    "Edu NSW ACT Cursive",
+    "Edu NSW ACT Hand Pre",
+    "Edu QLD Hand",
+    "Edu SA Hand",
+    "Edu VIC WA NT Hand",
+    "Edu VIC WA NT Hand Pre",
+    "Encode Sans",
+    "Encode Sans SC",
+    "Fascinate",
+    "Fascinate Inline",
+    "Fjord One",
+    "Foldit",
+    "Fredoka One",
+    "Gentium Book Basic",
+    "Geo",
+    "Headland One",
+    "Honk",
+    "Hubot Sans",
+    "IBM Plex Sans",
+    "IM Fell DW Pica",
+    "IM Fell DW Pica SC",
+    "IM Fell Double Pica",
+    "IM Fell Double Pica SC",
+    "IM Fell English",
+    "IM Fell English SC",
+    "IM Fell French Canon",
+    "IM Fell French Canon SC",
+    "IM Fell Great Primer",
+    "IM Fell Great Primer SC",
+    "Iceland",
+    "Josefin Sans",
+    "Josefin Slab",
+    "Kalnia Glaze",
+    "Kaushan Script",
+    "Kreon",
+    "Kristi",
+    "Kumar One Outline",
+    "Lexend",
+    "Lexend Deca",
+    "Lexend Exa",
+    "Lexend Giga",
+    "Lexend Mega",
+    "Lexend Peta",
+    "Lexend Tera",
+    "Lexend Zetta",
+    "Libre Baskerville",
+    "Lora",
+    "M PLUS Rounded 1c",
+    "Mada",
+    "Material Icons",
+    "Material Icons Outlined",
+    "Material Icons Round",
+    "Material Icons Sharp",
+    "Material Icons Two Tone",
+    "Material Symbols",
+    "Material Symbols Outlined",
+    "Material Symbols Rounded",
+    "Material Symbols Sharp",
+    "Maven Pro",
+    "MedievalSharp",
+    "Megrim",
+    "Merienda",
+    "Merienda One",
+    "Merriweather",
+    "Merriweather Sans",
+    "Modern Antiqua",
+    "Mona Sans",
+    "Nabla",
+    "Nanum Gothic",
+    "Nanum Gothic Coding",
+    "Nanum Myeongjo",
+    "Nanum Pen Script",
+    "Noto Sans HK",
+    "Noto Sans JP",
+    "Noto Sans KR",
+    "Noto Sans SC",
+    "Noto Sans TC",
+    "Noto Serif HK",
+    "Noto Znamenny Musical Notation",
+    "Nova Mono",
+    "Nova Script",
+    "Orbitron",
+    "Playfair Display",
+    "Playwrite NZ Basic Guides",
+    "Poetsen One",
+    "Pushster",
+    "Quicksand",
+    "Raleway",
+    "Readex Pro",
+    "Reem Kufi",
+    "Reem Kufi Fun",
+    "Reem Kufi Ink",
+    "Reenie Beanie",
+    "STIX Two Text",
+    "Saira Extra Condensed",
+    "Saira Semi Condensed",
+    "Shrikhand",
+    "Sirin Stencil",
+    "Sixtyfour Convergence",
+    "Source Code Pro",
+    "Source Sans 3",
+    "Source Sans Pro",
+    "Source Serif Pro",
+    "Supermercado One",
+    "Tinos",
+    "Ubuntu",
+    "Ubuntu Condensed",
+    "Ubuntu Mono",
+    "Ubuntu Sans",
+    "Ubuntu Sans Mono",
+    "Waiting for the Sunrise",
+    "Zalando Sans",
+    "Zalando Sans Expanded",
+    "Zalando Sans SemiExpanded"
+  ],
+  "rejection_counts": {
+    "native unsupported color or bitmap tables": 21,
+    "reserved font name requires reviewed renaming": 142,
+    "source exceeds font envelope": 2
+  },
+  "admission_scope": "deterministic_static_metadata_only; native_inventory_and_bounded_runtime_execution_are_separate_checks",
+  "classic_families": 1920,
+  "classic_face_declarations": 7674,
+  "unexpressed_classic_face_declarations": 4348,
+  "expressed_weights": [
+    400,
+    700
+  ],
+  "expressed_styles": [
+    "normal",
+    "italic"
+  ]
+}

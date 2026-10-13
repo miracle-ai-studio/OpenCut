@@ -329,7 +329,8 @@ fn upload_migration_rolls_back_all_tables_on_collision() {
     let conn = Connection::open(&path).unwrap();
     conn.execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
         .unwrap();
-    conn.execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
+    conn.execute_batch("DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
     assert!(EditorApplication::open(&path).is_err());
     assert_eq!(
         conn.query_row::<String, _, _>(
@@ -1093,7 +1094,8 @@ fn streaming_schema_migration_preserves_legacy_uploads_and_pending_hashes_surviv
     project(&mut app, "a");
     let legacy = app.create_upload(&input("legacy")).unwrap();
     app.connection
-        .execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings")
+        .execute_batch("DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings")
         .unwrap();
     app.connection
         .execute(

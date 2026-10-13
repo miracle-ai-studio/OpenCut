@@ -250,3 +250,103 @@ it("rejects a planner reply that swaps revision, idempotency key or selected tit
     f.controller.dispose();
   }
 });
+
+it("routes a variable-only atlas face through the injected derived import action without using static source", async () => {
+  const f = await setup(),
+    importFont = vi.fn(async () => ({
+      base_revision: "r0",
+      revision: "r1",
+      transaction_id: "font-tx",
+      changed_ids: [],
+      created_ids: [],
+      deleted_ids: [],
+    }));
+  const original = f.call.getMockImplementation()!;
+  vi.spyOn(f.api.sdk, "hostCapabilities").mockResolvedValue({
+    tools: ["opencut_font_derived_v1_catalog"],
+  } as never);
+  const face = {
+    id: "variable-recipe",
+    family: "Variable Only",
+    weight: 400,
+    style: "normal",
+    derivation_id: "derived-proof",
+    content_hash: "d".repeat(64),
+    size_bytes: "120",
+  };
+  f.call.mockImplementation(async (...args) => {
+    if (args[0] === "opencut_font_v2_catalog")
+      return {
+        schema_version: 2,
+        download_available: false,
+        unavailable_reason: "Static unavailable",
+        source_commit: "static",
+        classic_atlas_sha256: "a".repeat(64),
+        classic_family_count: 1,
+        pinned_face_count: 0,
+        families: [
+          {
+            family: "Variable Only",
+            category: "google",
+            faces: [
+              {
+                weight: 400,
+                style: "normal",
+                catalog_id: null,
+                unavailable_reason: "no_pinned_static_source",
+              },
+            ],
+          },
+        ],
+      } as never;
+    if (args[0] === "opencut_font_derived_v1_catalog")
+      return {
+        schema_version: 1,
+        import_available: true,
+        unavailable_reason: null,
+        source_commit: "derived",
+        fonts: [face],
+      } as never;
+    if (args[0] === "opencut_font_derived_v1_source")
+      return {
+        face,
+        source_commit: "derived",
+        source_url: "https://example.test/variable.ttf",
+        source_sha256: "e".repeat(64),
+        source_size_bytes: "240",
+        license_url: "https://example.test/OFL.txt",
+        license_id: "OFL-1.1",
+        license_notice: "Variable license",
+        axes: [{ tag: "wght", coordinate: "400" }],
+        proof_json: "{}",
+      } as never;
+    return original(...args);
+  });
+  render(
+    <WorkspaceProvider controller={f.controller}>
+      <V4TextAuthoringProvider available importFont={importFont}>
+        <V4TextActions />
+        <V4TextPanel />
+      </V4TextAuthoringProvider>
+    </WorkspaceProvider>,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Import font" }),
+  );
+  await screen.findByText("Variable license");
+  const form = screen.getByRole("form", { name: "Import font" });
+  fireEvent.submit(form);
+  await waitFor(() => expect(importFont).toHaveBeenCalledOnce());
+  expect(importFont.mock.calls[0]).toMatchObject([
+    {
+      project_id: "v4-project",
+      expected_revision: "r0",
+      catalog_id: "variable-recipe",
+      required_text: "OpenCut 你好",
+    },
+    "derived",
+  ]);
+  expect(
+    f.call.mock.calls.some(([name]) => name === "opencut_font_v2_source"),
+  ).toBe(false);
+});

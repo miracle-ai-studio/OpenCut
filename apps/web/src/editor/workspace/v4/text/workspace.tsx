@@ -4,6 +4,7 @@ import { useWorkspace } from "../../context";
 import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import { secondsForDisplay } from "../../../model/time";
+import type { DerivedFontCatalog } from "./font-derived";
 import { fontRecoveryBlocked } from "./font-recovery";
 import { editableTextFonts } from "./draft";
 import { V4TextEditor } from "./editor";
@@ -23,7 +24,10 @@ export type TextWorkspaceOptions = {
   /** Supplied only by the executable versioned text-frame capability. */
   available: boolean;
   planCanvasText?: CanvasTextPlanning;
-  importFont?: (request: FontImportRequest) => Promise<FontImportResult>;
+  importFont?: (
+    request: FontImportRequest,
+    protocol?: "derived",
+  ) => Promise<FontImportResult>;
   fontImportBlockedReason?: string | null;
 };
 type Draft = {
@@ -170,6 +174,8 @@ export function V4TextAuthoringProvider({
       }
     }
   };
+  const [derivedCatalog, setDerivedCatalog] =
+    useState<DerivedFontCatalog | null>(null);
   const beginImport = () => {
     void read(async (scope, serial, signal) => {
       if (!options.importFont) return;
@@ -181,6 +187,19 @@ export function V4TextAuthoringProvider({
       checkScope(scope, serial);
       if (result.schema_version !== 2)
         throw new Error("The service returned an invalid font catalog.");
+      const capabilities = await api!.sdk.hostCapabilities();
+      checkScope(scope, serial);
+      const derived = capabilities.tools.includes(
+        "opencut_font_derived_v1_catalog",
+      )
+        ? await api!.sdk.call("opencut_font_derived_v1_catalog", {}, { signal })
+        : null;
+      checkScope(scope, serial);
+      if (derived && derived.schema_version !== 1)
+        throw new Error(
+          "The service returned an invalid derived font catalog.",
+        );
+      setDerivedCatalog(derived);
       setCatalog(result);
       setDraft(null);
       setReview(null);
@@ -432,7 +451,11 @@ export function V4TextAuthoringProvider({
       if (serial === epoch.current) setPending(false);
     }
   };
-  const importFont = async (choiceId: string, requiredText: string) => {
+  const importFont = async (
+    choiceId: string,
+    requiredText: string,
+    protocol?: "derived",
+  ) => {
     if (!api || !options.importFont || disabled)
       throw new Error("Font import is unavailable.");
     const scope = currentScope();
@@ -446,7 +469,7 @@ export function V4TextAuthoringProvider({
     };
     // The injected host action stages and recovers this exact typed font intent.
     // It is deliberately never translated into a public-apply transaction here.
-    await options.importFont(request);
+    await options.importFont(request, protocol);
   };
   const panel =
     options.available && v4 && project && sequence ? (
@@ -534,10 +557,24 @@ export function V4TextAuthoringProvider({
         {importing && catalog && (
           <V4FontImport
             scope={{ projectId: project.id, revision: v4.head.revision }}
-            available={catalog.download_available}
+            available={true}
             choices={[]}
             browserCatalog={catalog}
-            readSource={(catalog_id, signal) => api!.sdk.call("opencut_font_v2_source", { catalog_id }, { signal })}
+            derivedCatalog={derivedCatalog}
+            readDerivedSource={(catalog_id, signal) =>
+              api!.sdk.call(
+                "opencut_font_derived_v1_source",
+                { catalog_id },
+                { signal },
+              )
+            }
+            readSource={(catalog_id, signal) =>
+              api!.sdk.call(
+                "opencut_font_v2_source",
+                { catalog_id },
+                { signal },
+              )
+            }
             requiredText={draft?.initial.text.content ?? "OpenCut 你好"}
             disabled={busy || pending}
             disabledReason={disabledReason}

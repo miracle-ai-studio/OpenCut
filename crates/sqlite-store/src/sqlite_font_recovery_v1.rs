@@ -231,7 +231,9 @@ impl FontRecoveryStoreV1 for EditorApplication {
         )?;
         let result = if let Some(stored) = found {
             match kind(&stored)? {
-                V2SlotKind::Edit { .. } | V2SlotKind::CaptionV3 { .. } => None, // The unchanged V2 discovery reports it.
+                V2SlotKind::Edit { .. }
+                | V2SlotKind::DerivedFont { .. }
+                | V2SlotKind::CaptionV3 { .. } => None, // The unchanged V2 discovery reports it.
                 V2SlotKind::Font { .. } => {
                     let decoded = decode(&stored)?;
                     sqlite_project_v4::authorize(

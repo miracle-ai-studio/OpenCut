@@ -682,7 +682,8 @@ mod tests {
         let path = dir.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&path).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&path).is_err());
         let conn = Connection::open(&path).unwrap();
@@ -1102,7 +1103,8 @@ mod tests {
         let db = temp.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&db).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&db).is_err());
         let conn = rusqlite::Connection::open(&db).unwrap();

@@ -433,14 +433,14 @@ export class V4Session {
       return receipt;
     } finally { release(); }
   }
-  async importFont(request: ToolInput<"opencut_font_v1_import">) {
+  async importFont(request: ToolInput<"opencut_font_v1_import"> | ToolInput<"opencut_font_derived_v1_import">, protocol: "static" | "derived" = "static") {
     if (this.captionRecovery.blocked()) throw new Error("Resolve the original caption edit before importing fonts.");
     const { api, state } = this.active();
     if (state.historical || state.head.project.id !== request.project_id || state.head.revision !== request.expected_revision)
       throw new Error("The edit target changed.");
     const generation = this.host.generation(), view = this.host.viewGeneration(), release = this.host.acquire(request.project_id);
     try {
-      const receipt = await this.fontRecovery.execute(api, { request, sequence_id: state.sequenceId });
+      const receipt = await this.fontRecovery.execute(api, { request, sequence_id: state.sequenceId }, protocol);
       if (api === this.host.api() && generation === this.host.generation() && view === this.host.viewGeneration() && this.host.state()?.head.project.id === request.project_id) await this.refresh();
       return receipt;
     } finally { release(); }

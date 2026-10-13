@@ -1,3 +1,4 @@
+import * as derivedProof from "./font-derived";
 import { afterEach, expect, it, vi } from "vitest";
 import { EditorApi } from "../../api";
 import { OpenCutApiError } from "../../../../lib/editor-sdk";
@@ -30,7 +31,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function fixture() {
+async function fixture(derived = false) {
   const data = new Map<string, string>();
   const storage = {
     getItem: (key: string) => data.get(key) ?? null,
@@ -41,7 +42,10 @@ async function fixture() {
   vi.stubGlobal("sessionStorage", storage);
   const api = new EditorApi("http://localhost:8788", "never-store-token");
   const discovery = vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({
-    tools: ["opencut_font_recovery_v1_inspect"],
+    tools: [
+      "opencut_font_recovery_v1_inspect",
+      ...(derived ? ["opencut_font_derived_v1_recovery_read"] : []),
+    ],
   } as never);
   let record: FontRecoveryRecord | null = null,
     state: V4SessionState,
@@ -78,10 +82,24 @@ async function fixture() {
           grants: [],
         } as never;
       if (name === "opencut_font_recovery_v1_inspect")
+        return (
+          derived ? { schema_version: 1, record: null } : await inspect()
+        ) as never;
+      if (name === "opencut_font_derived_v1_recovery_read")
         return (await inspect()) as never;
-      if (name === "opencut_font_recovery_v1_ack")
+      if (
+        name ===
+        (derived
+          ? "opencut_font_derived_v1_recovery_ack"
+          : "opencut_font_recovery_v1_ack")
+      )
         return (await ack()) as never;
-      if (name === "opencut_font_recovery_v1_stage") {
+      if (
+        name ===
+        (derived
+          ? "opencut_font_derived_v1_recovery_stage"
+          : "opencut_font_recovery_v1_stage")
+      ) {
         const requested = (input as { context: FontRecoveryContext }).context;
         record ??= {
           schema_version: 1,
@@ -94,7 +112,10 @@ async function fixture() {
         expect(record.context).toEqual(requested);
         return structuredClone(record) as never;
       }
-      if (name === "opencut_font_v1_import") {
+      if (
+        name ===
+        (derived ? "opencut_font_derived_v1_import" : "opencut_font_v1_import")
+      ) {
         expect(input).toEqual(record!.context.request);
         return (await dispatch()) as never;
       }
@@ -351,7 +372,8 @@ it("a missing discovery record is not proof that an unknown import resolved", as
 });
 
 it("normalizes an omitted discovery receipt to an unconfirmed import and preserves the original retry", async () => {
-  const f = await fixture(), first = f.fresh();
+  const f = await fixture(),
+    first = f.fresh();
   const inspect = f.inspect.getMockImplementation()!;
   f.inspect.mockImplementation(async () => {
     const observed = await inspect();
@@ -362,13 +384,107 @@ it("normalizes an omitted discovery receipt to an unconfirmed import and preserv
   await first.restore(f.api, "v4-project");
   f.dispatch.mockRejectedValueOnce(new Error("Response lost"));
   await expect(first.execute(f.api, context)).rejects.toThrow("Response lost");
-  expect(f.state().fontRecovery).toMatchObject({ phase: "unconfirmed", receipt: null });
+  expect(f.state().fontRecovery).toMatchObject({
+    phase: "unconfirmed",
+    receipt: null,
+  });
   const second = f.fresh();
   await second.restore(f.api, "v4-project");
-  expect(f.state().fontRecovery).toMatchObject({ phase: "unconfirmed", receipt: null });
+  expect(f.state().fontRecovery).toMatchObject({
+    phase: "unconfirmed",
+    receipt: null,
+  });
   expect(fontRecoveryBlocked(f.state().fontRecovery)).toBe(true);
   await second.retry();
   expect(f.state().fontRecovery).toMatchObject({ phase: "saved", receipt });
-  expect(f.call.mock.calls.filter(([name]) => name === "opencut_font_v1_import").map(([, input]) => input))
-    .toEqual([context.request, context.request]);
+  expect(
+    f.call.mock.calls
+      .filter(([name]) => name === "opencut_font_v1_import")
+      .map(([, input]) => input),
+  ).toEqual([context.request, context.request]);
+});
+it("discovers a derived original after reload and retries its exact request without using static stage/import/ack", async () => {
+  const proof = vi
+    .spyOn(derivedProof, "verifyDerivedFontImport")
+    .mockResolvedValue({} as never);
+  const f = await fixture(true),
+    first = f.fresh();
+  await first.restore(f.api, "v4-project");
+  f.dispatch.mockRejectedValueOnce(new Error("Derived response lost"));
+  await expect(first.execute(f.api, context, "derived")).rejects.toThrow(
+    "Derived response lost",
+  );
+  const second = f.fresh();
+  await second.restore(f.api, "v4-project");
+  expect(f.state().fontRecovery!.protocol).toBe("derived");
+  await second.retry();
+  expect(
+    f.call.mock.calls
+      .filter(([name]) => name === "opencut_font_derived_v1_import")
+      .map(([, input]) => input),
+  ).toEqual([context.request, context.request]);
+  expect(
+    f.call.mock.calls.some(([name]) =>
+      [
+        "opencut_font_v1_import",
+        "opencut_font_recovery_v1_stage",
+        "opencut_font_recovery_v1_ack",
+      ].includes(name),
+    ),
+  ).toBe(false);
+  expect(proof.mock.calls[0][0] === f.api).toBe(true);
+  expect(proof.mock.calls[0].slice(1)).toEqual([
+    context.request,
+    receipt.revision,
+  ]);
+  expect(f.record()).toBeNull();
+});
+it("keeps a committed derived receipt blocking when its fixed-revision output proof is unavailable", async () => {
+  vi.spyOn(derivedProof, "verifyDerivedFontImport").mockRejectedValue(
+    new Error("Derived proof unavailable"),
+  );
+  const f = await fixture(true),
+    recovery = f.fresh();
+  await recovery.restore(f.api, "v4-project");
+  await recovery.execute(f.api, context, "derived");
+  expect(f.state().fontRecovery!.error).toBe("Derived proof unavailable");
+  expect(f.state().fontRecovery!.record).not.toBeNull();
+  expect(fontRecoveryBlocked(f.state().fontRecovery)).toBe(true);
+  expect(f.ack).not.toHaveBeenCalled();
+});
+
+it("retains a concurrently saved derived acknowledgment receipt until its fixed proof can be revalidated after host absence", async () => {
+  const proof = vi
+    .spyOn(derivedProof, "verifyDerivedFontImport")
+    .mockRejectedValue(new Error("Fixed proof offline"));
+  const f = await fixture(true),
+    recovery = f.fresh();
+  await recovery.restore(f.api, "v4-project");
+  f.dispatch.mockRejectedValueOnce(new Error("Import response lost"));
+  await expect(recovery.execute(f.api, context, "derived")).rejects.toThrow(
+    "Import response lost",
+  );
+  const acknowledge = f.ack.getMockImplementation()!;
+  f.ack.mockImplementationOnce(async () => {
+    f.save();
+    return acknowledge();
+  });
+  await expect(recovery.release()).rejects.toThrow("Fixed proof offline");
+  expect(f.record()).toBeNull();
+  expect(f.state().fontRecovery!.receipt).toEqual(receipt);
+  expect(f.state().fontRecovery!.record!.context).toEqual(context);
+  expect(fontRecoveryBlocked(f.state().fontRecovery)).toBe(true);
+  await recovery.restore(f.api, "v4-project");
+  expect(f.state().fontRecovery!.receipt).toEqual(receipt);
+  expect(f.state().fontRecovery!.error).toBe("Fixed proof offline");
+  expect(fontRecoveryBlocked(f.state().fontRecovery)).toBe(true);
+  proof.mockResolvedValue({} as never);
+  await recovery.restore(f.api, "v4-project");
+  expect(f.state().fontRecovery!.record).toBeNull();
+  expect(f.state().fontRecovery!.receipt).toEqual(receipt);
+  expect(fontRecoveryBlocked(f.state().fontRecovery)).toBe(false);
+  expect(f.dispatch).toHaveBeenCalledOnce();
+  expect(proof.mock.calls.map((args) => args.slice(1))).toEqual(
+    Array(3).fill([context.request, receipt.revision]),
+  );
 });

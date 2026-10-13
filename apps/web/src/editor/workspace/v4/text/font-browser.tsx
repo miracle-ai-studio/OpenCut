@@ -4,6 +4,8 @@ import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import type { V4FontImportProps } from "./font-import";
 import "./font-browser.css";
+import { mergeDerivedFontCatalog, derivedSourceMetadata } from "./font-derived";
+import type { FontSourceMetadata } from "./font-derived";
 import { FontAtlasPreview } from "./font-atlas-preview";
 
 export type FontBrowserCatalog = ToolOutput<"opencut_font_v2_catalog">;
@@ -39,18 +41,21 @@ export function FontBrowserImport(
 ) {
   useLocale();
   const catalog = props.browserCatalog;
+  const families = useMemo(
+    () => mergeDerivedFontCatalog(catalog, props.derivedCatalog),
+    [catalog, props.derivedCatalog],
+  );
   const [query, setQuery] = useState("");
   const [familyName, setFamilyName] = useState(
     () =>
-      catalog.families.find((family) => family.family === "Lato")?.family ??
-      catalog.families.find((family) =>
-        family.faces.some((face) => face.catalog_id),
-      )?.family ??
+      families.find((family) => family.family === "Lato")?.family ??
+      families.find((family) => family.faces.some((face) => face.catalog_id))
+        ?.family ??
       "",
   );
   const [styleKey, setStyleKey] = useState("400:normal");
   const [text, setText] = useState(props.requiredText);
-  const [source, setSource] = useState<FontBrowserSource | null>(null);
+  const [source, setSource] = useState<FontSourceMetadata | null>(null);
   const [reading, setReading] = useState(false);
   const [readError, setReadError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -69,11 +74,11 @@ export function FontBrowserImport(
   }, []);
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
-    return catalog.families.filter((family) =>
+    return families.filter((family) =>
       family.family.toLocaleLowerCase().includes(needle),
     );
-  }, [catalog.families, query]);
-  const family = catalog.families.find((item) => item.family === familyName);
+  }, [families, query]);
+  const family = families.find((item) => item.family === familyName);
   const face =
     family?.faces.find((item) => faceKey(item) === styleKey) ??
     family?.faces[0];
@@ -82,7 +87,9 @@ export function FontBrowserImport(
   const locked = !!props.disabled || !!props.disabledReason || pending;
   const canImport =
     !locked &&
-    catalog.download_available &&
+    (face?.derived
+      ? props.derivedCatalog?.import_available
+      : catalog.download_available) &&
     !!admitted &&
     !reading &&
     !!catalogId;
@@ -98,8 +105,13 @@ export function FontBrowserImport(
       return () => controller.abort();
     }
     setReading(true);
-    void sourceReader
-      .current(catalogId, controller.signal)
+    const readingSource: Promise<FontSourceMetadata> =
+      face.derived && props.readDerivedSource
+        ? props
+            .readDerivedSource(catalogId, controller.signal)
+            .then(derivedSourceMetadata)
+        : sourceReader.current(catalogId, controller.signal);
+    void readingSource
       .then((result) => {
         if (!live) return;
         if (
@@ -109,7 +121,15 @@ export function FontBrowserImport(
           result.style !== face.style ||
           !result.license_notice ||
           !result.content_hash ||
-          result.source_commit !== catalog.source_commit
+          result.source_commit !==
+            (face.derived
+              ? props.derivedCatalog?.source_commit
+              : catalog.source_commit) ||
+          (face.derived &&
+            (result.derived?.face.derivation_id !==
+              face.derived.derivation_id ||
+              result.content_hash !== face.derived.content_hash ||
+              result.size_bytes !== face.derived.size_bytes))
         ) {
           throw new Error(
             "The font source differs from the selected catalog face.",
@@ -133,6 +153,8 @@ export function FontBrowserImport(
     face?.weight,
     face?.style,
     catalog.source_commit,
+    props.derivedCatalog,
+    face?.derived,
     props.scope.projectId,
     props.scope.revision,
     retry,
@@ -145,7 +167,8 @@ export function FontBrowserImport(
     setPending(true);
     setImportError(null);
     try {
-      await props.importFont(catalogId, text);
+      if (face?.derived) await props.importFont(catalogId, text, "derived");
+      else await props.importFont(catalogId, text);
       if (active.current) props.close();
     } catch (error) {
       if (active.current) setImportError(errorMessage(error));
@@ -157,7 +180,7 @@ export function FontBrowserImport(
   const chooseFamily = (name: string) => {
     setFamilyName(name);
     setImportError(null);
-    const next = catalog.families.find((item) => item.family === name);
+    const next = families.find((item) => item.family === name);
     const preferred =
       next?.faces.find((item) => faceKey(item) === styleKey) ??
       next?.faces.find((item) => item.catalog_id) ??
@@ -196,7 +219,9 @@ export function FontBrowserImport(
         {catalog.pinned_face_count} {t("fixed static faces")}
       </p>
       {props.disabledReason && <p role="status">{t(props.disabledReason)}</p>}
-      {!catalog.download_available && (
+      {!(face?.derived
+        ? props.derivedCatalog?.import_available
+        : catalog.download_available) && (
         <p role="status">
           {t(catalog.unavailable_reason ?? "Font import is unavailable.")}
         </p>
@@ -257,6 +282,44 @@ export function FontBrowserImport(
         )}
         {reading && (
           <p role="status">{t("Reading font source and license…")}</p>
+        )}
+        {face?.derived && !props.derivedCatalog?.import_available && (
+          <p role="status">
+            {t(
+              props.derivedCatalog?.unavailable_reason ??
+                "Derived font import is unavailable.",
+            )}
+          </p>
+        )}
+        {admitted?.derived && (
+          <div className="font-browser-source">
+            <p>{t("Verified static instance from a variable font")}</p>
+            <p>
+              {t("Derivation identity")}: {admitted.derived.face.derivation_id}
+            </p>
+            <p>
+              {t("Variable source hash")}: {admitted.derived.source_sha256}
+            </p>
+            <p>
+              {t("Static output hash")}: {admitted.derived.face.content_hash}
+            </p>
+            <p>
+              {admitted.derived.axes
+                .map((axis) => `${axis.tag}=${axis.coordinate}`)
+                .join(" · ")}
+            </p>
+            <a
+              href={admitted.derived.license_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t("Font license")}
+            </a>
+            <details>
+              <summary>{t("Derivation proof")}</summary>
+              <pre>{admitted.derived.proof_json}</pre>
+            </details>
+          </div>
         )}
         {admitted && (
           <div className="font-browser-source">

@@ -7,6 +7,7 @@ use serde_json::json;
 use std::collections::BTreeMap;
 mod clipboard;
 mod classic_import;
+mod font_derived;
 mod timeline;
 mod subtitle_text;
 

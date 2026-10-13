@@ -285,8 +285,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "47 unique scoped records. F23 now has actual editable TextV4 subtitle import, full existing text editor/history, SRT/ASS downloads and independent wrap/placement PNG. Offline F20 variable-font derivation has deterministic source/tool/license evidence but is not integrated. F10/F19/F21 remain closed; 33 groups remain. No whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "f23_actual_asr_editable_and_static_ass_import",
+    "scope": "49 unique scoped records. F20 public derived-font import/proof/recovery is integrated,1182 new outputs passed native admission and actual Karla UI/native/offline PNG passed. F23 editable ASR/static ASS evidence remains scoped to its candidate. F10/F19/F21 are closed;33 groups remain. No whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "f20_public_derived_font_import_and_offline_render",
     "plan_coverage": {
       "remaining_groups": 33,
       "routes": 13,
@@ -9221,6 +9221,206 @@
           "Chinese literal CER failure remains; human annotated speech and other languages are unverified.",
           "Full font-loading parity, actual system IME, package6 history/fonts and whole migration remain open;33 groups remain."
         ]
+      },
+      {
+        "evidence_id": "f20_public_derived_font_import_and_offline_render",
+        "status": "passed_scoped",
+        "candidate": {
+          "source_head": "cca992080eb3d1a42f70782cd144e95f7d258570",
+          "dirty_source": true,
+          "production_change_digest": "27c7b4477229e06454156513a4e91110312e7a8aca52d616c8652906bd23966c",
+          "production_change_files": 43,
+          "binary_sha256": "9181571d0fa329744db1e79d7d8d0348eff354b3ff53827d3f6e0d295d713bf6",
+          "web_js_css_tree_sha256": "2e7b5bf08279f9463057e109111e07e4db165af07d61176e9a28f8ac9115c32f",
+          "browser": "153.0.8010.12",
+          "digest_definition": "SHA256 of compact JSON sorted [path,file SHA256] for changed/untracked crates, apps/cli, apps/web/src, sdk-ts/src and new included font runtime files; excludes separate tests and source coverage report."
+        },
+        "scope": "Pinned variable-font public catalog/import/proof/recovery and existing text editor, authorized CAS and renderer. All new outputs received native static-face inspection; one actual Karla runtime/UI/offline render flow. Full F20 remains partial.",
+        "coverage": {
+          "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+          "catalog_sha256": "ede8bf18b7d47dad0e0b09d680f2c0b34a05d187c722e1e95139f97bd28ab18a",
+          "attempted": 1347,
+          "derived": 1182,
+          "families": 479,
+          "static_pinned_faces": 1836,
+          "applicable_classic_faces": 3326,
+          "combined_pinned_applicable_faces": 3018,
+          "covered_400_normal_families": 1778,
+          "classic_families": 1920,
+          "unexpressed_classic_face_declarations": 4348,
+          "rejection_counts": {
+            "native unsupported color or bitmap tables": 21,
+            "reserved font name requires reviewed renaming": 142,
+            "source exceeds font envelope": 2
+          }
+        },
+        "remaining_sources": {
+          "normal_400_families": 142,
+          "applicable_faces": 308,
+          "report": "crates/editor-application/src/font_derived_v1/catalog_source_report.json"
+        },
+        "native_inventory": {
+          "catalog_sha256": "ede8bf18b7d47dad0e0b09d680f2c0b34a05d187c722e1e95139f97bd28ab18a",
+          "current_failures": [],
+          "inspector_source_sha256": "28c12cb2312401a2b3d76abcec6071156d894dd5df5fcda7a76d3c235747e41f",
+          "verified_current_pinned_faces": 1182
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "original_revision": "rev_bd7ee189d4d7f1ab99e31a6f5471c42c53a47ac14f9949cd253db974041fa302",
+          "final_restored_revision": "rev_87e20af3870edaf876eed4c26f74725474187e870b1a621ea4b65546a95f019b",
+          "original_project_restored": true,
+          "reused": "Original synthetic workspace and existing text element; no media/fixture copy, S1, MP4 or PCM run."
+        },
+        "public_import": {
+          "catalog_id": "google-karla-regular-derived-v1",
+          "font_id": "89a981fb-7dd6-4863-bb17-875c241e06c8",
+          "receipt": {
+            "base_revision": "rev_bd7ee189d4d7f1ab99e31a6f5471c42c53a47ac14f9949cd253db974041fa302",
+            "changed_ids": [
+              "fb92adbb-b999-414e-b351-35f012b8e7b8"
+            ],
+            "created_ids": [
+              "89a981fb-7dd6-4863-bb17-875c241e06c8"
+            ],
+            "deleted_ids": [],
+            "revision": "rev_f25204acf6f2602c683eb866084944b169a2dc48804bafa47b16c8483d3c6c70",
+            "transaction_id": "txn_30934201680f409aa2032202c6a4aab0"
+          },
+          "original_key_replay_equal": true,
+          "edited_revision": "rev_33d88c2bc0e3393ada8d8247d599732cf7b39ab9f026372e7c81436616c83db9",
+          "historical_proof_retained": true,
+          "other_project_content_preserved": true,
+          "page_errors": 0,
+          "source_sha256": "ed3ca4cd9bdd899c543927c30bf5ff50706b24b3f2b7328e64b25f7d2a9d23dc",
+          "source_size_bytes": "94016",
+          "derivation_id": "font-derived_528ca1f8e522f1b3a05e5e4c37cae50a014cd1c4ee94afbff49ee8f87afa65ac",
+          "output_sha256": "020253eac2f832850ce691eb650c60cae7ce29927b7f7c50bc7975f9376af91a",
+          "output_size_bytes": "45884",
+          "axes": [
+            {
+              "coordinate": "400",
+              "tag": "wght"
+            }
+          ],
+          "license_id": "OFL-1.1",
+          "license_sha256": "edf2c840acb9570fe02f40721126aa0da4e4011a0030cc6dce30780569f609b6",
+          "canonical_proof_sha256": "22782a4bd5b1564bcc3e83231eca7f81728507a115c70fab7e9bac76ce435c25",
+          "runtime_identity": {
+            "derivation_sha256": "df1af2d6fc7f00ae29d1bc26aa73b14f0640aa75d70f05b53072e0ab59ce5ee1",
+            "fonttools_implementation_sha256": "dc54bf6fd23f9bd6db71259ad6f4a9d481bdcc3080a0ac853358f17812716fd3",
+            "fonttools_version": "4.61.1",
+            "fonttools_wheel_sha256": "17d2bf5d541add43822bcf0c43d7d847b160c9bb01d15d5007d84e2217aaa371",
+            "python_version": "3.14.7",
+            "static_validator_sha256": "948dce6b6727f6243315b466f6cba6db53c42f8325e555320ed8e5d95ac8cb73"
+          }
+        },
+        "actual_native_derivation": {
+          "cache_absent_before": true,
+          "regenerated_output": true,
+          "source_cached": true,
+          "source_path": "ofl/karla/Karla[wght].ttf",
+          "expected_output_sha256": "020253eac2f832850ce691eb650c60cae7ce29927b7f7c50bc7975f9376af91a",
+          "output_sha256": "020253eac2f832850ce691eb650c60cae7ce29927b7f7c50bc7975f9376af91a",
+          "elapsed_seconds": 13.81,
+          "browser_returncode": 0
+        },
+        "render": {
+          "job_id": "job_10c2bb5a9b3f4a8392daa1b8e2075d9d",
+          "identity": {
+            "height": 180,
+            "profile": "classic-v31-gpu-normal-text-frame-v2",
+            "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+            "revision": "rev_5e970098ba5e0e5dc5c1ab7c76b3d7e5479484ce32e04bc04608a8dbe8726ed7",
+            "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+            "time": {
+              "ticks": "1",
+              "timebase": 100
+            },
+            "width": 320
+          },
+          "execution": {
+            "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+            "browser_version": "153.0.8010.12",
+            "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+            "gpu_backend": "webgpu",
+            "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+            "host_sha256": "9181571d0fa329744db1e79d7d8d0348eff354b3ff53827d3f6e0d295d713bf6",
+            "mediabunny_version": "1.41.0",
+            "module_sha256": "e81c60bc28445609377d527ac236c253c36b3e5110e3eddc5ba4c01eea7fa015",
+            "playwright_version": "1.63.0",
+            "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+            "texture_format": "bgra8unorm"
+          },
+          "render_input_sha256": "d4f8a15c6adb9d8f8769f0e18841c26b19773eccb7bbc0595fa439dadc8261aa",
+          "artifact": {
+            "content_hash": "0abfba2e140f0a28492c48f77673e263bbb92b202d506d908b432e334800c0cc",
+            "mime_type": "image/png",
+            "size_bytes": "231377"
+          },
+          "font_lock": [
+            {
+              "content_hash": "020253eac2f832850ce691eb650c60cae7ce29927b7f7c50bc7975f9376af91a",
+              "font_id": "89a981fb-7dd6-4863-bb17-875c241e06c8",
+              "size": 45884
+            }
+          ],
+          "oracle": {
+            "width": 320,
+            "height": 180,
+            "lines": [
+              {
+                "text": "Karla derived",
+                "width": 143.0758819580078,
+                "y": 75.6
+              },
+              {
+                "text": "AV To 0123",
+                "width": 111.50395202636719,
+                "y": 104.4
+              }
+            ],
+            "iou": 1,
+            "meanChannelError": 0
+          },
+          "normal_png_jobs": 1,
+          "reference": "Independent Canvas from pre-existing external Karla output bytes, literal two-line 24px geometry and black/white pixels; no production layout/measurement calls. Public font downloads disabled during reopen/render."
+        },
+        "checks": {
+          "application_font_tests": 34,
+          "sqlite_affected_tests": 57,
+          "sqlite_derived_history_integration_tests": 1,
+          "sqlite_history_scope": "Actual application import, original request replay, undo/redo, historical proof and revocation with existing Karla bytes and ManagedFontPublisherV1; mock inspector is history-only, native admission covered separately.",
+          "native_font_tests": 17,
+          "host_public_tests": 2,
+          "registry_tests": 1,
+          "web_tests_unique": 41,
+          "python_checks": "Agent-owned runtime/derivation and generator targeted checks passed; prior unchanged derivation/static algorithms reused. No aggregate count across overlapping runs.",
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_dependency_exceptions": 0,
+          "contract_boundaries": "passed",
+          "web_boundary_files": 215,
+          "rust_release_builds": 1,
+          "web_production_builds": 1,
+          "web_typecheck_attempts": 2,
+          "generated_contracts": {
+            "original_full_tools_unchanged": 228,
+            "current_tools": 235,
+            "binary_sha256": "9181571d0fa329744db1e79d7d8d0348eff354b3ff53827d3f6e0d295d713bf6"
+          },
+          "unchanged_legacy_wire_tools": 22,
+          "fresh_rust_workspace_run": false
+        },
+        "verification_reuse": "Both browser phases passed their first run, one PNG. Reused all 1836 static-native results after an exact byte comparison allowing only fetch-module visibility; old receipt is not rebound to the new candidate. Test-only schema29 assertions and wrong domain route were corrected with affected-only reruns; no Rust rebuild for Web type-only correction.",
+        "not_proven": [
+          "142 families still lack an admitted normal400 source;308 applicable faces remain absent. Reserved Font Name renaming, native color/bitmap support, large sources and143 other missing recipes remain open.",
+          "4348 additional Classic atlas weight/style declarations are not expressible by the current400/700 text model; not counted as supported.",
+          "All1182 outputs passed native static metadata admission, not arbitrary glyph coverage or every recipe under the host20s CPU/30s import budget. Actual runtime execution is Karla only.",
+          "Derivation Python/fontTools installation remains explicit host configuration; no bundled runtime or package6 font/history delivery claim. macOS memory watchdog is sampled, not a hard limit.",
+          "No new full S1, ASS/language/IME, whole workspace or whole migration acceptance;33 groups remain."
+        ]
       }
     ]
   },
@@ -9233,7 +9433,7 @@
     "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
-    "Google browse/search/family preview covers 1920 families; 1836 validated static faces cover1299 families. 621 families lack normal400 sources; unavailable400/700 normal/italic faces total1490. All prior1797 source records are unchanged; newly discovered Candal and Inconsolata passed actual public import. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent. Offline variable-font derivation passed deterministic tests and one real Karla instance; catalog/public/native loading is not yet integrated, so these counts are unchanged.",
+    "Google browse/search/family preview covers1920 families.1836 original static plus1182 derived faces give3018/3326 applicable sources;1778 families have normal400,142 still lack it and308 applicable faces remain absent. All new outputs passed native metadata inspection; actual Karla public import, fixed proof, edit/reopen and download-disabled independent PNG passed. Full per-font runtime budgets, reserved-name handling, color/bitmap/large sources, additional weights and bundled runtime remain open. Sticker/license materialization and F18 remain pending; F24 active Classic Logos source is absent.",
     "B1/B2/B3 evidence remain scoped. F19/F21 are closed. F23 defaults to editable TextV4 cues and preserves frozen Caption tools; SRT authoring/history/downloads, actual successful English synthetic ASR-to-Text and q2 static ASS style/placement import with independent pixels are verified by their recorded candidates. Full ASS automatic wrapping/outline/shadow/rich runs/animation/complex transforms remain unsupported. Chinese literal CER failed and human speech is unverified. Real OS IME, full font loading, unsupported Classic mappings and schema6 full-history/font restore remain open."
   ],
   "retained_delivery_packages": [
@@ -9333,6 +9533,18 @@
       "status": "resolved_before_release",
       "cause": "New parser trimmed whole ASS lines, discarding final Dialogue Text spaces.",
       "fix": "Trim only structural lines and parse the raw field payload; exact q2-content regression passed before the single release build."
+    },
+    {
+      "id": "F20-derived-source-url-encoding",
+      "status": "resolved_before_release",
+      "cause": "The generator percent-encoded variable-font path brackets while admission compared a raw source path.",
+      "fix": "Pure canonical path encoding retains fixed source and license identities; all1182 pins passed application validation before release."
+    },
+    {
+      "id": "F20-derived-ack-receipt-proof-race",
+      "status": "resolved_before_release",
+      "cause": "A concurrently saved acknowledgement could lose its receipt when the following proof read failed.",
+      "fix": "Retain the saved receipt before verification; record-null recovery rechecks fixed proof before unblocking. Focused Web regression passed."
     }
   ],
   "open_failures": [

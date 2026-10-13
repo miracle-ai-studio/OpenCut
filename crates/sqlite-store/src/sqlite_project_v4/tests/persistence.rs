@@ -154,7 +154,10 @@ fn promotion_and_legacy_restore_append_v4_without_rewriting_old_bytes() {
     // Reconstruct the old schema before its marker: V27 changes the barrier,
     // V28 adds recovery records without rewriting revisions or receipts.
     app.connection
-        .execute_batch("DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1")
+        .execute_batch(
+            "DROP TABLE font_derivations_v1;
+DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1",
+        )
         .unwrap();
     app.connection
         .execute(

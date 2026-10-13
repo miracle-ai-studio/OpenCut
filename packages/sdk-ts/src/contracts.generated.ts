@@ -22320,6 +22320,370 @@ export namespace OpencutFontV2SourceOutput {
 
 }
 
+export namespace OpencutFontDerivedV1CatalogInput {
+  export interface EmptyInput {}
+
+}
+
+export namespace OpencutFontDerivedV1CatalogOutput {
+  export type FontStyleV4 = 'normal' | 'italic';
+
+  export interface Response {
+  api_version: string;
+  data?: FontDerivedCatalogV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface FontDerivedCatalogV1 {
+  fonts: FontDerivedFaceV1[];
+  import_available: boolean;
+  schema_version: number;
+  source_commit: string;
+  unavailable_reason?: string | null;
+}
+  export interface FontDerivedFaceV1 {
+  content_hash: string;
+  derivation_id: string;
+  family: string;
+  id: string;
+  size_bytes: string;
+  style: FontStyleV4;
+  weight: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1SourceInput {
+  export interface FontDerivedSourceRequestV1 {
+  catalog_id: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1SourceOutput {
+  export type FontStyleV4 = 'normal' | 'italic';
+
+  export interface Response {
+  api_version: string;
+  data?: FontDerivedSourceV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface FontDerivedSourceV1 {
+  axes: FontDerivedAxisV1[];
+  face: FontDerivedFaceV1;
+  license_id: string;
+  license_notice: string;
+  license_url: string;
+  /**
+   * Original canonical UTF-8 derivation record, including source/license/tool
+   * identity and all axes. Hash its object without derivation_id to verify ID.
+   */
+  proof_json: string;
+  source_commit: string;
+  source_sha256: string;
+  source_size_bytes: string;
+  source_url: string;
+}
+  export interface FontDerivedAxisV1 {
+  /**
+   * Exact decimal coordinate retained from the canonical derivation record.
+   */
+  coordinate: string;
+  tag: string;
+}
+  export interface FontDerivedFaceV1 {
+  content_hash: string;
+  derivation_id: string;
+  family: string;
+  id: string;
+  size_bytes: string;
+  style: FontStyleV4;
+  weight: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1ImportInput {
+  export interface ImportDerivedFontV1 {
+  catalog_id: string;
+  expected_revision: string;
+  font_id: string;
+  idempotency_key: string;
+  project_id: string;
+  required_text: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1ImportOutput {
+  export interface Response {
+  api_version: string;
+  data?: TransactionResult | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1ProofInput {
+  export interface ReadDerivedFontProofV1 {
+  font_id: string;
+  project_id: string;
+  revision: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1ProofOutput {
+  export type FontStyleV4 = 'normal' | 'italic';
+
+  export interface Response {
+  api_version: string;
+  data?: DerivedFontProofV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DerivedFontProofV1 {
+  font_id: string;
+  project_id: string;
+  revision: string;
+  schema_version: number;
+  source: FontDerivedSourceV1;
+}
+  export interface FontDerivedSourceV1 {
+  axes: FontDerivedAxisV1[];
+  face: FontDerivedFaceV1;
+  license_id: string;
+  license_notice: string;
+  license_url: string;
+  /**
+   * Original canonical UTF-8 derivation record, including source/license/tool
+   * identity and all axes. Hash its object without derivation_id to verify ID.
+   */
+  proof_json: string;
+  source_commit: string;
+  source_sha256: string;
+  source_size_bytes: string;
+  source_url: string;
+}
+  export interface FontDerivedAxisV1 {
+  /**
+   * Exact decimal coordinate retained from the canonical derivation record.
+   */
+  coordinate: string;
+  tag: string;
+}
+  export interface FontDerivedFaceV1 {
+  content_hash: string;
+  derivation_id: string;
+  family: string;
+  id: string;
+  size_bytes: string;
+  style: FontStyleV4;
+  weight: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryStageInput {
+  export interface StageDerivedFontRecoveryV1 {
+  context: DerivedFontRecoveryContextV1;
+}
+  export interface DerivedFontRecoveryContextV1 {
+  request: ImportDerivedFontV1;
+  sequence_id?: string | null;
+}
+  export interface ImportDerivedFontV1 {
+  catalog_id: string;
+  expected_revision: string;
+  font_id: string;
+  idempotency_key: string;
+  project_id: string;
+  required_text: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryStageOutput {
+  export interface Response {
+  api_version: string;
+  data?: DerivedFontRecoveryRecordV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DerivedFontRecoveryRecordV1 {
+  context: DerivedFontRecoveryContextV1;
+  project_id: string;
+  receipt?: TransactionResult | null;
+  recovery_id: string;
+  request_digest: string;
+  schema_version: number;
+}
+  export interface DerivedFontRecoveryContextV1 {
+  request: ImportDerivedFontV1;
+  sequence_id?: string | null;
+}
+  export interface ImportDerivedFontV1 {
+  catalog_id: string;
+  expected_revision: string;
+  font_id: string;
+  idempotency_key: string;
+  project_id: string;
+  required_text: string;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryReadInput {
+  export interface ReadDerivedFontRecoveryV1 {
+  project_id: string;
+  recovery_id?: string | null;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryReadOutput {
+  export interface Response {
+  api_version: string;
+  data?: DerivedFontRecoveryInspectionV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DerivedFontRecoveryInspectionV1 {
+  record?: DerivedFontRecoveryRecordV1 | null;
+  schema_version: number;
+}
+  export interface DerivedFontRecoveryRecordV1 {
+  context: DerivedFontRecoveryContextV1;
+  project_id: string;
+  receipt?: TransactionResult | null;
+  recovery_id: string;
+  request_digest: string;
+  schema_version: number;
+}
+  export interface DerivedFontRecoveryContextV1 {
+  request: ImportDerivedFontV1;
+  sequence_id?: string | null;
+}
+  export interface ImportDerivedFontV1 {
+  catalog_id: string;
+  expected_revision: string;
+  font_id: string;
+  idempotency_key: string;
+  project_id: string;
+  required_text: string;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryAckInput {
+  export interface AckDerivedFontRecoveryV1 {
+  project_id: string;
+  recovery_id: string;
+}
+
+}
+
+export namespace OpencutFontDerivedV1RecoveryAckOutput {
+  export type FontRecoveryResolutionV1 = 'saved' | 'not_saved';
+
+  export interface Response {
+  api_version: string;
+  data?: DerivedFontRecoveryAckV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface DerivedFontRecoveryAckV1 {
+  receipt?: TransactionResult | null;
+  recovery_id: string;
+  resolution: FontRecoveryResolutionV1;
+  schema_version: number;
+}
+  export interface TransactionResult {
+  base_revision: string;
+  changed_ids: string[];
+  created_ids: string[];
+  deleted_ids: string[];
+  revision: string;
+  transaction_id: string;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutAnalysisSequenceTranscribeV4Input {
   export interface SubmitSequenceTranscribeV4 {
   idempotency_key: string;
@@ -52339,6 +52703,13 @@ export interface ToolMap {
   opencut_text_v1_canvas_plan: { input: OpencutTextV1CanvasPlanInput.TextCanvasPlanRequestV1; output: NonNullable<OpencutTextV1CanvasPlanOutput.Response["data"]> };
   opencut_font_v2_catalog: { input: OpencutFontV2CatalogInput.EmptyInput; output: NonNullable<OpencutFontV2CatalogOutput.Response["data"]> };
   opencut_font_v2_source: { input: OpencutFontV2SourceInput.FontSourceRequestV2; output: NonNullable<OpencutFontV2SourceOutput.Response["data"]> };
+  opencut_font_derived_v1_catalog: { input: OpencutFontDerivedV1CatalogInput.EmptyInput; output: NonNullable<OpencutFontDerivedV1CatalogOutput.Response["data"]> };
+  opencut_font_derived_v1_source: { input: OpencutFontDerivedV1SourceInput.FontDerivedSourceRequestV1; output: NonNullable<OpencutFontDerivedV1SourceOutput.Response["data"]> };
+  opencut_font_derived_v1_import: { input: OpencutFontDerivedV1ImportInput.ImportDerivedFontV1; output: NonNullable<OpencutFontDerivedV1ImportOutput.Response["data"]> };
+  opencut_font_derived_v1_proof: { input: OpencutFontDerivedV1ProofInput.ReadDerivedFontProofV1; output: NonNullable<OpencutFontDerivedV1ProofOutput.Response["data"]> };
+  opencut_font_derived_v1_recovery_stage: { input: OpencutFontDerivedV1RecoveryStageInput.StageDerivedFontRecoveryV1; output: NonNullable<OpencutFontDerivedV1RecoveryStageOutput.Response["data"]> };
+  opencut_font_derived_v1_recovery_read: { input: OpencutFontDerivedV1RecoveryReadInput.ReadDerivedFontRecoveryV1; output: NonNullable<OpencutFontDerivedV1RecoveryReadOutput.Response["data"]> };
+  opencut_font_derived_v1_recovery_ack: { input: OpencutFontDerivedV1RecoveryAckInput.AckDerivedFontRecoveryV1; output: NonNullable<OpencutFontDerivedV1RecoveryAckOutput.Response["data"]> };
   opencut_analysis_sequence_transcribe_v4: { input: OpencutAnalysisSequenceTranscribeV4Input.SubmitSequenceTranscribeV4; output: NonNullable<OpencutAnalysisSequenceTranscribeV4Output.Response["data"]> };
   opencut_analysis_sequence_transcribe_v4_capability: { input: OpencutAnalysisSequenceTranscribeV4CapabilityInput.EmptyInput; output: NonNullable<OpencutAnalysisSequenceTranscribeV4CapabilityOutput.Response["data"]> };
   opencut_subtitle_text_v1_plan: { input: OpencutSubtitleTextV1PlanInput.SubtitleTextPlanRequestV1; output: NonNullable<OpencutSubtitleTextV1PlanOutput.Response["data"]> };
@@ -52598,6 +52969,13 @@ export interface DomainMap {
     "font.recovery.v1.ack": ToolMap["opencut_font_recovery_v1_ack"];
     "font.v2.catalog": ToolMap["opencut_font_v2_catalog"];
     "font.v2.source": ToolMap["opencut_font_v2_source"];
+    "font.derived.v1.catalog": ToolMap["opencut_font_derived_v1_catalog"];
+    "font.derived.v1.source": ToolMap["opencut_font_derived_v1_source"];
+    "font.derived.v1.import": ToolMap["opencut_font_derived_v1_import"];
+    "font.derived.v1.proof": ToolMap["opencut_font_derived_v1_proof"];
+    "font.derived.v1.recovery.stage": ToolMap["opencut_font_derived_v1_recovery_stage"];
+    "font.derived.v1.recovery.read": ToolMap["opencut_font_derived_v1_recovery_read"];
+    "font.derived.v1.recovery.ack": ToolMap["opencut_font_derived_v1_recovery_ack"];
     "analysis.sequence.transcribe.v4": ToolMap["opencut_analysis_sequence_transcribe_v4"];
     "analysis.sequence.transcribe.v4.capability": ToolMap["opencut_analysis_sequence_transcribe_v4_capability"];
     "font.v1.catalog": ToolMap["opencut_font_v1_catalog"];
@@ -52857,6 +53235,13 @@ export const domainActions = {
     "font.recovery.v1.ack",
     "font.v2.catalog",
     "font.v2.source",
+    "font.derived.v1.catalog",
+    "font.derived.v1.source",
+    "font.derived.v1.import",
+    "font.derived.v1.proof",
+    "font.derived.v1.recovery.stage",
+    "font.derived.v1.recovery.read",
+    "font.derived.v1.recovery.ack",
     "analysis.sequence.transcribe.v4",
     "analysis.sequence.transcribe.v4.capability",
     "font.v1.catalog",
@@ -53104,6 +53489,13 @@ export const toolNames = [
   "opencut_text_v1_canvas_plan",
   "opencut_font_v2_catalog",
   "opencut_font_v2_source",
+  "opencut_font_derived_v1_catalog",
+  "opencut_font_derived_v1_source",
+  "opencut_font_derived_v1_import",
+  "opencut_font_derived_v1_proof",
+  "opencut_font_derived_v1_recovery_stage",
+  "opencut_font_derived_v1_recovery_read",
+  "opencut_font_derived_v1_recovery_ack",
   "opencut_analysis_sequence_transcribe_v4",
   "opencut_analysis_sequence_transcribe_v4_capability",
   "opencut_subtitle_text_v1_plan",

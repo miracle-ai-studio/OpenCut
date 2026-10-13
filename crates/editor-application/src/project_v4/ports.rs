@@ -34,6 +34,7 @@ pub enum V4Intent<'a> {
     Undo(&'a opencut_contracts::project_v4_history::UndoV4Project),
     Redo(&'a opencut_contracts::project_v4_history::RedoV4Project),
     FontImport(&'a opencut_contracts::font_import_v1::ImportFontV1),
+    DerivedFontImport(&'a opencut_contracts::font_derived_v1::ImportDerivedFontV1),
     CaptionGenerate(&'a opencut_api_contracts::subtitle_v4::GenerateCaptionsV4),
     CaptionImport(&'a opencut_api_contracts::subtitle_v4::SubtitleImportV4),
 }
@@ -49,6 +50,7 @@ impl<'a> V4Intent<'a> {
             Self::Undo(r) => &r.project_id,
             Self::Redo(r) => &r.project_id,
             Self::FontImport(r) => &r.project_id,
+            Self::DerivedFontImport(r) => &r.project_id,
             Self::CaptionGenerate(r) => &r.project_id,
             Self::CaptionImport(r) => &r.project_id,
         }
@@ -64,6 +66,7 @@ impl<'a> V4Intent<'a> {
             Self::Undo(_) => "project_v4_undo",
             Self::Redo(_) => "project_v4_redo",
             Self::FontImport(_) => "project_v4_font_import_v1",
+            Self::DerivedFontImport(_) => "project_v4_derived_font_import_v1",
             Self::CaptionGenerate(_) => "subtitle_generate_v4",
             Self::CaptionImport(_) => "subtitle_import_v4",
         }
@@ -85,6 +88,7 @@ impl<'a> V4Intent<'a> {
             Self::Undo(r) => &r.idempotency_key,
             Self::Redo(r) => &r.idempotency_key,
             Self::FontImport(r) => &r.idempotency_key,
+            Self::DerivedFontImport(r) => &r.idempotency_key,
             Self::CaptionGenerate(r) => &r.idempotency_key,
             Self::CaptionImport(r) => &r.idempotency_key,
         }
@@ -99,6 +103,7 @@ impl<'a> V4Intent<'a> {
             Self::Undo(r) => Some(&r.expected_revision),
             Self::Redo(r) => Some(&r.expected_revision),
             Self::FontImport(r) => Some(&r.expected_revision),
+            Self::DerivedFontImport(r) => Some(&r.expected_revision),
             Self::CaptionGenerate(r) => Some(&r.expected_revision),
             Self::CaptionImport(r) => Some(&r.expected_revision),
         }
@@ -124,6 +129,9 @@ impl<'a> V4Intent<'a> {
             Self::FontImport(r) => {
                 crate::identity::request_identity(self.family(), self.scope(), r)
             }
+            Self::DerivedFontImport(r) => {
+                crate::identity::request_identity(self.family(), self.scope(), r)
+            }
         }
     }
     pub fn request_json(self) -> Result<String, EditorError> {
@@ -137,6 +145,7 @@ impl<'a> V4Intent<'a> {
             Self::Undo(r) => encode_json(r, "V4 undo request"),
             Self::Redo(r) => encode_json(r, "V4 redo request"),
             Self::FontImport(r) => encode_json(r, "V1 font import request"),
+            Self::DerivedFontImport(r) => encode_json(r, "V1 derived font import request"),
             Self::CaptionGenerate(r) => encode_json(r, "V4 caption generation request"),
             Self::CaptionImport(r) => encode_json(r, "V4 subtitle import request"),
         }

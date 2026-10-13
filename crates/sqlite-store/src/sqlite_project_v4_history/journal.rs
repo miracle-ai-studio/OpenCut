@@ -136,9 +136,24 @@ pub(super) fn entry(
                 if request.project_id != project || request.expected_revision != base {
                     return Err(malformed());
                 }
-                let font = opencut_editor_application::font_import_v1::expected_import_resource_v1(
-                    &request,
+                // Both original import DTOs have the same frozen shape. Their
+                // pinned catalog IDs distinguish the source authority, while
+                // the stored journal remains the complete original request.
+                let font = if opencut_editor_application::font_derived_v1::source(
+                    &request.catalog_id,
                 )
+                .is_ok()
+                {
+                    let derived_request: opencut_contracts::font_derived_v1::ImportDerivedFontV1 =
+                        serde_json::from_value(value.clone()).map_err(|_| malformed())?;
+                    opencut_editor_application::font_derived_v1::expected_import_resource_v1(
+                        &derived_request,
+                    )
+                } else {
+                    opencut_editor_application::font_import_v1::expected_import_resource_v1(
+                        &request,
+                    )
+                }
                 .map_err(|_| malformed())?;
                 let VersionedProjectDocument::V4(before_document) =
                     decode_versioned_project(before)?

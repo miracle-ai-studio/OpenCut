@@ -313,6 +313,9 @@ pub(super) fn authorize_intent(
     context: &opencut_editor_application::audit::ExecutionContext,
     intent: V4Intent<'_>,
 ) -> Result<(), EditorError> {
+    if let V4Intent::DerivedFontImport(input) = intent {
+        return opencut_editor_application::font_derived_v1::validate_import_request_v1(input);
+    }
     if let V4Intent::FontImport(input) = intent {
         // Read/Edit/write-control are checked by the common outer authorizer.
         // The only new resource authority is the exact reviewed catalog entry.
@@ -349,6 +352,7 @@ pub(super) fn authorize_intent(
         | V4Intent::Undo(_)
         | V4Intent::Redo(_)
         | V4Intent::FontImport(_)
+        | V4Intent::DerivedFontImport(_)
         | V4Intent::CaptionGenerate(_)
         | V4Intent::CaptionImport(_) => {
             unreachable!("handled above")
@@ -399,6 +403,14 @@ pub(super) fn authorize_document(
 ) -> Result<(), EditorError> {
     let project = intent.project_id();
     let imported = match intent {
+        V4Intent::DerivedFontImport(input) => {
+            let font =
+                opencut_editor_application::font_derived_v1::expected_import_resource_v1(input)?;
+            if !document.fonts.iter().any(|candidate| candidate == &font) {
+                return Err(access::denied());
+            }
+            Some(font)
+        }
         V4Intent::FontImport(input) => {
             let font =
                 opencut_editor_application::font_import_v1::expected_import_resource_v1(input)?;

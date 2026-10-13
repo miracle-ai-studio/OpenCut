@@ -25,6 +25,8 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "FONT_GLYPH_MISSING"
         | "FONT_FACE_MISMATCH"
         | "FONT_BUDGET_EXCEEDED"
+        | "FONT_DERIVATION_UNAVAILABLE"
+        | "FONT_DERIVATION_INVALID"
         | "FONT_FACE_UNAVAILABLE" => (422, 6),
         "FONT_SOURCE_UNAVAILABLE" => (502, 7),
         "NOT_FOUND" => (404, 4),

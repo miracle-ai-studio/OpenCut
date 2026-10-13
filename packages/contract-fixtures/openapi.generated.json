@@ -4146,6 +4146,279 @@
         }
       }
     },
+    "/v1/tools/opencut_font_derived_v1_catalog": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_catalog",
+        "description": "Discover reviewed variable-font derivations with pinned static output identities and trusted host runtime availability. Does not fetch, derive or authorize project resources.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_source": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_source",
+        "description": "Read one fixed variable-font recipe, full original license, all axis coordinates, tool identity and canonical derivation proof. Caller-provided URLs, axes and runtimes are not accepted.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1SourceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_import": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_import",
+        "description": "Import the exact static output of a reviewed variable-font recipe, inspect face and glyph coverage, and atomically retain immutable provenance with the fixed-revision font edit. Original request identity, publication lease, permission and recovery fences apply.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1ImportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1ImportOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1ImportOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_proof": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_proof",
+        "description": "Read the retained derivation proof authorized by one exact project revision and font. Verify the original source, license, axes, implementation and derived output against the committed font resource.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1ProofInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_recovery_stage": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_recovery_stage",
+        "description": "Retain an exact original derived-font import in the existing authenticated unresolved-write slot before dispatch. Does not derive or commit a font; enforces scope, fixed head and shared quota.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_recovery_read": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_recovery_read",
+        "description": "Discover this caller scope's original derived-font import and receipt without executing it or resolving another recovery protocol.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_font_derived_v1_recovery_ack": {
+      "post": {
+        "operationId": "opencut_font_derived_v1_recovery_ack",
+        "description": "Release a derived-font recovery record only when its exact committed receipt or inability to commit is proven under live authorization and write control.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_analysis_sequence_transcribe_v4": {
       "post": {
         "operationId": "opencut_analysis_sequence_transcribe_v4",
@@ -11120,6 +11393,13 @@
           "font.recovery.v1.ack": "opencut_font_recovery_v1_ack",
           "font.v2.catalog": "opencut_font_v2_catalog",
           "font.v2.source": "opencut_font_v2_source",
+          "font.derived.v1.catalog": "opencut_font_derived_v1_catalog",
+          "font.derived.v1.source": "opencut_font_derived_v1_source",
+          "font.derived.v1.import": "opencut_font_derived_v1_import",
+          "font.derived.v1.proof": "opencut_font_derived_v1_proof",
+          "font.derived.v1.recovery.stage": "opencut_font_derived_v1_recovery_stage",
+          "font.derived.v1.recovery.read": "opencut_font_derived_v1_recovery_read",
+          "font.derived.v1.recovery.ack": "opencut_font_derived_v1_recovery_ack",
           "analysis.sequence.transcribe.v4": "opencut_analysis_sequence_transcribe_v4",
           "analysis.sequence.transcribe.v4.capability": "opencut_analysis_sequence_transcribe_v4_capability",
           "font.v1.catalog": "opencut_font_v1_catalog",
@@ -11546,6 +11826,118 @@
                     "type": "object",
                     "properties": {
                       "action": {
+                        "const": "font.derived.v1.catalog"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.source"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1SourceInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.import"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1ImportInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.proof"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1ProofInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.recovery.stage"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.recovery.read"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "font.derived.v1.recovery.ack"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
                         "const": "analysis.sequence.transcribe.v4"
                       },
                       "input": {
@@ -11868,6 +12260,27 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutFontV2SourceOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1ImportOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutAnalysisSequenceTranscribeV4Output"
@@ -43176,6 +43589,776 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OpencutFontV2SourceOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1CatalogInput": {
+        "$ref": "#/components/schemas/OpencutAudioPreviewV4CapabilityInput"
+      },
+      "OpencutFontDerivedV1CatalogOutput": {
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "FontDerivedCatalogV1": {
+            "additionalProperties": false,
+            "properties": {
+              "fonts": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/FontDerivedFaceV1"
+                },
+                "type": "array"
+              },
+              "import_available": {
+                "type": "boolean"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "source_commit": {
+                "type": "string"
+              },
+              "unavailable_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "schema_version",
+              "import_available",
+              "source_commit",
+              "fonts"
+            ],
+            "type": "object"
+          },
+          "FontDerivedFaceV1": {
+            "additionalProperties": false,
+            "properties": {
+              "content_hash": {
+                "type": "string"
+              },
+              "derivation_id": {
+                "type": "string"
+              },
+              "family": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "string"
+              },
+              "style": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/FontStyleV4"
+              },
+              "weight": {
+                "format": "uint16",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "family",
+              "weight",
+              "style",
+              "derivation_id",
+              "content_hash",
+              "size_bytes"
+            ],
+            "type": "object"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/FontDerivedCatalogV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1SourceInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "catalog_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalog_id"
+        ],
+        "title": "FontDerivedSourceRequestV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1SourceOutput": {
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "FontDerivedAxisV1": {
+            "additionalProperties": false,
+            "properties": {
+              "coordinate": {
+                "description": "Exact decimal coordinate retained from the canonical derivation record.",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tag",
+              "coordinate"
+            ],
+            "type": "object"
+          },
+          "FontDerivedFaceV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/FontDerivedFaceV1"
+          },
+          "FontDerivedSourceV1": {
+            "additionalProperties": false,
+            "properties": {
+              "axes": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/FontDerivedAxisV1"
+                },
+                "type": "array"
+              },
+              "face": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/FontDerivedFaceV1"
+              },
+              "license_id": {
+                "type": "string"
+              },
+              "license_notice": {
+                "type": "string"
+              },
+              "license_url": {
+                "type": "string"
+              },
+              "proof_json": {
+                "description": "Original canonical UTF-8 derivation record, including source/license/tool\nidentity and all axes. Hash its object without derivation_id to verify ID.",
+                "type": "string"
+              },
+              "source_commit": {
+                "type": "string"
+              },
+              "source_sha256": {
+                "type": "string"
+              },
+              "source_size_bytes": {
+                "type": "string"
+              },
+              "source_url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "face",
+              "source_commit",
+              "source_url",
+              "source_sha256",
+              "source_size_bytes",
+              "license_url",
+              "license_id",
+              "license_notice",
+              "axes",
+              "proof_json"
+            ],
+            "type": "object"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/FontDerivedSourceV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1ImportInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "catalog_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "type": "string"
+          },
+          "font_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "required_text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "expected_revision",
+          "idempotency_key",
+          "catalog_id",
+          "font_id",
+          "required_text"
+        ],
+        "title": "ImportDerivedFontV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1ImportOutput": {
+        "$ref": "#/components/schemas/OpencutProjectEditApplyOutput",
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/EditorError"
+          },
+          "TransactionResult": {
+            "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
+          }
+        }
+      },
+      "OpencutFontDerivedV1ProofInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "font_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "revision",
+          "font_id"
+        ],
+        "title": "ReadDerivedFontProofV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1ProofOutput": {
+        "$defs": {
+          "DerivedFontProofV1": {
+            "additionalProperties": false,
+            "properties": {
+              "font_id": {
+                "type": "string"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "source": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput/$defs/FontDerivedSourceV1"
+              }
+            },
+            "required": [
+              "schema_version",
+              "project_id",
+              "revision",
+              "font_id",
+              "source"
+            ],
+            "type": "object"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "FontDerivedAxisV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/FontDerivedAxisV1"
+          },
+          "FontDerivedFaceV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1CatalogOutput/$defs/FontDerivedFaceV1"
+          },
+          "FontDerivedSourceV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1SourceOutput/$defs/FontDerivedSourceV1"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput/$defs/DerivedFontProofV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1ProofOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryStageInput": {
+        "$defs": {
+          "DerivedFontRecoveryContextV1": {
+            "additionalProperties": false,
+            "properties": {
+              "request": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/ImportDerivedFontV1"
+              },
+              "sequence_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ],
+            "type": "object"
+          },
+          "ImportDerivedFontV1": {
+            "additionalProperties": false,
+            "properties": {
+              "catalog_id": {
+                "type": "string"
+              },
+              "expected_revision": {
+                "type": "string"
+              },
+              "font_id": {
+                "type": "string"
+              },
+              "idempotency_key": {
+                "type": "string"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "required_text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project_id",
+              "expected_revision",
+              "idempotency_key",
+              "catalog_id",
+              "font_id",
+              "required_text"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/DerivedFontRecoveryContextV1"
+          }
+        },
+        "required": [
+          "context"
+        ],
+        "title": "StageDerivedFontRecoveryV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryStageOutput": {
+        "$defs": {
+          "DerivedFontRecoveryContextV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/DerivedFontRecoveryContextV1"
+          },
+          "DerivedFontRecoveryRecordV1": {
+            "additionalProperties": false,
+            "properties": {
+              "context": {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput/$defs/DerivedFontRecoveryContextV1"
+              },
+              "project_id": {
+                "type": "string"
+              },
+              "receipt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput/$defs/TransactionResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "recovery_id": {
+                "type": "string"
+              },
+              "request_digest": {
+                "type": "string"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "schema_version",
+              "recovery_id",
+              "project_id",
+              "request_digest",
+              "context"
+            ],
+            "type": "object"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "ImportDerivedFontV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/ImportDerivedFontV1"
+          },
+          "TransactionResult": {
+            "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput/$defs/DerivedFontRecoveryRecordV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryReadInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "recovery_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ReadDerivedFontRecoveryV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryReadOutput": {
+        "$defs": {
+          "DerivedFontRecoveryContextV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/DerivedFontRecoveryContextV1"
+          },
+          "DerivedFontRecoveryInspectionV1": {
+            "additionalProperties": false,
+            "properties": {
+              "record": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput/$defs/DerivedFontRecoveryRecordV1"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "schema_version"
+            ],
+            "type": "object"
+          },
+          "DerivedFontRecoveryRecordV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageOutput/$defs/DerivedFontRecoveryRecordV1"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "ImportDerivedFontV1": {
+            "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryStageInput/$defs/ImportDerivedFontV1"
+          },
+          "TransactionResult": {
+            "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput/$defs/DerivedFontRecoveryInspectionV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryReadOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryAckInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "recovery_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "recovery_id"
+        ],
+        "title": "AckDerivedFontRecoveryV1",
+        "type": "object"
+      },
+      "OpencutFontDerivedV1RecoveryAckOutput": {
+        "$defs": {
+          "DerivedFontRecoveryAckV1": {
+            "$ref": "#/components/schemas/OpencutFontRecoveryV1AckOutput/$defs/FontRecoveryAckV1"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "FontRecoveryResolutionV1": {
+            "$ref": "#/components/schemas/OpencutFontRecoveryV1AckOutput/$defs/FontRecoveryResolutionV1"
+          },
+          "TransactionResult": {
+            "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckOutput/$defs/DerivedFontRecoveryAckV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutFontDerivedV1RecoveryAckOutput/$defs/EditorError"
               },
               {
                 "type": "null"

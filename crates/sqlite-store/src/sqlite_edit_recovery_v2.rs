@@ -62,6 +62,29 @@ fn require_original_font_authority(
             &stored.digest,
             &stored.project
         )?,
+        sqlite_edit_recovery_shared::V2SlotKind::DerivedFont { .. }
+    ) {
+        let original = opencut_editor_application::font_derived_v1::recovery::decode_payload(
+            &stored.payload,
+            &stored.digest,
+            &stored.project,
+        )?;
+        sqlite_project_v4::authorize(
+            connection,
+            context,
+            V4Intent::DerivedFontImport(&original.context.request),
+        )?;
+        return Err(EditorError::new(
+            "RECOVERY_PROTOCOL_REQUIRED",
+            "This record requires derived font recovery V1",
+        ));
+    }
+    if matches!(
+        sqlite_edit_recovery_shared::classify_v2_payload(
+            &stored.payload,
+            &stored.digest,
+            &stored.project
+        )?,
         sqlite_edit_recovery_shared::V2SlotKind::CaptionV3 { .. }
     ) {
         let original = opencut_editor_application::edit_recovery_v3::decode_payload(

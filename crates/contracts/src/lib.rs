@@ -7,6 +7,7 @@ pub mod audio_gain_v4;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
 pub mod font_browser_v2;
+pub mod font_derived_v1;
 pub mod font_import_v1;
 pub mod font_recovery_v1;
 pub mod media_import;

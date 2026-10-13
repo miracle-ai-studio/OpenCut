@@ -5,7 +5,7 @@ use opencut_editor_application::font_import_v1::*;
 use std::collections::BTreeSet;
 use ttf_parser::{Face, GlyphId, Language, RawFace, Tag, name_id};
 
-mod fetch;
+pub(crate) mod fetch;
 pub use fetch::GoogleFontsFetchV1;
 
 #[cfg(test)]

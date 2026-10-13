@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import type { V4TextFont, V4TextScope } from "./types";
+import type { DerivedFontCatalog, DerivedSourceReader } from "./font-derived";
 import { FontBrowserImport } from "./font-browser";
 import type { FontBrowserCatalog, FontSourceReader } from "./font-browser";
 
@@ -22,10 +23,16 @@ export type V4FontImportProps = {
   choices: readonly FontImportChoice[];
   browserCatalog?: FontBrowserCatalog;
   readSource?: FontSourceReader;
+  derivedCatalog?: DerivedFontCatalog | null;
+  readDerivedSource?: DerivedSourceReader;
   requiredText: string;
   disabled?: boolean;
   disabledReason?: string | null;
-  importFont(choiceId: string, requiredText: string): Promise<unknown>;
+  importFont(
+    choiceId: string,
+    requiredText: string,
+    sourceKind?: "derived",
+  ): Promise<unknown>;
   close(): void;
 };
 

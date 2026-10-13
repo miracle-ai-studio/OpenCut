@@ -243,3 +243,104 @@ it("keeps authored text across family/style changes and prevents IME confirmatio
     ),
   );
 });
+const derived = () => ({
+  schema_version: 1,
+  import_available: true,
+  unavailable_reason: null,
+  source_commit: "derived-commit",
+  fonts: [
+    {
+      id: "variable-recipe",
+      family: "Variable Only",
+      weight: 400,
+      style: "normal" as const,
+      derivation_id: "derived-output-proof",
+      content_hash: "d".repeat(64),
+      size_bytes: "120",
+    },
+  ],
+});
+const derivedSource = () => ({
+  face: derived().fonts[0],
+  source_commit: "derived-commit",
+  source_url: "https://example.test/pinned-variable.ttf",
+  source_sha256: "e".repeat(64),
+  source_size_bytes: "240",
+  license_url: "https://example.test/OFL.txt",
+  license_id: "OFL-1.1",
+  license_notice: "Derived face original license",
+  axes: [{ tag: "wght", coordinate: "400" }],
+  proof_json: '{"derivation_id":"derived-output-proof"}',
+});
+it("merges an exact variable-only face into the same atlas and imports it through its distinct available protocol", async () => {
+  const input = props();
+  input.browserCatalog!.download_available = false;
+  input.derivedCatalog = derived();
+  input.readDerivedSource = vi.fn(async () => derivedSource());
+  render(<V4FontImport {...input} />);
+  fireEvent.change(screen.getByLabelText("Font family"), {
+    target: { value: "Variable Only" },
+  });
+  await screen.findByText("Derived face original license");
+  expect(
+    screen.getByText("Verified static instance from a variable font"),
+  ).toBeTruthy();
+  expect(screen.getByText("wght=400")).toBeTruthy();
+  expect(
+    (screen.getByRole("button", { name: "Import font" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Import font" }));
+  await waitFor(() =>
+    expect(input.importFont).toHaveBeenCalledExactlyOnceWith(
+      "variable-recipe",
+      "Hello 你好",
+      "derived",
+    ),
+  );
+});
+it("retains static precedence and blocks a selected derived face when only static download is available", async () => {
+  const input = props();
+  input.derivedCatalog = {
+    ...derived(),
+    import_available: false,
+    unavailable_reason: "Offline derivation runtime",
+    fonts: [
+      ...derived().fonts,
+      { ...derived().fonts[0], id: "duplicate-static", family: "Lato" },
+    ],
+  };
+  input.readDerivedSource = vi.fn(async () => derivedSource());
+  render(<V4FontImport {...input} />);
+  await screen.findByText("Complete original license notice");
+  expect(input.readDerivedSource).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("Font family"), {
+    target: { value: "Variable Only" },
+  });
+  await screen.findByText("Derived face original license");
+  expect(screen.getByText("Offline derivation runtime")).toBeTruthy();
+  expect(
+    (screen.getByRole("button", { name: "Import font" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect(input.importFont).not.toHaveBeenCalled();
+});
+it("rejects a variable input hash asserted as the selected static output identity", async () => {
+  const input = props();
+  input.derivedCatalog = derived();
+  input.readDerivedSource = vi.fn(async () => ({
+    ...derivedSource(),
+    face: { ...derived().fonts[0], content_hash: "e".repeat(64) },
+  }));
+  render(<V4FontImport {...input} />);
+  fireEvent.change(screen.getByLabelText("Font family"), {
+    target: { value: "Variable Only" },
+  });
+  await screen.findByText(
+    "The font source differs from the selected catalog face.",
+  );
+  expect(
+    (screen.getByRole("button", { name: "Import font" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+});

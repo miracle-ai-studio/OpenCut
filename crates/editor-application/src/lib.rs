@@ -19,6 +19,7 @@ pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
 pub mod events;
 pub mod font_import_v1;
+pub mod font_derived_v1;
 pub mod history_navigation;
 pub mod identity;
 pub mod job_views;

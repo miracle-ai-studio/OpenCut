@@ -1,3 +1,5 @@
+import type { DerivedFontImport } from "./font-derived";
+import { verifyDerivedFontImport } from "./font-derived";
 import { OpenCutApiError } from "../../../../lib/editor-sdk";
 import type { ToolInput, ToolOutput } from "../../../../lib/editor-sdk";
 import type { EditorApi } from "../../api";
@@ -10,9 +12,28 @@ export type FontRecoveryContext =
 export type FontRecoveryRecord = NonNullable<
   ToolOutput<"opencut_font_recovery_v1_inspect">["record"]
 >;
+type FontProtocol = "static" | "derived";
+const protocolTools = (protocol: FontProtocol) =>
+  protocol === "derived"
+    ? ({
+        read: "opencut_font_derived_v1_recovery_read",
+        stage: "opencut_font_derived_v1_recovery_stage",
+        ack: "opencut_font_derived_v1_recovery_ack",
+        import: "opencut_font_derived_v1_import",
+      } as const)
+    : ({
+        read: "opencut_font_recovery_v1_inspect",
+        stage: "opencut_font_recovery_v1_stage",
+        ack: "opencut_font_recovery_v1_ack",
+        import: "opencut_font_v1_import",
+      } as const);
 type Receipt = NonNullable<FontRecoveryRecord["receipt"]>;
 export type FontRecoveryState = {
   supported: boolean | null;
+  protocol?: FontProtocol;
+  derivedRequest?: DerivedFontImport;
+  derivedSupported?: boolean;
+  staticSupported?: boolean;
   phase:
     | "idle"
     | "reading"
@@ -140,7 +161,13 @@ export class V4FontRecovery {
       this.check(fence);
       if (!Array.isArray(capabilities.tools))
         throw new Error("The service returned invalid tool discovery.");
-      if (!capabilities.tools.includes("opencut_font_recovery_v1_inspect")) {
+      const staticSupported = capabilities.tools.includes(
+          "opencut_font_recovery_v1_inspect",
+        ),
+        derivedSupported = capabilities.tools.includes(
+          "opencut_font_derived_v1_recovery_read",
+        );
+      if (!staticSupported && !derivedSupported) {
         if (previous.record || previous.receipt)
           throw new Error(
             "The service cannot inspect the original font import.",
@@ -149,11 +176,22 @@ export class V4FontRecovery {
         this.publish(fence, value);
         return value;
       }
-      const result = await api.sdk.call("opencut_font_recovery_v1_inspect", {
-        project_id: projectId,
-        recovery_id: null,
-      });
+      let protocol: FontProtocol = "static";
+      let result = staticSupported
+        ? await api.sdk.call("opencut_font_recovery_v1_inspect", {
+            project_id: projectId,
+            recovery_id: null,
+          })
+        : { schema_version: 1, record: null };
       this.check(fence);
+      if (!result.record && derivedSupported) {
+        protocol = "derived";
+        result = await api.sdk.call("opencut_font_derived_v1_recovery_read", {
+          project_id: projectId,
+          recovery_id: null,
+        });
+        this.check(fence);
+      }
       const record = result.record;
       if (
         result.schema_version !== 1 ||
@@ -169,6 +207,26 @@ export class V4FontRecovery {
         );
       if (!record && previous.record && !previous.receipt)
         throw new Error("The original font import outcome remains unknown.");
+      if (
+        record &&
+        previous.record &&
+        (record.recovery_id !== previous.record.recovery_id ||
+          record.request_digest !== previous.record.request_digest ||
+          exactRecovery(record.context) !==
+            exactRecovery(previous.record.context) ||
+          protocol !== (previous.protocol ?? "static"))
+      )
+        throw new Error(
+          "The service returned a different original font import.",
+        );
+      if (!record && previous.protocol === "derived" && previous.receipt) {
+        const request =
+          previous.derivedRequest ?? previous.record?.context.request;
+        if (!request)
+          throw new Error("The original font import outcome remains unknown.");
+        await verifyDerivedFontImport(api, request, previous.receipt.revision);
+        this.check(fence);
+      }
       if (record?.receipt) assertReceipt(record.context, record.receipt);
       if (record)
         this.pointers.put(fence.identity, projectId, record.recovery_id);
@@ -176,6 +234,13 @@ export class V4FontRecovery {
       // remove that family's shared locator or acknowledge its record.
       const value: FontRecoveryState = {
         supported: true,
+        protocol: record ? protocol : previous.protocol,
+        derivedRequest:
+          record && protocol === "derived"
+            ? fixed(record.context.request)
+            : previous.derivedRequest,
+        derivedSupported,
+        staticSupported,
         record: record ? fixed(record) : null,
         receipt: record ? (record.receipt ?? null) : previous.receipt,
         phase: record
@@ -210,9 +275,19 @@ export class V4FontRecovery {
     known: Receipt | null,
   ) {
     this.check(fence);
+    const protocol = this.value(fence).protocol ?? "static",
+      tools = protocolTools(protocol);
     let proof;
     try {
-      proof = await fence.api.sdk.call("opencut_font_recovery_v1_ack", {
+      if (protocol === "derived" && known) {
+        await verifyDerivedFontImport(
+          fence.api,
+          record.context.request,
+          known.revision,
+        );
+        this.check(fence);
+      }
+      proof = await fence.api.sdk.call(tools.ack, {
         project_id: fence.projectId,
         recovery_id: record.recovery_id,
       });
@@ -223,10 +298,10 @@ export class V4FontRecovery {
         error.code !== "NOT_FOUND"
       )
         throw error;
-      const observed = await fence.api.sdk.call(
-        "opencut_font_recovery_v1_inspect",
-        { project_id: fence.projectId, recovery_id: record.recovery_id },
-      );
+      const observed = await fence.api.sdk.call(tools.read, {
+        project_id: fence.projectId,
+        recovery_id: record.recovery_id,
+      });
       this.check(fence);
       if (observed.schema_version !== 1 || observed.record !== null)
         throw error;
@@ -245,18 +320,40 @@ export class V4FontRecovery {
       throw new Error(
         "The font acknowledgment differs from the original receipt.",
       );
-    if (proof.receipt) assertReceipt(record.context, proof.receipt);
+    if (proof.receipt) {
+      assertReceipt(record.context, proof.receipt);
+      if (protocol === "derived" && !known) {
+        this.publish(fence, {
+          ...this.value(fence),
+          protocol,
+          derivedRequest: fixed(record.context.request),
+          record,
+          receipt: proof.receipt,
+          phase: "saved",
+          error: null,
+        });
+        await verifyDerivedFontImport(
+          fence.api,
+          record.context.request,
+          proof.receipt.revision,
+        );
+        this.check(fence);
+      }
+    }
     this.pointers.remove(fence.identity, fence.projectId, record.recovery_id);
     return proof.receipt ?? null;
   }
   async execute(
     api: EditorApi,
     context: FontRecoveryContext,
+    protocol: FontProtocol = "static",
   ): Promise<Receipt> {
     const captured = fixed(context),
       projectId = captured.request.project_id,
       fence = this.fence(api, projectId),
       previous = this.value(fence);
+    const tools = protocolTools(protocol),
+      derivedRequest = protocol === "derived" ? captured.request : undefined;
     const edit = this.host.state()?.recovery,
       legacy = this.host.state()?.timelineEdit.attempt;
     if (
@@ -270,6 +367,9 @@ export class V4FontRecovery {
       );
     if (
       previous.supported !== true ||
+      (protocol === "derived" && previous.derivedSupported !== true) ||
+      (protocol === "static" && previous.staticSupported === false) ||
+      (previous.record && (previous.protocol ?? "static") !== protocol) ||
       ["reading", "staging", "applying"].includes(previous.phase) ||
       (previous.record &&
         exactRecovery(previous.record.context) !== exactRecovery(captured)) ||
@@ -283,16 +383,18 @@ export class V4FontRecovery {
     try {
       this.publish(fence, {
         ...previous,
+        protocol,
+        derivedRequest,
         record,
         receipt,
         phase: "staging",
         error: null,
       });
-      const staged = await api.sdk.call("opencut_font_recovery_v1_stage", {
+      const staged = await api.sdk.call(tools.stage, {
         context: captured,
       });
       this.check(fence);
-      const observed = await api.sdk.call("opencut_font_recovery_v1_inspect", {
+      const observed = await api.sdk.call(tools.read, {
         project_id: projectId,
         recovery_id: staged.recovery_id,
       });
@@ -315,7 +417,10 @@ export class V4FontRecovery {
       record = fixed(candidate);
       receipt = candidate.receipt ?? null;
       this.publish(fence, {
+        ...previous,
         supported: true,
+        protocol,
+        derivedRequest,
         record,
         receipt,
         phase: receipt ? "saved" : "unconfirmed",
@@ -325,21 +430,24 @@ export class V4FontRecovery {
       this.check(fence);
       if (!receipt) {
         this.publish(fence, {
+          ...previous,
           supported: true,
+          protocol,
+          derivedRequest,
           record,
           receipt: null,
           phase: "applying",
           error: null,
         });
-        const result = await api.sdk.call(
-          "opencut_font_v1_import",
-          captured.request,
-        );
+        const result = await api.sdk.call(tools.import, captured.request);
         assertReceipt(captured, result);
         receipt = result;
       }
       this.publish(fence, {
+        ...previous,
         supported: true,
+        protocol,
+        derivedRequest,
         record,
         receipt,
         phase: "saved",
@@ -349,7 +457,10 @@ export class V4FontRecovery {
         try {
           await this.acknowledge(fence, record, receipt);
           this.publish(fence, {
+            ...previous,
             supported: true,
+            protocol,
+            derivedRequest,
             record: null,
             receipt,
             phase: "saved",
@@ -357,7 +468,10 @@ export class V4FontRecovery {
           });
         } catch (error) {
           this.publish(fence, {
+            ...previous,
             supported: true,
+            protocol,
+            derivedRequest,
             record,
             receipt,
             phase: "saved",
@@ -368,7 +482,10 @@ export class V4FontRecovery {
       return receipt;
     } catch (error) {
       this.publish(fence, {
+        ...previous,
         supported: true,
+        protocol,
+        derivedRequest,
         record,
         receipt,
         phase: receipt ? "saved" : record ? "unconfirmed" : "failed",
@@ -387,7 +504,11 @@ export class V4FontRecovery {
       );
     const release = this.host.acquire(record.project_id);
     try {
-      const receipt = await this.execute(api, record.context);
+      const receipt = await this.execute(
+        api,
+        record.context,
+        state.fontRecovery?.protocol ?? "static",
+      );
       if (
         api === this.host.api() &&
         this.host.state()?.head.project.id === record.project_id
@@ -414,13 +535,17 @@ export class V4FontRecovery {
       );
       this.publish(fence, {
         ...emptyFontRecovery(),
+        protocol: this.value(fence).protocol,
+        derivedRequest: this.value(fence).derivedRequest,
+        derivedSupported: state.fontRecovery?.derivedSupported,
+        staticSupported: state.fontRecovery?.staticSupported,
         supported: true,
         phase: receipt ? "saved" : "idle",
         receipt,
       });
       if (receipt) await this.refresh();
     } catch (error) {
-      this.publish(fence, { ...state.fontRecovery!, error: message(error) });
+      this.publish(fence, { ...this.value(fence), error: message(error) });
       throw error;
     } finally {
       release();
@@ -438,6 +563,8 @@ export class V4FontRecovery {
       throw new Error("Resolve the original font import before dismissing it.");
     this.publish(this.fence(api, state.head.project.id), {
       ...emptyFontRecovery(),
+      derivedSupported: state.fontRecovery?.derivedSupported,
+      staticSupported: state.fontRecovery?.staticSupported,
       supported: true,
     });
   }
