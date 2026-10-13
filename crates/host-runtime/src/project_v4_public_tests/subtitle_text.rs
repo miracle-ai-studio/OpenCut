@@ -113,3 +113,40 @@ fn readonly_export_is_scoped_and_plan_requires_edit() {
     host.caller = host.app.authenticate(&credential.secret).unwrap();
     error(host.call("opencut_subtitle_text_v1_export",json!({"project_id":"p","revision":before["revision"],"sequence_id":"main","track_id":"subs","format":"srt"})),"NOT_AUTHORIZED");
 }
+
+#[test]
+fn ass_plan_resolves_fonts_without_mutation_and_requires_current_edit_authority() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = Automation::open(dir.path().join("workspace.sqlite")).unwrap();
+    let before = seed(&mut host);
+    let history = data(host.call(
+        "opencut_project_v4_history_navigation",
+        json!({"project_id":"p","revision":null}),
+    ));
+    let content = "[Script Info]\nScriptType: v4.00+\nPlayResX: 64\nPlayResY: 48\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Lato,12,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,4,4,4,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,Hello\n";
+    let request = json!({"project_id":"p","expected_revision":before["revision"],"sequence_id":"main","idempotency_key":"ass-plan","track":{"kind":"new","track_id":"ass-text"},"content":content,"font_bindings":[],"observations":null});
+    let result = data(host.call(
+        "opencut_edit",
+        json!({"action":"subtitle.ass.v1.plan","input":request}),
+    ));
+    assert!(result["transaction"].is_null());
+    assert_eq!(result["cues"], json!([]));
+    assert_eq!(
+        result["font_requirements"],
+        json!([{"family":"Lato","weight":"normal","style":"normal","resolved_font_id":null}])
+    );
+    let mut stale = request.clone();
+    stale["expected_revision"] = json!("stale");
+    error(
+        host.call("opencut_subtitle_ass_v1_plan", stale),
+        "REVISION_CONFLICT",
+    );
+    unchanged(&mut host, &before, &history);
+    policy(&mut host, "0", vec![ProjectAction::Read]);
+    let credential = host.app.issue_credential("agent").unwrap();
+    host.caller = host.app.authenticate(&credential.secret).unwrap();
+    error(
+        host.call("opencut_subtitle_ass_v1_plan", request),
+        "NOT_AUTHORIZED",
+    );
+}

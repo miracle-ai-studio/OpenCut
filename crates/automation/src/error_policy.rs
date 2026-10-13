@@ -86,6 +86,8 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "UNSUPPORTED_ANALYSIS_QUERY"
         | "SUBTITLE_INVALID"
         | "INVALID_SUBTITLE_TEXT_PLAN"
+        | "INVALID_SUBTITLE_ASS_PLAN"
+        | "SUBTITLE_ASS_UNSUPPORTED"
         | "PACKAGE_INVALID"
         | "PACKAGE_DEPENDENCY_UNSUPPORTED"
         | "UNSUPPORTED_JOB_KIND"

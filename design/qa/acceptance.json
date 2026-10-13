@@ -286,7 +286,7 @@
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
     "scope": "47 unique scoped records. F23 now has actual editable TextV4 subtitle import, full existing text editor/history, SRT/ASS downloads and independent wrap/placement PNG. Offline F20 variable-font derivation has deterministic source/tool/license evidence but is not integrated. F10/F19/F21 remain closed; 33 groups remain. No whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "f23_editable_text_subtitle_authoring_exchange",
+    "latest_candidate": "f23_actual_asr_editable_and_static_ass_import",
     "plan_coverage": {
       "remaining_groups": 33,
       "routes": 13,
@@ -9006,6 +9006,221 @@
           "No reduction in the 621 families/1490 applicable faces lacking fixed usable sources.",
           "Reserved Font Name sources require a separately reviewed rename profile."
         ]
+      },
+      {
+        "evidence_id": "f23_actual_asr_editable_and_static_ass_import",
+        "status": "passed_scoped",
+        "candidate": {
+          "source_head": "982e18ee81945c8c58ef585d772a2f3b0c8e0d5a",
+          "dirty_source": true,
+          "production_change_digest": "4d299607b4bcd4ab8ece47bf5e09a123e6204a75da02c767bca6a60b81fa17ae",
+          "production_change_files": 22,
+          "binary_sha256": "b2205e0a8eabc241f645706d0be85df1fee067d89ddb6805100329c03e198892",
+          "web_js_css_tree_sha256": "baa18b7b239674c3c02f317908dde3d895e85d0487bd9e2926fd22dcda9f01a1",
+          "browser": "153.0.8010.12",
+          "digest_definition": "SHA256 of compact JSON sorted [path, SHA256(file)] for changed/untracked crates, apps/cli, apps/web/src, classic-visual-renderer and sdk-ts/src files."
+        },
+        "scope": "Actual English synthetic ASR to ordinary editable TextV4 cues, plus static q2 ASS appearance import. Does not close full F23.",
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "original_revision": "rev_3d273ba8c1ce5de287df9324f058c9a7125751e5fd17a3711a25d355d28fba15",
+          "final_restored_revision": "rev_bd7ee189d4d7f1ab99e31a6f5471c42c53a47ac14f9949cd253db974041fa302",
+          "original_project_restored": true,
+          "reused": "One existing synthetic workspace, prior speech source/model and authorized imported fonts; no new fixture or font/media import."
+        },
+        "asr_editable": {
+          "job_id": "job_85cfc59519e84d8bb7bbcd761533bdf7",
+          "state": "succeeded",
+          "fixed_revision": "rev_69fa3d20d6d8dae5b45dc46f1c0158cbe49cc3b43445c3db8d3cfe40216ca045",
+          "source_sha256": "8c84067ff0c2132a4f6999e2ebca105ad65bbcbc74cbd471ab8b537e6d487540",
+          "transcription": {
+            "language": "en",
+            "model": "ggml-small.bin",
+            "model_sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+            "provider": "whisper.cpp",
+            "segments": [
+              {
+                "end": {
+                  "ticks": "4080",
+                  "timebase": 1000
+                },
+                "start": {
+                  "ticks": "0",
+                  "timebase": 1000
+                },
+                "text": "Welcome to the video editor, we cut the scene and add clear captions.",
+                "words": []
+              }
+            ],
+            "word_timing_status": "not_requested"
+          },
+          "audio_execution": {
+            "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+            "browser_version": "153.0.8010.12",
+            "decoder_profiles": [
+              "web-audio-decode-at-target-rate"
+            ],
+            "host_sha256": "b2205e0a8eabc241f645706d0be85df1fee067d89ddb6805100329c03e198892",
+            "mastering_applied": false,
+            "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+            "mediabunny_version": "1.41.0",
+            "module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+            "pitch_profiles": [
+              "prepared-linear"
+            ],
+            "playwright_version": "1.63.0",
+            "soundtouch_version": "0.3.0"
+          },
+          "generated_revision": "rev_427eb74fb4467ce320358be514a9eca632b5df8c5a50dde0a246745692f57b29",
+          "edited_revision": "rev_d73df45c58d8d9a962651630656782981f11c106dea0e1dfc4c28fdb3281927c",
+          "cues": 5,
+          "behavior": "Default new TextV4 track Generate enabled. Original successful job plans one public transaction; 3-word groups retain existing estimated proportional times and text. Actual body/underline/1.5px letter-spacing edit, reopen, both downloads and whole-project restore passed.",
+          "quality_scope": "Exact segments match prior English synthetic result; no new WER/CER, human-speech or Chinese quality claim.",
+          "downloads": {
+            "srt": {
+              "cue_count": 5,
+              "sha256": "2ba82474dce1564b2993c5a599095e7005e91b3e58d28046a289c6732cc507b7",
+              "losses": [
+                "SRT does not represent text styles, fonts, transforms or visual stacks",
+                "Timing rounded to interchange precision",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            },
+            "ass": {
+              "cue_count": 5,
+              "sha256": "db23016a88850847cfce2555b753f6162e4fbf8f245400aaab93c1cf725dada3",
+              "losses": [
+                "ASS font family and face flags do not embed pinned font bytes, license, or CAS identity",
+                "ASS font metrics, multiline layout and renderer behavior may differ from Classic pixels",
+                "Color and combined opacity are quantized to ASS 8-bit channels",
+                "Text line-height multiplier is not represented",
+                "Timing rounded to interchange precision",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            }
+          }
+        },
+        "ass_import": {
+          "source_sha256": "58dd78388f633f2304d7499f873a27a07c0a3d35a4ede18cee9114b0f38d1837",
+          "imported_revision": "rev_bafd597c42b517aa1f2cab72fae801f857a91835ed9325847ac2f81a81ac9f93",
+          "edited_revision": "rev_f1b9cafcffa018e18f6dbc726f6b037e9a4c4f5997cb7d8e6bb10cabde97a374",
+          "cues": 2,
+          "behavior": "640x360 PlayRes to 320x180; pinned Lato700italic, 26px, strike, 1.5px spacing, 191/255 alpha, q2 hard newline, top-left explicit position with uniform125% scale and 12deg rotation. Second Lato400 cue has right/bottom margins and125%/75% nonrotated scale. One public SequencePut, unchanged other graph, actual edit/reopen/Undo/Redo/downloads and restore passed.",
+          "downloads": {
+            "srt": {
+              "cue_count": 2,
+              "sha256": "91e0ce568bf661d509aa54e93b4582f91fdbe718df1f678a881cb176f9203751",
+              "losses": [
+                "SRT does not represent text styles, fonts, transforms or visual stacks",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            },
+            "ass": {
+              "cue_count": 2,
+              "sha256": "ea0fbe1a3082a22d97dbdb00de0d639bf4060d07ce7466275a144e9645f98cc8",
+              "losses": [
+                "ASS font family and face flags do not embed pinned font bytes, license, or CAS identity",
+                "ASS font metrics, multiline layout and renderer behavior may differ from Classic pixels",
+                "ASS left/right anchor uses canvas position; original measured text-box anchor is not preserved",
+                "Color and combined opacity are quantized to ASS 8-bit channels",
+                "Track ownership, element IDs and source spans are not represented"
+              ]
+            }
+          },
+          "page_errors": 0
+        },
+        "render": {
+          "job_id": "job_ce3c1c66e9f54fb7873c614d1ed751db",
+          "identity": {
+            "height": 180,
+            "profile": "classic-v31-gpu-normal-text-frame-v2",
+            "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+            "revision": "rev_60e07862e547d256b4e00c0cb831ba9022ca4825eba88f7612f56640b512ba39",
+            "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+            "time": {
+              "ticks": "1",
+              "timebase": 2
+            },
+            "width": 320
+          },
+          "execution": {
+            "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+            "browser_version": "153.0.8010.12",
+            "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+            "gpu_backend": "webgpu",
+            "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+            "host_sha256": "b2205e0a8eabc241f645706d0be85df1fee067d89ddb6805100329c03e198892",
+            "mediabunny_version": "1.41.0",
+            "module_sha256": "e81c60bc28445609377d527ac236c253c36b3e5110e3eddc5ba4c01eea7fa015",
+            "playwright_version": "1.63.0",
+            "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+            "texture_format": "bgra8unorm"
+          },
+          "render_input_sha256": "526176deb8e9e90db290cc17bee81f624802af10c5cdfd4b3ff2da7577a4c35e",
+          "artifact": {
+            "content_hash": "563db6dfa803edd78e2e528665488a3137d62fa327405ca49c6375864f7c60b3",
+            "mime_type": "image/png",
+            "size_bytes": "231377"
+          },
+          "font_lock": [
+            {
+              "content_hash": "62c1b7f0d2e74b45960154c3520efc337b553db0961bfdc950d5618334596cc8",
+              "font_id": "37225407-dcbd-4a38-a0d1-33c1b1ebe76e",
+              "size": 698364
+            }
+          ],
+          "oracle": {
+            "width": 320,
+            "height": 180,
+            "center": {
+              "x": 93.24287004842282,
+              "y": 81.78979702384868
+            },
+            "lines": [
+              {
+                "text": "Styled ASS",
+                "width": 132.25991821289062,
+                "ascent": 10.927373886108398,
+                "descent": 12.745626449584961,
+                "y": -13
+              },
+              {
+                "text": "Keeps position",
+                "width": 180.32789611816406,
+                "ascent": 10.888376235961914,
+                "descent": 12.745628356933594,
+                "y": 13
+              }
+            ],
+            "iou": 1,
+            "meanChannelError": 0.00023871527777777777
+          },
+          "normal_png_jobs": 1,
+          "reference": "Independent Canvas and external pinned Lato700italic bytes. Literal ASS geometry, top-anchor transform, hard lines, decoration and ABGR/alpha expected values; no production measurement/layout calls."
+        },
+        "checks": {
+          "application_subtitle_tests": 28,
+          "host_public_dispatch_access_tests": 3,
+          "web_helper_component_tests": 17,
+          "web_unit_reuse": "Agent runs: planned-ass + planned-subtitles12, workspace5. These sources unchanged after their successful runs; final generated SDK passed typecheck/build.",
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_dependency_exceptions": 0,
+          "contract_boundaries": "passed",
+          "web_boundary_files": 214,
+          "rust_release_builds": 1,
+          "web_production_builds": 1,
+          "generated_contract_check": "Same explicit release:228 tools; all prior227 full declarations and22 legacy wire tools unchanged.",
+          "fresh_rust_workspace_run": false
+        },
+        "verification_reuse": "Both suites passed their first browser execution, serial in the original workspace; one actual ASR job and one PNG job. Prior SRT wrap/MP4/PCM/S1/font-import evidence retains its own identity and was not rerun. Initial targeted Rust test caught stripped trailing ASS text whitespace; parser fixed and31 affected tests passed before the only release build.",
+        "not_proven": [
+          "Full ASS appearance: q0/q1/q3 layout, outline/shadow/opaque boxes, rich inline runs, drawing/animation/karaoke/clips, embedded fonts and nonuniform scaling with rotation are explicitly unsupported.",
+          "Independent expected geometry/pixels of the declared subset; not identical libass rasterization or lossless arbitrary ASS round-trip.",
+          "Chinese literal CER failure remains; human annotated speech and other languages are unverified.",
+          "Full font-loading parity, actual system IME, package6 history/fonts and whole migration remain open;33 groups remain."
+        ]
       }
     ]
   },
@@ -9019,7 +9234,7 @@
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
     "Google browse/search/family preview covers 1920 families; 1836 validated static faces cover1299 families. 621 families lack normal400 sources; unavailable400/700 normal/italic faces total1490. All prior1797 source records are unchanged; newly discovered Candal and Inconsolata passed actual public import. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent. Offline variable-font derivation passed deterministic tests and one real Karla instance; catalog/public/native loading is not yet integrated, so these counts are unchanged.",
-    "B1/B2/B3 evidence remain scoped. F19/F21 are closed with recorded candidates and independent pixels. F23 now defaults to editable TextV4 cues, preserving the frozen legacy Caption path; actual SRT import, existing full editor/history and SRT/ASS downloads passed. Actual successful ASR-to-new-Text public integration and full ASS appearance-preserving import remain unverified/incomplete. English synthetic ASR quality retains earlier proof; Chinese literal CER failed and human speech is unverified. Real OS IME, animation, unsupported Classic mappings and schema6 full-history/font restore remain open."
+    "B1/B2/B3 evidence remain scoped. F19/F21 are closed. F23 defaults to editable TextV4 cues and preserves frozen Caption tools; SRT authoring/history/downloads, actual successful English synthetic ASR-to-Text and q2 static ASS style/placement import with independent pixels are verified by their recorded candidates. Full ASS automatic wrapping/outline/shadow/rich runs/animation/complex transforms remain unsupported. Chinese literal CER failed and human speech is unverified. Real OS IME, full font loading, unsupported Classic mappings and schema6 full-history/font restore remain open."
   ],
   "retained_delivery_packages": [
     {
@@ -9106,6 +9321,18 @@
       "status": "resolved_for_scoped_mixed_preview",
       "cause": "4KiB font stream chunks multiplied live authorization DB opens;656KiB took2.33s and5.8MiB font was truncated during preparation.",
       "fix": "Only font stream uses bounded64KiB chunks; original per-chunk authorization, lease and10-second picture preparation deadline retained. Actual preview passed."
+    },
+    {
+      "id": "F23-new-text-target-generation-disabled",
+      "status": "resolved",
+      "cause": "Generate required an existing caption track even when the default target was a new TextV4 track.",
+      "fix": "Reuse the valid target gate; successful/stale/locked UI tests and real ASR-to-new-Text browser flow passed."
+    },
+    {
+      "id": "F23-ass-trailing-text-whitespace",
+      "status": "resolved_before_release",
+      "cause": "New parser trimmed whole ASS lines, discarding final Dialogue Text spaces.",
+      "fix": "Trim only structural lines and parse the raw field payload; exact q2-content regression passed before the single release build."
     }
   ],
   "open_failures": [

@@ -95,9 +95,7 @@ function importFile() {
   fireEvent.change(screen.getByRole("textbox", { name: /^Subtitle content/ }), {
     target: { value: "1\n00:00:00,000 --> 00:00:01,000\nOriginal subtitle\n" },
   });
-  fireEvent.click(
-    screen.getByRole("button", { name: "Import subtitles" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Import subtitles" }));
 }
 it("defaults to editable text and applies the original transaction once with 24px real-face defaults", async () => {
   const f = fixture();
@@ -143,3 +141,82 @@ it("preserves legacy caption import recovery when that track is explicitly chose
   expect(mocks.plan).not.toHaveBeenCalled();
   expect(f.apply).not.toHaveBeenCalled();
 });
+function successfulTranscript(revision = "fixed") {
+  mocks.state.jobs = [
+    {
+      job_id: "original-asr-job",
+      state: "succeeded",
+      kind: "analysis.sequence_transcribe.v4",
+      target: { project_id: "project", revision, sequence_id: "scene" },
+      extended_result: {
+        schema_version: 1,
+        kind: "analysis.sequence_transcribe.v4",
+        data: {
+          project_id: "project",
+          revision,
+          sequence_id: "scene",
+          transcription: { segments: [{ text: "Original spoken words" }] },
+        },
+      },
+    },
+  ];
+}
+function selectTranscript() {
+  fireEvent.change(
+    screen.getByRole("combobox", { name: /^Scene transcription/ }),
+    { target: { value: "original-asr-job" } },
+  );
+}
+it("allows an exact-revision successful ASR task to generate into the default new Text track once", async () => {
+  const f = fixture();
+  successfulTranscript();
+  render(<V4CaptionWorkspace {...f.props} />);
+  selectTranscript();
+  const generate = screen.getByRole("button", {
+    name: "Generate captions",
+  }) as HTMLButtonElement;
+  expect(generate.disabled).toBe(false);
+  fireEvent.change(
+    screen.getByRole("spinbutton", { name: /^Words per caption/ }),
+    { target: { value: "4" } },
+  );
+  fireEvent.click(generate);
+  fireEvent.click(generate);
+  await waitFor(() => expect(f.apply).toHaveBeenCalledOnce());
+  expect(mocks.plan).toHaveBeenCalledOnce();
+  expect(mocks.plan.mock.calls[0][1]).toMatchObject({
+    expected_revision: "fixed",
+    track: { kind: "new" },
+    source: {
+      kind: "transcript",
+      analysis_job_id: "original-asr-job",
+      words_per_caption: 4,
+    },
+  });
+  expect(f.apply).toHaveBeenCalledWith(f.transaction, "scene");
+  expect(f.mutateCaption).not.toHaveBeenCalled();
+});
+it.each(["stale revision", "locked legacy track"])(
+  "blocks generation for %s without planning or applying",
+  async (condition) => {
+    const f = fixture();
+    successfulTranscript(condition === "stale revision" ? "older" : "fixed");
+    if (condition === "locked legacy track")
+      mocks.state.v4.head.project.sequences[0].tracks[0].locked = true;
+    render(<V4CaptionWorkspace {...f.props} />);
+    selectTranscript();
+    if (condition === "locked legacy track")
+      fireEvent.change(
+        screen.getByRole("combobox", { name: /^Caption track/ }),
+        { target: { value: "legacy" } },
+      );
+    const generate = screen.getByRole("button", {
+      name: "Generate captions",
+    }) as HTMLButtonElement;
+    expect(generate.disabled).toBe(true);
+    fireEvent.click(generate);
+    expect(mocks.plan).not.toHaveBeenCalled();
+    expect(f.apply).not.toHaveBeenCalled();
+    expect(f.mutateCaption).not.toHaveBeenCalled();
+  },
+);

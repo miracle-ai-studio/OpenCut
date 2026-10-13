@@ -14,8 +14,9 @@ pub mod denials;
 mod font_import_v1;
 mod source_art_runtime;
 mod source_art_v1;
-mod text_canvas_v1;
+mod subtitle_ass_v1;
 mod subtitle_text_v1;
+mod text_canvas_v1;
 pub use opencut_editor_application::uploads;
 use std::path::Path;
 use uploads::{ImportStore, UploadRetentionStore};
@@ -315,6 +316,9 @@ impl Automation {
             }
             "opencut_subtitle_text_v1_export" => {
                 to_value(subtitle_text_v1::export(self, &parse(arguments)?)?)
+            }
+            "opencut_subtitle_ass_v1_plan" => {
+                to_value(subtitle_ass_v1::plan(self, &parse(arguments)?)?)
             }
             "opencut_subtitle_import_v4" => {
                 to_value(self.app.import_subtitles_v4(&parse(arguments)?)?)

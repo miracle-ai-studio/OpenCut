@@ -131,6 +131,10 @@ fn tags(
     if visual.profile != VisualProfileV4::ClassicCanvasV31 {
         losses.insert("Legacy geometry profile is approximated by ASS canvas coordinates".into());
     }
+    if (tr.scale_x - tr.scale_y).abs() > 1e-9 && tr.rotation_degrees.to_radians().sin().abs() > 1e-9
+    {
+        losses.insert("ASS rotates scaled text while Classic scales rotated text; combined nonuniform scale and rotation are not preserved".into());
+    }
     losses.insert(
         "ASS font family and face flags do not embed pinned font bytes, license, or CAS identity"
             .into(),

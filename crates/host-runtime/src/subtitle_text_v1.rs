@@ -9,17 +9,22 @@ use opencut_editor_application::{
 };
 use opencut_native_services::classic_visual::VerifiedClassicTextResources;
 
-fn require_head(host: &Automation, input: &SubtitleTextPlanRequestV1) -> Result<(), EditorError> {
+pub(super) fn require_head(
+    host: &Automation,
+    project_id: &str,
+    expected_revision: &str,
+    idempotency_key: &str,
+) -> Result<(), EditorError> {
     let intent = ApplyPublicV4Project {
-        project_id: input.project_id.clone(),
-        expected_revision: input.expected_revision.clone(),
-        idempotency_key: input.idempotency_key.clone(),
+        project_id: project_id.into(),
+        expected_revision: expected_revision.into(),
+        idempotency_key: idempotency_key.into(),
         label: "Create editable subtitles".into(),
         operations: vec![],
     };
     host.app.authorize_v4(V4Intent::PublicApply(&intent))?;
-    let head = host.app.head_v4_source(&input.project_id)?;
-    if head.revision != input.expected_revision {
+    let head = host.app.head_v4_source(project_id)?;
+    if head.revision != expected_revision {
         return Err(EditorError::new(
             "REVISION_CONFLICT",
             "Subtitle authoring requires its original V4 head",
@@ -33,13 +38,23 @@ pub(super) fn plan(
     input: &SubtitleTextPlanRequestV1,
 ) -> Result<SubtitleTextPlanResultV1, EditorError> {
     let started = std::time::Instant::now();
-    require_head(host, input)?;
+    require_head(
+        host,
+        &input.project_id,
+        &input.expected_revision,
+        &input.idempotency_key,
+    )?;
     let selected = host
         .app
         .fixed_v4_frame_snapshot(&input.project_id, &input.expected_revision)?;
     let transcript = host.app.subtitle_text_transcript_v1(input)?;
     let checkpoint = || {
-        require_head(host, input)?;
+        require_head(
+            host,
+            &input.project_id,
+            &input.expected_revision,
+            &input.idempotency_key,
+        )?;
         let current = host
             .app
             .fixed_v4_frame_snapshot(&input.project_id, &input.expected_revision)?;

@@ -1,4 +1,13 @@
 export const zh: Record<string, string> = {
+  "SRT stores text and timing. Editable ASS imports preserve supported styles; legacy caption imports use your selected style. Export reports font and layout limitations.": "SRT 保存文字和时间。可编辑 ASS 导入保留支持的样式；旧字幕导入使用所选样式。导出会报告字体和排版限制。",
+  "ASS font mapping": "ASS 字体映射",
+  "Map ASS font": "映射 ASS 字体",
+  "Choose an imported face": "选择已导入字体",
+  "Import a font of this weight and style before continuing.": "请先导入此字重与样式的字体。",
+  "ASS styles are preserved where supported. Unsupported ASS features are rejected. Only explicit q2 line breaks are currently supported.": "保留支持的 ASS 样式；不支持的特性会被拒绝。目前仅支持明确的 q2 换行。",
+  "Font aliases change the original ASS font family and may change glyph layout. The saved import will report this substitution.": "字体映射会替换原 ASS 字族，并可能改变字形排版；保存时会报告此替换。",
+  "Map each missing ASS font to an imported face of the same weight and style, then import again.": "将缺失的 ASS 字体映射到同字重和样式的已导入字体，再次导入。",
+
   "New editable subtitle track": "新建可编辑字幕轨",
   "Editable text": "可编辑文字",
   "Legacy captions": "旧字幕",

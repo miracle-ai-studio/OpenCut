@@ -17,6 +17,8 @@ import { verifyV4TextStyle } from "./verify-v4-text-style.mjs";
 import { verifyClassicV4 } from "./verify-classic-v4.mjs";
 import { verifyClassicSubtitleStyle } from "./verify-classic-v4-subtitle-style.mjs";
 import { verifyV4EditableSubtitles } from "./verify-v4-editable-subtitles.mjs";
+import { verifyV4AsrEditable } from "./verify-v4-asr-editable.mjs";
+import { verifyV4AssImport } from "./verify-v4-ass-import.mjs";
 import { verifyV4BookmarkLifecycle } from "./verify-v4-bookmark-lifecycle.mjs";
 import { verifyV4Text } from "./verify-v4-text.mjs";
 import { verifyV4Editor } from "./verify-v4-editor.mjs";
@@ -81,6 +83,8 @@ const suites = new Map([
   ["classic-v4", verifyClassicV4],
   ["classic-v4-subtitle-style", verifyClassicSubtitleStyle],
   ["v4-editable-subtitles", verifyV4EditableSubtitles],
+  ["v4-asr-editable", verifyV4AsrEditable],
+  ["v4-ass-import", verifyV4AssImport],
   ["v4-video", verifyV4Video],
   ["v4-text-layout", (...args) => verifyV4Text(...args, {layoutOnly:true})],
   ["classic-audio", verifyClassicAudio],

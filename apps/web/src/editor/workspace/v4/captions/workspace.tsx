@@ -19,6 +19,8 @@ import {
 import type { TranscriptionRequestV4 } from "./submission";
 import { planEditableSubtitles } from "./planned-subtitles";
 import type { SubtitleTextRequest } from "./planned-subtitles";
+import { planAssSubtitles, assFontKey } from "./planned-ass";
+import type { AssPlan, AssRequest } from "./planned-ass";
 import "./workspace.css";
 const NEW_TEXT_TRACK = "__new_subtitle_text_track__";
 export type CaptionWorkspaceOptions = {
@@ -52,6 +54,10 @@ export function V4CaptionWorkspace({
   const [pending, setPending] = useState(false),
     [notice, setNotice] = useState<string | null>(null),
     [error, setError] = useState<string | null>(null);
+  const [assRequirements, setAssRequirements] = useState<
+    AssPlan["font_requirements"]
+  >([]);
+  const [assAliases, setAssAliases] = useState<Record<string, string>>({});
   const [original, setOriginal] = useState<TranscriptionRequestV4 | null>(null);
   const epoch = useRef(0),
     writing = useRef(false),
@@ -408,6 +414,74 @@ export function V4CaptionWorkspace({
         receipt.cue_count + " captions saved. " + receipt.warnings.join(" "),
       );
     });
+  useEffect(() => {
+    measuring.current?.abort();
+    setAssRequirements([]);
+    setAssAliases({});
+  }, [
+    content,
+    format,
+    trackId,
+    snapshot?.project.id,
+    snapshot?.revision,
+    scene?.id,
+  ]);
+  const saveAss = async (
+    scope: ReturnType<typeof current>,
+    active: () => boolean,
+  ) => {
+    if (!api || !validTarget)
+      throw new Error("Choose an unlocked subtitle track.");
+    measuring.current?.abort();
+    const abort = new AbortController();
+    measuring.current = abort;
+    const request: AssRequest = {
+      ...scope,
+      idempotency_key: crypto.randomUUID(),
+      track:
+        selectedTrack?.kind === "text"
+          ? { kind: "existing", track_id: selectedTrack.id }
+          : { kind: "new", track_id: crypto.randomUUID() },
+      content,
+      font_bindings: assRequirements.flatMap((requirement) => {
+        const font_id = assAliases[assFontKey(requirement)];
+        return font_id
+          ? [
+              {
+                family: requirement.family,
+                weight: requirement.weight,
+                style: requirement.style,
+                font_id,
+              },
+            ]
+          : [];
+      }),
+      observations: null,
+    };
+    const planned = await planAssSubtitles(api, request, abort.signal);
+    if (!active() || current().expected_revision !== scope.expected_revision)
+      throw new Error("The caption target changed.");
+    setAssRequirements(planned.font_requirements);
+    if (!planned.transaction || !planned.selection) {
+      setNotice(
+        t(
+          "Map each missing ASS font to an imported face of the same weight and style, then import again.",
+        ),
+      );
+      return;
+    }
+    await controller.v4.applyPlanned(planned.transaction, scope.sequence_id);
+    if (!active()) return;
+    controller.v4.select(planned.selection.element_id);
+    setTrackId(planned.selection.track_id);
+    setContent("");
+    setNotice(
+      t("{count} editable subtitles saved. {warnings}", {
+        count: planned.cues.length,
+        warnings: planned.warnings.join(" "),
+      }),
+    );
+  };
   const importFile = () =>
     run(async (active) => {
       const scope = current();
@@ -417,6 +491,10 @@ export function V4CaptionWorkspace({
         !content.trim()
       )
         throw new Error("Provide an SRT or ASS file up to 2 MiB.");
+      if (editableTarget && format === "ass") {
+        await saveAss(scope, active);
+        return;
+      }
       if (editableTarget) {
         await saveEditable(scope, { kind: "file", format, content }, active);
         if (active()) setContent("");
@@ -702,8 +780,7 @@ export function V4CaptionWorkspace({
                 disabled ||
                 !ready ||
                 !fontId ||
-                !selectedTrack ||
-                selectedTrack.locked ||
+                !validTarget ||
                 !Number.isInteger(words) ||
                 words < 1 ||
                 words > 20
@@ -767,9 +844,72 @@ export function V4CaptionWorkspace({
               placeholder={t("Paste SRT or ASS text")}
             />
           </Field>
+          {editableTarget && format === "ass" && (
+            <section aria-label={t("ASS font mapping")}>
+              <p>
+                {t(
+                  "ASS styles are preserved where supported. Unsupported ASS features are rejected. Only explicit q2 line breaks are currently supported.",
+                )}
+              </p>
+              {assRequirements
+                .filter((requirement) => !requirement.resolved_font_id)
+                .map((requirement) => {
+                  const key = assFontKey(requirement);
+                  const matches = fonts.filter(
+                    (font) =>
+                      font.weight ===
+                        (requirement.weight === "bold" ? 700 : 400) &&
+                      font.style === requirement.style,
+                  );
+                  return (
+                    <Field
+                      key={key}
+                      label={`${t("Map ASS font")} ${requirement.family} · ${requirement.weight} · ${requirement.style}`}
+                    >
+                      <select
+                        disabled={disabled}
+                        value={assAliases[key] ?? ""}
+                        onChange={(event) =>
+                          setAssAliases((previous) => ({
+                            ...previous,
+                            [key]: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">{t("Choose an imported face")}</option>
+                        {matches.map((font) => (
+                          <option key={font.id} value={font.id}>
+                            {font.family} · {font.weight} · {font.style}
+                          </option>
+                        ))}
+                      </select>
+                      {!matches.length && (
+                        <small>
+                          {t(
+                            "Import a font of this weight and style before continuing.",
+                          )}
+                        </small>
+                      )}
+                    </Field>
+                  );
+                })}
+              {Object.values(assAliases).some(Boolean) && (
+                <p role="status">
+                  {t(
+                    "Font aliases change the original ASS font family and may change glyph layout. The saved import will report this substitution.",
+                  )}
+                </p>
+              )}
+            </section>
+          )}
           <div className="toolbar">
             <Button
-              disabled={disabled || !content.trim() || !fontId || !validTarget}
+              disabled={
+                disabled ||
+                !content.trim() ||
+                (!fontId && !(editableTarget && format === "ass")) ||
+                !validTarget
+              }
               onClick={() => void importFile()}
             >
               {t("Import subtitles")}
@@ -783,7 +923,7 @@ export function V4CaptionWorkspace({
           </div>
           <small>
             {t(
-              "SRT stores text and timing. ASS import uses your selected pinned style; export reports font and layout limitations.",
+              "SRT stores text and timing. Editable ASS imports preserve supported styles; legacy caption imports use your selected style. Export reports font and layout limitations.",
             )}
           </small>
         </section>

@@ -110,6 +110,11 @@ fn explicit_track_ass_style_and_visible_losses() {
     let (s, i) = fixture();
     let out = export(&s, &i).unwrap();
     assert_eq!(out.cue_count, 1);
+    assert!(
+        out.losses
+            .iter()
+            .any(|loss| loss.contains("nonuniform scale and rotation"))
+    );
     assert!(!out.content.contains("Excluded title"));
     for value in [
         "PlayResX: 320",

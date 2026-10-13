@@ -599,8 +599,9 @@ pub struct CatalogEntry {
     pub asset: Option<Asset>,
 }
 
-pub mod subtitle_v4;
+pub mod subtitle_ass_v1;
 pub mod subtitle_text_v1;
+pub mod subtitle_v4;
 
 pub mod edit_recovery_v3;
 
