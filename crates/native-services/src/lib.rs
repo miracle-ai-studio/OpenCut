@@ -16,8 +16,8 @@ mod browser_process;
 mod browser_resources;
 pub mod classic_audio;
 pub mod classic_audio_preview;
-pub mod classic_visual;
 pub mod classic_video;
+pub mod classic_visual;
 pub mod font_import_v1;
 pub mod gc;
 
@@ -26,3 +26,5 @@ pub mod budget;
 
 mod preview_inputs;
 pub mod source_art_v1;
+
+pub mod classic_text_frame_v3;

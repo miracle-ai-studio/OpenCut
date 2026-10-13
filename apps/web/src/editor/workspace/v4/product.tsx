@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { V4CaptionWorkspace } from "./captions/workspace";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "../context";
 import { Button, Field, Panel } from "../../shared/ui";
 import {
@@ -27,6 +28,7 @@ import { MediaPlanDialog } from "./media-dialog";
 import type { MediaFileTarget } from "./media";
 import type { V4Element } from "./types";
 import { V4TextActions, V4TextAuthoringProvider, V4TextPanel } from "./text/workspace";
+import { canvasTextPlanner } from "./text/canvas-plan";
 import { fontRecoveryBlocked } from "./text/font-recovery";
 
 /** Full V4 remains in the workspace controller. Read panels never manufacture
@@ -34,6 +36,7 @@ import { fontRecoveryBlocked } from "./text/font-recovery";
 export function V4Product() {
   useLocale();
   const { controller, v4, busy, api } = useWorkspace();
+  useSyncExternalStore(controller.v4.captionRecovery.subscribe, controller.v4.captionRecovery.getSnapshot, controller.v4.captionRecovery.getSnapshot);
   const [editing, setEditing] = useState<V4Bookmark | "new" | null>(null);
   const [timelineReview, setTimelineReview] = useState(false);
   const [mediaReview, setMediaReview] = useState(false);
@@ -61,6 +64,7 @@ export function V4Product() {
     url.searchParams.set("scene", v4.sequenceId);
     history.replaceState(history.state, "", url.pathname + url.search + url.hash);
   }, [v4?.head.project.id, v4?.sequenceId]);
+  const planCanvasText = useMemo(() => api ? canvasTextPlanner(api) : undefined, [api]);
   if (!v4) return null;
   const snapshot = v4.historical ?? v4.head,
     project = snapshot.project;
@@ -83,11 +87,12 @@ export function V4Product() {
       setPending(false);
     }
   };
+  const captionBlocked = controller.v4.captionRecovery.blocked();
   const fontBlocked = fontRecoveryBlocked(v4.fontRecovery);
   const textAvailable = v4.textFrameCapability?.schema_version === 2 && v4.textFrameCapability.available && v4.textFrameCapability.submit_tool === "opencut_job_v4_text_frame_png";
   const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0]) => controller.v4.importFont(request) : undefined;
-  const fontImportBlockedReason = fontBlocked ? "Resolve the original font import before starting another operation." : null;
-  const readonly = !!v4.historical || busy || pending || fontBlocked;
+  const fontImportBlockedReason = captionBlocked ? "Resolve the original caption edit before starting another operation." : fontBlocked ? "Resolve the original font import before starting another operation." : null;
+  const readonly = !!v4.historical || busy || pending || fontBlocked || captionBlocked;
   const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {
     const capturedApi = api;
     try { await controller.v4.media.importFiles(files, undefined, target); }
@@ -111,7 +116,7 @@ export function V4Product() {
     } catch (error) { controller.report(error); }
   };
   return (
-    <V4TextAuthoringProvider available={textAvailable} importFont={importFont} fontImportBlockedReason={fontImportBlockedReason}>
+    <V4TextAuthoringProvider available={textAvailable} planCanvasText={planCanvasText} importFont={importFont} fontImportBlockedReason={fontImportBlockedReason}>
     <main className="workspace-layout v4-product" aria-label={t("V4 editor")}>
       <EditRecoveryPanel />
       <div className="v4-scene-bar toolbar">
@@ -207,6 +212,7 @@ export function V4Product() {
         <Panel title={t("Inspector")} className="v4-inspector">
           <div className="scroll padded">
             <V4TextPanel />
+          <V4CaptionWorkspace recovery={controller.v4.captionRecovery} mutateCaption={context => controller.v4.applyCaption(context)} />
             {editing ? (
               <BookmarkEditor
                 key={editing === "new" ? `new:${sequence.id}` : editing.id}

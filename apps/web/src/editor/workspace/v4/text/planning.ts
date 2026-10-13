@@ -5,7 +5,7 @@ export type TextPlanRequest = ToolInput<"opencut_text_v1_plan">;
 export type TextPlanResult = ToolOutput<"opencut_text_v1_plan">;
 export type FontImportRequest = ToolInput<"opencut_font_v1_import">;
 export type FontImportResult = ToolOutput<"opencut_font_v1_import">;
-export type FontCatalog = ToolOutput<"opencut_font_v1_catalog">;
+export type FontCatalog = ToolOutput<"opencut_font_v2_catalog">;
 type Values = Extract<TextPlanRequest["command"], { kind: "create" }>["values"];
 
 export const textTimeInput = (value: V4TextTimeInput): Values["start"] =>

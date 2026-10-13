@@ -153,6 +153,8 @@ export async function setupV4() {
       }
       if (name === "opencut_edit_recovery_v1_read") return null as never;
       if (name === "opencut_edit_recovery_v1_inspect") return { schema_version: 1, record: null } as never;
+      if (name === "opencut_edit_recovery_v3_inspect")
+        return { schema_version: 3, record: null } as never;
       if (name === "opencut_edit_recovery_v2_stage") {
         const context = (input as ToolInput<"opencut_edit_recovery_v2_stage">).context;
         if (recovery && JSON.stringify(recovery.context) !== JSON.stringify(context)) throw new Error("Fixture unresolved original edit");

@@ -215,7 +215,7 @@ impl ProjectV4Read for EditorApplication {
             .map_err(storage_error)?;
         authorize(&tx, &self.connection.1, intent)?;
         let value = replay(&tx, intent, "transaction")?
-            .map(|raw| decode_json(&raw, "V4 edit receipt"))
+            .map(|raw| decode_edit_receipt(intent, &raw))
             .transpose()?;
         tx.commit().map_err(storage_error)?;
         Ok(value)
@@ -421,8 +421,11 @@ impl ProjectV4Store for EditorApplication {
             .map_err(storage_error)?;
         authorize(&tx, &context, intent)?;
         require_prepared_request(intent, prepared.request_json())?;
+        // Original analysis authority and the exact caption transformation are
+        // rechecked under this same IMMEDIATE publication lock, including replay.
+        sqlite_caption_v4::require_caption_proposal(&tx, &context, intent, prepared.snapshot())?;
         if let Some(raw) = replay(&tx, intent, "transaction")? {
-            return decode_json(&raw, "V4 edit receipt");
+            return decode_edit_receipt(intent, &raw);
         }
         let current = load_source(&tx, intent.project_id(), None)?;
         let expected = intent.expected_revision().ok_or_else(|| {
@@ -455,12 +458,25 @@ impl ProjectV4Store for EditorApplication {
             ));
         }
         tx.execute("INSERT INTO editor_transactions(transaction_id,project_id,base_revision,revision,request_json,result_json) VALUES (?1,?2,?3,?4,?5,?6)", params![result.transaction_id,intent.project_id(),result.base_revision,result.revision,prepared.journal_json(),receipt]).map_err(storage_error)?;
-        insert_receipt(&tx, intent, "transaction", &receipt)?;
+        let original_receipt = if matches!(
+            intent,
+            V4Intent::CaptionGenerate(_) | V4Intent::CaptionImport(_)
+        ) {
+            encode_json(
+                &sqlite_caption_v4::caption_receipt(&tx, intent, result)?,
+                "Original caption receipt",
+            )?
+        } else {
+            receipt.clone()
+        };
+        insert_receipt(&tx, intent, "transaction", &original_receipt)?;
         let event = match intent {
             V4Intent::Promote(_) => "project.v4_promoted",
             V4Intent::Restore(_) => "project.v4_restored",
             V4Intent::Undo(_) => "project.v4_selective_undo",
             V4Intent::Redo(_) => "project.v4_selective_redo",
+            V4Intent::CaptionGenerate(_) => "subtitle.v4_generated",
+            V4Intent::CaptionImport(_) => "subtitle.v4_imported",
             _ => "project.v4_edited",
         };
         tx.execute("INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json) VALUES (?1,?2,?3,?4,?5)", params![prepared.event_id(),intent.project_id(),result.revision,event,receipt]).map_err(storage_error)?;
@@ -633,5 +649,22 @@ impl ProjectV4LibraryRead for EditorApplication {
         drop(statement);
         tx.commit().map_err(storage_error)?;
         Ok(V4ProjectPage { items, next_cursor })
+    }
+}
+
+fn decode_edit_receipt(intent: V4Intent<'_>, raw: &str) -> Result<TransactionResult, EditorError> {
+    if matches!(
+        intent,
+        V4Intent::CaptionGenerate(_) | V4Intent::CaptionImport(_)
+    ) {
+        Ok(
+            decode_json::<opencut_api_contracts::subtitle_v4::CaptionReceiptV4>(
+                raw,
+                "Original caption receipt",
+            )?
+            .transaction,
+        )
+    } else {
+        decode_json(raw, "V4 edit receipt")
     }
 }

@@ -1,4 +1,4 @@
-//! Small reviewed catalog of unchanged, redistributable Google Fonts faces.
+//! Pinned static Classic Google Fonts faces with complete original licenses.
 //! These pins describe source bytes; they are never a system-font fallback.
 use super::*;
 
@@ -16,43 +16,15 @@ pub struct PinnedFontSourceV1 {
     pub size_bytes: u64,
     pub license_url: &'static str,
     pub license_sha256: &'static str,
+    pub license_identifier: &'static str,
     pub license_notice: &'static str,
     pub attribution: &'static str,
 }
 
-static CATALOG: [PinnedFontSourceV1; 2] = [
-    PinnedFontSourceV1 {
-        catalog_id: "google-lato-regular-v1",
-        family: "Lato",
-        weight: 400,
-        style: FontStyleV4::Normal,
-        source_commit: GOOGLE_FONTS_COMMIT_V1,
-        source_url: "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/lato/Lato-Regular.ttf",
-        content_hash: "d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251",
-        size_bytes: 656568,
-        license_url: "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/lato/OFL.txt",
-        license_sha256: "74ba064d03f1f1c4a952da936c3eb71866c34404916734de3cae73b34357e59e",
-        license_notice: include_str!("licenses/lato-OFL.txt"),
-        attribution: "Copyright (c) 2010-2014 by tyPoland Lukasz Dziedzic (team@latofonts.com) with Reserved Font Name \"Lato\"",
-    },
-    PinnedFontSourceV1 {
-        catalog_id: "google-mashanzheng-regular-v1",
-        family: "Ma Shan Zheng",
-        weight: 400,
-        style: FontStyleV4::Normal,
-        source_commit: GOOGLE_FONTS_COMMIT_V1,
-        source_url: "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/mashanzheng/MaShanZheng-Regular.ttf",
-        content_hash: "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb",
-        size_bytes: 5857936,
-        license_url: "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/mashanzheng/OFL.txt",
-        license_sha256: "d7bdb1cee215b689e23c2f95672a6084c790542170648267a55114103d756a08",
-        license_notice: include_str!("licenses/mashanzheng-OFL.txt"),
-        attribution: "Copyright 2018 The Ma Shan Zheng Project Authors (https://github.com/googlefonts/mashanzheng)",
-    },
-];
+static CATALOG: &[PinnedFontSourceV1] = include!("catalog_generated.rs");
 
 pub fn font_catalog_v1() -> &'static [PinnedFontSourceV1] {
-    &CATALOG
+    CATALOG
 }
 pub fn pinned_font_source_v1(id: &str) -> Result<&'static PinnedFontSourceV1, EditorError> {
     CATALOG
@@ -60,6 +32,24 @@ pub fn pinned_font_source_v1(id: &str) -> Result<&'static PinnedFontSourceV1, Ed
         .find(|source| source.catalog_id == id)
         .ok_or_else(|| EditorError::new("NOT_FOUND", "Unknown pinned font catalog entry"))
 }
+/// Resolve the requested static face exactly; never synthesize bold/italic or
+/// replace a missing family with a system/default face.
+pub fn pinned_font_face_v1(
+    family: &str,
+    weight: u16,
+    style: FontStyleV4,
+) -> Result<&'static PinnedFontSourceV1, EditorError> {
+    CATALOG
+        .iter()
+        .find(|source| source.family == family && source.weight == weight && source.style == style)
+        .ok_or_else(|| {
+            EditorError::new(
+                "FONT_FACE_UNAVAILABLE",
+                "Requested exact static font face is not pinned",
+            )
+        })
+}
+
 impl PinnedFontSourceV1 {
     pub fn import_spec(&self, font_id: String, required_text: String) -> FontImportSpecV1 {
         FontImportSpecV1 {
@@ -72,7 +62,7 @@ impl PinnedFontSourceV1 {
                 source_url: self.source_url.into(),
             },
             license: ResourceLicenseV4 {
-                identifier: Some("OFL-1.1".into()),
+                identifier: Some(self.license_identifier.into()),
                 source_url: Some(self.license_url.into()),
                 notice: Some(self.license_notice.into()),
                 attribution: Some(self.attribution.into()),
@@ -184,6 +174,10 @@ mod tests {
             assert!(source.source_url.contains(GOOGLE_FONTS_COMMIT_V1));
             assert!(source.license_url.contains(GOOGLE_FONTS_COMMIT_V1));
             assert!(source.license_notice.starts_with(source.attribution));
+            assert!(matches!(
+                source.license_identifier,
+                "OFL-1.1" | "Apache-2.0"
+            ));
             let spec = source.import_spec("font".into(), "AV To".into());
             validate_font_spec_v1(&spec).unwrap();
             assert_eq!(spec.license.notice.as_deref(), Some(source.license_notice));
@@ -213,6 +207,34 @@ mod tests {
                 .code,
             "NOT_FOUND"
         );
+    }
+
+    #[test]
+    fn exact_face_resolution_never_synthesizes_or_uses_a_system_fallback() {
+        for (weight, style, id) in [
+            (400, FontStyleV4::Normal, "google-lato-regular-v1"),
+            (700, FontStyleV4::Normal, "google-lato-bold-v1"),
+            (400, FontStyleV4::Italic, "google-lato-italic-v1"),
+            (700, FontStyleV4::Italic, "google-lato-bold-italic-v1"),
+        ] {
+            assert_eq!(
+                pinned_font_face_v1("Lato", weight, style)
+                    .unwrap()
+                    .catalog_id,
+                id
+            );
+        }
+        for (family, weight, style) in [
+            ("Lato", 600, FontStyleV4::Normal),
+            ("Ma Shan Zheng", 700, FontStyleV4::Normal),
+            ("Arial", 400, FontStyleV4::Normal),
+            ("lato", 400, FontStyleV4::Normal),
+        ] {
+            assert_eq!(
+                pinned_font_face_v1(family, weight, style).unwrap_err().code,
+                "FONT_FACE_UNAVAILABLE"
+            );
+        }
     }
 
     struct WrongBytes(Cell<usize>);

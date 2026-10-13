@@ -1,7 +1,7 @@
 //! Shared typed automation entry points. Transports must not implement editing rules.
 pub use opencut_api_contracts::audio_preview_v4 as audio_preview_contracts;
-pub use opencut_api_contracts::visual_preview_text_v2 as visual_preview_text_contracts;
 pub use opencut_api_contracts::preview;
+pub use opencut_api_contracts::visual_preview_text_v2 as visual_preview_text_contracts;
 pub use opencut_api_contracts::{context, event_stream};
 pub use opencut_automation::capabilities;
 pub use opencut_editor_application::access::Caller;
@@ -10,10 +10,11 @@ pub mod audio_preview_v4;
 mod browser_runtime;
 mod classic_audio_runtime;
 mod classic_visual_runtime;
-mod font_import_v1;
 pub mod denials;
+mod font_import_v1;
 mod source_art_runtime;
 mod source_art_v1;
+mod text_canvas_v1;
 pub use opencut_editor_application::uploads;
 use std::path::Path;
 use uploads::{ImportStore, UploadRetentionStore};
@@ -196,10 +197,16 @@ impl Automation {
     ) -> Result<audio_preview_v4::AudioPreviewStream, EditorError> {
         audio_preview_v4::open_stream(self, input)
     }
-    pub fn open_visual_preview_font(&mut self, input: visual_preview_text_contracts::VisualPreviewFontV2) -> Result<(std::fs::File, u64), EditorError> {
+    pub fn open_visual_preview_font(
+        &mut self,
+        input: visual_preview_text_contracts::VisualPreviewFontV2,
+    ) -> Result<(std::fs::File, u64), EditorError> {
         audio_preview_v4::open_font(self, input)
     }
-    pub fn authorize_visual_preview_font(&mut self, input: &visual_preview_text_contracts::VisualPreviewFontV2) -> Result<(), EditorError> {
+    pub fn authorize_visual_preview_font(
+        &mut self,
+        input: &visual_preview_text_contracts::VisualPreviewFontV2,
+    ) -> Result<(), EditorError> {
         audio_preview_v4::authorize_font(self, input)
     }
     pub fn authorize_audio_preview(&mut self, session_id: &str) -> Result<(), EditorError> {
@@ -252,19 +259,70 @@ impl Automation {
 
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value, EditorError> {
         match name {
-            "opencut_font_recovery_v1_stage" => to_value(self.app.stage_font_recovery_v1(&parse(arguments)?)?),
-            "opencut_font_recovery_v1_inspect" => to_value(self.app.inspect_font_recovery_v1(&parse(arguments)?)?),
-            "opencut_font_recovery_v1_ack" => to_value(self.app.ack_font_recovery_v1(&parse(arguments)?)?),
+            "opencut_font_recovery_v1_stage" => {
+                to_value(self.app.stage_font_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_font_recovery_v1_inspect" => {
+                to_value(self.app.inspect_font_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_font_recovery_v1_ack" => {
+                to_value(self.app.ack_font_recovery_v1(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v3_stage" => {
+                to_value(self.app.stage_edit_recovery_v3(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v3_inspect" => {
+                to_value(self.app.inspect_edit_recovery_v3(&parse(arguments)?)?)
+            }
+            "opencut_edit_recovery_v3_ack" => {
+                to_value(self.app.ack_edit_recovery_v3(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_caption_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::caption_capability())
+            }
+            "opencut_job_v4_caption_frame_png" => {
+                let job = opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_caption_frame_png(&mut self.app, parse(arguments)?)
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_text_v1_canvas_plan" => {
+                to_value(text_canvas_v1::plan(self, &parse(arguments)?)?)
+            }
+            "opencut_font_v2_catalog" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(font_import_v1::browser_catalog())
+            }
+            "opencut_font_v2_source" => to_value(font_import_v1::source(&parse(arguments)?)?),
+            "opencut_analysis_sequence_transcribe_v4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(worker::sequence_transcribe_capability())
+            }
+            "opencut_analysis_sequence_transcribe_v4" => {
+                let job = opencut_sqlite_store::sqlite_sequence_transcribe_v4::start(
+                    &mut self.app,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_subtitle_generate_v4" => {
+                to_value(self.app.generate_captions_v4(&parse(arguments)?)?)
+            }
+            "opencut_subtitle_import_v4" => {
+                to_value(self.app.import_subtitles_v4(&parse(arguments)?)?)
+            }
+            "opencut_subtitle_export_v4" => {
+                to_value(self.app.export_subtitles_v4(&parse(arguments)?)?)
+            }
             "opencut_font_v1_catalog" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(font_import_v1::catalog())
             }
-            "opencut_font_v1_import" => {
-                to_value(font_import_v1::import(self, &parse(arguments)?)?)
-            }
-            "opencut_text_v1_plan" => {
-                to_value(opencut_editor_application::text_authoring_v1::plan(&self.app, &parse(arguments)?)?)
-            }
+            "opencut_font_v1_import" => to_value(font_import_v1::import(self, &parse(arguments)?)?),
+            "opencut_text_v1_plan" => to_value(
+                opencut_editor_application::text_authoring_v1::plan(&self.app, &parse(arguments)?)?,
+            ),
             "opencut_media_import_plan_v1" => {
                 let input: opencut_contracts::media_import::MediaImportRequestV1 =
                     parse(arguments)?;
@@ -359,8 +417,11 @@ impl Automation {
                 to_value(classic_visual_runtime::video_capability())
             }
             "opencut_job_v4_video_mp4" => {
-                let result = opencut_sqlite_store::sqlite_project_v4_video_jobs::start_video_mp4(&mut self.app, parse(arguments)?)
-                    .map_err(opencut_editor_application::job_views::public_error)?;
+                let result = opencut_sqlite_store::sqlite_project_v4_video_jobs::start_video_mp4(
+                    &mut self.app,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
                 to_value(opencut_editor_application::job_views::project(result))
             }
             "opencut_project_v4_text_frame_capability" => {
@@ -368,9 +429,12 @@ impl Automation {
                 to_value(classic_visual_runtime::text_capability())
             }
             "opencut_job_v4_text_frame_png" => {
-                let result = opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_text_frame_png(
-                    &mut self.app, parse(arguments)?,
-                ).map_err(opencut_editor_application::job_views::public_error)?;
+                let result =
+                    opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_text_frame_png(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
                 to_value(opencut_editor_application::job_views::project(result))
             }
             "opencut_project_v4_frame_capability" => {
@@ -641,7 +705,12 @@ impl Automation {
             "opencut_visual_preview_v4_font_authorize" => {
                 let input: visual_preview_text_contracts::VisualPreviewFontV2 = parse(arguments)?;
                 self.authorize_visual_preview_font(&input)?;
-                to_value(visual_preview_text_contracts::VisualPreviewFontAuthorizedV2 { schema_version: 2, font_id: input.font_id })
+                to_value(
+                    visual_preview_text_contracts::VisualPreviewFontAuthorizedV2 {
+                        schema_version: 2,
+                        font_id: input.font_id,
+                    },
+                )
             }
             "opencut_visual_preview_v4_frame" => {
                 to_value(audio_preview_v4::picture(self, parse(arguments)?)?)

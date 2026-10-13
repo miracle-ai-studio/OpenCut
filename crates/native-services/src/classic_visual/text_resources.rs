@@ -1,7 +1,9 @@
 //! Native text coverage is established from authorized CAS descriptors on each
 //! execution. No browser claim, source URL or system font can establish it.
 use crate::{browser_resources::VerifiedBrowserResources, font_import_v1::StaticFontInspectorV1};
-use opencut_composition::project_v4::{NativeTextCoverageV1, PreparedTextFrameV2};
+use opencut_composition::project_v4::{
+    NativeTextCoverageV1, PreparedTextFrameV2, PreparedTextFrameV3,
+};
 use opencut_contracts::{
     EditorError, project_v4::FontResourceV4, text_frame_v2::TextFontResourceV2,
 };
@@ -11,7 +13,10 @@ use opencut_editor_application::{
     font_import_v1::{FontImportPolicyV1, FontInspectorV1, validate_font_envelope_v1},
 };
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 const INVALID: &str = "INVALID_VISUAL_PLAN";
 fn invalid(message: &str) -> EditorError {
@@ -27,6 +32,13 @@ fn font_resource(font: &FontResourceV4) -> TextFontResourceV2 {
         face_index: font.face_index,
     }
 }
+// ECMAScript whitespace used by Classic's /\s+/ greedy word split. Do not
+// inspect tabs/separators as glyphs when V3 never renders those codepoints.
+fn caption_separator(c: char) -> bool {
+    matches!(c, '\u{0009}'..='\u{000d}' | '\u{0020}' | '\u{00a0}' | '\u{1680}' |
+        '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}' |
+        '\u{205f}' | '\u{3000}' | '\u{feff}')
+}
 struct FontText<'a> {
     font: &'a FontResourceV4,
     content: String,
@@ -35,6 +47,7 @@ fn font_texts<'a>(
     prepared: &'a PreparedTextFrameV2,
     policy: &FontImportPolicyV1,
     checkpoint: &mut impl FnMut() -> Result<(), EditorError>,
+    caption_ids: Option<&BTreeSet<String>>,
 ) -> Result<BTreeMap<&'a str, FontText<'a>>, EditorError> {
     // Validate policy even for a frame with no text. Aggregate UTF-8 work, not
     // just a single title, is bounded before opening any CAS descriptor.
@@ -49,7 +62,11 @@ fn font_texts<'a>(
                 "Text frames require a represented static face at index zero",
             ));
         }
-        validate_font_envelope_v1(text.font.content.size, &text.text.content, policy)?;
+        let is_caption = caption_ids.is_some_and(|ids| ids.contains(&text.identity.element_id));
+        if !is_caption {
+            // Preserve V2/free-text validation and error ordering exactly.
+            validate_font_envelope_v1(text.font.content.size, &text.text.content, policy)?;
+        }
         total = total.checked_add(text.text.content.len()).ok_or_else(|| {
             EditorError::new(
                 "FONT_BUDGET_EXCEEDED",
@@ -62,6 +79,21 @@ fn font_texts<'a>(
                 "Complete frame text exceeds the inspection budget",
             ));
         }
+        let normalized;
+        let required = if is_caption {
+            normalized = text
+                .text
+                .content
+                .chars()
+                .map(|c| if caption_separator(c) { ' ' } else { c })
+                .collect::<String>();
+            normalized.as_str()
+        } else {
+            text.text.content.as_str()
+        };
+        if is_caption {
+            validate_font_envelope_v1(text.font.content.size, required, policy)?;
+        }
         let batch = fonts.entry(&text.font.id).or_insert_with(|| FontText {
             font: &text.font,
             content: String::new(),
@@ -69,7 +101,7 @@ fn font_texts<'a>(
         if batch.font != &text.font {
             return Err(invalid("One font id has different fixed resources"));
         }
-        batch.content.push_str(&text.text.content);
+        batch.content.push_str(required);
     }
     Ok(fonts)
 }
@@ -86,7 +118,38 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
         font_policy: &FontImportPolicyV1,
         checkpoint: F,
     ) -> Result<Self, EditorError> {
-        Self::new_inner(root, prepared, font_policy, checkpoint, true)
+        Self::new_inner(root, prepared, font_policy, checkpoint, true, None, None)
+    }
+    /// Caption wrapping can normalize tabs and Unicode separators to U+0020.
+    /// Inspect that inserted codepoint from the same authorized bytes while
+    /// retaining original text identities in the native coverage proofs.
+    pub fn new_caption_frame_v3(
+        root: &Path,
+        prepared: &PreparedTextFrameV3,
+        font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        let caption_ids: BTreeSet<String> = prepared
+            .captions()
+            .iter()
+            .map(|c| c.element_id.clone())
+            .collect();
+        let space_fonts: BTreeSet<_> = prepared
+            .execution()
+            .texts()
+            .iter()
+            .filter(|text| caption_ids.contains(text.identity.element_id.as_str()))
+            .map(|text| text.font.id.clone())
+            .collect();
+        Self::new_inner(
+            root,
+            prepared.execution(),
+            font_policy,
+            checkpoint,
+            true,
+            Some(&space_fonts),
+            Some(&caption_ids),
+        )
     }
     /// Font proof for browser preview without opening or hashing media again.
     pub fn new_fonts(
@@ -95,7 +158,7 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
         font_policy: &FontImportPolicyV1,
         checkpoint: F,
     ) -> Result<Self, EditorError> {
-        Self::new_inner(root, prepared, font_policy, checkpoint, false)
+        Self::new_inner(root, prepared, font_policy, checkpoint, false, None, None)
     }
     fn new_inner(
         root: &Path,
@@ -103,9 +166,11 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
         font_policy: &FontImportPolicyV1,
         mut checkpoint: F,
         include_media: bool,
+        space_fonts: Option<&BTreeSet<String>>,
+        caption_ids: Option<&BTreeSet<String>>,
     ) -> Result<Self, EditorError> {
         checkpoint()?;
-        let batches = font_texts(prepared, font_policy, &mut checkpoint)?;
+        let batches = font_texts(prepared, font_policy, &mut checkpoint, caption_ids)?;
         let versions = prepared
             .media()
             .resources()
@@ -159,6 +224,10 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
                 StaticFontInspectorV1.inspect(&bytes, &batch.content, font_policy, &mut || {
                     inner.checkpoint()
                 })?;
+            if space_fonts.is_some_and(|fonts| fonts.contains(*id)) {
+                StaticFontInspectorV1
+                    .inspect(&bytes, " ", font_policy, &mut || inner.checkpoint())?;
+            }
             if parsed.family != batch.font.family
                 || parsed.weight != batch.font.weight
                 || parsed.style != batch.font.style

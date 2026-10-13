@@ -11,13 +11,13 @@ pub mod audio_preview_v4;
 pub mod audit;
 pub mod branching;
 pub mod caption_generation;
+pub mod caption_v4;
 pub mod classic_import;
 pub mod collaboration;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
 pub mod events;
 pub mod font_import_v1;
-pub mod text_authoring_v1;
 pub mod history_navigation;
 pub mod identity;
 pub mod job_views;
@@ -42,23 +42,26 @@ pub mod project_v4;
 pub mod project_v4_audio_jobs;
 pub mod project_v4_frame_jobs;
 pub mod project_v4_text_frame_jobs;
+pub mod project_v4_video_jobs;
 pub mod projects;
 pub mod queries;
 pub mod render;
 pub mod render_v3;
 pub mod resources;
 pub mod scene_bookmarks;
+pub mod sequence_transcribe_v4;
 pub mod source_art_v1;
 pub mod source_art_waveform_display_v1;
 pub mod source_audio_v4;
 pub mod speaker_turns;
 pub mod subtitle_exchange;
+pub mod text_authoring_v1;
+pub mod text_canvas_v1;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
-pub mod visual_preview_v4;
 pub mod visual_preview_text_v2;
-pub mod project_v4_video_jobs;
+pub mod visual_preview_v4;
 use identity::content_id;
 pub use opencut_api_contracts::{
     JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
@@ -129,6 +132,12 @@ pub mod reproducibility;
 pub mod tool_execution;
 
 pub mod classic_audio;
-pub mod classic_visual;
 pub mod classic_text_frame_v2;
+pub mod classic_visual;
 pub mod workspace_port;
+
+pub mod edit_recovery_v3;
+
+pub mod classic_text_frame_v3;
+
+pub mod project_v4_caption_frame_jobs;

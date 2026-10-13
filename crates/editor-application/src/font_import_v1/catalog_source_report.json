@@ -1,0 +1,228 @@
+{
+  "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+  "attempted_static_faces": 1841,
+  "pinned_faces": 1797,
+  "pinned_families": 1264,
+  "failures": [
+    {
+      "family": "Anonymous Pro",
+      "path": "ofl/anonymouspro/AnonymousPro-Bold.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Anonymous Pro",
+      "path": "ofl/anonymouspro/AnonymousPro-BoldItalic.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Anonymous Pro",
+      "path": "ofl/anonymouspro/AnonymousPro-Italic.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Anonymous Pro",
+      "path": "ofl/anonymouspro/AnonymousPro-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Aref Ruqaa Ink",
+      "path": "ofl/arefruqaaink/ArefRuqaaInk-Bold.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Aref Ruqaa Ink",
+      "path": "ofl/arefruqaaink/ArefRuqaaInk-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Averia Gruesa Libre",
+      "path": "ofl/averiagruesalibre/AveriaGruesaLibre-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Blaka Ink",
+      "path": "ofl/blakaink/BlakaInk-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bungee Spice",
+      "path": "ofl/bungeespice/BungeeSpice-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Bungee Tint",
+      "path": "ofl/bungeetint/BungeeTint-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Coral Pixels",
+      "path": "ofl/coralpixels/CoralPixels-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Della Respira",
+      "path": "ofl/dellarespira/DellaRespira-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Fascinate",
+      "path": "ofl/fascinate/Fascinate-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Fascinate Inline",
+      "path": "ofl/fascinateinline/FascinateInline-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Fjord One",
+      "path": "ofl/fjordone/FjordOne-Regular.ttf",
+      "reason": "family mismatch: Fjord"
+    },
+    {
+      "family": "Geo",
+      "path": "ofl/geo/Geo-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Headland One",
+      "path": "ofl/headlandone/HeadlandOne-Regular.ttf",
+      "reason": "family mismatch: HeadlandOne"
+    },
+    {
+      "family": "Iceland",
+      "path": "ofl/iceland/Iceland-Regular.ttf",
+      "reason": "native table checksum mismatch"
+    },
+    {
+      "family": "IM Fell Double Pica",
+      "path": "ofl/imfelldoublepica/IMFELLDoublePica-Italic.ttf",
+      "reason": "family mismatch: IM FELL Double Pica"
+    },
+    {
+      "family": "IM Fell Double Pica",
+      "path": "ofl/imfelldoublepica/IMFELLDoublePica-Regular.ttf",
+      "reason": "family mismatch: IM FELL Double Pica"
+    },
+    {
+      "family": "Jaldi",
+      "path": "ofl/jaldi/Jaldi-Bold.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Kaushan Script",
+      "path": "ofl/kaushanscript/KaushanScript-Regular.ttf",
+      "reason": "native table checksum mismatch"
+    },
+    {
+      "family": "Kristi",
+      "path": "ofl/kristi/Kristi-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Magra",
+      "path": "ofl/magra/Magra-Bold.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Modern Antiqua",
+      "path": "ofl/modernantiqua/ModernAntiqua-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Nanum Gothic",
+      "path": "ofl/nanumgothic/NanumGothic-Bold.ttf",
+      "reason": "family mismatch: NanumGothic"
+    },
+    {
+      "family": "Nanum Gothic",
+      "path": "ofl/nanumgothic/NanumGothic-Regular.ttf",
+      "reason": "family mismatch: NanumGothic"
+    },
+    {
+      "family": "Nanum Gothic Coding",
+      "path": "ofl/nanumgothiccoding/NanumGothicCoding-Bold.ttf",
+      "reason": "family mismatch: NanumGothicCoding"
+    },
+    {
+      "family": "Nanum Gothic Coding",
+      "path": "ofl/nanumgothiccoding/NanumGothicCoding-Regular.ttf",
+      "reason": "family mismatch: NanumGothicCoding"
+    },
+    {
+      "family": "Nanum Myeongjo",
+      "path": "ofl/nanummyeongjo/NanumMyeongjo-Bold.ttf",
+      "reason": "family mismatch: NanumMyeongjo"
+    },
+    {
+      "family": "Nanum Myeongjo",
+      "path": "ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf",
+      "reason": "family mismatch: NanumMyeongjo"
+    },
+    {
+      "family": "Nanum Pen Script",
+      "path": "ofl/nanumpenscript/NanumPenScript-Regular.ttf",
+      "reason": "family mismatch: Nanum Pen"
+    },
+    {
+      "family": "Noto Znamenny Musical Notation",
+      "path": "ofl/notoznamennymusicalnotation/NotoZnamennyMusicalNotation-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Nova Script",
+      "path": "ofl/novascript/NovaScript-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Poetsen One",
+      "path": "ofl/poetsenone/PoetsenOne-Regular.ttf",
+      "reason": "family mismatch: PoetsenOne"
+    },
+    {
+      "family": "Pushster",
+      "path": "ofl/pushster/Pushster-Regular.ttf",
+      "reason": "family mismatch: Lobster"
+    },
+    {
+      "family": "Reem Kufi Ink",
+      "path": "ofl/reemkufiink/ReemKufiInk-Regular.ttf",
+      "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Saira Extra Condensed",
+      "path": "ofl/sairaextracondensed/SairaExtraCondensed-Bold.ttf",
+      "reason": "family mismatch: Saira ExtraCondensed"
+    },
+    {
+      "family": "Saira Extra Condensed",
+      "path": "ofl/sairaextracondensed/SairaExtraCondensed-Regular.ttf",
+      "reason": "family mismatch: Saira ExtraCondensed"
+    },
+    {
+      "family": "Saira Semi Condensed",
+      "path": "ofl/sairasemicondensed/SairaSemiCondensed-Bold.ttf",
+      "reason": "family mismatch: Saira SemiCondensed"
+    },
+    {
+      "family": "Saira Semi Condensed",
+      "path": "ofl/sairasemicondensed/SairaSemiCondensed-Regular.ttf",
+      "reason": "family mismatch: Saira SemiCondensed"
+    },
+    {
+      "family": "Shrikhand",
+      "path": "ofl/shrikhand/Shrikhand-Regular.ttf",
+      "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Sirin Stencil",
+      "path": "ofl/sirinstencil/SirinStencil-Regular.ttf",
+      "reason": "family mismatch: SirinStencil"
+    },
+    {
+      "family": "Supermercado One",
+      "path": "ofl/supermercadoone/SupermercadoOne-Regular.ttf",
+      "reason": "family mismatch: Supermercado"
+    }
+  ]
+}

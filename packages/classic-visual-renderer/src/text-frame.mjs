@@ -44,7 +44,7 @@ export function validateTextFramePlan(plan, admission) {
   return fonts;
 }
 
-export async function composeTextFrame(plan, host, state, signal) {
+export async function composeTextFrame(plan, host, state, signal, hooks) {
   const { bound: media, sources, budget, canvases, releases, encoded, retainedDecoded, resolveFont, fontCache } = state;
   const fonts = new Map(), rasters = [];
   // Retained video pools account for three RGBA canvases. Other distinct source
@@ -65,15 +65,16 @@ export async function composeTextFrame(plan, host, state, signal) {
       encoded.set(Symbol(layer.font.fontId), font);
       fonts.set(layer.font.fontId, font);
     }
-    const source = await rasterizeClassicText(layer.text, layer.font, font.bytes, {
+    const rasterize = hooks?.rasterize ?? rasterizeClassicText;
+    const source = await rasterize(layer.text, layer.font, font.bytes, {
       width: plan.identity.width, height: plan.identity.height,
       maxPixels: host.admission.maxDecodedPixels, maxRasterBytes: host.admission.maxRgbaBytes,
-    }, signal, fontCache?.get(`${layer.font.fontId}:${layer.font.contentHash}:${layer.font.size}`));
+    }, signal, fontCache?.get(`${layer.font.fontId}:${layer.font.contentHash}:${layer.font.size}`), layer);
     canvases.add(source.canvas); sources.set(layer.elementId, source);
     rasters.push({ elementId: layer.elementId, width: source.width, height: source.height, layout: clone(source.layout) });
   }
   checkAbort(signal);
-  const bound = clone(await host.callback("bindTextFrame", { rasters: clone(rasters) }));
+  const bound = clone(await (hooks?.bind ? hooks.bind(clone(rasters)) : host.callback("bindTextFrame", { rasters: clone(rasters) })));
   checkAbort(signal);
   if (!sameJsonFacts(bound.identity, plan.identity) || !sameJsonFacts(bound.decoded, media.decoded) || !sameJsonFacts(bound.rasters, rasters) || !sameJsonFacts(bound.clear, media.clear) || !sameJsonFacts(bound.background, media.background) || !Array.isArray(bound.layers) || bound.layers.length !== plan.order.length) reject("INVALID_VISUAL_PLAN", "Bound V2 frame changed fixed identity or observed raster facts");
   const mediaLayers = new Map(media.layers.map(layer => [layer.elementId, layer]));

@@ -75,7 +75,7 @@ impl ClassicVisualProcess {
         )
     }
     #[cfg(unix)]
-    fn render_session<R: ClassicVisualResources + ?Sized, S: VisualProcessSession<R>>(
+    pub(crate) fn render_session<R: ClassicVisualResources + ?Sized, S: VisualProcessSession<R>>(
         &self,
         session: &mut S,
         resources: &mut R,

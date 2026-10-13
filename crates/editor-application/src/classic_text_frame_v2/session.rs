@@ -381,6 +381,41 @@ impl<'a> ClassicTextFrameSessionV2<'a> {
             }
         }
     }
+    /// V3-only sealed entry retains this session's authorization/font-read/media
+    /// fences. The application reconstructs and validates every caption fact;
+    /// no caller can inject a pre-bound public DTO into the V2 session.
+    pub(crate) fn bind_caption_sources_v3(
+        &mut self,
+        prepared: &composition::PreparedTextFrameV3,
+        rasters: &[TextRasterReceiptV2],
+        captions: &[opencut_contracts::text_frame_v3::CaptionLayoutReceiptV3],
+    ) -> Result<Value, EditorError> {
+        if self.bound.is_some()
+            || self.resolved_fonts.len() != self.prepared.graph().fonts.len()
+            || prepared.execution().identity() != self.prepared.identity()
+        {
+            return Err(invalid(
+                "V3 captions must bind once after original font reads",
+            ));
+        }
+        let media = self
+            .media
+            .bound()
+            .ok_or_else(|| invalid("Media must bind before captions"))?;
+        let coverage = self.coverage.values().cloned().collect::<Vec<_>>();
+        let bound = crate::classic_text_frame_v3::bind_caption_frame_v3(
+            prepared,
+            &self.policy,
+            &coverage,
+            &media.decoded,
+            rasters,
+            captions,
+        )?;
+        let value = serde_json::to_value(&bound)
+            .map_err(|_| invalid("Cannot serialize V3 bound caption frame"))?;
+        self.bound = Some(bound);
+        Ok(value)
+    }
     pub fn rgba_chunk(
         &mut self,
         offset: u64,

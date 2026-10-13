@@ -17,10 +17,12 @@ import type {
   TextPlanResult,
 } from "./planning";
 import type { V4TextEditorValue, V4TextInitial, V4TextScope } from "./types";
+import type { CanvasTextPlan, CanvasTextPlanning } from "./canvas-types";
 
 export type TextWorkspaceOptions = {
   /** Supplied only by the executable versioned text-frame capability. */
   available: boolean;
+  planCanvasText?: CanvasTextPlanning;
   importFont?: (request: FontImportRequest) => Promise<FontImportResult>;
   fontImportBlockedReason?: string | null;
 };
@@ -38,6 +40,11 @@ type Context = {
   beginCreate(): void;
   beginEdit(elementId: string): void;
   beginImport(): void;
+  beginCanvasEdit(elementId: string): void;
+  canvas: CanvasTextPlan | null;
+  planCanvasText?: CanvasTextPlanning;
+  commitCanvas(content: string): Promise<void>;
+  cancelCanvas(): void;
   panel: ReactNode;
 };
 const TextContext = createContext<Context | null>(null);
@@ -50,6 +57,8 @@ export function V4TextAuthoringProvider({
 }: TextWorkspaceOptions & { children: ReactNode }) {
   useLocale();
   const { controller, api, v4, busy } = useWorkspace();
+  const [canvas, setCanvas] = useState<CanvasTextPlan | null>(null);
+  const canvasInitial = useRef<V4TextInitial | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [review, setReview] = useState<TextPlanResult | null>(null);
   const [catalog, setCatalog] = useState<FontCatalog | null>(null);
@@ -110,6 +119,8 @@ export function V4TextAuthoringProvider({
     reading.current?.abort();
     reading.current = null;
     setDraft(null);
+    setCanvas(null);
+    canvasInitial.current = null;
     setReview(null);
     reviewScope.current = null;
     setImporting(false);
@@ -163,17 +174,13 @@ export function V4TextAuthoringProvider({
     void read(async (scope, serial, signal) => {
       if (!options.importFont) return;
       const result = await api!.sdk.call(
-        "opencut_font_v1_catalog",
+        "opencut_font_v2_catalog",
         {},
         { signal },
       );
       checkScope(scope, serial);
-      if (result.schema_version !== 1)
+      if (result.schema_version !== 2)
         throw new Error("The service returned an invalid font catalog.");
-      if (!result.download_available)
-        throw new Error(
-          result.unavailable_reason ?? "Font import is unavailable.",
-        );
       setCatalog(result);
       setDraft(null);
       setReview(null);
@@ -248,6 +255,104 @@ export function V4TextAuthoringProvider({
     setImporting(false);
     setError(null);
     setNotice(null);
+  };
+  const beginCanvasEdit = (elementId: string) => {
+    if (
+      !options.planCanvasText ||
+      !sequence ||
+      !v4 ||
+      canvas ||
+      writing.current
+    )
+      return;
+    const track = sequence.tracks.find((track) =>
+      track.elements.some((element) => element.id === elementId),
+    );
+    const element = track?.elements.find((element) => element.id === elementId);
+    if (!track || track.locked || !element || element.content.kind !== "text")
+      return;
+    const initial: V4TextInitial = {
+      name: element.name,
+      text: element.content.text,
+      timeline_range: element.timeline_range,
+    };
+    void read(async (scope, serial, signal) => {
+      const target = { ...scope, elementId };
+      const plan = await options.planCanvasText!(target, v4.playhead, signal);
+      checkScope(target, serial);
+      if (
+        plan.scope.projectId !== target.projectId ||
+        plan.scope.revision !== target.revision ||
+        plan.scope.sequenceId !== target.sequenceId ||
+        plan.scope.elementId !== elementId ||
+        plan.layer.elementId !== elementId
+      )
+        throw new Error("The edit target changed.");
+      canvasInitial.current = initial;
+      setDraft(null);
+      setReview(null);
+      setImporting(false);
+      setCanvas(plan);
+    });
+  };
+  const cancelCanvas = () => {
+    if (!writing.current) {
+      setCanvas(null);
+      canvasInitial.current = null;
+    }
+  };
+  const commitCanvas = async (content: string) => {
+    const initial = canvasInitial.current;
+    if (!canvas || !initial || !api || disabled || writing.current)
+      throw new Error("Wait for the current edit to finish.");
+    const scope = canvas.scope,
+      serial = epoch.current;
+    checkScope(scope, serial);
+    if (content === initial.text.content) {
+      cancelCanvas();
+      return;
+    }
+    const track = sequence?.tracks.find((track) =>
+      track.elements.some((element) => element.id === scope.elementId),
+    );
+    if (!track || track.locked) throw new Error("The edit target changed.");
+    const request: TextPlanRequest = {
+      project_id: scope.projectId,
+      expected_revision: scope.revision,
+      sequence_id: scope.sequenceId,
+      idempotency_key: crypto.randomUUID(),
+      command: {
+        kind: "edit",
+        target: { track_id: track.id, element_id: scope.elementId! },
+        values: textPlanValues({
+          ...initial,
+          text: { ...initial.text, content },
+        }),
+      },
+    };
+    const abort = new AbortController();
+    reading.current = abort;
+    writing.current = true;
+    setPending(true);
+    try {
+      const result = await api.sdk.call("opencut_text_v1_plan", request, {
+        signal: abort.signal,
+      });
+      checkScope(scope, serial);
+      checkTextPlan(request, result);
+      if (result.transaction)
+        await controller.v4.applyPlanned(result.transaction, scope.sequenceId);
+      if (serial === epoch.current) {
+        setCanvas(null);
+        canvasInitial.current = null;
+      }
+    } finally {
+      writing.current = false;
+      if (serial === epoch.current) {
+        setPending(false);
+        reading.current = null;
+      }
+    }
   };
   const planText = async (value: V4TextEditorValue) => {
     if (!draft || !api || disabled)
@@ -429,16 +534,10 @@ export function V4TextAuthoringProvider({
         {importing && catalog && (
           <V4FontImport
             scope={{ projectId: project.id, revision: v4.head.revision }}
-            available
-            choices={catalog.fonts.map((font) => ({
-              id: font.id,
-              label: `${font.family} · ${font.weight} · ${t(font.style === "italic" ? "Italic" : "Regular")}`,
-              family: font.family,
-              weight: font.weight,
-              style: font.style,
-              licenseName: font.license_id,
-              sourceUrl: font.source_url,
-            }))}
+            available={catalog.download_available}
+            choices={[]}
+            browserCatalog={catalog}
+            readSource={(catalog_id, signal) => api!.sdk.call("opencut_font_v2_source", { catalog_id }, { signal })}
             requiredText={draft?.initial.text.content ?? "OpenCut 你好"}
             disabled={busy || pending}
             disabledReason={disabledReason}
@@ -457,6 +556,11 @@ export function V4TextAuthoringProvider({
         beginCreate,
         beginEdit,
         beginImport,
+        beginCanvasEdit,
+        canvas,
+        planCanvasText: options.planCanvasText,
+        commitCanvas,
+        cancelCanvas,
         panel,
       }}
     >
@@ -503,4 +607,8 @@ export function V4TextEditButton({
 }
 export function V4TextPanel() {
   return useContext(TextContext)?.panel ?? null;
+}
+
+export function useCanvasTextAuthoring() {
+  return useContext(TextContext);
 }

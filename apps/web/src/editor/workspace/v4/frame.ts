@@ -18,10 +18,16 @@ export function textFrameAvailable(state: V4SessionState) {
   );
 }
 
+export function captionFrameAvailable(state: V4SessionState) {
+  const capability = state.captionFrameCapability;
+  return capability?.available === true && capability.schema_version === 3 && capability.submit_tool === "opencut_job_v4_caption_frame_png";
+}
+const hasCaptions = (state: V4SessionState) => ((state.historical ?? state.head).project.sequences.find(s => s.id === state.sequenceId)?.captions.length ?? 0) > 0;
 export function frameAvailability(state: V4SessionState) {
   const view = state.historical ?? state.head;
   if (view.project.settings.profile !== "classic_global")
     return "Scene frames currently require Classic scene settings.";
+  if (hasCaptions(state)) return captionFrameAvailable(state) ? null : (state.captionFrameCapability?.unavailable_reason ?? "This service does not support pinned caption frames.");
   if (textFrameAvailable(state)) return null;
   const sequence = view.project.sequences.find(
     (row) => row.id === state.sequenceId,
@@ -108,11 +114,12 @@ export class V4Frame {
       generation = this.host.generation(),
       epoch = ++this.capabilityEpoch;
     try {
-      const [capability, textFrameCapability] = await Promise.all([
+      const [capability, textFrameCapability, captionFrameCapability] = await Promise.all([
         api.v4.frameCapability().catch(() => null),
         api.sdk
           .call("opencut_project_v4_text_frame_capability", {})
           .catch(() => null),
+        api.sdk.call("opencut_project_v4_caption_frame_capability", {}).catch(() => null),
       ]);
       const current = this.host.state();
       if (
@@ -125,6 +132,7 @@ export class V4Frame {
           ...current,
           frameCapability: capability,
           textFrameCapability,
+          captionFrameCapability,
           frameCapabilityError: capability
             ? null
             : "This service does not support scene frames.",
@@ -178,7 +186,7 @@ export class V4Frame {
     this.invalidate();
     const view = state.historical ?? state.head;
     const attempt: V4FrameAttempt = {
-      protocol: textFrameAvailable(state) ? 2 : 1,
+      protocol: hasCaptions(state) && captionFrameAvailable(state) ? 3 : textFrameAvailable(state) ? 2 : 1,
       request: {
         project_id: view.project.id,
         revision: view.revision,
@@ -213,7 +221,9 @@ export class V4Frame {
     attempt = { ...attempt, phase: "submitting", error: null };
     this.publish(api, attempt);
     try {
-      const job = await (attempt.protocol === 2
+      const job = await (attempt.protocol === 3
+        ? api.sdk.call("opencut_job_v4_caption_frame_png", attempt.request)
+        : attempt.protocol === 2
         ? api.v4.textFramePng(attempt.request)
         : api.v4.framePng(attempt.request));
       if (!job.job_id || !sameTarget(job, attempt.request, attempt.protocol))

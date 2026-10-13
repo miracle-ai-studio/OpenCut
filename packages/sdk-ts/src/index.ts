@@ -21,7 +21,7 @@ export type ArtifactReference = PublicJob["artifacts"][number];
 export type PublicJobResult = NonNullable<PublicJob["result"]>;
 type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
 export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
-  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4" | "render.project_video.v4"> & {
+  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4" | "render.project_caption_frame.v4" | "analysis.sequence_transcribe.v4" | "render.project_video.v4"> & {
   "render.project.v3": LegacyPublicResultMap["render.project"];
   "preview.project_frame.v3": LegacyPublicResultMap["preview.composited_frame"];
   "preview.project_range.v3": LegacyPublicResultMap["preview.project_range"];
@@ -29,7 +29,7 @@ export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
 const extendedPublicKinds = new Set<string>([
   "media.import", "analysis.transcribe", "analysis.silence", "analysis.shots", "analysis.waveform", "analysis.speaker_turns",
   "render.project.v3", "preview.project_frame.v3", "preview.project_range.v3",
-  "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4", "render.project_text_frame.v4", "render.project_video.v4",
+  "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4", "render.project_text_frame.v4", "render.project_caption_frame.v4", "analysis.sequence_transcribe.v4", "render.project_video.v4",
 ]);
 export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
   if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {

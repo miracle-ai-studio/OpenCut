@@ -32,6 +32,23 @@ pub(super) fn execute(
     cancel: &CancellationToken,
     held: &Mutex<Option<AttemptLease>>,
 ) -> Result<Value, EditorError> {
+    let app = EditorApplication::open_managed(database)?;
+    let input: PreparedV4AudioWav = serde_json::from_value(job.input.clone())
+        .map_err(|_| error("INVALID_ARGUMENT", "Invalid private V4 audio preparation"))?;
+    let checkpoint =
+        || app.revalidate_v4_audio_job(&job.job_id, worker, job.attempt, &input.authority);
+    execute_with_checkpoint(database, root, job, cancel, held, &checkpoint)
+}
+
+/// Reuse the same Classic PCM execution for another authorized leased use case.
+pub(super) fn execute_with_checkpoint(
+    database: &Path,
+    root: &Path,
+    job: &JobRecord,
+    cancel: &CancellationToken,
+    held: &Mutex<Option<AttemptLease>>,
+    checkpoint: &dyn Fn() -> Result<(), EditorError>,
+) -> Result<Value, EditorError> {
     cancelled(cancel)?;
     let input: PreparedV4AudioWav = serde_json::from_value(job.input.clone())
         .map_err(|_| error("INVALID_ARGUMENT", "Invalid private V4 audio preparation"))?;
@@ -53,7 +70,7 @@ pub(super) fn execute(
     )?;
     let output_frames = session.output_frame_count();
     let app = EditorApplication::open_managed(database)?;
-    app.revalidate_v4_audio_job(&job.job_id, worker, job.attempt, &input.authority)?;
+    checkpoint()?;
     let config = classic_audio_runtime::configured(&input.processing_policy)?;
     let expected_bytes = ClassicAudioWavSink::checked_bytes(input.sample_rate, output_frames)?;
     let workspace = root
@@ -86,7 +103,7 @@ pub(super) fn execute(
         VerifiedClassicAudioResources::new(app.asset_store_root(), &prepared, || {
             cancelled(cancel)?;
             check_attempt(&attempt, &directory)?;
-            app.revalidate_v4_audio_job(&job.job_id, worker, job.attempt, &input.authority)
+            checkpoint()
         })?;
     let handles = resources.handles();
     resources.checkpoint()?;

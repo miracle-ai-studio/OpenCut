@@ -321,7 +321,13 @@ pub(super) fn authorize_intent(
     if let V4Intent::PublicApply(input) = intent {
         return super::public::authorize_bindings(connection, context, input);
     }
-    if matches!(intent, V4Intent::Undo(_) | V4Intent::Redo(_)) {
+    if matches!(
+        intent,
+        V4Intent::Undo(_)
+            | V4Intent::Redo(_)
+            | V4Intent::CaptionGenerate(_)
+            | V4Intent::CaptionImport(_)
+    ) {
         return Ok(());
     }
     if context.caller().is_owner() {
@@ -342,7 +348,9 @@ pub(super) fn authorize_intent(
         V4Intent::PublicApply(_)
         | V4Intent::Undo(_)
         | V4Intent::Redo(_)
-        | V4Intent::FontImport(_) => {
+        | V4Intent::FontImport(_)
+        | V4Intent::CaptionGenerate(_)
+        | V4Intent::CaptionImport(_) => {
             unreachable!("handled above")
         }
         V4Intent::Create(_) | V4Intent::Copy(_) => Err(access::denied()),

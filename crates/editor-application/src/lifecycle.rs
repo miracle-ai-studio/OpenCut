@@ -281,8 +281,8 @@ pub fn transition(
                     next.progress = Some(progress.clone());
                     event("progress", json!(progress))
                 }
-                // Import publishes a new project resource. Its contract gives an
-                // already committed cancellation priority over publication.
+                // V4 jobs and import give already committed cancellation
+                // priority over publication. V4 failures are retired as well.
                 // Legacy render/probe jobs retain their cooperative v1 semantics.
                 WorkerUpdate::Complete(_) | WorkerUpdate::Fail(_)
                     if current.cancel_requested
@@ -291,8 +291,10 @@ pub fn transition(
                             "render.project_audio.v4"
                                 | "render.project_audio_range.v4"
                                 | "render.project_frame.v4"
-                        | "render.project_text_frame.v4"
-            | "render.project_video.v4"
+                                | "render.project_text_frame.v4"
+                                | "render.project_caption_frame.v4"
+                                | "render.project_video.v4"
+                                | "analysis.sequence_transcribe.v4"
                         ) || current.kind == "media.import"
                             && matches!(update, WorkerUpdate::Complete(_))) =>
                 {
@@ -395,4 +397,68 @@ fn validate_lease(worker: &str, lease_ms: i64) -> Result<(), EditorError> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn caption_and_transcription_cancel_retire_late_worker_outputs() {
+        for kind in [
+            "render.project_caption_frame.v4",
+            "analysis.sequence_transcribe.v4",
+        ] {
+            let queued = JobRecord {
+                job_id: "job_subtitle".into(),
+                state: JobState::Queued,
+                attempt: 0,
+                kind: kind.into(),
+                input: Value::Null,
+                result: None,
+                error: None,
+                lease_owner: None,
+                lease_until: None,
+                cancel_requested: false,
+                progress: None,
+            };
+            let running = transition(
+                &queued,
+                JobAction::Claim {
+                    worker: "subtitle-worker",
+                    lease_ms: 1000,
+                },
+                0,
+            )
+            .unwrap()
+            .record;
+            let cancelled = transition(&running, JobAction::RequestCancel, 1)
+                .unwrap()
+                .record;
+            for update in [
+                WorkerUpdate::Complete(json!({"late": true})),
+                WorkerUpdate::Fail(json!({"code": "LATE"})),
+            ] {
+                let done = transition(
+                    &cancelled,
+                    JobAction::Worker {
+                        lease: LeaseIdentity {
+                            job_id: &cancelled.job_id,
+                            worker: "subtitle-worker",
+                            attempt: running.attempt,
+                        },
+                        update,
+                    },
+                    2,
+                )
+                .unwrap();
+                assert_eq!(done.record.state, JobState::Cancelled, "{kind}");
+                assert!(done.record.result.is_none());
+                assert!(done.record.error.is_none());
+                assert!(done.record.lease_owner.is_none());
+                assert!(done.record.lease_until.is_none());
+                assert_eq!(done.event.unwrap().event_type, "cancelled");
+            }
+        }
+    }
 }

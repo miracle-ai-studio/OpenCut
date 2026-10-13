@@ -30,9 +30,9 @@ export type V4AudioPreviewState = {
 };
 export type V4FrameCapability =
   ToolOutput<"opencut_project_v4_frame_capability">;
-export type V4FrameResult = JobResultMap["render.project_frame.v4"] | JobResultMap["render.project_text_frame.v4"];
+export type V4FrameResult = JobResultMap["render.project_frame.v4"] | JobResultMap["render.project_text_frame.v4"] | JobResultMap["render.project_caption_frame.v4"];
 export type V4FrameAttempt = {
-  protocol: 1 | 2;
+  protocol: 1 | 2 | 3;
   request: V4FrameRequest;
   phase:
     | "submitting"
@@ -128,6 +128,7 @@ export type V4AudioWavAttempt = {
 export type V4SessionState = {
   recovery?: EditRecoveryState;
   fontRecovery?: FontRecoveryState;
+  captionFrameCapability?: ToolOutput<"opencut_project_v4_caption_frame_capability"> | null;
   textFrameCapability?: ToolOutput<"opencut_project_v4_text_frame_capability"> | null;
   timelineEdit: TimelineEditState;
   clipboard: ClipboardState;

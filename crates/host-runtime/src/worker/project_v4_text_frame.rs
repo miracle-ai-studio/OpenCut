@@ -3,20 +3,24 @@ use super::output_attempt::{
     attempt_directory, cancelled, check_attempt, check_output_name, error, file_hash, io_error,
 };
 use crate::classic_visual_runtime;
+use opencut_composition::project_v4::{PreparedTextFrameV2, PreparedTextFrameV3};
 use opencut_contracts::EditorError;
 use opencut_editor_application::{
     budget::Writer,
     classic_text_frame_v2::{
         ClassicTextFrameExecutorV2, ClassicTextFrameSessionV2, admit_text_frame_v2,
     },
+    classic_text_frame_v3::{ClassicCaptionFrameExecutorV3, ClassicCaptionFrameSessionV3},
     classic_visual::ClassicVisualResources,
     font_import_v1::FontImportPolicyV1,
+    project_v4_caption_frame_jobs::{self as caption, StoredV4CaptionFramePngResultV3},
     project_v4_text_frame_jobs::{
         self as frame, PreparedV4TextFramePng, StoredV4TextFramePngResultV2,
     },
 };
 use opencut_job_contracts::{
     ArtifactDescriptor,
+    project_v4_caption_frame::{V4_CAPTION_FRAME_PNG_KIND, V4CaptionFramePngResultV3},
     project_v4_frame::{V4FrameArtifactMetadataV1, V4FrameExecutionSummaryV1},
     project_v4_text_frame::*,
 };
@@ -29,6 +33,19 @@ use opencut_storage_budget::{AttemptLease, Budget};
 use serde_json::Value;
 use std::{ffi::OsStr, path::Path, sync::Mutex};
 
+enum PreparedFrame {
+    Text(PreparedTextFrameV2),
+    Caption(PreparedTextFrameV3),
+}
+impl PreparedFrame {
+    fn execution(&self) -> &PreparedTextFrameV2 {
+        match self {
+            Self::Text(frame) => frame,
+            Self::Caption(frame) => frame.execution(),
+        }
+    }
+}
+
 pub(super) fn execute(
     database: &Path,
     root: &Path,
@@ -40,13 +57,34 @@ pub(super) fn execute(
     cancelled(cancel)?;
     let input: PreparedV4TextFramePng = serde_json::from_value(job.input.clone())
         .map_err(|_| error("INVALID_ARGUMENT", "Invalid private V4 frame preparation"))?;
-    let prepared = frame::validate_prepared(&input)?;
+    let is_caption = job.kind == V4_CAPTION_FRAME_PNG_KIND;
+    let prepared = if is_caption {
+        PreparedFrame::Caption(caption::validate_prepared(&input)?)
+    } else if job.kind == V4_TEXT_FRAME_PNG_KIND {
+        PreparedFrame::Text(frame::validate_prepared(&input)?)
+    } else {
+        return Err(error(
+            "INVALID_ARGUMENT",
+            "Unexpected text/caption frame job kind",
+        ));
+    };
     let app = EditorApplication::open_managed(database)?;
-    app.revalidate_v4_text_frame_job(&job.job_id, worker, job.attempt, &input.authority)?;
+    let revalidate = || {
+        if is_caption {
+            app.revalidate_v4_caption_frame_job(&job.job_id, worker, job.attempt, &input.authority)
+        } else {
+            app.revalidate_v4_text_frame_job(&job.job_id, worker, job.attempt, &input.authority)
+        }
+    };
+    revalidate()?;
     // Complete-frame admission precedes opening any media or font descriptor.
-    admit_text_frame_v2(&prepared, &input.processing_policy)?;
-    let config = classic_visual_runtime::configured_text(&input.processing_policy)?;
-    let identity = prepared.identity();
+    admit_text_frame_v2(prepared.execution(), &input.processing_policy)?;
+    let config = if is_caption {
+        classic_visual_runtime::configured_caption(&input.processing_policy)?
+    } else {
+        classic_visual_runtime::configured_text(&input.processing_policy)?
+    };
+    let identity = prepared.execution().identity();
     let ceiling = ClassicVisualPngSink::output_ceiling(identity.width, identity.height)?;
     if ceiling > input.processing_policy.max_output_bytes {
         return Err(error(
@@ -76,33 +114,70 @@ pub(super) fn execute(
         }
         *guard = Some(attempt.clone());
     }
-    let mut resources = VerifiedClassicTextResources::new(
-        app.asset_store_root(),
-        &prepared,
-        &FontImportPolicyV1::default(),
-        || {
-            cancelled(cancel)?;
-            check_attempt(&attempt, &directory)?;
-            app.revalidate_v4_text_frame_job(&job.job_id, worker, job.attempt, &input.authority)
-        },
-    )?;
+    let checkpoint = || {
+        cancelled(cancel)?;
+        check_attempt(&attempt, &directory)?;
+        revalidate()
+    };
+    let mut resources = match &prepared {
+        PreparedFrame::Text(prepared) => VerifiedClassicTextResources::new(
+            app.asset_store_root(),
+            prepared,
+            &FontImportPolicyV1::default(),
+            checkpoint,
+        )?,
+        PreparedFrame::Caption(prepared) => VerifiedClassicTextResources::new_caption_frame_v3(
+            app.asset_store_root(),
+            prepared,
+            &FontImportPolicyV1::default(),
+            checkpoint,
+        )?,
+    };
     let handles = resources.handles();
     let fonts = resources.font_handles();
-    let mut session =
-        ClassicTextFrameSessionV2::new(&prepared, &input.processing_policy, resources.coverage())?;
     resources.checkpoint()?;
     let filename = OsStr::new("frame.png");
     let file = attempt.create_readwrite_child(filename).map_err(io_error)?;
     let mut sink = ClassicVisualPngSink::new(file, identity.width, identity.height, ceiling)?;
     let host_sha256 =
         opencut_native_services::reproducibility::execution_identity(vec![])?.process_binary_sha256;
-    let execution = ClassicVisualProcess { config }.execute_text_frame(
-        &mut session,
-        &mut resources,
-        &handles,
-        &fonts,
-        &mut sink,
-    )?;
+    let process = ClassicVisualProcess { config };
+    let (runtime_identity, bound, captions) = match &prepared {
+        PreparedFrame::Text(prepared) => {
+            let mut session = ClassicTextFrameSessionV2::new(
+                prepared,
+                &input.processing_policy,
+                resources.coverage(),
+            )?;
+            let execution = process.execute_text_frame(
+                &mut session,
+                &mut resources,
+                &handles,
+                &fonts,
+                &mut sink,
+            )?;
+            (execution.runtime_identity, execution.receipt.bound, None)
+        }
+        PreparedFrame::Caption(prepared) => {
+            let mut session = ClassicCaptionFrameSessionV3::new(
+                prepared,
+                &input.processing_policy,
+                resources.coverage(),
+            )?;
+            let execution = process.execute_caption_frame(
+                &mut session,
+                &mut resources,
+                &handles,
+                &fonts,
+                &mut sink,
+            )?;
+            (
+                execution.runtime_identity,
+                execution.receipt.execution.bound,
+                Some(execution.receipt.captions),
+            )
+        }
+    };
     resources.checkpoint()?;
     let mut file = sink.finalize()?;
     let size = file.metadata().map_err(io_error)?.len();
@@ -116,62 +191,102 @@ pub(super) fn execute(
     attempt.sync_directory().map_err(io_error)?;
     check_output_name(&attempt, filename, &file)?;
     resources.checkpoint()?;
-    let runtime = execution.runtime_identity.identity;
-    let stored = StoredV4TextFramePngResultV2 {
-        public: V4TextFramePngResultV2 {
-            schema_version: 2,
-            identity: frame::public_identity(&prepared),
-            asset_lock: input.asset_lock.clone(),
-            font_lock: input.font_lock.clone(),
-            render_input_sha256: frame::render_input_sha256(
-                &input.snapshot,
-                &input.sequence_id,
-                &input.time,
-            )?,
-            execution: V4FrameExecutionSummaryV1 {
-                host_sha256,
-                browser_version: runtime.browser_version,
-                browser_sha256: runtime.browser_sha256,
-                module_sha256: runtime.module_sha256,
-                shader_sha256: runtime.shader_sha256,
-                playwright_version: runtime.playwright_version,
-                mediabunny_version: runtime.mediabunny_version,
-                gpu_backend: runtime.gpu_backend,
-                gpu_device: runtime.gpu_device,
-                texture_format: runtime.texture_format,
-                decoder_profile: runtime.decoder_profile,
-            },
-            sources: opencut_editor_application::project_v4_frame_jobs::public_sources(
-                prepared.media(),
-                &execution.receipt.bound.decoded,
-            )?,
-            texts: execution.receipt.bound.rasters.clone(),
-            artifact: V4FrameArtifactMetadataV1 {
-                mime_type: "image/png".into(),
-                size_bytes: size.to_string(),
-                content_hash: content_hash.clone(),
-            },
-        },
-        artifact: ArtifactDescriptor {
-            path: directory
-                .join(filename)
-                .into_os_string()
-                .into_string()
-                .map_err(|_| {
-                    error(
-                        "ARTIFACT_VERIFICATION_FAILED",
-                        "Private output path is not UTF-8",
-                    )
-                })?,
-            mime_type: "image/png".into(),
-            size,
-            content_hash,
-        },
+    let runtime = runtime_identity.identity;
+    let summary = V4FrameExecutionSummaryV1 {
+        host_sha256: host_sha256.clone(),
+        browser_version: runtime.browser_version,
+        browser_sha256: runtime.browser_sha256,
+        module_sha256: runtime.module_sha256,
+        shader_sha256: runtime.shader_sha256,
+        playwright_version: runtime.playwright_version,
+        mediabunny_version: runtime.mediabunny_version,
+        gpu_backend: runtime.gpu_backend,
+        gpu_device: runtime.gpu_device,
+        texture_format: runtime.texture_format,
+        decoder_profile: runtime.decoder_profile,
     };
-    frame::validate_stored_result(&input, &stored)?;
+    let sources = opencut_editor_application::project_v4_frame_jobs::public_sources(
+        prepared.execution().media(),
+        &bound.decoded,
+    )?;
+    let metadata = V4FrameArtifactMetadataV1 {
+        mime_type: "image/png".into(),
+        size_bytes: size.to_string(),
+        content_hash: content_hash.clone(),
+    };
+    let artifact = ArtifactDescriptor {
+        path: directory
+            .join(filename)
+            .into_os_string()
+            .into_string()
+            .map_err(|_| {
+                error(
+                    "ARTIFACT_VERIFICATION_FAILED",
+                    "Private output path is not UTF-8",
+                )
+            })?,
+        mime_type: "image/png".into(),
+        size,
+        content_hash,
+    };
+    let result = match &prepared {
+        PreparedFrame::Text(prepared) => {
+            let stored = StoredV4TextFramePngResultV2 {
+                public: V4TextFramePngResultV2 {
+                    schema_version: 2,
+                    identity: frame::public_identity(prepared),
+                    asset_lock: input.asset_lock.clone(),
+                    font_lock: input.font_lock.clone(),
+                    render_input_sha256: frame::render_input_sha256(
+                        &input.snapshot,
+                        &input.sequence_id,
+                        &input.time,
+                    )?,
+                    execution: summary,
+                    sources,
+                    texts: bound.rasters,
+                    artifact: metadata,
+                },
+                artifact,
+            };
+            frame::validate_stored_result(&input, &stored)?;
+            serde_json::to_value(stored)
+        }
+        PreparedFrame::Caption(prepared) => {
+            let stored = StoredV4CaptionFramePngResultV3 {
+                public: V4CaptionFramePngResultV3 {
+                    schema_version: 3,
+                    identity: caption::public_identity(prepared),
+                    asset_lock: input.asset_lock.clone(),
+                    font_lock: input.font_lock.clone(),
+                    render_input_sha256: caption::render_input_sha256(
+                        &input.snapshot,
+                        &input.sequence_id,
+                        &input.time,
+                    )?,
+                    execution: summary,
+                    sources,
+                    texts: bound.rasters,
+                    captions: captions.ok_or_else(|| {
+                        error("INVALID_STORED_RESULT", "Missing verified caption layouts")
+                    })?,
+                    artifact: metadata,
+                },
+                artifact,
+            };
+            caption::validate_stored_result(&input, &stored)?;
+            serde_json::to_value(stored)
+        }
+    }
+    .map_err(|_| {
+        error(
+            "SERIALIZATION_ERROR",
+            "Could not serialize private frame result",
+        )
+    })?;
     resources.checkpoint()?;
     if opencut_native_services::reproducibility::execution_identity(vec![])?.process_binary_sha256
-        != stored.public.execution.host_sha256
+        != host_sha256
     {
         return Err(error(
             "EXECUTION_IDENTITY_CHANGED",
@@ -179,10 +294,5 @@ pub(super) fn execute(
         ));
     }
     check_output_name(&attempt, filename, &file)?;
-    serde_json::to_value(stored).map_err(|_| {
-        error(
-            "SERIALIZATION_ERROR",
-            "Could not serialize private frame result",
-        )
-    })
+    Ok(result)
 }

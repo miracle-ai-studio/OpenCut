@@ -195,3 +195,46 @@ test("persistent frames reuse verified bytes and loaded faces but renew native a
   assert.equal(fontCache.size,0);assert.equal(faces.size,0);
   assert.ok(canvases.every(c=>c.width===0&&c.height===0));
 });
+
+const { renderClassicCaptionFrameV3 } = await import("../src/text-frame-v3.mjs");
+function captionPlan() {
+  const execution = plan();
+  execution.texts[0].text.content = "AV To";
+  execution.texts[0].font.validatedTextHash = hash("AV To");
+  return { identity: { ...execution.identity, profile: "classic-v31-gpu-normal-caption-frame-v3" }, execution,
+    captions: [{ elementId: "title", maxWidthPx: 6.4, bottomMarginPx: .2, wrapProfile: "classic-v31-greedy-whitespace-v1" }] };
+}
+function captionHost(p, options = {}) {
+  const base = host(p.execution, options), callback = base.callback;
+  base.captionCalls = [];
+  base.callback = async (op, args) => {
+    if (op === "bindCaptionFrameV3") {
+      base.captionCalls.push(structuredClone(args));
+      return callback("bindTextFrame", { rasters: args.rasters });
+    }
+    return callback(op, args);
+  };
+  return base;
+}
+test("V3 wraps only captions, binds original content identity and reuses one fixed font/media transfer", async () => {
+  reset(); const p = captionPlan(), h = captionHost(p);
+  const result = await renderClassicCaptionFrameV3(p, h, {});
+  assert.equal(result.identity.profile, "classic-v31-gpu-normal-caption-frame-v3");
+  assert.equal(result.execution.engineIdentity, "classic-v31-gpu-normal-text-frame-v2");
+  assert.equal(h.captionCalls.length, 1);
+  assert.equal(result.captions[0].originalTextHash, hash("AV To"));
+  assert.equal(result.captions[0].wrappedText, "AV\nTo");
+  assert.equal(result.execution.bound.rasters[0].layout.validatedTextHash, hash("AV\nTo"));
+  assert.deepEqual(result.execution.bound.rasters.map(raster => raster.layout.lines.map(line => line.content)), [["AV", "To"], ["中文"]]);
+  assert.equal(result.execution.bound.rasters[0].layout.transform.centerX, 4);
+  assert.equal(result.execution.bound.rasters[0].layout.transform.centerY, 4 - .2 - 2.4);
+  assert.equal(h.calls.filter(call => call.op === "resolveVerifiedFontBytes").length, 1);
+  assert.equal(result.execution.peakAccountedBytes, "1208"); released(h);
+});
+test("V3 fixed caption directives and native original text coverage are mandatory before output", async () => {
+  for (const corrupt of [p => { p.captions[0].bottomMarginPx = 0; }, p => { p.execution.texts[0].font.validatedTextHash = hash("wrong"); }]) {
+    reset(); const p = captionPlan(); corrupt(p); const h = captionHost(p);
+    await assert.rejects(renderClassicCaptionFrameV3(p, h, {}), code("INVALID_VISUAL_PLAN"));
+    assert.equal(gpuCalls.length, 0); assert.equal(h.chunks.length, 0); released(h);
+  }
+});

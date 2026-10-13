@@ -146,10 +146,16 @@ pub(super) fn verified_target(
     ) {
         return sqlite_project_v4_audio_jobs::verified_target(connection, input);
     }
+    if kind == "analysis.sequence_transcribe.v4" {
+        return sqlite_sequence_transcribe_v4::verified_target(connection, input);
+    }
     if kind == "render.project_video.v4" {
         return sqlite_project_v4_video_jobs::verified_target(connection, input);
     }
-    if kind == "render.project_text_frame.v4" {
+    if matches!(
+        kind,
+        "render.project_text_frame.v4" | "render.project_caption_frame.v4"
+    ) {
         return sqlite_project_v4_text_frame_jobs::verified_target(connection, input);
     }
     if kind == "render.project_frame.v4" {
@@ -278,7 +284,13 @@ pub(super) fn require_submission(
 ) -> Result<(), EditorError> {
     if matches!(
         request.kind.as_str(),
-        "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4" | "render.project_video.v4"
+        "render.project_audio.v4"
+            | "render.project_audio_range.v4"
+            | "render.project_frame.v4"
+            | "render.project_text_frame.v4"
+            | "render.project_caption_frame.v4"
+            | "render.project_video.v4"
+            | "analysis.sequence_transcribe.v4"
     ) {
         let (project, _) = verified_target(connection, &request.kind, &request.input)?
             .ok_or_else(access::denied)?;

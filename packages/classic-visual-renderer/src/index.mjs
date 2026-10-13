@@ -1,5 +1,6 @@
 import { decodeImage, decodeVideo } from "./decoder.mjs";
 export { VisualDecoderCache } from "./decoder.mjs";
+export { measureClassicText } from "./text-layout.mjs";
 import { openGpuRealm, renderGpuFrame } from "./gpu.mjs";
 import { byteBudget, checkAbort, integer, natural, reject, sameJsonFacts } from "./validation.mjs";
 import { composeTextFrame, validateTextFramePlan } from "./text-frame.mjs";
@@ -38,7 +39,7 @@ export async function renderClassicTextFrameV2(fixedPlan,host,realm,signal,cache
   }
   return renderFrame(plan.media,host,realm,signal,cache,decoders,state=>composeTextFrame(plan,host,state,signal),fontCache);
 }
-async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose,fontCache) {
+export async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose,fontCache) {
   checkAbort(signal);const plan=clone(fixedPlan),admission=host.admission;
   const width=integer(plan.identity.width,"frame width",1,16384),height=integer(plan.identity.height,"frame height",1,16384);
   const rgba=BigInt(width)*BigInt(height)*4n;

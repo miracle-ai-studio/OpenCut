@@ -1,6 +1,7 @@
 import { validateEnvelope } from "@opencut/classic-audio-renderer/internal-host-runtime";
 import { integer, natural, reject } from "../src/validation.mjs";
 import { validateTextFramePlan } from "../src/text-frame.mjs";
+import { validateCaptionFramePlanV3 } from "../src/caption-plan-v3.mjs";
 export function validateAdmission(value) {
   if(!value||!["monitored-terminate","strict-hard"].includes(value.quotaProfile))reject("INVALID_VISUAL_ADMISSION","Explicit quota profile is required");
   integer(value.deadlineMs,"deadline",1,300000);integer(value.maxEncodedBytes,"encoded budget",1,32*1024*1024);
@@ -44,5 +45,16 @@ export function validateTextBegin(packet) {
     handles.add(font.fontId);
   }
   if(handles.size!==fonts.size)reject("INVALID_HOST_PROTOCOL","Every fixed font requires its private host handle");
+  return begin;
+}
+
+// V3 is independently admitted; its private reads retain the exact V2 handles.
+export function validateCaptionBeginV3(packet) {
+  validateEnvelope(packet);
+  if (packet.type !== "beginCaptionFrameV3") reject("INVALID_HOST_PROTOCOL", "V3 captions require their versioned begin operation");
+  const begin = structuredClone(packet);
+  begin.admission = validateAdmission(begin.admission);
+  validateTextBegin({ ...begin, type: "beginTextFrameV2", plan: begin.plan?.execution });
+  validateCaptionFramePlanV3(begin.plan, begin.admission);
   return begin;
 }

@@ -380,7 +380,23 @@ fn analysis_result<R: DeserializeOwned + serde::Serialize>(
 pub fn project(record: JobRecord) -> JobView {
     // Public intent identity is useful even before a result exists; only these three
     // fields are selected from the legacy prepared input, never its snapshot or URIs.
-    let target = if matches!(
+    let target = if record.kind == "analysis.sequence_transcribe.v4" {
+        (|| {
+            Some(ProjectTaskTarget {
+                project_id: record
+                    .input
+                    .pointer("/audio/snapshot/project/id")?
+                    .as_str()?
+                    .into(),
+                revision: record
+                    .input
+                    .pointer("/audio/snapshot/revision")?
+                    .as_str()?
+                    .into(),
+                sequence_id: record.input.pointer("/audio/sequence_id")?.as_str()?.into(),
+            })
+        })()
+    } else if matches!(
         record.kind.as_str(),
         "render.project"
             | "preview.project_frame"
@@ -391,6 +407,7 @@ pub fn project(record: JobRecord) -> JobView {
             | "render.project_audio_range.v4"
             | "render.project_frame.v4"
             | "render.project_text_frame.v4"
+            | "render.project_caption_frame.v4"
             | "render.project_video.v4"
             | "preview.project_frame.v3"
             | "preview.project_range.v3"
@@ -497,7 +514,51 @@ pub fn project(record: JobRecord) -> JobView {
         failure: None,
         artifacts: vec![],
     };
-    if record.state == JobState::Succeeded && view.kind == "render.project_video.v4" {
+    if record.state == JobState::Succeeded && view.kind == "analysis.sequence_transcribe.v4" {
+        let projected = (|| {
+            use crate::sequence_transcribe_v4::{PreparedSequenceTranscribeV4, validate_result};
+            let input: PreparedSequenceTranscribeV4 = decode(record.input.clone())?;
+            let public: opencut_job_contracts::sequence_transcribe_v4::SequenceTranscribeResultV4 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            validate_result(&input, &public)?;
+            Ok::<_, EditorError>(ExtendedJobResult {
+                kind: view.kind.clone(),
+                schema_version: 1,
+                data: serde_json::to_value(public).map_err(|_| bad_result())?,
+            })
+        })();
+        match projected {
+            Ok(result) => view.extended_result = Some(result),
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_caption_frame.v4"
+    {
+        let projected = (|| {
+            use crate::project_v4_caption_frame_jobs::{
+                PreparedV4CaptionFramePng, StoredV4CaptionFramePngResultV3, validate_stored_result,
+            };
+            let input: PreparedV4CaptionFramePng = decode(record.input.clone())?;
+            let stored: StoredV4CaptionFramePngResultV3 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_video.v4" {
         let projected = (|| {
             use crate::project_v4_video_jobs::{
                 PreparedV4VideoMp4V1, StoredV4VideoMp4ResultV1, validate_stored_result,

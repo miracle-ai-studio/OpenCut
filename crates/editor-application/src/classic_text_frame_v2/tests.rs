@@ -55,7 +55,7 @@ fn layer(id: &str, content: c::SampledContentV4) -> c::CompiledLayerV4 {
         }),
     }
 }
-fn graph() -> c::CompositionV4 {
+pub(crate) fn graph() -> c::CompositionV4 {
     let text = TextV4 {
         content: "AB\nC".into(),
         font: FontBindingV4::Locked {
@@ -147,7 +147,7 @@ fn graph() -> c::CompositionV4 {
         coverage: vec![],
     }
 }
-fn policy() -> LocalVisualExecutionPolicyV1 {
+pub(crate) fn policy() -> LocalVisualExecutionPolicyV1 {
     LocalVisualExecutionPolicyV1 {
         max_frame_pixels: 1000,
         max_decoded_pixels: 1000,
@@ -159,7 +159,7 @@ fn policy() -> LocalVisualExecutionPolicyV1 {
         deadline_ms: 10000,
     }
 }
-fn proof(prepared: &c::PreparedTextFrameV2) -> Vec<c::NativeTextCoverageV1> {
+pub(crate) fn proof(prepared: &c::PreparedTextFrameV2) -> Vec<c::NativeTextCoverageV1> {
     prepared
         .texts()
         .iter()
@@ -269,7 +269,7 @@ fn media_bind(session: &mut ClassicTextFrameSessionV2<'_>, resources: &mut Resou
         )
         .unwrap();
 }
-fn raster(plan: &ClassicTextFramePlanV2) -> TextRasterReceiptV2 {
+pub(crate) fn raster(plan: &ClassicTextFramePlanV2) -> TextRasterReceiptV2 {
     let text = &plan.texts[0];
     let font = &text.font;
     TextRasterReceiptV2 {

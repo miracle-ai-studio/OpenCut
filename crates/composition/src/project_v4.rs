@@ -23,16 +23,16 @@ mod coverage;
 mod source;
 #[cfg(test)]
 mod tests;
-mod visual_execution;
 mod text_execution;
 mod text_frame_execution;
+mod visual_execution;
 pub use capabilities::*;
 pub use compiler::compile_frame_v4;
 pub use coverage::*;
 pub use source::*;
-pub use visual_execution::*;
 pub use text_execution::*;
 pub use text_frame_execution::*;
+pub use visual_execution::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompositionV4 {
@@ -238,3 +238,6 @@ fn contains(range: &TimeRange, at: RationalTime) -> Result<bool, CompositionErro
     Ok(time(&range.start)?.cmp_exact(at) != Ordering::Greater
         && end(range)?.cmp_exact(at) == Ordering::Greater)
 }
+
+mod text_frame_execution_v3;
+pub use text_frame_execution_v3::*;

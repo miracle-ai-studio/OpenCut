@@ -46,11 +46,12 @@ pub(super) fn reserve(connection: &Connection, bytes: usize) -> Result<(), Edito
 pub(super) enum V2SlotKind {
     Edit { key: String },
     Font { key: String },
+    CaptionV3 { key: String },
 }
 impl V2SlotKind {
     pub(super) fn key(&self) -> &str {
         match self {
-            Self::Edit { key } | Self::Font { key } => key,
+            Self::Edit { key } | Self::Font { key } | Self::CaptionV3 { key } => key,
         }
     }
 }
@@ -65,6 +66,15 @@ pub(super) fn classify_v2_payload(
         return Err(corrupt());
     }
     let value: Value = decode_json(payload, "Stored recovery slot")?;
+    if value.get("kind").and_then(Value::as_str) == Some("caption_edit_v3") {
+        let input =
+            opencut_editor_application::edit_recovery_v3::decode_payload(payload, digest, project)?;
+        return Ok(V2SlotKind::CaptionV3 {
+            key: opencut_editor_application::edit_recovery_v3::intent(&input.context)
+                .key()
+                .into(),
+        });
+    }
     if value.get("kind").is_some() {
         let input = opencut_editor_application::font_import_v1::recovery::decode_payload(
             payload, digest, project,
@@ -144,4 +154,11 @@ pub(super) fn require_no_other_version(
 }
 fn corrupt() -> EditorError {
     EditorError::new("STORAGE_ERROR", "Stored recovery context identity differs")
+}
+
+pub(super) fn caption_protocol_required() -> EditorError {
+    EditorError::new(
+        "RECOVERY_PROTOCOL_REQUIRED",
+        "This original caption record requires edit recovery V3 inspection and acknowledgement",
+    )
 }

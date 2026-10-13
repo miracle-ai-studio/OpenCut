@@ -5,9 +5,10 @@ mod session;
 use crate::classic_visual::ClassicVisualResources;
 use opencut_contracts::EditorError;
 pub use protocol::*;
+pub(crate) use session::validate_layout;
 pub use session::*;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub trait ClassicTextFrameResources: ClassicVisualResources {
     fn resolve_font(

@@ -292,3 +292,217 @@ fn frame_admission_faults_or_forged_private_policy_leave_no_partial_job_receipt(
     );
     assert_eq!(counts(&fixture.app), before);
 }
+
+impl Fixture {
+    fn submit_caption(&mut self, key: &str) -> JobRecord {
+        let request = self.request(key);
+        start_caption_frame_png(&mut self.app, request).unwrap()
+    }
+}
+
+#[test]
+fn caption_frame_acceptance_pins_kind_revision_and_reopens_idempotently() {
+    let mut fixture = Fixture::new();
+    let job = fixture.submit_caption("fixed-caption");
+    assert_eq!(job.kind, caption::V4_CAPTION_FRAME_PNG_KIND);
+    let captured: caption::PreparedV4CaptionFramePng =
+        serde_json::from_value(job.input.clone()).unwrap();
+    assert_eq!(captured.snapshot.revision, fixture.revision);
+    assert_eq!(captured.time, fixture.request("fixed-caption").time);
+    caption::validate_prepared(&captured).unwrap();
+    fixture
+        .app
+        .apply_v4_project(&ApplyV4Project {
+            project_id: "frame-project".into(),
+            expected_revision: fixture.revision.clone(),
+            idempotency_key: "caption-later-head".into(),
+            label: "Later head retains captured caption job".into(),
+            operations: vec![ProjectOperationV4::Rename {
+                name: "Later caption head".into(),
+            }],
+        })
+        .unwrap();
+    assert_eq!(fixture.submit_caption("fixed-caption"), job);
+    let mut changed = fixture.request("fixed-caption");
+    changed.time.ticks = "2".into();
+    assert!(start_caption_frame_png(&mut fixture.app, changed).is_err());
+    let old_kind_request = fixture.request("fixed-caption");
+    assert!(start_text_frame_png(&mut fixture.app, old_kind_request).is_err());
+    let reopened =
+        EditorApplication::open(fixture.directory.path().join("workspace.sqlite")).unwrap();
+    assert_eq!(reopened.get_job(&job.job_id).unwrap(), job);
+    let view = reopened.job_view(&job.job_id).unwrap();
+    assert_eq!(view.target.unwrap().revision, captured.snapshot.revision);
+    assert!(view.artifacts.is_empty());
+}
+
+#[test]
+fn caption_frame_original_credential_and_read_run_grants_fence_completion() {
+    for missing in ["credential", "read", "run"] {
+        let mut fixture = Fixture::new();
+        let (caller, credential) = fixture.credential();
+        fixture.app.set_caller(caller);
+        let job = fixture.submit_caption("caption-authority");
+        let running = fixture.claim(&job);
+        let input: caption::PreparedV4CaptionFramePng =
+            serde_json::from_value(running.input.clone()).unwrap();
+        fixture
+            .app
+            .revalidate_v4_caption_frame_job(
+                &job.job_id,
+                "frame-worker",
+                running.attempt,
+                &input.authority,
+            )
+            .unwrap();
+        assert_eq!(
+            fixture
+                .app
+                .revalidate_v4_caption_frame_job(
+                    &job.job_id,
+                    "frame-worker",
+                    running.attempt,
+                    &TrustedJobAuthorityV1::LocalOwner
+                )
+                .unwrap_err()
+                .code,
+            "NOT_AUTHORIZED"
+        );
+        match missing {
+            "credential" => fixture.app.revoke_credential(&credential).unwrap(),
+            "read" => fixture.set_policy("1", vec![]),
+            _ => fixture.set_policy("1", vec![ProjectAction::Read]),
+        }
+        assert_eq!(
+            fixture
+                .app
+                .revalidate_v4_caption_frame_job(
+                    &job.job_id,
+                    "frame-worker",
+                    running.attempt,
+                    &input.authority
+                )
+                .unwrap_err()
+                .code,
+            "NOT_AUTHORIZED"
+        );
+        let before = counts(&fixture.app);
+        assert_eq!(
+            fixture
+                .app
+                .complete_job(
+                    &job.job_id,
+                    "frame-worker",
+                    running.attempt,
+                    now(),
+                    Value::Null
+                )
+                .unwrap_err()
+                .code,
+            "NOT_AUTHORIZED"
+        );
+        assert_eq!(fixture.app.get_job(&job.job_id).unwrap(), running);
+        assert_eq!(counts(&fixture.app), before);
+    }
+}
+
+#[test]
+fn caption_frame_cancel_wins_late_results_and_v2_or_stale_lease_cannot_revalidate() {
+    for fail in [false, true] {
+        let mut fixture = Fixture::new();
+        let job = fixture.submit_caption("caption-cancel");
+        let running = fixture.claim(&job);
+        let input: caption::PreparedV4CaptionFramePng =
+            serde_json::from_value(running.input.clone()).unwrap();
+        assert_eq!(
+            fixture
+                .app
+                .revalidate_v4_caption_frame_job(
+                    &job.job_id,
+                    "frame-worker",
+                    running.attempt + 1,
+                    &input.authority
+                )
+                .unwrap_err()
+                .code,
+            "JOB_LEASE_LOST"
+        );
+        assert!(
+            fixture
+                .app
+                .revalidate_v4_text_frame_job(
+                    &job.job_id,
+                    "frame-worker",
+                    running.attempt,
+                    &input.authority
+                )
+                .is_err()
+        );
+        fixture.app.cancel_job(&job.job_id).unwrap();
+        let done = if fail {
+            fixture.app.fail_job(
+                &job.job_id,
+                "frame-worker",
+                running.attempt,
+                now(),
+                json!({"code":"LATE_CAPTION"}),
+            )
+        } else {
+            fixture.app.complete_job(
+                &job.job_id,
+                "frame-worker",
+                running.attempt,
+                now(),
+                Value::Null,
+            )
+        }
+        .unwrap();
+        assert_eq!(done.state, JobState::Cancelled);
+        assert!(done.result.is_none());
+        assert!(
+            fixture
+                .app
+                .job_view(&job.job_id)
+                .unwrap()
+                .artifacts
+                .is_empty()
+        );
+        assert_eq!(fixture.submit_caption("caption-cancel").job_id, job.job_id);
+    }
+}
+
+#[test]
+fn caption_frame_acceptance_fault_or_forged_private_policy_is_atomic() {
+    let mut fixture = Fixture::new();
+    fixture.app.connection.execute_batch("CREATE TRIGGER reject_caption_audit BEFORE INSERT ON audit_records WHEN NEW.action='job.accepted' BEGIN SELECT RAISE(ABORT,'injected caption failure'); END;").unwrap();
+    let before = counts(&fixture.app);
+    let request = fixture.request("caption-fault");
+    assert!(start_caption_frame_png(&mut fixture.app, request).is_err());
+    assert_eq!(counts(&fixture.app), before);
+    fixture
+        .app
+        .connection
+        .execute_batch("DROP TRIGGER reject_caption_audit")
+        .unwrap();
+    let job = fixture.submit_caption("caption-original");
+    let mut input: caption::PreparedV4CaptionFramePng = serde_json::from_value(job.input).unwrap();
+    input.processing_policy.deadline_ms -= 1;
+    let request = fixture.request("caption-forged");
+    let before = counts(&fixture.app);
+    assert_eq!(
+        fixture
+            .app
+            .create_prepared_job(
+                JobRequest {
+                    idempotency_key: "caption-forged".into(),
+                    kind: caption::V4_CAPTION_FRAME_PNG_KIND.into(),
+                    input: serde_json::to_value(request).unwrap()
+                },
+                serde_json::to_value(input).unwrap()
+            )
+            .unwrap_err()
+            .code,
+        "NOT_AUTHORIZED"
+    );
+    assert_eq!(counts(&fixture.app), before);
+}

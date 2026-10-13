@@ -5,6 +5,7 @@ import { t, useLocale } from "../../shared/locale";
 import { formatTime } from "../../model/time";
 import { frameAvailability } from "./frame";
 import type { V4Bookmark } from "./types";
+import { CanvasTextOverlay } from "./text/canvas-overlay";
 
 /** Scene pixels and notes are separate layers. Blob URLs live only in the view;
  * authorized task artifacts remain downloadable unchanged through Tasks. */
@@ -248,6 +249,7 @@ export function V4FrameCanvas({
             )}
           </span>
         )}
+        <CanvasTextOverlay />
         <div className="v4-note-hud" aria-live="polite">
           {notes.map((b) => (
             <div

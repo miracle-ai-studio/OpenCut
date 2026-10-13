@@ -51,3 +51,7 @@ export class RecoveryPointersV2 {
   }
   reset() { this.write({ schemaVersion: 2, tabId: crypto.randomUUID(), entries: [] }); }
 }
+
+// Pure validation reused by additive, bounded control-state adapters. The V2
+// envelope and persistence semantics remain unchanged.
+export { id as validRecoveryId, identity as canonicalRecoveryIdentity };

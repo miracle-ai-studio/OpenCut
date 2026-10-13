@@ -12,6 +12,7 @@ mod sqlite_artifact_retention;
 mod sqlite_audit;
 mod sqlite_branching;
 mod sqlite_caption_generation;
+mod sqlite_caption_v4;
 mod sqlite_classic_import;
 mod sqlite_collaboration;
 mod sqlite_denials;
@@ -39,14 +40,15 @@ pub mod sqlite_project_v3_jobs;
 mod sqlite_project_v4;
 pub mod sqlite_project_v4_audio_jobs;
 pub mod sqlite_project_v4_frame_jobs;
-pub mod sqlite_project_v4_text_frame_jobs;
-pub mod sqlite_project_v4_video_jobs;
 mod sqlite_project_v4_history;
 mod sqlite_project_v4_jobs;
+pub mod sqlite_project_v4_text_frame_jobs;
+pub mod sqlite_project_v4_video_jobs;
 mod sqlite_projects;
 mod sqlite_queries;
 mod sqlite_render_v3;
 mod sqlite_resources;
+pub mod sqlite_sequence_transcribe_v4;
 mod sqlite_source_art_v1;
 mod sqlite_upload_retention;
 mod sqlite_uploads;
@@ -79,10 +81,12 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project_audio_range.v4",
     "render.project_frame.v4",
     "render.project_text_frame.v4",
+    "render.project_caption_frame.v4",
     "render.project_video.v4",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
+    "analysis.sequence_transcribe.v4",
     "analysis.silence",
     "analysis.shots",
     "analysis.waveform",
@@ -630,6 +634,14 @@ impl EditorApplication {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(storage_error)?;
         sqlite_access::require_submission(&tx, &context, &request)?;
+        if request.kind == "analysis.sequence_transcribe.v4" {
+            sqlite_sequence_transcribe_v4::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
         if matches!(
             request.kind.as_str(),
             "render.project_audio.v4" | "render.project_audio_range.v4"
@@ -642,10 +654,23 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_video.v4" {
-            sqlite_project_v4_video_jobs::validate_acceptance(&tx, &context, &request, &execution_input)?;
+            sqlite_project_v4_video_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
         }
-        if request.kind == "render.project_text_frame.v4" {
-            sqlite_project_v4_text_frame_jobs::validate_acceptance(&tx, &context, &request, &execution_input)?;
+        if matches!(
+            request.kind.as_str(),
+            "render.project_text_frame.v4" | "render.project_caption_frame.v4"
+        ) {
+            sqlite_project_v4_text_frame_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
         }
         if request.kind == "render.project_frame.v4" {
             sqlite_project_v4_frame_jobs::validate_acceptance(
@@ -2602,3 +2627,5 @@ mod denial_tests;
 mod sqlite_database;
 
 mod sqlite_plugin_v3;
+
+mod sqlite_edit_recovery_v3;

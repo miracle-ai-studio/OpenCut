@@ -4,6 +4,7 @@ pub mod project_v4_audio;
 pub mod project_v4_frame;
 pub mod project_v4_text_frame;
 pub mod project_v4_video;
+pub mod sequence_transcribe_v4;
 
 use opencut_contracts::AssetLockManifest;
 use opencut_contracts::{EditorError, Time, TimeRange};
@@ -605,6 +606,7 @@ job_kinds! {
     MediaImport: (MediaImportInput, MediaImportJobResult, "media.import"),
     AnalysisTranscribe: (TranscribeJobInput, TranscribeJobResult, "analysis.transcribe"),
     AnalysisSequenceTranscribe: (SequenceTranscribeInput, SequenceTranscribeResult, "analysis.sequence_transcribe"),
+    AnalysisSequenceTranscribeV4: (sequence_transcribe_v4::SubmitSequenceTranscribeV4, sequence_transcribe_v4::SequenceTranscribeResultV4, "analysis.sequence_transcribe.v4"),
     AnalysisSilence: (SilenceJobInput, SilenceJobResult, "analysis.silence"),
     AnalysisShots: (ShotsJobInput, ShotsJobResult, "analysis.shots"),
     AnalysisWaveform: (WaveformJobInput, WaveformJobResult, "analysis.waveform"),
@@ -616,6 +618,7 @@ job_kinds! {
     RenderProjectAudioRangeV4: (project_v4_audio::SubmitV4AudioRangeWav, project_v4_audio::V4AudioRangeWavResultV1, "render.project_audio_range.v4"),
     RenderProjectTextFrameV4: (project_v4_text_frame::SubmitV4TextFramePng, project_v4_text_frame::V4TextFramePngResultV2, "render.project_text_frame.v4"),
     RenderProjectVideoV4: (project_v4_video::SubmitV4VideoMp4V1, project_v4_video::V4VideoMp4ResultV1, "render.project_video.v4"),
+    RenderProjectCaptionFrameV4: (project_v4_caption_frame::SubmitV4CaptionFramePng, project_v4_caption_frame::V4CaptionFramePngResultV3, "render.project_caption_frame.v4"),
     RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
 }
 
@@ -904,3 +907,5 @@ pub struct MediaImportJobResult {
     pub job_id: String,
     pub asset: opencut_contracts::Asset,
 }
+
+pub mod project_v4_caption_frame;

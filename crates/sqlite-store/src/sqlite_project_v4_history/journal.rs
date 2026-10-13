@@ -167,6 +167,22 @@ pub(super) fn entry(
                     return Err(malformed());
                 }
                 label = Some(format!("Import {}", font.family));
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_api_contracts::subtitle_v4::GenerateCaptionsV4,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                label = Some("Generate captions".into());
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_api_contracts::subtitle_v4::SubtitleImportV4,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                label = Some("Import subtitles".into());
             } else if let Ok(request) = serde_json::from_value::<RestoreV4Revision>(value) {
                 if request.project_id != project || request.expected_revision != base {
                     return Err(malformed());

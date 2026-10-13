@@ -35,12 +35,14 @@ pub mod project_v4_text_frame;
 pub mod project_v4_video;
 pub mod render;
 pub mod stream_uploads;
-pub mod visual_preview_v4;
 pub mod visual_preview_text_v2;
+pub mod visual_preview_v4;
 pub mod visual_text_frame_v2;
 pub use opencut_contracts::source_art_v1;
 pub use opencut_contracts::source_art_waveform_display_v1;
 pub mod subtitle_exchange;
+pub mod subtitle_v4;
+pub mod text_canvas_v1;
 pub mod timeline_clipboard_v4;
 pub mod timeline_v4;
 pub mod tools;
@@ -247,3 +249,5 @@ pub mod plugin_v3;
 pub mod reproducibility;
 
 pub mod execution_receipt;
+
+pub mod edit_recovery_v3;

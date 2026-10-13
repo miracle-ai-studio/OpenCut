@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 pub mod audio_gain_v4;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
+pub mod font_browser_v2;
+pub mod font_import_v1;
+pub mod font_recovery_v1;
 pub mod media_import;
 pub mod media_import_v4;
 pub mod project_edit;
@@ -20,13 +23,12 @@ pub mod scene_bookmarks;
 pub mod source_art_v1;
 pub mod source_art_waveform_display_v1;
 pub mod source_audio_v4;
+pub mod text_authoring_v1;
+pub mod text_canvas_v1;
+pub mod text_frame_v2;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
-pub mod text_authoring_v1;
-pub mod text_frame_v2;
-pub mod font_import_v1;
-pub mod font_recovery_v1;
 pub mod visual_frame_v4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -596,3 +598,9 @@ pub struct CatalogEntry {
     pub metadata_hash: Option<String>,
     pub asset: Option<Asset>,
 }
+
+pub mod subtitle_v4;
+
+pub mod edit_recovery_v3;
+
+pub mod text_frame_v3;

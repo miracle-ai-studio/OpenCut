@@ -2,6 +2,7 @@
 use super::sqlite_project_v4_jobs::{authority, context, fixed, require_scope};
 use super::*;
 use opencut_contracts::{AssetLockManifest, LockedAsset, project_v4::ProjectSnapshotV4};
+use opencut_editor_application::project_v4_caption_frame_jobs as caption;
 use opencut_editor_application::{
     audit::ExecutionContext,
     project_v4_text_frame_jobs::{
@@ -165,7 +166,11 @@ pub(super) fn validate_acceptance(
 ) -> Result<(), EditorError> {
     let prepared: PreparedV4TextFramePng = serde_json::from_value(input.clone())
         .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Invalid prepared frame input"))?;
-    frame::validate_prepared_request(request, &prepared)?;
+    if request.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
+        caption::validate_prepared_request(request, &prepared)?;
+    } else {
+        frame::validate_prepared_request(request, &prepared)?;
+    }
     require_scope(connection, caller, &prepared.snapshot.project.id)?;
     if prepared.authority != authority(caller)
         || prepared.processing_policy != policy()
@@ -177,7 +182,6 @@ pub(super) fn validate_acceptance(
     {
         return Err(access::denied());
     }
-    frame::validate_prepared(&prepared)?;
     Ok(())
 }
 pub(super) fn require_completion(
@@ -200,13 +204,21 @@ pub(super) fn require_completion(
     {
         return Err(access::denied());
     }
-    let result: frame::StoredV4TextFramePngResultV2 = serde_json::from_value(
-        job.result
-            .clone()
-            .ok_or_else(|| EditorError::new("INVALID_STORED_RESULT", "Missing frame result"))?,
-    )
-    .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid frame result"))?;
-    frame::validate_stored_result(&prepared, &result)?;
+    let value = job
+        .result
+        .clone()
+        .ok_or_else(|| EditorError::new("INVALID_STORED_RESULT", "Missing frame result"))?;
+    if job.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
+        let result: caption::StoredV4CaptionFramePngResultV3 = serde_json::from_value(value)
+            .map_err(|_| {
+                EditorError::new("INVALID_STORED_RESULT", "Invalid caption frame result")
+            })?;
+        caption::validate_stored_result(&prepared, &result)?;
+    } else {
+        let result: frame::StoredV4TextFramePngResultV2 = serde_json::from_value(value)
+            .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid text frame result"))?;
+        frame::validate_stored_result(&prepared, &result)?;
+    }
     Ok(())
 }
 impl EditorApplication {
@@ -232,3 +244,46 @@ impl EditorApplication {
 
 #[cfg(test)]
 mod tests;
+
+impl caption::V4CaptionFrameJobSubmissionStore for EditorApplication {
+    fn accept_v4_caption_frame_job(
+        &mut self,
+        request: JobRequest,
+        prepared: caption::PreparedV4CaptionFramePng,
+    ) -> Result<JobRecord, EditorError> {
+        self.create_prepared_job(
+            request,
+            serde_json::to_value(prepared).map_err(|_| {
+                EditorError::new("SERIALIZATION_ERROR", "Cannot persist caption frame")
+            })?,
+        )
+    }
+}
+pub fn start_caption_frame_png(
+    app: &mut EditorApplication,
+    input: caption::SubmitV4CaptionFramePng,
+) -> Result<JobRecord, EditorError> {
+    let assets = Assets(opencut_asset_store::AssetStore::read_only(
+        app.asset_store_root(),
+    )?);
+    caption::submit_caption_frame_png(app, &assets, input)
+}
+impl EditorApplication {
+    pub fn revalidate_v4_caption_frame_job(
+        &self,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        selected_authority: &TrustedJobAuthorityV1,
+    ) -> Result<(), EditorError> {
+        sqlite_project_v4_jobs::revalidate(
+            self,
+            caption::V4_CAPTION_FRAME_PNG_KIND,
+            job_id,
+            worker,
+            attempt,
+            selected_authority,
+            &policy(),
+        )
+    }
+}

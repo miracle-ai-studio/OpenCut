@@ -6,6 +6,11 @@ mod project_v4_audio;
 mod project_v4_frame;
 mod project_v4_text_frame;
 mod project_v4_video;
+mod sequence_transcribe_v4;
+pub(super) fn sequence_transcribe_capability()
+-> opencut_job_contracts::sequence_transcribe_v4::SequenceTranscribeCapabilityV4 {
+    sequence_transcribe_v4::capability()
+}
 pub(crate) mod receipts;
 use opencut_job_execution::{
     AnalysisOptions, PreparedAnalysisInput, PreparedProjectFrameInput, PreparedProjectRangeInput,
@@ -87,7 +92,9 @@ impl JobStore for SqliteJobStore {
                         | "render.project_audio_range.v4"
                         | "render.project_frame.v4"
                         | "render.project_text_frame.v4"
+                        | "render.project_caption_frame.v4"
                         | "render.project_video.v4"
+                        | "analysis.sequence_transcribe.v4"
                 ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
             {
                 // Completion revalidates the original caller inside its SQL
@@ -261,10 +268,32 @@ fn execute_monitored(
                     | opencut_job_contracts::project_v4_audio::V4_AUDIO_RANGE_WAV_KIND
             ) {
                 project_v4_audio::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind
+                == opencut_job_contracts::sequence_transcribe_v4::SEQUENCE_TRANSCRIBE_V4_KIND
+            {
+                sequence_transcribe_v4::execute(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                )
             } else if job.kind == opencut_job_contracts::project_v4_video::V4_VIDEO_MP4_KIND {
                 project_v4_video::execute(database, root, worker, job, &cancel, publication_attempt)
-            } else if job.kind == opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND {
-                project_v4_text_frame::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if matches!(
+                job.kind.as_str(),
+                opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND
+                    | opencut_job_contracts::project_v4_caption_frame::V4_CAPTION_FRAME_PNG_KIND
+            ) {
+                project_v4_text_frame::execute(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                )
             } else if job.kind == opencut_job_contracts::project_v4_frame::V4_FRAME_PNG_KIND {
                 project_v4_frame::execute(database, root, worker, job, &cancel, publication_attempt)
             } else {

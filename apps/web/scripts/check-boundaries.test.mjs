@@ -54,6 +54,21 @@ test("memory test fixtures are excluded from runtime scanning and cannot be runt
   assert.equal(violations("editor/workspace/v4/session.ts", 'import { setup } from "./timeline-edit/timeline-fixture";').length, 1);
   assert.deepEqual(violations("editor/workspace/v4/session.test.ts", 'import { setupV4 } from "./fixture";'), []);
 });
+test("caption control identities have one fixed tab-local adapter, not a general storage exception", () => {
+  const file = "editor/workspace/v4/captions/client-state.ts";
+  const key = "opencut.caption-client.v1";
+  assert.deepEqual(violations(file, `sessionStorage.getItem("${key}"); sessionStorage.setItem("${key}", envelope);`), []);
+  for (const code of [
+    'sessionStorage.setItem("project", payload);',
+    `sessionStorage.removeItem("${key}");`,
+    `localStorage.setItem("${key}", payload);`,
+    `const storage=sessionStorage; storage.setItem("${key}", payload);`,
+    'sessionStorage.setItem(key, payload);',
+    'indexedDB.open("captions");',
+  ]) assert.equal(violations(file, code).length, 1, code);
+  for (const sibling of ["recovery", "submission", "workspace"])
+    assert.equal(violations(`editor/workspace/v4/captions/${sibling}.ts`, `sessionStorage.getItem("${key}");`).length, 1);
+});
 test("V2 recovery permits only its reviewed locator key in its own adapter", () => {
   const file = "editor/workspace/v4/edit-recovery-pointers.ts";
   assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.edit-recovery.v2"); sessionStorage.setItem("opencut.edit-recovery.v2",payload);'), []);

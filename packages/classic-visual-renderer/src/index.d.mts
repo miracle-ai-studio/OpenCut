@@ -1,6 +1,7 @@
 /** Private execution bridge. Public frame DTOs are generated from Rust. */
 export type GpuRealm = { device: { destroy(): void }; observation: { gpuBackend: string; gpuDevice: string; textureFormat: string } };
 export type ClassicTextFontCache = Map<string, { bytes: Uint8Array; face?: FontFace }>;
+export function measureClassicText(ctx: CanvasRenderingContext2D, text: unknown, fontFamily: string, font: { style: string; weight: number }): { block: { maxWidth: number; height: number } };
 export function openGpuRealm(): Promise<GpuRealm>;
 export class VisualDecoderCache {
   close(): void;

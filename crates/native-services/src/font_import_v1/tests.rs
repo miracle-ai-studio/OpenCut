@@ -289,3 +289,68 @@ fn pinned_google_fonts_parse_with_their_actual_metadata_and_current_text() {
         );
     }
 }
+
+#[test]
+#[ignore = "requires fixed Google source cache in OPENCUT_FONT_CATALOG_CACHE; never fetches"]
+fn every_pinned_classic_static_face_matches_native_inspector() {
+    use opencut_editor_application::font_import_v1::catalog::*;
+    use sha2::{Digest, Sha256};
+    use std::path::PathBuf;
+    let root = PathBuf::from(
+        std::env::var_os("OPENCUT_FONT_CATALOG_CACHE").expect("explicit catalog fixture cache"),
+    );
+    let prefix =
+        format!("https://raw.githubusercontent.com/google/fonts/{GOOGLE_FONTS_COMMIT_V1}/");
+    let mut failures = Vec::new();
+    for source in font_catalog_v1() {
+        let encoded = source.source_url.strip_prefix(&prefix).unwrap().as_bytes();
+        let mut path = Vec::new();
+        let mut offset = 0;
+        while offset < encoded.len() {
+            if encoded[offset] == b'%' {
+                let hex = std::str::from_utf8(&encoded[offset + 1..offset + 3]).unwrap();
+                path.push(u8::from_str_radix(hex, 16).unwrap());
+                offset += 3;
+            } else {
+                path.push(encoded[offset]);
+                offset += 1;
+            }
+        }
+        let path = String::from_utf8(path).unwrap();
+        assert!(!path.contains(".."));
+        let bytes = match std::fs::read(root.join(path)) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                failures.push(format!("{}: fixture {error}", source.catalog_id));
+                continue;
+            }
+        };
+        if bytes.len() as u64 != source.size_bytes
+            || format!("{:x}", Sha256::digest(&bytes)) != source.content_hash
+        {
+            failures.push(format!("{}: source hash/size mismatch", source.catalog_id));
+            continue;
+        }
+        // Aggregate all native failures in one scan; glyph coverage remains
+        // a per-import/per-render check for actual required text.
+        match StaticFontInspectorV1
+            .inspect(&bytes, "", &FontImportPolicyV1::default(), &mut || Ok(()))
+        {
+            Ok(parsed)
+                if parsed.family == source.family
+                    && parsed.weight == source.weight
+                    && parsed.style == source.style => {}
+            Ok(parsed) => {
+                failures.push(format!("{}: parsed identity {parsed:?}", source.catalog_id))
+            }
+            Err(error) => failures.push(format!("{}: {error:?}", source.catalog_id)),
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} of {} pinned fonts failed native inspection:\n{}",
+        failures.len(),
+        font_catalog_v1().len(),
+        failures.join("\n")
+    );
+}

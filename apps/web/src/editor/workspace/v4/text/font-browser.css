@@ -1,0 +1,39 @@
+.font-browser fieldset {
+  display: grid;
+  gap: 0.65rem;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.font-browser fieldset p {
+  margin: 0;
+}
+.font-browser-source {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #42464d);
+  border-radius: 6px;
+}
+.font-browser-source pre {
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+.font-browser-source summary {
+  cursor: pointer;
+}
+.font-atlas-preview {
+  margin: 0;
+  padding: 0.6rem;
+  overflow: auto;
+  border: 1px solid var(--border, #42464d);
+  border-radius: 6px;
+}
+.font-atlas-preview figcaption {
+  max-width: 36rem;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}

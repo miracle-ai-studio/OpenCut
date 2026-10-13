@@ -29,3 +29,17 @@ export async function executeTextVisualPage({plan,admission}) {
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {globalThis.__opencutVisualGpu?.device.destroy();}
 }
+
+// Separate serializable V3 entry; all byte reads and RGBA transport are shared.
+export async function executeCaptionVisualPageV3({plan,admission}) {
+  try {
+    const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
+      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
+    }};
+    const {renderClassicCaptionFrameV3}=await import("/renderer/src/text-frame-v3.mjs");
+    const receipt=await renderClassicCaptionFrameV3(plan,host,globalThis.__opencutVisualGpu);
+    return {ok:true,receipt};
+  } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
+  finally {globalThis.__opencutVisualGpu?.device.destroy();}
+}

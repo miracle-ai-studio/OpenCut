@@ -89,7 +89,7 @@ pub(crate) fn prepare(
         .map_err(|e| EditorError::new(e.code, e.message))?;
     prepare_text_frame_v2(&graph).map_err(|e| EditorError::new(e.code, e.message))
 }
-fn validate_lock(
+pub(crate) fn validate_lock(
     input: &PreparedV4TextFramePng,
     prepared: &PreparedTextFrameV2,
 ) -> Result<(), EditorError> {
@@ -272,7 +272,6 @@ pub fn validate_stored_result(
 ) -> Result<V4TextFramePngResultV2, EditorError> {
     let prepared = validate_prepared(input).map_err(|_| stored_invalid())?;
     let public = &stored.public;
-    let execution = &public.execution;
     if public.texts.len() != prepared.texts().len() {
         return Err(stored_invalid());
     }
@@ -293,6 +292,12 @@ pub fn validate_stored_result(
     )?
     .project_decoded_sources(&decoded)
     .map_err(|_| stored_invalid())?;
+    validate_output_evidence(
+        &input.processing_policy,
+        &public.execution,
+        &public.artifact,
+        &stored.artifact,
+    )?;
     if public.schema_version != 2
         || public.identity != public_identity(&prepared)
         || public.asset_lock != input.asset_lock
@@ -300,7 +305,23 @@ pub fn validate_stored_result(
         || public.render_input_sha256
             != render_input_sha256(&input.snapshot, &input.sequence_id, &input.time)?
         || public.sources != public_sources(prepared.media(), &decoded)?
-        || execution.playwright_version != "1.63.0"
+    {
+        return Err(stored_invalid());
+    }
+    Ok(public.clone())
+}
+
+#[cfg(test)]
+mod tests;
+
+/// Shared encoder/runtime and PNG artifact evidence; layout remains profile-specific.
+pub(crate) fn validate_output_evidence(
+    policy: &LocalVisualExecutionPolicyV1,
+    execution: &opencut_job_contracts::project_v4_frame::V4FrameExecutionSummaryV1,
+    public: &opencut_job_contracts::project_v4_frame::V4FrameArtifactMetadataV1,
+    artifact: &ArtifactDescriptor,
+) -> Result<(), EditorError> {
+    if execution.playwright_version != "1.63.0"
         || execution.mediabunny_version != "1.41.0"
         || execution.gpu_backend != "webgpu"
         || !valid_id(&execution.browser_version)
@@ -315,18 +336,15 @@ pub fn validate_stored_result(
         ]
         .into_iter()
         .any(|h| !valid_hash(h))
-        || stored.artifact.mime_type != "image/png"
-        || public.artifact.mime_type != "image/png"
-        || stored.artifact.size == 0
-        || stored.artifact.size > input.processing_policy.max_output_bytes
-        || public.artifact.size_bytes != stored.artifact.size.to_string()
-        || public.artifact.content_hash != stored.artifact.content_hash
-        || !valid_hash(&stored.artifact.content_hash)
+        || artifact.mime_type != "image/png"
+        || public.mime_type != "image/png"
+        || artifact.size == 0
+        || artifact.size > policy.max_output_bytes
+        || public.size_bytes != artifact.size.to_string()
+        || public.content_hash != artifact.content_hash
+        || !valid_hash(&artifact.content_hash)
     {
         return Err(stored_invalid());
     }
-    Ok(public.clone())
+    Ok(())
 }
-
-#[cfg(test)]
-mod tests;

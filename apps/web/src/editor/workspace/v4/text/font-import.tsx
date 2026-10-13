@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import type { V4TextFont, V4TextScope } from "./types";
+import { FontBrowserImport } from "./font-browser";
+import type { FontBrowserCatalog, FontSourceReader } from "./font-browser";
 
 /** Display metadata supplied by the host's admitted catalog. Source and license
  * metadata are not user assertions and never form a download request here. */
@@ -18,6 +20,8 @@ export type V4FontImportProps = {
   scope: Pick<V4TextScope, "projectId" | "revision">;
   available: boolean;
   choices: readonly FontImportChoice[];
+  browserCatalog?: FontBrowserCatalog;
+  readSource?: FontSourceReader;
   requiredText: string;
   disabled?: boolean;
   disabledReason?: string | null;
@@ -27,6 +31,15 @@ export type V4FontImportProps = {
 
 export function V4FontImport(props: V4FontImportProps) {
   if (!props.available) return null;
+  if (props.browserCatalog && props.readSource)
+    return (
+      <FontBrowserImport
+        key={JSON.stringify([props.scope.projectId, props.scope.revision])}
+        {...props}
+        browserCatalog={props.browserCatalog}
+        readSource={props.readSource}
+      />
+    );
   return (
     <FontImportForm
       key={JSON.stringify([props.scope.projectId, props.scope.revision])}

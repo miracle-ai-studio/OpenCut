@@ -1,12 +1,12 @@
 //! Typed session adaptation only. Both frame versions use the same native
 //! process lifetime, packet limits, cancellation and quota verification.
 use opencut_contracts::EditorError;
-use opencut_editor_application::{classic_text_frame_v2::*, classic_visual::*};
 use opencut_editor_application::project_v4_frame_jobs::LocalVisualExecutionPolicyV1;
+use opencut_editor_application::{classic_text_frame_v2::*, classic_visual::*};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-pub(super) trait VisualProcessSession<R: ClassicVisualResources + ?Sized> {
+pub(crate) trait VisualProcessSession<R: ClassicVisualResources + ?Sized> {
     type Callback: DeserializeOwned;
     type Receipt: DeserializeOwned;
     type Output;

@@ -3,6 +3,7 @@
 use opencut_contracts::{AssetVersion, EditorError, project_v4::*};
 use sha2::{Digest, Sha256};
 
+pub mod browser_catalog;
 pub mod catalog;
 pub mod recovery;
 

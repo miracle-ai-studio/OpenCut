@@ -6,6 +6,10 @@ import { verifyMediaFps, verifyV4MediaFps } from "./verify-media-fps.mjs";
 import { verifyProjectCovers } from "./verify-project-covers.mjs";
 import { verifyFeedback } from "./verify-feedback.mjs";
 import { verifyV4Video } from "./verify-v4-video.mjs";
+import { verifyV4CanvasText } from "./verify-v4-canvas-text.mjs";
+import { verifyV4FontBrowser } from "./verify-v4-font-browser.mjs";
+import { verifyV4Captions } from "./verify-v4-captions.mjs";
+import { verifyV4BookmarkLifecycle } from "./verify-v4-bookmark-lifecycle.mjs";
 import { verifyV4Text } from "./verify-v4-text.mjs";
 import { verifyV4Editor } from "./verify-v4-editor.mjs";
 import { verifyClassicAudio } from "./verify-classic-audio.mjs";
@@ -54,6 +58,12 @@ const suites = new Map([
   ["feedback", verifyFeedback],
   ["v4-editor", verifyV4Editor],
   ["v4-text", verifyV4Text],
+  ["v4-canvas-text", verifyV4CanvasText],
+  ["v4-canvas-text-blur", (...args) => verifyV4CanvasText(...args, { blurOnly: true })],
+  ["v4-bookmark-lifecycle", verifyV4BookmarkLifecycle],
+  ["v4-font-browser", verifyV4FontBrowser],
+  ["v4-font-browser-offline", (...args) => verifyV4FontBrowser(...args, { offlineOnly: true })],
+  ["v4-captions", verifyV4Captions],
   ["v4-video", verifyV4Video],
   ["v4-text-layout", (...args) => verifyV4Text(...args, {layoutOnly:true})],
   ["classic-audio", verifyClassicAudio],

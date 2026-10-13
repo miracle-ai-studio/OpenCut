@@ -139,6 +139,11 @@ function validateFont(font) {
 
 /** Full-frame raster from a native-validated static font and sampled text. */
 export async function rasterizeClassicText(text, font, bytes, dimensions, signal, retained) {
+  return rasterizePreparedClassicText(text, font, bytes, dimensions, signal, retained);
+}
+
+/** V3-only hook runs after the original native coverage/hash has been checked. */
+export async function rasterizePreparedClassicText(text, font, bytes, dimensions, signal, retained, prepare) {
   checkAbort(signal);
   validateClassicText(text);
   validateFont(font);
@@ -169,6 +174,13 @@ export async function rasterizeClassicText(text, font, bytes, dimensions, signal
     canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
     if (!ctx) reject("CAPABILITY_UNAVAILABLE", "Text rasterization canvas is unavailable");
+    if (prepare) {
+      const prepared = await prepare(ctx, text, family, font);
+      checkAbort(signal);
+      text = prepared.text;
+      validateClassicText(text);
+      font = { ...font, validatedTextHash: await hash(new TextEncoder().encode(text.content)) };
+    }
     const layout = measureClassicText(ctx, text, family, font);
     drawClassicText(ctx, text, layout, family, font);
     checkAbort(signal);

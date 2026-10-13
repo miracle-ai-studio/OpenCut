@@ -195,3 +195,32 @@ pub(crate) fn video_capability() -> opencut_job_contracts::project_v4_video::V4V
         unavailable_reason: result.err().map(|error| error.message),
     }
 }
+
+fn check_caption_modules(runner: &Path) -> Result<(), EditorError> {
+    check_text_modules(runner)?;
+    let package = runner
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(unavailable)?;
+    for name in ["src/text-frame-v3.mjs", "src/caption-plan-v3.mjs"] {
+        package_file(package, name).map_err(|_| unavailable())?;
+    }
+    Ok(())
+}
+pub(crate) fn configured_caption(
+    policy: &LocalVisualExecutionPolicyV1,
+) -> Result<ClassicVisualProcessConfig, EditorError> {
+    let config = configured(policy)?;
+    check_caption_modules(&config.runner)?;
+    Ok(config)
+}
+pub(crate) fn caption_capability()
+-> opencut_job_contracts::project_v4_caption_frame::V4CaptionFrameCapabilityV3 {
+    let result = paths().and_then(|(_, _, runner)| check_caption_modules(&runner));
+    opencut_job_contracts::project_v4_caption_frame::V4CaptionFrameCapabilityV3 {
+        schema_version: 3,
+        available: result.is_ok(),
+        submit_tool: "opencut_job_v4_caption_frame_png".into(),
+        unavailable_reason: result.err().map(|e| e.message),
+    }
+}

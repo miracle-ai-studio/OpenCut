@@ -20,7 +20,12 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" | "FONT_NETWORK_DENIED" => (403, 3),
         "FONT_SOURCE_TIMEOUT" => (408, 124),
-        "INVALID_FONT" | "UNSUPPORTED_FONT" | "FONT_GLYPH_MISSING" | "FONT_FACE_MISMATCH" | "FONT_BUDGET_EXCEEDED" => (422, 6),
+        "INVALID_FONT"
+        | "UNSUPPORTED_FONT"
+        | "FONT_GLYPH_MISSING"
+        | "FONT_FACE_MISMATCH"
+        | "FONT_BUDGET_EXCEEDED"
+        | "FONT_FACE_UNAVAILABLE" => (422, 6),
         "FONT_SOURCE_UNAVAILABLE" => (502, 7),
         "NOT_FOUND" => (404, 4),
         "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" => (410, 4),
@@ -35,6 +40,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "PREVIEW_STOPPED"
         | "PREVIEW_OWNER_ACTIVE"
         | "EDIT_HELD_BY_OWNER"
+        | "TRACK_LOCKED"
         | "CAUSAL_CONFLICT"
         | "BRANCH_MERGE_CONFLICT"
         | "SELECTIVE_CONFLICT"

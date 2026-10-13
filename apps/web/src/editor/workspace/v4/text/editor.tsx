@@ -129,8 +129,8 @@ function TextEditorForm(props: V4TextEditorProps) {
             )}
             {fonts.map((font) => (
               <option key={font.id} value={font.id}>
-              {font.family} · {t(font.weight === 700 ? "Bold" : "Regular")}
-              {font.style === "italic" ? ` · ${t("Italic")}` : ""}
+                {font.family} · {t(font.weight === 700 ? "Bold" : "Regular")}
+                {font.style === "italic" ? ` · ${t("Italic")}` : ""}
               </option>
             ))}
           </select>

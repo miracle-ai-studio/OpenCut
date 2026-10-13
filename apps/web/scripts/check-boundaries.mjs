@@ -161,12 +161,15 @@ export function violations(file, code) {
     ts.forEachChild(node, inspectFeedbackStorage);
   }
   if (feedbackStorage) inspectFeedbackStorage(source);
-  // A recovery locator is not an edit payload. The sole reviewed adapter
-  // projects bounded service/principal/credential/project/recovery identities.
-  // All content and exact transactions remain in the authenticated host.
+  // Recovery adapters persist bounded control identities, not project content.
+  // Caption client state additionally retains the exact public ASR submission
+  // identity for explicit retry: fixed revision, job key and language only.
+  // Its typed parser rejects other fields and bounds the shared envelope to
+  // 32 entries / 16 KiB. Subtitle text and edit receipts remain in the host.
   const recoveryStorageKey = file === "editor/workspace/v4/timeline-edit/recovery.ts"
     ? "opencut.edit-recovery.v1"
-    : file === "editor/workspace/v4/edit-recovery-pointers.ts" ? "opencut.edit-recovery.v2" : null;
+    : file === "editor/workspace/v4/edit-recovery-pointers.ts" ? "opencut.edit-recovery.v2"
+    : file === "editor/workspace/v4/captions/client-state.ts" ? "opencut.caption-client.v1" : null;
   let recoveryStorage = recoveryStorageKey !== null &&
     !/\b(?:localStorage|indexedDB|EditorCore)\b/.test(code);
   function inspectRecoveryStorage(node) {

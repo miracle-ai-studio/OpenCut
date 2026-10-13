@@ -401,3 +401,31 @@ fn licensed_text_resources_recheck_each_current_text_and_actual_static_face() {
         );
     }
 }
+
+#[test]
+fn caption_inspection_covers_rendered_separators_without_changing_free_text() {
+    let resource = font(b"identity-only; no parser or CAS access in this planning check");
+    let source = "A\tB\u{00a0}C\u{feff}D";
+    let prepared = prepare_text_frame_v2(&graph(&resource, &[source, "Free Text"])).unwrap();
+    let caption_ids = std::collections::BTreeSet::from(["title-0".to_string()]);
+    let batches = font_texts(
+        &prepared,
+        &FontImportPolicyV1::default(),
+        &mut || Ok(()),
+        Some(&caption_ids),
+    )
+    .unwrap();
+    assert_eq!(batches["same"].content, "A B C DFree Text");
+    assert_eq!(prepared.texts()[0].text.content, source);
+    // Preserve ECMAScript's exact separator set and the unchanged V2 rejection
+    // of source control characters; V3 only normalizes actual caption content.
+    assert!(caption_separator('\u{feff}'));
+    assert!(!caption_separator('\u{0085}'));
+    let original = font_texts(
+        &prepared,
+        &FontImportPolicyV1::default(),
+        &mut || Ok(()),
+        None,
+    );
+    assert_eq!(original.err().unwrap().code, "INVALID_ARGUMENT");
+}

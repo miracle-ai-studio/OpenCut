@@ -332,3 +332,20 @@ pub(super) fn prepare(
         request_json: intent.request_json()?,
     })
 }
+
+/// Captions use the same prepared aggregate edit and ordinary selective history.
+pub fn prepare_caption_commit(
+    source: &StoredProjectRevisionV4,
+    project: ProjectDocumentV4,
+    intent: V4Intent<'_>,
+) -> Result<PreparedV4Commit, EditorError> {
+    if !matches!(
+        intent,
+        V4Intent::CaptionGenerate(_) | V4Intent::CaptionImport(_)
+    ) {
+        return Err(invalid(
+            "Caption preparation requires its original typed intent",
+        ));
+    }
+    prepare(source, project, intent)
+}

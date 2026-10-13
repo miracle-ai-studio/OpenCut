@@ -1,3 +1,4 @@
+import { V4CaptionRecovery, type CaptionContext } from "./captions/recovery";
 import { V4VisualPreview } from "./visual-preview";
 import { V4AudioGain } from "./audio-gain";
 import { V4AudioPreview, emptyAudioPreview } from "./audio-preview";
@@ -10,7 +11,7 @@ import { V4TimelineEdit } from "./timeline-edit/controller";
 import { V4TimelineClipboard } from "./timeline-edit/clipboard";
 import { emptyTimelineEdit } from "./timeline-edit/types";
 import { normalizeTimelineSelection } from "./timeline-edit/selection";
-import { V4FontRecovery, fontRecoveryBlocked } from "./text/font-recovery";
+import { V4FontRecovery, fontRecoveryBlocked, emptyFontRecovery } from "./text/font-recovery";
 import { V4EditRecovery, emptyEditRecovery } from "./edit-recovery";
 import type { ToolInput } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
@@ -34,6 +35,7 @@ export type V4SessionHost = {
 export class V4Session {
   readonly recovery: V4EditRecovery;
   readonly fontRecovery: V4FontRecovery;
+  readonly captionRecovery: V4CaptionRecovery;
   readonly timelineEdit: V4TimelineEdit;
   readonly clipboard: V4TimelineClipboard;
   readonly audioGain: V4AudioGain;
@@ -46,6 +48,7 @@ export class V4Session {
   readonly frame: V4Frame;
   constructor(private readonly host: V4SessionHost) {
     this.fontRecovery = new V4FontRecovery(host, () => this.refresh());
+    this.captionRecovery = new V4CaptionRecovery(host, () => this.refresh());
     const edits = { ...host, acquire: (projectId: string) => this.acquireEdit(projectId) };
     this.recovery = new V4EditRecovery(edits, () => this.refresh());
     const writes: V4SessionHost = { ...edits, publicApply: (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId) };
@@ -91,6 +94,7 @@ export class V4Session {
     }, () => this.refresh());
   }
   private acquireEdit(projectId: string) {
+    if (this.captionRecovery.blocked()) throw new Error("Resolve the original caption edit before starting another operation.");
     if (fontRecoveryBlocked(this.host.state()?.fontRecovery))
       throw new Error("Resolve the original font import before starting another operation.");
     return this.host.acquire(projectId);
@@ -104,6 +108,7 @@ export class V4Session {
   async open(project: ProjectRef, sequenceId?: string | null) {
     this.recovery.invalidate();
     this.fontRecovery.invalidate();
+    this.captionRecovery.invalidate();
     this.clipboard.invalidate();
     this.timelineEdit.invalidate();
     this.audioPreview.invalidate();
@@ -111,7 +116,7 @@ export class V4Session {
     const api = this.host.api();
     if (!api) return;
     const generation = this.host.generation(), view = this.host.viewGeneration();
-    const [head, capability, frameCapability, textFrameCapability, rangeCapability] =
+    const [head, capability, frameCapability, textFrameCapability, rangeCapability, captionFrameCapability] =
       await Promise.all([
         api.v4.inspect(project.id),
         api.v4.audioCapability().then(
@@ -136,13 +141,16 @@ export class V4Session {
             error: "This service does not support sample range WAV export.",
           }),
         ),
+        api.sdk.call("opencut_project_v4_caption_frame_capability", {}).catch(() => null),
       ]);
     const { history, navigation } = await api.v4.history(
       project.id,
       head.revision,
     );
-    const fontRecovery = await this.fontRecovery.restore(api, head.project.id);
-    const restoredRecovery = fontRecoveryBlocked(fontRecovery) ? { state: emptyEditRecovery(), legacy: false }
+    await this.captionRecovery.restore(api, head.project.id);
+    const captionBlocked = this.captionRecovery.blocked();
+    const fontRecovery = captionBlocked ? emptyFontRecovery() : await this.fontRecovery.restore(api, head.project.id);
+    const restoredRecovery = captionBlocked || fontRecoveryBlocked(fontRecovery) ? { state: emptyEditRecovery(), legacy: false }
       : await this.recovery.restore(api, head.project.id);
     const restoredTimeline = restoredRecovery.legacy ? await this.timelineEdit.restore(api, head.project.id)
       : { attempt: this.timelineEdit.resume(api, head.project.id), recoveryError: null };
@@ -152,6 +160,7 @@ export class V4Session {
       recovery: restoredRecovery.state,
       fontRecovery,
       textFrameCapability,
+      captionFrameCapability,
       timelineEdit: { ...emptyTimelineEdit(), ...restoredTimeline },
       clipboard: this.clipboard.resume(api, head.project.id),
       audioPreview: emptyAudioPreview(),
@@ -198,6 +207,8 @@ export class V4Session {
   async recoverEdit(resetPointer = false) {
     const { api, state } = this.active(), generation = this.host.generation(), view = this.host.viewGeneration();
     if (resetPointer) { this.recovery.resetPointer(); this.fontRecovery.resetPointer(); }
+    await this.captionRecovery.restore(api, state.head.project.id);
+    if (this.captionRecovery.blocked()) return;
     const fontRecovery = await this.fontRecovery.restore(api, state.head.project.id);
     if (fontRecoveryBlocked(fontRecovery)) return;
     const restored = await this.recovery.restore(api, state.head.project.id);
@@ -409,7 +420,21 @@ export class V4Session {
       return receipt;
     } finally { release(); }
   }
+  async applyCaption(context: CaptionContext) {
+    const { api, state } = this.active(), request = context.intent.request;
+    if (state.historical || state.head.project.id !== request.project_id || state.head.revision !== request.expected_revision || state.sequenceId !== request.sequence_id)
+      throw new Error("The caption target changed.");
+    if (fontRecoveryBlocked(state.fontRecovery) || state.recovery?.record || state.recovery?.error)
+      throw new Error("Resolve the original edit before changing captions.");
+    const generation = this.host.generation(), view = this.host.viewGeneration(), release = this.host.acquire(request.project_id);
+    try {
+      const receipt = await this.captionRecovery.execute(api, context);
+      if (api === this.host.api() && generation === this.host.generation() && view === this.host.viewGeneration() && this.host.state()?.head.project.id === request.project_id) await this.refresh();
+      return receipt;
+    } finally { release(); }
+  }
   async importFont(request: ToolInput<"opencut_font_v1_import">) {
+    if (this.captionRecovery.blocked()) throw new Error("Resolve the original caption edit before importing fonts.");
     const { api, state } = this.active();
     if (state.historical || state.head.project.id !== request.project_id || state.head.revision !== request.expected_revision)
       throw new Error("The edit target changed.");

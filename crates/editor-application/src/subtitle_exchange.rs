@@ -94,7 +94,10 @@ fn cue_range(start: i64, end: i64) -> Result<TimeRange, EditorError> {
     })
 }
 
-fn parse_srt(content: &str, style: &CaptionStyle) -> Result<Vec<CaptionCue>, EditorError> {
+pub(crate) fn parse_srt(
+    content: &str,
+    style: &CaptionStyle,
+) -> Result<Vec<CaptionCue>, EditorError> {
     let normalized = content
         .trim_start_matches('\u{feff}')
         .replace("\r\n", "\n")
@@ -199,7 +202,10 @@ fn ass_style(columns: &[String], values: &str) -> Result<(String, CaptionStyle),
     Ok((name, result))
 }
 
-fn parse_ass(content: &str, style: &CaptionStyle) -> Result<Vec<CaptionCue>, EditorError> {
+pub(crate) fn parse_ass(
+    content: &str,
+    style: &CaptionStyle,
+) -> Result<Vec<CaptionCue>, EditorError> {
     let normalized = content
         .trim_start_matches('\u{feff}')
         .replace("\r\n", "\n")
