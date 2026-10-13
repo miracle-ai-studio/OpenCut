@@ -480,3 +480,71 @@ fn read_only_revocation_wrong_scope_and_both_stale_head_windows_fail_closed() {
     store.wrong_scope = true;
     assert_eq!(plan(&store, &input).unwrap_err().code, "STORAGE_ERROR");
 }
+
+#[test]
+fn exact_bold_italic_face_and_combined_style_survive_public_plan_and_later_content_edit() {
+    let mut store = Store::with_title();
+    let mut face = store.snapshot.project.fonts[0].clone();
+    face.id = "bold-italic-face".into();
+    face.weight = 700;
+    face.style = FontStyleV4::Italic;
+    face.content = AssetVersion {
+        id: format!("av_{}", "b".repeat(64)),
+        content_hash: "b".repeat(64),
+        size: 200,
+    };
+    store.snapshot.project.fonts.push(face.clone());
+    let before = store.snapshot.project.sequences[0].tracks[1].elements[0].clone();
+    let mut input = store.edit();
+    let text = &mut values_mut(&mut input).text;
+    text.font = FontBindingV4::Locked {
+        font_id: face.id.clone(),
+    };
+    text.font_weight = FontWeightV4::Bold;
+    text.font_style = FontStyleV4::Italic;
+    text.decoration = TextDecorationV4::LineThrough;
+    text.letter_spacing_px = -1.25;
+    text.line_height_multiplier = 1.6;
+    text.background.enabled = true;
+    text.background.corner_radius_percent = 37.5;
+    text.background.padding_x_at_size15 = 7.25;
+    text.background.padding_y_at_size15 = 11.5;
+    text.background.offset_x_px = -13.75;
+    text.background.offset_y_px = 9.5;
+    text.background.color.alpha = 0.45;
+    let expected = text.clone();
+    let output = plan(&store, &input).unwrap();
+    let tx = output.transaction.as_ref().unwrap();
+    assert_eq!(tx.idempotency_key, input.idempotency_key);
+    assert_eq!(tx.operations.len(), 1);
+    let proposed = plan_public(&store, tx).unwrap();
+    assert_eq!(
+        proposed.fonts,
+        crate::project_v4::public::project(&store.snapshot)
+            .project
+            .fonts
+    );
+    let title = &proposed.sequences[0].tracks[1].elements[0];
+    assert_eq!(
+        title.content,
+        ElementContentV4::Text {
+            text: expected.clone()
+        }
+    );
+    assert_eq!(title.visual, before.visual);
+    assert_eq!(title.source_span, before.source_span);
+    assert_eq!(title.channels, before.channels);
+    assert_eq!(title.timeline_range, before.timeline_range);
+    // Simulate the next authorized fixed head, without pretending this pure
+    // fixture exercises the SQLite history journal or native glyph coverage.
+    store.snapshot.project.sequences[0].tracks[1].elements[0] = title.clone();
+    let mut later = store.edit();
+    values_mut(&mut later).text.content = "后续文字\nLater title".into();
+    let next = plan(&store, &later).unwrap();
+    let ElementContentV4::Text { text } = &element(&next).content else {
+        panic!()
+    };
+    let mut retained = expected;
+    retained.content = "后续文字\nLater title".into();
+    assert_eq!(*text, retained);
+}

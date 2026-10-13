@@ -60,25 +60,72 @@ def face(data):
     if not names: raise ValueError('no unicode family')
     return min(names)[1],weight,style
 
+def static_jobs(atlas, paths):
+    """Discover original static bytes; filenames never establish face identity.
+
+    Google keeps some static faces under static/ and historical filenames do
+    not consistently contain Regular/Italic suffixes. Admission remains based
+    on the verified sfnt metadata, exact family and atlas availability.
+    """
+    bynorm = {norm(f): f for f in atlas}
+    bynorm['mashanzheng'] = 'Ma Shan Zheng'
+    jobs = []
+    for path, entry in sorted(paths.items()):
+        parts = path.split('/')
+        if (len(parts) not in (3, 4) or parts[0] not in ('ofl', 'apache')
+                or parts[1] not in bynorm or '[' in path
+                or not parts[-1].endswith('.ttf')
+                or len(parts) == 4 and parts[2] != 'static'
+                or entry.get('type', 'blob') != 'blob'):
+            continue
+        # Avoid fetching clearly inapplicable named weights. Unknown historical
+        # names still require metadata inspection, never suffix inference.
+        suffix = parts[-1].removesuffix('.ttf').split('-')[-1]
+        if re.fullmatch(r'(?:Thin|ExtraLight|Light|Medium|SemiBold|ExtraBold|Black)(?:Italic)?', suffix):
+            continue
+        license_path = '/'.join(parts[:2]) + ('/OFL.txt' if parts[0] == 'ofl' else '/LICENSE.txt')
+        if license_path in paths:
+            declared = STYLE.get(parts[-1].split('-')[-1]) if len(parts) == 3 else None
+            if declared is not None:
+                token = str(declared[0]) + ('i' if declared[1] == 'italic' else '')
+                if bynorm[parts[1]] in atlas and token not in atlas[bynorm[parts[1]]]['s']:
+                    continue
+            jobs.append((bynorm[parts[1]], path, license_path, declared, entry['size']))
+    return jobs
+
+def admitted_style(declared, weight, style):
+    actual = (weight, style)
+    if declared is not None and actual != declared:
+        raise ValueError('declared weight/style/size mismatch')
+    return actual
+
+def select_records(records):
+    # Preserve the former root filename candidates and their former path order.
+    # New metadata-discovered sources only fill absent admissible faces.
+    ordered = sorted(records, key=lambda r: (r['family'], r['weight'], r['style'],
+        0 if len(r['path'].split('/')) == 3 and STYLE.get(r['path'].split('/')[-1].split('-')[-1]) is not None else 1,
+        r['path']))
+    seen = set()
+    unique = []
+    for record in ordered:
+        key = (record['family'], record['weight'], record['style'])
+        if key not in seen:
+            unique.append(record)
+            seen.add(key)
+    return unique
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--tree',type=Path,required=True);ap.add_argument('--cache',type=Path,required=True);ap.add_argument('--workers',type=int,default=16);args=ap.parse_args()
     if ROOT==args.cache or ROOT in args.cache.parents: raise SystemExit('cache must be outside checkout')
     atlas_path=ROOT/'tmp/opencut-classic/apps/web/public/fonts/font-atlas.json';atlas_bytes=atlas_path.read_bytes();atlas=json.loads(atlas_bytes)['fonts']; tree=json.loads(args.tree.read_text()); assert not tree.get('truncated')
-    bynorm={norm(f):f for f in atlas}; bynorm['mashanzheng']='Ma Shan Zheng';paths={x['path']:x for x in tree['tree']};jobs=[]
-    for path,entry in paths.items():
-        parts=path.split('/')
-        if len(parts)!=3 or parts[0] not in ('ofl','apache') or parts[1] not in bynorm or '[' in path: continue
-        style=STYLE.get(parts[2].split('-')[-1])
-        if not style: continue
-        family=bynorm[parts[1]];token=str(style[0])+('i' if style[1]=='italic' else '')
-        if family in atlas and token not in atlas[family]['s']: continue
-        license_path='/'.join(parts[:2])+('/OFL.txt' if parts[0]=='ofl' else '/LICENSE.txt')
-        if license_path not in paths: continue
-        jobs.append((family,path,license_path,style,entry['size']))
+    paths={x['path']:x for x in tree['tree']};jobs=static_jobs(atlas,paths)
     records=[];failures=[]
     def pin(job):
         family,path,lp,style,size=job;data=get(path,args.cache);license_data=get(lp,args.cache);actual,weight,sl=face(data)
-        if len(data)!=size or (weight,sl)!=style:raise ValueError('declared weight/style/size mismatch')
+        style=admitted_style(style,weight,sl)
+        token=str(weight)+('i' if sl=='italic' else '')
+        if weight not in (400,700) or family in atlas and token not in atlas[family]['s']:raise ValueError('face not expressed by Classic TextV4 selection')
+        if len(data)!=size:raise ValueError('declared source size mismatch')
         git_blob=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
         if git_blob != paths[path]['sha']:raise ValueError('source does not match fixed git blob')
         license_blob=hashlib.sha1(b'blob '+str(len(license_data)).encode()+b'\0'+license_data).hexdigest()
@@ -94,12 +141,7 @@ def main():
             try:records.append(f.result())
             except Exception as e:failures.append(dict(family=futures[f][0],path=futures[f][1],reason=str(e)))
             if index%100==0:print(f'{index}/{len(jobs)} pinned={len(records)} unavailable={len(failures)}',flush=True)
-    records.sort(key=lambda r:(r['family'],r['weight'],r['style'],r['path']))
-    seen=set();unique=[]
-    for r in records:
-        key=(r['family'],r['weight'],r['style'])
-        if key not in seen:unique.append(r);seen.add(key)
-    records=unique
+    records=select_records(records)
     # Existing B1 identities remain exact (including the historical hyphenated ID).
     for r in records:
         if r['family']=='Ma Shan Zheng':r['catalog_id']='google-mashanzheng-regular-v1'

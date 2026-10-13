@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import { editableTextFonts, textDraft, textDraftValue } from "./draft";
+import { TextBackgroundFields } from "./style-background";
+import { TextFontVariantFields } from "./style-font";
 import type { TextDraft } from "./draft";
 import type { V4TextEditorProps } from "./types";
 
@@ -135,6 +137,11 @@ function TextEditorForm(props: V4TextEditorProps) {
             ))}
           </select>
         </Field>
+        <TextFontVariantFields
+          fontId={draft.fontId}
+          fonts={fonts}
+          select={(fontId) => update("fontId", fontId)}
+        />
         <div className="field-pair">
           <Field
             label={t(
@@ -213,6 +220,7 @@ function TextEditorForm(props: V4TextEditorProps) {
             />
           </Field>
         </div>
+        <TextBackgroundFields draft={draft} update={update} />
         <div className="field-pair">
           <Field label={t("Start (seconds)")}>
             <input

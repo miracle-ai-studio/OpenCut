@@ -1,8 +1,8 @@
 {
   "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
-  "attempted_static_faces": 1841,
-  "pinned_faces": 1797,
-  "pinned_families": 1264,
+  "attempted_static_faces": 1977,
+  "pinned_faces": 1836,
+  "pinned_families": 1299,
   "failures": [
     {
       "family": "Anonymous Pro",
@@ -81,6 +81,11 @@
     },
     {
       "family": "Geo",
+      "path": "ofl/geo/Geo-Oblique.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Geo",
       "path": "ofl/geo/Geo-Regular.ttf",
       "reason": "declared weight/style/size mismatch"
     },
@@ -105,6 +110,321 @@
       "reason": "family mismatch: IM FELL Double Pica"
     },
     {
+      "family": "IM Fell Double Pica SC",
+      "path": "ofl/imfelldoublepicasc/IMFeDPsc28P.ttf",
+      "reason": "family mismatch: IM FELL Double Pica SC"
+    },
+    {
+      "family": "IM Fell DW Pica",
+      "path": "ofl/imfelldwpica/IMFePIit28P.ttf",
+      "reason": "family mismatch: IM FELL DW Pica"
+    },
+    {
+      "family": "IM Fell DW Pica",
+      "path": "ofl/imfelldwpica/IMFePIrm28P.ttf",
+      "reason": "family mismatch: IM FELL DW Pica"
+    },
+    {
+      "family": "IM Fell DW Pica SC",
+      "path": "ofl/imfelldwpicasc/IMFePIsc28P.ttf",
+      "reason": "family mismatch: IM FELL DW Pica SC"
+    },
+    {
+      "family": "IM Fell English",
+      "path": "ofl/imfellenglish/IMFeENit28P.ttf",
+      "reason": "family mismatch: IM FELL English"
+    },
+    {
+      "family": "IM Fell English",
+      "path": "ofl/imfellenglish/IMFeENrm28P.ttf",
+      "reason": "family mismatch: IM FELL English"
+    },
+    {
+      "family": "IM Fell English SC",
+      "path": "ofl/imfellenglishsc/IMFeENsc28P.ttf",
+      "reason": "family mismatch: IM FELL English SC"
+    },
+    {
+      "family": "IM Fell French Canon",
+      "path": "ofl/imfellfrenchcanon/IMFeFCit28P.ttf",
+      "reason": "family mismatch: IM FELL French Canon"
+    },
+    {
+      "family": "IM Fell French Canon",
+      "path": "ofl/imfellfrenchcanon/IMFeFCrm28P.ttf",
+      "reason": "family mismatch: IM FELL French Canon"
+    },
+    {
+      "family": "IM Fell French Canon SC",
+      "path": "ofl/imfellfrenchcanonsc/IMFeFCsc28P.ttf",
+      "reason": "family mismatch: IM FELL French Canon SC"
+    },
+    {
+      "family": "IM Fell Great Primer",
+      "path": "ofl/imfellgreatprimer/IMFeGPit28P.ttf",
+      "reason": "family mismatch: IM FELL Great Primer"
+    },
+    {
+      "family": "IM Fell Great Primer",
+      "path": "ofl/imfellgreatprimer/IMFeGPrm28P.ttf",
+      "reason": "family mismatch: IM FELL Great Primer"
+    },
+    {
+      "family": "IM Fell Great Primer SC",
+      "path": "ofl/imfellgreatprimersc/IMFeGPsc28P.ttf",
+      "reason": "family mismatch: IM FELL Great Primer SC"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-CondensedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExpandedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraCondensedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-ExtraExpandedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiCondensedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-SemiExpandedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraCondensedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedBlack.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedExtraBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedExtraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedMedium.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Inconsolata-UltraExpandedSemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Ligconsolata-Bold.ttf",
+      "reason": "family mismatch: Ligconsolata"
+    },
+    {
+      "family": "Inconsolata",
+      "path": "ofl/inconsolata/static/Ligconsolata-Regular.ttf",
+      "reason": "family mismatch: Ligconsolata"
+    },
+    {
       "family": "Jaldi",
       "path": "ofl/jaldi/Jaldi-Bold.ttf",
       "reason": "declared weight/style/size mismatch"
@@ -123,6 +443,31 @@
       "family": "Magra",
       "path": "ofl/magra/Magra-Bold.ttf",
       "reason": "declared weight/style/size mismatch"
+    },
+    {
+      "family": "Martel",
+      "path": "ofl/martel/Martel-DemiBold.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Martel",
+      "path": "ofl/martel/Martel-Heavy.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Martel",
+      "path": "ofl/martel/Martel-UltraLight.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "MedievalSharp",
+      "path": "ofl/medievalsharp/MedievalSharp.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Megrim",
+      "path": "ofl/megrim/Megrim.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
     },
     {
       "family": "Modern Antiqua",
@@ -170,6 +515,11 @@
       "reason": "native unsupported color or bitmap tables"
     },
     {
+      "family": "Nova Mono",
+      "path": "ofl/novamono/NovaMono.ttf",
+      "reason": "family mismatch: NovaMono"
+    },
+    {
       "family": "Nova Script",
       "path": "ofl/novascript/NovaScript-Regular.ttf",
       "reason": "declared weight/style/size mismatch"
@@ -188,6 +538,11 @@
       "family": "Reem Kufi Ink",
       "path": "ofl/reemkufiink/ReemKufiInk-Regular.ttf",
       "reason": "native unsupported color or bitmap tables"
+    },
+    {
+      "family": "Reenie Beanie",
+      "path": "ofl/reeniebeanie/ReenieBeanie.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
     },
     {
       "family": "Saira Extra Condensed",
@@ -223,6 +578,16 @@
       "family": "Supermercado One",
       "path": "ofl/supermercadoone/SupermercadoOne-Regular.ttf",
       "reason": "family mismatch: Supermercado"
+    },
+    {
+      "family": "Vesper Libre",
+      "path": "ofl/vesperlibre/VesperLibre-Heavy.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
+    },
+    {
+      "family": "Waiting for the Sunrise",
+      "path": "ofl/waitingforthesunrise/WaitingfortheSunrise.ttf",
+      "reason": "face not expressed by Classic TextV4 selection"
     }
   ]
 }

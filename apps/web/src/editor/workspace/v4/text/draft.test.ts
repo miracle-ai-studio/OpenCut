@@ -3,7 +3,7 @@ import { editableTextFonts, textDraft, textDraftValue } from "./draft";
 import { textFonts, textInitial } from "./fixture";
 
 describe("fixed-font text authoring input", () => {
-  it("preserves exact source time, linear color, alpha and unexposed background while changing content", () => {
+  it("preserves exact source time, linear color, alpha and background while changing content", () => {
     const initial = textInitial(),
       draft = textDraft(initial);
     draft.content = "Edited\n中英";
@@ -91,5 +91,78 @@ describe("fixed-font text authoring input", () => {
         textFonts(),
       ).text.letter_spacing_px,
     ).toBe(-40.5);
+  });
+});
+
+describe("text background authoring", () => {
+  it("edits every background channel while keeping all unrelated authored fields and exact time", () => {
+    const initial = textInitial(),
+      draft = textDraft(initial);
+    Object.assign(draft, {
+      backgroundEnabled: false,
+      backgroundColor: "#804020",
+      backgroundOpacity: "35",
+      backgroundRadius: "62.5",
+      backgroundPaddingX: "18.75",
+      backgroundPaddingY: "0",
+      backgroundOffsetX: "-12.5",
+      backgroundOffsetY: "3.25",
+    });
+    const value = textDraftValue(initial, draft, textFonts());
+    expect(value.text).toEqual({
+      ...initial.text,
+      background: {
+        enabled: false,
+        color: {
+          encoding: "srgb",
+          red: 128 / 255,
+          green: 64 / 255,
+          blue: 32 / 255,
+          alpha: 0.35,
+        },
+        corner_radius_percent: 62.5,
+        padding_x_at_size15: 18.75,
+        padding_y_at_size15: 0,
+        offset_x_px: -12.5,
+        offset_y_px: 3.25,
+      },
+    });
+    expect(value.timeline_range.start).toBe(initial.timeline_range.start);
+    expect(value.timeline_range.duration).toBe(initial.timeline_range.duration);
+    expect(initial.text.background.padding_x_at_size15).toBe(7);
+  });
+  it("toggle and geometry preserve unedited linear color and exact alpha instead of display quantization", () => {
+    const initial = textInitial();
+    initial.text.background.color = { ...initial.text.color };
+    const draft = textDraft(initial);
+    draft.backgroundEnabled = false;
+    draft.backgroundOffsetX = "10";
+    const value = textDraftValue(initial, draft, textFonts());
+    expect(value.text.background.color).toEqual(initial.text.background.color);
+    draft.backgroundOpacity = "25";
+    expect(
+      textDraftValue(initial, draft, textFonts()).text.background.color,
+    ).toEqual({ ...initial.text.background.color, alpha: 0.25 });
+  });
+  it.each([
+    ["backgroundRadius", "101"],
+    ["backgroundRadius", "-1"],
+    ["backgroundPaddingX", "-0.1"],
+    ["backgroundPaddingY", "-1"],
+    ["backgroundOffsetX", "NaN"],
+    ["backgroundOffsetY", "Infinity"],
+    ["backgroundOpacity", "101"],
+    ["backgroundOpacity", "-1"],
+    ["backgroundColor", "invalid"],
+    ["backgroundRadius", ""],
+  ])("rejects %s=%s without clamping or a partial value", (field, value) => {
+    const initial = textInitial();
+    expect(() =>
+      textDraftValue(
+        initial,
+        { ...textDraft(initial), [field]: value },
+        textFonts(),
+      ),
+    ).toThrow();
   });
 });

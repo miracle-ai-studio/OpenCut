@@ -4,8 +4,8 @@
   "whole_migration_complete": false,
   "scope": "Local Rust Server + Web Classic migration under the recorded user decisions",
   "feature_status_counts": {
-    "指定动线已验": 22,
-    "部分迁移": 21,
+    "指定动线已验": 23,
+    "部分迁移": 20,
     "未迁移": 11,
     "已实现待等价验收": 2,
     "原版占位": 1
@@ -93,7 +93,7 @@
     },
     {
       "id": "F21",
-      "status": "部分迁移"
+      "status": "指定动线已验"
     },
     {
       "id": "F22",
@@ -246,7 +246,6 @@
     "F17",
     "F18",
     "F20",
-    "F21",
     "F23",
     "F24",
     "F25",
@@ -276,7 +275,7 @@
     "F54",
     "F55"
   ],
-  "remaining_groups": 34,
+  "remaining_groups": 33,
   "product_decisions": {
     "classic_cloud_account_login": "excluded_by_user",
     "online_fonts_stickers": "Classic source and permitted license scope",
@@ -286,10 +285,10 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "44 unique scoped records. Direct Classic v31 independent text/font mapping, atomic V4 recovery, actual edit/reopen/history and one independent PNG are now verified. F19 remains closed using its recorded evidence. Earlier results retain source/candidate identities. 34 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "classic_direct_v4_text_font_import",
+    "scope": "45 unique scoped records. F21 full free-text styles and original Classic subtitle TextElement editing are closed using actual UI/history/duplicate and independent combination pixels plus scoped prior evidence. 39 static font sources added with all prior identities preserved. 33 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "f21_complete_text_styles_and_static_font_sources",
     "plan_coverage": {
-      "remaining_groups": 34,
+      "remaining_groups": 33,
       "routes": 13,
       "auxiliary_items": 3
     },
@@ -8632,11 +8631,179 @@
           "scope": "Public CLI direct V4 fixed resources: used video plus unused library audio, complete public media records and fixed fonts, source trim/source-audio/gain, original replay and atomic stored document equality; existing CAS only.",
           "verification": "Same explicit release and owned database. Used video plus unused audio retain complete public resource records after destination ID remap; two existing fonts, source trims, source-audio=false and -6dB preserved. Original request replay and full stored-document equality pass. No media/font byte import or new rendering."
         }
+      },
+      {
+        "evidence_id": "f21_complete_text_styles_and_static_font_sources",
+        "status": "feature_exit_closed_with_scoped_prior_evidence",
+        "candidate": {
+          "source_head": "b521734e171b0c11fa05997e2a4facc91f0517f5",
+          "dirty_source": true,
+          "production_change_digest": "9b41916b8814053d16726f4c166f3147b839a93de9e8c577f880c81e9ed7907a",
+          "production_change_files": 32,
+          "binary_sha256": "7ad79a386ca5ebcb123e25ce641fb832e581f4d3cbd1ea902b40d5cf41345b1c",
+          "web_js_css_tree_sha256": "3585982a34ccf69a59dc2fa4a1254e660105176c3ccf32f035bb59bd41b2547d",
+          "browser": "153.0.8010.12",
+          "digest_definition": "SHA256 of compact JSON sorted [path, SHA256(file)] for changed/untracked crates, apps/cli, apps/web/src, classic-visual-renderer and sdk-ts/src files."
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "styled_revision": "rev_d62ccbdb012d154435f0e412655e55f5590f09d0be585400fc0a445ed5a42262",
+          "render_revision": "rev_d4fef5a7a93219c25d23c1df2d88ff630f26308d4a5d85da58ea30dd71326c7e",
+          "restored_from_revision": "rev_df46673342f28383d63ed07c2068429509cbfb59055b4db52b50dc1594231a79",
+          "restored_revision": "rev_c10c942120f61a3c60479c1d2b81c94bf62e05c22110e4e2fd2f9f2937b86dc5",
+          "caption_source_revision": "rev_485ef78bc420644060dfb16bf649e2f94eff6596152cc0d1af6c9363e675a980",
+          "reuse": "Original synthetic workspace, project, media and existing fonts. Only missing BoldItalic was imported for style checks; all existing font bytes and prior successful media results reused."
+        },
+        "behavior": {
+          "actual_ui": "Exact same-family bold and italic faces; multiline text, Classic font size, strikethrough, letter spacing, line height and complete background enabled/color/alpha/corner/paddingXY/offsetXY. Original plan/apply transaction, whole-project equality, reopen, Undo/Redo and duplicate at source start. Nonempty retained caption preserved.",
+          "old_classic_subtitle": {
+            "source": "Reviewed serialized TextElement from original Classic subtitle builder; not execution of the Classic builder. Original builder source hash retained with local evidence.",
+            "builder_sha256": "b224f9fc3377195e78c1c5de3dad97aa337a325dbe904b32a8ed2f43e02867b5",
+            "project_id": "classic-subtitle-f21-e505774a53ad4332579ceef0",
+            "imported_revision": "rev_cea5e097d3e54ede119b2db6590dec632d843d3ff799cc324ae655689758adcc",
+            "styled_revision": "rev_13fbf6746f7e44b06d16bfb50c5a50e0e592fa58f36a868354eafa17f2cab75b",
+            "duplicate_revision": "rev_b6156f37092b5e11f0d299e49f11bae05e62eb7ea40ee55ec081970999e8053c",
+            "checks": "Public atomic Classic V4 import with existing fixed font, actual style/content editor, reopen, Undo/Redo and duplicate at original 0.2 seconds while playhead is zero. Source font project head unchanged; no new media/font bytes or render."
+          }
+        },
+        "render": {
+          "job_id": "job_d047105f90284e158858f08465be426f",
+          "png_sha256": "aac5d4d39ce05bb85ab46734825feb21ff2f6e9f017d66c6663a1a0b400dc2e9",
+          "identity": {
+            "height": 180,
+            "profile": "classic-v31-gpu-normal-caption-frame-v3",
+            "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+            "revision": "rev_d4fef5a7a93219c25d23c1df2d88ff630f26308d4a5d85da58ea30dd71326c7e",
+            "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+            "time": {
+              "ticks": "1",
+              "timebase": 2
+            },
+            "width": 320
+          },
+          "font_lock": [
+            {
+              "content_hash": "62c1b7f0d2e74b45960154c3520efc337b553db0961bfdc950d5618334596cc8",
+              "font_id": "37225407-dcbd-4a38-a0d1-33c1b1ebe76e",
+              "size": 698364
+            }
+          ],
+          "oracle": {
+            "width": 320,
+            "height": 180,
+            "lines": [
+              {
+                "text": "OpenCut",
+                "baselineY": -19.2,
+                "width": 102.17994689941406,
+                "ascent": 9.809625625610352,
+                "descent": 11.754377365112305
+              },
+              {
+                "text": "Style",
+                "baselineY": 19.2,
+                "width": 57.37196350097656,
+                "ascent": 10.097623825073242,
+                "descent": 11.754377365112305
+              }
+            ],
+            "rectangle": {
+              "left": -70.63997344970703,
+              "top": -38.099999999999994,
+              "width": 113.77994689941406,
+              "height": 95.19999999999999,
+              "radius": 17.849999999999998
+            },
+            "center": {
+              "x": 160,
+              "y": 90
+            },
+            "fontSize": 24,
+            "lineHeight": 38.4,
+            "expectedBounds": {
+              "left": 89,
+              "top": 52,
+              "right": 210,
+              "bottom": 146,
+              "count": 10651
+            },
+            "actualBounds": {
+              "left": 89,
+              "top": 52,
+              "right": 210,
+              "bottom": 146,
+              "count": 10651
+            },
+            "iou": 1,
+            "glyphIou": 1,
+            "expectedGlyphs": 1212,
+            "backgroundIou": 1,
+            "meanChannelError": 0.0002951388888888889,
+            "blankError": 0
+          },
+          "independent_reference": "External hash-checked original Lato BoldItalic bytes; independent Canvas glyph, strike and rounded semi-transparent background formulas; no product renderer import."
+        },
+        "font_sources": {
+          "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+          "unchanged_existing_records": 1797,
+          "added_faces": 39,
+          "added_families": 35,
+          "pinned_faces": 1836,
+          "pinned_families": 1299,
+          "missing_regular_families": 621,
+          "missing_static_faces": 1490,
+          "catalog_sha256": "6619c0d784db12297f93e22bc3e1c8f68ae21e845fa6ac41c3eea044cd112e23",
+          "new_source_imports": [
+            {
+              "family": "Candal",
+              "font_id": "e2570784-20ff-4ba5-b71f-cc6c60fc3f4a",
+              "content_hash": "cf4ff425c49ab2e167fb7d166ba57f2925b6df6161a228786b291ea3875f1eb5",
+              "source_url": "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/candal/Candal.ttf",
+              "revision": "rev_7c510c89fe6cdebfb84ce1c8f7b63c950b3e91a6991e702497ebbac01eb0dfc3"
+            },
+            {
+              "family": "Inconsolata",
+              "font_id": "f7bfd25d-747d-41f9-85c9-534fb3de27b5",
+              "content_hash": "7081063a7270dc315d46d55564165b2e134b18f5f82e61c7b8693c819a3d4cda",
+              "source_url": "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/inconsolata/static/Inconsolata-Condensed.ttf",
+              "revision": "rev_fa2074ea96de766b7b6bf4cbcbb01ebec2a89cb5b2173aa6fd48d21d12c8c086"
+            }
+          ]
+        },
+        "checks": {
+          "application_authoring_tests": 11,
+          "web_style_tests": 26,
+          "generator_fixture_tests": 5,
+          "native_inspected_static_faces": 1836,
+          "web_boundary_files": 212,
+          "rust_release_builds": 1,
+          "web_production_builds": 1,
+          "generated_contract_check": "current against explicit same release; 225 tools, no protocol changes",
+          "catalog_consistency": "passed; prior 1797 full source records identical",
+          "fresh_rust_workspace_run": false,
+          "application_font_import_tests": 17
+        },
+        "verification_reuse": {
+          "retained_records": [
+            "b1_static_font_text_png",
+            "f19_free_text_editing",
+            "classic_direct_v4_text_font_import"
+          ],
+          "scope": "Ordinary/underline and independent Chinese/Latin layout keep their recorded candidate identities. Text model/renderer/Classic converter and shared MP4 pipeline unchanged; this candidate adds UI style consumers and static catalog entries. No S1, MP4 or PCM rerun.",
+          "verifier_corrections": "Duplicate source-position semantics, caption-capable frame dispatch and initial session readiness were corrected without product rebuild. Accepted style/history/duplicate revisions and the single succeeded PNG job were resumed; necessary failed reports retained locally."
+        },
+        "not_proven": [
+          "Full F20 source availability: 621 families and 1490 applicable faces still lack fixed static sources.",
+          "New V4 CaptionStyle still lacks complete editable text styles; ASS import does not preserve full appearance. Keep this concrete gap in F23.",
+          "Real OS IME, human Chinese/English ASR, animation and schema6 full-history/font restore remain open.",
+          "No complete B3/S1, full workspace or final migration acceptance."
+        ]
       }
     ]
   },
   "current_limits": [
-    "34 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan. F10 and F19 are independently closed; F47 is now partially migrated.",
+    "33 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan. F10, F19 and F21 are independently closed; F47 remains partially migrated.",
     "Current S1 reuses existing shared player/DSP and Web7db7d00. Scoped scene/history/head/original credential retirement has5 actual cases at audio_preview_identity_retirement. Distinct440Hz target/880Hz left/660Hz right voices and gain/Escape now have independent pre/post-master interiors; linked high DC has one actual steady success at audio_preview_distinct_stereo_mastering, with an earlier unresolved post-master residual retained. No permanent high stability or new performance/RSS claim. Prior actual300s14/14 performance,39 PCM source/gap windows and terminal/document/rapid control evidence retain their original source/runtime identities. Exact phase/boundary/DAC, persistent unknown/full control/BFCache/kill/network/TTL, external head/grant recovery and long/VFR/non-unit-rate/cross-browser/full visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
@@ -8644,8 +8811,8 @@
     "F17 fixed-head refresh, rapid partial multi-zoom, PNG/JPEG/short-CFR/12-second PCM and isolated production-cache allocation eviction/rebuild passed. Complete source/image/long-file matrix and main-workspace occupancy remain unverified; first old thumbnail failure has no confirmed cause.",
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
-    "Google catalog browse/search/family preview covers 1920 families, with 1797 validated static faces from1264 families. 656 families lack usable normal400 sources; unavailable400/700 normal/italic faces total1529. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
-    "B1/B2/B3 evidence remain scoped. B3 additionally proves wrapped-caption continuous preview, one MP4 UI export/download and independent pixels/PCM. F19 free-text timeline and position/size editing is independently closed with its recorded candidate evidence. English synthetic ASR-to-subtitles/SRT passed; Chinese actual inference succeeded but literal CER failed on simplified/traditional differences, and its generation/reopen/SRT path remains unverified. Human speech, real OS IME, full text styles and animated editing, unavailable font sources, unsupported Classic content mappings and schema6 full-history/font package restore remain open. Direct V31 independent text with fixed fonts now has actual recovery/edit/history/PNG evidence at classic_direct_v4_text_font_import."
+    "Google browse/search/family preview covers 1920 families; 1836 validated static faces cover1299 families. 621 families lack normal400 sources; unavailable400/700 normal/italic faces total1490. All prior1797 source records are unchanged; newly discovered Candal and Inconsolata passed actual public import. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
+    "B1/B2/B3 evidence remain scoped. F19 free-text editing and F21 full text styles/original Classic subtitle TextElement compatibility are closed with recorded candidates and independent reference pixels. New V4 CaptionStyle still lacks decoration, letter spacing and complete background editing; ASS import uses selected style and does not preserve full appearance. F23 must reuse the editable TextV4 path or a versioned model while retaining frozen operations. English synthetic ASR-to-subtitles/SRT passed; Chinese inference succeeded but literal CER failed, and human speech remains unverified. Real OS IME, animation, unavailable font sources, unsupported Classic mappings and schema6 full-history/font restore remain open."
   ],
   "retained_delivery_packages": [
     {

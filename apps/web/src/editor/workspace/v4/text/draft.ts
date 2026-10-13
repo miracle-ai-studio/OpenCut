@@ -18,6 +18,14 @@ export type TextDraft = {
   decoration: V4Text["decoration"];
   letterSpacing: string;
   lineHeight: string;
+  backgroundEnabled: boolean;
+  backgroundColor: string;
+  backgroundOpacity: string;
+  backgroundRadius: string;
+  backgroundPaddingX: string;
+  backgroundPaddingY: string;
+  backgroundOffsetX: string;
+  backgroundOffsetY: string;
   start: string;
   duration: string;
 };
@@ -54,6 +62,14 @@ export function textDraft(initial: V4TextInitial): TextDraft {
     decoration: text.decoration,
     letterSpacing: String(text.letter_spacing_px),
     lineHeight: String(text.line_height_multiplier),
+    backgroundEnabled: text.background.enabled,
+    backgroundColor: displayColor(text.background.color),
+    backgroundOpacity: String(text.background.color.alpha * 100),
+    backgroundRadius: String(text.background.corner_radius_percent),
+    backgroundPaddingX: String(text.background.padding_x_at_size15),
+    backgroundPaddingY: String(text.background.padding_y_at_size15),
+    backgroundOffsetX: String(text.background.offset_x_px),
+    backgroundOffsetY: String(text.background.offset_y_px),
     start: secondsForDisplay(initial.timeline_range.start).toFixed(6),
     duration: secondsForDisplay(initial.timeline_range.duration).toFixed(6),
   };
@@ -107,6 +123,48 @@ export function textDraftValue(
     if (alpha < 0 || alpha > 1)
       throw new Error("Opacity must be between 0 and 100.");
     text.color.alpha = alpha;
+  }
+  text.background.enabled = draft.backgroundEnabled;
+  const radius = numeric(draft.backgroundRadius, "Background corner radius");
+  if (radius < 0 || radius > 100)
+    throw new Error("Background corner radius must be between 0 and 100.");
+  text.background.corner_radius_percent = radius;
+  const paddingX = numeric(
+    draft.backgroundPaddingX,
+    "Background horizontal padding",
+  );
+  const paddingY = numeric(
+    draft.backgroundPaddingY,
+    "Background vertical padding",
+  );
+  if (paddingX < 0 || paddingY < 0)
+    throw new Error("Background padding must be zero or greater.");
+  text.background.padding_x_at_size15 = paddingX;
+  text.background.padding_y_at_size15 = paddingY;
+  text.background.offset_x_px = numeric(
+    draft.backgroundOffsetX,
+    "Background horizontal offset",
+  );
+  text.background.offset_y_px = numeric(
+    draft.backgroundOffsetY,
+    "Background vertical offset",
+  );
+  if (draft.backgroundColor !== original.backgroundColor) {
+    if (!/^#[0-9a-f]{6}$/i.test(draft.backgroundColor))
+      throw new Error("Choose a valid background color.");
+    text.background.color = {
+      encoding: "srgb",
+      red: parseInt(draft.backgroundColor.slice(1, 3), 16) / 255,
+      green: parseInt(draft.backgroundColor.slice(3, 5), 16) / 255,
+      blue: parseInt(draft.backgroundColor.slice(5, 7), 16) / 255,
+      alpha: initial.text.background.color.alpha,
+    };
+  }
+  if (draft.backgroundOpacity !== original.backgroundOpacity) {
+    const alpha = numeric(draft.backgroundOpacity, "Background opacity") / 100;
+    if (alpha < 0 || alpha > 1)
+      throw new Error("Background opacity must be between 0 and 100.");
+    text.background.color.alpha = alpha;
   }
   return {
     name: draft.name,

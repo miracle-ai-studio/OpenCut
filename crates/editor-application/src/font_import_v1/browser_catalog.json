@@ -2,7 +2,7 @@
   "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
   "classic_atlas_sha256": "1582a3ebae342be98c3f6e7b8b7b6a4521c7fda019bca7fca33d74d7d71ade0f",
   "classic_family_count": 1920,
-  "pinned_face_count": 1797,
+  "pinned_face_count": 1836,
   "families": [
     {
       "family": "42dot Sans",
@@ -9581,8 +9581,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-candal-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -9791,8 +9791,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-carterone-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -10181,8 +10181,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-cedarvillecursive-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -11957,8 +11957,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-coveredbyyourgrace-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -12677,8 +12677,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-dawningofanewday-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -16841,26 +16841,26 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gfsneohellenic-regular-v1",
+          "unavailable_reason": null
         },
         {
           "weight": 400,
           "style": "italic",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gfsneohellenic-italic-v1",
+          "unavailable_reason": null
         },
         {
           "weight": 700,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gfsneohellenic-bold-v1",
+          "unavailable_reason": null
         },
         {
           "weight": 700,
           "style": "italic",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gfsneohellenic-bold-italic-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -17987,8 +17987,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-giveyouglory-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -18041,8 +18041,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gloriahallelujah-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -18215,8 +18215,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-goblinone-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -18581,8 +18581,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-goudybookletter1911-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -18785,8 +18785,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-gravitasone-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -21365,8 +21365,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-inconsolata-regular-v1",
+          "unavailable_reason": null
         },
         {
           "weight": 500,
@@ -21383,8 +21383,8 @@
         {
           "weight": 700,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-inconsolata-bold-v1",
+          "unavailable_reason": null
         },
         {
           "weight": 800,
@@ -22913,8 +22913,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-justmeagaindownhere-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -24815,8 +24815,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-labelleaurore-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -27053,8 +27053,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-loveyalikeasister-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -27065,8 +27065,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-lovedbytheking-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -28721,8 +28721,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-meddon-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -31325,8 +31325,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-neucha-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -31787,8 +31787,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-nothingyoucoulddo-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38243,8 +38243,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novacut-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38255,8 +38255,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novaflat-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38279,8 +38279,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novaoval-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38291,8 +38291,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novaround-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38315,8 +38315,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novaslim-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -38327,8 +38327,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-novasquare-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -39125,8 +39125,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-overtherainbow-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -39437,8 +39437,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-ptmono-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -43517,8 +43517,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-pollerone-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -49121,8 +49121,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-shadowsintolight-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -49643,8 +49643,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-sixcaps-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -49859,8 +49859,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-snippet-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -52187,8 +52187,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-swankyandmoomoo-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -52943,8 +52943,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-thegirlnextdoor-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -54491,8 +54491,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-unifrakturmaguntia-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },
@@ -57467,8 +57467,8 @@
         {
           "weight": 400,
           "style": "normal",
-          "catalog_id": null,
-          "unavailable_reason": "no_pinned_static_source"
+          "catalog_id": "google-zeyada-regular-v1",
+          "unavailable_reason": null
         }
       ]
     },

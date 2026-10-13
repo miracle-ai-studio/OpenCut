@@ -94,7 +94,7 @@
       "reason": "ParsedFontFaceV1 { family: \"Shrikhand\", weight: 400, style: Italic, glyph_count: 841, checked_codepoints: 0 }"
     }
   ],
-  "verified_current_pinned_faces": 1797,
+  "verified_current_pinned_faces": 1836,
   "current_failures": [],
-  "catalog_generated_sha256": "8513622dfc1b88bdaa888976540f960d3efe8952f91ce7d67d397d68ab03e314"
+  "catalog_generated_sha256": "6619c0d784db12297f93e22bc3e1c8f68ae21e845fa6ac41c3eea044cd112e23"
 }

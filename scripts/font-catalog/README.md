@@ -14,14 +14,19 @@ Sources are the unchanged Google Fonts commit
 font and license Git blob identities against that tree, inspects declared sfnt
 family/weight/style, records SHA256/size, and retains each full original license.
 Original B1 Lato/Ma Shan Zheng IDs and content identities remain fixed.
+Discovery includes historical unnamed static files and `static/` subdirectories.
+Admissible original root faces retain priority, so newly discovered files never
+replace an existing catalog identity. This extension preserved all 1,797 earlier
+records and added 39 faces across 35 families; 621 families still lack a pinned
+400 normal face.
 
-The current result is 1,797 pinned static faces across 1,264 families. Forty-four
+The current result is 1,836 pinned static faces across 1,299 families. 117
 candidate static faces fail exact declared identity or native static-render support checks and remain excluded
 with reasons in `catalog_source_report.json`. The actual native scan found 12
 color/bitmap faces, two invalid table checksums and four nonzero italic-angle
 faces mislabeled as Regular; `catalog_native_report.json` preserves those
-failures and a successful complete 1,797-face native scan. The browsing inventory reports
-1,529 applicable faces without a matching pinned static source, 4,348 weights
+failures and a successful complete 1,836-face native scan. The browsing inventory reports
+1,490 applicable faces without a matching pinned static source, 4,348 weights
 that TextV4 cannot express, and 36 unavailable system faces. Inventory presence
 is not successful import/render proof. Variable fonts, UFL fonts, unpinned
 families and unsupported weights do not acquire synthetic/static fallbacks.
