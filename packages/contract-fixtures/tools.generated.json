@@ -174249,6 +174249,3632 @@
     "read_only": false
   },
   {
+    "description": "Owner-only: analyze original Classic v31 JSON directly into V4 with fixed media and font selectors. Preserves independent text and all mapped library assets. Reports unsupported semantics and unresolved exact fonts; never downloads fonts or publishes a project.",
+    "input_schema": {
+      "$defs": {
+        "ClassicFontMappingV4": {
+          "additionalProperties": false,
+          "properties": {
+            "classic_family": {
+              "type": "string"
+            },
+            "font_id": {
+              "type": "string"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "classic_family",
+            "font_weight",
+            "font_style",
+            "source_project_id",
+            "source_revision",
+            "font_id"
+          ],
+          "type": "object"
+        },
+        "ClassicMediaMapping": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "classic_media_id": {
+              "type": "string"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "classic_media_id",
+            "source_project_id",
+            "source_revision",
+            "asset_id"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "FontWeightV4": {
+          "enum": [
+            "normal",
+            "bold"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "description": "Original SerializedProject JSON, never an old converted document.",
+          "type": "string"
+        },
+        "font_mappings": {
+          "items": {
+            "$ref": "#/$defs/ClassicFontMappingV4"
+          },
+          "type": "array"
+        },
+        "media_mappings": {
+          "description": "All mapped library assets, including unused media, are preserved.",
+          "items": {
+            "$ref": "#/$defs/ClassicMediaMapping"
+          },
+          "type": "array"
+        },
+        "target_project_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "target_project_id",
+        "media_mappings",
+        "font_mappings"
+      ],
+      "title": "ClassicAnalyzeV4",
+      "type": "object"
+    },
+    "name": "opencut_classic_analyze_v4",
+    "output_schema": {
+      "$defs": {
+        "AnimationChannelV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "binding": {
+                  "$ref": "#/$defs/ScalarBindingV4"
+                },
+                "extrapolation": {
+                  "$ref": "#/$defs/ExtrapolationV4"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "keys": {
+                  "items": {
+                    "$ref": "#/$defs/ScalarKeyV4"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "const": "scalar",
+                  "type": "string"
+                },
+                "target": {
+                  "$ref": "#/$defs/ChannelTargetV4"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "target",
+                "binding",
+                "keys",
+                "extrapolation"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "keys": {
+                  "items": {
+                    "$ref": "#/$defs/DiscreteKeyV4"
+                  },
+                  "type": "array"
+                },
+                "kind": {
+                  "const": "discrete",
+                  "type": "string"
+                },
+                "parameter": {
+                  "$ref": "#/$defs/DiscreteParameterV4"
+                },
+                "target": {
+                  "$ref": "#/$defs/ChannelTargetV4"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "target",
+                "parameter",
+                "keys"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "AssetKind": {
+          "enum": [
+            "video",
+            "audio",
+            "image",
+            "text",
+            "subtitle",
+            "graphic"
+          ],
+          "type": "string"
+        },
+        "AssetVersion": {
+          "additionalProperties": false,
+          "properties": {
+            "content_hash": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "content_hash",
+            "size"
+          ],
+          "type": "object"
+        },
+        "AudioMetadataV4": {
+          "additionalProperties": false,
+          "properties": {
+            "channel_layout": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channels": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sample_rate": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "sample_rate",
+            "channels"
+          ],
+          "type": "object"
+        },
+        "AudioPresenceV4": {
+          "description": "Probe knowledge is independent of the video's source-audio preference.\nUnknown may be preserved in an imported revision, but is not evidence of an\naudio stream. Absent is a confirmed probe result, not a missing metadata row.",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "unknown",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "absent",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Older probes recorded presence without the stream format. None preserves\nthat knowledge; execution still probes the required concrete format.",
+              "properties": {
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AudioMetadataV4"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "const": "present",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "AudioStyleV4": {
+          "additionalProperties": false,
+          "properties": {
+            "gain": {
+              "$ref": "#/$defs/GainV4"
+            },
+            "muted": {
+              "type": "boolean"
+            },
+            "stream": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "gain",
+            "muted"
+          ],
+          "type": "object"
+        },
+        "BackgroundV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "$ref": "#/$defs/ColorV4"
+                },
+                "kind": {
+                  "const": "color",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "color"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Uses each sequence's main track, its visible media, source clock and\nretime; it does not blur the finished composition. Classic default 10.",
+              "properties": {
+                "intensity": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "main_track_blur",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "intensity"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "BlendModeV4": {
+          "enum": [
+            "normal",
+            "darken",
+            "multiply",
+            "color-burn",
+            "lighten",
+            "screen",
+            "plus-lighter",
+            "color-dodge",
+            "overlay",
+            "soft-light",
+            "hard-light",
+            "difference",
+            "exclusion",
+            "hue",
+            "saturation",
+            "color",
+            "luminosity"
+          ],
+          "type": "string"
+        },
+        "BoxMaskGeometryV4": {
+          "additionalProperties": false,
+          "description": "Center offsets and dimensions are fractions of the untransformed element,\nnot normalized canvas coordinates. Classic scale is retained even where a\nparticular shape renderer does not use it, so recovery never loses fields.",
+          "properties": {
+            "center_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "center_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "scale": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "center_x",
+            "center_y",
+            "width",
+            "height",
+            "rotation_degrees",
+            "scale"
+          ],
+          "type": "object"
+        },
+        "CanvasSizeModeV4": {
+          "enum": [
+            "preset",
+            "custom"
+          ],
+          "type": "string"
+        },
+        "CanvasSizeV4": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "CaptionLayoutProfileV4": {
+          "enum": [
+            "legacy_caption_v2",
+            "pinned_caption_v4"
+          ],
+          "type": "string"
+        },
+        "CaptionSourceAnchor": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "source_range": {
+              "$ref": "#/$defs/TimeRange"
+            }
+          },
+          "required": [
+            "asset_id",
+            "source_range"
+          ],
+          "type": "object"
+        },
+        "CaptionStyleV4": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ColorV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "color": {
+              "$ref": "#/$defs/ColorV4"
+            },
+            "font": {
+              "$ref": "#/$defs/FontBindingV4"
+            },
+            "font_size": {
+              "$ref": "#/$defs/FontSizeV4"
+            },
+            "layout": {
+              "$ref": "#/$defs/CaptionLayoutProfileV4"
+            },
+            "line_height_px": {
+              "format": "float",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_width_px": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "text_align": {
+              "$ref": "#/$defs/TextAlignV4"
+            }
+          },
+          "required": [
+            "font",
+            "font_size",
+            "color",
+            "text_align",
+            "layout"
+          ],
+          "type": "object"
+        },
+        "CaptionV4": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "source_anchor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CaptionSourceAnchor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "style": {
+              "$ref": "#/$defs/CaptionStyleV4"
+            },
+            "text": {
+              "type": "string"
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "track_id": {
+              "description": "The sole owning caption track in this sequence, providing visibility,\nlocking and layer order. Promoting legacy sequence-wide captions creates\nan explicit caption track at their original overlay position.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "track_id",
+            "timeline_range",
+            "text",
+            "style"
+          ],
+          "type": "object"
+        },
+        "ChannelTargetV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "element_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "element",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "element_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "effect_id": {
+                  "type": "string"
+                },
+                "element_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "effect",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "element_id",
+                "effect_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "element_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "mask",
+                  "type": "string"
+                },
+                "mask_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "element_id",
+                "mask_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "track",
+                  "type": "string"
+                },
+                "track_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "track_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "ClassicAnalysisV4": {
+          "additionalProperties": false,
+          "properties": {
+            "blockers": {
+              "items": {
+                "$ref": "#/$defs/CompatibilityFinding"
+              },
+              "type": "array"
+            },
+            "losses": {
+              "items": {
+                "$ref": "#/$defs/CompatibilityFinding"
+              },
+              "type": "array"
+            },
+            "mapped": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "proposed_project": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PublicProjectDocumentV4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Present only when all editing-relevant semantics have explicit mappings."
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source_content_id": {
+              "type": "string"
+            },
+            "source_format": {
+              "type": "string"
+            },
+            "source_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "target_project_id": {
+              "type": "string"
+            },
+            "unresolved_fonts": {
+              "description": "Preserved with strict font resolution. Saving does not establish rendering\navailability and never triggers font discovery or network downloads.",
+              "items": {
+                "$ref": "#/$defs/ClassicFontRequestV4"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "source_format",
+            "source_content_id",
+            "target_project_id",
+            "mapped",
+            "losses",
+            "blockers",
+            "unresolved_fonts"
+          ],
+          "type": "object"
+        },
+        "ClassicFontRequestV4": {
+          "additionalProperties": false,
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            }
+          },
+          "required": [
+            "family",
+            "font_weight",
+            "font_style"
+          ],
+          "type": "object"
+        },
+        "ColorComponentV4": {
+          "enum": [
+            "red",
+            "green",
+            "blue",
+            "alpha"
+          ],
+          "type": "string"
+        },
+        "ColorEncodingV4": {
+          "enum": [
+            "srgb",
+            "linear_srgb"
+          ],
+          "type": "string"
+        },
+        "ColorParameterV4": {
+          "enum": [
+            "text_color",
+            "text_background_color",
+            "graphic_fill",
+            "graphic_stroke",
+            "mask_stroke"
+          ],
+          "type": "string"
+        },
+        "ColorV4": {
+          "additionalProperties": false,
+          "properties": {
+            "alpha": {
+              "description": "Straight alpha, independent of RGB encoding.",
+              "format": "double",
+              "type": "number"
+            },
+            "blue": {
+              "format": "double",
+              "type": "number"
+            },
+            "encoding": {
+              "$ref": "#/$defs/ColorEncodingV4"
+            },
+            "green": {
+              "format": "double",
+              "type": "number"
+            },
+            "red": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "encoding",
+            "red",
+            "green",
+            "blue",
+            "alpha"
+          ],
+          "type": "object"
+        },
+        "CompatibilityFinding": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "detail": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "code",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "CubicBezierV1": {
+          "additionalProperties": false,
+          "properties": {
+            "x1": {
+              "format": "double",
+              "type": "number"
+            },
+            "x2": {
+              "format": "double",
+              "type": "number"
+            },
+            "y1": {
+              "format": "double",
+              "type": "number"
+            },
+            "y2": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ],
+          "type": "object"
+        },
+        "CurveHandleV4": {
+          "additionalProperties": false,
+          "properties": {
+            "dt": {
+              "$ref": "#/$defs/Time",
+              "description": "Signed exact time offset, not a normalized ease fraction."
+            },
+            "dv": {
+              "description": "Signed value offset in the bound parameter's units.",
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "dt",
+            "dv"
+          ],
+          "type": "object"
+        },
+        "DiscreteKeyV4": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "value": {
+              "$ref": "#/$defs/DiscreteValueV4"
+            }
+          },
+          "required": [
+            "id",
+            "time",
+            "value"
+          ],
+          "type": "object"
+        },
+        "DiscreteParameterV4": {
+          "enum": [
+            "graphic_stroke_align",
+            "mask_stroke_align"
+          ],
+          "type": "string"
+        },
+        "DiscreteValueV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "stroke_align",
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "#/$defs/StrokeAlignV4"
+                }
+              },
+              "required": [
+                "kind",
+                "value"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "EffectKindV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "sigmaX=intensity/5*width/1920, sigmaY=intensity/5*height/1080.",
+              "properties": {
+                "intensity": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "classic_blur",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "intensity"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "legacy_gaussian_blur",
+                  "type": "string"
+                },
+                "radius_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_px"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Preserves the existing V3 implementation, including its exposure naming;\nthis is not a new claim of physically correct EV color processing.",
+              "properties": {
+                "contrast": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "exposure_ev": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "legacy_color_adjust",
+                  "type": "string"
+                },
+                "saturation": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "exposure_ev",
+                "contrast",
+                "saturation"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "EffectV4": {
+          "additionalProperties": false,
+          "properties": {
+            "effect": {
+              "$ref": "#/$defs/EffectKindV4"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "enabled",
+            "effect"
+          ],
+          "type": "object"
+        },
+        "ElementContentV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "audio": {
+                  "$ref": "#/$defs/AudioStyleV4"
+                },
+                "kind": {
+                  "const": "video",
+                  "type": "string"
+                },
+                "retime": {
+                  "$ref": "#/$defs/RetimeV4"
+                },
+                "source_audio_enabled": {
+                  "type": "boolean"
+                },
+                "video_stream": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "source_audio_enabled",
+                "audio",
+                "retime"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "audio": {
+                  "$ref": "#/$defs/AudioStyleV4"
+                },
+                "kind": {
+                  "const": "audio",
+                  "type": "string"
+                },
+                "retime": {
+                  "$ref": "#/$defs/RetimeV4"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "audio",
+                "retime"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "text",
+                  "type": "string"
+                },
+                "text": {
+                  "$ref": "#/$defs/TextV4"
+                }
+              },
+              "required": [
+                "kind",
+                "text"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "intrinsic_size": {
+                  "$ref": "#/$defs/CanvasSizeV4"
+                },
+                "kind": {
+                  "const": "sticker",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "intrinsic_size"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "graphic": {
+                  "$ref": "#/$defs/GraphicV4"
+                },
+                "kind": {
+                  "const": "graphic",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "graphic"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Applies at this track's layer boundary to the already composited layers\nbelow, including background. It is not copied onto each lower element.",
+              "properties": {
+                "effect": {
+                  "$ref": "#/$defs/EffectV4"
+                },
+                "kind": {
+                  "const": "effect_layer",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "effect"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "ElementSourceSpanV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Classic keeps trims on generated/static elements too: their pixels do\nnot sample this span, but split/resize/recovery still need it. For media,\nsource start=trim_start; visible source duration is timeline duration\nmultiplied by rate and rounded once to the Classic tick grid. Animated\nproperties always use timeline-local time, without adding trim_start.\nsource_duration is the original extent/resize ceiling, not a second\nvisible range; None preserves Classic's inferred, extendable extent.",
+              "properties": {
+                "profile": {
+                  "const": "classic_trimmed",
+                  "type": "string"
+                },
+                "source_duration": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "trim_end": {
+                  "$ref": "#/$defs/Time"
+                },
+                "trim_start": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "profile",
+                "trim_start",
+                "trim_end"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Exact old Rust media span; the referenced asset supplies the full extent.",
+              "properties": {
+                "profile": {
+                  "const": "legacy_source_range",
+                  "type": "string"
+                },
+                "range": {
+                  "$ref": "#/$defs/TimeRange"
+                }
+              },
+              "required": [
+                "profile",
+                "range"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "ExtrapolationModeV4": {
+          "enum": [
+            "hold",
+            "linear"
+          ],
+          "type": "string"
+        },
+        "ExtrapolationV4": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/ExtrapolationModeV4"
+            },
+            "before": {
+              "$ref": "#/$defs/ExtrapolationModeV4"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "type": "object"
+        },
+        "FontBindingV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "font_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "locked",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "font_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Preserves unresolved family semantics on import. A renderer must report\nresolution/identity; saving this is not proof of reproducible output.",
+              "properties": {
+                "family": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "unresolved_family",
+                  "type": "string"
+                },
+                "policy": {
+                  "$ref": "#/$defs/FontResolutionPolicy"
+                }
+              },
+              "required": [
+                "kind",
+                "family",
+                "policy"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FontSizeV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Actual pixels = value * layout height / 90. Title layout height is the\nproject canvas height; text-mask layout height is its element height.",
+              "properties": {
+                "unit": {
+                  "const": "classic_height90",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "unit": {
+                  "const": "canvas_pixels",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "FontWeightV4": {
+          "enum": [
+            "normal",
+            "bold"
+          ],
+          "type": "string"
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "FreeformMaskV4": {
+          "additionalProperties": false,
+          "properties": {
+            "center_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "center_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "closed": {
+              "type": "boolean"
+            },
+            "points": {
+              "items": {
+                "$ref": "#/$defs/FreeformPointV4"
+              },
+              "type": "array"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "scale": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "points",
+            "closed",
+            "center_x",
+            "center_y",
+            "rotation_degrees",
+            "scale"
+          ],
+          "type": "object"
+        },
+        "FreeformPointV4": {
+          "additionalProperties": false,
+          "description": "Coordinates and absolute handle positions are normalized element-local\ncoordinates around its center, matching Classic's stored path geometry.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "in_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "in_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "out_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "out_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "x": {
+              "format": "double",
+              "type": "number"
+            },
+            "y": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "x",
+            "y",
+            "in_x",
+            "in_y",
+            "out_x",
+            "out_y"
+          ],
+          "type": "object"
+        },
+        "GainV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Preserves zero and arbitrarily quiet legacy nonzero gains. Channels\ninterpolate linear amplitude, as the old project contract specified.",
+              "properties": {
+                "unit": {
+                  "const": "linear_legacy",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Classic default 0 dB, UI -60..20; amplitude is 10^(value/20).",
+              "properties": {
+                "unit": {
+                  "const": "decibels",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "GraphicGeometryV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "corner_radius_percent": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "corner_radius_percent"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Fractional animated counts are preserved; Classic rounds at evaluation.",
+              "properties": {
+                "corner_radius_percent": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "polygon",
+                  "type": "string"
+                },
+                "sides": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "sides",
+                "corner_radius_percent"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "depth_percent": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "star",
+                  "type": "string"
+                },
+                "points": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "points",
+                "depth_percent"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "legacy_rectangle",
+                  "type": "string"
+                },
+                "width_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "width_px",
+                "height_px"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "legacy_ellipse",
+                  "type": "string"
+                },
+                "radius_x_px": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "radius_y_px": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "radius_x_px",
+                "radius_y_px"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "GraphicV4": {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "$ref": "#/$defs/ColorV4"
+            },
+            "geometry": {
+              "$ref": "#/$defs/GraphicGeometryV4"
+            },
+            "source_size": {
+              "$ref": "#/$defs/CanvasSizeV4"
+            },
+            "stroke": {
+              "$ref": "#/$defs/StrokeV4"
+            }
+          },
+          "required": [
+            "geometry",
+            "source_size",
+            "fill",
+            "stroke"
+          ],
+          "type": "object"
+        },
+        "LegacySequenceFormatV4": {
+          "additionalProperties": false,
+          "properties": {
+            "background": {
+              "$ref": "#/$defs/BackgroundV4"
+            },
+            "canvas_size": {
+              "$ref": "#/$defs/CanvasSizeV4"
+            },
+            "fps": {
+              "$ref": "#/$defs/FrameRate"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sequence_id",
+            "fps",
+            "canvas_size",
+            "background"
+          ],
+          "type": "object"
+        },
+        "MaskFeatherV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "unit": {
+                  "const": "classic_pixels",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "unit": {
+                  "const": "legacy_canvas_fraction",
+                  "type": "string"
+                },
+                "value": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "value"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "MaskShapeV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "center_x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "center_y": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "split",
+                  "type": "string"
+                },
+                "rotation_degrees": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "center_x",
+                "center_y",
+                "rotation_degrees"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "cinematic_bars",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "rectangle",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "ellipse",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "heart",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "diamond",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Classic mask star is fixed at five points with inner radius 0.45.",
+              "properties": {
+                "geometry": {
+                  "$ref": "#/$defs/BoxMaskGeometryV4"
+                },
+                "kind": {
+                  "const": "star",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "geometry"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "text",
+                  "type": "string"
+                },
+                "mask": {
+                  "$ref": "#/$defs/TextMaskV4"
+                }
+              },
+              "required": [
+                "kind",
+                "mask"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "freeform",
+                  "type": "string"
+                },
+                "path": {
+                  "$ref": "#/$defs/FreeformMaskV4"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "V3 masks use top-left canvas coordinates and canvas-normalized sizes.",
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "legacy_rectangle",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "kind": {
+                  "const": "legacy_ellipse",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "x": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "y": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "x",
+                "y",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "MaskV4": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "feather": {
+              "$ref": "#/$defs/MaskFeatherV4"
+            },
+            "id": {
+              "type": "string"
+            },
+            "inverted": {
+              "type": "boolean"
+            },
+            "shape": {
+              "$ref": "#/$defs/MaskShapeV4"
+            },
+            "stroke": {
+              "$ref": "#/$defs/StrokeV4"
+            }
+          },
+          "required": [
+            "id",
+            "enabled",
+            "shape",
+            "inverted",
+            "feather",
+            "stroke"
+          ],
+          "type": "object"
+        },
+        "MediaMetadataV4": {
+          "additionalProperties": false,
+          "properties": {
+            "audio": {
+              "$ref": "#/$defs/AudioPresenceV4"
+            },
+            "frame_rate": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FrameRate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "intrinsic_size": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CanvasSizeV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mime_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "audio"
+          ],
+          "type": "object"
+        },
+        "ProjectSettingsV4": {
+          "additionalProperties": false,
+          "properties": {
+            "background": {
+              "$ref": "#/$defs/BackgroundV4"
+            },
+            "canvas_size": {
+              "$ref": "#/$defs/CanvasSizeV4"
+            },
+            "canvas_size_mode": {
+              "$ref": "#/$defs/CanvasSizeModeV4"
+            },
+            "fps": {
+              "$ref": "#/$defs/FrameRate"
+            },
+            "last_custom_canvas_size": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CanvasSizeV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "original_canvas_size": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CanvasSizeV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "fps",
+            "canvas_size",
+            "canvas_size_mode",
+            "background"
+          ],
+          "type": "object"
+        },
+        "PublicAssetV4": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/AssetKind"
+            },
+            "license": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ResourceLicenseV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "metadata": {
+              "$ref": "#/$defs/MediaMetadataV4"
+            },
+            "name": {
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/PublicResourceOriginV4"
+            },
+            "version": {
+              "$ref": "#/$defs/AssetVersion"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "version",
+            "origin",
+            "metadata"
+          ],
+          "type": "object"
+        },
+        "PublicFontResourceV4": {
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "$ref": "#/$defs/AssetVersion"
+            },
+            "face_index": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "family": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "license": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ResourceLicenseV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "origin": {
+              "$ref": "#/$defs/PublicResourceOriginV4"
+            },
+            "style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "weight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "family",
+            "weight",
+            "style",
+            "face_index",
+            "content",
+            "origin"
+          ],
+          "type": "object"
+        },
+        "PublicProjectDocumentV4": {
+          "additionalProperties": false,
+          "properties": {
+            "assets": {
+              "items": {
+                "$ref": "#/$defs/PublicAssetV4"
+              },
+              "type": "array"
+            },
+            "default_sequence_id": {
+              "type": "string"
+            },
+            "fonts": {
+              "items": {
+                "$ref": "#/$defs/PublicFontResourceV4"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sequences": {
+              "description": "Typed complete scenes, including bookmarks, source spans and channels.\nTheir presence does not imply compiler or renderer support.",
+              "items": {
+                "$ref": "#/$defs/SequenceV4"
+              },
+              "type": "array"
+            },
+            "settings": {
+              "$ref": "#/$defs/SettingsProfileV4"
+            }
+          },
+          "required": [
+            "schema_version",
+            "id",
+            "name",
+            "default_sequence_id",
+            "settings",
+            "assets",
+            "fonts",
+            "sequences"
+          ],
+          "type": "object"
+        },
+        "PublicResourceOriginV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "local_import",
+                  "type": "string"
+                },
+                "original_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "online",
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "source_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "provider"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "The private legacy locator is deliberately not part of this schema.",
+              "properties": {
+                "kind": {
+                  "const": "legacy",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "generation_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "const": "generated",
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "provider"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "RationalRateV4": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "ResourceLicenseV4": {
+          "additionalProperties": false,
+          "properties": {
+            "attribution": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "identifier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notice": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "RetimeMappingV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "exact_rational",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Visible source duration = round(timeline_duration*rate*timebase)/timebase,\npositive ties upward. A rate-edit derives a new timeline duration from\nthe preserved source extent using the inverse operation, once. These\noperations are quantized and must not be assumed to be exact inverses.",
+              "properties": {
+                "kind": {
+                  "const": "classic_rounded_ticks",
+                  "type": "string"
+                },
+                "timebase": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "timebase"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "RetimeV4": {
+          "additionalProperties": false,
+          "properties": {
+            "maintain_pitch": {
+              "type": "boolean"
+            },
+            "mapping": {
+              "$ref": "#/$defs/RetimeMappingV4"
+            },
+            "rate": {
+              "$ref": "#/$defs/RationalRateV4"
+            }
+          },
+          "required": [
+            "rate",
+            "maintain_pitch",
+            "mapping"
+          ],
+          "type": "object"
+        },
+        "ScalarBindingV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "property",
+                  "type": "string"
+                },
+                "parameter": {
+                  "$ref": "#/$defs/ScalarParameterV4"
+                }
+              },
+              "required": [
+                "kind",
+                "parameter"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "RGB values/tangents are linear-sRGB; alpha is not gamma encoded.",
+              "properties": {
+                "component": {
+                  "$ref": "#/$defs/ColorComponentV4"
+                },
+                "kind": {
+                  "const": "color_component",
+                  "type": "string"
+                },
+                "parameter": {
+                  "$ref": "#/$defs/ColorParameterV4"
+                }
+              },
+              "required": [
+                "kind",
+                "parameter",
+                "component"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "ScalarKeyV4": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "left_handle": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CurveHandleV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "right_handle": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CurveHandleV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "segment_id": {
+              "description": "Optional independent segment identity, preserving a V3 curve node ID.\nClassic segments are owned by the outgoing key and need no second ID.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "segment_to_next": {
+              "$ref": "#/$defs/ScalarSegmentV4"
+            },
+            "tangent_mode": {
+              "$ref": "#/$defs/TangentModeV4"
+            },
+            "time": {
+              "$ref": "#/$defs/Time",
+              "description": "Element-local time; track channels use sequence time."
+            },
+            "value": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "time",
+            "value",
+            "segment_to_next",
+            "tangent_mode"
+          ],
+          "type": "object"
+        },
+        "ScalarParameterV4": {
+          "description": "Each variant identifies both meaning and stored unit. Applicability and\npost-evaluation bounds belong to the versioned parameter registry.",
+          "enum": [
+            "position_x_px",
+            "position_y_px",
+            "scale_x",
+            "scale_y",
+            "rotation_degrees",
+            "opacity",
+            "gain_linear_legacy",
+            "gain_decibels",
+            "font_size_classic_height90",
+            "font_size_canvas_pixels",
+            "letter_spacing_px",
+            "line_height_multiplier",
+            "text_background_padding_x_at_size15",
+            "text_background_padding_y_at_size15",
+            "text_background_offset_x_px",
+            "text_background_offset_y_px",
+            "text_background_corner_radius_percent",
+            "graphic_stroke_width_px",
+            "graphic_corner_radius_percent",
+            "graphic_sides",
+            "graphic_points",
+            "graphic_depth_percent",
+            "classic_blur_intensity",
+            "legacy_blur_radius_px",
+            "legacy_exposure_ev",
+            "legacy_contrast",
+            "legacy_saturation",
+            "mask_center_x",
+            "mask_center_y",
+            "mask_width",
+            "mask_height",
+            "mask_rotation_degrees",
+            "mask_scale",
+            "mask_feather_classic_pixels",
+            "mask_feather_legacy_canvas_fraction",
+            "mask_stroke_width_px",
+            "mask_font_size_classic_height90",
+            "mask_font_size_canvas_pixels",
+            "mask_letter_spacing_px",
+            "mask_line_height_multiplier"
+          ],
+          "type": "string"
+        },
+        "ScalarSegmentV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "step",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "linear",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Actual time/value control points; equal endpoints may still have a bump.\nA missing outgoing/incoming handle uses +/- segment duration / 3 and\n+/- value delta / 3, respectively. Both absent gives linear interpolation;\ntangent-mode hints never silently replace these stored/default controls.",
+              "properties": {
+                "kind": {
+                  "const": "bezier",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Exact old ease interpolation, kept separate from time/value tangents.",
+              "properties": {
+                "curve": {
+                  "$ref": "#/$defs/CubicBezierV1"
+                },
+                "kind": {
+                  "const": "legacy_normalized_bezier",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "curve"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "SceneBookmarkV1": {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "note": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "id",
+            "sequence_id",
+            "time"
+          ],
+          "type": "object"
+        },
+        "SequenceV4": {
+          "additionalProperties": false,
+          "properties": {
+            "bookmarks": {
+              "items": {
+                "$ref": "#/$defs/SceneBookmarkV1"
+              },
+              "type": "array"
+            },
+            "captions": {
+              "items": {
+                "$ref": "#/$defs/CaptionV4"
+              },
+              "type": "array"
+            },
+            "id": {
+              "type": "string"
+            },
+            "main_track_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "tracks": {
+              "description": "Visual/effect track order is bottom to top, independent of insertion ID.",
+              "items": {
+                "$ref": "#/$defs/TrackV4"
+              },
+              "type": "array"
+            },
+            "transitions": {
+              "items": {
+                "$ref": "#/$defs/TransitionV4"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "main_track_id",
+            "tracks",
+            "captions",
+            "transitions",
+            "bookmarks"
+          ],
+          "type": "object"
+        },
+        "SettingsProfileV4": {
+          "description": "New and Classic-imported projects use ClassicGlobal. LegacyPerScene is an\nexplicit preservation profile for heterogeneous old Rust projects, never a\nhidden override of Classic settings. Converting its scope is a separate edit.",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "profile": {
+                  "const": "classic_global",
+                  "type": "string"
+                },
+                "settings": {
+                  "$ref": "#/$defs/ProjectSettingsV4"
+                }
+              },
+              "required": [
+                "profile",
+                "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "formats": {
+                  "items": {
+                    "$ref": "#/$defs/LegacySequenceFormatV4"
+                  },
+                  "type": "array"
+                },
+                "profile": {
+                  "const": "legacy_per_scene",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "profile",
+                "formats"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "StrokeAlignV4": {
+          "enum": [
+            "inside",
+            "center",
+            "outside"
+          ],
+          "type": "string"
+        },
+        "StrokeV4": {
+          "additionalProperties": false,
+          "properties": {
+            "align": {
+              "$ref": "#/$defs/StrokeAlignV4"
+            },
+            "color": {
+              "$ref": "#/$defs/ColorV4"
+            },
+            "width_px": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "color",
+            "width_px",
+            "align"
+          ],
+          "type": "object"
+        },
+        "TangentModeV4": {
+          "enum": [
+            "auto",
+            "aligned",
+            "broken",
+            "flat"
+          ],
+          "type": "string"
+        },
+        "TextAlignV4": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "type": "string"
+        },
+        "TextBackgroundV4": {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "$ref": "#/$defs/ColorV4"
+            },
+            "corner_radius_percent": {
+              "description": "Classic 0..100 radius percentage, not a pixel radius.",
+              "format": "double",
+              "type": "number"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "offset_x_px": {
+              "format": "double",
+              "type": "number"
+            },
+            "offset_y_px": {
+              "format": "double",
+              "type": "number"
+            },
+            "padding_x_at_size15": {
+              "description": "Classic padding pixels at font-size 15; actual padding multiplies by\nfont size / 15. Offsets remain pixels and do not use that multiplier.",
+              "format": "double",
+              "type": "number"
+            },
+            "padding_y_at_size15": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "enabled",
+            "color",
+            "corner_radius_percent",
+            "padding_x_at_size15",
+            "padding_y_at_size15",
+            "offset_x_px",
+            "offset_y_px"
+          ],
+          "type": "object"
+        },
+        "TextDecorationV4": {
+          "enum": [
+            "none",
+            "underline",
+            "line_through"
+          ],
+          "type": "string"
+        },
+        "TextMaskV4": {
+          "additionalProperties": false,
+          "properties": {
+            "center_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "center_y": {
+              "format": "double",
+              "type": "number"
+            },
+            "content": {
+              "type": "string"
+            },
+            "decoration": {
+              "$ref": "#/$defs/TextDecorationV4"
+            },
+            "font": {
+              "$ref": "#/$defs/FontBindingV4"
+            },
+            "font_size": {
+              "$ref": "#/$defs/FontSizeV4"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            },
+            "letter_spacing_px": {
+              "format": "double",
+              "type": "number"
+            },
+            "line_height_multiplier": {
+              "format": "double",
+              "type": "number"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "scale": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "content",
+            "font",
+            "font_size",
+            "font_weight",
+            "font_style",
+            "decoration",
+            "letter_spacing_px",
+            "line_height_multiplier",
+            "center_x",
+            "center_y",
+            "rotation_degrees",
+            "scale"
+          ],
+          "type": "object"
+        },
+        "TextV4": {
+          "additionalProperties": false,
+          "properties": {
+            "align": {
+              "$ref": "#/$defs/TextAlignV4"
+            },
+            "background": {
+              "$ref": "#/$defs/TextBackgroundV4"
+            },
+            "color": {
+              "$ref": "#/$defs/ColorV4"
+            },
+            "content": {
+              "type": "string"
+            },
+            "decoration": {
+              "$ref": "#/$defs/TextDecorationV4"
+            },
+            "font": {
+              "$ref": "#/$defs/FontBindingV4"
+            },
+            "font_size": {
+              "$ref": "#/$defs/FontSizeV4"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            },
+            "letter_spacing_px": {
+              "format": "double",
+              "type": "number"
+            },
+            "line_height_multiplier": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "content",
+            "font",
+            "font_weight",
+            "font_style",
+            "decoration",
+            "align",
+            "font_size",
+            "color",
+            "letter_spacing_px",
+            "line_height_multiplier",
+            "background"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "TimelineElementV4": {
+          "additionalProperties": false,
+          "properties": {
+            "channels": {
+              "items": {
+                "$ref": "#/$defs/AnimationChannelV4"
+              },
+              "type": "array"
+            },
+            "content": {
+              "$ref": "#/$defs/ElementContentV4"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "source_span": {
+              "$ref": "#/$defs/ElementSourceSpanV4",
+              "description": "The only source/local span authority. Media content refers to this span;\nit does not carry a second independently writable source range."
+            },
+            "timeline_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "visual": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/VisualStyleV4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Audio-only elements have no visual style."
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "timeline_range",
+            "source_span",
+            "enabled",
+            "content",
+            "channels"
+          ],
+          "type": "object"
+        },
+        "TrackKindV4": {
+          "enum": [
+            "video",
+            "audio",
+            "text",
+            "graphic",
+            "effect",
+            "caption"
+          ],
+          "type": "string"
+        },
+        "TrackV4": {
+          "additionalProperties": false,
+          "properties": {
+            "channels": {
+              "description": "Track-owned channels use sequence time, never an arbitrary element clock.",
+              "items": {
+                "$ref": "#/$defs/AnimationChannelV4"
+              },
+              "type": "array"
+            },
+            "elements": {
+              "description": "Stable element order is also the layer order for overlapping legacy\nGraphic tracks. Classic tracks retain non-overlapping edit semantics.",
+              "items": {
+                "$ref": "#/$defs/TimelineElementV4"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "gain": {
+              "$ref": "#/$defs/GainV4"
+            },
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/TrackKindV4"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "muted": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "opacity": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "enabled",
+            "muted",
+            "locked",
+            "opacity",
+            "gain",
+            "elements",
+            "channels"
+          ],
+          "type": "object"
+        },
+        "TransformV4": {
+          "additionalProperties": false,
+          "properties": {
+            "position_x_px": {
+              "description": "Canvas pixels from center, positive right/down.",
+              "format": "double",
+              "type": "number"
+            },
+            "position_y_px": {
+              "format": "double",
+              "type": "number"
+            },
+            "rotation_degrees": {
+              "format": "double",
+              "type": "number"
+            },
+            "scale_x": {
+              "format": "double",
+              "type": "number"
+            },
+            "scale_y": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "position_x_px",
+            "position_y_px",
+            "scale_x",
+            "scale_y",
+            "rotation_degrees"
+          ],
+          "type": "object"
+        },
+        "TransitionKindV4": {
+          "enum": [
+            "legacy_crossfade_v3"
+          ],
+          "type": "string"
+        },
+        "TransitionV4": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "id": {
+              "type": "string"
+            },
+            "incoming_element_id": {
+              "type": "string"
+            },
+            "outgoing_element_id": {
+              "type": "string"
+            },
+            "transition": {
+              "$ref": "#/$defs/TransitionKindV4"
+            }
+          },
+          "required": [
+            "id",
+            "outgoing_element_id",
+            "incoming_element_id",
+            "duration",
+            "transition"
+          ],
+          "type": "object"
+        },
+        "VisualProfileV4": {
+          "enum": [
+            "classic_canvas_v31",
+            "legacy_composition_v3"
+          ],
+          "type": "string"
+        },
+        "VisualStyleV4": {
+          "additionalProperties": false,
+          "properties": {
+            "blend_mode": {
+              "$ref": "#/$defs/BlendModeV4"
+            },
+            "effects": {
+              "description": "Ordered, identity-bearing stacks; disabled nodes remain editable.",
+              "items": {
+                "$ref": "#/$defs/EffectV4"
+              },
+              "type": "array"
+            },
+            "masks": {
+              "items": {
+                "$ref": "#/$defs/MaskV4"
+              },
+              "type": "array"
+            },
+            "opacity": {
+              "format": "double",
+              "type": "number"
+            },
+            "profile": {
+              "$ref": "#/$defs/VisualProfileV4"
+            },
+            "transform": {
+              "$ref": "#/$defs/TransformV4"
+            }
+          },
+          "required": [
+            "profile",
+            "transform",
+            "opacity",
+            "blend_mode",
+            "effects",
+            "masks"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClassicAnalysisV4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Owner-only: atomically publish a direct Classic v31 to V4 conversion after rechecking original source identity, fixed resource authority and acknowledged losses. Exact replay precedes resource resolution. Unresolved fonts remain explicit and do not imply render availability.",
+    "input_schema": {
+      "$defs": {
+        "ClassicAnalyzeV4": {
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "description": "Original SerializedProject JSON, never an old converted document.",
+              "type": "string"
+            },
+            "font_mappings": {
+              "items": {
+                "$ref": "#/$defs/ClassicFontMappingV4"
+              },
+              "type": "array"
+            },
+            "media_mappings": {
+              "description": "All mapped library assets, including unused media, are preserved.",
+              "items": {
+                "$ref": "#/$defs/ClassicMediaMapping"
+              },
+              "type": "array"
+            },
+            "target_project_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "content",
+            "target_project_id",
+            "media_mappings",
+            "font_mappings"
+          ],
+          "type": "object"
+        },
+        "ClassicFontMappingV4": {
+          "additionalProperties": false,
+          "properties": {
+            "classic_family": {
+              "type": "string"
+            },
+            "font_id": {
+              "type": "string"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "classic_family",
+            "font_weight",
+            "font_style",
+            "source_project_id",
+            "source_revision",
+            "font_id"
+          ],
+          "type": "object"
+        },
+        "ClassicMediaMapping": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "classic_media_id": {
+              "type": "string"
+            },
+            "source_project_id": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "classic_media_id",
+            "source_project_id",
+            "source_revision",
+            "asset_id"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "FontWeightV4": {
+          "enum": [
+            "normal",
+            "bold"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "accepted_loss_codes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "expected_source_content_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ClassicAnalyzeV4"
+        }
+      },
+      "required": [
+        "source",
+        "expected_source_content_id",
+        "idempotency_key",
+        "accepted_loss_codes"
+      ],
+      "title": "ClassicImportV4",
+      "type": "object"
+    },
+    "name": "opencut_classic_import_v4",
+    "output_schema": {
+      "$defs": {
+        "ClassicFontRequestV4": {
+          "additionalProperties": false,
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "font_style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "font_weight": {
+              "$ref": "#/$defs/FontWeightV4"
+            }
+          },
+          "required": [
+            "family",
+            "font_weight",
+            "font_style"
+          ],
+          "type": "object"
+        },
+        "ClassicImportReceiptV4": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_count": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "font_count": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "losses": {
+              "items": {
+                "$ref": "#/$defs/CompatibilityFinding"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "source_content_id": {
+              "type": "string"
+            },
+            "target_project_id": {
+              "type": "string"
+            },
+            "unresolved_fonts": {
+              "items": {
+                "$ref": "#/$defs/ClassicFontRequestV4"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "schema_version",
+            "target_project_id",
+            "revision",
+            "source_content_id",
+            "asset_count",
+            "font_count",
+            "unresolved_fonts",
+            "losses"
+          ],
+          "type": "object"
+        },
+        "CompatibilityFinding": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "detail": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "code",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "FontWeightV4": {
+          "enum": [
+            "normal",
+            "bold"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClassicImportReceiptV4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
     "description": "Read committed events after a sequence number (maximum 500).",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

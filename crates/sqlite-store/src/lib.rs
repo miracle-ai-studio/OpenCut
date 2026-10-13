@@ -14,6 +14,7 @@ mod sqlite_branching;
 mod sqlite_caption_generation;
 mod sqlite_caption_v4;
 mod sqlite_classic_import;
+mod sqlite_classic_import_v4;
 mod sqlite_collaboration;
 mod sqlite_denials;
 mod sqlite_edit_control;

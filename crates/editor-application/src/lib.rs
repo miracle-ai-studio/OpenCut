@@ -13,6 +13,7 @@ pub mod branching;
 pub mod caption_generation;
 pub mod caption_v4;
 pub mod classic_import;
+pub mod classic_import_v4;
 pub mod collaboration;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;

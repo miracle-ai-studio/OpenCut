@@ -43826,6 +43826,934 @@ export namespace OpencutClassicRecoveryImportV1Output {
 
 }
 
+export namespace OpencutClassicAnalyzeV4Input {
+  export type FontStyleV4 = 'normal' | 'italic';
+  export type FontWeightV4 = 'normal' | 'bold';
+
+  export interface ClassicAnalyzeV4 {
+  /**
+   * Original SerializedProject JSON, never an old converted document.
+   */
+  content: string;
+  font_mappings: ClassicFontMappingV4[];
+  /**
+   * All mapped library assets, including unused media, are preserved.
+   */
+  media_mappings: ClassicMediaMapping[];
+  target_project_id: string;
+}
+  export interface ClassicFontMappingV4 {
+  classic_family: string;
+  font_id: string;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+  source_project_id: string;
+  source_revision: string;
+}
+  export interface ClassicMediaMapping {
+  asset_id: string;
+  classic_media_id: string;
+  source_project_id: string;
+  source_revision: string;
+}
+
+}
+
+export namespace OpencutClassicAnalyzeV4Output {
+  export type AssetKind = 'video' | 'audio' | 'image' | 'text' | 'subtitle' | 'graphic';
+/**
+ * Probe knowledge is independent of the video's source-audio preference.
+ * Unknown may be preserved in an imported revision, but is not evidence of an
+ * audio stream. Absent is a confirmed probe result, not a missing metadata row.
+ */
+  export type AudioPresenceV4 =
+  | {
+      status: 'unknown';
+    }
+  | {
+      status: 'absent';
+    }
+  | {
+      metadata?: AudioMetadataV4 | null;
+      status: 'present';
+    };
+  export type PublicResourceOriginV4 =
+  | {
+      kind: 'local_import';
+      original_name?: string | null;
+    }
+  | {
+      kind: 'online';
+      provider: string;
+      source_url?: string | null;
+    }
+  | {
+      kind: 'legacy';
+    }
+  | {
+      generation_id?: string | null;
+      kind: 'generated';
+      provider: string;
+    };
+  export type FontStyleV4 = 'normal' | 'italic';
+  export type ColorEncodingV4 = 'srgb' | 'linear_srgb';
+  export type FontBindingV4 =
+  | {
+      font_id: string;
+      kind: 'locked';
+    }
+  | {
+      family: string;
+      kind: 'unresolved_family';
+      policy: FontResolutionPolicy;
+    };
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type FontSizeV4 =
+  | {
+      unit: 'classic_height90';
+      value: number;
+    }
+  | {
+      unit: 'canvas_pixels';
+      value: number;
+    };
+  export type CaptionLayoutProfileV4 = 'legacy_caption_v2' | 'pinned_caption_v4';
+  export type TextAlignV4 = 'left' | 'center' | 'right';
+  export type AnimationChannelV4 =
+  | {
+      binding: ScalarBindingV4;
+      extrapolation: ExtrapolationV4;
+      id: string;
+      keys: ScalarKeyV4[];
+      kind: 'scalar';
+      target: ChannelTargetV4;
+    }
+  | {
+      id: string;
+      keys: DiscreteKeyV4[];
+      kind: 'discrete';
+      parameter: DiscreteParameterV4;
+      target: ChannelTargetV4;
+    };
+  export type ScalarBindingV4 =
+  | {
+      kind: 'property';
+      parameter: ScalarParameterV4;
+    }
+  | {
+      component: ColorComponentV4;
+      kind: 'color_component';
+      parameter: ColorParameterV4;
+    };
+/**
+ * Each variant identifies both meaning and stored unit. Applicability and
+ * post-evaluation bounds belong to the versioned parameter registry.
+ */
+  export type ScalarParameterV4 =
+  | 'position_x_px'
+  | 'position_y_px'
+  | 'scale_x'
+  | 'scale_y'
+  | 'rotation_degrees'
+  | 'opacity'
+  | 'gain_linear_legacy'
+  | 'gain_decibels'
+  | 'font_size_classic_height90'
+  | 'font_size_canvas_pixels'
+  | 'letter_spacing_px'
+  | 'line_height_multiplier'
+  | 'text_background_padding_x_at_size15'
+  | 'text_background_padding_y_at_size15'
+  | 'text_background_offset_x_px'
+  | 'text_background_offset_y_px'
+  | 'text_background_corner_radius_percent'
+  | 'graphic_stroke_width_px'
+  | 'graphic_corner_radius_percent'
+  | 'graphic_sides'
+  | 'graphic_points'
+  | 'graphic_depth_percent'
+  | 'classic_blur_intensity'
+  | 'legacy_blur_radius_px'
+  | 'legacy_exposure_ev'
+  | 'legacy_contrast'
+  | 'legacy_saturation'
+  | 'mask_center_x'
+  | 'mask_center_y'
+  | 'mask_width'
+  | 'mask_height'
+  | 'mask_rotation_degrees'
+  | 'mask_scale'
+  | 'mask_feather_classic_pixels'
+  | 'mask_feather_legacy_canvas_fraction'
+  | 'mask_stroke_width_px'
+  | 'mask_font_size_classic_height90'
+  | 'mask_font_size_canvas_pixels'
+  | 'mask_letter_spacing_px'
+  | 'mask_line_height_multiplier';
+  export type ColorComponentV4 = 'red' | 'green' | 'blue' | 'alpha';
+  export type ColorParameterV4 =
+  'text_color' | 'text_background_color' | 'graphic_fill' | 'graphic_stroke' | 'mask_stroke';
+  export type ExtrapolationModeV4 = 'hold' | 'linear';
+  export type ScalarSegmentV4 =
+  | {
+      kind: 'step';
+    }
+  | {
+      kind: 'linear';
+    }
+  | {
+      kind: 'bezier';
+    }
+  | {
+      curve: CubicBezierV1;
+      kind: 'legacy_normalized_bezier';
+    };
+  export type TangentModeV4 = 'auto' | 'aligned' | 'broken' | 'flat';
+  export type ChannelTargetV4 =
+  | {
+      element_id: string;
+      kind: 'element';
+    }
+  | {
+      effect_id: string;
+      element_id: string;
+      kind: 'effect';
+    }
+  | {
+      element_id: string;
+      kind: 'mask';
+      mask_id: string;
+    }
+  | {
+      kind: 'track';
+      track_id: string;
+    };
+  export type DiscreteValueV4 = {
+  kind: 'stroke_align';
+  value: StrokeAlignV4;
+};
+  export type StrokeAlignV4 = 'inside' | 'center' | 'outside';
+  export type DiscreteParameterV4 = 'graphic_stroke_align' | 'mask_stroke_align';
+  export type ElementContentV4 =
+  | {
+      asset_id: string;
+      audio: AudioStyleV4;
+      kind: 'video';
+      retime: RetimeV4;
+      source_audio_enabled: boolean;
+      video_stream?: number | null;
+    }
+  | {
+      asset_id: string;
+      audio: AudioStyleV4;
+      kind: 'audio';
+      retime: RetimeV4;
+    }
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      kind: 'text';
+      text: TextV4;
+    }
+  | {
+      asset_id: string;
+      intrinsic_size: CanvasSizeV4;
+      kind: 'sticker';
+    }
+  | {
+      graphic: GraphicV4;
+      kind: 'graphic';
+    }
+  | {
+      effect: EffectV4;
+      kind: 'effect_layer';
+    };
+  export type GainV4 =
+  | {
+      unit: 'linear_legacy';
+      value: number;
+    }
+  | {
+      unit: 'decibels';
+      value: number;
+    };
+  export type RetimeMappingV4 =
+  | {
+      kind: 'exact_rational';
+    }
+  | {
+      kind: 'classic_rounded_ticks';
+      timebase: number;
+    };
+  export type TextDecorationV4 = 'none' | 'underline' | 'line_through';
+  export type FontWeightV4 = 'normal' | 'bold';
+  export type GraphicGeometryV4 =
+  | {
+      corner_radius_percent: number;
+      kind: 'rectangle';
+    }
+  | {
+      kind: 'ellipse';
+    }
+  | {
+      corner_radius_percent: number;
+      kind: 'polygon';
+      sides: number;
+    }
+  | {
+      depth_percent: number;
+      kind: 'star';
+      points: number;
+    }
+  | {
+      height_px: number;
+      kind: 'legacy_rectangle';
+      width_px: number;
+    }
+  | {
+      kind: 'legacy_ellipse';
+      radius_x_px: number;
+      radius_y_px: number;
+    };
+  export type EffectKindV4 =
+  | {
+      intensity: number;
+      kind: 'classic_blur';
+    }
+  | {
+      kind: 'legacy_gaussian_blur';
+      radius_px: number;
+    }
+  | {
+      contrast: number;
+      exposure_ev: number;
+      kind: 'legacy_color_adjust';
+      saturation: number;
+    };
+  export type BlendModeV4 =
+  | 'normal'
+  | 'darken'
+  | 'multiply'
+  | 'color-burn'
+  | 'lighten'
+  | 'screen'
+  | 'plus-lighter'
+  | 'color-dodge'
+  | 'overlay'
+  | 'soft-light'
+  | 'hard-light'
+  | 'difference'
+  | 'exclusion'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity';
+  export type MaskFeatherV4 =
+  | {
+      unit: 'classic_pixels';
+      value: number;
+    }
+  | {
+      unit: 'legacy_canvas_fraction';
+      value: number;
+    };
+  export type MaskShapeV4 =
+  | {
+      center_x: number;
+      center_y: number;
+      kind: 'split';
+      rotation_degrees: number;
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'cinematic_bars';
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'rectangle';
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'ellipse';
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'heart';
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'diamond';
+    }
+  | {
+      geometry: BoxMaskGeometryV4;
+      kind: 'star';
+    }
+  | {
+      kind: 'text';
+      mask: TextMaskV4;
+    }
+  | {
+      kind: 'freeform';
+      path: FreeformMaskV4;
+    }
+  | {
+      height: number;
+      kind: 'legacy_rectangle';
+      width: number;
+      x: number;
+      y: number;
+    }
+  | {
+      height: number;
+      kind: 'legacy_ellipse';
+      width: number;
+      x: number;
+      y: number;
+    };
+  export type VisualProfileV4 = 'classic_canvas_v31' | 'legacy_composition_v3';
+  export type TrackKindV4 = 'video' | 'audio' | 'text' | 'graphic' | 'effect' | 'caption';
+  export type TransitionKindV4 = 'legacy_crossfade_v3';
+/**
+ * New and Classic-imported projects use ClassicGlobal. LegacyPerScene is an
+ * explicit preservation profile for heterogeneous old Rust projects, never a
+ * hidden override of Classic settings. Converting its scope is a separate edit.
+ */
+  export type SettingsProfileV4 =
+  | {
+      profile: 'classic_global';
+      settings: ProjectSettingsV4;
+    }
+  | {
+      formats: LegacySequenceFormatV4[];
+      profile: 'legacy_per_scene';
+    };
+  export type BackgroundV4 =
+  | {
+      color: ColorV4;
+      kind: 'color';
+    }
+  | {
+      intensity: number;
+      kind: 'main_track_blur';
+    };
+  export type CanvasSizeModeV4 = 'preset' | 'custom';
+
+  export interface Response {
+  api_version: string;
+  data?: ClassicAnalysisV4 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface ClassicAnalysisV4 {
+  blockers: CompatibilityFinding[];
+  losses: CompatibilityFinding[];
+  mapped: string[];
+  /**
+   * Present only when all editing-relevant semantics have explicit mappings.
+   */
+  proposed_project?: PublicProjectDocumentV4 | null;
+  schema_version: number;
+  source_content_id: string;
+  source_format: string;
+  source_version?: number | null;
+  target_project_id: string;
+  /**
+   * Preserved with strict font resolution. Saving does not establish rendering
+   * availability and never triggers font discovery or network downloads.
+   */
+  unresolved_fonts: ClassicFontRequestV4[];
+}
+  export interface CompatibilityFinding {
+  code: string;
+  detail: string;
+  path: string;
+}
+  export interface PublicProjectDocumentV4 {
+  assets: PublicAssetV4[];
+  default_sequence_id: string;
+  fonts: PublicFontResourceV4[];
+  id: string;
+  name: string;
+  schema_version: number;
+  /**
+   * Typed complete scenes, including bookmarks, source spans and channels.
+   * Their presence does not imply compiler or renderer support.
+   */
+  sequences: SequenceV4[];
+  settings: SettingsProfileV4;
+}
+  export interface PublicAssetV4 {
+  duration?: Time | null;
+  id: string;
+  kind: AssetKind;
+  license?: ResourceLicenseV4 | null;
+  metadata: MediaMetadataV4;
+  name: string;
+  origin: PublicResourceOriginV4;
+  version: AssetVersion;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface ResourceLicenseV4 {
+  attribution?: string | null;
+  identifier?: string | null;
+  notice?: string | null;
+  source_url?: string | null;
+}
+  export interface MediaMetadataV4 {
+  audio: AudioPresenceV4;
+  frame_rate?: FrameRate | null;
+  intrinsic_size?: CanvasSizeV4 | null;
+  mime_type?: string | null;
+  rotation_degrees?: number | null;
+}
+  export interface AudioMetadataV4 {
+  channel_layout?: string | null;
+  channels: number;
+  sample_rate: number;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface CanvasSizeV4 {
+  height: number;
+  width: number;
+}
+  export interface AssetVersion {
+  content_hash: string;
+  id: string;
+  size: number;
+}
+  export interface PublicFontResourceV4 {
+  content: AssetVersion;
+  face_index: number;
+  family: string;
+  id: string;
+  license?: ResourceLicenseV4 | null;
+  origin: PublicResourceOriginV4;
+  style: FontStyleV4;
+  weight: number;
+}
+  export interface SequenceV4 {
+  bookmarks: SceneBookmarkV1[];
+  captions: CaptionV4[];
+  id: string;
+  main_track_id: string;
+  name: string;
+  /**
+   * Visual/effect track order is bottom to top, independent of insertion ID.
+   */
+  tracks: TrackV4[];
+  transitions: TransitionV4[];
+}
+  export interface SceneBookmarkV1 {
+  color?: string | null;
+  duration?: Time | null;
+  id: string;
+  note?: string | null;
+  sequence_id: string;
+  time: Time;
+}
+  export interface CaptionV4 {
+  id: string;
+  source_anchor?: CaptionSourceAnchor | null;
+  style: CaptionStyleV4;
+  text: string;
+  timeline_range: TimeRange;
+  /**
+   * The sole owning caption track in this sequence, providing visibility,
+   * locking and layer order. Promoting legacy sequence-wide captions creates
+   * an explicit caption track at their original overlay position.
+   */
+  track_id: string;
+}
+  export interface CaptionSourceAnchor {
+  asset_id: string;
+  source_range: TimeRange;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface CaptionStyleV4 {
+  background_color?: ColorV4 | null;
+  color: ColorV4;
+  font: FontBindingV4;
+  font_size: FontSizeV4;
+  layout: CaptionLayoutProfileV4;
+  line_height_px?: number | null;
+  max_width_px?: number | null;
+  text_align: TextAlignV4;
+}
+  export interface ColorV4 {
+  /**
+   * Straight alpha, independent of RGB encoding.
+   */
+  alpha: number;
+  blue: number;
+  encoding: ColorEncodingV4;
+  green: number;
+  red: number;
+}
+  export interface TrackV4 {
+  /**
+   * Track-owned channels use sequence time, never an arbitrary element clock.
+   */
+  channels: AnimationChannelV4[];
+  /**
+   * Stable element order is also the layer order for overlapping legacy
+   * Graphic tracks. Classic tracks retain non-overlapping edit semantics.
+   */
+  elements: TimelineElementV4[];
+  enabled: boolean;
+  gain: GainV4;
+  id: string;
+  kind: TrackKindV4;
+  locked: boolean;
+  muted: boolean;
+  name: string;
+  opacity: number;
+}
+  export interface ExtrapolationV4 {
+  after: ExtrapolationModeV4;
+  before: ExtrapolationModeV4;
+}
+  export interface ScalarKeyV4 {
+  id: string;
+  left_handle?: CurveHandleV4 | null;
+  right_handle?: CurveHandleV4 | null;
+  /**
+   * Optional independent segment identity, preserving a V3 curve node ID.
+   * Classic segments are owned by the outgoing key and need no second ID.
+   */
+  segment_id?: string | null;
+  segment_to_next: ScalarSegmentV4;
+  tangent_mode: TangentModeV4;
+  time: Time2;
+  value: number;
+}
+  export interface CurveHandleV4 {
+  dt: Time1;
+  /**
+   * Signed value offset in the bound parameter's units.
+   */
+  dv: number;
+}
+/**
+ * Signed exact time offset, not a normalized ease fraction.
+ */
+  export interface Time1 {
+  ticks: string;
+  timebase: number;
+}
+  export interface CubicBezierV1 {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+/**
+ * Element-local time; track channels use sequence time.
+ */
+  export interface Time2 {
+  ticks: string;
+  timebase: number;
+}
+  export interface DiscreteKeyV4 {
+  id: string;
+  time: Time;
+  value: DiscreteValueV4;
+}
+  export interface TimelineElementV4 {
+  channels: AnimationChannelV4[];
+  content: ElementContentV4;
+  enabled: boolean;
+  id: string;
+  name: string;
+  /**
+   * The only source/local span authority. Media content refers to this span;
+   * it does not carry a second independently writable source range.
+   */
+  source_span:
+    | {
+        profile: 'classic_trimmed';
+        source_duration?: Time | null;
+        trim_end: Time;
+        trim_start: Time;
+      }
+    | {
+        profile: 'legacy_source_range';
+        range: TimeRange;
+      };
+  timeline_range: TimeRange;
+  /**
+   * Audio-only elements have no visual style.
+   */
+  visual?: VisualStyleV4 | null;
+}
+  export interface AudioStyleV4 {
+  gain: GainV4;
+  muted: boolean;
+  stream?: number | null;
+}
+  export interface RetimeV4 {
+  maintain_pitch: boolean;
+  mapping: RetimeMappingV4;
+  rate: RationalRateV4;
+}
+  export interface RationalRateV4 {
+  denominator: number;
+  numerator: number;
+}
+  export interface TextV4 {
+  align: TextAlignV4;
+  background: TextBackgroundV4;
+  color: ColorV4;
+  content: string;
+  decoration: TextDecorationV4;
+  font: FontBindingV4;
+  font_size: FontSizeV4;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+  letter_spacing_px: number;
+  line_height_multiplier: number;
+}
+  export interface TextBackgroundV4 {
+  color: ColorV4;
+  /**
+   * Classic 0..100 radius percentage, not a pixel radius.
+   */
+  corner_radius_percent: number;
+  enabled: boolean;
+  offset_x_px: number;
+  offset_y_px: number;
+  /**
+   * Classic padding pixels at font-size 15; actual padding multiplies by
+   * font size / 15. Offsets remain pixels and do not use that multiplier.
+   */
+  padding_x_at_size15: number;
+  padding_y_at_size15: number;
+}
+  export interface GraphicV4 {
+  fill: ColorV4;
+  geometry: GraphicGeometryV4;
+  source_size: CanvasSizeV4;
+  stroke: StrokeV4;
+}
+  export interface StrokeV4 {
+  align: StrokeAlignV4;
+  color: ColorV4;
+  width_px: number;
+}
+  export interface EffectV4 {
+  effect: EffectKindV4;
+  enabled: boolean;
+  id: string;
+}
+  export interface VisualStyleV4 {
+  blend_mode: BlendModeV4;
+  /**
+   * Ordered, identity-bearing stacks; disabled nodes remain editable.
+   */
+  effects: EffectV4[];
+  masks: MaskV4[];
+  opacity: number;
+  profile: VisualProfileV4;
+  transform: TransformV4;
+}
+  export interface MaskV4 {
+  enabled: boolean;
+  feather: MaskFeatherV4;
+  id: string;
+  inverted: boolean;
+  shape: MaskShapeV4;
+  stroke: StrokeV4;
+}
+/**
+ * Center offsets and dimensions are fractions of the untransformed element,
+ * not normalized canvas coordinates. Classic scale is retained even where a
+ * particular shape renderer does not use it, so recovery never loses fields.
+ */
+  export interface BoxMaskGeometryV4 {
+  center_x: number;
+  center_y: number;
+  height: number;
+  rotation_degrees: number;
+  scale: number;
+  width: number;
+}
+  export interface TextMaskV4 {
+  center_x: number;
+  center_y: number;
+  content: string;
+  decoration: TextDecorationV4;
+  font: FontBindingV4;
+  font_size: FontSizeV4;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+  letter_spacing_px: number;
+  line_height_multiplier: number;
+  rotation_degrees: number;
+  scale: number;
+}
+  export interface FreeformMaskV4 {
+  center_x: number;
+  center_y: number;
+  closed: boolean;
+  points: FreeformPointV4[];
+  rotation_degrees: number;
+  scale: number;
+}
+/**
+ * Coordinates and absolute handle positions are normalized element-local
+ * coordinates around its center, matching Classic's stored path geometry.
+ */
+  export interface FreeformPointV4 {
+  id: string;
+  in_x: number;
+  in_y: number;
+  out_x: number;
+  out_y: number;
+  x: number;
+  y: number;
+}
+  export interface TransformV4 {
+  /**
+   * Canvas pixels from center, positive right/down.
+   */
+  position_x_px: number;
+  position_y_px: number;
+  rotation_degrees: number;
+  scale_x: number;
+  scale_y: number;
+}
+  export interface TransitionV4 {
+  duration: Time;
+  id: string;
+  incoming_element_id: string;
+  outgoing_element_id: string;
+  transition: TransitionKindV4;
+}
+  export interface ProjectSettingsV4 {
+  background: BackgroundV4;
+  canvas_size: CanvasSizeV4;
+  canvas_size_mode: CanvasSizeModeV4;
+  fps: FrameRate;
+  last_custom_canvas_size?: CanvasSizeV4 | null;
+  original_canvas_size?: CanvasSizeV4 | null;
+}
+  export interface LegacySequenceFormatV4 {
+  background: BackgroundV4;
+  canvas_size: CanvasSizeV4;
+  fps: FrameRate;
+  sequence_id: string;
+}
+  export interface ClassicFontRequestV4 {
+  family: string;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutClassicImportV4Input {
+  export type FontStyleV4 = 'normal' | 'italic';
+  export type FontWeightV4 = 'normal' | 'bold';
+
+  export interface ClassicImportV4 {
+  accepted_loss_codes: string[];
+  expected_source_content_id: string;
+  idempotency_key: string;
+  source: ClassicAnalyzeV4;
+}
+  export interface ClassicAnalyzeV4 {
+  /**
+   * Original SerializedProject JSON, never an old converted document.
+   */
+  content: string;
+  font_mappings: ClassicFontMappingV4[];
+  /**
+   * All mapped library assets, including unused media, are preserved.
+   */
+  media_mappings: ClassicMediaMapping[];
+  target_project_id: string;
+}
+  export interface ClassicFontMappingV4 {
+  classic_family: string;
+  font_id: string;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+  source_project_id: string;
+  source_revision: string;
+}
+  export interface ClassicMediaMapping {
+  asset_id: string;
+  classic_media_id: string;
+  source_project_id: string;
+  source_revision: string;
+}
+
+}
+
+export namespace OpencutClassicImportV4Output {
+  export type FontStyleV4 = 'normal' | 'italic';
+  export type FontWeightV4 = 'normal' | 'bold';
+
+  export interface Response {
+  api_version: string;
+  data?: ClassicImportReceiptV4 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface ClassicImportReceiptV4 {
+  asset_count: number;
+  font_count: number;
+  losses: CompatibilityFinding[];
+  revision: string;
+  schema_version: number;
+  source_content_id: string;
+  target_project_id: string;
+  unresolved_fonts: ClassicFontRequestV4[];
+}
+  export interface CompatibilityFinding {
+  code: string;
+  detail: string;
+  path: string;
+}
+  export interface ClassicFontRequestV4 {
+  family: string;
+  font_style: FontStyleV4;
+  font_weight: FontWeightV4;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutEventsReadInput {
   export interface EventsInput {
   after_sequence?: number;
@@ -49341,6 +50269,8 @@ export interface ToolMap {
   opencut_classic_import: { input: OpencutClassicImportInput.ClassicImport; output: NonNullable<OpencutClassicImportOutput.Response["data"]> };
   opencut_classic_recovery_analyze_v1: { input: OpencutClassicRecoveryAnalyzeV1Input.ClassicAnalyze; output: NonNullable<OpencutClassicRecoveryAnalyzeV1Output.Response["data"]> };
   opencut_classic_recovery_import_v1: { input: OpencutClassicRecoveryImportV1Input.ClassicImport; output: NonNullable<OpencutClassicRecoveryImportV1Output.Response["data"]> };
+  opencut_classic_analyze_v4: { input: OpencutClassicAnalyzeV4Input.ClassicAnalyzeV4; output: NonNullable<OpencutClassicAnalyzeV4Output.Response["data"]> };
+  opencut_classic_import_v4: { input: OpencutClassicImportV4Input.ClassicImportV4; output: NonNullable<OpencutClassicImportV4Output.Response["data"]> };
   opencut_events_read: { input: OpencutEventsReadInput.EventsInput; output: NonNullable<OpencutEventsReadOutput.Response["data"]> };
   opencut_job_events: { input: OpencutJobEventsInput.JobEventsInput; output: NonNullable<OpencutJobEventsOutput.Response["data"]> };
   opencut_job_start: { input: OpencutJobStartInput.JobStartInput; output: NonNullable<OpencutJobStartOutput.Response["data"]> };
@@ -49415,6 +50345,8 @@ export interface DomainMap {
     "classic.import": ToolMap["opencut_classic_import"];
     "classic.recovery.analyze.v1": ToolMap["opencut_classic_recovery_analyze_v1"];
     "classic.recovery.import.v1": ToolMap["opencut_classic_recovery_import_v1"];
+    "classic.analyze.v4": ToolMap["opencut_classic_analyze_v4"];
+    "classic.import.v4": ToolMap["opencut_classic_import_v4"];
   };
   "edit": {
     "classic.plan.v1": ToolMap["opencut_edit_classic_plan_v1"];
@@ -49668,7 +50600,9 @@ export const domainActions = {
     "classic.analyze",
     "classic.import",
     "classic.recovery.analyze.v1",
-    "classic.recovery.import.v1"
+    "classic.recovery.import.v1",
+    "classic.analyze.v4",
+    "classic.import.v4"
   ],
   "edit": [
     "classic.plan.v1",
@@ -50091,6 +51025,8 @@ export const toolNames = [
   "opencut_classic_import",
   "opencut_classic_recovery_analyze_v1",
   "opencut_classic_recovery_import_v1",
+  "opencut_classic_analyze_v4",
+  "opencut_classic_import_v4",
   "opencut_events_read",
   "opencut_job_events",
   "opencut_job_start",

@@ -335,6 +335,8 @@ mod recovery_authorization_tests {
         for name in [
             "opencut_classic_recovery_analyze_v1",
             "opencut_classic_recovery_import_v1",
+            "opencut_classic_analyze_v4",
+            "opencut_classic_import_v4",
         ] {
             assert_eq!(
                 authorize_tool(&restricted, name).unwrap_err().code,

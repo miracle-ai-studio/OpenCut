@@ -389,12 +389,12 @@ export async function findRecovered(
   await ensureCurrentFormat(sdk, prepared, signal);
   return prepared.targetId;
 }
-export async function reviewRecovery(
+export async function stageRecoveryMedia(
   sdk: OpenCutClient,
   prepared: PreparedRecovery,
   signal: AbortSignal,
   progress: (p: RecoveryProgress) => void,
-): Promise<RecoveryReview> {
+): Promise<{ source: RecoveryReview["source"]; revision: string }> {
   const initial = await stageInitial(sdk, prepared, signal);
   let stage = await sdk.call(
     "opencut_project_inspect",
@@ -457,12 +457,26 @@ export async function reviewRecovery(
       asset_id: assetId(prepared, item.id),
     })),
   };
+  return { source, revision: stage.revision };
+}
+export async function reviewRecovery(
+  sdk: OpenCutClient,
+  prepared: PreparedRecovery,
+  signal: AbortSignal,
+  progress: (p: RecoveryProgress) => void,
+): Promise<RecoveryReview> {
+  const { source, revision } = await stageRecoveryMedia(
+    sdk,
+    prepared,
+    signal,
+    progress,
+  );
   const analysis = await sdk.call(
     "opencut_classic_recovery_analyze_v1",
     source,
     { signal },
   );
-  return { prepared, source, analysis, revision: stage.revision };
+  return { prepared, source, analysis, revision };
 }
 export async function publishRecovery(
   sdk: OpenCutClient,

@@ -1,4 +1,20 @@
 export const zh: Record<string, string> = {
+  "Recovery font mappings": "恢复字体映射",
+  "Choose fonts already imported into a V4 project. Fonts are read from its fixed revision; recovery does not download fonts.":
+    "请选择已导入 V4 工程的字体。恢复会读取其固定修订中的字体，不会下载字体。",
+  "Font source project": "字体来源工程",
+  "Choose an existing V4 project": "选择已有 V4 工程",
+  "Font source revision": "字体来源修订",
+  "Font for {family} ({weight}, {style})":
+    "{family} 的字体（{weight}，{style}）",
+  "Keep unresolved (save only)": "保留未解析状态（仅保存）",
+  "Review font mappings": "检查字体映射",
+  "Unmapped fonts can be saved, but text using them cannot render until exact fonts are imported.":
+    "未映射的字体可以保存，但使用它们的文字在导入精确字体前无法渲染。",
+  "Retry uses the original recovery request and key. Font mappings cannot change after publication was attempted; an existing project will never be overwritten.":
+    "重试将使用原恢复请求和幂等键。尝试发布后无法更改字体映射，已有工程不会被覆盖。",
+
+
   "Export video MP4": "导出视频 MP4",
   "Start video export": "开始视频导出",
   "New video export": "新建视频导出",

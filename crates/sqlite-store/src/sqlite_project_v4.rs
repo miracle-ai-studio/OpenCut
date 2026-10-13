@@ -10,7 +10,7 @@ use opencut_editor_application::project_v4::{
 use sqlite_project_document::{VersionedProjectDocument, decode_versioned_project};
 
 mod public;
-pub(super) mod resources;
+pub(crate) mod resources;
 #[cfg(test)]
 mod tests;
 

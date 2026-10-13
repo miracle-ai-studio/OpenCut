@@ -6,6 +6,7 @@ use opencut_editor_application::access::{PrincipalPolicy, ProjectAction, Project
 use serde_json::json;
 use std::collections::BTreeMap;
 mod clipboard;
+mod classic_import;
 mod timeline;
 
 fn data(response: Response) -> Value {

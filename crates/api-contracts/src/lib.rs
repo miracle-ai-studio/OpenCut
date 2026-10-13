@@ -9,6 +9,7 @@ pub mod audit;
 pub mod branching;
 pub mod capabilities;
 pub mod classic_import;
+pub mod classic_import_v4;
 pub mod collaboration;
 pub mod context;
 pub mod edit_control;

@@ -7734,6 +7734,84 @@
         }
       }
     },
+    "/v1/tools/opencut_classic_analyze_v4": {
+      "post": {
+        "operationId": "opencut_classic_analyze_v4",
+        "description": "Owner-only: analyze original Classic v31 JSON directly into V4 with fixed media and font selectors. Preserves independent text and all mapped library assets. Reports unsupported semantics and unresolved exact fonts; never downloads fonts or publishes a project.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_classic_import_v4": {
+      "post": {
+        "operationId": "opencut_classic_import_v4",
+        "description": "Owner-only: atomically publish a direct Classic v31 to V4 conversion after rechecking original source identity, fixed resource authority and acknowledged losses. Exact replay precedes resource resolution. Unresolved fonts remain explicit and do not imply render availability.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutClassicImportV4Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Output"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Output"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_events_read": {
       "post": {
         "operationId": "opencut_events_read",
@@ -8818,7 +8896,9 @@
           "classic.analyze": "opencut_classic_analyze",
           "classic.import": "opencut_classic_import",
           "classic.recovery.analyze.v1": "opencut_classic_recovery_analyze_v1",
-          "classic.recovery.import.v1": "opencut_classic_recovery_import_v1"
+          "classic.recovery.import.v1": "opencut_classic_recovery_import_v1",
+          "classic.analyze.v4": "opencut_classic_analyze_v4",
+          "classic.import.v4": "opencut_classic_import_v4"
         },
         "requestBody": {
           "required": true,
@@ -9513,6 +9593,38 @@
                       "input"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "classic.analyze.v4"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "classic.import.v4"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutClassicImportV4Input"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -9654,6 +9766,12 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutClassicRecoveryImportV1Output"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutClassicImportV4Output"
                     }
                   ]
                 }
@@ -57247,6 +57365,660 @@
             "$ref": "#/components/schemas/OpencutClassicImportOutput/$defs/EditorError"
           }
         }
+      },
+      "OpencutClassicAnalyzeV4Input": {
+        "$defs": {
+          "ClassicFontMappingV4": {
+            "additionalProperties": false,
+            "properties": {
+              "classic_family": {
+                "type": "string"
+              },
+              "font_id": {
+                "type": "string"
+              },
+              "font_style": {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input/$defs/FontStyleV4"
+              },
+              "font_weight": {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input/$defs/FontWeightV4"
+              },
+              "source_project_id": {
+                "type": "string"
+              },
+              "source_revision": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "classic_family",
+              "font_weight",
+              "font_style",
+              "source_project_id",
+              "source_revision",
+              "font_id"
+            ],
+            "type": "object"
+          },
+          "ClassicMediaMapping": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeInput/$defs/ClassicMediaMapping"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "description": "Original SerializedProject JSON, never an old converted document.",
+            "type": "string"
+          },
+          "font_mappings": {
+            "items": {
+              "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input/$defs/ClassicFontMappingV4"
+            },
+            "type": "array"
+          },
+          "media_mappings": {
+            "description": "All mapped library assets, including unused media, are preserved.",
+            "items": {
+              "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input/$defs/ClassicMediaMapping"
+            },
+            "type": "array"
+          },
+          "target_project_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "target_project_id",
+          "media_mappings",
+          "font_mappings"
+        ],
+        "title": "ClassicAnalyzeV4",
+        "type": "object"
+      },
+      "OpencutClassicAnalyzeV4Output": {
+        "$defs": {
+          "AnimationChannelV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AnimationChannelV4"
+          },
+          "AssetKind": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/AssetKind"
+          },
+          "AssetVersion": {
+            "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
+          },
+          "AudioMetadataV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AudioMetadataV4"
+          },
+          "AudioPresenceV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AudioPresenceV4"
+          },
+          "AudioStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/AudioStyleV4"
+          },
+          "BackgroundV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BackgroundV4"
+          },
+          "BlendModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BlendModeV4"
+          },
+          "BoxMaskGeometryV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/BoxMaskGeometryV4"
+          },
+          "CanvasSizeModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CanvasSizeModeV4"
+          },
+          "CanvasSizeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CanvasSizeV4"
+          },
+          "CaptionLayoutProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionLayoutProfileV4"
+          },
+          "CaptionSourceAnchor": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CaptionSourceAnchor"
+          },
+          "CaptionStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionStyleV4"
+          },
+          "CaptionV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CaptionV4"
+          },
+          "ChannelTargetV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ChannelTargetV4"
+          },
+          "ClassicAnalysisV4": {
+            "additionalProperties": false,
+            "properties": {
+              "blockers": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/CompatibilityFinding"
+                },
+                "type": "array"
+              },
+              "losses": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/CompatibilityFinding"
+                },
+                "type": "array"
+              },
+              "mapped": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "proposed_project": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/PublicProjectDocumentV4"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Present only when all editing-relevant semantics have explicit mappings."
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "source_content_id": {
+                "type": "string"
+              },
+              "source_format": {
+                "type": "string"
+              },
+              "source_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "target_project_id": {
+                "type": "string"
+              },
+              "unresolved_fonts": {
+                "description": "Preserved with strict font resolution. Saving does not establish rendering\navailability and never triggers font discovery or network downloads.",
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/ClassicFontRequestV4"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "schema_version",
+              "source_format",
+              "source_content_id",
+              "target_project_id",
+              "mapped",
+              "losses",
+              "blockers",
+              "unresolved_fonts"
+            ],
+            "type": "object"
+          },
+          "ClassicFontRequestV4": {
+            "additionalProperties": false,
+            "properties": {
+              "family": {
+                "type": "string"
+              },
+              "font_style": {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/FontStyleV4"
+              },
+              "font_weight": {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/FontWeightV4"
+              }
+            },
+            "required": [
+              "family",
+              "font_weight",
+              "font_style"
+            ],
+            "type": "object"
+          },
+          "ColorComponentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorComponentV4"
+          },
+          "ColorEncodingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorEncodingV4"
+          },
+          "ColorParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorParameterV4"
+          },
+          "ColorV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ColorV4"
+          },
+          "CompatibilityFinding": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeOutput/$defs/CompatibilityFinding"
+          },
+          "CubicBezierV1": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
+          },
+          "CurveHandleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/CurveHandleV4"
+          },
+          "DiscreteKeyV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteKeyV4"
+          },
+          "DiscreteParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteParameterV4"
+          },
+          "DiscreteValueV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "EffectKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
+          },
+          "EffectV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectV4"
+          },
+          "ElementContentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ElementContentV4"
+          },
+          "ElementSourceSpanV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ElementSourceSpanV4"
+          },
+          "ExtrapolationModeV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/KeyframeInterpolation"
+          },
+          "ExtrapolationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ExtrapolationV4"
+          },
+          "FontBindingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontBindingV4"
+          },
+          "FontResolutionPolicy": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
+          },
+          "FontSizeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          },
+          "FrameRate": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
+          },
+          "FreeformMaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FreeformMaskV4"
+          },
+          "FreeformPointV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FreeformPointV4"
+          },
+          "GainV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GainV4"
+          },
+          "GraphicGeometryV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GraphicGeometryV4"
+          },
+          "GraphicV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/GraphicV4"
+          },
+          "LegacySequenceFormatV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/LegacySequenceFormatV4"
+          },
+          "MaskFeatherV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskFeatherV4"
+          },
+          "MaskShapeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskShapeV4"
+          },
+          "MaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MaskV4"
+          },
+          "MediaMetadataV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/MediaMetadataV4"
+          },
+          "ProjectSettingsV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ProjectSettingsV4"
+          },
+          "PublicAssetV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/PublicAssetV4"
+          },
+          "PublicFontResourceV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/PublicFontResourceV4"
+          },
+          "PublicProjectDocumentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/PublicProjectDocumentV4"
+          },
+          "PublicResourceOriginV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/PublicResourceOriginV4"
+          },
+          "RationalRateV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
+          },
+          "ResourceLicenseV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ResourceLicenseV4"
+          },
+          "RetimeMappingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/RetimeMappingV4"
+          },
+          "RetimeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/RetimeV4"
+          },
+          "ScalarBindingV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarBindingV4"
+          },
+          "ScalarKeyV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarKeyV4"
+          },
+          "ScalarParameterV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarParameterV4"
+          },
+          "ScalarSegmentV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/ScalarSegmentV4"
+          },
+          "SceneBookmarkV1": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SceneBookmarkV1"
+          },
+          "SequenceV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SequenceV4"
+          },
+          "SettingsProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/SettingsProfileV4"
+          },
+          "StrokeAlignV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/StrokeAlignV4"
+          },
+          "StrokeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/StrokeV4"
+          },
+          "TangentModeV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TangentModeV4"
+          },
+          "TextAlignV4": {
+            "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
+          },
+          "TextBackgroundV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextBackgroundV4"
+          },
+          "TextDecorationV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextDecorationV4"
+          },
+          "TextMaskV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextMaskV4"
+          },
+          "TextV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/Time"
+          },
+          "TimeRange": {
+            "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
+          },
+          "TimelineElementV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TimelineElementV4"
+          },
+          "TrackKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TrackKindV4"
+          },
+          "TrackV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TrackV4"
+          },
+          "TransformV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransformV4"
+          },
+          "TransitionKindV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransitionKindV4"
+          },
+          "TransitionV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TransitionV4"
+          },
+          "VisualProfileV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/VisualProfileV4"
+          },
+          "VisualStyleV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/VisualStyleV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/ClassicAnalysisV4"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutClassicImportV4Input": {
+        "$defs": {
+          "ClassicAnalyzeV4": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "description": "Original SerializedProject JSON, never an old converted document.",
+                "type": "string"
+              },
+              "font_mappings": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Input/$defs/ClassicFontMappingV4"
+                },
+                "type": "array"
+              },
+              "media_mappings": {
+                "description": "All mapped library assets, including unused media, are preserved.",
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Input/$defs/ClassicMediaMapping"
+                },
+                "type": "array"
+              },
+              "target_project_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content",
+              "target_project_id",
+              "media_mappings",
+              "font_mappings"
+            ],
+            "type": "object"
+          },
+          "ClassicFontMappingV4": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Input/$defs/ClassicFontMappingV4"
+          },
+          "ClassicMediaMapping": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeInput/$defs/ClassicMediaMapping"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accepted_loss_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expected_source_content_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OpencutClassicImportV4Input/$defs/ClassicAnalyzeV4"
+          }
+        },
+        "required": [
+          "source",
+          "expected_source_content_id",
+          "idempotency_key",
+          "accepted_loss_codes"
+        ],
+        "title": "ClassicImportV4",
+        "type": "object"
+      },
+      "OpencutClassicImportV4Output": {
+        "$defs": {
+          "ClassicFontRequestV4": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeV4Output/$defs/ClassicFontRequestV4"
+          },
+          "ClassicImportReceiptV4": {
+            "additionalProperties": false,
+            "properties": {
+              "asset_count": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "font_count": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "losses": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Output/$defs/CompatibilityFinding"
+                },
+                "type": "array"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "source_content_id": {
+                "type": "string"
+              },
+              "target_project_id": {
+                "type": "string"
+              },
+              "unresolved_fonts": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutClassicImportV4Output/$defs/ClassicFontRequestV4"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "schema_version",
+              "target_project_id",
+              "revision",
+              "source_content_id",
+              "asset_count",
+              "font_count",
+              "unresolved_fonts",
+              "losses"
+            ],
+            "type": "object"
+          },
+          "CompatibilityFinding": {
+            "$ref": "#/components/schemas/OpencutClassicAnalyzeOutput/$defs/CompatibilityFinding"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameOutput/$defs/EditorError"
+          },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4CaptionFrameInput/$defs/FontStyleV4"
+          },
+          "FontWeightV4": {
+            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutClassicImportV4Output/$defs/ClassicImportReceiptV4"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutClassicImportV4Output/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
       },
       "OpencutEventsReadInput": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

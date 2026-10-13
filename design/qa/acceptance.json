@@ -286,8 +286,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "43 unique scoped records. F19 free-text creation, multiline/size/position, timeline operations, history/persistence and independent preview/export requirements are covered using current targeted checks and explicitly scoped prior evidence. Earlier results retain candidate identities. 34 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "f19_free_text_editing",
+    "scope": "44 unique scoped records. Direct Classic v31 independent text/font mapping, atomic V4 recovery, actual edit/reopen/history and one independent PNG are now verified. F19 remains closed using its recorded evidence. Earlier results retain source/candidate identities. 34 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "classic_direct_v4_text_font_import",
     "plan_coverage": {
       "remaining_groups": 34,
       "routes": 13,
@@ -8485,11 +8485,158 @@
           "Classic direct V4 conversion and font project-package restore, full cross-type F27/F39/F46 and final release candidate remain open.",
           "No full S1, full B3, whole-workspace or whole-migration acceptance; 34 groups remain."
         ]
+      },
+      {
+        "evidence_id": "classic_direct_v4_text_font_import",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "bd7c7237b3ab9f2769991f835740c85c20e99f561fdd7dac9ab420cf987a77a7",
+          "web_js_css_tree_sha256": "9581c44cba7759bef5d19887acb8cfed2e162dac3f38df5725fb9d72aacd8b9a",
+          "source_head": "a74f2d291ca11881beedc694903d8c8289cabb67",
+          "production_change_digest": "ec2187bb44f279d814245ede4554e9be932ed80a6396ba3c190738acf97296ca",
+          "production_change_files": 26,
+          "rust_release_builds": 1,
+          "web_production_builds": 1
+        },
+        "fixture": {
+          "source_project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "target_project_id": "classic-recovered-v4-3ffc4f7f2062fdbadb82b3618887a3cc",
+          "imported_revision": "rev_6950601cd0135d7c4dda62b97183b0f060f181048486f3eec01206f1624242c7",
+          "source_content_id": "classic_aa3ef56ad47904790e66c107c847bc2933258193b28897f6c8652d28de6a7960",
+          "scope": "Original v31 text-only recovery bundle in the existing owned synthetic workspace; Lato and Ma Shan Zheng from the existing authorized fixed V4 revision. No new font downloads/media copies or changes to the font source project."
+        },
+        "behavior": {
+          "public_operations": [
+            "opencut_classic_analyze_v4",
+            "opencut_classic_import_v4"
+          ],
+          "public_registry": {
+            "current_tools": 225,
+            "unchanged_prior_tools": 223,
+            "unchanged_legacy_wire_tools": 22
+          },
+          "actual_ui": [
+            "existing recovery bundle picker and native direct V4 analysis",
+            "explicit exact family/400/normal font selections from one fixed source revision",
+            "native atomic import, original request replay and open recovered project",
+            "independent bilingual multiline text, nonzero source trims, Classic size and nonuniform transforms preserved",
+            "canvas edit, reopen, Undo/Redo/Undo and reopen with complete document equality",
+            "one persistent native PNG job and actual task download"
+          ],
+          "resources": {
+            "font_count": 2,
+            "unresolved_fonts": 0,
+            "font_mappings": [
+              {
+                "classic_family": "Ma Shan Zheng",
+                "font_weight": "normal",
+                "font_style": "normal",
+                "source_project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+                "source_revision": "rev_61bb7707eb24e250af9d87032f4a3fcea1e62dc3b6781a247b3781ccf253d18d",
+                "font_id": "cdf38740-d798-4112-a2ae-2322ee9c164c"
+              },
+              {
+                "classic_family": "Lato",
+                "font_weight": "normal",
+                "font_style": "normal",
+                "source_project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+                "source_revision": "rev_61bb7707eb24e250af9d87032f4a3fcea1e62dc3b6781a247b3781ccf253d18d",
+                "font_id": "09b9a839-b402-42c5-978a-66bd33240982"
+              }
+            ],
+            "font_lock": [
+              {
+                "content_hash": "d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251",
+                "font_id": "09b9a839-b402-42c5-978a-66bd33240982",
+                "size": 656568
+              },
+              {
+                "content_hash": "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb",
+                "font_id": "cdf38740-d798-4112-a2ae-2322ee9c164c",
+                "size": 5857936
+              }
+            ]
+          },
+          "source_font_project_unchanged": true
+        },
+        "render": {
+          "job_id": "job_7d6f58c808fd40f3826c95817a95ed35",
+          "revision": "rev_4194a8fba559cc05182f7f2198e6fe29917c55ed6ecfb93cad9e80f035496a35",
+          "identity": {
+            "height": 180,
+            "profile": "classic-v31-gpu-normal-text-frame-v2",
+            "project_id": "classic-recovered-v4-3ffc4f7f2062fdbadb82b3618887a3cc",
+            "revision": "rev_4194a8fba559cc05182f7f2198e6fe29917c55ed6ecfb93cad9e80f035496a35",
+            "sequence_id": "scene",
+            "time": {
+              "ticks": "1",
+              "timebase": 2
+            },
+            "width": 320
+          },
+          "png_sha256": "e24b02fe811a6df5fb728623289aa31283f0b209a41fe15bab7f1ed558019e49",
+          "independent_expected": {
+            "basis": "Independently hashed original font files and Canvas T*S*R glyph raster; authored size12 at180px gives24px, line height28.8px. Latin center192/60 scale1.25/0.75; Chinese center140/125 scale0.9/1.1. The oracle does not consume native text layout output.",
+            "metrics": {
+              "width": 320,
+              "height": 180,
+              "intersection": 1922,
+              "union": 1922,
+              "iou": 1,
+              "meanChannelError": 0,
+              "blankError": 0
+            }
+          }
+        },
+        "checks": {
+          "rust_converter": "8 passed after explicit original Classic curve-enum mapping; independent text/style/source-span/font/resource/curve/unknown-field checks",
+          "rust_sqlite": "4 passed: original request replay/conflict, publication rollback, fixed source and exact font/CAS checks",
+          "rust_host": "2 public/domain dispatch and owner-only input-boundary tests passed; animation-only correction does not affect these unanimated fixtures",
+          "web": "Initial Classic decoding/bundle/old+new recovery: 4 files60 passed. Later changed V4 helper/UI: 2 files8 passed; overlapping counts are not summed. Final generated types and production build passed.",
+          "architecture": "14 tests;22 modules;0 temporary exceptions;contract boundary and Web boundary210 passed",
+          "contracts": "Generation and check against the same explicit Rust release,223 prior declarations and22 frozen wire declarations unchanged"
+        },
+        "verification_reuse": "Same owned workspace, original fixed fonts, one Rust release and one Web build. Three verifier failures retained (select accessible name, nonexistent editor CSS selector, incorrect scene URL). After successful publication, later runs resume its original receipt; no duplicate project publication or PNG job, S1/MP4/PCM suite or font import was created for verifier corrections.",
+        "not_proven": [
+          "Full Classic conversion: unsupported graphics/effects/masks/discrete animation/library URLs/nonhex CSS colors remain explicit blockers",
+          "Complete font sources/styles, real system IME, animated trim/split or full F29 render parity",
+          "Schema6 full-history/font/media project package restore",
+          "Full S1/B3 or whole migration;34 groups remain"
+        ],
+        "fixed_media_integration": {
+          "receipt": {
+            "asset_count": 2,
+            "font_count": 2,
+            "losses": [],
+            "revision": "rev_6eb3e1814bc4c90d3848c18e758e0843fc45a7a84e7be034b88d23a2d2f9b256",
+            "schema_version": 4,
+            "source_content_id": "classic_a23f366cc8a796d8f5eb33ef994dd3c17776be33979000dabbac28ff65162dc9",
+            "target_project_id": "classic-v4-existing-resource-integration",
+            "unresolved_fonts": []
+          },
+          "source_revision": "rev_61bb7707eb24e250af9d87032f4a3fcea1e62dc3b6781a247b3781ccf253d18d",
+          "source_project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "media_versions": [
+            {
+              "content_hash": "2edb8484ae14487899349d8d1c14561cc46cfed6ab6d844ab5f54e8931670721",
+              "id": "av_2edb8484ae14487899349d8d1c14561cc46cfed6ab6d844ab5f54e8931670721",
+              "size": 768078
+            },
+            {
+              "content_hash": "f95b92238c43cafd28f88597260e644815504c3cfa3eafc240f743211b0216dd",
+              "id": "av_f95b92238c43cafd28f88597260e644815504c3cfa3eafc240f743211b0216dd",
+              "size": 11475
+            }
+          ],
+          "source_unchanged": true,
+          "scope": "Public CLI direct V4 fixed resources: used video plus unused library audio, complete public media records and fixed fonts, source trim/source-audio/gain, original replay and atomic stored document equality; existing CAS only.",
+          "verification": "Same explicit release and owned database. Used video plus unused audio retain complete public resource records after destination ID remap; two existing fonts, source trims, source-audio=false and -6dB preserved. Original request replay and full stored-document equality pass. No media/font byte import or new rendering."
+        }
       }
     ]
   },
   "current_limits": [
-    "35 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan. F10 is independently closed; F47 is now partially migrated.",
+    "34 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan. F10 and F19 are independently closed; F47 is now partially migrated.",
     "Current S1 reuses existing shared player/DSP and Web7db7d00. Scoped scene/history/head/original credential retirement has5 actual cases at audio_preview_identity_retirement. Distinct440Hz target/880Hz left/660Hz right voices and gain/Escape now have independent pre/post-master interiors; linked high DC has one actual steady success at audio_preview_distinct_stereo_mastering, with an earlier unresolved post-master residual retained. No permanent high stability or new performance/RSS claim. Prior actual300s14/14 performance,39 PCM source/gap windows and terminal/document/rapid control evidence retain their original source/runtime identities. Exact phase/boundary/DAC, persistent unknown/full control/BFCache/kill/network/TTL, external head/grant recovery and long/VFR/non-unit-rate/cross-browser/full visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
@@ -8498,7 +8645,7 @@
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
     "Google catalog browse/search/family preview covers 1920 families, with 1797 validated static faces from1264 families. 656 families lack usable normal400 sources; unavailable400/700 normal/italic faces total1529. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
-    "B1/B2/B3 evidence remain scoped. B3 additionally proves wrapped-caption continuous preview, one MP4 UI export/download and independent pixels/PCM. English synthetic ASR-to-subtitles/SRT passed; Chinese actual inference succeeded but literal CER failed on simplified/traditional differences, and its generation/reopen/SRT path remains unverified. Human speech, real OS IME, full text timeline/styles, unavailable font sources, Classic direct V4 mapping and font package restore remain open."
+    "B1/B2/B3 evidence remain scoped. B3 additionally proves wrapped-caption continuous preview, one MP4 UI export/download and independent pixels/PCM. F19 free-text timeline and position/size editing is independently closed with its recorded candidate evidence. English synthetic ASR-to-subtitles/SRT passed; Chinese actual inference succeeded but literal CER failed on simplified/traditional differences, and its generation/reopen/SRT path remains unverified. Human speech, real OS IME, full text styles and animated editing, unavailable font sources, unsupported Classic content mappings and schema6 full-history/font package restore remain open. Direct V31 independent text with fixed fonts now has actual recovery/edit/history/PNG evidence at classic_direct_v4_text_font_import."
   ],
   "retained_delivery_packages": [
     {

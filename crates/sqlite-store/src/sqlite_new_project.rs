@@ -26,6 +26,15 @@ impl PublishedDocument for ProjectDocumentV3 {
     }
 }
 
+impl PublishedDocument for opencut_contracts::project_v4::ProjectDocumentV4 {
+    fn project_id(&self) -> &str {
+        &self.id
+    }
+    fn project_name(&self) -> &str {
+        &self.name
+    }
+}
+
 pub(super) struct NewProjectPublication<'a, T: PublishedDocument> {
     pub document: &'a T,
     pub revision: &'a str,

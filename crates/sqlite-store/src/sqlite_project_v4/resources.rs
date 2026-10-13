@@ -34,7 +34,7 @@ impl ScanBudget {
     }
 }
 
-pub(super) fn verify_document(
+pub(crate) fn verify_document(
     root: &Path,
     document: &ProjectDocumentV4,
     inherited: Option<&StoredProjectDocumentV4>,
@@ -216,7 +216,7 @@ fn same_asset(authority: &AssetV4, candidate: &AssetV4) -> bool {
     authority.name = candidate.name.clone();
     authority == *candidate
 }
-pub(super) fn known_version(asset: &Asset) -> Option<AssetVersion> {
+pub(crate) fn known_version(asset: &Asset) -> Option<AssetVersion> {
     asset.version.clone().or_else(|| {
         let hash = asset.metadata.get("content_hash")?.as_str()?;
         let size = asset.metadata.get("size")?.as_u64()?;
@@ -230,7 +230,7 @@ pub(super) fn known_version(asset: &Asset) -> Option<AssetVersion> {
 
 /// Reuse the one pure legacy observation projection instead of hand-copying
 /// another metadata interpretation into the authorization adapter.
-pub(super) fn canonical_asset(asset: &Asset, version: &AssetVersion) -> Option<AssetV4> {
+pub(crate) fn canonical_asset(asset: &Asset, version: &AssetVersion) -> Option<AssetV4> {
     let observation = packet_rate(asset).ok()?;
     let mut asset = asset.clone();
     asset

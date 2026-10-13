@@ -591,6 +591,12 @@ impl Automation {
             "opencut_edit_v3_plan" => to_value(self.app.plan_v3_project(&parse(arguments)?)?),
             "opencut_edit_v3_apply" => to_value(self.app.apply_v3_project(&parse(arguments)?)?),
             "opencut_classic_analyze" => to_value(self.analyze_classic(&parse(arguments)?)?),
+            "opencut_classic_analyze_v4" => {
+                to_value(self.app.classic_v4_analyze(&parse(arguments)?)?)
+            }
+            "opencut_classic_import_v4" => {
+                to_value(self.app.classic_v4_import(&parse(arguments)?)?)
+            }
             "opencut_classic_import" => {
                 let input: opencut_api_contracts::classic_import::ClassicImport = parse(arguments)?;
                 if let Some(receipt) = self.app.classic_import_replay(&input)? {
