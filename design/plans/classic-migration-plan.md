@@ -140,17 +140,11 @@ V2已实现独立typed PublicApply/Undo/Redo/Restore意图及新stage/inspect/ac
 
 **连续声画后续出口。** 复用固定修订的实时声音session/原凭据/lease/generation与Classic normal源→IR→WebGPU，不重新开发播放器、帧计算、上传或历史。帧接口只读且不启动持久PNG任务；主线程保持一帧执行及一个最新意图，Rust确认时间窗口≤150ms，本地Worklet消费观察再围住显示，播放无新观察清画面。缓存保留会话内已校验编码字节、GPU管线及受原预算约束的三画布解码池，停止/修订切换/权限失效回收。默认prepared-linear采样位置沿用Rust精确事实，私有桥以受限JSON文本封送，不能在JS重算源时钟。
 
-当前推进依据audio_preview_document_retirement：消费优先/租约保护和已知文档退出已交付，原SDK keepalive Stop保留owner/lease/generation、迟到新代际单独清理；未知create/Play在BFCache离开保留原请求/key，常规pause/seek/gain的实际final cursor流程保持。最终21生命周期与未影响7桥接/Worker用例、SDK23/边界9及架构/契约检查过，真实playing/paused整页导航后原session/捕获native子进程/Worker退出。前置集成Web c6f8087候选同一现场HD4及实际300秒14/14冻结门槛过；末尾BFCache未知key修正后的90f996c最终Web只补恢复单测、构建和真实文档退出，持续结果保留原执行身份，不冒充最终全树复测。原Rust/native未重建，旧失败/Native诊断保留，单次通过不证明稀有长尾消失或因果性能收益。
+当前推进基线见台账与`acceptance.json`：已交付的document retirement、快速seek、临时gain串行化和scene/history/原credential边界继续复用；新`audio_preview_distinct_stereo_mastering`只补独立声部、立体声及真实母带输出观察。旧300秒性能/声学、导出DSP和更早控制证据按各自候选保存，不冒充当前全矩阵复验。产品/Rust/native/Web7db7d00未改、未重建；35条唯一证据、57状态/36未完成保持。
 
-后续独立PCM已补：audio_preview_later_stereo_pcm复用最终90f996c Web/原Rust与native、同一固定修订和媒体，实际300秒20声源/19间隙各4096帧双声道interior窗口按外部440Hz/三声部−18dB/精确零预期通过，159744帧；原播放起点与终态控制游标分开观察。只补验收观察，0产品构建，性能14门槛仍引用原c6f8087身份；39完整声学窗口保留；300秒终态汇总的游标误判已修正并补实际8秒结束回归，最终源未重复300秒全汇总。相同mono素材不证明不同声部/立体声映射、精确边界或post-master/DAC。
+下一切片先收口`S1_HOT_POST_MASTER_RESIDUAL`：首次真实高DC母带后窗口残差失败、母带前2/1已过，后续有界诊断观察通过，但原失败没有窗口统计，原因仍未证实。复用唯一声学夹具、原设备/Worker回执和母带tee，失败时保留一份有界前后PCM及context/sample身份，将窗口逐量子关联真实copied/consumed回执；不得排除零值/失败区间、放宽阈值或靠相同候选重跑追绿。先证实差异发生阶段，再仅修已证明的产品缺口；现有不同440/880/660Hz声部、左右映射、−12dB目标/参考不变及Escape恢复的已过观察不重复。
 
-前置audio_preview_coalesced_seek保留指定三个真实rapid seek/pause边界及Web40f17df身份。前置audio_preview_gain_transitions把现有gain/Escape与seek/Pause归同一串行队列：仅最新意图打开声画、暂停gain不报告旧pump/不开声音、迟到accepted gain补原身份Stop。六旧源回归先失败；最终34声音/15gain/5画面共54独立用例过，原8秒场景三个真实控制案例过：−12dB和Escape恢复独立双声道440Hz/RMS、5颜色帧/同步48ms，paused gain保持已确认cursor/无新增报告，原head/身份不变，设备和Worker退出。33唯一证据，57状态/36未完成保持。
-
-三个真实成功路径绑定首次集成Web22f720b；最终883ad2c仅恢复Pause caller拒绝传播，新增失败回归、34声音用例及类型/构建通过，没有重复成功路径媒体验收。验收器先等匹配generation/overlay的真实消费；paused报告断言改为已确认暂停基线，只补该专项，已过两个案例保留原报告通过记录且不把该总体failed报告改绿。共两次必要产品构建；纯验收器修正不重建，0Rust/native/SDK、不另复制媒体/工程或跑旧300秒/HD/DSP。当前实际browser153与旧154持续测量分开，旧性能/PCM/文档证据各保留身份；单mono目标pre-master窗口未补独立参考声部/不同立体声映射/post-master/物理DAC。
-
-当前audio_preview_identity_retirement完成指定scene/history/head和原凭据边界。真实accepted seek切场景中止回执后5秒仍playing，已补一次4秒有界原控制/key重放，校验原owner/lease/修订/场景/rate后清理接受代际，不恢复退役声画或改变新active；权威拒绝不重放。四旧源回归先失败，最终56受影响用例、一次Web类型/构建与最终Web7db7d00五个真实案例同源过；实际Stop gen1/2、history/head退出、playing/paused真实受限credential revoke及preview403无cookie owner回退，各9–10 native PID/start退出、设备closed/Worker0，原head未改。只有缺少第二scene才用现有public copy/SequencePut建一个小工程，共享原CAS版本，不重导入媒体；两凭据已撤权/文件删除。34唯一证据、57状态/36未完成保持，0Rust/native/SDK构建，无旧300秒/HD/DSP矩阵或已过案例重复。
-
-下一切片优先补①独立声部/立体声与pre-master/post-master gain预期，复用既有two-voice isolatedPCM和Classic mastering链；当前单目标pre-master和历史独立参考证据不能互相冒充当前完整母带验收。②持久unknown gain/control原请求恢复、真实BFCache、无pagehide文档/进程退出、网络/keepalive不可达及原30秒lease后备；当前一次退出重放是best effort，不能当作持久恢复或使用无版本强制清理/换key。③外部head提交刷新、完整scene/project/control和结束/Stop组合、原grant撤除/恢复，保留原owner/lease/generation、固定修订与实际资源退出；本次历史只读切换和credential revoke不代替完整授权矩阵。④真实长源/VFR/不同采样率/非单位速率保音高、更广格式和跨浏览器/物理DAC，复用现有PCM/PTS/DSP预期，不在JS重算源时钟或IR。新变化才运行对应验证，S1和全部迁移范围保持未完成。
+随后顺序补①持久unknown gain/control原请求恢复、真实BFCache、无pagehide文档/进程退出、网络/keepalive不可达及原30秒lease后备；一次退出重放仍是best effort，不等于持久交付，不换key/owner。②外部head提交刷新、完整scene/project/control、结束/Stop及原grant撤除/恢复，继续保持固定修订与实际资源退出。③PCM精确边界/相位/seek历史、真实长源/VFR/不同采样率/非单位速率保音高、更广格式/跨浏览器及物理DAC。复用原PCM/PTS/DSP预期，不在JS重算时钟或IR；实时母带与导出整场峰值门/最终夹限是不同profile，不能相互代替。新变化或明确覆盖缺口才补对应检查；S1和全部迁移保持未完成。
 
 每个10秒窗口及全程仍保持停顿、confirmed deficit和真实量子缺帧≤1%，完整owned native树RSS≤2GiB；page/Worker/GPU分列预算及实际子进程退出不能被全程平均或缩小子树替代。新失败若复现前序report等待或Native返回长尾，复用command ID/sample、控制响应体、Worker receipt→报告→k+2补块、起终时钟/有界GC和实际进程身份观察，先证实阶段再修正；旧诊断曾观察到Native evaluate返回122–123ms与Node迟到重叠，但selected GC无命中不证明全无GC/OS原因。不为已过相同夹具反复跑旧身份追捕稀有尾部，也不猜测混合器缓存、移除监控或扩大heap/两槽预算；诊断RPC与注入身份单列，不冒充量子精确因果或原产品性能收益。
 

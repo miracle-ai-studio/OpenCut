@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "32 unique scoped records. Current coalesced seek implementation passes32 affected lifecycle/visual/control cases and15 observers; one integrated Web build,0Rust/native/SDK builds. Same original fixture3 real control cases pass with exact latest target/original authority and independent PCM/pixels/sync. Prior300s windows/performance/document scopes keep their identities; fullS1/whole tree incomplete.",
-    "latest_candidate": "audio_preview_identity_retirement",
+    "scope": "35 unique scoped records; this observer-only slice reuses unchanged product/Rust/native/Web7db7d00. Three independent tagged-voice/stereo gain/Escape interior cases plus one narrow linked-hot post-master/pixel/cleanup case have actual evidence. First hot residual failure remains open; no repeated300s/DSP matrices, builds or whole S1 acceptance.57 feature statuses/36 remaining groups unchanged.",
+    "latest_candidate": "audio_preview_distinct_stereo_mastering",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -7214,12 +7214,259 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_distinct_stereo_mastering",
+        "status": "scoped_acoustic_evidence_with_open_hot_residual",
+        "candidate": {
+          "base_commit": "2477ca60",
+          "observer_files": [
+            "apps/web/scripts/scene-preview-acoustics.mjs",
+            "apps/web/scripts/scene-preview-acoustics.test.mjs",
+            "apps/web/scripts/verify-v4-scene-preview-acoustics.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "c6526667b128a7bb5da680ca21e056a4bb48c17c1b16200354b89b829f1d71d4",
+          "product_ref": "audio_preview_identity_retirement.candidate",
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "product_sources_binary_web_unchanged": true,
+          "runtime": "preview-direct-v1; Node24.19.0; actual Chrome153.0.8010.12; Playwright1.63.0. Acceptance-only zero-output tee; no performance measurement."
+        },
+        "implemented": [
+          "Reuse original native preview mixer, actual transfer-byte witness, player gain/Escape, visual renderer and Classic realtime mastering chain; no new player/DSP, public contract, dependency or product change.",
+          "One zero-output Worklet branch tees the actual final GainNode while preserving original destination connection/return and transferred product bytes. Actual device reset token plus actual Worker start session bind each window; first Play uses its gesture key/epoch, later generations use session/generation/overlay.",
+          "Per context capture4096 stereo frames after36000 interior context frames from first nonzero input; maximum8 contexts/one completed window each. Original observed PCM is never supplied back to product. New guard refuses stale pre-seek high-window generation/origin.",
+          "Independent simultaneous seven-basis least squares fit separates440Hz target,880Hz left reference and660Hz right reference without importing renderer PCM/constants; low-level makeup/headroom and max-channel-linked high DC static compression derive from Classic author constants plus primary Chromium algorithm.",
+          "Necessary one copied8s project retains original video/mono CAS versions; one newly authored Float32 stereo WAV adds6s tagged tones and2s DC. Public import/review/place and typed TrackPut trim target to6s and place stereo high DC at6s with gain4. Persist fixture before import for reuse; no original short/dense/head mutation."
+        ],
+        "checks": {
+          "new_observer_node_tests": 9,
+          "web_boundary_files": 184,
+          "syntax_and_python_registration": true,
+          "rust_native_web_sdk_builds": 0,
+          "public_protocol_or_architecture_boundaries_changed": false,
+          "negative_cases": "Missing/wrong target/reference gain, swapped/downmixed channels, pre-master/bare headroom masquerading as post-master, distortion, per-channel/bypassed high compressor, malformed/nonfinite PCM, nonzero sink output, duplicate ownership and old pre-seek high window rejected.",
+          "reuse": "No old300s/HD/DSP/export/document/identity/control matrices rerun. Fixture import runs once. Observer-only admission corrections do not rebuild product; three successful low-tone cases not repeated."
+        },
+        "acceptance": {
+          "project_id": "scene-preview-acoustics-65f2535d-1fcc-49c9-9dd3-2b2d2151a1d2",
+          "revision": "rev_a388e4941d05bf23fe037da1dccda2f1c87aef7f8103f0450909eaa278ebaaf0",
+          "source_project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+          "source_revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+          "cases": [
+            {
+              "name": "baseline",
+              "generation": "1",
+              "actual_start_sample": "0",
+              "frames_per_point": 4096,
+              "pixel_frames": 27,
+              "max_skew_ms": 69.33333333333336,
+              "pre_master_amplitudes_440_880_660": [
+                [
+                  0.1249719821589271,
+                  0.10000007194209072,
+                  7.185337442747798e-08
+                ],
+                [
+                  0.12497198221494904,
+                  9.846454846530495e-08,
+                  0.05000006478005455
+                ]
+              ],
+              "post_master_amplitudes_440_880_660": [
+                [
+                  0.13077729207054317,
+                  0.10464517666518364,
+                  7.600819856799435e-08
+                ],
+                [
+                  0.13077729199243265,
+                  6.285845012439594e-08,
+                  0.052322582735919845
+                ]
+              ],
+              "pre_master_dc": [
+                -1.4333437972125012e-08,
+                -1.4328962373078881e-08
+              ],
+              "post_master_dc": [
+                -2.7615697975855243e-08,
+                -2.7763239394555704e-08
+              ],
+              "maximum_residual_rms": 1.06059285624759e-05
+            },
+            {
+              "name": "target_gain",
+              "generation": "2",
+              "actual_start_sample": "77056",
+              "frames_per_point": 4096,
+              "pixel_frames": 21,
+              "max_skew_ms": 71.99999999999962,
+              "pre_master_amplitudes_440_880_660": [
+                [
+                  0.03139154432753087,
+                  0.09999999609534276,
+                  9.592479315500575e-09
+                ],
+                [
+                  0.03139154428793854,
+                  5.5136669430306546e-09,
+                  0.05000000840849602
+                ]
+              ],
+              "post_master_amplitudes_440_880_660": [
+                [
+                  0.032849748275820656,
+                  0.10464520858906164,
+                  1.0044538240568114e-08
+                ],
+                [
+                  0.03284974825878114,
+                  5.71769972475839e-09,
+                  0.05232261512939288
+                ]
+              ],
+              "pre_master_dc": [
+                4.9679344737244325e-09,
+                4.940709621766991e-09
+              ],
+              "post_master_dc": [
+                5.128557927130646e-09,
+                5.189300958505141e-09
+              ],
+              "maximum_residual_rms": 2.6640407802902116e-06
+            },
+            {
+              "name": "restored",
+              "generation": "3",
+              "actual_start_sample": "133632",
+              "frames_per_point": 4096,
+              "pixel_frames": 23,
+              "max_skew_ms": 79.99999999999963,
+              "pre_master_amplitudes_440_880_660": [
+                [
+                  0.12497207361513925,
+                  0.09999996592984337,
+                  7.267586021425262e-08
+                ],
+                [
+                  0.12497207364945424,
+                  6.004449306519837e-08,
+                  0.04999997744944814
+                ]
+              ],
+              "post_master_amplitudes_440_880_660": [
+                [
+                  0.13077729207054314,
+                  0.10464517666518362,
+                  7.600819856841064e-08
+                ],
+                [
+                  0.13077729199243265,
+                  6.285845012439594e-08,
+                  0.052322582735919845
+                ]
+              ],
+              "pre_master_dc": [
+                -2.647762611117455e-08,
+                -2.6453465819042477e-08
+              ],
+              "post_master_dc": [
+                -2.7615697880106993e-08,
+                -2.7763239394555704e-08
+              ],
+              "maximum_residual_rms": 1.06059285624759e-05
+            },
+            {
+              "name": "linked_hot_mastering",
+              "generation": "1",
+              "actual_start_sample": "300000",
+              "frames_per_point": 4096,
+              "pixel_frames": 21,
+              "max_skew_ms": 74.66666666666733,
+              "pre_master_amplitudes_440_880_660": [
+                [
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "post_master_amplitudes_440_880_660": [
+                [
+                  4.9832992632276016e-17,
+                  4.4805464020346834e-17,
+                  3.337672221054957e-17
+                ],
+                [
+                  2.4916496316138008e-17,
+                  2.2402732010173417e-17,
+                  1.6688361105274785e-17
+                ]
+              ],
+              "pre_master_dc": [
+                2,
+                1
+              ],
+              "post_master_dc": [
+                0.9711310267448425,
+                0.48556551337242126
+              ],
+              "maximum_residual_rms": 0
+            }
+          ],
+          "unique_pre_plus_post_stereo_frames": 32768,
+          "low_cases_source_manifest_sha256": "deff35271d7d432a576e74d23ab83915b65554133275365bd4cd3672ca6b2d4c",
+          "hot_case_source_ref": "candidate.source_manifest_sha256",
+          "low_cases_report": "/private/tmp/opencut-preview-acoustics-voices-20261013.json",
+          "low_report_status": "failed aggregate at stale pre-seek high-window assertion; three preceding independent low acoustic/pixel cases remain passed and are not relabeled as a passed full suite.",
+          "hot_report": "/private/tmp/opencut-preview-acoustics-hot-20261013.json",
+          "hot_report_status": "passed narrow diagnostic observer scope",
+          "maximum_successful_pixel_skew_ms": 79.99999999999963,
+          "hot_original_owner_lease_identity_and_head_preserved": true,
+          "hot_device_closed": true,
+          "hot_worker_targets": 0,
+          "primary_algorithm_source": "https://raw.githubusercontent.com/chromium/chromium/main/third_party/blink/renderer/platform/audio/dynamics_compressor.cc",
+          "expected_low_post_master_factor": 1.0464682966883165,
+          "expected_hot_left_right_dc": [
+            0.9711304583740656,
+            0.4855652291870328
+          ]
+        },
+        "retained_failure": {
+          "id": "S1_HOT_POST_MASTER_RESIDUAL",
+          "report": "/private/tmp/opencut-preview-acoustics-hot-before-20261013.json",
+          "observer_manifest_sha256": "8fffcf8000acd288c3ecfaa267211115678a054b40441972cf873073d10ad9e1",
+          "failed_assertion": "Actual hot post-master4096-window residual_rms exceeded0.0001; native pre-master2/1 passed.",
+          "cause": "Unresolved. That first failure did not retain per-window PCM/statistics; later diagnostic observer passes at identical product/runtime but does not prove the original cause fixed. Do not infer underrun, compressor error or permanent stability.",
+          "later_observation": "Final observer now retains pre/post measurements, sample origin, context first-nonzero/window frames and channel min/max/first/last/zero counts on failure. No threshold relaxed or original failure erased."
+        },
+        "limits": [
+          "Four successful finite interior observations at two points, with different observer identities for low versus final hot diagnostic scope. First hot residual remains unresolved; no full-suite/final-tree/high-peak stability or performance pass claim.",
+          "Phases are fitted; no exact sample boundary/lookahead/history/latency or physical DAC/speaker/device waveform proof. Float32 stereo and original mono at48000Hz/unit rate only; arbitrary channel maps/codecs/rates/long/VFR/pitch/history/cross-browser remain.",
+          "Realtime compression and export whole-scene peak gate/final hard clamp are different recorded profiles; no new export rerun/equivalence claim. Native-owned tree lifecycle/RSS and old performance evidence retain prior identities.",
+          "Persistent original-key unknown control, BFCache/kill/network/lease/external head/full control/grant withdrawal restoration and complete visual parity remain. S1 and36 migration groups incomplete."
+        ],
+        "next": "First retain one bounded failed pre/post window and correlate actual context frame with original consumed/copied quantum receipts, without excluding zeros/failed windows; diagnose open high residual before product fix. Then persistent original-key/BFCache/network/lease and external-head/full-control scopes, reusing current fixture/implementations.",
+        "cleanup": {
+          "verifier_services_stopped": true,
+          "owned_service_pid_present": false,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete. Current coalesced-seek candidate adds3 real response-boundary/seek-pause cases, latestseek263/362ms and skew117.33/37.33ms. New Web identity separate; Current gain transition slice adds three real gain/seek/Escape/pause cases on integrated Web22f720b: pre-master-12dB/restored0dB stereoPCM and5 independent color frames/skew48ms; paused gain sends no new consumer reports and preserves confirmed cursor. FinalWeb883ad2c restores pause caller failure propagation with scoped unit/build evidence; actual success cases not rerun. Distinct voices/channel mapping/post-master/full controls/unknown outcomes and wider media remain pending. Current identity-retirement Web7db7d00 adds5 real scene/history/head and playing/paused scoped-credential-revocation cases: exact original control replay/current-generation Stop, genuine preview403 with existing owner cookie but no fallback,9-10 captured native children each exit/Worker0/deviceclosed. This does not remeasure previous performance/PCM or complete unknown/network/lease/head/full-control scopes.",
+    "Current S1 reuses existing shared player/DSP and Web7db7d00. Scoped scene/history/head/original credential retirement has5 actual cases at audio_preview_identity_retirement. Distinct440Hz target/880Hz left/660Hz right voices and gain/Escape now have independent pre/post-master interiors; linked high DC has one actual steady success at audio_preview_distinct_stereo_mastering, with an earlier unresolved post-master residual retained. No permanent high stability or new performance/RSS claim. Prior actual300s14/14 performance,39 PCM source/gap windows and terminal/document/rapid control evidence retain their original source/runtime identities. Exact phase/boundary/DAC, persistent unknown/full control/BFCache/kill/network/TTL, external head/grant recovery and long/VFR/non-unit-rate/cross-browser/full visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -7303,7 +7550,15 @@
       "limits": "One best-effort retirement replay; no persistent unknown-control resume/reload, full BFCache/kill/network/lease matrix or whole S1 claim."
     }
   ],
-  "open_failures": [],
+  "open_failures": [
+    {
+      "id": "S1_HOT_POST_MASTER_RESIDUAL",
+      "evidence_id": "audio_preview_distinct_stereo_mastering",
+      "status": "unresolved_scoped_post_master_residual",
+      "reason": "First actual high DC post-master interior residual exceeded0.0001 while pre-master2/1 passed; original failed PCM/statistics absent. Same product later diagnostic observer success is scoped evidence, not a fix/cause proof.",
+      "next": "Keep original failure; correlate bounded pre/post window and actual product quantum consumption without excluding zeros or rebuilding unchanged product."
+    }
+  ],
   "resource_constraints": [
     {
       "id": "F18",
