@@ -3,6 +3,7 @@ pub mod project_v3;
 pub mod project_v4_audio;
 pub mod project_v4_frame;
 pub mod project_v4_text_frame;
+pub mod project_v4_video;
 
 use opencut_contracts::AssetLockManifest;
 use opencut_contracts::{EditorError, Time, TimeRange};
@@ -614,6 +615,7 @@ job_kinds! {
     RenderProjectAudioV4: (project_v4_audio::SubmitV4AudioWav, project_v4_audio::V4AudioWavResultV1, "render.project_audio.v4"),
     RenderProjectAudioRangeV4: (project_v4_audio::SubmitV4AudioRangeWav, project_v4_audio::V4AudioRangeWavResultV1, "render.project_audio_range.v4"),
     RenderProjectTextFrameV4: (project_v4_text_frame::SubmitV4TextFramePng, project_v4_text_frame::V4TextFramePngResultV2, "render.project_text_frame.v4"),
+    RenderProjectVideoV4: (project_v4_video::SubmitV4VideoMp4V1, project_v4_video::V4VideoMp4ResultV1, "render.project_video.v4"),
     RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
 }
 

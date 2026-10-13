@@ -56,6 +56,10 @@ pub(super) struct RevalidateStream;
 pub(super) struct RevalidateV4Resource(
     pub opencut_contracts::project_v4_resources::InspectResourceV4,
 );
+#[derive(Clone)]
+pub(super) struct RevalidateVisualPreviewFont(
+    pub opencut_host_runtime::visual_preview_text_contracts::VisualPreviewFontV2,
+);
 impl FromRequestParts<super::http::Host> for AuthorizedHost {
     type Rejection = Response;
     async fn from_request_parts(
@@ -85,7 +89,11 @@ pub(super) fn guard_stream(
         .extensions()
         .get::<RevalidateV4Resource>()
         .map(|value| value.0.clone());
-    if (host.identity.caller.is_owner() && resource_scope.is_none())
+    let font_scope = response
+        .extensions()
+        .get::<RevalidateVisualPreviewFont>()
+        .map(|value| value.0.clone());
+    if (host.identity.caller.is_owner() && resource_scope.is_none() && font_scope.is_none())
         || !response.status().is_success()
     {
         return response;
@@ -112,8 +120,15 @@ pub(super) fn guard_stream(
     let identity = host.identity.clone();
     let source = body.into_data_stream();
     let stream = futures_util::stream::unfold(
-        (source, database, identity, request_id, resource_scope),
-        move |(mut source, database, identity, request_id, resource_scope)| async move {
+        (
+            source,
+            database,
+            identity,
+            request_id,
+            resource_scope,
+            font_scope,
+        ),
+        move |(mut source, database, identity, request_id, resource_scope, font_scope)| async move {
             loop {
                 let chunk = tokio::select! {
                     value=source.next()=>Some(value),
@@ -123,12 +138,19 @@ pub(super) fn guard_stream(
                 let expected = identity.clone();
                 let trace = request_id.clone();
                 let scope = resource_scope.clone();
+                let font = font_scope.clone();
                 let valid = tokio::task::spawn_blocking(move || {
                     let mut app = EditorApplication::open_managed(path.as_ref())?;
                     let result = expected.validate(&mut app).and_then(|()| {
                         app.set_caller(expected.caller.clone());
                         if let Some(scope) = scope {
                             app.revalidate_v4_resource_read(&scope)?;
+                        }
+                        if let Some(font) = font {
+                            opencut_host_runtime::Automation::open(path.as_ref())?
+                                .with_source(call_source)
+                                .with_caller(expected.caller.clone())
+                                .authorize_visual_preview_font(&font)?;
                         }
                         Ok(())
                     });
@@ -156,7 +178,14 @@ pub(super) fn guard_stream(
                     return chunk.map(|value| {
                         (
                             value,
-                            (source, database, identity, request_id, resource_scope),
+                            (
+                                source,
+                                database,
+                                identity,
+                                request_id,
+                                resource_scope,
+                                font_scope,
+                            ),
                         )
                     });
                 }

@@ -292,6 +292,7 @@ pub fn transition(
                                 | "render.project_audio_range.v4"
                                 | "render.project_frame.v4"
                         | "render.project_text_frame.v4"
+            | "render.project_video.v4"
                         ) || current.kind == "media.import"
                             && matches!(update, WorkerUpdate::Complete(_))) =>
                 {

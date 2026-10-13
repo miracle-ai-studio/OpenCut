@@ -36,6 +36,11 @@ export class V4Api {
       signal,
     });
   }
+  visualPreviewTextFrame(request: ToolInput<"opencut_visual_preview_v4_text_frame">, signal?: AbortSignal) {
+    return this.sdk.call("opencut_visual_preview_v4_text_frame", request, { signal });
+  }
+  videoCapability() { return this.sdk.call("opencut_project_v4_video_capability", {}); }
+  videoMp4(request: ToolInput<"opencut_job_v4_video_mp4">) { return this.sdk.call("opencut_job_v4_video_mp4", request); }
   audioPreviewCapability() {
     return this.sdk.call("opencut_audio_preview_v4_capability", {});
   }

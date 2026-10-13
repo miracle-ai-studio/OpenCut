@@ -262,7 +262,7 @@ export function V4FrameCanvas({
       </div>
       <p className="padded muted">
         {t(
-          "This is a still scene frame. Notes are shown only in the editor; playback and video export are not available yet.",
+          "This is a still scene frame. Notes are shown only in the editor and excluded from video export.",
         )}
       </p>
     </>

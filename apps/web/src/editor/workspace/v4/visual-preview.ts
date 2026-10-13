@@ -167,7 +167,7 @@ export class V4VisualPreview {
         if (checking || !api) return;
         checking = true;
         void api.v4
-          .visualPreviewFrame(
+          .visualPreviewTextFrame(
             {
               session: {
                 session_id: session.session_id,
@@ -178,6 +178,7 @@ export class V4VisualPreview {
               },
               time: null,
               decoded: null,
+              rasters: null,
             },
             this.abort.signal,
           )

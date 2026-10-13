@@ -97,7 +97,7 @@ export function V4AudioPreviewControls() {
       <p role="status">{t(status)}</p>
       <p className="muted">
         {t(
-          "Scene preview follows confirmed sound consumption. Video and static PNG/JPEG with normal blending are supported; other visual features require separate rendering support.",
+          "Scene preview follows confirmed sound consumption. Video, static PNG/JPEG and fixed-font text with normal blending are supported; other visual features require separate rendering support.",
         )}
       </p>
       {!capability?.available && (

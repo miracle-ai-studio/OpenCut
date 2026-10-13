@@ -5,6 +5,7 @@ import { verifyTimelineSelection } from "./verify-timeline-selection.mjs";
 import { verifyMediaFps, verifyV4MediaFps } from "./verify-media-fps.mjs";
 import { verifyProjectCovers } from "./verify-project-covers.mjs";
 import { verifyFeedback } from "./verify-feedback.mjs";
+import { verifyV4Video } from "./verify-v4-video.mjs";
 import { verifyV4Text } from "./verify-v4-text.mjs";
 import { verifyV4Editor } from "./verify-v4-editor.mjs";
 import { verifyClassicAudio } from "./verify-classic-audio.mjs";
@@ -53,6 +54,7 @@ const suites = new Map([
   ["feedback", verifyFeedback],
   ["v4-editor", verifyV4Editor],
   ["v4-text", verifyV4Text],
+  ["v4-video", verifyV4Video],
   ["v4-text-layout", (...args) => verifyV4Text(...args, {layoutOnly:true})],
   ["classic-audio", verifyClassicAudio],
   ["v4-performance", verifyV4Performance],

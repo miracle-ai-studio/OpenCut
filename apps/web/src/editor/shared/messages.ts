@@ -1,4 +1,17 @@
 export const zh: Record<string, string> = {
+  "Export video MP4": "导出视频 MP4",
+  "Start video export": "开始视频导出",
+  "New video export": "新建视频导出",
+  "Exports the saved scene as CFR MP4 with its canvas size and frame rate, fixed fonts and stereo 48 kHz sound. Scene notes are excluded.": "按已保存场景的画布尺寸和帧率导出恒定帧率 MP4，使用固定字体及 48 kHz 立体声；不包含场景备注。",
+  "The video export submission is not confirmed. Retry the original submission to find its task.": "视频导出提交尚未确认，请重试原始提交以查找任务。",
+  "Video MP4 task accepted. Progress and downloads are in Tasks.": "视频 MP4 任务已受理，可在任务中查看进度和下载。",
+  "Starting video MP4 export…": "正在提交视频 MP4 导出…",
+  "Video MP4 export was not accepted.": "视频 MP4 导出未受理。",
+  "Video MP4 export availability is being checked.": "正在检查视频 MP4 导出可用性。",
+  "Scene video MP4 export is unavailable on this service.": "此服务无法导出场景视频 MP4。",
+  "This service does not support scene video MP4 export.": "此服务不支持场景视频 MP4 导出。",
+  "Video MP4 export currently requires Classic scene settings.": "视频 MP4 导出目前需要 Classic 场景设置。",
+
   "The original font import outcome remains unknown.": "原字体导入的结果仍未确认。",
   "Recover original font import": "恢复原字体导入",
   "Original font import saved.": "原字体导入已保存。",
@@ -189,16 +202,16 @@ export const zh: Record<string, string> = {
     "请返回原场景，再重试此时间线操作。",
   "Click video, audio or images to select. Ctrl/Command-click toggles selection; Shift-click adds an element.":
     "点击视频、音频或图片选择。Ctrl/Command 加点击可切换选择，Shift 加点击可添加片段。",
-  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, video export is not available yet. Scene preview supports normal video/static image composition on WebGPU browsers.":
-    "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑、视频导出尚未接入。WebGPU 浏览器支持普通视频和静态图片的场景声画预览。",
+  "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split and other element editing are not available yet. Scene preview supports normal video/static image composition and fixed-font text on WebGPU browsers. Video MP4 export depends on this service’s rendering capability.":
+    "已支持视频、音频和图片的时间线编辑、素材导入与放置、源素材试看、场景备注、历史、源音频分离与恢复、元素音量和静音。场景静帧和声音依赖当前服务的渲染能力；动画片段修剪和分割、其他元素编辑尚未接入。WebGPU 浏览器支持普通视频、静态图片及固定字体文字的场景声画预览。视频 MP4 导出依赖当前服务的渲染能力。",
   "Scene sound": "场景声音",
   "Audio preview sample rate": "声音试听采样率",
   "Play scene audio": "播放场景声音",
   "Play scene preview": "播放场景声画",
   "Live scene preview": "连续声画预览",
   "Waiting for synchronized picture…": "正在等待同步画面…",
-  "Scene preview follows confirmed sound consumption. Video and static PNG/JPEG with normal blending are supported; other visual features require separate rendering support.":
-    "场景预览跟随已确认的声音播放位置。支持普通混合的视频和静态 PNG/JPEG；其他视觉功能需要对应的渲染支持。",
+  "Scene preview follows confirmed sound consumption. Video, static PNG/JPEG and fixed-font text with normal blending are supported; other visual features require separate rendering support.":
+    "场景预览跟随已确认的声音播放位置。支持普通混合的视频、静态 PNG/JPEG 和固定字体文字；其他视觉功能需要对应的渲染支持。",
   "Pause scene audio": "暂停场景声音",
   "Retry original audio session": "重试原声音试听请求",
   "Preparing scene sound…": "正在准备场景声音…",
@@ -290,8 +303,8 @@ export const zh: Record<string, string> = {
   "Rendered scene frame": "场景渲染静帧",
   "Scene time": "场景时间",
   "Preparing scene frame…": "正在准备场景静帧…",
-  "This is a still scene frame. Notes are shown only in the editor; playback and video export are not available yet.":
-    "这是场景静帧。备注仅在编辑器内显示，播放和视频导出尚未接入。",
+  "This is a still scene frame. Notes are shown only in the editor and excluded from video export.":
+    "这是场景静帧。备注仅在编辑器内显示，不进入视频导出。",
   "The frame submission is not confirmed. Retry the original request to find its task.":
     "静帧提交尚未确认，请重试原请求以找回对应任务。",
   "Scene frame availability is being checked.": "正在检查场景静帧可用性。",

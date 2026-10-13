@@ -530,6 +530,26 @@ fn validate_result_common(
         .and_then(|bytes| bytes.checked_add(58))
         .filter(|&bytes| bytes - 8 <= u64::from(u32::MAX))
         .ok_or_else(stored_invalid)?;
+    validate_execution_summary(prepared, execution)?;
+    if asset_lock != &input.asset_lock
+        || input_sha256 != expected_sha256
+        || artifact.mime_type != "audio/wav"
+        || public_artifact.mime_type != "audio/wav"
+        || artifact.size != expected_wav_size
+        || public_artifact.size_bytes != artifact.size.to_string()
+        || public_artifact.content_hash != artifact.content_hash
+        || !valid_hash(&artifact.content_hash)
+    {
+        return Err(stored_invalid());
+    }
+    Ok(())
+}
+
+/// Shared whole-scene Classic execution receipt validation for audio and video.
+pub(crate) fn validate_execution_summary(
+    prepared: &PreparedAudioV4,
+    execution: &V4AudioExecutionSummaryV1,
+) -> Result<(), EditorError> {
     let decoder_profiles: BTreeSet<_> = prepared
         .resources()
         .map(|r| match r.kind {
@@ -553,9 +573,7 @@ fn validate_result_common(
         .collect::<Result<_, _>>()?;
     let observed_decoders: BTreeSet<_> = execution.decoder_profiles.iter().copied().collect();
     let observed_pitch: BTreeSet<_> = execution.pitch_profiles.iter().copied().collect();
-    if asset_lock != &input.asset_lock
-        || input_sha256 != expected_sha256
-        || execution.playwright_version != "1.63.0"
+    if execution.playwright_version != "1.63.0"
         || execution.mediabunny_version != "1.41.0"
         || execution.soundtouch_version != "0.3.0"
         || !valid_id(&execution.browser_version)
@@ -570,12 +588,6 @@ fn validate_result_common(
         || observed_decoders.len() != execution.decoder_profiles.len()
         || observed_pitch != pitch_profiles
         || observed_pitch.len() != execution.pitch_profiles.len()
-        || artifact.mime_type != "audio/wav"
-        || public_artifact.mime_type != "audio/wav"
-        || artifact.size != expected_wav_size
-        || public_artifact.size_bytes != artifact.size.to_string()
-        || public_artifact.content_hash != artifact.content_hash
-        || !valid_hash(&artifact.content_hash)
     {
         return Err(stored_invalid());
     }

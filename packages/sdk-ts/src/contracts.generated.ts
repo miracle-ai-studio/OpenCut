@@ -1,5 +1,440 @@
 // Generated from the Rust automation registry. Do not edit.
 
+export namespace OpencutVisualPreviewV4TextFrameInput {
+  export type DecodedVisualSourceV4 =
+  | {
+      elementId: string;
+      height: number;
+      kind: 'readyImage';
+      width: number;
+    }
+  | {
+      actualTimestampSeconds: number;
+      elementId: string;
+      frameDurationSeconds: number;
+      height: number;
+      kind: 'readyVideo';
+      requestedTime: Time;
+      /**
+       * None is primary-track selection, not an invented FFmpeg stream index.
+       */
+      selectedVideoStream?: number | null;
+      width: number;
+    }
+  | {
+      elementId: string;
+      kind: 'noFrame';
+      reason: VisualNoFrameReasonV4;
+      requestedTime: Time;
+    };
+  export type VisualNoFrameReasonV4 = 'outside_read_window' | 'eof' | 'timestamp_gap';
+  export type FontStyleV4 = 'normal' | 'italic';
+
+  export interface VisualPreviewTextFrameV2 {
+  decoded?: DecodedVisualSourceV4[] | null;
+  rasters?: TextRasterReceiptV2[] | null;
+  session: AudioPreviewStreamV4;
+  time?: Time | null;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface TextRasterReceiptV2 {
+  elementId: string;
+  height: number;
+  layout: TextLayoutV2;
+  width: number;
+}
+  export interface TextLayoutV2 {
+  align: string;
+  background?: TextBackgroundRectV2 | null;
+  baseline: string;
+  block: TextBlockMetricsV2;
+  faceIndex: number;
+  fontContentHash: string;
+  fontId: string;
+  fontSizePx: number;
+  fontStyle: FontStyleV4;
+  fontWeight: number;
+  letterSpacingPx: number;
+  lineHeightPx: number;
+  lines: TextLineMetricsV2[];
+  transform: TextRasterTransformV2;
+  validatedTextHash: string;
+}
+  export interface TextBackgroundRectV2 {
+  height: number;
+  left: number;
+  radius: number;
+  top: number;
+  width: number;
+}
+  export interface TextBlockMetricsV2 {
+  height: number;
+  maxWidth: number;
+  visualCenterOffset: number;
+}
+  export interface TextLineMetricsV2 {
+  ascent: number;
+  baselineY: number;
+  content: string;
+  decoration?: TextRectV2 | null;
+  descent: number;
+  width: number;
+}
+  export interface TextRectV2 {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+}
+  export interface TextRasterTransformV2 {
+  centerX: number;
+  centerY: number;
+  rotationRadians: number;
+  scaleX: number;
+  scaleY: number;
+}
+  export interface AudioPreviewStreamV4 {
+  generation: string;
+  lease_id: string;
+  overlay_epoch: string;
+  owner_id: string;
+  session_id: string;
+}
+
+}
+
+export namespace OpencutVisualPreviewV4TextFrameOutput {
+  export type DecodedVisualSourceV4 =
+  | {
+      elementId: string;
+      height: number;
+      kind: 'readyImage';
+      width: number;
+    }
+  | {
+      actualTimestampSeconds: number;
+      elementId: string;
+      frameDurationSeconds: number;
+      height: number;
+      kind: 'readyVideo';
+      requestedTime: Time;
+      /**
+       * None is primary-track selection, not an invented FFmpeg stream index.
+       */
+      selectedVideoStream?: number | null;
+      width: number;
+    }
+  | {
+      elementId: string;
+      kind: 'noFrame';
+      reason: VisualNoFrameReasonV4;
+      requestedTime: Time;
+    };
+  export type VisualNoFrameReasonV4 = 'outside_read_window' | 'eof' | 'timestamp_gap';
+  export type FontStyleV4 = 'normal' | 'italic';
+  export type VisualDecodeRequest =
+  | {
+      kind: 'image';
+    }
+  | {
+      kind: 'video';
+      noFrameReason?: VisualNoFrameReasonV4 | null;
+      pointProfile: string;
+      requestedTime: Time;
+      /**
+       * Decoder API projection supplied by Rust; the browser never divides
+       * cross-process integer ticks or applies retime itself.
+       */
+      requestedTimeSeconds: number;
+      selectedVideoStream?: number | null;
+    };
+  export type VisualResourceKind = 'video' | 'image';
+
+  export interface Response {
+  api_version: string;
+  data?: VisualPreviewTextFrameResultV2 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface VisualPreviewTextFrameResultV2 {
+  admission: VisualPreviewAdmissionV4;
+  bound?: BoundTextFrameV2 | null;
+  bound_media?: BoundVisualFrameV4 | null;
+  consumer_time_seconds: number;
+  decode_admissions: {
+    [k: string]: VisualDecodeAdmission;
+  };
+  max_lag_ms: number;
+  plan: ClassicTextFramePlanV2;
+  schema_version: number;
+  time_seconds: number;
+}
+  export interface VisualPreviewAdmissionV4 {
+  maxDecodedPixels: string;
+  maxEncodedBytes: string;
+  maxFramePixels: string;
+  maxGpuBytes: string;
+  maxRgbaBytes: string;
+}
+  export interface BoundTextFrameV2 {
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  background: [number, number, number, number];
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  clear: [number, number, number, number];
+  decoded: DecodedVisualSourceV4[];
+  identity: TextFrameIdentityV2;
+  layers: BoundVisualLayerV4[];
+  rasters: TextRasterReceiptV2[];
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface TextFrameIdentityV2 {
+  height: number;
+  profile: string;
+  projectId: string;
+  revision: string;
+  sequenceId: string;
+  time: Time;
+  width: number;
+}
+  export interface BoundVisualLayerV4 {
+  assetId: string;
+  elementId: string;
+  /**
+   * NoFrame or a zero-sized authored transform draws no quad.
+   */
+  quad?: VisualQuadV4 | null;
+}
+  export interface VisualQuadV4 {
+  /**
+   * GPU uniform values match the Classic descriptor's f64→f32 conversion.
+   */
+  centerX: number;
+  centerY: number;
+  flipX: boolean;
+  flipY: boolean;
+  height: number;
+  /**
+   * Raw layer multiplier; UNORM render targets perform the later clamp.
+   */
+  opacity: number;
+  /**
+   * Classic casts degrees to f32 before its radians conversion.
+   */
+  rotationRadians: number;
+  width: number;
+}
+  export interface TextRasterReceiptV2 {
+  elementId: string;
+  height: number;
+  layout: TextLayoutV2;
+  width: number;
+}
+  export interface TextLayoutV2 {
+  align: string;
+  background?: TextBackgroundRectV2 | null;
+  baseline: string;
+  block: TextBlockMetricsV2;
+  faceIndex: number;
+  fontContentHash: string;
+  fontId: string;
+  fontSizePx: number;
+  fontStyle: FontStyleV4;
+  fontWeight: number;
+  letterSpacingPx: number;
+  lineHeightPx: number;
+  lines: TextLineMetricsV2[];
+  transform: TextRasterTransformV2;
+  validatedTextHash: string;
+}
+  export interface TextBackgroundRectV2 {
+  height: number;
+  left: number;
+  radius: number;
+  top: number;
+  width: number;
+}
+  export interface TextBlockMetricsV2 {
+  height: number;
+  maxWidth: number;
+  visualCenterOffset: number;
+}
+  export interface TextLineMetricsV2 {
+  ascent: number;
+  baselineY: number;
+  content: string;
+  decoration?: TextRectV2 | null;
+  descent: number;
+  width: number;
+}
+  export interface TextRectV2 {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+}
+  export interface TextRasterTransformV2 {
+  centerX: number;
+  centerY: number;
+  rotationRadians: number;
+  scaleX: number;
+  scaleY: number;
+}
+  export interface BoundVisualFrameV4 {
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  background: [number, number, number, number];
+  /**
+   * Original compositor clear, followed by one normal background color layer.
+   *
+   * @minItems 4
+   * @maxItems 4
+   */
+  clear: [number, number, number, number];
+  decoded: DecodedVisualSourceV4[];
+  identity: VisualFrameIdentityV4;
+  layers: BoundVisualLayerV4[];
+}
+  export interface VisualFrameIdentityV4 {
+  height: number;
+  profile: string;
+  projectId: string;
+  revision: string;
+  sequenceId: string;
+  time: Time;
+  width: number;
+}
+  export interface VisualDecodeAdmission {
+  maxDecodedBytes: string;
+  maxHeight: number;
+  maxPixels: string;
+  maxWidth: number;
+}
+  export interface ClassicTextFramePlanV2 {
+  identity: TextFrameIdentityV2;
+  media: ClassicVisualPlan;
+  order: string[];
+  texts: TextLayerPlanV2[];
+}
+  export interface ClassicVisualPlan {
+  identity: VisualFrameIdentityV4;
+  layers: ClassicVisualLayerPlan[];
+  resources: VisualResource[];
+}
+  export interface ClassicVisualLayerPlan {
+  decode: VisualDecodeRequest;
+  elementId: string;
+  resource: VisualResource;
+}
+  export interface VisualResource {
+  assetId: string;
+  contentHash: string;
+  kind: VisualResourceKind;
+  size: string;
+}
+  export interface TextLayerPlanV2 {
+  elementId: string;
+  font: ValidatedTextFontV2;
+  opacity: number;
+  text: TextRasterInputV2;
+}
+  export interface ValidatedTextFontV2 {
+  contentHash: string;
+  faceIndex: number;
+  fontId: string;
+  glyphCoverageValidated: boolean;
+  size: string;
+  style: FontStyleV4;
+  validatedTextHash: string;
+  weight: number;
+}
+  export interface TextRasterInputV2 {
+  align: string;
+  background: TextRasterBackgroundV2;
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  color: [number, number, number, number];
+  content: string;
+  decoration: string;
+  fontSizePx: number;
+  letterSpacingPx: number;
+  lineHeightPx: number;
+  transform: TextRasterTransformV2;
+}
+  export interface TextRasterBackgroundV2 {
+  /**
+   * @minItems 4
+   * @maxItems 4
+   */
+  color: [number, number, number, number];
+  cornerRadiusPercent: number;
+  enabled: boolean;
+  offsetXPx: number;
+  offsetYPx: number;
+  paddingXPx: number;
+  paddingYPx: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutVisualPreviewV4FontAuthorizeInput {
+  export interface VisualPreviewFontV2 {
+  font_id: string;
+  session: AudioPreviewStreamV4;
+}
+  export interface AudioPreviewStreamV4 {
+  generation: string;
+  lease_id: string;
+  overlay_epoch: string;
+  owner_id: string;
+  session_id: string;
+}
+
+}
+
+export namespace OpencutVisualPreviewV4FontAuthorizeOutput {
+  export interface Response {
+  api_version: string;
+  data?: VisualPreviewFontAuthorizedV2 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface VisualPreviewFontAuthorizedV2 {
+  font_id: string;
+  schema_version: number;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
 export namespace OpencutVisualPreviewV4FrameInput {
   export type DecodedVisualSourceV4 =
   | {
@@ -8984,6 +9419,344 @@ export namespace OpencutProjectV4AudioRangeCapabilityOutput {
   export interface V4AudioRangeWavCapabilityV1 {
   available: boolean;
   sample_rates: number[];
+  schema_version: number;
+  submit_tool: string;
+  unavailable_reason?: string | null;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutJobV4VideoMp4Input {
+  export interface SubmitV4VideoMp4V1 {
+  idempotency_key: string;
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+}
+
+}
+
+export namespace OpencutJobV4VideoMp4Output {
+  export type ArtifactAvailability = 'unchecked';
+  export type ArtifactRole = 'primary';
+  export type PublicJobStage =
+  'resolving_assets' | 'probing' | 'selecting_frame' | 'decoding' | 'encoding' | 'verifying' | 'unknown';
+  export type JobResultView =
+  | {
+      data: MediaInfo;
+      kind: 'media.probe';
+      [k: string]: any;
+    }
+  | {
+      data: SourceFrameView;
+      kind: 'preview.frame';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectFrameView;
+      kind: 'preview.project_frame';
+      [k: string]: any;
+    }
+  | {
+      data: CompositedFrameView;
+      kind: 'preview.composited_frame';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectRangeView;
+      kind: 'preview.project_range';
+      [k: string]: any;
+    }
+  | {
+      data: ExportView;
+      kind: 'render.export';
+      [k: string]: any;
+    }
+  | {
+      data: ProjectRenderView;
+      kind: 'render.project';
+      [k: string]: any;
+    }
+  | {
+      data: VerificationView;
+      kind: 'artifact.verify';
+      [k: string]: any;
+    };
+  export type StreamKind = 'video' | 'audio' | 'subtitle' | 'data' | 'attachment' | 'unknown';
+  export type FrameAlignment = 'exact' | 'nearest' | 'floor' | 'ceil';
+  export type FrameQuality = 'accurate_source_frame';
+  export type AssetLockingMode = 'media_content_locked' | 'legacy_unlocked';
+  export type ProjectFrameQuality = 'encoded_project_frame';
+  export type FontResolutionPolicy =
+  | {
+      mode: 'strict';
+    }
+  | {
+      families: string[];
+      mode: 'explicit_fallback';
+    };
+  export type CompositedProjectFrameQuality = 'composited_project_frame';
+  export type ProjectRangeQuality = 'encoded_project_range';
+  export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+
+  export interface Response {
+  api_version: string;
+  data?: JobView | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface JobView {
+  artifacts: ArtifactReference[];
+  cancel_requested: boolean;
+  /**
+   * New task kinds use the open registry envelope; legacy result variants stay frozen.
+   */
+  extended_result?: ExtendedJobResult | null;
+  failure?: PublicJobFailure | null;
+  job_id: string;
+  kind: string;
+  progress?: ProgressView | null;
+  resource_target?: JobResourceTarget | null;
+  result?: JobResultView | null;
+  result_unavailable?: PublicJobFailure | null;
+  state: JobState;
+  target?: ProjectTaskTarget | null;
+  [k: string]: any;
+}
+  export interface ArtifactReference {
+  artifact_id: string;
+  availability: ArtifactAvailability;
+  content_hash: string;
+  job_id: string;
+  mime_type: string;
+  role: ArtifactRole;
+  size_bytes: string;
+  [k: string]: any;
+}
+  export interface ExtendedJobResult {
+  data: any;
+  kind: string;
+  schema_version: number;
+  [k: string]: any;
+}
+  export interface PublicJobFailure {
+  code: string;
+  diagnostic_job_id: string;
+  message: string;
+  [k: string]: any;
+}
+  export interface ProgressView {
+  fraction?: number | null;
+  media_time?: Time | null;
+  stage: PublicJobStage;
+  [k: string]: any;
+}
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface JobResourceTarget {
+  project_id: string;
+  resource_id: string;
+  resource_kind: string;
+  [k: string]: any;
+}
+  export interface MediaInfo {
+  bit_rate?: number | null;
+  duration?: MediaTime | null;
+  format_brand?: string | null;
+  format_name?: string | null;
+  streams: MediaStream[];
+  [k: string]: any;
+}
+  export interface MediaTime {
+  ticks: string;
+  timebase: number;
+}
+  export interface MediaStream {
+  average_frame_rate?: FrameRate | null;
+  channel_layout?: string | null;
+  channels?: number | null;
+  codec_name?: string | null;
+  codec_type: StreamKind;
+  color_primaries?: string | null;
+  color_space?: string | null;
+  color_transfer?: string | null;
+  duration?: MediaTime | null;
+  height?: number | null;
+  index: number;
+  pixel_format?: string | null;
+  sample_rate?: number | null;
+  time_base?: FrameRate | null;
+  width?: number | null;
+  [k: string]: any;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+  export interface SourceFrameView {
+  actual_time: MediaTime;
+  alignment: FrameAlignment;
+  exact: boolean;
+  quality: FrameQuality;
+  requested_time: MediaTime;
+  source_pts: string;
+  source_time_base: FrameRate;
+  [k: string]: any;
+}
+  export interface ProjectFrameView {
+  actual_sequence_time: Time;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  height: number;
+  quality: ProjectFrameQuality;
+  requested_time: Time;
+  revision: string;
+  sequence_id: string;
+  text_layouts: TextLayoutView[];
+  width: number;
+  [k: string]: any;
+}
+  export interface AssetLockManifest {
+  assets: LockedAsset[];
+  revision: string;
+  sequence_id: string;
+  version: number;
+}
+  export interface LockedAsset {
+  asset_id: string;
+  content_hash: string;
+  size: number;
+}
+  export interface TextLayoutView {
+  cluster_ranges: TextClusterRange[];
+  glyph_count: number;
+  line_count: number;
+  pixel_bounds: PixelBounds;
+  policy: FontResolutionPolicy;
+  requested_family: string;
+  rtl_runs: number;
+  used_faces: FontFaceView[];
+  [k: string]: any;
+}
+  export interface TextClusterRange {
+  end: number;
+  rtl: boolean;
+  start: number;
+  [k: string]: any;
+}
+  export interface PixelBounds {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+  [k: string]: any;
+}
+  export interface FontFaceView {
+  face_index: number;
+  family: string;
+  postscript_name: string;
+  [k: string]: any;
+}
+  export interface CompositedFrameView {
+  actual_sequence_time: Time;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  height: number;
+  quality: CompositedProjectFrameQuality;
+  requested_time: Time;
+  revision: string;
+  sequence_id: string;
+  text_layouts: TextLayoutView[];
+  width: number;
+  [k: string]: any;
+}
+  export interface ProjectRangeView {
+  actual_sequence_range: TimeRange;
+  alignment: FrameAlignment;
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  media: ExportView;
+  quality: ProjectRangeQuality;
+  requested_range: TimeRange;
+  revision: string;
+  sequence_id: string;
+  [k: string]: any;
+}
+  export interface TimeRange {
+  duration: Time;
+  start: Time;
+}
+  export interface ExportView {
+  metadata: MediaInfo;
+  text_layouts: TextLayoutView[];
+  verification: VerificationView;
+  [k: string]: any;
+}
+  export interface VerificationView {
+  checks: VerificationCheckView[];
+  decoded_samples: DecodedSample[];
+  metadata: MediaInfo;
+  passed: boolean;
+  [k: string]: any;
+}
+  export interface VerificationCheckView {
+  name: string;
+  passed: boolean;
+  [k: string]: any;
+}
+  export interface DecodedSample {
+  decoded: boolean;
+  requested_time: MediaTime;
+  [k: string]: any;
+}
+  export interface ProjectRenderView {
+  asset_lock?: AssetLockManifest | null;
+  asset_locking: AssetLockingMode;
+  media: ExportView;
+  revision: string;
+  [k: string]: any;
+}
+  export interface ProjectTaskTarget {
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+  [k: string]: any;
+}
+  export interface EditorError {
+  code: string;
+  details: any;
+  message: string;
+}
+
+}
+
+export namespace OpencutProjectV4VideoCapabilityInput {
+  export interface EmptyInput {}
+
+}
+
+export namespace OpencutProjectV4VideoCapabilityOutput {
+  export interface Response {
+  api_version: string;
+  data?: V4VideoMp4CapabilityV1 | null;
+  error?: EditorError | null;
+  request_id: string;
+  warnings: string[];
+  [k: string]: any;
+}
+  export interface V4VideoMp4CapabilityV1 {
+  available: boolean;
   schema_version: number;
   submit_tool: string;
   unavailable_reason?: string | null;
@@ -44443,6 +45216,145 @@ export namespace JobRenderProjectTextFrameV4Result {
 
 }
 
+export namespace JobRenderProjectVideoV4Input {
+  export interface SubmitV4VideoMp4V1 {
+  idempotency_key: string;
+  project_id: string;
+  revision: string;
+  sequence_id: string;
+}
+
+}
+
+export namespace JobRenderProjectVideoV4Result {
+  export type V4AudioDecoderProfileV1 =
+  'web-audio-decode-at-target-rate' | 'mediabunny-1.41.0-concatenate-offline-resample';
+  export type V4AudioMasteringProfileV1 = 'classic-export-whole-scene-web-audio-v31';
+  export type V4AudioPitchProfileV1 = 'unprepared-linear' | 'prepared-linear' | 'prepared-soundtouch';
+  export type V4VideoProfileV1 = 'classic-v31-cfr-h264-aac-v1';
+
+  export interface V4VideoMp4ResultV1 {
+  artifact: V4FrameArtifactMetadataV1;
+  asset_lock: AssetLockManifest;
+  execution: V4VideoExecutionSummaryV1;
+  font_lock: FontLockV2[];
+  identity: V4VideoIdentityV1;
+  render_input_sha256: string;
+  schema_version: number;
+}
+  export interface V4FrameArtifactMetadataV1 {
+  content_hash: string;
+  mime_type: string;
+  size_bytes: string;
+}
+  export interface AssetLockManifest {
+  assets: LockedAsset[];
+  revision: string;
+  sequence_id: string;
+  version: number;
+}
+  export interface LockedAsset {
+  asset_id: string;
+  content_hash: string;
+  size: number;
+}
+  export interface V4VideoExecutionSummaryV1 {
+  audio: V4AudioExecutionSummaryV1;
+  encoder: V4VideoEncoderSummaryV1;
+  /**
+   * Ordered digest of individually validated frame receipts, not all frames
+   * retained in a public response or a claim of exact codec reproducibility.
+   */
+  frame_receipts_sha256: string;
+  frames_rendered: string;
+  rgba_bytes: string;
+  visual: V4FrameExecutionSummaryV1;
+}
+  export interface V4AudioExecutionSummaryV1 {
+  browser_sha256: string;
+  browser_version: string;
+  /**
+   * Unique profiles used by this fixed scene, not claims about unused engines.
+   */
+  decoder_profiles: V4AudioDecoderProfileV1[];
+  host_sha256: string;
+  mastering_applied: boolean;
+  mastering_profile: V4AudioMasteringProfileV1;
+  mediabunny_version: string;
+  module_sha256: string;
+  pitch_profiles: V4AudioPitchProfileV1[];
+  playwright_version: string;
+  soundtouch_version: string;
+}
+  export interface V4VideoEncoderSummaryV1 {
+  audio_bitrate: number;
+  audio_codec: string;
+  crf: number;
+  ffmpeg_sha256: string;
+  ffprobe_sha256: string;
+  observed_audio_duration_seconds: number;
+  observed_video_duration_seconds: number;
+  observed_video_frames: string;
+  pixel_format: string;
+  video_codec: string;
+}
+  export interface V4FrameExecutionSummaryV1 {
+  browser_sha256: string;
+  browser_version: string;
+  decoder_profile: string;
+  gpu_backend: string;
+  gpu_device: string;
+  host_sha256: string;
+  mediabunny_version: string;
+  module_sha256: string;
+  playwright_version: string;
+  shader_sha256: string;
+  texture_format: string;
+}
+/**
+ * Font resources remain separate from media locks and never expose a CAS path.
+ */
+  export interface FontLockV2 {
+  content_hash: string;
+  font_id: string;
+  size: number;
+}
+  export interface V4VideoIdentityV1 {
+  /**
+   * Pre-encoding shared Classic PCM. AAC framing is separately observed.
+   */
+  audio_frame_count: string;
+  channels: number;
+  fps: FrameRate;
+  frame_count: string;
+  height: number;
+  profile: V4VideoProfileV1;
+  project_id: string;
+  revision: string;
+  sample_rate: number;
+  sequence_id: string;
+  timeline_duration: Time;
+  video_duration: Time1;
+  width: number;
+}
+  export interface FrameRate {
+  denominator: number;
+  numerator: number;
+}
+/**
+ * Original scene end; CFR rounds up to the last complete output frame.
+ */
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
+  export interface Time1 {
+  ticks: string;
+  timebase: number;
+}
+
+}
+
 export namespace JobRenderProjectFrameV4Input {
   export interface SubmitV4FramePng {
   idempotency_key: string;
@@ -44578,6 +45490,8 @@ export namespace AudioPreviewPcmV4 {
 }
 
 export interface ToolMap {
+  opencut_visual_preview_v4_text_frame: { input: OpencutVisualPreviewV4TextFrameInput.VisualPreviewTextFrameV2; output: NonNullable<OpencutVisualPreviewV4TextFrameOutput.Response["data"]> };
+  opencut_visual_preview_v4_font_authorize: { input: OpencutVisualPreviewV4FontAuthorizeInput.VisualPreviewFontV2; output: NonNullable<OpencutVisualPreviewV4FontAuthorizeOutput.Response["data"]> };
   opencut_visual_preview_v4_frame: { input: OpencutVisualPreviewV4FrameInput.VisualPreviewFrameV4; output: NonNullable<OpencutVisualPreviewV4FrameOutput.Response["data"]> };
   opencut_audio_preview_v4_capability: { input: OpencutAudioPreviewV4CapabilityInput.EmptyInput; output: NonNullable<OpencutAudioPreviewV4CapabilityOutput.Response["data"]> };
   opencut_source_art_v1_get: { input: OpencutSourceArtV1GetInput.SourceArtRequestV1; output: NonNullable<OpencutSourceArtV1GetOutput.Response["data"]> };
@@ -44645,6 +45559,8 @@ export interface ToolMap {
   opencut_project_v4_audio_capability: { input: OpencutProjectV4AudioCapabilityInput.EmptyInput; output: NonNullable<OpencutProjectV4AudioCapabilityOutput.Response["data"]> };
   opencut_job_v4_audio_range_wav: { input: OpencutJobV4AudioRangeWavInput.SubmitV4AudioRangeWav; output: NonNullable<OpencutJobV4AudioRangeWavOutput.Response["data"]> };
   opencut_project_v4_audio_range_capability: { input: OpencutProjectV4AudioRangeCapabilityInput.EmptyInput; output: NonNullable<OpencutProjectV4AudioRangeCapabilityOutput.Response["data"]> };
+  opencut_job_v4_video_mp4: { input: OpencutJobV4VideoMp4Input.SubmitV4VideoMp4V1; output: NonNullable<OpencutJobV4VideoMp4Output.Response["data"]> };
+  opencut_project_v4_video_capability: { input: OpencutProjectV4VideoCapabilityInput.EmptyInput; output: NonNullable<OpencutProjectV4VideoCapabilityOutput.Response["data"]> };
   opencut_job_v4_text_frame_png: { input: OpencutJobV4TextFramePngInput.SubmitV4TextFramePng; output: NonNullable<OpencutJobV4TextFramePngOutput.Response["data"]> };
   opencut_project_v4_text_frame_capability: { input: OpencutProjectV4TextFrameCapabilityInput.EmptyInput; output: NonNullable<OpencutProjectV4TextFrameCapabilityOutput.Response["data"]> };
   opencut_job_v4_frame_png: { input: OpencutJobV4FramePngInput.SubmitV4FramePng; output: NonNullable<OpencutJobV4FramePngOutput.Response["data"]> };
@@ -44791,6 +45707,7 @@ export interface DomainMap {
     "package.reproducibility.v1": ToolMap["opencut_project_package_reproducibility_v1"];
     "v4.audio.capability": ToolMap["opencut_project_v4_audio_capability"];
     "v4.audio.range.capability": ToolMap["opencut_project_v4_audio_range_capability"];
+    "v4.video.capability": ToolMap["opencut_project_v4_video_capability"];
     "v4.text.frame.capability": ToolMap["opencut_project_v4_text_frame_capability"];
     "v4.frame.capability": ToolMap["opencut_project_v4_frame_capability"];
     "v4.list": ToolMap["opencut_project_v4_list"];
@@ -44914,6 +45831,8 @@ export interface DomainMap {
     "project.media.remove": ToolMap["opencut_project_media_remove"];
   };
   "task": {
+    "visual.preview.v4.text.frame": ToolMap["opencut_visual_preview_v4_text_frame"];
+    "visual.preview.v4.font.authorize": ToolMap["opencut_visual_preview_v4_font_authorize"];
     "visual.preview.v4.frame": ToolMap["opencut_visual_preview_v4_frame"];
     "audio.preview.v4.capability": ToolMap["opencut_audio_preview_v4_capability"];
     "audio.preview.v4.create": ToolMap["opencut_audio_preview_v4_create"];
@@ -44929,6 +45848,7 @@ export interface DomainMap {
     "v3.render": ToolMap["opencut_job_v3_render"];
     "v4.audio.wav": ToolMap["opencut_job_v4_audio_wav"];
     "v4.audio.range.wav": ToolMap["opencut_job_v4_audio_range_wav"];
+    "v4.video.mp4": ToolMap["opencut_job_v4_video_mp4"];
     "v4.text.frame.png": ToolMap["opencut_job_v4_text_frame_png"];
     "v4.frame.png": ToolMap["opencut_job_v4_frame_png"];
     "v3.frame": ToolMap["opencut_job_v3_frame"];
@@ -45024,6 +45944,7 @@ export const domainActions = {
     "package.reproducibility.v1",
     "v4.audio.capability",
     "v4.audio.range.capability",
+    "v4.video.capability",
     "v4.text.frame.capability",
     "v4.frame.capability",
     "v4.list",
@@ -45147,6 +46068,8 @@ export const domainActions = {
     "project.media.remove"
   ],
   "task": [
+    "visual.preview.v4.text.frame",
+    "visual.preview.v4.font.authorize",
     "visual.preview.v4.frame",
     "audio.preview.v4.capability",
     "audio.preview.v4.create",
@@ -45162,6 +46085,7 @@ export const domainActions = {
     "v3.render",
     "v4.audio.wav",
     "v4.audio.range.wav",
+    "v4.video.mp4",
     "v4.text.frame.png",
     "v4.frame.png",
     "v3.frame",
@@ -45258,9 +46182,12 @@ export interface JobResultMap {
   "render.project_audio.v4": JobRenderProjectAudioV4Result.V4AudioWavResultV1;
   "render.project_audio_range.v4": JobRenderProjectAudioRangeV4Result.V4AudioRangeWavResultV1;
   "render.project_text_frame.v4": JobRenderProjectTextFrameV4Result.V4TextFramePngResultV2;
+  "render.project_video.v4": JobRenderProjectVideoV4Result.V4VideoMp4ResultV1;
   "render.project_frame.v4": JobRenderProjectFrameV4Result.V4FramePngResultV1;
 }
 export const toolNames = [
+  "opencut_visual_preview_v4_text_frame",
+  "opencut_visual_preview_v4_font_authorize",
   "opencut_visual_preview_v4_frame",
   "opencut_audio_preview_v4_capability",
   "opencut_source_art_v1_get",
@@ -45328,6 +46255,8 @@ export const toolNames = [
   "opencut_project_v4_audio_capability",
   "opencut_job_v4_audio_range_wav",
   "opencut_project_v4_audio_range_capability",
+  "opencut_job_v4_video_mp4",
+  "opencut_project_v4_video_capability",
   "opencut_job_v4_text_frame_png",
   "opencut_project_v4_text_frame_capability",
   "opencut_job_v4_frame_png",

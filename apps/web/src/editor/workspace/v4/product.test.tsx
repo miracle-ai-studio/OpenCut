@@ -171,7 +171,7 @@ it("provides bookmark CRUD through timeline markers, canvas notes and selective 
     expect(screen.getByText("Preview unavailable")).toBeTruthy();
     expect(
       screen.getByText(
-        "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split, other element editing, video export is not available yet. Scene preview supports normal video/static image composition on WebGPU browsers.",
+        "Video, audio and image timeline editing, media import and placement, source media preview, scene notes, history, source audio separation/restoration, element volume and mute are available. Still scene frames and scene sound depend on this service’s rendering capability. Animated trim/split and other element editing are not available yet. Scene preview supports normal video/static image composition and fixed-font text on WebGPU browsers. Video MP4 export depends on this service’s rendering capability.",
       ),
     ).toBeTruthy();
     await clickReady("Add bookmark");

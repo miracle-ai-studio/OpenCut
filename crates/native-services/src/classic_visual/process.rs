@@ -284,7 +284,7 @@ impl ClassicVisualProcess {
         result
     }
 }
-fn validate_identity(identity: &ClassicVisualEngineIdentity) -> Result<(), EditorError> {
+pub(crate) fn validate_identity(identity: &ClassicVisualEngineIdentity) -> Result<(), EditorError> {
     let hash = |value: &str| {
         value.len() == 64
             && value
@@ -311,7 +311,7 @@ fn validate_identity(identity: &ClassicVisualEngineIdentity) -> Result<(), Edito
     }
     Ok(())
 }
-fn validate_quota(
+pub(crate) fn validate_quota(
     quota: &VisualQuotaReceipt,
     config: &ClassicVisualProcessConfig,
 ) -> Result<(), EditorError> {

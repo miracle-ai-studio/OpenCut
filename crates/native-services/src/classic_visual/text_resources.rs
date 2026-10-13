@@ -84,7 +84,25 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
         root: &Path,
         prepared: &PreparedTextFrameV2,
         font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        Self::new_inner(root, prepared, font_policy, checkpoint, true)
+    }
+    /// Font proof for browser preview without opening or hashing media again.
+    pub fn new_fonts(
+        root: &Path,
+        prepared: &PreparedTextFrameV2,
+        font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        Self::new_inner(root, prepared, font_policy, checkpoint, false)
+    }
+    fn new_inner(
+        root: &Path,
+        prepared: &PreparedTextFrameV2,
+        font_policy: &FontImportPolicyV1,
         mut checkpoint: F,
+        include_media: bool,
     ) -> Result<Self, EditorError> {
         checkpoint()?;
         let batches = font_texts(prepared, font_policy, &mut checkpoint)?;
@@ -92,6 +110,7 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
             .media()
             .resources()
             .iter()
+            .filter(|_| include_media)
             .map(|r| (format!("media:{}", r.asset_id), &r.version))
             .chain(
                 batches

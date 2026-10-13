@@ -350,11 +350,73 @@ pub(super) async fn read_v4_resource(
     response
 }
 
+/// Session-scoped fixed font bytes for complete V4 live frames. The response
+/// carries the full typed scope so every chunk checks the original session.
+pub(super) async fn read_visual_preview_font(
+    AuthorizedHost(host): AuthorizedHost,
+    headers: HeaderMap,
+    input: Result<
+        axum::Json<opencut_host_runtime::visual_preview_text_contracts::VisualPreviewFontV2>,
+        axum::extract::rejection::JsonRejection,
+    >,
+) -> Response {
+    let input = match input {
+        Ok(axum::Json(input)) => input,
+        Err(_) => return error_response("INVALID_ARGUMENT", "Invalid visual preview font request"),
+    };
+    let database = host.database.clone();
+    let identity = host.identity.clone();
+    let scope = input.clone();
+    let opened = tokio::task::spawn_blocking(move || {
+        let mut workspace =
+            opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref())?;
+        identity.validate(&mut workspace)?;
+        let mut app = opencut_host_runtime::Automation::open(database.as_ref())?
+            .with_source(opencut_automation::CallSource::Http)
+            .with_caller(identity.caller.clone());
+        let result = app.open_visual_preview_font(input.clone())?;
+        identity.validate(&mut workspace)?;
+        app.authorize_visual_preview_font(&input)?;
+        Ok::<_, EditorError>(result)
+    })
+    .await;
+    let (file, size) = match opened {
+        Ok(Ok(value)) => value,
+        Ok(Err(error)) => return into_http(opencut_automation::response(Err(error))),
+        Err(_) => return error_response("INTERNAL_ERROR", "Cannot read visual preview font"),
+    };
+    let mut response = serve_verified_file_with_capacity(
+        file,
+        size,
+        Some("application/octet-stream".into()),
+        headers,
+        Some(64 * 1024),
+    )
+    .await;
+    response
+        .headers_mut()
+        .insert("cache-control", HeaderValue::from_static("no-store"));
+    response
+        .extensions_mut()
+        .insert(crate::http_identity::RevalidateVisualPreviewFont(scope));
+    response
+}
+
 async fn serve_verified_file(
     file: std::fs::File,
     size: u64,
     mime: Option<String>,
     headers: HeaderMap,
+) -> Response {
+    serve_verified_file_with_capacity(file, size, mime, headers, None).await
+}
+
+async fn serve_verified_file_with_capacity(
+    file: std::fs::File,
+    size: u64,
+    mime: Option<String>,
+    headers: HeaderMap,
+    capacity: Option<usize>,
 ) -> Response {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     let range = match headers.get("range") {
@@ -381,13 +443,20 @@ async fn serve_verified_file(
     if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
         return error_response("STORAGE_ERROR", "Cannot seek media");
     }
+    // Font responses use a bounded 64 KiB chunk so authorization does not
+    // reopen the workspace once per 4 KiB. The stream guard still authorizes
+    // every chunk; other resources retain ReaderStream's default capacity.
+    let stream = match capacity {
+        Some(capacity) => ReaderStream::with_capacity(file.take(length), capacity),
+        None => ReaderStream::new(file.take(length)),
+    };
     let mut response = (
         if range.is_some() {
             StatusCode::PARTIAL_CONTENT
         } else {
             StatusCode::OK
         },
-        Body::from_stream(ReaderStream::new(file.take(length))),
+        Body::from_stream(stream),
     )
         .into_response();
     response

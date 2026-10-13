@@ -445,6 +445,17 @@ paths["/v1/preview/v4/audio/stream"] = { post: {
     "application/vnd.opencut.audio-preview-v4": { schema: { type: "string", format: "binary" } },
   } }, default: transportError },
 } };
+const previewFontTool = envelope.data.find(tool => tool.name === "opencut_visual_preview_v4_font_authorize");
+if (previewFontTool) {
+  paths["/v1/preview/v4/visual-font/stream"] = { post: {
+    operationId: "opencut_visual_preview_v4_font_stream",
+    description: "Read the participating locked font under the live preview owner, lease and generation. Authorization is rechecked while streaming; cached font reuse requires the same authorization operation.",
+    requestBody: paths["/v1/tools/opencut_visual_preview_v4_font_authorize"].post.requestBody,
+    responses: { "200": { description: "Verified font bytes with no-store caching.", content: {
+      "application/octet-stream": { schema: { type: "string", format: "binary" } },
+    } }, default: transportError },
+  } };
+}
 const uploads = capabilitiesEnvelope.data.uploads;
 if (uploads) {
   paths[uploads.chunk_path_template] = { put: {

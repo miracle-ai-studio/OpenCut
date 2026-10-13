@@ -2,6 +2,7 @@
 //! clocks and control semantics; this host owns authorization, CAS and lifetime.
 mod producer;
 mod stream;
+mod text;
 use crate::{Automation, Caller, ExecutionContext};
 use opencut_composition::project_v4::{PcmFormatV4, PreparedPreviewAudioV4};
 use opencut_contracts::EditorError;
@@ -21,6 +22,7 @@ use std::{
     time::Instant,
 };
 pub use stream::AudioPreviewStream;
+pub(crate) use text::{authorize_font, open_font, text_picture};
 
 pub(super) fn error(code: &str) -> EditorError {
     EditorError::new(
@@ -47,6 +49,8 @@ struct SessionState {
     machine: AudioPreviewMachineV4,
     authority: TrustedJobAuthorityV1,
     picture: Option<CachedPicture>,
+    text_picture: Option<text::CachedTextPicture>,
+    text_coverage: Option<text::CachedTextCoverage>,
 }
 struct CachedPicture {
     session: AudioPreviewStreamV4,
@@ -62,6 +66,8 @@ impl SessionState {
             AudioPreviewStateV4::Stopped | AudioPreviewStateV4::Failed
         ) {
             self.picture = None;
+            self.text_picture = None;
+            self.text_coverage = None;
         }
         Ok(changed)
     }
@@ -87,6 +93,8 @@ impl Entry {
         let mut state = lock(&self.state)?;
         if state.expire(now())? {
             state.picture = None;
+            state.text_picture = None;
+            state.text_coverage = None;
             self.credit.notify_all();
         }
         Ok(state.machine.snapshot(now()))
@@ -106,6 +114,8 @@ impl Entry {
             let mut state = lock(&self.state)?;
             if state.expire(now())? {
                 state.picture = None;
+                state.text_picture = None;
+                state.text_coverage = None;
                 self.credit.notify_all();
             }
             if self.shutdown.load(Ordering::Acquire)
@@ -143,6 +153,8 @@ impl Entry {
     fn signal_shutdown(&self) -> Result<(), EditorError> {
         let mut state = lock(&self.state)?;
         state.picture = None;
+        state.text_picture = None;
+        state.text_coverage = None;
         self.shutdown.store(true, Ordering::Release);
         self.credit.notify_all();
         Ok(())
@@ -282,6 +294,8 @@ pub(crate) fn create(
             machine,
             authority: selected.authority,
             picture: None,
+            text_picture: None,
+            text_coverage: None,
         }),
         credit: Condvar::new(),
         actor: Mutex::new(None),
@@ -342,6 +356,8 @@ pub(crate) fn control(
             .control_validated(&input, gain.as_ref(), now())?;
         if transition.effect != AudioPreviewEffectV4::None {
             state.picture = None;
+            state.text_picture = None;
+            state.text_coverage = None;
         }
         // Predicate changes and notification share the stream wait mutex.
         e.credit.notify_all();
@@ -394,6 +410,8 @@ pub(crate) fn acquire(
         )?;
         if next.effect != AudioPreviewEffectV4::None {
             state.picture = None;
+            state.text_picture = None;
+            state.text_coverage = None;
             state.authority = trusted(&host.caller);
         } else {
             host.app.revalidate_audio_preview(

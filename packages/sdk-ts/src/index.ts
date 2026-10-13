@@ -21,7 +21,7 @@ export type ArtifactReference = PublicJob["artifacts"][number];
 export type PublicJobResult = NonNullable<PublicJob["result"]>;
 type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
 export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
-  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4"> & {
+  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4" | "render.project_video.v4"> & {
   "render.project.v3": LegacyPublicResultMap["render.project"];
   "preview.project_frame.v3": LegacyPublicResultMap["preview.composited_frame"];
   "preview.project_range.v3": LegacyPublicResultMap["preview.project_range"];
@@ -29,7 +29,7 @@ export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
 const extendedPublicKinds = new Set<string>([
   "media.import", "analysis.transcribe", "analysis.silence", "analysis.shots", "analysis.waveform", "analysis.speaker_turns",
   "render.project.v3", "preview.project_frame.v3", "preview.project_range.v3",
-  "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4", "render.project_text_frame.v4",
+  "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4", "render.project_text_frame.v4", "render.project_video.v4",
 ]);
 export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
   if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {
@@ -268,6 +268,10 @@ export class OpenCutClient {
     const { session_id, generation, overlay_epoch, owner_id, lease_id } = session;
     return this.#downloadBytes(`${this.baseUrl}/v1/preview/v4/audio/stream`, "V4 audio preview stream", options,
       JSON.stringify({ session_id, generation, overlay_epoch, owner_id, lease_id }));
+  }
+  /** Download a locked font authorized by the current V4 preview owner and generation. */
+  downloadVisualPreviewFontV2(input: ToolInput<"opencut_visual_preview_v4_font_authorize">, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(`${this.baseUrl}/v1/preview/v4/visual-font/stream`, "V4 visual preview font", options, JSON.stringify(input));
   }
   async #downloadBytes(url: string, kind: string, options: CallOptions, body?: string): Promise<Response> {
     options.signal?.throwIfAborted();

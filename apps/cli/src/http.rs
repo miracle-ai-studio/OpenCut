@@ -148,6 +148,10 @@ pub async fn serve(
             "/v1/preview/v4/audio/stream",
             post(crate::audio_preview_http::stream),
         )
+        .route(
+            "/v1/preview/v4/visual-font/stream",
+            post(crate::media_http::read_visual_preview_font),
+        )
         .route("/v1/media/upload", post(crate::media_http::upload))
         .route(
             "/v1/stream-uploads/{upload_id}/chunks/{offset}",

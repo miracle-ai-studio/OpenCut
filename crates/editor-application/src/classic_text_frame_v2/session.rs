@@ -249,6 +249,90 @@ impl<'a> ClassicTextFrameSessionV2<'a> {
     pub fn plan(&self) -> Result<Value, EditorError> {
         serde_json::to_value(self.typed_plan()?).map_err(|_| invalid("Cannot serialize text frame"))
     }
+    fn bind_rasters(
+        &self,
+        media: &opencut_contracts::visual_frame_v4::BoundVisualFrameV4,
+        rasters: &[TextRasterReceiptV2],
+    ) -> Result<BoundTextFrameV2, EditorError> {
+        let mut bindings = Vec::new();
+        for observed in rasters {
+            let plan = self
+                .prepared
+                .texts()
+                .iter()
+                .find(|t| t.identity.element_id == observed.element_id)
+                .ok_or_else(|| invalid("Unexpected raster"))?;
+            validate_layout(plan, observed)?;
+            let l = &observed.layout;
+            bindings.push(composition::TextRasterBindingV1 {
+                coverage: self.coverage[&observed.element_id].clone(),
+                raster: composition::TextRasterObservationV1 {
+                    element_id: observed.element_id.clone(),
+                    font_id: l.font_id.clone(),
+                    font_content_hash: l.font_content_hash.clone(),
+                    font_weight: l.font_weight,
+                    font_style: l.font_style,
+                    face_index: l.face_index,
+                    content: l
+                        .lines
+                        .iter()
+                        .map(|l| l.content.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    width: observed.width,
+                    height: observed.height,
+                },
+            });
+        }
+        let bound =
+            composition::bind_text_frame_sources_v2(self.prepared, &media.decoded, &bindings)
+                .map_err(|e| invalid(e.message))?;
+        let layers = bound
+            .layers
+            .into_iter()
+            .map(|l| match l {
+                composition::BoundTextFrameLayerV2::Media(m) => m,
+                composition::BoundTextFrameLayerV2::Text { plan, quad, .. } => BoundVisualLayerV4 {
+                    element_id: plan.identity.element_id,
+                    asset_id: plan.font.id,
+                    quad: Some(quad),
+                },
+            })
+            .collect();
+        let bound = BoundTextFrameV2 {
+            identity: identity(self.prepared),
+            clear: bound.clear,
+            background: bound.background,
+            layers,
+            decoded: bound.decoded,
+            rasters: rasters.to_vec(),
+        };
+        Ok(bound)
+    }
+    /// Read-only browser preview projection. Native coverage still comes from
+    /// authorized font bytes, and the host separately fences the owner lease.
+    pub fn project_preview_sources(
+        &self,
+        decoded: &[opencut_contracts::visual_frame_v4::DecodedVisualSourceV4],
+        rasters: Option<&[TextRasterReceiptV2]>,
+    ) -> Result<
+        (
+            opencut_contracts::visual_frame_v4::BoundVisualFrameV4,
+            Option<BoundTextFrameV2>,
+        ),
+        EditorError,
+    > {
+        let media = self.media.project_decoded_sources(decoded)?;
+        let bound = rasters
+            .map(|rasters| self.bind_rasters(&media, rasters))
+            .transpose()?;
+        Ok((media, bound))
+    }
+    pub fn decode_admission(
+        &self,
+    ) -> Result<opencut_api_contracts::visual_preview_v4::VisualDecodeAdmission, EditorError> {
+        self.media.decode_admission()
+    }
     pub fn callback(
         &mut self,
         callback: TextFrameCallbackV2,
@@ -289,64 +373,7 @@ impl<'a> ClassicTextFrameSessionV2<'a> {
                     .media
                     .bound()
                     .ok_or_else(|| invalid("Media must bind before the complete text frame"))?;
-                let mut bindings = Vec::new();
-                for observed in &request.rasters {
-                    let plan = self
-                        .prepared
-                        .texts()
-                        .iter()
-                        .find(|t| t.identity.element_id == observed.element_id)
-                        .ok_or_else(|| invalid("Unexpected raster"))?;
-                    validate_layout(plan, observed)?;
-                    let l = &observed.layout;
-                    bindings.push(composition::TextRasterBindingV1 {
-                        coverage: self.coverage[&observed.element_id].clone(),
-                        raster: composition::TextRasterObservationV1 {
-                            element_id: observed.element_id.clone(),
-                            font_id: l.font_id.clone(),
-                            font_content_hash: l.font_content_hash.clone(),
-                            font_weight: l.font_weight,
-                            font_style: l.font_style,
-                            face_index: l.face_index,
-                            content: l
-                                .lines
-                                .iter()
-                                .map(|l| l.content.as_str())
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                            width: observed.width,
-                            height: observed.height,
-                        },
-                    });
-                }
-                let bound = composition::bind_text_frame_sources_v2(
-                    self.prepared,
-                    &media.decoded,
-                    &bindings,
-                )
-                .map_err(|e| invalid(e.message))?;
-                let layers = bound
-                    .layers
-                    .into_iter()
-                    .map(|l| match l {
-                        composition::BoundTextFrameLayerV2::Media(m) => m,
-                        composition::BoundTextFrameLayerV2::Text { plan, quad, .. } => {
-                            BoundVisualLayerV4 {
-                                element_id: plan.identity.element_id,
-                                asset_id: plan.font.id,
-                                quad: Some(quad),
-                            }
-                        }
-                    })
-                    .collect();
-                let bound = BoundTextFrameV2 {
-                    identity: identity(self.prepared),
-                    clear: bound.clear,
-                    background: bound.background,
-                    layers,
-                    decoded: bound.decoded,
-                    rasters: request.rasters,
-                };
+                let bound = self.bind_rasters(media, &request.rasters)?;
                 let value = serde_json::to_value(&bound)
                     .map_err(|_| invalid("Cannot serialize complete text frame"))?;
                 self.bound = Some(bound);
@@ -452,7 +479,9 @@ pub(crate) fn validate_layout(
             }),
         };
         if line.decoration != decoration {
-            return Err(invalid("Raster decoration differs from sampled text and line facts"));
+            return Err(invalid(
+                "Raster decoration differs from sampled text and line facts",
+            ));
         }
     }
     if layout.block.max_width != width || layout.background.is_some() != text.background.enabled {
@@ -463,14 +492,17 @@ pub(crate) fn validate_layout(
         let width = layout.block.max_width + 2.0 * bg.padding_x_px;
         let height = layout.block.height + 2.0 * bg.padding_y_px;
         let expected = TextBackgroundRectV2 {
-            left: aligned_left(&text.align, layout.block.max_width) - bg.padding_x_px + bg.offset_x_px,
+            left: aligned_left(&text.align, layout.block.max_width) - bg.padding_x_px
+                + bg.offset_x_px,
             top: -layout.block.height / 2.0 - bg.padding_y_px + bg.offset_y_px,
             width,
             height,
             radius: width.min(height) / 2.0 * bg.corner_radius_percent.clamp(0.0, 100.0) / 100.0,
         };
         if background != &expected {
-            return Err(invalid("Raster background differs from sampled text and block facts"));
+            return Err(invalid(
+                "Raster background differs from sampled text and block facts",
+            ));
         }
     }
     Ok(())

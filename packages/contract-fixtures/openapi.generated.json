@@ -12,6 +12,84 @@
     }
   ],
   "paths": {
+    "/v1/tools/opencut_visual_preview_v4_text_frame": {
+      "post": {
+        "operationId": "opencut_visual_preview_v4_text_frame",
+        "description": "Plan and bind shared media/free-text frames at confirmed sound-consumption time under original owner, lease, generation, authority and fixed font coverage. No durable job or project mutation.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_visual_preview_v4_font_authorize": {
+      "post": {
+        "operationId": "opencut_visual_preview_v4_font_authorize",
+        "description": "Recheck the original preview owner and participating fixed font before session-scoped byte reuse or streaming. Authorization is live and does not create a transferable grant.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tools/opencut_visual_preview_v4_frame": {
       "post": {
         "operationId": "opencut_visual_preview_v4_frame",
@@ -2618,6 +2696,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpencutProjectV4AudioRangeCapabilityOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_job_v4_video_mp4": {
+      "post": {
+        "operationId": "opencut_job_v4_video_mp4",
+        "description": "Accept a fixed whole-scene CFR MP4 job using shared V4 text/media frames and Classic stereo audio. H264 CRF18, yuv420p and AAC192k; unsupported content and odd dimensions are refused. Await verified public artifact before reporting success.",
+        "x-opencut-read-only": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutJobV4VideoMp4Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutJobV4VideoMp4Output"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutJobV4VideoMp4Output"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tools/opencut_project_v4_video_capability": {
+      "post": {
+        "operationId": "opencut_project_v4_video_capability",
+        "description": "Read configured shared visual/audio and video encoder availability. Each fixed-scene job additionally checks content, duration, resources and budgets.",
+        "x-opencut-read-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "OpenCut response envelope; inspect error.code on failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput"
                 }
               }
             }
@@ -7962,6 +8118,7 @@
           "package.reproducibility.v1": "opencut_project_package_reproducibility_v1",
           "v4.audio.capability": "opencut_project_v4_audio_capability",
           "v4.audio.range.capability": "opencut_project_v4_audio_range_capability",
+          "v4.video.capability": "opencut_project_v4_video_capability",
           "v4.text.frame.capability": "opencut_project_v4_text_frame_capability",
           "v4.frame.capability": "opencut_project_v4_frame_capability",
           "v4.list": "opencut_project_v4_list",
@@ -8076,6 +8233,22 @@
                       },
                       "input": {
                         "$ref": "#/components/schemas/OpencutProjectV4AudioRangeCapabilityInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "v4.video.capability"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityInput"
                       }
                     },
                     "required": [
@@ -8670,6 +8843,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutProjectV4AudioRangeCapabilityOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutProjectV4TextFrameCapabilityOutput"
@@ -10523,6 +10699,8 @@
         "operationId": "opencut_task",
         "description": "Submit, observe and cancel durable media and render tasks. The action selects the exact legacy operation and its input schema.",
         "x-opencut-action-operations": {
+          "visual.preview.v4.text.frame": "opencut_visual_preview_v4_text_frame",
+          "visual.preview.v4.font.authorize": "opencut_visual_preview_v4_font_authorize",
           "visual.preview.v4.frame": "opencut_visual_preview_v4_frame",
           "audio.preview.v4.capability": "opencut_audio_preview_v4_capability",
           "audio.preview.v4.create": "opencut_audio_preview_v4_create",
@@ -10538,6 +10716,7 @@
           "v3.render": "opencut_job_v3_render",
           "v4.audio.wav": "opencut_job_v4_audio_wav",
           "v4.audio.range.wav": "opencut_job_v4_audio_range_wav",
+          "v4.video.mp4": "opencut_job_v4_video_mp4",
           "v4.text.frame.png": "opencut_job_v4_text_frame_png",
           "v4.frame.png": "opencut_job_v4_frame_png",
           "v3.frame": "opencut_job_v3_frame",
@@ -10563,6 +10742,38 @@
             "application/json": {
               "schema": {
                 "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "visual.preview.v4.text.frame"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "visual.preview.v4.font.authorize"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
                   {
                     "type": "object",
                     "properties": {
@@ -10795,6 +11006,22 @@
                       },
                       "input": {
                         "$ref": "#/components/schemas/OpencutJobV4AudioRangeWavInput"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "input"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "const": "v4.video.mp4"
+                      },
+                      "input": {
+                        "$ref": "#/components/schemas/OpencutJobV4VideoMp4Input"
                       }
                     },
                     "required": [
@@ -11104,6 +11331,12 @@
                 "schema": {
                   "anyOf": [
                     {
+                      "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeOutput"
+                    },
+                    {
                       "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput"
                     },
                     {
@@ -11147,6 +11380,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/OpencutJobV4AudioRangeWavOutput"
+                    },
+                    {
+                      "$ref": "#/components/schemas/OpencutJobV4VideoMp4Output"
                     },
                     {
                       "$ref": "#/components/schemas/OpencutJobV4TextFramePngOutput"
@@ -12424,6 +12660,45 @@
         }
       }
     },
+    "/v1/preview/v4/visual-font/stream": {
+      "post": {
+        "operationId": "opencut_visual_preview_v4_font_stream",
+        "description": "Read the participating locked font under the live preview owner, lease and generation. Authorization is rechecked while streaming; cached font reuse requires the same authorization operation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified font bytes with no-store caching.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured OpenCut error envelope; inspect error.code before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenCutErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/uploads/{upload_id}/chunks/{offset}": {
       "put": {
         "operationId": "opencut_upload_chunk",
@@ -12869,7 +13144,7 @@
       }
     },
     "schemas": {
-      "OpencutVisualPreviewV4FrameInput": {
+      "OpencutVisualPreviewV4TextFrameInput": {
         "$defs": {
           "AudioPreviewStreamV4": {
             "additionalProperties": false,
@@ -12954,7 +13229,7 @@
                     "type": "string"
                   },
                   "requestedTime": {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
                   },
                   "selectedVideoStream": {
                     "description": "None is primary-track selection, not an invented FFmpeg stream index.",
@@ -12993,10 +13268,10 @@
                     "type": "string"
                   },
                   "reason": {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/VisualNoFrameReasonV4"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/VisualNoFrameReasonV4"
                   },
                   "requestedTime": {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
                   }
                 },
                 "required": [
@@ -13008,6 +13283,285 @@
                 "type": "object"
               }
             ]
+          },
+          "FontStyleV4": {
+            "enum": [
+              "normal",
+              "italic"
+            ],
+            "type": "string"
+          },
+          "TextBackgroundRectV2": {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "format": "double",
+                "type": "number"
+              },
+              "left": {
+                "format": "double",
+                "type": "number"
+              },
+              "radius": {
+                "format": "double",
+                "type": "number"
+              },
+              "top": {
+                "format": "double",
+                "type": "number"
+              },
+              "width": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "left",
+              "top",
+              "width",
+              "height",
+              "radius"
+            ],
+            "type": "object"
+          },
+          "TextBlockMetricsV2": {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxWidth": {
+                "format": "double",
+                "type": "number"
+              },
+              "visualCenterOffset": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "maxWidth",
+              "height",
+              "visualCenterOffset"
+            ],
+            "type": "object"
+          },
+          "TextLayoutV2": {
+            "additionalProperties": false,
+            "properties": {
+              "align": {
+                "type": "string"
+              },
+              "background": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextBackgroundRectV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "baseline": {
+                "type": "string"
+              },
+              "block": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextBlockMetricsV2"
+              },
+              "faceIndex": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "fontContentHash": {
+                "type": "string"
+              },
+              "fontId": {
+                "type": "string"
+              },
+              "fontSizePx": {
+                "format": "double",
+                "type": "number"
+              },
+              "fontStyle": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
+              },
+              "fontWeight": {
+                "format": "uint16",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "letterSpacingPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "lineHeightPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "lines": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextLineMetricsV2"
+                },
+                "type": "array"
+              },
+              "transform": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRasterTransformV2"
+              },
+              "validatedTextHash": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "fontId",
+              "fontContentHash",
+              "validatedTextHash",
+              "fontWeight",
+              "fontStyle",
+              "faceIndex",
+              "fontSizePx",
+              "lineHeightPx",
+              "letterSpacingPx",
+              "align",
+              "baseline",
+              "block",
+              "lines",
+              "transform"
+            ],
+            "type": "object"
+          },
+          "TextLineMetricsV2": {
+            "additionalProperties": false,
+            "properties": {
+              "ascent": {
+                "format": "double",
+                "type": "number"
+              },
+              "baselineY": {
+                "format": "double",
+                "type": "number"
+              },
+              "content": {
+                "type": "string"
+              },
+              "decoration": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRectV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "descent": {
+                "format": "double",
+                "type": "number"
+              },
+              "width": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "content",
+              "baselineY",
+              "width",
+              "ascent",
+              "descent"
+            ],
+            "type": "object"
+          },
+          "TextRasterReceiptV2": {
+            "additionalProperties": false,
+            "properties": {
+              "elementId": {
+                "type": "string"
+              },
+              "height": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "layout": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextLayoutV2"
+              },
+              "width": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "elementId",
+              "width",
+              "height",
+              "layout"
+            ],
+            "type": "object"
+          },
+          "TextRasterTransformV2": {
+            "additionalProperties": false,
+            "properties": {
+              "centerX": {
+                "format": "double",
+                "type": "number"
+              },
+              "centerY": {
+                "format": "double",
+                "type": "number"
+              },
+              "rotationRadians": {
+                "format": "double",
+                "type": "number"
+              },
+              "scaleX": {
+                "format": "double",
+                "type": "number"
+              },
+              "scaleY": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "centerX",
+              "centerY",
+              "scaleX",
+              "scaleY",
+              "rotationRadians"
+            ],
+            "type": "object"
+          },
+          "TextRectV2": {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "format": "double",
+                "type": "number"
+              },
+              "left": {
+                "format": "double",
+                "type": "number"
+              },
+              "top": {
+                "format": "double",
+                "type": "number"
+              },
+              "width": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "left",
+              "top",
+              "width",
+              "height"
+            ],
+            "type": "object"
           },
           "Time": {
             "additionalProperties": false,
@@ -13041,7 +13595,16 @@
         "properties": {
           "decoded": {
             "items": {
-              "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/DecodedVisualSourceV4"
+              "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/DecodedVisualSourceV4"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rasters": {
+            "items": {
+              "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRasterReceiptV2"
             },
             "type": [
               "array",
@@ -13049,28 +13612,80 @@
             ]
           },
           "session": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/AudioPreviewStreamV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/AudioPreviewStreamV4"
           },
           "time": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "None plans the current confirmed consumer time. Bind uses that exact Time."
+            ]
           }
         },
         "required": [
           "session"
         ],
-        "title": "VisualPreviewFrameV4",
+        "title": "VisualPreviewTextFrameV2",
         "type": "object"
       },
-      "OpencutVisualPreviewV4FrameOutput": {
+      "OpencutVisualPreviewV4TextFrameOutput": {
         "$defs": {
+          "BoundTextFrameV2": {
+            "additionalProperties": false,
+            "properties": {
+              "background": {
+                "items": {
+                  "format": "float",
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "clear": {
+                "items": {
+                  "format": "float",
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "decoded": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/DecodedVisualSourceV4"
+                },
+                "type": "array"
+              },
+              "identity": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextFrameIdentityV2"
+              },
+              "layers": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundVisualLayerV4"
+                },
+                "type": "array"
+              },
+              "rasters": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextRasterReceiptV2"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "identity",
+              "clear",
+              "background",
+              "layers",
+              "decoded",
+              "rasters"
+            ],
+            "type": "object"
+          },
           "BoundVisualFrameV4": {
             "additionalProperties": false,
             "properties": {
@@ -13095,16 +13710,16 @@
               },
               "decoded": {
                 "items": {
-                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/DecodedVisualSourceV4"
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/DecodedVisualSourceV4"
                 },
                 "type": "array"
               },
               "identity": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualFrameIdentityV4"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualFrameIdentityV4"
               },
               "layers": {
                 "items": {
-                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/BoundVisualLayerV4"
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundVisualLayerV4"
                 },
                 "type": "array"
               }
@@ -13130,7 +13745,7 @@
               "quad": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualQuadV4"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualQuadV4"
                   },
                   {
                     "type": "null"
@@ -13145,17 +13760,47 @@
             ],
             "type": "object"
           },
+          "ClassicTextFramePlanV2": {
+            "additionalProperties": false,
+            "properties": {
+              "identity": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextFrameIdentityV2"
+              },
+              "media": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ClassicVisualPlan"
+              },
+              "order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "texts": {
+                "items": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextLayerPlanV2"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "identity",
+              "media",
+              "texts",
+              "order"
+            ],
+            "type": "object"
+          },
           "ClassicVisualLayerPlan": {
             "additionalProperties": false,
             "properties": {
               "decode": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualDecodeRequest"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualDecodeRequest"
               },
               "elementId": {
                 "type": "string"
               },
               "resource": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualResource"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualResource"
               }
             },
             "required": [
@@ -13169,17 +13814,17 @@
             "additionalProperties": false,
             "properties": {
               "identity": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualFrameIdentityV4"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualFrameIdentityV4"
               },
               "layers": {
                 "items": {
-                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/ClassicVisualLayerPlan"
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ClassicVisualLayerPlan"
                 },
                 "type": "array"
               },
               "resources": {
                 "items": {
-                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualResource"
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualResource"
                 },
                 "type": "array"
               }
@@ -13192,7 +13837,7 @@
             "type": "object"
           },
           "DecodedVisualSourceV4": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/DecodedVisualSourceV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/DecodedVisualSourceV4"
           },
           "EditorError": {
             "additionalProperties": false,
@@ -13212,8 +13857,242 @@
             ],
             "type": "object"
           },
+          "FontStyleV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
+          },
+          "TextBackgroundRectV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextBackgroundRectV2"
+          },
+          "TextBlockMetricsV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextBlockMetricsV2"
+          },
+          "TextFrameIdentityV2": {
+            "additionalProperties": false,
+            "properties": {
+              "height": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "profile": {
+                "type": "string"
+              },
+              "projectId": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "sequenceId": {
+                "type": "string"
+              },
+              "time": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/Time"
+              },
+              "width": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "projectId",
+              "revision",
+              "sequenceId",
+              "time",
+              "width",
+              "height",
+              "profile"
+            ],
+            "type": "object"
+          },
+          "TextLayerPlanV2": {
+            "additionalProperties": false,
+            "properties": {
+              "elementId": {
+                "type": "string"
+              },
+              "font": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ValidatedTextFontV2"
+              },
+              "opacity": {
+                "format": "double",
+                "type": "number"
+              },
+              "text": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextRasterInputV2"
+              }
+            },
+            "required": [
+              "elementId",
+              "text",
+              "font",
+              "opacity"
+            ],
+            "type": "object"
+          },
+          "TextLayoutV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextLayoutV2"
+          },
+          "TextLineMetricsV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextLineMetricsV2"
+          },
+          "TextRasterBackgroundV2": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "items": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "cornerRadiusPercent": {
+                "format": "double",
+                "type": "number"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "offsetXPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "offsetYPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "paddingXPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "paddingYPx": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "enabled",
+              "color",
+              "paddingXPx",
+              "paddingYPx",
+              "offsetXPx",
+              "offsetYPx",
+              "cornerRadiusPercent"
+            ],
+            "type": "object"
+          },
+          "TextRasterInputV2": {
+            "additionalProperties": false,
+            "properties": {
+              "align": {
+                "type": "string"
+              },
+              "background": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextRasterBackgroundV2"
+              },
+              "color": {
+                "items": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "content": {
+                "type": "string"
+              },
+              "decoration": {
+                "type": "string"
+              },
+              "fontSizePx": {
+                "format": "double",
+                "type": "number"
+              },
+              "letterSpacingPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "lineHeightPx": {
+                "format": "double",
+                "type": "number"
+              },
+              "transform": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextRasterTransformV2"
+              }
+            },
+            "required": [
+              "content",
+              "fontSizePx",
+              "lineHeightPx",
+              "letterSpacingPx",
+              "align",
+              "decoration",
+              "color",
+              "background",
+              "transform"
+            ],
+            "type": "object"
+          },
+          "TextRasterReceiptV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRasterReceiptV2"
+          },
+          "TextRasterTransformV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRasterTransformV2"
+          },
+          "TextRectV2": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/TextRectV2"
+          },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
+          },
+          "ValidatedTextFontV2": {
+            "additionalProperties": false,
+            "properties": {
+              "contentHash": {
+                "type": "string"
+              },
+              "faceIndex": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "fontId": {
+                "type": "string"
+              },
+              "glyphCoverageValidated": {
+                "type": "boolean"
+              },
+              "size": {
+                "type": "string"
+              },
+              "style": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/FontStyleV4"
+              },
+              "validatedTextHash": {
+                "type": "string"
+              },
+              "weight": {
+                "format": "uint16",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "fontId",
+              "contentHash",
+              "size",
+              "weight",
+              "style",
+              "faceIndex",
+              "glyphCoverageValidated",
+              "validatedTextHash"
+            ],
+            "type": "object"
           },
           "VisualDecodeAdmission": {
             "additionalProperties": false,
@@ -13268,7 +14147,7 @@
                   "noFrameReason": {
                     "anyOf": [
                       {
-                        "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualNoFrameReasonV4"
+                        "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualNoFrameReasonV4"
                       },
                       {
                         "type": "null"
@@ -13279,7 +14158,7 @@
                     "type": "string"
                   },
                   "requestedTime": {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/Time"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/Time"
                   },
                   "requestedTimeSeconds": {
                     "description": "Decoder API projection supplied by Rust; the browser never divides\ncross-process integer ticks or applies retime itself.",
@@ -13306,47 +14185,10 @@
             ]
           },
           "VisualFrameIdentityV4": {
-            "additionalProperties": false,
-            "properties": {
-              "height": {
-                "format": "uint32",
-                "minimum": 0,
-                "type": "integer"
-              },
-              "profile": {
-                "type": "string"
-              },
-              "projectId": {
-                "type": "string"
-              },
-              "revision": {
-                "type": "string"
-              },
-              "sequenceId": {
-                "type": "string"
-              },
-              "time": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/Time"
-              },
-              "width": {
-                "format": "uint32",
-                "minimum": 0,
-                "type": "integer"
-              }
-            },
-            "required": [
-              "projectId",
-              "revision",
-              "sequenceId",
-              "time",
-              "width",
-              "height",
-              "profile"
-            ],
-            "type": "object"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextFrameIdentityV2"
           },
           "VisualNoFrameReasonV4": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/VisualNoFrameReasonV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/VisualNoFrameReasonV4"
           },
           "VisualPreviewAdmissionV4": {
             "additionalProperties": false,
@@ -13376,16 +14218,26 @@
             ],
             "type": "object"
           },
-          "VisualPreviewFrameResultV4": {
+          "VisualPreviewTextFrameResultV2": {
             "additionalProperties": false,
             "properties": {
               "admission": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualPreviewAdmissionV4"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualPreviewAdmissionV4"
               },
               "bound": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/BoundVisualFrameV4"
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundTextFrameV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "bound_media": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundVisualFrameV4"
                   },
                   {
                     "type": "null"
@@ -13398,7 +14250,7 @@
               },
               "decode_admissions": {
                 "additionalProperties": {
-                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualDecodeAdmission"
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualDecodeAdmission"
                 },
                 "type": "object"
               },
@@ -13408,7 +14260,7 @@
                 "type": "integer"
               },
               "plan": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/ClassicVisualPlan"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ClassicTextFramePlanV2"
               },
               "schema_version": {
                 "format": "uint32",
@@ -13416,7 +14268,6 @@
                 "type": "integer"
               },
               "time_seconds": {
-                "description": "Presentation projection only. No client-side source clock/layout evaluation.",
                 "format": "double",
                 "type": "number"
               }
@@ -13491,7 +14342,7 @@
                 "type": "string"
               },
               "kind": {
-                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualResourceKind"
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualResourceKind"
               },
               "size": {
                 "type": "string"
@@ -13511,6 +14362,291 @@
               "image"
             ],
             "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualPreviewTextFrameResultV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutVisualPreviewV4FontAuthorizeInput": {
+        "$defs": {
+          "AudioPreviewStreamV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/AudioPreviewStreamV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "font_id": {
+            "type": "string"
+          },
+          "session": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeInput/$defs/AudioPreviewStreamV4"
+          }
+        },
+        "required": [
+          "session",
+          "font_id"
+        ],
+        "title": "VisualPreviewFontV2",
+        "type": "object"
+      },
+      "OpencutVisualPreviewV4FontAuthorizeOutput": {
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
+          },
+          "VisualPreviewFontAuthorizedV2": {
+            "additionalProperties": false,
+            "properties": {
+              "font_id": {
+                "type": "string"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "schema_version",
+              "font_id"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeOutput/$defs/VisualPreviewFontAuthorizedV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FontAuthorizeOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
+      "OpencutVisualPreviewV4FrameInput": {
+        "$defs": {
+          "AudioPreviewStreamV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/AudioPreviewStreamV4"
+          },
+          "DecodedVisualSourceV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/DecodedVisualSourceV4"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
+          },
+          "VisualNoFrameReasonV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/VisualNoFrameReasonV4"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "decoded": {
+            "items": {
+              "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/DecodedVisualSourceV4"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "session": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/AudioPreviewStreamV4"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None plans the current confirmed consumer time. Bind uses that exact Time."
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "title": "VisualPreviewFrameV4",
+        "type": "object"
+      },
+      "OpencutVisualPreviewV4FrameOutput": {
+        "$defs": {
+          "BoundVisualFrameV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundVisualFrameV4"
+          },
+          "BoundVisualLayerV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/BoundVisualLayerV4"
+          },
+          "ClassicVisualLayerPlan": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ClassicVisualLayerPlan"
+          },
+          "ClassicVisualPlan": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/ClassicVisualPlan"
+          },
+          "DecodedVisualSourceV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/DecodedVisualSourceV4"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
+          },
+          "VisualDecodeAdmission": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualDecodeAdmission"
+          },
+          "VisualDecodeRequest": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualDecodeRequest"
+          },
+          "VisualFrameIdentityV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/TextFrameIdentityV2"
+          },
+          "VisualNoFrameReasonV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/VisualNoFrameReasonV4"
+          },
+          "VisualPreviewAdmissionV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualPreviewAdmissionV4"
+          },
+          "VisualPreviewFrameResultV4": {
+            "additionalProperties": false,
+            "properties": {
+              "admission": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualPreviewAdmissionV4"
+              },
+              "bound": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/BoundVisualFrameV4"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "consumer_time_seconds": {
+                "format": "double",
+                "type": "number"
+              },
+              "decode_admissions": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/VisualDecodeAdmission"
+                },
+                "type": "object"
+              },
+              "max_lag_ms": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "plan": {
+                "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/ClassicVisualPlan"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "time_seconds": {
+                "description": "Presentation projection only. No client-side source clock/layout evaluation.",
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "schema_version",
+              "plan",
+              "admission",
+              "decode_admissions",
+              "time_seconds",
+              "consumer_time_seconds",
+              "max_lag_ms"
+            ],
+            "type": "object"
+          },
+          "VisualQuadV4": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualQuadV4"
+          },
+          "VisualResource": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualResource"
+          },
+          "VisualResourceKind": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/VisualResourceKind"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13648,7 +14784,7 @@
             "type": "string"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13739,7 +14875,7 @@
             ]
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "additionalProperties": false,
@@ -13888,7 +15024,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "SourceArtDataV1": {
             "oneOf": [
@@ -14157,7 +15293,7 @@
             ]
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -14234,7 +15370,7 @@
       "OpencutSourceArtV1CancelOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "SourceArtCancelResponseV1": {
             "additionalProperties": false,
@@ -14390,7 +15526,7 @@
             "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "SourceArtIdentityV1": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/SourceArtIdentityV1"
@@ -14647,7 +15783,7 @@
       "OpencutAudioPreviewV4CreateInput": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14842,7 +15978,7 @@
             "type": "string"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TemporaryAudioGainV4": {
             "additionalProperties": false,
@@ -14875,7 +16011,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -15117,7 +16253,7 @@
             "$ref": "#/components/schemas/OpencutAudioPreviewV4CreateOutput/$defs/TemporaryAudioGainV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -15249,7 +16385,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16560,7 +17696,7 @@
             "type": "string"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -17054,7 +18190,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -17127,7 +18263,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -17339,7 +18475,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -17493,7 +18629,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -17538,7 +18674,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -17793,7 +18929,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -17995,7 +19131,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -18103,7 +19239,7 @@
       "OpencutProjectEditApplyOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TransactionResult": {
             "additionalProperties": false,
@@ -18219,7 +19355,7 @@
       "OpencutUploadStreamBeginOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "StreamUploadView": {
             "properties": {
@@ -18427,7 +19563,7 @@
       "OpencutUploadStreamQueryOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "StreamUploadEntry": {
             "properties": {
@@ -18552,7 +19688,7 @@
       "OpencutEditTimelinePlanInput": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -18795,7 +19931,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -18840,7 +19976,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -18927,7 +20063,7 @@
       "OpencutJobExecutionReceiptV1Output": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExecutionIdentityV1": {
             "additionalProperties": false,
@@ -19109,7 +20245,7 @@
       "OpencutProjectPackageReproducibilityV1Output": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExecutionIdentityV1": {
             "$ref": "#/components/schemas/OpencutJobExecutionReceiptV1Output/$defs/ExecutionIdentityV1"
@@ -19247,7 +20383,7 @@
       "OpencutDatabaseInspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Report": {
             "properties": {
@@ -19460,7 +20596,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -19598,7 +20734,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Policy": {
             "additionalProperties": false,
@@ -19978,7 +21114,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Policy": {
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/Policy"
@@ -20115,7 +21251,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Page": {
             "properties": {
@@ -20271,7 +21407,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Item": {
             "properties": {
@@ -20563,7 +21699,7 @@
       "OpencutArtifactRetentionInspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "RetentionState": {
             "$ref": "#/components/schemas/OpencutUploadStreamQueryOutput/$defs/UploadRetentionState"
@@ -20668,7 +21804,7 @@
       "OpencutArtifactReferencesInspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ReferenceKind": {
             "enum": [
@@ -20805,7 +21941,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Plan": {
             "properties": {
@@ -20984,7 +22120,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Page": {
             "properties": {
@@ -21101,7 +22237,7 @@
       "OpencutArtifactGcExecuteOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExecutionState": {
             "enum": [
@@ -21270,7 +22406,7 @@
             "type": "string"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Omissions": {
             "properties": {
@@ -21513,7 +22649,7 @@
       "OpencutUploadCreateOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "UploadState": {
             "$ref": "#/components/schemas/OpencutUploadStreamBeginOutput/$defs/UploadState"
@@ -21643,7 +22779,7 @@
       "OpencutUploadRetentionOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "UploadRetentionState": {
             "$ref": "#/components/schemas/OpencutUploadStreamQueryOutput/$defs/UploadRetentionState"
@@ -21729,7 +22865,7 @@
       "OpencutUploadQuotaOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "UploadQuotaView": {
             "properties": {
@@ -21805,7 +22941,7 @@
       "OpencutUploadQueryOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "UploadEntry": {
             "properties": {
@@ -21945,7 +23081,7 @@
             "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "MediaImportJobResult": {
             "description": "A project resource, not a global CAS capability or a host filesystem location.",
@@ -21976,7 +23112,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -22061,7 +23197,7 @@
             "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "MediaImportJobResult": {
             "$ref": "#/components/schemas/OpencutProjectMediaInspectOutput/$defs/MediaImportJobResult"
@@ -22087,7 +23223,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -22173,7 +23309,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ProjectAction": {
             "enum": [
@@ -22420,7 +23556,7 @@
             "type": "string"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "MaintenanceEvent": {
             "properties": {
@@ -22597,7 +23733,7 @@
       "OpencutPluginPublicationReconcileOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Object": {
             "$ref": "#/components/schemas/OpencutPluginPublicationQueryInput/$defs/Object"
@@ -22811,7 +23947,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "MaintenanceAction": {
             "enum": [
@@ -22995,7 +24131,7 @@
       "OpencutMaintenanceReconcileOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "MaintenanceObject": {
             "$ref": "#/components/schemas/OpencutMaintenanceQueryInput/$defs/MaintenanceObject"
@@ -23260,7 +24396,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "PrincipalView": {
             "properties": {
@@ -24044,7 +25180,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -24977,7 +26113,7 @@
             "type": "object"
           },
           "MediaTime": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "OperationDescriptor": {
             "additionalProperties": false,
@@ -26104,7 +27240,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -26444,7 +27580,7 @@
       "OpencutEventChangesOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EventChange": {
             "properties": {
@@ -26603,7 +27739,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/PublicJobStage"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -26751,7 +27887,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/DecodedSample"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExportView": {
             "properties": {
@@ -27197,7 +28333,7 @@
             "type": "object"
           },
           "MediaTime": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "PixelBounds": {
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/PixelBounds"
@@ -27455,7 +28591,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -27583,7 +28719,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/DecodedSample"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExportView": {
             "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ExportView"
@@ -27648,7 +28784,7 @@
             "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/MediaStream"
           },
           "MediaTime": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "PixelBounds": {
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/PixelBounds"
@@ -27693,7 +28829,7 @@
             "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/TextLayoutView"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -27777,7 +28913,7 @@
       "OpencutJobChangesOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "JobChange": {
             "$ref": "#/components/schemas/OpencutEventChangesOutput/$defs/JobChange"
@@ -27815,7 +28951,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/PublicJobStage"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -28014,7 +29150,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
           },
           "MediaTime": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "ProbeRequest": {
             "additionalProperties": false,
@@ -28113,7 +29249,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -28892,7 +30028,7 @@
       "OpencutProjectV4AudioCapabilityOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V4AudioWavCapabilityV1": {
             "additionalProperties": false,
@@ -29167,7 +30303,7 @@
       "OpencutProjectV4AudioRangeCapabilityOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V4AudioRangeWavCapabilityV1": {
             "$ref": "#/components/schemas/OpencutProjectV4AudioCapabilityOutput/$defs/V4AudioWavCapabilityV1"
@@ -29216,10 +30352,247 @@
         "title": "Response",
         "type": "object"
       },
+      "OpencutJobV4VideoMp4Input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "sequence_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "idempotency_key",
+          "project_id",
+          "revision",
+          "sequence_id"
+        ],
+        "title": "SubmitV4VideoMp4V1",
+        "type": "object"
+      },
+      "OpencutJobV4VideoMp4Output": {
+        "$ref": "#/components/schemas/OpencutJobViewOutput",
+        "$defs": {
+          "ArtifactAvailability": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ArtifactAvailability"
+          },
+          "ArtifactReference": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ArtifactReference"
+          },
+          "ArtifactRole": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ArtifactRole"
+          },
+          "AssetLockManifest": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/AssetLockManifest"
+          },
+          "AssetLockingMode": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/AssetLockingMode"
+          },
+          "CompositedFrameView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/CompositedFrameView"
+          },
+          "CompositedProjectFrameQuality": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/CompositedProjectFrameQuality"
+          },
+          "DecodedSample": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/DecodedSample"
+          },
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/EditorError"
+          },
+          "ExportView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ExportView"
+          },
+          "ExtendedJobResult": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ExtendedJobResult"
+          },
+          "FontFaceView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/FontFaceView"
+          },
+          "FontResolutionPolicy": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/FontResolutionPolicy"
+          },
+          "FrameAlignment": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/FrameAlignment"
+          },
+          "FrameQuality": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/FrameQuality"
+          },
+          "FrameRate": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/FrameRate"
+          },
+          "JobResourceTarget": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/JobResourceTarget"
+          },
+          "JobResultView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/JobResultView"
+          },
+          "JobState": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/JobState"
+          },
+          "JobView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/JobView"
+          },
+          "LockedAsset": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/LockedAsset"
+          },
+          "MediaInfo": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/MediaInfo"
+          },
+          "MediaStream": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/MediaStream"
+          },
+          "MediaTime": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/MediaTime"
+          },
+          "PixelBounds": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/PixelBounds"
+          },
+          "ProgressView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProgressView"
+          },
+          "ProjectFrameQuality": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectFrameQuality"
+          },
+          "ProjectFrameView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectFrameView"
+          },
+          "ProjectRangeQuality": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectRangeQuality"
+          },
+          "ProjectRangeView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectRangeView"
+          },
+          "ProjectRenderView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectRenderView"
+          },
+          "ProjectTaskTarget": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/ProjectTaskTarget"
+          },
+          "PublicJobFailure": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/PublicJobFailure"
+          },
+          "PublicJobStage": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/PublicJobStage"
+          },
+          "SourceFrameView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/SourceFrameView"
+          },
+          "StreamKind": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/StreamKind"
+          },
+          "TextClusterRange": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/TextClusterRange"
+          },
+          "TextLayoutView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/TextLayoutView"
+          },
+          "Time": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/Time"
+          },
+          "TimeRange": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/TimeRange"
+          },
+          "VerificationCheckView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/VerificationCheckView"
+          },
+          "VerificationView": {
+            "$ref": "#/components/schemas/OpencutJobViewOutput/$defs/VerificationView"
+          }
+        }
+      },
+      "OpencutProjectV4VideoCapabilityInput": {
+        "$ref": "#/components/schemas/OpencutAudioPreviewV4CapabilityInput"
+      },
+      "OpencutProjectV4VideoCapabilityOutput": {
+        "$defs": {
+          "EditorError": {
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
+          },
+          "V4VideoMp4CapabilityV1": {
+            "additionalProperties": false,
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "schema_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "submit_tool": {
+                "type": "string"
+              },
+              "unavailable_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "schema_version",
+              "available",
+              "submit_tool"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput/$defs/V4VideoMp4CapabilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput/$defs/EditorError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_version",
+          "request_id",
+          "warnings"
+        ],
+        "title": "Response",
+        "type": "object"
+      },
       "OpencutJobV4TextFramePngInput": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29388,35 +30761,10 @@
       "OpencutProjectV4TextFrameCapabilityOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V4TextFramePngCapabilityV2": {
-            "additionalProperties": false,
-            "properties": {
-              "available": {
-                "type": "boolean"
-              },
-              "schema_version": {
-                "format": "uint32",
-                "minimum": 0,
-                "type": "integer"
-              },
-              "submit_tool": {
-                "type": "string"
-              },
-              "unavailable_reason": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "schema_version",
-              "available",
-              "submit_tool"
-            ],
-            "type": "object"
+            "$ref": "#/components/schemas/OpencutProjectV4VideoCapabilityOutput/$defs/V4VideoMp4CapabilityV1"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29465,7 +30813,7 @@
       "OpencutJobV4FramePngInput": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29634,7 +30982,7 @@
       "OpencutProjectV4FrameCapabilityOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V4FramePngCapabilityV1": {
             "additionalProperties": false,
@@ -29715,7 +31063,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/FrameAlignment"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29888,7 +31236,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/FrameAlignment"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -30064,7 +31412,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/FrameAlignment"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30107,7 +31455,7 @@
       "OpencutPreviewV3CreateOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Presentation": {
             "properties": {
@@ -30286,7 +31634,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30357,7 +31705,7 @@
       "OpencutProjectV4ListOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V4ProjectPage": {
             "additionalProperties": false,
@@ -31135,7 +32483,7 @@
             ]
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "oneOf": [
@@ -31544,11 +32892,7 @@
             ]
           },
           "FontStyleV4": {
-            "enum": [
-              "normal",
-              "italic"
-            ],
-            "type": "string"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "enum": [
@@ -33151,7 +34495,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -33959,7 +35303,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -34206,7 +35550,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -34236,7 +35580,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -34976,7 +36320,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -35094,7 +36438,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -35453,7 +36797,7 @@
             "$ref": "#/components/schemas/OpencutSourceArtV1GetOutput/$defs/AssetVersion"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ResourceKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4ResourceInspectInput/$defs/ResourceKindV4"
@@ -35766,7 +37110,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -35796,7 +37140,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -35898,7 +37242,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -36195,7 +37539,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -36225,7 +37569,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -36429,7 +37773,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -36839,7 +38183,7 @@
       "OpencutEditTimelinePlanV4Input": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimelineCommandV4": {
             "oneOf": [
@@ -37237,7 +38581,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -37267,7 +38611,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -37369,7 +38713,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -37594,7 +38938,7 @@
       "OpencutFontRecoveryV1StageOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontRecoveryContextV1": {
             "$ref": "#/components/schemas/OpencutFontRecoveryV1StageInput/$defs/FontRecoveryContextV1"
@@ -37712,7 +39056,7 @@
       "OpencutFontRecoveryV1InspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontRecoveryContextV1": {
             "$ref": "#/components/schemas/OpencutFontRecoveryV1StageInput/$defs/FontRecoveryContextV1"
@@ -37815,7 +39159,7 @@
       "OpencutFontRecoveryV1AckOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontRecoveryAckV1": {
             "additionalProperties": false,
@@ -37921,7 +39265,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -38111,7 +39455,7 @@
             "type": "object"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimelineTargetV4": {
             "$ref": "#/components/schemas/OpencutEditTimelinePlanV4Input/$defs/TimelineTargetV4"
@@ -38221,7 +39565,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -38251,7 +39595,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -38421,7 +39765,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -38503,7 +39847,7 @@
       "OpencutFontV1CatalogOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontCatalogEntryV1": {
             "additionalProperties": false,
@@ -38588,7 +39932,7 @@
             "type": "object"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -38717,7 +40061,7 @@
       "OpencutTimelineV4CopyOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TimelineClipboardItemV4": {
             "additionalProperties": false,
@@ -38952,7 +40296,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -39054,7 +40398,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -39277,7 +40621,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -39307,7 +40651,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -39409,7 +40753,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -39917,7 +41261,7 @@
             "$ref": "#/components/schemas/OpencutEditRecoveryV1StageOutput/$defs/EditRecoveryRecordV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -39947,7 +41291,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -40049,7 +41393,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -40208,7 +41552,7 @@
             "$ref": "#/components/schemas/OpencutFontRecoveryV1AckOutput/$defs/FontRecoveryResolutionV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TransactionResult": {
             "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
@@ -40450,7 +41794,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -40608,7 +41952,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -40870,7 +42214,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -40900,7 +42244,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -41041,7 +42385,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -41296,7 +42640,7 @@
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/EditRecoveryRecordV2"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -41326,7 +42670,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -41440,7 +42784,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -41605,7 +42949,7 @@
             "$ref": "#/components/schemas/OpencutFontRecoveryV1AckOutput/$defs/FontRecoveryResolutionV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "HistoryCommitV4": {
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/HistoryCommitV4"
@@ -41829,7 +43173,7 @@
             ]
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimelineClipboardItemV4": {
             "$ref": "#/components/schemas/OpencutTimelineV4CopyOutput/$defs/TimelineClipboardItemV4"
@@ -41980,7 +43324,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -42010,7 +43354,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -42179,7 +43523,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -42351,7 +43695,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -42453,7 +43797,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -42593,7 +43937,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/DiscreteValueV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectKindV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/EffectKindV4"
@@ -42623,7 +43967,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontSizeV4"
           },
           "FontStyleV4": {
-            "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontStyleV4"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/FontStyleV4"
           },
           "FontWeightV4": {
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/FontWeightV4"
@@ -42734,7 +44078,7 @@
             "$ref": "#/components/schemas/OpencutProjectV4CreateOutput/$defs/TextV4"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -43080,7 +44424,7 @@
       "OpencutEditV4UndoPlanOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "HistoryChangeV4": {
             "additionalProperties": false,
@@ -43237,7 +44581,7 @@
       "OpencutEditV4UndoApplyOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "HistoryCommitV4": {
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/HistoryCommitV4"
@@ -43384,7 +44728,7 @@
       "OpencutProjectV4HistoryNavigationOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "HistoryNavigationV4": {
             "additionalProperties": false,
@@ -43531,7 +44875,7 @@
       "OpencutProjectV3ListOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "V3ProjectPage": {
             "additionalProperties": false,
@@ -43677,7 +45021,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -43747,7 +45091,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -44109,7 +45453,7 @@
       "OpencutRenderV3PreflightOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "PreflightIssue": {
             "properties": {
@@ -44283,7 +45627,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -44555,7 +45899,7 @@
       "OpencutAnalysisEvidenceQueryInput": {
         "$defs": {
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -44971,13 +46315,13 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "LockedAsset": {
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/LockedAsset"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -45615,13 +46959,13 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "LockedAsset": {
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/LockedAsset"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -46355,10 +47699,10 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -46472,7 +47816,7 @@
       "OpencutProjectLibraryOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FrameRate": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FrameRate"
@@ -46568,7 +47912,7 @@
             "type": "string"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -46678,7 +48022,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ProjectCopy": {
             "properties": {
@@ -46831,7 +48175,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -46940,7 +48284,7 @@
       "OpencutProjectHistoryNavigationOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "HistoryNavigation": {
             "properties": {
@@ -47088,7 +48432,7 @@
       "OpencutProjectHistoryOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "RevisionPage": {
             "properties": {
@@ -47237,7 +48581,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/Clip"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -47280,7 +48624,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -47618,7 +48962,7 @@
             "$ref": "#/components/schemas/OpencutStorageBudgetInspectOutput/$defs/CallSource"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -47735,7 +49079,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Features": {
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/Features"
@@ -47829,7 +49173,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/Clip"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -47859,7 +49203,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -48123,7 +49467,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -48246,7 +49590,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -48273,7 +49617,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -48474,7 +49818,7 @@
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/HistoryDirectionV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -48542,7 +49886,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -48689,7 +50033,7 @@
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/HistoryDirectionV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TransactionResult": {
             "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
@@ -48960,7 +50304,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -49026,7 +50370,7 @@
             "$ref": "#/components/schemas/OpencutEditV3BranchCreateOutput/$defs/BranchView"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -49143,7 +50487,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -49259,7 +50603,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -49316,7 +50660,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -49472,7 +50816,7 @@
       "OpencutEditV3BranchMergeOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TransactionResult": {
             "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
@@ -49633,7 +50977,7 @@
             "$ref": "#/components/schemas/OpencutEditRecoveryV2StageOutput/$defs/HistoryDirectionV4"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -49663,7 +51007,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -49911,7 +51255,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -50043,7 +51387,7 @@
             "$ref": "#/components/schemas/OpencutEditV3UndoPlanOutput/$defs/CollaborationConflict"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -50073,7 +51417,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -50137,7 +51481,7 @@
             "$ref": "#/components/schemas/OpencutEditV3BranchMergeOutput/$defs/V3BranchMergeCommit"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "TransactionResult": {
             "$ref": "#/components/schemas/OpencutProjectEditApplyOutput/$defs/TransactionResult"
@@ -50228,7 +51572,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -50350,7 +51694,7 @@
       "OpencutProjectV3PackageExportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExportReceipt": {
             "additionalProperties": false,
@@ -50600,7 +51944,7 @@
       "OpencutProjectV3PackageImportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "GrantTarget": {
             "additionalProperties": false,
@@ -50973,7 +52317,7 @@
       "OpencutProjectPackageExportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ExportReceipt": {
             "additionalProperties": false,
@@ -51090,7 +52434,7 @@
       "OpencutProjectPackageImportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "ImportReceipt": {
             "additionalProperties": false,
@@ -51366,7 +52710,7 @@
             "$ref": "#/components/schemas/OpencutPreviewV3CreateOutput/$defs/Telemetry"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -51444,7 +52788,7 @@
       "OpencutPreviewEventsOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Event": {
             "properties": {
@@ -51638,7 +52982,7 @@
       "OpencutSubtitleImportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "SubtitleImportReceipt": {
             "additionalProperties": false,
@@ -51819,7 +53163,7 @@
       "OpencutSubtitleExportOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "SubtitleExportReceipt": {
             "additionalProperties": false,
@@ -52067,7 +53411,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -52094,7 +53438,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -52248,7 +53592,7 @@
             "$ref": "#/components/schemas/OpencutClassicAnalyzeOutput/$defs/CompatibilityFinding"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52420,7 +53764,7 @@
       "OpencutEventsReadOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "StoredEvent": {
             "properties": {
@@ -52524,7 +53868,7 @@
       "OpencutJobEventsOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "JobEvent": {
             "properties": {
@@ -52674,7 +54018,7 @@
       "OpencutJobStartOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "JobProgress": {
             "additionalProperties": false,
@@ -52766,7 +54110,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/JobState"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52866,7 +54210,7 @@
       "OpencutJobListOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "JobProgress": {
             "$ref": "#/components/schemas/OpencutJobStartOutput/$defs/JobProgress"
@@ -52878,7 +54222,7 @@
             "$ref": "#/components/schemas/OpencutResourceReadOutput/$defs/JobState"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -53053,7 +54397,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/CubicBezierV1"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EffectNode": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/EffectNode"
@@ -53141,7 +54485,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -53228,7 +54572,7 @@
       "OpencutPluginV2InstallOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "InstalledPackage": {
             "additionalProperties": false,
@@ -53385,7 +54729,7 @@
       "OpencutPluginV2ListOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "InstalledPackage": {
             "$ref": "#/components/schemas/OpencutPluginV2InstallOutput/$defs/InstalledPackage"
@@ -53485,7 +54829,7 @@
       "OpencutPluginV2GrantOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "additionalProperties": false,
@@ -53572,7 +54916,7 @@
       "OpencutPluginV2GrantsOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "$ref": "#/components/schemas/OpencutPluginV2GrantOutput/$defs/Grant"
@@ -53649,7 +54993,7 @@
       "OpencutPluginV2InspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "$ref": "#/components/schemas/OpencutPluginV2GrantOutput/$defs/Grant"
@@ -53768,7 +55112,7 @@
             "$ref": "#/components/schemas/OpencutEditPlanOutput/$defs/EditPlan"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -53829,7 +55173,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -53905,7 +55249,7 @@
             "type": "object"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "InstalledPlugin": {
             "properties": {
@@ -54110,7 +55454,7 @@
             "$ref": "#/components/schemas/OpencutPluginListOutput/$defs/Contributions"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "InstalledPlugin": {
             "$ref": "#/components/schemas/OpencutPluginListOutput/$defs/InstalledPlugin"
@@ -54598,7 +55942,7 @@
             ]
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -54690,7 +56034,7 @@
       "OpencutProjectPluginGrantOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "properties": {
@@ -54776,7 +56120,7 @@
       "OpencutProjectPluginListOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "$ref": "#/components/schemas/OpencutProjectPluginGrantOutput/$defs/Grant"
@@ -54853,7 +56197,7 @@
       "OpencutProjectPluginInspectOutput": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "Grant": {
             "$ref": "#/components/schemas/OpencutProjectPluginGrantOutput/$defs/Grant"
@@ -54996,7 +56340,7 @@
             "$ref": "#/components/schemas/OpencutEditPlanOutput/$defs/EditPlan"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -55065,7 +56409,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -55150,7 +56494,7 @@
             "$ref": "#/components/schemas/OpencutEditPlanOutput/$defs/EditPlan"
           },
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "FontResolutionPolicy": {
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/FontResolutionPolicy"
@@ -55183,7 +56527,7 @@
             "$ref": "#/components/schemas/OpencutMediaImportPlanV1Input/$defs/TextAlign"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           },
           "TimeRange": {
             "$ref": "#/components/schemas/OpencutSourceArtV1GetInput/$defs/TimeRange"
@@ -55477,7 +56821,7 @@
       "OpenCutEventStreamRecord": {
         "$defs": {
           "EditorError": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameOutput/$defs/EditorError"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameOutput/$defs/EditorError"
           },
           "EventData": {
             "$ref": "#/components/schemas/OpencutEventChangesOutput/$defs/EventData"
@@ -55517,7 +56861,7 @@
             "type": "string"
           },
           "Time": {
-            "$ref": "#/components/schemas/OpencutVisualPreviewV4FrameInput/$defs/Time"
+            "$ref": "#/components/schemas/OpencutVisualPreviewV4TextFrameInput/$defs/Time"
           }
         },
         "$schema": "https://json-schema.org/draft/2020-12/schema",

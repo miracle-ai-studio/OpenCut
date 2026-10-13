@@ -138,7 +138,7 @@ function validateFont(font) {
 }
 
 /** Full-frame raster from a native-validated static font and sampled text. */
-export async function rasterizeClassicText(text, font, bytes, dimensions, signal) {
+export async function rasterizeClassicText(text, font, bytes, dimensions, signal, retained) {
   checkAbort(signal);
   validateClassicText(text);
   validateFont(font);
@@ -159,13 +159,13 @@ export async function rasterizeClassicText(text, font, bytes, dimensions, signal
   let face, canvas, added = false, complete = false;
   try {
     try {
-      face = new FontFace(family, bytes, { style: font.style, weight: String(font.weight) });
-      await face.load();
+      face = retained?.face ?? new FontFace(family, bytes, { style: font.style, weight: String(font.weight) });
+      if (!retained?.face) await face.load();
     }
     catch { checkAbort(signal); reject("FONT_LOAD_FAILED", "The browser rejected the verified static font bytes"); }
     checkAbort(signal);
     if (face.status !== "loaded") reject("FONT_LOAD_FAILED", "The browser did not load the verified static font face");
-    fontSet.add(face); added = true;
+    if (!retained?.face) {fontSet.add(face); added = true;if(retained)retained.face=face;}
     canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
     if (!ctx) reject("CAPABILITY_UNAVAILABLE", "Text rasterization canvas is unavailable");
@@ -178,7 +178,7 @@ export async function rasterizeClassicText(text, font, bytes, dimensions, signal
       layout: { fontId: font.fontId, fontContentHash: font.contentHash, validatedTextHash: font.validatedTextHash, fontWeight: font.weight, fontStyle: font.style, faceIndex: font.faceIndex, ...layout, transform: structuredClone(text.transform) },
     };
   } finally {
-    if (added) fontSet.delete(face);
+    if (added && !retained) fontSet.delete(face);
     if (canvas && !complete) { canvas.width = 0; canvas.height = 0; }
   }
 }

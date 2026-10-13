@@ -49,6 +49,7 @@ import { TasksPanel } from "./tasks/panel";
 import { ExportDialog } from "./tasks/export-dialog";
 import { HistoryPanel } from "./history/panel";
 import { Button, Modal } from "./shared/ui";
+import { VideoMp4Dialog } from "./workspace/v4/video-mp4-dialog";
 import { AudioWavDialog } from "./workspace/v4/audio-wav-dialog";
 import { audioWavAvailability } from "./workspace/v4/audio-wav";
 import symbol from "./shared/brand/symbol.svg";
@@ -91,6 +92,7 @@ function Workspace() {
   const [layouts] = useState(readWorkspaceLayouts);
   const [guide, setGuide] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const [videoExporting, setVideoExporting] = useState(false);
   const [audioExporting, setAudioExporting] = useState(false),
     [v4Tasks, setV4Tasks] = useState(false);
   const [exporting, setExporting] = useState(false),
@@ -234,6 +236,7 @@ function Workspace() {
               {t("Export audio WAV")}
             </Button>
           )}
+          {activeV4 && <Button disabled={busy} onClick={() => setVideoExporting(true)} icon={<Download size={15} />}>{t("Export video MP4")}</Button>}
           {active && (
             <Button
               className="primary"
@@ -384,6 +387,7 @@ function Workspace() {
           showTasks={() => setV4Tasks(true)}
         />
       )}
+      {activeV4 && videoExporting && <VideoMp4Dialog onClose={() => setVideoExporting(false)} showTasks={() => setV4Tasks(true)} />}
       {activeV4 && v4Tasks && (
         <Modal title={t("Tasks")} onClose={() => setV4Tasks(false)}>
           <TasksPanel />

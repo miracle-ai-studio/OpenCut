@@ -30,11 +30,15 @@ async function encodedResource(resource,host,budget,signal,operation="resolveVer
 export async function renderClassicFrame(fixedPlan,host,realm,signal,cache,decoders) {
   return renderFrame(fixedPlan,host,realm,signal,cache,decoders);
 }
-export async function renderClassicTextFrameV2(fixedPlan,host,realm,signal,cache,decoders) {
+export async function renderClassicTextFrameV2(fixedPlan,host,realm,signal,cache,decoders,fontCache) {
   checkAbort(signal);const plan=clone(fixedPlan);validateTextFramePlan(plan,host.admission);
-  return renderFrame(plan.media,host,realm,signal,cache,decoders,state=>composeTextFrame(plan,host,state,signal));
+  if(fontCache) {
+    const keys=new Set(plan.texts.map(t=>`${t.font.fontId}:${t.font.contentHash}:${t.font.size}`));
+    for(const [key,item] of fontCache)if(!keys.has(key)) { if(item.face)(globalThis.fonts??globalThis.document?.fonts)?.delete(item.face);fontCache.delete(key); }
+  }
+  return renderFrame(plan.media,host,realm,signal,cache,decoders,state=>composeTextFrame(plan,host,state,signal),fontCache);
 }
-async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
+async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose,fontCache) {
   checkAbort(signal);const plan=clone(fixedPlan),admission=host.admission;
   const width=integer(plan.identity.width,"frame width",1,16384),height=integer(plan.identity.height,"frame height",1,16384);
   const rgba=BigInt(width)*BigInt(height)*4n;
@@ -55,6 +59,7 @@ async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
     for(const key of cache.keys())if(!keys.has(key))cache.delete(key);
     for(const bytes of cache.values())releases.push(budget.reserve(bytes.byteLength*3));
   }
+  if(fontCache)for(const item of fontCache.values())releases.push(budget.reserve(item.bytes.byteLength*3));
   try {
     for(const layer of plan.layers) {
       checkAbort(signal);const permit=clone(await host.callback("admitDecode",{elementId:layer.elementId}));checkAbort(signal);
@@ -66,7 +71,10 @@ async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
       let encodedSource=encoded.get(layer.resource.assetId);
       if(!encodedSource) {
         const key=`${layer.resource.assetId}:${layer.resource.contentHash}:${layer.resource.size}`,hit=cache?.get(key);
-        if(hit)encodedSource={bytes:hit,release:()=>{}};
+        if(hit) {
+          if(host.requireResolveCached)await verifyCachedResource(layer.resource,host,signal);
+          encodedSource={bytes:hit,release:()=>{}};
+        }
         else {
           encodedSource=await encodedResource(layer.resource,host,budget,signal);
           if(cache) {
@@ -115,7 +123,17 @@ async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
     }
     checkAbort(signal);let bound=clone(await host.callback("bindFrame",{decoded:clone(decoded)}));checkAbort(signal);
     if(!sameJsonFacts(bound.identity,plan.identity)||!sameJsonFacts(bound.decoded,decoded))reject("INVALID_VISUAL_PLAN","Bound frame changed fixed identity or decoder facts");
-    if(compose)bound=await compose({bound,sources,budget,canvases,releases,encoded,retainedDecoded,resolveFont:resource=>encodedResource(resource,host,budget,signal,"resolveVerifiedFontBytes","font")});
+    if(compose)bound=await compose({bound,sources,budget,canvases,releases,encoded,retainedDecoded,fontCache,resolveFont:async resource=>{
+      const key=`${resource.fontId}:${resource.contentHash}:${resource.size}`,hit=fontCache?.get(key);
+      if(hit) {await verifyCachedResource(resource,host,signal,"resolveVerifiedFontBytes","font");return {bytes:hit.bytes,release:()=>{}};}
+      const loaded=await encodedResource(resource,host,budget,signal,"resolveVerifiedFontBytes","font");
+      if(fontCache) {
+        const total=[...fontCache.values()].reduce((n,v)=>n+v.bytes.byteLength,0)+[...cache?.values()??[]].reduce((n,v)=>n+v.byteLength,0)+loaded.bytes.byteLength;
+        if(total>Number(admission.maxEncodedBytes)){loaded.release();reject("VISUAL_BUDGET_EXCEEDED","Retained fonts exceed encoded admission");}
+        fontCache.set(key,{bytes:loaded.bytes});
+      }
+      return loaded;
+    }});
     const gpu = await renderGpuFrame(bound,sources,admission,async(offset,bytes)=>{checkAbort(signal);await host.rgba(offset,bytes);checkAbort(signal);},signal,realm,host.surface);
     host.observeExecution?.({ ...gpu, peakAccountedBytes: String(budget.peak), retainedDecodedBytes: String(retainedDecoded), retainedEncodedBytes: String([...cache?.values() ?? []].reduce((n,b)=>n+b.byteLength,0)) });
     checkAbort(signal);
@@ -124,4 +142,10 @@ async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
     for(const canvas of canvases){canvas.width=0;canvas.height=0;}
     for(const item of encoded.values())item.release();for(const release of releases)release();
   }
+}
+
+async function verifyCachedResource(resource,host,signal,operation="resolveVerifiedBytes",argument="resource") {
+  checkAbort(signal);const transfer=await host.callback(operation,{[argument]:resource});
+  try {if(natural(transfer.byteLength,"cached verified bytes")!==natural(resource.size,"cached resource size"))reject("INVALID_VISUAL_PLAN","Cached resource identity changed");checkAbort(signal);}
+  finally {await host.callback("releaseVerifiedBytes",{transferId:transfer.transferId});}
 }

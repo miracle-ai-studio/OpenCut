@@ -129,7 +129,8 @@ pub(crate) fn capability() -> V4FramePngCapabilityV1 {
 
 /// The V2 capability requires its additional source modules. V1 configuration
 /// remains valid for older installed runtimes that lack text rendering.
-pub(crate) fn text_capability() -> opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
+pub(crate) fn text_capability()
+-> opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
     let result = paths().and_then(|(_, _, runner)| check_text_modules(&runner));
     opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
         schema_version: 2,
@@ -140,13 +141,57 @@ pub(crate) fn text_capability() -> opencut_job_contracts::project_v4_text_frame:
 }
 
 fn check_text_modules(runner: &Path) -> Result<(), EditorError> {
-    let package = runner.parent().and_then(Path::parent).ok_or_else(unavailable)?;
+    let package = runner
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(unavailable)?;
     package_file(package, "src/text-frame.mjs").map_err(|_| unavailable())?;
     package_file(package, "src/text-layout.mjs").map_err(|_| unavailable())?;
     Ok(())
 }
-pub(crate) fn configured_text(policy: &LocalVisualExecutionPolicyV1) -> Result<ClassicVisualProcessConfig, EditorError> {
+pub(crate) fn configured_text(
+    policy: &LocalVisualExecutionPolicyV1,
+) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_text_modules(&config.runner)?;
     Ok(config)
+}
+
+/// Whole-scene video requires both renderer runtimes and the local encoding tools.
+pub(crate) fn video_capability() -> opencut_job_contracts::project_v4_video::V4VideoMp4CapabilityV1
+{
+    let result = (|| -> Result<(), EditorError> {
+        let (_, _, runner) = paths()?;
+        check_text_modules(&runner)?;
+        let package = runner
+            .parent()
+            .and_then(Path::parent)
+            .ok_or_else(unavailable)?;
+        for file in ["host/video-runner.mjs", "host/video-browser.mjs"] {
+            package_file(package, file).map_err(|_| unavailable())?;
+        }
+        let audio = crate::classic_audio_runtime::capability();
+        if !audio.available {
+            return Err(EditorError::new(
+                "CAPABILITY_UNAVAILABLE",
+                audio
+                    .unavailable_reason
+                    .unwrap_or_else(|| "AUDIO_RUNTIME_UNAVAILABLE".into()),
+            ));
+        }
+        for (variable, default) in [("OPENCUT_FFMPEG", "ffmpeg"), ("OPENCUT_FFPROBE", "ffprobe")] {
+            opencut_native_services::classic_video::resolve_tool(
+                env::var_os(variable)
+                    .map(Into::into)
+                    .unwrap_or_else(|| default.into()),
+            )?;
+        }
+        Ok(())
+    })();
+    opencut_job_contracts::project_v4_video::V4VideoMp4CapabilityV1 {
+        schema_version: 1,
+        available: result.is_ok(),
+        submit_tool: "opencut_job_v4_video_mp4".into(),
+        unavailable_reason: result.err().map(|error| error.message),
+    }
 }

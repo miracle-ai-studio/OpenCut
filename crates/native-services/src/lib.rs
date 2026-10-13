@@ -17,6 +17,7 @@ mod browser_resources;
 pub mod classic_audio;
 pub mod classic_audio_preview;
 pub mod classic_visual;
+pub mod classic_video;
 pub mod font_import_v1;
 pub mod gc;
 

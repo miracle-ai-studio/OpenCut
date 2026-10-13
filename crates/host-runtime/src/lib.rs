@@ -1,5 +1,6 @@
 //! Shared typed automation entry points. Transports must not implement editing rules.
 pub use opencut_api_contracts::audio_preview_v4 as audio_preview_contracts;
+pub use opencut_api_contracts::visual_preview_text_v2 as visual_preview_text_contracts;
 pub use opencut_api_contracts::preview;
 pub use opencut_api_contracts::{context, event_stream};
 pub use opencut_automation::capabilities;
@@ -195,6 +196,12 @@ impl Automation {
     ) -> Result<audio_preview_v4::AudioPreviewStream, EditorError> {
         audio_preview_v4::open_stream(self, input)
     }
+    pub fn open_visual_preview_font(&mut self, input: visual_preview_text_contracts::VisualPreviewFontV2) -> Result<(std::fs::File, u64), EditorError> {
+        audio_preview_v4::open_font(self, input)
+    }
+    pub fn authorize_visual_preview_font(&mut self, input: &visual_preview_text_contracts::VisualPreviewFontV2) -> Result<(), EditorError> {
+        audio_preview_v4::authorize_font(self, input)
+    }
     pub fn authorize_audio_preview(&mut self, session_id: &str) -> Result<(), EditorError> {
         audio_preview_v4::authorize_stream(self, session_id)
     }
@@ -345,6 +352,15 @@ impl Automation {
                     parse(arguments)?,
                 )
                 .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_project_v4_video_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::video_capability())
+            }
+            "opencut_job_v4_video_mp4" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_video_jobs::start_video_mp4(&mut self.app, parse(arguments)?)
+                    .map_err(opencut_editor_application::job_views::public_error)?;
                 to_value(opencut_editor_application::job_views::project(result))
             }
             "opencut_project_v4_text_frame_capability" => {
@@ -618,6 +634,14 @@ impl Automation {
                     ));
                 }
                 to_value(audio_preview_v4::create(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_text_frame" => {
+                to_value(audio_preview_v4::text_picture(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_font_authorize" => {
+                let input: visual_preview_text_contracts::VisualPreviewFontV2 = parse(arguments)?;
+                self.authorize_visual_preview_font(&input)?;
+                to_value(visual_preview_text_contracts::VisualPreviewFontAuthorizedV2 { schema_version: 2, font_id: input.font_id })
             }
             "opencut_visual_preview_v4_frame" => {
                 to_value(audio_preview_v4::picture(self, parse(arguments)?)?)

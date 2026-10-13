@@ -1,0 +1,375 @@
+//! Whole-scene V4 shared text/media RGBA + Classic PCM, encoded in one private
+//! attempt. Output remains tentative until the normal queue publication fence.
+use super::{
+    media_output::TaskOutput,
+    output_attempt::{
+        attempt_directory, cancelled, check_attempt, check_output_name, error, file_hash, io_error,
+    },
+};
+use crate::{classic_audio_runtime, classic_visual_runtime};
+use opencut_composition::project_v4::ClassicAudioPreparationModeV4;
+use opencut_contracts::EditorError;
+use opencut_editor_application::{
+    budget::Writer,
+    classic_audio::{ClassicAudioExecutor, ClassicAudioResources, ClassicAudioSession},
+    classic_text_frame_v2::{ClassicTextFrameSessionV2, admit_text_frame_v2},
+    classic_visual::ClassicVisualResources,
+    font_import_v1::FontImportPolicyV1,
+    project_v4_video_jobs::{self as video, PreparedV4VideoMp4V1, StoredV4VideoMp4ResultV1},
+};
+use opencut_job_contracts::{
+    ArtifactDescriptor,
+    project_v4_audio::*,
+    project_v4_frame::{V4FrameArtifactMetadataV1, V4FrameExecutionSummaryV1},
+    project_v4_video::*,
+};
+use opencut_media::CancellationToken;
+use opencut_native_services::{
+    classic_audio::{ClassicAudioProcess, ClassicAudioWavSink, VerifiedClassicAudioResources},
+    classic_video::{
+        ClassicVideoEncoder, ClassicVideoEncoderConfig, ClassicVideoProcess, resolve_tool,
+    },
+    classic_visual::VerifiedClassicTextResources,
+};
+use opencut_sqlite_store::{EditorApplication, JobRecord};
+use opencut_storage_budget::{AttemptLease, Budget};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::{
+    collections::BTreeSet,
+    ffi::OsStr,
+    path::Path,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
+#[cfg(unix)]
+pub(super) fn execute(
+    database: &Path,
+    root: &Path,
+    worker: &str,
+    job: &JobRecord,
+    cancel: &CancellationToken,
+    held: &Mutex<Option<AttemptLease>>,
+) -> Result<Value, EditorError> {
+    cancelled(cancel)?;
+    let started = Instant::now();
+    let input: PreparedV4VideoMp4V1 = serde_json::from_value(job.input.clone())
+        .map_err(|_| error("INVALID_ARGUMENT", "Invalid private V4 video preparation"))?;
+    let prepared = video::validate_prepared(&input)?;
+    let app = EditorApplication::open_managed(database)?;
+    app.revalidate_v4_video_job(&job.job_id, worker, job.attempt, &input.authority)?;
+    let policy = &input.processing_policy;
+    let deadline = Duration::from_millis(policy.deadline_ms);
+    let count = prepared
+        .identity
+        .frame_count
+        .parse::<u64>()
+        .map_err(|_| error("INVALID_ARGUMENT", "Invalid fixed video frame count"))?;
+    let host_sha256 =
+        opencut_native_services::reproducibility::execution_identity(vec![])?.process_binary_sha256;
+    let workspace = root
+        .parent()
+        .ok_or_else(|| error("STORAGE_BUDGET_ERROR", "Missing managed output workspace"))?;
+    let directory = attempt_directory(root, job)?;
+    let attempt = AttemptLease::acquire(&directory).map_err(io_error)?;
+    check_attempt(&attempt, &directory)?;
+    {
+        let mut guard = held
+            .lock()
+            .map_err(|_| error("INTERNAL_ERROR", "Attempt lifetime guard unavailable"))?;
+        if guard.is_some() {
+            return Err(error("INTERNAL_ERROR", "Output attempt already held"));
+        }
+        *guard = Some(attempt.clone());
+    }
+    let checkpoint = || {
+        cancelled(cancel)?;
+        check_attempt(&attempt, &directory)?;
+        if started.elapsed() >= deadline {
+            return Err(error(
+                "VIDEO_TIME_LIMIT",
+                "Whole video attempt exceeded captured deadline",
+            ));
+        }
+        app.revalidate_v4_video_job(&job.job_id, worker, job.attempt, &input.authority)
+    };
+    checkpoint()?;
+    let audio_name = OsStr::new("video-audio.wav");
+    let audio_frames = prepared.audio.duration_samples();
+    let audio_bytes = ClassicAudioWavSink::checked_bytes(48000, audio_frames)?;
+    let budget = Budget::new(workspace);
+    let writer = Writer {
+        job_id: job.job_id.clone(),
+        attempt: job.attempt,
+    };
+    let _audio_reservation = budget.reserve_audio_wav(audio_bytes, writer.clone())?;
+    let audio_file = attempt
+        .create_readwrite_child(audio_name)
+        .map_err(io_error)?;
+    let mut audio_sink = ClassicAudioWavSink::new(audio_file, 48000, audio_frames)?;
+    let mut audio_resources =
+        VerifiedClassicAudioResources::new(app.asset_store_root(), &prepared.audio, checkpoint)?;
+    let audio_handles = audio_resources.handles();
+    let mut audio_session = ClassicAudioSession::new(
+        &prepared.audio,
+        policy.audio.max_pcm_bytes,
+        policy.audio.max_encoded_bytes,
+    )?;
+    let audio_config = classic_audio_runtime::configured(&policy.audio)?;
+    let audio_execution = ClassicAudioProcess {
+        config: audio_config,
+    }
+    .execute(
+        &mut audio_session,
+        &mut audio_resources,
+        &audio_handles,
+        &mut audio_sink,
+    )?;
+    audio_resources.checkpoint()?;
+    let audio_file = audio_sink.finalize()?;
+    check_output_name(&attempt, audio_name, &audio_file)?;
+    audio_file.sync_all().map_err(io_error)?;
+    let decoder_profiles = audio_execution
+        .receipt
+        .decoders
+        .iter()
+        .map(|decoder| match decoder.profile.as_str() {
+            "web-audio-decode-at-target-rate" => {
+                Ok(V4AudioDecoderProfileV1::WebAudioDecodeAtTargetRate)
+            }
+            "mediabunny-1.41.0-concatenate-offline-resample" => {
+                Ok(V4AudioDecoderProfileV1::Mediabunny141ConcatenateOfflineResample)
+            }
+            _ => Err(error(
+                "ARTIFACT_VERIFICATION_FAILED",
+                "Unknown actual audio decoder profile",
+            )),
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?
+        .into_iter()
+        .collect();
+    let pitch_profiles = audio_execution
+        .receipt
+        .preparation
+        .iter()
+        .map(|r| match r.facts.mode {
+            ClassicAudioPreparationModeV4::UnpreparedLinear => {
+                V4AudioPitchProfileV1::UnpreparedLinear
+            }
+            ClassicAudioPreparationModeV4::PreparedLinear => V4AudioPitchProfileV1::PreparedLinear,
+            ClassicAudioPreparationModeV4::PreparedSoundtouch => {
+                V4AudioPitchProfileV1::PreparedSoundtouch
+            }
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let audio_identity = audio_execution.runtime_identity.identity;
+    let audio_summary = V4AudioExecutionSummaryV1 {
+        host_sha256: host_sha256.clone(),
+        browser_version: audio_identity.browser_version,
+        browser_sha256: audio_identity.browser_sha256,
+        module_sha256: audio_identity.module_sha256,
+        playwright_version: audio_identity.playwright_version,
+        mediabunny_version: audio_identity.mediabunny_version,
+        soundtouch_version: "0.3.0".into(),
+        decoder_profiles,
+        pitch_profiles,
+        mastering_profile: V4AudioMasteringProfileV1::ClassicExportWholeSceneWebAudioV31,
+        mastering_applied: audio_execution.receipt.mastering.applied,
+    };
+    drop(audio_resources);
+    checkpoint()?;
+    let ffmpeg = resolve_tool(
+        std::env::var_os("OPENCUT_FFMPEG")
+            .map(Into::into)
+            .unwrap_or_else(|| "ffmpeg".into()),
+    )?;
+    let ffprobe = resolve_tool(
+        std::env::var_os("OPENCUT_FFPROBE")
+            .map(Into::into)
+            .unwrap_or_else(|| "ffprobe".into()),
+    )?;
+    let output_name = OsStr::new("video.mp4");
+    let output_path = directory.join(output_name);
+    let admission = TaskOutput {
+        budget: budget.clone(),
+        attempt: attempt.clone(),
+        directory: directory.clone(),
+        writer,
+    };
+    let mut encoder = ClassicVideoEncoder::start(
+        ClassicVideoEncoderConfig {
+            ffmpeg,
+            ffprobe,
+            output: output_path.clone(),
+            audio: directory.join(audio_name),
+            width: prepared.identity.width,
+            height: prepared.identity.height,
+            fps_numerator: prepared.identity.fps.numerator,
+            fps_denominator: prepared.identity.fps.denominator,
+            frame_count: count,
+            max_output_bytes: policy.max_output_bytes,
+            max_rss_bytes: policy.visual.max_rss_bytes,
+            deadline: deadline.saturating_sub(started.elapsed()),
+        },
+        &admission,
+        checkpoint,
+    )?;
+    let mut config = classic_visual_runtime::configured_text(&policy.visual)?;
+    config.runner = config
+        .runner
+        .parent()
+        .ok_or_else(|| error("CAPABILITY_UNAVAILABLE", "Missing visual runner directory"))?
+        .join("video-runner.mjs");
+    if !config.runner.is_file() {
+        return Err(error(
+            "CAPABILITY_UNAVAILABLE",
+            "Persistent video runner unavailable",
+        ));
+    }
+    let mut process = ClassicVideoProcess::start(config, count, &mut || checkpoint())?;
+    let mut receipts = Sha256::new();
+    let mut rgba_bytes = 0u64;
+    for index in 0..count {
+        checkpoint()?;
+        let at = video::frame_time(&prepared.identity, index)?;
+        let frame = video::prepare_frame(&input.snapshot, &input.sequence_id, &at)?;
+        admit_text_frame_v2(&frame, &policy.visual)?;
+        let mut resources = VerifiedClassicTextResources::new(
+            app.asset_store_root(),
+            &frame,
+            &FontImportPolicyV1::default(),
+            checkpoint,
+        )?;
+        let handles = resources.handles();
+        let fonts = resources.font_handles();
+        let mut session =
+            ClassicTextFrameSessionV2::new(&frame, &policy.visual, resources.coverage())?;
+        let receipt =
+            process.render_frame(&mut session, &mut resources, &handles, &fonts, &mut encoder)?;
+        encoder.finish_frame()?;
+        resources.checkpoint()?;
+        let bytes = serde_json::to_vec(&receipt).map_err(|_| {
+            error(
+                "SERIALIZATION_ERROR",
+                "Cannot hash verified video frame receipt",
+            )
+        })?;
+        receipts.update(index.to_le_bytes());
+        receipts.update((bytes.len() as u64).to_le_bytes());
+        receipts.update(&bytes);
+        rgba_bytes = rgba_bytes
+            .checked_add(
+                u64::from(prepared.identity.width) * u64::from(prepared.identity.height) * 4,
+            )
+            .ok_or_else(|| error("VIDEO_BUDGET_EXCEEDED", "Video byte counter overflow"))?;
+    }
+    let (runtime, _quota) = process.finish(&mut || checkpoint())?;
+    checkpoint()?;
+    check_output_name(&attempt, audio_name, &audio_file)?;
+    let observed = encoder.finish(&admission)?;
+    checkpoint()?;
+    let mut file = attempt.open_readonly_child(output_name).map_err(io_error)?;
+    let size = file.metadata().map_err(io_error)?.len();
+    if size == 0 || size > policy.max_output_bytes {
+        return Err(error(
+            "ARTIFACT_VERIFICATION_FAILED",
+            "MP4 differs from captured output admission",
+        ));
+    }
+    let content_hash = file_hash(&mut file, size, cancel)?;
+    file.sync_all().map_err(io_error)?;
+    attempt.sync_directory().map_err(io_error)?;
+    check_output_name(&attempt, output_name, &file)?;
+    checkpoint()?;
+    let identity = runtime.identity;
+    let stored = StoredV4VideoMp4ResultV1 {
+        public: V4VideoMp4ResultV1 {
+            schema_version: 1,
+            identity: prepared.identity,
+            asset_lock: input.asset_lock.clone(),
+            font_lock: input.font_lock.clone(),
+            render_input_sha256: video::render_input_sha256(&input.snapshot, &input.sequence_id)?,
+            execution: V4VideoExecutionSummaryV1 {
+                visual: V4FrameExecutionSummaryV1 {
+                    host_sha256: host_sha256.clone(),
+                    browser_version: identity.browser_version,
+                    browser_sha256: identity.browser_sha256,
+                    module_sha256: identity.module_sha256,
+                    shader_sha256: identity.shader_sha256,
+                    playwright_version: identity.playwright_version,
+                    mediabunny_version: identity.mediabunny_version,
+                    gpu_backend: identity.gpu_backend,
+                    gpu_device: identity.gpu_device,
+                    texture_format: identity.texture_format,
+                    decoder_profile: identity.decoder_profile,
+                },
+                audio: audio_summary,
+                encoder: V4VideoEncoderSummaryV1 {
+                    ffmpeg_sha256: observed.ffmpeg_sha256,
+                    ffprobe_sha256: observed.ffprobe_sha256,
+                    video_codec: "h264".into(),
+                    audio_codec: "aac".into(),
+                    pixel_format: "yuv420p".into(),
+                    crf: 18,
+                    audio_bitrate: 192000,
+                    observed_video_frames: observed.video_frames.to_string(),
+                    observed_video_duration_seconds: observed.video_duration_seconds,
+                    observed_audio_duration_seconds: observed.audio_duration_seconds,
+                },
+                frame_receipts_sha256: format!("{:x}", receipts.finalize()),
+                frames_rendered: count.to_string(),
+                rgba_bytes: rgba_bytes.to_string(),
+            },
+            artifact: V4FrameArtifactMetadataV1 {
+                mime_type: "video/mp4".into(),
+                size_bytes: size.to_string(),
+                content_hash: content_hash.clone(),
+            },
+        },
+        artifact: ArtifactDescriptor {
+            path: output_path.into_os_string().into_string().map_err(|_| {
+                error(
+                    "ARTIFACT_VERIFICATION_FAILED",
+                    "Private video output is not UTF-8",
+                )
+            })?,
+            mime_type: "video/mp4".into(),
+            size,
+            content_hash,
+        },
+    };
+    video::validate_stored_result(&input, &stored)?;
+    checkpoint()?;
+    if opencut_native_services::reproducibility::execution_identity(vec![])?.process_binary_sha256
+        != host_sha256
+    {
+        return Err(error(
+            "EXECUTION_IDENTITY_CHANGED",
+            "Executing host changed during video processing",
+        ));
+    }
+    check_output_name(&attempt, output_name, &file)?;
+    serde_json::to_value(stored).map_err(|_| {
+        error(
+            "SERIALIZATION_ERROR",
+            "Cannot serialize private video result",
+        )
+    })
+}
+
+#[cfg(not(unix))]
+pub(super) fn execute(
+    _: &Path,
+    _: &Path,
+    _: &str,
+    _: &JobRecord,
+    _: &CancellationToken,
+    _: &Mutex<Option<AttemptLease>>,
+) -> Result<Value, EditorError> {
+    Err(error(
+        "CAPABILITY_UNAVAILABLE",
+        "Persistent video output requires native Unix admission and process termination",
+    ))
+}

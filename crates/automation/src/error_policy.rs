@@ -60,6 +60,8 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "JOB_LEASE_LOST" => (409, 5),
         "SOURCE_ART_CANCELLED" | "SOURCE_ART_STOPPED" => (409, 7),
         "SOURCE_ART_REQUEST_CONFLICT" => (409, 5),
+        "VIDEO_BUDGET_EXCEEDED" | "UNSUPPORTED_VIDEO_PROFILE" => (422, 6),
+        "VIDEO_TIME_LIMIT" => (408, 124),
         "SOURCE_ART_BUDGET_EXCEEDED" => (422, 6),
         "MEDIA_METADATA_REQUIRED"
         | "NO_AUDIO_TRACK"

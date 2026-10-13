@@ -1,6 +1,7 @@
 import { V4VisualPreview } from "./visual-preview";
 import { V4AudioGain } from "./audio-gain";
 import { V4AudioPreview, emptyAudioPreview } from "./audio-preview";
+import { V4VideoMp4 } from "./video-mp4";
 import { V4AudioWav } from "./audio-wav";
 import { V4SourceAudio } from "./source-audio";
 import { V4Media } from "./media";
@@ -40,6 +41,7 @@ export class V4Session {
   readonly visualPreview: V4VisualPreview;
   readonly sourceAudio: V4SourceAudio;
   readonly audioWav: V4AudioWav;
+  readonly videoMp4: V4VideoMp4;
   readonly media: V4Media;
   readonly frame: V4Frame;
   constructor(private readonly host: V4SessionHost) {
@@ -58,6 +60,7 @@ export class V4Session {
     );
     this.sourceAudio = new V4SourceAudio(writes, () => this.refresh());
     this.audioWav = new V4AudioWav(host);
+    this.videoMp4 = new V4VideoMp4(host);
     this.media = new V4Media(writes, () => this.refresh());
     this.frame = new V4Frame(host);
     this.timelineEdit = new V4TimelineEdit({
@@ -164,6 +167,9 @@ export class V4Session {
       gainDraft: null,
       audioGain: this.audioGain.resume(api, head.project.id),
       sourceAudio: this.sourceAudio.resume(api, head.project.id, head.revision),
+      videoMp4Capability: null,
+      videoMp4CapabilityError: null,
+      videoMp4: this.videoMp4.resume(api, head.project.id),
       audioWavCapability: capability.value,
       audioWavCapabilityError: capability.error,
       audioRangeWavCapability: rangeCapability.value,

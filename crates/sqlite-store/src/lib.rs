@@ -40,6 +40,7 @@ mod sqlite_project_v4;
 pub mod sqlite_project_v4_audio_jobs;
 pub mod sqlite_project_v4_frame_jobs;
 pub mod sqlite_project_v4_text_frame_jobs;
+pub mod sqlite_project_v4_video_jobs;
 mod sqlite_project_v4_history;
 mod sqlite_project_v4_jobs;
 mod sqlite_projects;
@@ -78,6 +79,7 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project_audio_range.v4",
     "render.project_frame.v4",
     "render.project_text_frame.v4",
+    "render.project_video.v4",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
@@ -638,6 +640,9 @@ impl EditorApplication {
                 &request,
                 &execution_input,
             )?;
+        }
+        if request.kind == "render.project_video.v4" {
+            sqlite_project_v4_video_jobs::validate_acceptance(&tx, &context, &request, &execution_input)?;
         }
         if request.kind == "render.project_text_frame.v4" {
             sqlite_project_v4_text_frame_jobs::validate_acceptance(&tx, &context, &request, &execution_input)?;

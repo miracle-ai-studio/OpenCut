@@ -115,6 +115,9 @@ fn persist(
     {
         sqlite_project_v4_audio_jobs::require_completion(tx, &next)?;
     }
+    if next.kind == "render.project_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_video_jobs::require_completion(tx, &next)?;
+    }
     if next.kind == "render.project_text_frame.v4" && next.state == JobState::Succeeded {
         sqlite_project_v4_text_frame_jobs::require_completion(tx, &next)?;
     }

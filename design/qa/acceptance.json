@@ -288,8 +288,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "37 unique scoped records. B1 adds fixed-font free text public import/edit, persistent V2 PNG and independent Chinese/Latin pixels, history and offline reopen. F19/F20 now partial;36 groups remain. Shared final native/Web candidate for basic and geometry runs; no whole-workspace or whole-S1 acceptance.",
-    "latest_candidate": "b1_static_font_text_png",
+    "scope": "38 unique scoped records. B2 closes mixed fixed-font media/audio continuous preview and basic persistent CFR MP4 with actual browser download, independent glyph pixels and PCM. B1 and S1 historical evidence keep their identities;36 complete feature groups remain. No whole-workspace or whole-S1 acceptance.",
+    "latest_candidate": "b2_mixed_continuous_preview_cfr_mp4",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -7779,6 +7779,199 @@
           "Classic v31 import retains legacy caption/unresolved-family semantics or explicitly rejects unsupported styling. Frozen package1-5 export rejects V4; direct Classic V4/font mapping and package6 remain B3/B7.",
           "S1_HOT_POST_MASTER_RESIDUAL stays open. No S1 long-duration/DSP rerun, physical DAC or new performance claim."
         ]
+      },
+      {
+        "evidence_id": "b2_mixed_continuous_preview_cfr_mp4",
+        "status": "scoped_product_pixels_pcm_pass",
+        "candidate": {
+          "source_head": "16ef96e2b9758eef3556fb756956ec9575fedaba",
+          "dirty_source": true,
+          "preview_cli_sha256": "0fae16cbf4acdff842340a30daf2ca0b89c993f59c39e9a3ed4007ec570274cf",
+          "export_cli_sha256": "f15bf402ce3f4b276e6cf0046c2e4ac1bbc5fed44e1c6878287f88f730b78c29",
+          "web_files": {
+            "assets/classic-exporter-8c460d1e66433037.js": "8c460d1e664330373cb0196de98c015512c79292f353491e557d531e88c23b62",
+            "assets/editor-workspace-Coaf8Iac.css": "97eb7af66e3eeede637bd9cd31d69fe9742ca0769981e14f6bd7145c2f912e6d",
+            "assets/editor-workspace-To_rBxCr.js": "796186faf4452585ab8c9a7e8fb5b71a0f80b7af8e9be4f94875e03636332668",
+            "assets/index-DBH667-O.js": "410fcfb0c04b05f1a9d5cab81a79c5510817373e024e073a0cbfa3599f834adc",
+            "assets/index-DLjmZD0X.css": "e302b42d0b132aee56349e1cb891428d17ea17709ee6afeb4aa0495443290e20",
+            "assets/landing-page-dark-DfWNxYRz.png": "085ca9c3500bfbe1877547a221d1d08c37b206c89818f4ef63a632052cb46a84",
+            "assets/logo--vjoWW2F.svg": "fdfd03c2747e43f9f3e207d1a6636c97339c8edd75707b7299066d2ceff7b3ff",
+            "assets/logo-light-BNW4WtWS.svg": "a6328277dd34dbe1508dc863fdf2707132e30c1419963d9a60fd6c1d5958c35c",
+            "assets/motion-DWlBSwVI.js": "6cfaf8a82a87cca0fa24335ddb550c97bc6001015298312d2abdc2a5002f7a18",
+            "assets/preview-CzerCX24.jpg": "b318cede7bbe27bfbf1b8b94d41f65b6f52d5f2650ce3a153d03b76c2a1c0190",
+            "assets/pump-worker-osa-zrAG.js": "bf34cde65fb8aacc70a668fa04d781835cb98c26e14d05e144ddc110efad31f6",
+            "assets/site-CAEk_icX.css": "4e0101074aa796236a122b24b517d7e111b2c7106e35a92c4c2d9d2717719a95",
+            "assets/site-DfzT18lN.js": "fe22018eae0507a275438868f8c80e6783a194ecf1e06c47e2b7b22ce1c717f5",
+            "assets/text-Sg-oPyI7.svg": "31e4540f1ee85448a1bb483041cab7d98daafd5b259f9d5098c3ae7507b65143",
+            "assets/text-light-feQ-Ezks.svg": "59d389688b4b9f385640cd441ec3012055d9a514fe02c82078e1eb76b8e65d79",
+            "assets/tiktok-layout-DvXRftG4.svg": "7b92aa8d685e8062998ac068ca4108c8e775ff3bc8dfe90c236fa50d1c4f785e",
+            "assets/worklet-Bgq1Jdar.js": "b75b590a721db386b915471452852925979d9c769b4d8182e27fc57503351bfe",
+            "favicon.ico": "ec3400f57e441cee3161a41e78adbff0fcf1a2876757970c9be951c70b2fc4c7",
+            "index.html": "3a97cd3a319b765eb7a989d7e60d05fa24ce369645b4840f782ae6dce3d8f5ea",
+            "manifest.json": "f4861620f9abaff5faa6e44cc0202c22b99bf54ea7ff2048afe99dd5bd472138",
+            "robots.txt": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2"
+          },
+          "browser": "153.0.8010.12",
+          "identity_scope": "Same fixed project, fonts, media, renderer modules and final Web. Export ran before the HTTP-only font chunk fix; preview ran after it. Reused successful job and artifact; no claim of a whole-source rerun."
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "revision": "rev_4c828b48f7641c8e78b6d55eade75f4a80fe87f2b25f48b631ba38e72b25015c",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "canvas": [
+            320,
+            180
+          ],
+          "fps": "30/1",
+          "duration_seconds": 3,
+          "composition": "one video with embedded audio disabled, one WAV, two locked Latin/Chinese text tracks, editor bookmarks"
+        },
+        "preview": {
+          "observed_frames": 11,
+          "sample_times": [
+            0.352,
+            1.5
+          ],
+          "generations": [
+            "1",
+            "2"
+          ],
+          "font_downloads": 2,
+          "font_reauthorizations": 20,
+          "page_errors": [],
+          "font_stream_scope": "64KiB bounded blocks with original authorization per block. No timeout/lease relaxation. One browser request reported abort after byte consumption; hash-verified rendering succeeded; not a zero-request-failures claim."
+        },
+        "export": {
+          "job_id": "job_49d568aa2c4e4331b1ca8b032bb2e670",
+          "sha256": "dcf9b040d61b6b01bd1ff3d294fa19e32c0fd8849fa9e0e200a20f9ff788807b",
+          "size_bytes": 88201,
+          "video": {
+            "codec_name": "h264",
+            "pix_fmt": "yuv420p",
+            "width": 320,
+            "height": 180,
+            "avg_frame_rate": "30/1",
+            "r_frame_rate": "30/1",
+            "nb_read_frames": "90",
+            "duration": "3.000000"
+          },
+          "audio": {
+            "codec_name": "aac",
+            "sample_rate": "48000",
+            "channels": 2,
+            "duration": "3.000000"
+          },
+          "download_scope": "Actual Tasks button browser download fallback with native showSaveFilePicker disabled; native save picker unverified."
+        },
+        "independent_pixels": {
+          "source": "Original media plus separately retained hashed font bytes and independently positioned Canvas text; shared renderer not used as oracle.",
+          "observations": [
+            {
+              "kind": "preview",
+              "time": 0.352,
+              "mean_rgb_error": 0.3218344907407407,
+              "outside_p99": 1,
+              "selected_mask": "raw_rgb_delta32",
+              "raw_rgb_iou": [
+                1,
+                1
+              ],
+              "luma_iou": [
+                1,
+                1
+              ]
+            },
+            {
+              "kind": "preview",
+              "time": 1.5,
+              "mean_rgb_error": 0.3218344907407407,
+              "outside_p99": 1,
+              "selected_mask": "raw_rgb_delta32",
+              "raw_rgb_iou": [
+                1,
+                1
+              ],
+              "luma_iou": [
+                1,
+                1
+              ]
+            },
+            {
+              "kind": "mp4",
+              "time": 0.5,
+              "mean_rgb_error": 1.2441261574074074,
+              "outside_p99": 1,
+              "selected_mask": "bt601_luma_delta32",
+              "raw_rgb_iou": [
+                0.8121428571428572,
+                0.8265657260839642
+              ],
+              "luma_iou": [
+                0.998220640569395,
+                0.989821882951654
+              ]
+            },
+            {
+              "kind": "mp4",
+              "time": 1.5,
+              "mean_rgb_error": 1.6597280092592592,
+              "outside_p99": 1,
+              "selected_mask": "bt601_luma_delta32",
+              "raw_rgb_iou": [
+                0.825801749271137,
+                0.8272287491361437
+              ],
+              "luma_iou": [
+                0.9757009345794393,
+                0.9758281110116384
+              ]
+            }
+          ],
+          "mp4_method_correction": "Raw RGB delta32 IoU0.812-0.827 failure retained; colored-edge YUV420 chroma bleed created false positives. Independently computed BT.601 luminance delta32 retains IoU>=0.90; preview keeps raw RGB IoU>=0.98. RGB MAE, exterior error and alpha limits unchanged."
+        },
+        "independent_pcm": {
+          "source_sha256": "2edb8484ae14487899349d8d1c14561cc46cfed6ab6d844ab5f54e8931670721",
+          "sample_window_seconds": [
+            0.1,
+            2.9
+          ],
+          "min_snr_db": 36.20043489496272,
+          "max_relative_rms_error": 0.001459763962664673,
+          "lag_samples": [
+            0,
+            0
+          ],
+          "limit": "AAC is lossy; single tone does not establish global integer-cycle delay, exact boundary/phase, DAC or arbitrary-source equivalence."
+        },
+        "checks": {
+          "application_video": 6,
+          "sqlite_video": 4,
+          "encoder": 2,
+          "existing_text_frame": 8,
+          "existing_consumer_window": 1,
+          "host_audio_retirement": 8,
+          "web_affected": 33,
+          "renderer_node": 31,
+          "sdk_transport_boundaries": 32,
+          "generator": 8,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "boundary_exceptions": 0,
+          "previous_tools_unchanged": 202,
+          "current_tools": 206,
+          "legacy_wire_unchanged": 22,
+          "generated_against_final_binary": true
+        },
+        "reproduction": {
+          "browser": "scripts/verify-web.py --suite v4-video --binary <explicit-cli> --web-root <built-web> --reuse-workspace <owned-workspace>; OPENCUT_B2_REUSE_COMPOSITION=1 and OPENCUT_B2_PHASE=preview|export preserve successful phases; OPENCUT_B2_REUSE_JOB accepts the previous successful fixed-revision job.",
+          "pixels": "OPENCUT_B1_FONT_SOURCES=<retained-independent-font-directory> OPENCUT_CHROME=<browser> node apps/web/scripts/verify-v4-video-pixels.mjs <owned-workspace>",
+          "pcm": "python3 scripts/verify-v4-video-pcm.py <owned-workspace>"
+        },
+        "limits": [
+          "Only the specified 3-second normal media/fixed-font/audio combination.",
+          "No full S1/F19/F20/F52/F53 completion, VFR/long-source/full fault or cross-browser/package acceptance.",
+          "Additional shapes/effects/masks/subtitles, full text/IME/catalog and output format/quality configuration remain pending."
+        ]
       }
     ]
   },
@@ -7792,7 +7985,7 @@
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
     "Beyond the pinned B1 fonts and preserved OFL notices, the full online font catalog, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
-    "B1 fixed-font free-text PNG is verified only in b1_static_font_text_png scope; full font catalog/styles/IME/subtitles, mixed-media frames, continuous text/video, Classic direct V4 mapping and V4 font package restore remain open."
+    "B1 static text and B2 mixed continuous preview/basic MP4 are verified only in their recorded scopes. Full font catalog/styles/IME/subtitles, wider compositions, output configuration, Classic direct V4 mapping and V4 font package restore remain open."
   ],
   "retained_delivery_packages": [
     {
@@ -7867,6 +8060,18 @@
       "verification": "Four old-source lifecycle cases fail;56 final affected tests, one Web type/build and5 real scene/history/credential cases pass at same candidate. Real scene seek uses byte-equivalent original replay and Stop generations1/2; captured9-10 native children each exit.",
       "evidence_id": "audio_preview_identity_retirement",
       "limits": "One best-effort retirement replay; no persistent unknown-control resume/reload, full BFCache/kill/network/lease matrix or whole S1 claim."
+    },
+    {
+      "id": "B2-preview-encoded-admission",
+      "status": "resolved_for_scoped_mixed_preview",
+      "cause": "Web forwarded decimal wire admission to a numeric renderer field.",
+      "fix": "Canonical bounded safe-integer bridge;10 boundary cases and actual mixed preview."
+    },
+    {
+      "id": "B2-font-stream-preparation-timeout",
+      "status": "resolved_for_scoped_mixed_preview",
+      "cause": "4KiB font stream chunks multiplied live authorization DB opens;656KiB took2.33s and5.8MiB font was truncated during preparation.",
+      "fix": "Only font stream uses bounded64KiB chunks; original per-chunk authorization, lease and10-second picture preparation deadline retained. Actual preview passed."
     }
   ],
   "open_failures": [

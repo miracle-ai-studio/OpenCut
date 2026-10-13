@@ -143,6 +143,9 @@ export type V4SessionState = {
   sourceAudio: V4SourceAudioAttempt | null;
   audioGain: V4GainAttempt | null;
   gainDraft: V4GainDraft | null;
+  videoMp4Capability: V4VideoMp4Capability | null;
+  videoMp4CapabilityError: string | null;
+  videoMp4: V4VideoMp4Attempt | null;
   audioWavCapability: V4AudioWavCapability | null;
   audioWavCapabilityError: string | null;
   audioRangeWavCapability: V4AudioRangeWavCapability | null;
@@ -174,4 +177,14 @@ export type V4GainDraft = {
   originalDb: number;
   tenths: number;
   changed: boolean;
+};
+
+export type V4VideoMp4Request = ToolInput<"opencut_job_v4_video_mp4">;
+export type V4VideoMp4Capability = ToolOutput<"opencut_project_v4_video_capability">;
+export type V4VideoMp4Attempt = {
+  request: V4VideoMp4Request;
+  sceneName: string;
+  phase: "submitting" | "unconfirmed" | "retryable" | "accepted";
+  jobId: string | null;
+  error: string | null;
 };

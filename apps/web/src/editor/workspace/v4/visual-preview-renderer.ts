@@ -1,16 +1,21 @@
 import {
   openGpuRealm,
-  renderClassicFrame,
+  renderClassicTextFrameV2,
   VisualDecoderCache,
   type GpuRealm,
 } from "../../../../../../packages/classic-visual-renderer/src/index.mjs";
 import type { EditorApi } from "../api";
+import { readPreviewBytes } from "./visual-preview-bytes";
+import { previewExecutionAdmission } from "./visual-preview-admission";
 import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
-type Input = ToolInput<"opencut_visual_preview_v4_frame">;
-type Frame = ToolOutput<"opencut_visual_preview_v4_frame">;
+type Input = ToolInput<"opencut_visual_preview_v4_text_frame">;
+type Frame = ToolOutput<"opencut_visual_preview_v4_text_frame">;
 export type VisualPreviewExecutionApi = {
-  v4: Pick<EditorApi["v4"], "visualPreviewFrame" | "resource">;
-  sdk: Pick<EditorApi["sdk"], "downloadProjectV4Resource">;
+  v4: Pick<EditorApi["v4"], "visualPreviewTextFrame" | "resource">;
+  sdk: Pick<
+    EditorApi["sdk"],
+    "downloadProjectV4Resource" | "downloadVisualPreviewFontV2" | "call"
+  >;
 };
 
 /** Only execution of application facts. No source clock, geometry or project
@@ -18,12 +23,17 @@ export type VisualPreviewExecutionApi = {
 export class VisualPreviewRenderer {
   private realm: GpuRealm | null = null;
   private readonly cache = new Map<string, Uint8Array>();
+  private readonly fonts = new Map<string, { bytes: Uint8Array; face?: FontFace }>();
   private readonly decoders = new VisualDecoderCache();
   private readonly surface = new OffscreenCanvas(1, 1);
-  async render(api: VisualPreviewExecutionApi, session: Input["session"], signal: AbortSignal) {
+  async render(
+    api: VisualPreviewExecutionApi,
+    session: Input["session"],
+    signal: AbortSignal,
+  ) {
     const began = performance.now();
-    const frame = await api.v4.visualPreviewFrame(
-      { session, time: null, decoded: null },
+    const frame = await api.v4.visualPreviewTextFrame(
+      { session, time: null, decoded: null, rasters: null },
       signal,
     );
     signal.throwIfAborted();
@@ -33,12 +43,15 @@ export class VisualPreviewRenderer {
     const { width, height } = frame.plan.identity;
     const transfers = new Map<string, Uint8Array>();
     let execution: Record<string, string> = {};
-    await renderClassicFrame(
+    let decoded: Input["decoded"] = null;
+    await renderClassicTextFrameV2(
       frame.plan,
       {
-        admission: frame.admission,
+        admission: previewExecutionAdmission(frame.admission),
         surface: this.surface,
-        observeExecution: (observation) => { execution = { ...execution, ...observation }; },
+        observeExecution: (observation) => {
+          execution = { ...execution, ...observation };
+        },
         callback: async (name, args) => {
           signal.throwIfAborted();
           if (name === "admitDecode") {
@@ -48,21 +61,55 @@ export class VisualPreviewRenderer {
           }
           if (name === "bindFrame") {
             const beganBind = performance.now();
-            const bound = await api.v4.visualPreviewFrame(
+            decoded = args.decoded as Input["decoded"];
+            const bound = await api.v4.visualPreviewTextFrame(
               {
                 session,
                 time: frame.plan.identity.time,
-                decoded: args.decoded as Input["decoded"],
+                decoded,
+                rasters: null,
               },
               signal,
             );
-            if (!bound.bound) throw new Error("Missing bound visual frame");
+            if (!bound.bound_media)
+              throw new Error("Missing bound visual media frame");
             execution.bindMs = String(performance.now() - beganBind);
+            return bound.bound_media;
+          }
+          if (name === "bindTextFrame") {
+            const bound = await api.v4.visualPreviewTextFrame(
+              {
+                session,
+                time: frame.plan.identity.time,
+                decoded,
+                rasters: args.rasters as Input["rasters"],
+              },
+              signal,
+            );
+            if (!bound.bound)
+              throw new Error("Missing bound visual text frame");
             return bound.bound;
+          }
+          if (name === "resolveVerifiedFontBytes") {
+            const font = args.font as Frame["plan"]["texts"][number]["font"];
+            const key = `${font.fontId}:${font.contentHash}:${font.size}`;
+            if (this.fonts.has(key)) {
+              const authorized = await api.sdk.call("opencut_visual_preview_v4_font_authorize", { session, font_id: font.fontId }, { signal });
+              if (authorized.schema_version !== 2 || authorized.font_id !== font.fontId) throw new Error("Preview font authorization changed identity");
+              return { transferId: `cached-font:${font.fontId}`, byteLength: font.size };
+            }
+            const response = await api.sdk.downloadVisualPreviewFontV2(
+              { session, font_id: font.fontId },
+              { signal },
+            );
+            const bytes = await readPreviewBytes(response, font.size, signal);
+            const id = `font:${font.fontId}`;
+            transfers.set(id, bytes);
+            return { transferId: id, byteLength: font.size };
           }
           if (name === "resolveVerifiedBytes") {
             const resource =
-              args.resource as Frame["plan"]["resources"][number];
+              args.resource as Frame["plan"]["media"]["resources"][number];
             const view = await api.v4.resource(
               frame.plan.identity.projectId,
               frame.plan.identity.revision,
@@ -77,26 +124,11 @@ export class VisualPreviewRenderer {
             const response = await api.sdk.downloadProjectV4Resource(view, {
               signal,
             });
-            const reader = response.body?.getReader();
-            if (!reader)
-              throw new Error("Visual resource stream is unavailable");
-            const bytes = new Uint8Array(Number(resource.size));
-            let offset = 0;
-            try {
-              for (;;) {
-                const { value, done } = await reader.read();
-                signal.throwIfAborted();
-                if (done) break;
-                if (offset + value.length > bytes.length)
-                  throw new Error("Visual resource exceeded its admitted size");
-                bytes.set(value, offset);
-                offset += value.length;
-              }
-              if (offset !== bytes.length)
-                throw new Error("Visual resource ended early");
-            } finally {
-              await reader.cancel().catch(() => {});
-            }
+            const bytes = await readPreviewBytes(
+              response,
+              resource.size,
+              signal,
+            );
             transfers.set(resource.assetId, bytes);
             return { transferId: resource.assetId, byteLength: resource.size };
           }
@@ -130,30 +162,43 @@ export class VisualPreviewRenderer {
           }
           throw new Error("Unknown visual callback");
         },
-        rgba: async () => { throw new Error("Unexpected preview readback"); },
+        rgba: async () => {
+          throw new Error("Unexpected preview readback");
+        },
       },
       this.realm,
       signal,
       this.cache,
       this.decoders,
+      this.fonts,
     );
     signal.throwIfAborted();
     const pixels = this.surface.transferToImageBitmap();
     if (pixels.width !== width || pixels.height !== height) {
-      pixels.close(); throw new Error("Invalid preview surface dimensions");
+      pixels.close();
+      throw new Error("Invalid preview surface dimensions");
     }
     return {
       frame,
       pixels,
-      runtime: { ...this.realm.observation, ...execution, planMs: String(planned - began), totalMs: String(performance.now() - began) },
+      runtime: {
+        ...this.realm.observation,
+        ...execution,
+        planMs: String(planned - began),
+        totalMs: String(performance.now() - began),
+      },
     };
   }
   close() {
     this.decoders.close();
     const context = this.surface.getContext("webgpu");
     if (context && "unconfigure" in context) context.unconfigure();
-    this.surface.width = 0; this.surface.height = 0;
+    this.surface.width = 0;
+    this.surface.height = 0;
     this.cache.clear();
+    const fontSet = globalThis.document?.fonts;
+    for (const font of this.fonts.values()) if (font.face) fontSet?.delete(font.face);
+    this.fonts.clear();
     this.realm?.device.destroy();
     this.realm = null;
   }

@@ -1,5 +1,1827 @@
 [
   {
+    "description": "Plan and bind shared media/free-text frames at confirmed sound-consumption time under original owner, lease, generation, authority and fixed font coverage. No durable job or project mutation.",
+    "input_schema": {
+      "$defs": {
+        "AudioPreviewStreamV4": {
+          "additionalProperties": false,
+          "properties": {
+            "generation": {
+              "type": "string"
+            },
+            "lease_id": {
+              "type": "string"
+            },
+            "overlay_epoch": {
+              "type": "string"
+            },
+            "owner_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id",
+            "generation",
+            "overlay_epoch",
+            "owner_id",
+            "lease_id"
+          ],
+          "type": "object"
+        },
+        "DecodedVisualSourceV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyImage",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "actualTimestampSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "elementId": {
+                  "type": "string"
+                },
+                "frameDurationSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyVideo",
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "selectedVideoStream": {
+                  "description": "None is primary-track selection, not an invented FFmpeg stream index.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height",
+                "requestedTime",
+                "actualTimestampSeconds",
+                "frameDurationSeconds"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "noFrame",
+                  "type": "string"
+                },
+                "reason": {
+                  "$ref": "#/$defs/VisualNoFrameReasonV4"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "requestedTime",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "TextBackgroundRectV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "left": {
+              "format": "double",
+              "type": "number"
+            },
+            "radius": {
+              "format": "double",
+              "type": "number"
+            },
+            "top": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "left",
+            "top",
+            "width",
+            "height",
+            "radius"
+          ],
+          "type": "object"
+        },
+        "TextBlockMetricsV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxWidth": {
+              "format": "double",
+              "type": "number"
+            },
+            "visualCenterOffset": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "maxWidth",
+            "height",
+            "visualCenterOffset"
+          ],
+          "type": "object"
+        },
+        "TextLayoutV2": {
+          "additionalProperties": false,
+          "properties": {
+            "align": {
+              "type": "string"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TextBackgroundRectV2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "baseline": {
+              "type": "string"
+            },
+            "block": {
+              "$ref": "#/$defs/TextBlockMetricsV2"
+            },
+            "faceIndex": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "fontContentHash": {
+              "type": "string"
+            },
+            "fontId": {
+              "type": "string"
+            },
+            "fontSizePx": {
+              "format": "double",
+              "type": "number"
+            },
+            "fontStyle": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "fontWeight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "letterSpacingPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "lineHeightPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "lines": {
+              "items": {
+                "$ref": "#/$defs/TextLineMetricsV2"
+              },
+              "type": "array"
+            },
+            "transform": {
+              "$ref": "#/$defs/TextRasterTransformV2"
+            },
+            "validatedTextHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "fontId",
+            "fontContentHash",
+            "validatedTextHash",
+            "fontWeight",
+            "fontStyle",
+            "faceIndex",
+            "fontSizePx",
+            "lineHeightPx",
+            "letterSpacingPx",
+            "align",
+            "baseline",
+            "block",
+            "lines",
+            "transform"
+          ],
+          "type": "object"
+        },
+        "TextLineMetricsV2": {
+          "additionalProperties": false,
+          "properties": {
+            "ascent": {
+              "format": "double",
+              "type": "number"
+            },
+            "baselineY": {
+              "format": "double",
+              "type": "number"
+            },
+            "content": {
+              "type": "string"
+            },
+            "decoration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TextRectV2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "descent": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "content",
+            "baselineY",
+            "width",
+            "ascent",
+            "descent"
+          ],
+          "type": "object"
+        },
+        "TextRasterReceiptV2": {
+          "additionalProperties": false,
+          "properties": {
+            "elementId": {
+              "type": "string"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "layout": {
+              "$ref": "#/$defs/TextLayoutV2"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "elementId",
+            "width",
+            "height",
+            "layout"
+          ],
+          "type": "object"
+        },
+        "TextRasterTransformV2": {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "format": "double",
+              "type": "number"
+            },
+            "centerY": {
+              "format": "double",
+              "type": "number"
+            },
+            "rotationRadians": {
+              "format": "double",
+              "type": "number"
+            },
+            "scaleX": {
+              "format": "double",
+              "type": "number"
+            },
+            "scaleY": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "scaleX",
+            "scaleY",
+            "rotationRadians"
+          ],
+          "type": "object"
+        },
+        "TextRectV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "left": {
+              "format": "double",
+              "type": "number"
+            },
+            "top": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "left",
+            "top",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "VisualNoFrameReasonV4": {
+          "enum": [
+            "outside_read_window",
+            "eof",
+            "timestamp_gap"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "decoded": {
+          "items": {
+            "$ref": "#/$defs/DecodedVisualSourceV4"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "rasters": {
+          "items": {
+            "$ref": "#/$defs/TextRasterReceiptV2"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "session": {
+          "$ref": "#/$defs/AudioPreviewStreamV4"
+        },
+        "time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "title": "VisualPreviewTextFrameV2",
+      "type": "object"
+    },
+    "name": "opencut_visual_preview_v4_text_frame",
+    "output_schema": {
+      "$defs": {
+        "BoundTextFrameV2": {
+          "additionalProperties": false,
+          "properties": {
+            "background": {
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "clear": {
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "decoded": {
+              "items": {
+                "$ref": "#/$defs/DecodedVisualSourceV4"
+              },
+              "type": "array"
+            },
+            "identity": {
+              "$ref": "#/$defs/TextFrameIdentityV2"
+            },
+            "layers": {
+              "items": {
+                "$ref": "#/$defs/BoundVisualLayerV4"
+              },
+              "type": "array"
+            },
+            "rasters": {
+              "items": {
+                "$ref": "#/$defs/TextRasterReceiptV2"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "clear",
+            "background",
+            "layers",
+            "decoded",
+            "rasters"
+          ],
+          "type": "object"
+        },
+        "BoundVisualFrameV4": {
+          "additionalProperties": false,
+          "properties": {
+            "background": {
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "clear": {
+              "description": "Original compositor clear, followed by one normal background color layer.",
+              "items": {
+                "format": "float",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "decoded": {
+              "items": {
+                "$ref": "#/$defs/DecodedVisualSourceV4"
+              },
+              "type": "array"
+            },
+            "identity": {
+              "$ref": "#/$defs/VisualFrameIdentityV4"
+            },
+            "layers": {
+              "items": {
+                "$ref": "#/$defs/BoundVisualLayerV4"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "clear",
+            "background",
+            "layers",
+            "decoded"
+          ],
+          "type": "object"
+        },
+        "BoundVisualLayerV4": {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "type": "string"
+            },
+            "elementId": {
+              "type": "string"
+            },
+            "quad": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/VisualQuadV4"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "NoFrame or a zero-sized authored transform draws no quad."
+            }
+          },
+          "required": [
+            "elementId",
+            "assetId"
+          ],
+          "type": "object"
+        },
+        "ClassicTextFramePlanV2": {
+          "additionalProperties": false,
+          "properties": {
+            "identity": {
+              "$ref": "#/$defs/TextFrameIdentityV2"
+            },
+            "media": {
+              "$ref": "#/$defs/ClassicVisualPlan"
+            },
+            "order": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "texts": {
+              "items": {
+                "$ref": "#/$defs/TextLayerPlanV2"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "media",
+            "texts",
+            "order"
+          ],
+          "type": "object"
+        },
+        "ClassicVisualLayerPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "decode": {
+              "$ref": "#/$defs/VisualDecodeRequest"
+            },
+            "elementId": {
+              "type": "string"
+            },
+            "resource": {
+              "$ref": "#/$defs/VisualResource"
+            }
+          },
+          "required": [
+            "elementId",
+            "resource",
+            "decode"
+          ],
+          "type": "object"
+        },
+        "ClassicVisualPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "identity": {
+              "$ref": "#/$defs/VisualFrameIdentityV4"
+            },
+            "layers": {
+              "items": {
+                "$ref": "#/$defs/ClassicVisualLayerPlan"
+              },
+              "type": "array"
+            },
+            "resources": {
+              "items": {
+                "$ref": "#/$defs/VisualResource"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "identity",
+            "resources",
+            "layers"
+          ],
+          "type": "object"
+        },
+        "DecodedVisualSourceV4": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyImage",
+                  "type": "string"
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "actualTimestampSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "elementId": {
+                  "type": "string"
+                },
+                "frameDurationSeconds": {
+                  "format": "double",
+                  "type": "number"
+                },
+                "height": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "readyVideo",
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "selectedVideoStream": {
+                  "description": "None is primary-track selection, not an invented FFmpeg stream index.",
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "width": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "width",
+                "height",
+                "requestedTime",
+                "actualTimestampSeconds",
+                "frameDurationSeconds"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "elementId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "noFrame",
+                  "type": "string"
+                },
+                "reason": {
+                  "$ref": "#/$defs/VisualNoFrameReasonV4"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "elementId",
+                "requestedTime",
+                "reason"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "FontStyleV4": {
+          "enum": [
+            "normal",
+            "italic"
+          ],
+          "type": "string"
+        },
+        "TextBackgroundRectV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "left": {
+              "format": "double",
+              "type": "number"
+            },
+            "radius": {
+              "format": "double",
+              "type": "number"
+            },
+            "top": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "left",
+            "top",
+            "width",
+            "height",
+            "radius"
+          ],
+          "type": "object"
+        },
+        "TextBlockMetricsV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxWidth": {
+              "format": "double",
+              "type": "number"
+            },
+            "visualCenterOffset": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "maxWidth",
+            "height",
+            "visualCenterOffset"
+          ],
+          "type": "object"
+        },
+        "TextFrameIdentityV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profile": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequenceId": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "projectId",
+            "revision",
+            "sequenceId",
+            "time",
+            "width",
+            "height",
+            "profile"
+          ],
+          "type": "object"
+        },
+        "TextLayerPlanV2": {
+          "additionalProperties": false,
+          "properties": {
+            "elementId": {
+              "type": "string"
+            },
+            "font": {
+              "$ref": "#/$defs/ValidatedTextFontV2"
+            },
+            "opacity": {
+              "format": "double",
+              "type": "number"
+            },
+            "text": {
+              "$ref": "#/$defs/TextRasterInputV2"
+            }
+          },
+          "required": [
+            "elementId",
+            "text",
+            "font",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        "TextLayoutV2": {
+          "additionalProperties": false,
+          "properties": {
+            "align": {
+              "type": "string"
+            },
+            "background": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TextBackgroundRectV2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "baseline": {
+              "type": "string"
+            },
+            "block": {
+              "$ref": "#/$defs/TextBlockMetricsV2"
+            },
+            "faceIndex": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "fontContentHash": {
+              "type": "string"
+            },
+            "fontId": {
+              "type": "string"
+            },
+            "fontSizePx": {
+              "format": "double",
+              "type": "number"
+            },
+            "fontStyle": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "fontWeight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "letterSpacingPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "lineHeightPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "lines": {
+              "items": {
+                "$ref": "#/$defs/TextLineMetricsV2"
+              },
+              "type": "array"
+            },
+            "transform": {
+              "$ref": "#/$defs/TextRasterTransformV2"
+            },
+            "validatedTextHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "fontId",
+            "fontContentHash",
+            "validatedTextHash",
+            "fontWeight",
+            "fontStyle",
+            "faceIndex",
+            "fontSizePx",
+            "lineHeightPx",
+            "letterSpacingPx",
+            "align",
+            "baseline",
+            "block",
+            "lines",
+            "transform"
+          ],
+          "type": "object"
+        },
+        "TextLineMetricsV2": {
+          "additionalProperties": false,
+          "properties": {
+            "ascent": {
+              "format": "double",
+              "type": "number"
+            },
+            "baselineY": {
+              "format": "double",
+              "type": "number"
+            },
+            "content": {
+              "type": "string"
+            },
+            "decoration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TextRectV2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "descent": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "content",
+            "baselineY",
+            "width",
+            "ascent",
+            "descent"
+          ],
+          "type": "object"
+        },
+        "TextRasterBackgroundV2": {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "cornerRadiusPercent": {
+              "format": "double",
+              "type": "number"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "offsetXPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "offsetYPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "paddingXPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "paddingYPx": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "enabled",
+            "color",
+            "paddingXPx",
+            "paddingYPx",
+            "offsetXPx",
+            "offsetYPx",
+            "cornerRadiusPercent"
+          ],
+          "type": "object"
+        },
+        "TextRasterInputV2": {
+          "additionalProperties": false,
+          "properties": {
+            "align": {
+              "type": "string"
+            },
+            "background": {
+              "$ref": "#/$defs/TextRasterBackgroundV2"
+            },
+            "color": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "content": {
+              "type": "string"
+            },
+            "decoration": {
+              "type": "string"
+            },
+            "fontSizePx": {
+              "format": "double",
+              "type": "number"
+            },
+            "letterSpacingPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "lineHeightPx": {
+              "format": "double",
+              "type": "number"
+            },
+            "transform": {
+              "$ref": "#/$defs/TextRasterTransformV2"
+            }
+          },
+          "required": [
+            "content",
+            "fontSizePx",
+            "lineHeightPx",
+            "letterSpacingPx",
+            "align",
+            "decoration",
+            "color",
+            "background",
+            "transform"
+          ],
+          "type": "object"
+        },
+        "TextRasterReceiptV2": {
+          "additionalProperties": false,
+          "properties": {
+            "elementId": {
+              "type": "string"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "layout": {
+              "$ref": "#/$defs/TextLayoutV2"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "elementId",
+            "width",
+            "height",
+            "layout"
+          ],
+          "type": "object"
+        },
+        "TextRasterTransformV2": {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "format": "double",
+              "type": "number"
+            },
+            "centerY": {
+              "format": "double",
+              "type": "number"
+            },
+            "rotationRadians": {
+              "format": "double",
+              "type": "number"
+            },
+            "scaleX": {
+              "format": "double",
+              "type": "number"
+            },
+            "scaleY": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "scaleX",
+            "scaleY",
+            "rotationRadians"
+          ],
+          "type": "object"
+        },
+        "TextRectV2": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "double",
+              "type": "number"
+            },
+            "left": {
+              "format": "double",
+              "type": "number"
+            },
+            "top": {
+              "format": "double",
+              "type": "number"
+            },
+            "width": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "left",
+            "top",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "ValidatedTextFontV2": {
+          "additionalProperties": false,
+          "properties": {
+            "contentHash": {
+              "type": "string"
+            },
+            "faceIndex": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "fontId": {
+              "type": "string"
+            },
+            "glyphCoverageValidated": {
+              "type": "boolean"
+            },
+            "size": {
+              "type": "string"
+            },
+            "style": {
+              "$ref": "#/$defs/FontStyleV4"
+            },
+            "validatedTextHash": {
+              "type": "string"
+            },
+            "weight": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "fontId",
+            "contentHash",
+            "size",
+            "weight",
+            "style",
+            "faceIndex",
+            "glyphCoverageValidated",
+            "validatedTextHash"
+          ],
+          "type": "object"
+        },
+        "VisualDecodeAdmission": {
+          "additionalProperties": false,
+          "properties": {
+            "maxDecodedBytes": {
+              "type": "string"
+            },
+            "maxHeight": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxPixels": {
+              "type": "string"
+            },
+            "maxWidth": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "maxWidth",
+            "maxHeight",
+            "maxPixels",
+            "maxDecodedBytes"
+          ],
+          "type": "object"
+        },
+        "VisualDecodeRequest": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "video",
+                  "type": "string"
+                },
+                "noFrameReason": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/VisualNoFrameReasonV4"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pointProfile": {
+                  "type": "string"
+                },
+                "requestedTime": {
+                  "$ref": "#/$defs/Time"
+                },
+                "requestedTimeSeconds": {
+                  "description": "Decoder API projection supplied by Rust; the browser never divides\ncross-process integer ticks or applies retime itself.",
+                  "format": "double",
+                  "type": "number"
+                },
+                "selectedVideoStream": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "requestedTime",
+                "requestedTimeSeconds",
+                "pointProfile"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "VisualFrameIdentityV4": {
+          "additionalProperties": false,
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profile": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequenceId": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/Time"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "projectId",
+            "revision",
+            "sequenceId",
+            "time",
+            "width",
+            "height",
+            "profile"
+          ],
+          "type": "object"
+        },
+        "VisualNoFrameReasonV4": {
+          "enum": [
+            "outside_read_window",
+            "eof",
+            "timestamp_gap"
+          ],
+          "type": "string"
+        },
+        "VisualPreviewAdmissionV4": {
+          "additionalProperties": false,
+          "properties": {
+            "maxDecodedPixels": {
+              "type": "string"
+            },
+            "maxEncodedBytes": {
+              "type": "string"
+            },
+            "maxFramePixels": {
+              "type": "string"
+            },
+            "maxGpuBytes": {
+              "type": "string"
+            },
+            "maxRgbaBytes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "maxFramePixels",
+            "maxDecodedPixels",
+            "maxGpuBytes",
+            "maxRgbaBytes",
+            "maxEncodedBytes"
+          ],
+          "type": "object"
+        },
+        "VisualPreviewTextFrameResultV2": {
+          "additionalProperties": false,
+          "properties": {
+            "admission": {
+              "$ref": "#/$defs/VisualPreviewAdmissionV4"
+            },
+            "bound": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BoundTextFrameV2"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "bound_media": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BoundVisualFrameV4"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consumer_time_seconds": {
+              "format": "double",
+              "type": "number"
+            },
+            "decode_admissions": {
+              "additionalProperties": {
+                "$ref": "#/$defs/VisualDecodeAdmission"
+              },
+              "type": "object"
+            },
+            "max_lag_ms": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "plan": {
+              "$ref": "#/$defs/ClassicTextFramePlanV2"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "time_seconds": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "schema_version",
+            "plan",
+            "admission",
+            "decode_admissions",
+            "time_seconds",
+            "consumer_time_seconds",
+            "max_lag_ms"
+          ],
+          "type": "object"
+        },
+        "VisualQuadV4": {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "description": "GPU uniform values match the Classic descriptor's f64→f32 conversion.",
+              "format": "float",
+              "type": "number"
+            },
+            "centerY": {
+              "format": "float",
+              "type": "number"
+            },
+            "flipX": {
+              "type": "boolean"
+            },
+            "flipY": {
+              "type": "boolean"
+            },
+            "height": {
+              "format": "float",
+              "type": "number"
+            },
+            "opacity": {
+              "description": "Raw layer multiplier; UNORM render targets perform the later clamp.",
+              "format": "float",
+              "type": "number"
+            },
+            "rotationRadians": {
+              "description": "Classic casts degrees to f32 before its radians conversion.",
+              "format": "float",
+              "type": "number"
+            },
+            "width": {
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "width",
+            "height",
+            "rotationRadians",
+            "flipX",
+            "flipY",
+            "opacity"
+          ],
+          "type": "object"
+        },
+        "VisualResource": {
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "type": "string"
+            },
+            "contentHash": {
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/VisualResourceKind"
+            },
+            "size": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "assetId",
+            "contentHash",
+            "size",
+            "kind"
+          ],
+          "type": "object"
+        },
+        "VisualResourceKind": {
+          "enum": [
+            "video",
+            "image"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisualPreviewTextFrameResultV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Recheck the original preview owner and participating fixed font before session-scoped byte reuse or streaming. Authorization is live and does not create a transferable grant.",
+    "input_schema": {
+      "$defs": {
+        "AudioPreviewStreamV4": {
+          "additionalProperties": false,
+          "properties": {
+            "generation": {
+              "type": "string"
+            },
+            "lease_id": {
+              "type": "string"
+            },
+            "overlay_epoch": {
+              "type": "string"
+            },
+            "owner_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id",
+            "generation",
+            "overlay_epoch",
+            "owner_id",
+            "lease_id"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "font_id": {
+          "type": "string"
+        },
+        "session": {
+          "$ref": "#/$defs/AudioPreviewStreamV4"
+        }
+      },
+      "required": [
+        "session",
+        "font_id"
+      ],
+      "title": "VisualPreviewFontV2",
+      "type": "object"
+    },
+    "name": "opencut_visual_preview_v4_font_authorize",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "VisualPreviewFontAuthorizedV2": {
+          "additionalProperties": false,
+          "properties": {
+            "font_id": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "schema_version",
+            "font_id"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisualPreviewFontAuthorizedV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
     "description": "Plan or bind a bounded Classic media frame at confirmed audio consumer time; original caller, fixed revision, owner lease and generation are revalidated. No durable job or project edit.",
     "input_schema": {
       "$defs": {
@@ -35873,6 +37695,1430 @@
           "anyOf": [
             {
               "$ref": "#/$defs/V4AudioRangeWavCapabilityV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": true
+  },
+  {
+    "description": "Accept a fixed whole-scene CFR MP4 job using shared V4 text/media frames and Classic stereo audio. H264 CRF18, yuv420p and AAC192k; unsupported content and odd dimensions are refused. Await verified public artifact before reporting success.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sequence_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "idempotency_key",
+        "project_id",
+        "revision",
+        "sequence_id"
+      ],
+      "title": "SubmitV4VideoMp4V1",
+      "type": "object"
+    },
+    "name": "opencut_job_v4_video_mp4",
+    "output_schema": {
+      "$defs": {
+        "ArtifactAvailability": {
+          "enum": [
+            "unchecked"
+          ],
+          "type": "string"
+        },
+        "ArtifactReference": {
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "availability": {
+              "$ref": "#/$defs/ArtifactAvailability"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "mime_type": {
+              "type": "string"
+            },
+            "role": {
+              "$ref": "#/$defs/ArtifactRole"
+            },
+            "size_bytes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "artifact_id",
+            "job_id",
+            "role",
+            "content_hash",
+            "size_bytes",
+            "mime_type",
+            "availability"
+          ],
+          "type": "object"
+        },
+        "ArtifactRole": {
+          "enum": [
+            "primary"
+          ],
+          "type": "string"
+        },
+        "AssetLockManifest": {
+          "additionalProperties": false,
+          "properties": {
+            "assets": {
+              "items": {
+                "$ref": "#/$defs/LockedAsset"
+              },
+              "type": "array"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "version",
+            "revision",
+            "sequence_id",
+            "assets"
+          ],
+          "type": "object"
+        },
+        "AssetLockingMode": {
+          "enum": [
+            "media_content_locked",
+            "legacy_unlocked"
+          ],
+          "type": "string"
+        },
+        "CompositedFrameView": {
+          "properties": {
+            "actual_sequence_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "quality": {
+              "$ref": "#/$defs/CompositedProjectFrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_time",
+            "actual_sequence_time",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "width",
+            "height",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "CompositedProjectFrameQuality": {
+          "enum": [
+            "composited_project_frame"
+          ],
+          "type": "string"
+        },
+        "DecodedSample": {
+          "properties": {
+            "decoded": {
+              "type": "boolean"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/MediaTime"
+            }
+          },
+          "required": [
+            "requested_time",
+            "decoded"
+          ],
+          "type": "object"
+        },
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "ExportView": {
+          "properties": {
+            "metadata": {
+              "$ref": "#/$defs/MediaInfo"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "verification": {
+              "$ref": "#/$defs/VerificationView"
+            }
+          },
+          "required": [
+            "metadata",
+            "verification",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "ExtendedJobResult": {
+          "properties": {
+            "data": true,
+            "kind": {
+              "type": "string"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "schema_version",
+            "data"
+          ],
+          "type": "object"
+        },
+        "FontFaceView": {
+          "properties": {
+            "face_index": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "family": {
+              "type": "string"
+            },
+            "postscript_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "family",
+            "postscript_name",
+            "face_index"
+          ],
+          "type": "object"
+        },
+        "FontResolutionPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "const": "strict",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "families": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "const": "explicit_fallback",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "families"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "FrameAlignment": {
+          "enum": [
+            "exact",
+            "nearest",
+            "floor",
+            "ceil"
+          ],
+          "type": "string"
+        },
+        "FrameQuality": {
+          "enum": [
+            "accurate_source_frame"
+          ],
+          "type": "string"
+        },
+        "FrameRate": {
+          "additionalProperties": false,
+          "properties": {
+            "denominator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "numerator": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "type": "object"
+        },
+        "JobResourceTarget": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "resource_id": {
+              "type": "string"
+            },
+            "resource_kind": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "resource_kind",
+            "resource_id"
+          ],
+          "type": "object"
+        },
+        "JobResultView": {
+          "oneOf": [
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/MediaInfo"
+                },
+                "kind": {
+                  "const": "media.probe",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/SourceFrameView"
+                },
+                "kind": {
+                  "const": "preview.frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectFrameView"
+                },
+                "kind": {
+                  "const": "preview.project_frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/CompositedFrameView"
+                },
+                "kind": {
+                  "const": "preview.composited_frame",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectRangeView"
+                },
+                "kind": {
+                  "const": "preview.project_range",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ExportView"
+                },
+                "kind": {
+                  "const": "render.export",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/ProjectRenderView"
+                },
+                "kind": {
+                  "const": "render.project",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/$defs/VerificationView"
+                },
+                "kind": {
+                  "const": "artifact.verify",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "data"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "JobState": {
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        "JobView": {
+          "properties": {
+            "artifacts": {
+              "items": {
+                "$ref": "#/$defs/ArtifactReference"
+              },
+              "type": "array"
+            },
+            "cancel_requested": {
+              "type": "boolean"
+            },
+            "extended_result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ExtendedJobResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "New task kinds use the open registry envelope; legacy result variants stay frozen."
+            },
+            "failure": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PublicJobFailure"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "job_id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "progress": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProgressView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "resource_target": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/JobResourceTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/JobResultView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "result_unavailable": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PublicJobFailure"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "$ref": "#/$defs/JobState"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectTaskTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "job_id",
+            "kind",
+            "state",
+            "cancel_requested",
+            "artifacts"
+          ],
+          "type": "object"
+        },
+        "LockedAsset": {
+          "additionalProperties": false,
+          "properties": {
+            "asset_id": {
+              "type": "string"
+            },
+            "content_hash": {
+              "type": "string"
+            },
+            "size": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "asset_id",
+            "content_hash",
+            "size"
+          ],
+          "type": "object"
+        },
+        "MediaInfo": {
+          "properties": {
+            "bit_rate": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MediaTime"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "format_brand": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "format_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "streams": {
+              "items": {
+                "$ref": "#/$defs/MediaStream"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "streams"
+          ],
+          "type": "object"
+        },
+        "MediaStream": {
+          "properties": {
+            "average_frame_rate": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FrameRate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "channel_layout": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channels": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "codec_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "codec_type": {
+              "$ref": "#/$defs/StreamKind"
+            },
+            "color_primaries": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_space": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_transfer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MediaTime"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "index": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pixel_format": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sample_rate": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "time_base": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FrameRate"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "index",
+            "codec_type"
+          ],
+          "type": "object"
+        },
+        "MediaTime": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "PixelBounds": {
+          "properties": {
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "x": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "y": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "ProgressView": {
+          "properties": {
+            "fraction": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "media_time": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stage": {
+              "$ref": "#/$defs/PublicJobStage"
+            }
+          },
+          "required": [
+            "stage"
+          ],
+          "type": "object"
+        },
+        "ProjectFrameQuality": {
+          "enum": [
+            "encoded_project_frame"
+          ],
+          "type": "string"
+        },
+        "ProjectFrameView": {
+          "properties": {
+            "actual_sequence_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "height": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "quality": {
+              "$ref": "#/$defs/ProjectFrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/Time"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            },
+            "text_layouts": {
+              "items": {
+                "$ref": "#/$defs/TextLayoutView"
+              },
+              "type": "array"
+            },
+            "width": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_time",
+            "actual_sequence_time",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "width",
+            "height",
+            "text_layouts"
+          ],
+          "type": "object"
+        },
+        "ProjectRangeQuality": {
+          "enum": [
+            "encoded_project_range"
+          ],
+          "type": "string"
+        },
+        "ProjectRangeView": {
+          "properties": {
+            "actual_sequence_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "media": {
+              "$ref": "#/$defs/ExportView"
+            },
+            "quality": {
+              "$ref": "#/$defs/ProjectRangeQuality"
+            },
+            "requested_range": {
+              "$ref": "#/$defs/TimeRange"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "revision",
+            "sequence_id",
+            "requested_range",
+            "actual_sequence_range",
+            "alignment",
+            "quality",
+            "asset_locking",
+            "media"
+          ],
+          "type": "object"
+        },
+        "ProjectRenderView": {
+          "properties": {
+            "asset_lock": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssetLockManifest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset_locking": {
+              "$ref": "#/$defs/AssetLockingMode"
+            },
+            "media": {
+              "$ref": "#/$defs/ExportView"
+            },
+            "revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "revision",
+            "asset_locking",
+            "media"
+          ],
+          "type": "object"
+        },
+        "ProjectTaskTarget": {
+          "properties": {
+            "project_id": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "sequence_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_id",
+            "revision",
+            "sequence_id"
+          ],
+          "type": "object"
+        },
+        "PublicJobFailure": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "diagnostic_job_id": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "diagnostic_job_id"
+          ],
+          "type": "object"
+        },
+        "PublicJobStage": {
+          "enum": [
+            "resolving_assets",
+            "probing",
+            "selecting_frame",
+            "decoding",
+            "encoding",
+            "verifying",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "SourceFrameView": {
+          "properties": {
+            "actual_time": {
+              "$ref": "#/$defs/MediaTime"
+            },
+            "alignment": {
+              "$ref": "#/$defs/FrameAlignment"
+            },
+            "exact": {
+              "type": "boolean"
+            },
+            "quality": {
+              "$ref": "#/$defs/FrameQuality"
+            },
+            "requested_time": {
+              "$ref": "#/$defs/MediaTime"
+            },
+            "source_pts": {
+              "type": "string"
+            },
+            "source_time_base": {
+              "$ref": "#/$defs/FrameRate"
+            }
+          },
+          "required": [
+            "requested_time",
+            "actual_time",
+            "source_pts",
+            "source_time_base",
+            "alignment",
+            "exact",
+            "quality"
+          ],
+          "type": "object"
+        },
+        "StreamKind": {
+          "enum": [
+            "video",
+            "audio",
+            "subtitle",
+            "data",
+            "attachment",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "TextClusterRange": {
+          "properties": {
+            "end": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rtl": {
+              "type": "boolean"
+            },
+            "start": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "start",
+            "end",
+            "rtl"
+          ],
+          "type": "object"
+        },
+        "TextLayoutView": {
+          "properties": {
+            "cluster_ranges": {
+              "items": {
+                "$ref": "#/$defs/TextClusterRange"
+              },
+              "type": "array"
+            },
+            "glyph_count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "line_count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pixel_bounds": {
+              "$ref": "#/$defs/PixelBounds"
+            },
+            "policy": {
+              "$ref": "#/$defs/FontResolutionPolicy"
+            },
+            "requested_family": {
+              "type": "string"
+            },
+            "rtl_runs": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "used_faces": {
+              "items": {
+                "$ref": "#/$defs/FontFaceView"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "requested_family",
+            "policy",
+            "used_faces",
+            "line_count",
+            "glyph_count",
+            "rtl_runs",
+            "cluster_ranges",
+            "pixel_bounds"
+          ],
+          "type": "object"
+        },
+        "Time": {
+          "additionalProperties": false,
+          "properties": {
+            "ticks": {
+              "type": "string"
+            },
+            "timebase": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "ticks",
+            "timebase"
+          ],
+          "type": "object"
+        },
+        "TimeRange": {
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "$ref": "#/$defs/Time"
+            },
+            "start": {
+              "$ref": "#/$defs/Time"
+            }
+          },
+          "required": [
+            "start",
+            "duration"
+          ],
+          "type": "object"
+        },
+        "VerificationCheckView": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "passed"
+          ],
+          "type": "object"
+        },
+        "VerificationView": {
+          "properties": {
+            "checks": {
+              "items": {
+                "$ref": "#/$defs/VerificationCheckView"
+              },
+              "type": "array"
+            },
+            "decoded_samples": {
+              "items": {
+                "$ref": "#/$defs/DecodedSample"
+              },
+              "type": "array"
+            },
+            "metadata": {
+              "$ref": "#/$defs/MediaInfo"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "passed",
+            "checks",
+            "metadata",
+            "decoded_samples"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JobView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditorError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_version",
+        "request_id",
+        "warnings"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
+    "description": "Read configured shared visual/audio and video encoder availability. Each fixed-scene job additionally checks content, duration, resources and budgets.",
+    "input_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "EmptyInput",
+      "type": "object"
+    },
+    "name": "opencut_project_v4_video_capability",
+    "output_schema": {
+      "$defs": {
+        "EditorError": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "details"
+          ],
+          "type": "object"
+        },
+        "V4VideoMp4CapabilityV1": {
+          "additionalProperties": false,
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "schema_version": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "submit_tool": {
+              "type": "string"
+            },
+            "unavailable_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "schema_version",
+            "available",
+            "submit_tool"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "api_version": {
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/V4VideoMp4CapabilityV1"
             },
             {
               "type": "null"

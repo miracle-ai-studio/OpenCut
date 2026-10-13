@@ -26,6 +26,8 @@ pub(super) fn run(entry: Arc<Entry>, receiver: mpsc::Receiver<BlockRequest>) {
     {
         let _ = state.machine.fail(&err.code, now());
         state.picture = None;
+        state.text_picture = None;
+        state.text_coverage = None;
         entry.credit.notify_all();
     }
 }

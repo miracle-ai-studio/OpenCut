@@ -175,3 +175,23 @@ test("V2 plan keeps resource and element namespaces, exact media identity and co
     assert.throws(() => validateTextFramePlan(p, admission), code("INVALID_VISUAL_PLAN"));
   }
 });
+
+test("persistent frames reuse verified bytes and loaded faces but renew native authorization and evict inactive fonts", async () => {
+  reset();const p=plan(),mediaCache=new Map(),fontCache=new Map();
+  const first=host(p);first.requireResolveCached=true;
+  await renderClassicTextFrameV2(p,first,{},undefined,mediaCache,undefined,fontCache);
+  assert.equal(first.calls.filter(c=>c.op==="readVerifiedBytes").length,2);
+  assert.equal(faces.size,1);assert.equal(fontCache.size,1);assert.equal(first.transfers.size,0);
+  const second=host(p);second.requireResolveCached=true;
+  const receipt=await renderClassicTextFrameV2(p,second,{},undefined,mediaCache,undefined,fontCache);
+  assert.equal(receipt.peakAccountedBytes,"1208");
+  assert.equal(second.calls.filter(c=>c.op==="readVerifiedBytes").length,0);
+  assert.equal(second.calls.filter(c=>c.op==="resolveVerifiedFontBytes").length,1);
+  assert.equal(second.calls.filter(c=>c.op==="resolveVerifiedBytes").length,1);
+  assert.equal(faces.size,1);assert.equal(second.transfers.size,0);
+  const inactive=structuredClone(p);inactive.texts=[];inactive.order=["back","front"];
+  const last=host(inactive);last.requireResolveCached=true;
+  await renderClassicTextFrameV2(inactive,last,{},undefined,mediaCache,undefined,fontCache);
+  assert.equal(fontCache.size,0);assert.equal(faces.size,0);
+  assert.ok(canvases.every(c=>c.width===0&&c.height===0));
+});

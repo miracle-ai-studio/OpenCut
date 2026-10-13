@@ -273,6 +273,8 @@ mod tests {
                 machine,
                 authority: TrustedJobAuthorityV1::LocalOwner,
                 picture: None,
+                text_picture: None,
+                text_coverage: None,
             }),
             Mutex::new(None),
             input,
@@ -601,12 +603,35 @@ mod picture_expiry_tests {
         let mut state = SessionState {
             machine,
             authority: TrustedJobAuthorityV1::LocalOwner,
-            picture: Some(CachedPicture { session, prepared }),
+            picture: Some(CachedPicture {
+                session: session.clone(),
+                prepared,
+            }),
+            text_picture: Some(text::CachedTextPicture {
+                session: session.clone(),
+                prepared: Arc::new(
+                    opencut_editor_application::visual_preview_text_v2::PreparedTextPictureV2::new(
+                        opencut_editor_application::project_v4_video_jobs::prepare_frame(
+                            &snapshot, "s", &start,
+                        )
+                        .unwrap(),
+                        policy,
+                        vec![],
+                    )
+                    .unwrap(),
+                ),
+            }),
+            text_coverage: Some(text::CachedTextCoverage {
+                session,
+                coverage: vec![],
+            }),
         };
         assert!(state.machine.expire(31000).unwrap());
         assert!(weak.upgrade().is_some());
         assert!(!state.expire(31000).unwrap());
         assert!(weak.upgrade().is_none());
         assert!(state.picture.is_none());
+        assert!(state.text_picture.is_none());
+        assert!(state.text_coverage.is_none());
     }
 }
