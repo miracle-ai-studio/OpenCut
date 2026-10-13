@@ -103,6 +103,7 @@ pub(crate) fn text_picture(
         });
     }
     if input.decoded.is_none() {
+        state.caption_picture = None;
         state.text_picture = Some(CachedTextPicture {
             session: input.session,
             prepared,

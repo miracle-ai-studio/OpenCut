@@ -416,6 +416,17 @@ impl Automation {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(classic_visual_runtime::video_capability())
             }
+            "opencut_project_v4_caption_video_mp4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::caption_video_capability())
+            }
+            "opencut_job_v4_caption_video_mp4" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_caption_video_jobs::start_caption_video_mp4(
+                    &mut self.app,
+                    parse(arguments)?,
+                ).map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
             "opencut_job_v4_video_mp4" => {
                 let result = opencut_sqlite_store::sqlite_project_v4_video_jobs::start_video_mp4(
                     &mut self.app,
@@ -701,6 +712,9 @@ impl Automation {
             }
             "opencut_visual_preview_v4_text_frame" => {
                 to_value(audio_preview_v4::text_picture(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_caption_frame" => {
+                to_value(audio_preview_v4::caption_picture(self, parse(arguments)?)?)
             }
             "opencut_visual_preview_v4_font_authorize" => {
                 let input: visual_preview_text_contracts::VisualPreviewFontV2 = parse(arguments)?;

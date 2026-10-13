@@ -13,8 +13,10 @@ use opencut_editor_application::{
     budget::Writer,
     classic_audio::{ClassicAudioExecutor, ClassicAudioResources, ClassicAudioSession},
     classic_text_frame_v2::{ClassicTextFrameSessionV2, admit_text_frame_v2},
+    classic_text_frame_v3::ClassicCaptionFrameSessionV3,
     classic_visual::ClassicVisualResources,
     font_import_v1::FontImportPolicyV1,
+    project_v4_caption_video_jobs as caption,
     project_v4_video_jobs::{self as video, PreparedV4VideoMp4V1, StoredV4VideoMp4ResultV1},
 };
 use opencut_job_contracts::{
@@ -51,13 +53,47 @@ pub(super) fn execute(
     cancel: &CancellationToken,
     held: &Mutex<Option<AttemptLease>>,
 ) -> Result<Value, EditorError> {
+    execute_with_profile(
+        database,
+        root,
+        worker,
+        job,
+        cancel,
+        held,
+        video::VideoFrameProfile::TextV2,
+    )
+}
+#[cfg(unix)]
+pub(super) fn execute_with_profile(
+    database: &Path,
+    root: &Path,
+    worker: &str,
+    job: &JobRecord,
+    cancel: &CancellationToken,
+    held: &Mutex<Option<AttemptLease>>,
+    profile: video::VideoFrameProfile,
+) -> Result<Value, EditorError> {
+    if job.kind != profile.kind() {
+        return Err(error(
+            "INVALID_ARGUMENT",
+            "Video kind differs from selected execution profile",
+        ));
+    }
     cancelled(cancel)?;
     let started = Instant::now();
     let input: PreparedV4VideoMp4V1 = serde_json::from_value(job.input.clone())
         .map_err(|_| error("INVALID_ARGUMENT", "Invalid private V4 video preparation"))?;
-    let prepared = video::validate_prepared(&input)?;
+    let prepared = video::validate_prepared_with_profile(&input, profile)?;
     let app = EditorApplication::open_managed(database)?;
-    app.revalidate_v4_video_job(&job.job_id, worker, job.attempt, &input.authority)?;
+    let revalidate = || match profile {
+        video::VideoFrameProfile::TextV2 => {
+            app.revalidate_v4_video_job(&job.job_id, worker, job.attempt, &input.authority)
+        }
+        video::VideoFrameProfile::CaptionV3 => {
+            app.revalidate_v4_caption_video_job(&job.job_id, worker, job.attempt, &input.authority)
+        }
+    };
+    revalidate()?;
     let policy = &input.processing_policy;
     let deadline = Duration::from_millis(policy.deadline_ms);
     let count = prepared
@@ -91,7 +127,7 @@ pub(super) fn execute(
                 "Whole video attempt exceeded captured deadline",
             ));
         }
-        app.revalidate_v4_video_job(&job.job_id, worker, job.attempt, &input.authority)
+        revalidate()
     };
     checkpoint()?;
     let audio_name = OsStr::new("video-audio.wav");
@@ -216,7 +252,14 @@ pub(super) fn execute(
         &admission,
         checkpoint,
     )?;
-    let mut config = classic_visual_runtime::configured_text(&policy.visual)?;
+    let mut config = match profile {
+        video::VideoFrameProfile::TextV2 => {
+            classic_visual_runtime::configured_text(&policy.visual)?
+        }
+        video::VideoFrameProfile::CaptionV3 => {
+            classic_visual_runtime::configured_caption(&policy.visual)?
+        }
+    };
     config.runner = config
         .runner
         .parent()
@@ -228,34 +271,74 @@ pub(super) fn execute(
             "Persistent video runner unavailable",
         ));
     }
-    let mut process = ClassicVideoProcess::start(config, count, &mut || checkpoint())?;
+    let mut process = match profile {
+        video::VideoFrameProfile::TextV2 => {
+            ClassicVideoProcess::start(config, count, &mut || checkpoint())?
+        }
+        video::VideoFrameProfile::CaptionV3 => {
+            ClassicVideoProcess::start_caption(config, count, &mut || checkpoint())?
+        }
+    };
     let mut receipts = Sha256::new();
     let mut rgba_bytes = 0u64;
     for index in 0..count {
         checkpoint()?;
         let at = video::frame_time(&prepared.identity, index)?;
-        let frame = video::prepare_frame(&input.snapshot, &input.sequence_id, &at)?;
-        admit_text_frame_v2(&frame, &policy.visual)?;
-        let mut resources = VerifiedClassicTextResources::new(
-            app.asset_store_root(),
-            &frame,
-            &FontImportPolicyV1::default(),
-            checkpoint,
-        )?;
+        let selected =
+            video::prepare_profiled_frame(&input.snapshot, &input.sequence_id, &at, profile)?;
+        admit_text_frame_v2(selected.execution(), &policy.visual)?;
+        let mut resources = match &selected {
+            video::PreparedVideoFrame::Text(frame) => VerifiedClassicTextResources::new(
+                app.asset_store_root(),
+                frame,
+                &FontImportPolicyV1::default(),
+                checkpoint,
+            )?,
+            video::PreparedVideoFrame::Caption(frame) => {
+                VerifiedClassicTextResources::new_caption_frame_v3(
+                    app.asset_store_root(),
+                    frame,
+                    &FontImportPolicyV1::default(),
+                    checkpoint,
+                )?
+            }
+        };
         let handles = resources.handles();
         let fonts = resources.font_handles();
-        let mut session =
-            ClassicTextFrameSessionV2::new(&frame, &policy.visual, resources.coverage())?;
-        let receipt =
-            process.render_frame(&mut session, &mut resources, &handles, &fonts, &mut encoder)?;
-        encoder.finish_frame()?;
-        resources.checkpoint()?;
-        let bytes = serde_json::to_vec(&receipt).map_err(|_| {
+        let bytes = match &selected {
+            video::PreparedVideoFrame::Text(frame) => {
+                let mut session =
+                    ClassicTextFrameSessionV2::new(frame, &policy.visual, resources.coverage())?;
+                let receipt = process.render_frame(
+                    &mut session,
+                    &mut resources,
+                    &handles,
+                    &fonts,
+                    &mut encoder,
+                )?;
+                serde_json::to_vec(&receipt)
+            }
+            video::PreparedVideoFrame::Caption(frame) => {
+                let mut session =
+                    ClassicCaptionFrameSessionV3::new(frame, &policy.visual, resources.coverage())?;
+                let receipt = process.render_caption_frame(
+                    &mut session,
+                    &mut resources,
+                    &handles,
+                    &fonts,
+                    &mut encoder,
+                )?;
+                serde_json::to_vec(&receipt)
+            }
+        }
+        .map_err(|_| {
             error(
                 "SERIALIZATION_ERROR",
-                "Cannot hash verified video frame receipt",
+                "Cannot hash complete verified video frame receipt",
             )
         })?;
+        encoder.finish_frame()?;
+        resources.checkpoint()?;
         receipts.update(index.to_le_bytes());
         receipts.update((bytes.len() as u64).to_le_bytes());
         receipts.update(&bytes);
@@ -340,7 +423,38 @@ pub(super) fn execute(
             content_hash,
         },
     };
-    video::validate_stored_result(&input, &stored)?;
+    let result = match profile {
+        video::VideoFrameProfile::TextV2 => {
+            video::validate_stored_result(&input, &stored)?;
+            serde_json::to_value(stored)
+        }
+        video::VideoFrameProfile::CaptionV3 => {
+            let public = stored.public;
+            let stored = caption::StoredV4CaptionVideoMp4ResultV2 {
+                public: caption::V4CaptionVideoMp4ResultV2 {
+                    schema_version: 2,
+                    identity: caption::public_identity(&public.identity),
+                    asset_lock: public.asset_lock,
+                    font_lock: public.font_lock,
+                    render_input_sha256: caption::render_input_sha256(
+                        &input.snapshot,
+                        &input.sequence_id,
+                    )?,
+                    execution: public.execution,
+                    artifact: public.artifact,
+                },
+                artifact: stored.artifact,
+            };
+            caption::validate_stored_result(&input, &stored)?;
+            serde_json::to_value(stored)
+        }
+    }
+    .map_err(|_| {
+        error(
+            "SERIALIZATION_ERROR",
+            "Cannot serialize private video result",
+        )
+    })?;
     checkpoint()?;
     if opencut_native_services::reproducibility::execution_identity(vec![])?.process_binary_sha256
         != host_sha256
@@ -351,12 +465,7 @@ pub(super) fn execute(
         ));
     }
     check_output_name(&attempt, output_name, &file)?;
-    serde_json::to_value(stored).map_err(|_| {
-        error(
-            "SERIALIZATION_ERROR",
-            "Cannot serialize private video result",
-        )
-    })
+    Ok(result)
 }
 
 #[cfg(not(unix))]
@@ -372,4 +481,17 @@ pub(super) fn execute(
         "CAPABILITY_UNAVAILABLE",
         "Persistent video output requires native Unix admission and process termination",
     ))
+}
+
+#[cfg(not(unix))]
+pub(super) fn execute_with_profile(
+    database: &Path,
+    root: &Path,
+    worker: &str,
+    job: &JobRecord,
+    cancel: &CancellationToken,
+    held: &Mutex<Option<AttemptLease>>,
+    _: video::VideoFrameProfile,
+) -> Result<Value, EditorError> {
+    execute(database, root, worker, job, cancel, held)
 }

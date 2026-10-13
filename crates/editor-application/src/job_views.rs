@@ -409,6 +409,7 @@ pub fn project(record: JobRecord) -> JobView {
             | "render.project_text_frame.v4"
             | "render.project_caption_frame.v4"
             | "render.project_video.v4"
+            | "render.project_caption_video.v4"
             | "preview.project_frame.v3"
             | "preview.project_range.v3"
             | "analysis.speaker_turns"
@@ -565,6 +566,34 @@ pub fn project(record: JobRecord) -> JobView {
             };
             let input: PreparedV4VideoMp4V1 = decode(record.input.clone())?;
             let stored: StoredV4VideoMp4ResultV1 = decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_caption_video.v4"
+    {
+        let projected = (|| {
+            use crate::project_v4_caption_video_jobs::{
+                PreparedV4CaptionVideoMp4V2, StoredV4CaptionVideoMp4ResultV2,
+                validate_stored_result,
+            };
+            let input: PreparedV4CaptionVideoMp4V2 = decode(record.input.clone())?;
+            let stored: StoredV4CaptionVideoMp4ResultV2 =
+                decode(record.result.unwrap_or(Value::Null))?;
             let public = validate_stored_result(&input, &stored)?;
             let reference = artifact(&view.job_id, stored.artifact)?;
             Ok::<_, EditorError>((

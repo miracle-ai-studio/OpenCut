@@ -22,3 +22,14 @@ function harness(){const input=new PassThrough(),output=new PassThrough(),queue=
 test("video begin has a distinct bounded version and refuses frame-count/admission bypass",()=>{assert.equal(validateVideoBegin(packet({type:"beginTextVideoV1",frameCount:2,admission})).frameCount,2);for(const frameCount of [0,1801,1.5])assert.throws(()=>validateVideoBegin(packet({type:"beginTextVideoV1",frameCount,admission})));assert.throws(()=>validateVideoBegin(packet({type:"begin",frameCount:2,admission})));});
 test("two acknowledged frames reuse one browser and terminate only after complete count",async()=>{starts=renders=stops=0;const h=harness();h.send(packet({type:"beginTextVideoV1",frameCount:2,admission}));assert.equal((await h.next()).type,"started");assert.equal((await h.next()).type,"ready");for(let i=0;i<2;i++){h.send(frame(i));const receipt=await h.next();assert.equal(receipt.type,"frameComplete");assert.equal(receipt.frameIndex,i);}h.send(packet({type:"endVideo"}));const complete=await h.next();assert.equal(complete.type,"complete");assert.equal(complete.frameCount,2);await h.work;assert.equal(starts,1);assert.equal(renders,2);assert.equal(stops,1);});
 test("out-of-order frame and premature terminal cannot publish a completed video",async()=>{for(const invalid of [frame(1),packet({type:"endVideo"})]){const h=harness();h.send(packet({type:"beginTextVideoV1",frameCount:2,admission}));await h.next();await h.next();h.send(invalid);assert.equal((await h.next()).type,"failed");await h.work;}});
+const captionFrame=index=>{const inner=frame(index);return {...inner,plan:{identity:{...inner.plan.identity,profile:"classic-v31-gpu-normal-caption-frame-v3"},execution:inner.plan,captions:[]}};};
+test("caption video admits only V3 plans and retains ordered fixed identity",async()=>{
+  const h=harness();h.send(packet({type:"beginCaptionVideoV2",frameCount:2,admission}));await h.next();await h.next();
+  h.send(captionFrame(0));assert.equal((await h.next()).type,"frameComplete");
+  const changed=captionFrame(1);changed.plan.identity.revision="other";h.send(changed);
+  assert.equal((await h.next()).type,"failed");await h.work;
+  for(const [type,plan] of [["beginTextVideoV1",captionFrame(0)],["beginCaptionVideoV2",frame(0)]]){
+    const host=harness();host.send(packet({type,frameCount:1,admission}));await host.next();await host.next();host.send(plan);
+    assert.equal((await host.next()).type,"failed");await host.work;
+  }
+});

@@ -274,6 +274,7 @@ mod tests {
                 authority: TrustedJobAuthorityV1::LocalOwner,
                 picture: None,
                 text_picture: None,
+                caption_picture: None,
                 text_coverage: None,
             }),
             Mutex::new(None),
@@ -607,6 +608,20 @@ mod picture_expiry_tests {
                 session: session.clone(),
                 prepared,
             }),
+            caption_picture: Some(caption::CachedCaptionPicture {
+                session: session.clone(),
+                prepared: Arc::new(
+                    opencut_editor_application::visual_preview_caption_v3::PreparedCaptionPictureV3::new(
+                        opencut_editor_application::project_v4_caption_frame_jobs::prepare(
+                            &snapshot, "s", &start,
+                        )
+                        .unwrap(),
+                        policy.clone(),
+                        vec![],
+                    )
+                    .unwrap(),
+                ),
+            }),
             text_picture: Some(text::CachedTextPicture {
                 session: session.clone(),
                 prepared: Arc::new(
@@ -632,6 +647,7 @@ mod picture_expiry_tests {
         assert!(weak.upgrade().is_none());
         assert!(state.picture.is_none());
         assert!(state.text_picture.is_none());
+        assert!(state.caption_picture.is_none());
         assert!(state.text_coverage.is_none());
     }
 }

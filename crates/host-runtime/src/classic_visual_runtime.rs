@@ -196,6 +196,23 @@ pub(crate) fn video_capability() -> opencut_job_contracts::project_v4_video::V4V
     }
 }
 
+pub(crate) fn caption_video_capability()
+-> opencut_job_contracts::project_v4_caption_video::V4CaptionVideoMp4CapabilityV2 {
+    let video = video_capability();
+    let caption_error = paths()
+        .and_then(|(_, _, runner)| check_caption_modules(&runner))
+        .err();
+    let unavailable_reason = video
+        .unavailable_reason
+        .or_else(|| caption_error.map(|error| error.message));
+    opencut_job_contracts::project_v4_caption_video::V4CaptionVideoMp4CapabilityV2 {
+        schema_version: 2,
+        available: video.available && unavailable_reason.is_none(),
+        submit_tool: "opencut_job_v4_caption_video_mp4".into(),
+        unavailable_reason,
+    }
+}
+
 fn check_caption_modules(runner: &Path) -> Result<(), EditorError> {
     check_text_modules(runner)?;
     let package = runner

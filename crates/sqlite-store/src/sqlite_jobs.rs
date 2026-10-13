@@ -121,6 +121,9 @@ fn persist(
     if next.kind == "render.project_video.v4" && next.state == JobState::Succeeded {
         sqlite_project_v4_video_jobs::require_completion(tx, &next)?;
     }
+    if next.kind == "render.project_caption_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_caption_video_jobs::require_completion(tx, &next)?;
+    }
     if matches!(
         next.kind.as_str(),
         "render.project_text_frame.v4" | "render.project_caption_frame.v4"

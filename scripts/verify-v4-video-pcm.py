@@ -172,11 +172,15 @@ def main():
     parser.add_argument('workspace', type=Path, nargs='?', default=DEFAULT_WORKSPACE)
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--ffprobe', default='ffprobe')
+    parser.add_argument('--evidence', default='b2-video-evidence.json',
+                        help='Existing evidence filename in the owned workspace; the frozen source/PCM expectations remain unchanged')
     args = parser.parse_args()
     workspace = args.workspace.resolve()
-    evidence = json.loads((workspace / 'b2-video-evidence.json').read_text())
-    output, source = workspace / 'b2-mixed.mp4', workspace / 'sample.wav'
-    require(evidence['job']['state'] == 'succeeded', 'B2 evidence job did not succeed')
+    require(Path(args.evidence).name == args.evidence, 'Evidence must be a filename inside the owned workspace')
+    evidence = json.loads((workspace / args.evidence).read_text())
+    output, source = Path(evidence['output']).resolve(), workspace / 'sample.wav'
+    require(output.parent == workspace, 'Downloaded artifact must remain inside the owned workspace')
+    require(evidence['job']['state'] == 'succeeded', 'Evidence job did not succeed')
     require(Path(evidence['output']).resolve() == output.resolve(), 'Evidence points at another downloaded artifact')
     require(sha256(output) == evidence['sha256'], 'Downloaded MP4 differs from browser evidence')
     authored = inspect_fixed_source(workspace, evidence, source)

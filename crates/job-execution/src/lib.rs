@@ -2,6 +2,7 @@
 use opencut_contracts::{AssetLockManifest, ProjectSnapshot, Time, TimeRange};
 pub mod project_v3;
 pub mod project_v4_audio;
+pub mod project_v4_caption_video;
 pub mod project_v4_frame;
 pub mod project_v4_text_frame;
 pub mod project_v4_video;

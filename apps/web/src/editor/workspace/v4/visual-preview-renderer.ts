@@ -2,6 +2,7 @@ import {
   measureClassicText,
   openGpuRealm,
   renderClassicTextFrameV2,
+  renderClassicCaptionFrameV3,
   VisualDecoderCache,
   type GpuRealm,
 } from "../../../../../../packages/classic-visual-renderer/src/index.mjs";
@@ -13,6 +14,7 @@ import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
 export { measureClassicText };
 
 type Input = ToolInput<"opencut_visual_preview_v4_text_frame">;
+type CaptionInput = ToolInput<"opencut_visual_preview_v4_caption_frame">;
 type Frame = ToolOutput<"opencut_visual_preview_v4_text_frame">;
 export type VisualPreviewExecutionApi = {
   v4: Pick<EditorApi["v4"], "visualPreviewTextFrame" | "resource">;
@@ -27,28 +29,48 @@ export type VisualPreviewExecutionApi = {
 export class VisualPreviewRenderer {
   private realm: GpuRealm | null = null;
   private readonly cache = new Map<string, Uint8Array>();
-  private readonly fonts = new Map<string, { bytes: Uint8Array; face?: FontFace }>();
+  private readonly fonts = new Map<
+    string,
+    { bytes: Uint8Array; face?: FontFace }
+  >();
   private readonly decoders = new VisualDecoderCache();
   private readonly surface = new OffscreenCanvas(1, 1);
   async render(
     api: VisualPreviewExecutionApi,
     session: Input["session"],
     signal: AbortSignal,
+    caption = false,
   ) {
     const began = performance.now();
-    const frame = await api.v4.visualPreviewTextFrame(
-      { session, time: null, decoded: null, rasters: null },
-      signal,
-    );
+    const callFrame = (
+      input: Input & { captions?: CaptionInput["captions"] },
+    ) =>
+      caption
+        ? api.sdk.call(
+            "opencut_visual_preview_v4_caption_frame",
+            { ...input, captions: input.captions ?? null },
+            { signal },
+          )
+        : api.v4.visualPreviewTextFrame(input, signal);
+    const frame = await callFrame({
+      session,
+      time: null,
+      decoded: null,
+      rasters: null,
+    });
+    const plan = "execution" in frame.plan ? frame.plan.execution : frame.plan;
     signal.throwIfAborted();
     const planned = performance.now();
     this.realm ??= await openGpuRealm();
     signal.throwIfAborted();
-    const { width, height } = frame.plan.identity;
+    const { width, height } = plan.identity;
     const transfers = new Map<string, Uint8Array>();
     let execution: Record<string, string> = {};
     let decoded: Input["decoded"] = null;
-    await renderClassicTextFrameV2(
+    const render = caption
+      ? renderClassicCaptionFrameV3
+      : renderClassicTextFrameV2;
+    await render(
       frame.plan,
       {
         admission: previewExecutionAdmission(frame.admission),
@@ -66,30 +88,27 @@ export class VisualPreviewRenderer {
           if (name === "bindFrame") {
             const beganBind = performance.now();
             decoded = args.decoded as Input["decoded"];
-            const bound = await api.v4.visualPreviewTextFrame(
-              {
-                session,
-                time: frame.plan.identity.time,
-                decoded,
-                rasters: null,
-              },
-              signal,
-            );
+            const bound = await callFrame({
+              session,
+              time: frame.plan.identity.time,
+              decoded,
+              rasters: null,
+            });
             if (!bound.bound_media)
               throw new Error("Missing bound visual media frame");
             execution.bindMs = String(performance.now() - beganBind);
             return bound.bound_media;
           }
-          if (name === "bindTextFrame") {
-            const bound = await api.v4.visualPreviewTextFrame(
-              {
-                session,
-                time: frame.plan.identity.time,
-                decoded,
-                rasters: args.rasters as Input["rasters"],
-              },
-              signal,
-            );
+          if (name === (caption ? "bindCaptionFrameV3" : "bindTextFrame")) {
+            const bound = await callFrame({
+              session,
+              time: frame.plan.identity.time,
+              decoded,
+              rasters: args.rasters as Input["rasters"],
+              ...(caption
+                ? { captions: args.captions as CaptionInput["captions"] }
+                : {}),
+            });
             if (!bound.bound)
               throw new Error("Missing bound visual text frame");
             return bound.bound;
@@ -98,9 +117,20 @@ export class VisualPreviewRenderer {
             const font = args.font as Frame["plan"]["texts"][number]["font"];
             const key = `${font.fontId}:${font.contentHash}:${font.size}`;
             if (this.fonts.has(key)) {
-              const authorized = await api.sdk.call("opencut_visual_preview_v4_font_authorize", { session, font_id: font.fontId }, { signal });
-              if (authorized.schema_version !== 2 || authorized.font_id !== font.fontId) throw new Error("Preview font authorization changed identity");
-              return { transferId: `cached-font:${font.fontId}`, byteLength: font.size };
+              const authorized = await api.sdk.call(
+                "opencut_visual_preview_v4_font_authorize",
+                { session, font_id: font.fontId },
+                { signal },
+              );
+              if (
+                authorized.schema_version !== 2 ||
+                authorized.font_id !== font.fontId
+              )
+                throw new Error("Preview font authorization changed identity");
+              return {
+                transferId: `cached-font:${font.fontId}`,
+                byteLength: font.size,
+              };
             }
             const response = await api.sdk.downloadVisualPreviewFontV2(
               { session, font_id: font.fontId },
@@ -201,7 +231,8 @@ export class VisualPreviewRenderer {
     this.surface.height = 0;
     this.cache.clear();
     const fontSet = globalThis.document?.fonts;
-    for (const font of this.fonts.values()) if (font.face) fontSet?.delete(font.face);
+    for (const font of this.fonts.values())
+      if (font.face) fontSet?.delete(font.face);
     this.fonts.clear();
     this.realm?.device.destroy();
     this.realm = null;

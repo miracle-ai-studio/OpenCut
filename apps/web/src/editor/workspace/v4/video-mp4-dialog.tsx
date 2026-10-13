@@ -17,7 +17,7 @@ export function VideoMp4Dialog({
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     void controller.v4.videoMp4.refreshCapability();
-  }, [controller]);
+  }, [controller, v4?.sequenceId, (v4?.historical ?? v4?.head)?.revision]);
   if (!v4) return null;
   const attempt = v4.videoMp4,
     view = v4.historical ?? v4.head;

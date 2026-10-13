@@ -1,6 +1,7 @@
 //! Transport-neutral contracts for durable native media jobs.
 pub mod project_v3;
 pub mod project_v4_audio;
+pub mod project_v4_caption_video;
 pub mod project_v4_frame;
 pub mod project_v4_text_frame;
 pub mod project_v4_video;
@@ -618,6 +619,7 @@ job_kinds! {
     RenderProjectAudioRangeV4: (project_v4_audio::SubmitV4AudioRangeWav, project_v4_audio::V4AudioRangeWavResultV1, "render.project_audio_range.v4"),
     RenderProjectTextFrameV4: (project_v4_text_frame::SubmitV4TextFramePng, project_v4_text_frame::V4TextFramePngResultV2, "render.project_text_frame.v4"),
     RenderProjectVideoV4: (project_v4_video::SubmitV4VideoMp4V1, project_v4_video::V4VideoMp4ResultV1, "render.project_video.v4"),
+    RenderProjectCaptionVideoV4: (project_v4_caption_video::SubmitV4CaptionVideoMp4V2, project_v4_caption_video::V4CaptionVideoMp4ResultV2, "render.project_caption_video.v4"),
     RenderProjectCaptionFrameV4: (project_v4_caption_frame::SubmitV4CaptionFramePng, project_v4_caption_frame::V4CaptionFramePngResultV3, "render.project_caption_frame.v4"),
     RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
 }

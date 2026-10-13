@@ -287,8 +287,8 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "40 unique scoped records. B3 font browser/import/offline PNG, canvas DOM composition and caption SRT/native PNG/exchange passed in recorded phases. F10 deletion/reopen/Undo closes its complete bookmark exit by reusing prior exact-scope evidence. 35 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "b3_font_canvas_caption_static",
+    "scope": "42 unique scoped records. B3 caption continuous preview and one downloaded MP4 pass independent pixels/PCM; English synthetic ASR-to-SRT passes, Chinese literal CER fails with separate script-equivalence analysis. Earlier results retain candidate identities. 35 groups remain; no whole-workspace, full S1 or full B3 acceptance.",
+    "latest_candidate": "b3_caption_continuous_video",
     "plan_coverage": {
       "remaining_groups": 35,
       "routes": 13,
@@ -8179,6 +8179,196 @@
         ],
         "coverage": "Prior actual create/edit/time/color/note/scene isolation/history/reload plus PNG, continuous preview and MP4 overlay exclusion; current real Delete/reload/Undo/reload closes the only missing bookmark lifecycle segment. Whole project equality proves all other content preserved.",
         "limits": "Prior results keep original source/runtime identities. New visual types/formats require affected regressions in their own groups; no full-renderer or whole-migration claim."
+      },
+      {
+        "evidence_id": "b3_local_asr_scoped",
+        "status": "english_synthetic_full_chain_pass_chinese_literal_cer_failed",
+        "candidate_ref": "b3_font_canvas_caption_static",
+        "cli_sha256": "65ce4c30ca24f2a26df546089efe1424a3cc46dddadcfd45e412449b73416e9a",
+        "model": "ggml-small.bin",
+        "model_sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "source": "Locally synthesized known scripts with macOS say, Samantha and Tingting at 150; same owned workspace. Not human speech acceptance."
+        },
+        "english": {
+          "job_id": "job_87587ab9e2aa4c039f7ef935605ef683",
+          "revision": "rev_3c5f28ab614d8e41f2062da3aa06ee8ab60e9ce95d9acd81a3111371e3bd1fbc",
+          "accuracy": {
+            "metric": "WER",
+            "normalization": "NFKC lowercase; retain Unicode letters/numbers; English whitespace words / Chinese non-whitespace codepoints",
+            "expected_text": "Welcome to the video editor. We cut the scene and add clear captions.",
+            "actual_text": "Welcome to the video editor, we cut the scene and add clear captions.",
+            "reference_units": 13,
+            "actual_units": 13,
+            "edit_distance": 0,
+            "rate": 0,
+            "threshold": 0.2
+          },
+          "same_key_same_job": true,
+          "cue_count": 5,
+          "recovery_reopen_srt_download": "passed",
+          "srt_sha256": "07bb1e8af6e9fab3bb67f5ed807069ed1822b3e2ecb7bf16f9ed7a5c1a359a3f"
+        },
+        "chinese": {
+          "job_id": "job_ca6c359de0544f4d8c2ac99386aafe75",
+          "revision": "rev_7b00945881a2947d003c4f3d52554d9982640b89aeed00ee81aea11bfbe8561a",
+          "inference": "succeeded",
+          "accuracy": {
+            "metric": "CER",
+            "normalization": "NFKC lowercase; retain Unicode letters/numbers; English whitespace words / Chinese non-whitespace codepoints",
+            "expected_text": "你好，欢迎使用视频编辑器。现在我们添加清晰的字幕，然后保存这个项目。",
+            "actual_text": "你好,歡迎使用視頻編輯器,現在我們添加清晰的字幕,然後保存這個項目。",
+            "reference_units": 30,
+            "actual_units": 30,
+            "edit_distance": 11,
+            "rate": 0.36666666666666664,
+            "threshold": 0.25
+          },
+          "supplemental_script_analysis": {
+            "explicit_pairs": {
+              "歡": "欢",
+              "視": "视",
+              "頻": "频",
+              "編": "编",
+              "輯": "辑",
+              "現": "现",
+              "們": "们",
+              "後": "后",
+              "這": "这",
+              "個": "个",
+              "項": "项"
+            },
+            "normalized_exact_match": true,
+            "inference_rerun": false
+          },
+          "generation_reopen_srt": "not run after accuracy failure"
+        },
+        "limits": [
+          "Original Chinese literal CER gate failure is preserved; script equivalence is supplemental, not a relaxed threshold.",
+          "No human annotated speech, exact word timing, complete task fault matrix or general multilingual claim.",
+          "Original project restored; completed English inference and subtitle path not rerun."
+        ]
+      },
+      {
+        "evidence_id": "b3_caption_continuous_video",
+        "status": "scoped_product_independent_pixels_and_pcm_pass",
+        "candidate": {
+          "source_head": "eba5cf3d95ca00e32ce36a7d55abb1ce1ce63812",
+          "dirty_source": true,
+          "production_change_digest": "bc14acdffb44ea34ad8d43379b3738c50939c9c9335c7cc4ec1082aa2d97e22b",
+          "production_change_files": 49,
+          "digest_definition": "SHA256 of compact JSON sorted [path, SHA256(file)] for changed/untracked crates, apps/cli, apps/web/src, classic-visual-renderer and sdk-ts/src files.",
+          "binary_sha256": "b6c06f1f420701491ab119369337a769f225519b81fe47723ff4ff965d35d8d5",
+          "web_js_css_tree_sha256": "3776f5169819959036777453e8b516603f4ea0ca564815efe955c10c17350be2",
+          "web_js_css_files": 10,
+          "browser": "153.0.8010.12"
+        },
+        "fixture": {
+          "project_id": "fb92adbb-b999-414e-b351-35f012b8e7b8",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "revision": "rev_df50b21704286c5cea55b96add4df69a912d4593ada60794388d53c270a63d89",
+          "source_caption_revision": "rev_485ef78bc420644060dfb16bf649e2f94eff6596152cc0d1af6c9363e675a980",
+          "canvas": [
+            320,
+            180
+          ],
+          "seconds": 3,
+          "fps": 30,
+          "reuse": "Original B1/B2/B3 workspace, video/audio and pinned fonts; existing two-line Chinese title plus one four-line caption at 0.1..1.25s. No new media or fixture copy; original project restored."
+        },
+        "preview": {
+          "frames": 8,
+          "generations": [
+            "1",
+            "2",
+            "3"
+          ],
+          "sample_times": [
+            0,
+            0.5,
+            1.5
+          ],
+          "min_glyph_iou": 1,
+          "max_rgb_mae": 0.31491319444444443,
+          "play_seek_pause": "passed",
+          "page_errors": []
+        },
+        "export": {
+          "job_id": "job_7e969aa19baf4d889087c87ae575b4ca",
+          "kind": "render.project_caption_video.v4",
+          "profile": "classic-v31-cfr-h264-aac-caption-v2",
+          "artifact": {
+            "artifact_id": "artifact:job_7e969aa19baf4d889087c87ae575b4ca:75f40c8f450aac1a7d019b63d23514b7fbf58055339f625140668aa9cd1f189d",
+            "availability": "unchecked",
+            "content_hash": "75f40c8f450aac1a7d019b63d23514b7fbf58055339f625140668aa9cd1f189d",
+            "job_id": "job_7e969aa19baf4d889087c87ae575b4ca",
+            "mime_type": "video/mp4",
+            "role": "primary",
+            "size_bytes": "109187"
+          },
+          "sha256": "75f40c8f450aac1a7d019b63d23514b7fbf58055339f625140668aa9cd1f189d",
+          "video": {
+            "codec_name": "h264",
+            "pix_fmt": "yuv420p",
+            "width": 320,
+            "height": 180,
+            "avg_frame_rate": "30/1",
+            "r_frame_rate": "30/1",
+            "nb_read_frames": "90",
+            "duration": "3.000000"
+          },
+          "audio": {
+            "codec_name": "aac",
+            "sample_rate": "48000",
+            "channels": 2,
+            "duration": "3.000000"
+          },
+          "encodings": 1,
+          "actual_browser_download": true,
+          "download_resumed_original_job": true
+        },
+        "independent_pixels": {
+          "sample_times": [
+            0,
+            0.5,
+            1.5
+          ],
+          "min_luma_glyph_iou": 0.972922502334267,
+          "max_rgb_mae": 4.201822916666667,
+          "max_outside_p99": 1,
+          "raw_rgb_mask_gate_pass": false,
+          "oracle": "Independently hashed font bytes, Canvas multiline free text and 24px/80%-width/1.2-line-height/5%-bottom caption wrap; original source decoded independently. Existing B2 luma criterion for H264 4:2:0 retained; raw RGB mask failures remain recorded."
+        },
+        "independent_pcm": {
+          "source_sha256": "2edb8484ae14487899349d8d1c14561cc46cfed6ab6d844ab5f54e8931670721",
+          "min_snr_db": 36.20043489496272,
+          "max_relative_rms_error": 0.001459763962664673,
+          "lag_samples": [
+            0,
+            0
+          ],
+          "scope": "Independent source-WAV waveform fidelity after lossy AAC encoding; excludes first/last 100ms, DAC output and general signals/retime/mastering matrices. Pure tone lag is only locally constrained, not a unique global alignment proof. AAC is not bit-exact PCM."
+        },
+        "checks": {
+          "rust_release_builds": 1,
+          "web_builds": 1,
+          "current_tools": 222,
+          "previous_219_declarations_unchanged": true,
+          "legacy_wire_tools_unchanged": 22,
+          "generated_contracts": "passed against explicit candidate binary",
+          "architecture": "14 tests; 22 modules, 0 exceptions; contract boundary passed",
+          "rust_behavior": "16 application, 14 SQLite, 1 native caption-filter tests; same compiled test binaries: 6 original video application, 4 original SQLite video, 2 native encoder, 1 host cache expiry. Scope overlap is not summed.",
+          "web_behavior": "11 Web and 5 renderer Node targeted cases passed; Web type/build and 208-file boundary passed."
+        },
+        "verification_reuse": "Verifier corrections only: observe same-generation advancement before seek, scope Tasks refresh and select fixed-revision card, support the existing two-line title in independent oracle. Original failures retained; no Rust/Web rebuild, completed preview rerun, second encoding or PCM rerun after their successful phases.",
+        "not_proven": [
+          "Full caption/style/font/animation matrices, long/VFR/non-unit rate, formats or quality controls.",
+          "Full new-kind native cancellation/crash/publication fault matrix; shared lifecycle tests do not prove all real fault windows.",
+          "Real system IME, text timeline operations, Classic direct V4 conversion and font package restore.",
+          "Full S1 or whole migration; 35 feature groups remain."
+        ]
       }
     ]
   },
@@ -8192,7 +8382,7 @@
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
     "Google catalog browse/search/family preview covers 1920 families, with 1797 validated static faces from1264 families. 656 families lack usable normal400 sources; unavailable400/700 normal/italic faces total1529. Full font-loading parity, sticker/license materialization and F18 acquisition/catalog/audition/generation/placement remain pending. F24 active Classic Logos source is absent.",
-    "B1/B2 and current B3 evidence remain scoped. B3 proves DOM composition (not OS IME), original SRT import/recovery, independent caption PNG and SRT/ASS download. Real V4 English/Chinese ASR, caption continuous/video execution, full text timeline/styles, unavailable font sources, Classic direct V4 mapping and font package restore remain open."
+    "B1/B2/B3 evidence remain scoped. B3 additionally proves wrapped-caption continuous preview, one MP4 UI export/download and independent pixels/PCM. English synthetic ASR-to-subtitles/SRT passed; Chinese actual inference succeeded but literal CER failed on simplified/traditional differences, and its generation/reopen/SRT path remains unverified. Human speech, real OS IME, full text timeline/styles, unavailable font sources, Classic direct V4 mapping and font package restore remain open."
   ],
   "retained_delivery_packages": [
     {
@@ -8341,7 +8531,7 @@
     "scope": "2026-10-12 change governance; no production behavior change or fresh product/media acceptance",
     "generated_contracts": "8 generator tests and explicit existing-release generation/check passed; 387 components equivalent, 209 paths unchanged, all6049 pre-change references resolve. OpenAPI3495769->1713729 bytes (113052->51485 lines); tools/TypeScript/event/Web compatibility bytes unchanged. Frozen22 wire check passed.",
     "verification_scripts": "Syntax plus bounded-receipt out-of-order/cap mocks, binary-reuse/default-build mocks and owned-success/keep/failure cleanup mocks passed; upload stop must return stopped. No real upload/browser run in this maintenance batch.",
-    "documents": "57 feature statuses and36 remaining IDs preserved; full36-item plan checklist unchanged;12 unique scoped evidence records and local links checked.",
+    "documents": "Historical 2026-10-12 maintenance baseline: 57 feature statuses, 36 remaining IDs and 12 scoped records. Current counts are exclusively feature_status_counts, remaining_groups and current_worktree_validation above.",
     "execution": "No Cargo build, browser/media benchmark or new process report. One SDK Moon contract task; Web duplicate removed. SDK test cache includes generator/fixtures. Package schema capture reused;4 package unit tests and Moon YAML parsing passed, Moon execution not run. Agent ownership and affected-check rules recorded in AGENTS.md."
   }
 }

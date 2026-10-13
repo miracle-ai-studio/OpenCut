@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { BrowserRealm,QuotaMonitor,PacketReader,PacketWriter,CallbackBroker,validateEnvelope } from "@opencut/classic-audio-renderer/internal-host-runtime";
-import { validateAdmission,validateTextBegin } from "./protocol.mjs";
+import { validateAdmission,validateTextBegin,validateCaptionBeginV3 } from "./protocol.mjs";
 import { videoBrowserHooks } from "./video-browser.mjs";
 import { integer,reject,VisualExecutionError } from "../src/validation.mjs";
 export function validateVideoBegin(packet) {
-  validateEnvelope(packet);if(packet.type!=="beginTextVideoV1")reject("INVALID_HOST_PROTOCOL","Expected persistent V1 video begin");
+  validateEnvelope(packet);if(!["beginTextVideoV1","beginCaptionVideoV2"].includes(packet.type))reject("INVALID_HOST_PROTOCOL","Expected persistent V1 video begin");
   return {...structuredClone(packet),frameCount:integer(packet.frameCount,"video frames",1,1800),admission:validateAdmission(packet.admission)};
 }
 export async function runVideoHost(input=process.stdin,output=process.stdout) {
@@ -34,7 +34,9 @@ export async function runVideoHost(input=process.stdin,output=process.stdout) {
       if(packet.type==="reply"||packet.type==="reply_chunk"){if(!busy)reject("INVALID_HOST_PROTOCOL","Reply outside frame");broker.receive(packet);return;}
       if(packet.type==="endVideo") {if(!ready||busy||next!==begin.frameCount)reject("INVALID_HOST_PROTOCOL","Premature video completion");work=finish();return;}
       if(packet.type!=="frame"||!ready||busy||packet.frameIndex!==next||next>=begin.frameCount)reject("INVALID_HOST_PROTOCOL","Video frames require ordered single-frame admission");
-      const frame=validateTextBegin({...packet,type:"beginTextFrameV2",admission:begin.admission});
+      const frame=begin.type === "beginCaptionVideoV2"
+        ? validateCaptionBeginV3({...packet,type:"beginCaptionFrameV3",admission:begin.admission})
+        : validateTextBegin({...packet,type:"beginTextFrameV2",admission:begin.admission});
       if(next===0)begin.identity=structuredClone(frame.plan.identity);
       else for(const key of ["projectId","revision","sequenceId","width","height","profile"])if(frame.plan.identity[key]!==begin.identity[key])reject("INVALID_HOST_PROTOCOL","Fixed video identity changed");
       realm.currentFrame=frame;busy=true;

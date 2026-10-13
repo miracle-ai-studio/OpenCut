@@ -3,6 +3,7 @@ mod media_output;
 mod output_attempt;
 mod project_v3;
 mod project_v4_audio;
+mod project_v4_caption_video;
 mod project_v4_frame;
 mod project_v4_text_frame;
 mod project_v4_video;
@@ -94,6 +95,7 @@ impl JobStore for SqliteJobStore {
                         | "render.project_text_frame.v4"
                         | "render.project_caption_frame.v4"
                         | "render.project_video.v4"
+                        | "render.project_caption_video.v4"
                         | "analysis.sequence_transcribe.v4"
                 ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
             {
@@ -281,6 +283,17 @@ fn execute_monitored(
                 )
             } else if job.kind == opencut_job_contracts::project_v4_video::V4_VIDEO_MP4_KIND {
                 project_v4_video::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind
+                == opencut_job_contracts::project_v4_caption_video::V4_CAPTION_VIDEO_MP4_KIND
+            {
+                project_v4_caption_video::execute(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                )
             } else if matches!(
                 job.kind.as_str(),
                 opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND

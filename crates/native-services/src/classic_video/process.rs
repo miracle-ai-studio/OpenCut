@@ -1,12 +1,34 @@
+use crate::classic_visual::VisualProcessSession;
 use crate::{
     browser_process::BrowserProcess,
     classic_audio::transport,
     classic_visual::{ClassicVisualProcessConfig, validate_identity, validate_quota},
 };
 use opencut_contracts::EditorError;
-use opencut_editor_application::{classic_text_frame_v2::*, classic_visual::*};
+use opencut_editor_application::{
+    classic_text_frame_v2::*, classic_text_frame_v3::*, classic_visual::*,
+};
 use serde_json::{Value, json};
 use std::{collections::HashSet, process::ChildStdin, sync::atomic::Ordering, time::Instant};
+trait VideoReceiptValidation<R> {
+    fn validate_video_receipt(&self, receipt: &R) -> Result<(), EditorError>;
+}
+impl VideoReceiptValidation<ClassicTextFrameReceiptV2> for ClassicTextFrameSessionV2<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicTextFrameReceiptV2,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
+impl VideoReceiptValidation<ClassicCaptionFrameReceiptV3> for ClassicCaptionFrameSessionV3<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicCaptionFrameReceiptV3,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
 fn err(message: &str) -> EditorError {
     EditorError::new("VIDEO_PROTOCOL_ERROR", message)
 }
@@ -38,6 +60,7 @@ pub struct ClassicVideoProcess {
     next: u64,
     count: u64,
     runtime: Option<ClassicVisualRuntimeReceipt>,
+    caption_mode: bool,
 }
 impl ClassicVideoProcess {
     #[cfg(unix)]
@@ -45,6 +68,23 @@ impl ClassicVideoProcess {
         config: ClassicVisualProcessConfig,
         count: u64,
         checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, false)
+    }
+    #[cfg(unix)]
+    pub fn start_caption(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, true)
+    }
+    #[cfg(unix)]
+    fn start_mode(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+        caption_mode: bool,
     ) -> Result<Self, EditorError> {
         if count == 0
             || count > 1800
@@ -69,9 +109,10 @@ impl ClassicVideoProcess {
             next: 0,
             count,
             runtime: None,
+            caption_mode,
         };
         let policy = &this.config.policy;
-        let begin = json!({"type":"beginTextVideoV1","frameCount":count,"runtime":{"chromiumExecutable":this.config.chromium},"admission":{
+        let begin = json!({"type":if caption_mode {"beginCaptionVideoV2"} else {"beginTextVideoV1"},"frameCount":count,"runtime":{"chromiumExecutable":this.config.chromium},"admission":{
             "maxFramePixels":policy.max_frame_pixels.to_string(),"maxDecodedPixels":policy.max_decoded_pixels.to_string(),"maxGpuBytes":policy.max_gpu_bytes.to_string(),"maxRgbaBytes":policy.max_rgba_bytes.to_string(),"maxEncodedBytes":policy.max_encoded_bytes,"maxOutputBytes":policy.max_output_bytes.to_string(),"maxRssBytes":policy.max_rss_bytes.to_string(),"deadlineMs":policy.deadline_ms,"quotaProfile":if this.config.strict_cgroup.is_some(){"strict-hard"}else{"monitored-terminate"},"cgroupDirectory":this.config.strict_cgroup}});
         this.send(begin)?;
         loop {
@@ -165,6 +206,39 @@ impl ClassicVideoProcess {
         fonts: &[ClassicTextFontHandleV2],
         sink: &mut dyn ClassicVisualRgbaSink,
     ) -> Result<ClassicTextFrameReceiptV2, EditorError> {
+        if self.caption_mode {
+            return Err(err("Text frame cannot enter caption video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    #[cfg(unix)]
+    pub fn render_caption_frame(
+        &mut self,
+        session: &mut ClassicCaptionFrameSessionV3<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicCaptionFrameReceiptV3, EditorError> {
+        if !self.caption_mode {
+            return Err(err("Caption frame cannot enter text video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    #[cfg(unix)]
+    fn render_session<S, R>(
+        &mut self,
+        session: &mut S,
+        resources: &mut R,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<S::Receipt, EditorError>
+    where
+        R: ClassicTextFrameResources + ?Sized,
+        S: VisualProcessSession<R>
+            + VideoReceiptValidation<<S as VisualProcessSession<R>>::Receipt>,
+    {
         if self.next >= self.count || session.policy() != &self.config.policy {
             return Err(err("Frame differs from persistent admission"));
         }
@@ -193,7 +267,7 @@ impl ClassicVideoProcess {
                     {
                         return Err(err("Reused or excessive video callback"));
                     }
-                    let request: TextFrameCallbackV2 = serde_json::from_value(
+                    let request: S::Callback = serde_json::from_value(
                         json!({"op":message.get("op"),"args":message.get("args")}),
                     )
                     .map_err(|_| err("Invalid V2 video callback"))?;
@@ -216,14 +290,14 @@ impl ClassicVideoProcess {
                     session.rgba_chunk(offset, &bytes, sink)?;
                 }
                 "frameComplete" => {
-                    let receipt: ClassicTextFrameReceiptV2 = serde_json::from_value(
+                    let receipt: S::Receipt = serde_json::from_value(
                         message
                             .get("receipt")
                             .cloned()
                             .ok_or_else(|| err("Missing V2 frame receipt"))?,
                     )
                     .map_err(|_| err("Invalid V2 frame receipt"))?;
-                    session.validate_receipt(&receipt)?;
+                    session.validate_video_receipt(&receipt)?;
                     resources.checkpoint()?;
                     self.next += 1;
                     return Ok(receipt);

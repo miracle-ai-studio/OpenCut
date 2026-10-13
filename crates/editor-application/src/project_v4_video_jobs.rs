@@ -59,6 +59,49 @@ pub struct PreparedVideoV4 {
     pub asset_ids: Vec<String>,
     pub font_ids: Vec<String>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VideoFrameProfile {
+    TextV2,
+    CaptionV3,
+}
+impl VideoFrameProfile {
+    pub fn kind(self) -> &'static str {
+        match self {
+            Self::TextV2 => V4_VIDEO_MP4_KIND,
+            Self::CaptionV3 => {
+                opencut_job_contracts::project_v4_caption_video::V4_CAPTION_VIDEO_MP4_KIND
+            }
+        }
+    }
+}
+pub enum PreparedVideoFrame {
+    Text(PreparedTextFrameV2),
+    Caption(PreparedTextFrameV3),
+}
+impl PreparedVideoFrame {
+    pub fn execution(&self) -> &PreparedTextFrameV2 {
+        match self {
+            Self::Text(frame) => frame,
+            Self::Caption(frame) => frame.execution(),
+        }
+    }
+}
+pub fn prepare_profiled_frame(
+    snapshot: &ProjectSnapshotV4,
+    sequence_id: &str,
+    at: &Time,
+    profile: VideoFrameProfile,
+) -> Result<PreparedVideoFrame, EditorError> {
+    match profile {
+        VideoFrameProfile::TextV2 => {
+            prepare_frame(snapshot, sequence_id, at).map(PreparedVideoFrame::Text)
+        }
+        VideoFrameProfile::CaptionV3 => {
+            crate::project_v4_caption_frame_jobs::prepare(snapshot, sequence_id, at)
+                .map(PreparedVideoFrame::Caption)
+        }
+    }
+}
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_ARGUMENT", message)
 }
@@ -137,6 +180,14 @@ pub fn prepare(
     sequence_id: &str,
     policy: &LocalVideoExecutionPolicyV1,
 ) -> Result<PreparedVideoV4, EditorError> {
+    prepare_with_profile(snapshot, sequence_id, policy, VideoFrameProfile::TextV2)
+}
+pub fn prepare_with_profile(
+    snapshot: &ProjectSnapshotV4,
+    sequence_id: &str,
+    policy: &LocalVideoExecutionPolicyV1,
+    profile: VideoFrameProfile,
+) -> Result<PreparedVideoV4, EditorError> {
     validate_policy(policy)?;
     opencut_editor_core::project_v4::validate_project_v4(&snapshot.project)?;
     let SettingsProfileV4::ClassicGlobal { settings } = &snapshot.project.settings else {
@@ -148,7 +199,9 @@ pub fn prepare(
         .iter()
         .find(|s| s.id == sequence_id)
         .ok_or_else(|| invalid("Video sequence does not exist"))?;
-    if !sequence.captions.is_empty() || !sequence.transitions.is_empty() {
+    if (profile == VideoFrameProfile::TextV2 && !sequence.captions.is_empty())
+        || !sequence.transitions.is_empty()
+    {
         return Err(unsupported());
     }
     let mut duration = RationalTime::new(0, 1)?;
@@ -177,6 +230,19 @@ pub fn prepare(
             }) || matches!(&element.content, ElementContentV4::Text { text } if !matches!(text.font, FontBindingV4::Locked { .. }))
             {
                 return Err(unsupported());
+            }
+        }
+    }
+    if profile == VideoFrameProfile::CaptionV3 {
+        for caption in &sequence.captions {
+            if caption.style.layout != CaptionLayoutProfileV4::PinnedCaptionV4
+                || !matches!(caption.style.font, FontBindingV4::Locked { .. })
+            {
+                return Err(unsupported());
+            }
+            let end = RationalTime::try_from(&opencut_time::range_end(&caption.timeline_range)?)?;
+            if end.cmp_exact(duration).is_gt() {
+                duration = end;
             }
         }
     }
@@ -226,8 +292,14 @@ pub fn prepare(
     let mut assets: BTreeSet<String> = audio.resources().map(|r| r.asset_id.clone()).collect();
     let mut fonts = BTreeSet::new();
     for index in 0..frame_count {
-        let frame = prepare_frame(snapshot, sequence_id, &frame_time(&identity, index)?)?;
-        crate::classic_text_frame_v2::admit_text_frame_v2(&frame, &policy.visual)?;
+        let selected = prepare_profiled_frame(
+            snapshot,
+            sequence_id,
+            &frame_time(&identity, index)?,
+            profile,
+        )?;
+        let frame = selected.execution();
+        crate::classic_text_frame_v2::admit_text_frame_v2(frame, &policy.visual)?;
         assets.extend(frame.media().resources().iter().map(|r| r.asset_id.clone()));
         fonts.extend(frame.graph().fonts.iter().map(|f| f.id.clone()));
     }
@@ -266,7 +338,10 @@ pub fn prepare(
         font_ids: fonts.into_iter().collect(),
     })
 }
-fn validate_lock(input: &PreparedV4VideoMp4V1, plan: &PreparedVideoV4) -> Result<(), EditorError> {
+pub(crate) fn validate_lock(
+    input: &PreparedV4VideoMp4V1,
+    plan: &PreparedVideoV4,
+) -> Result<(), EditorError> {
     let expected: BTreeMap<_, _> = plan
         .asset_ids
         .iter()
@@ -326,6 +401,12 @@ fn validate_lock(input: &PreparedV4VideoMp4V1, plan: &PreparedVideoV4) -> Result
     Ok(())
 }
 pub fn validate_prepared(input: &PreparedV4VideoMp4V1) -> Result<PreparedVideoV4, EditorError> {
+    validate_prepared_with_profile(input, VideoFrameProfile::TextV2)
+}
+pub fn validate_prepared_with_profile(
+    input: &PreparedV4VideoMp4V1,
+    profile: VideoFrameProfile,
+) -> Result<PreparedVideoV4, EditorError> {
     validate_authority(&input.authority)?;
     if ![
         &input.snapshot.project.id,
@@ -337,10 +418,11 @@ pub fn validate_prepared(input: &PreparedV4VideoMp4V1) -> Result<PreparedVideoV4
     {
         return Err(invalid("Invalid fixed video scope"));
     }
-    let plan = prepare(
+    let plan = prepare_with_profile(
         &input.snapshot,
         &input.sequence_id,
         &input.processing_policy,
+        profile,
     )?;
     validate_lock(input, &plan)?;
     Ok(plan)
@@ -349,10 +431,17 @@ pub fn validate_prepared_request(
     request: &JobRequest,
     input: &PreparedV4VideoMp4V1,
 ) -> Result<(), EditorError> {
+    validate_prepared_request_with_profile(request, input, VideoFrameProfile::TextV2)
+}
+pub fn validate_prepared_request_with_profile(
+    request: &JobRequest,
+    input: &PreparedV4VideoMp4V1,
+    profile: VideoFrameProfile,
+) -> Result<(), EditorError> {
     let public: SubmitV4VideoMp4V1 = serde_json::from_value(request.input.clone())
         .map_err(|_| invalid("Invalid public video request"))?;
     validate_submission(&public)?;
-    if request.kind != V4_VIDEO_MP4_KIND
+    if request.kind != profile.kind()
         || request.idempotency_key != public.idempotency_key
         || public.project_id != input.snapshot.project.id
         || public.revision != input.snapshot.revision
@@ -360,13 +449,21 @@ pub fn validate_prepared_request(
     {
         return Err(invalid("Video request differs from private preparation"));
     }
-    validate_prepared(input)?;
+    validate_prepared_with_profile(input, profile)?;
     Ok(())
 }
 pub fn submit_video_mp4(
     store: &mut impl V4VideoJobSubmissionStore,
     assets: &impl V4VideoAssetCapture,
     input: SubmitV4VideoMp4V1,
+) -> Result<JobRecord, EditorError> {
+    submit_video_mp4_with_profile(store, assets, input, VideoFrameProfile::TextV2)
+}
+pub fn submit_video_mp4_with_profile(
+    store: &mut impl V4VideoJobSubmissionStore,
+    assets: &impl V4VideoAssetCapture,
+    input: SubmitV4VideoMp4V1,
+    profile: VideoFrameProfile,
 ) -> Result<JobRecord, EditorError> {
     validate_submission(&input)?;
     let authorized = store.fixed_v4_video_snapshot(&input.project_id, &input.revision)?;
@@ -377,7 +474,7 @@ pub fn submit_video_mp4(
     }
     let request = JobRequest {
         idempotency_key: input.idempotency_key.clone(),
-        kind: V4_VIDEO_MP4_KIND.into(),
+        kind: profile.kind().into(),
         input: serde_json::to_value(&input)
             .map_err(|_| invalid("Cannot serialize video request"))?,
     };
@@ -385,10 +482,11 @@ pub fn submit_video_mp4(
         return Ok(existing);
     }
     validate_authority(&authorized.authority)?;
-    let plan = prepare(
+    let plan = prepare_with_profile(
         &authorized.snapshot,
         &input.sequence_id,
         &authorized.processing_policy,
+        profile,
     )?;
     let (asset_lock, font_lock) = assets.capture(
         &authorized.snapshot,
@@ -428,9 +526,33 @@ pub fn validate_stored_result(
 ) -> Result<V4VideoMp4ResultV1, EditorError> {
     let plan = validate_prepared(input).map_err(|_| stored_invalid())?;
     let public = &stored.public;
-    let visual = &public.execution.visual;
-    let encoder = &public.execution.encoder;
-    crate::project_v4_audio_jobs::validate_execution_summary(&plan.audio, &public.execution.audio)
+    if public.schema_version != 1
+        || public.identity != plan.identity
+        || public.asset_lock != input.asset_lock
+        || public.font_lock != input.font_lock
+        || public.render_input_sha256 != render_input_sha256(&input.snapshot, &input.sequence_id)?
+    {
+        return Err(stored_invalid());
+    }
+    validate_result_evidence(
+        input,
+        &plan,
+        &public.execution,
+        &public.artifact,
+        &stored.artifact,
+    )?;
+    Ok(public.clone())
+}
+pub(crate) fn validate_result_evidence(
+    input: &PreparedV4VideoMp4V1,
+    plan: &PreparedVideoV4,
+    execution: &V4VideoExecutionSummaryV1,
+    artifact: &opencut_job_contracts::project_v4_frame::V4FrameArtifactMetadataV1,
+    descriptor: &ArtifactDescriptor,
+) -> Result<(), EditorError> {
+    let visual = &execution.visual;
+    let encoder = &execution.encoder;
+    crate::project_v4_audio_jobs::validate_execution_summary(&plan.audio, &execution.audio)
         .map_err(|_| stored_invalid())?;
     let expected_rgba = crate::classic_audio::decimal(&plan.identity.frame_count)?
         .checked_mul(u64::from(plan.identity.width))
@@ -443,18 +565,18 @@ pub fn validate_stored_result(
     };
     let video_seconds = seconds(&plan.identity.video_duration)?;
     let audio_seconds = plan.audio.duration_samples() as f64 / 48_000.0;
-    if public.schema_version != 1 || public.identity != plan.identity || public.asset_lock != input.asset_lock || public.font_lock != input.font_lock || public.render_input_sha256 != render_input_sha256(&input.snapshot, &input.sequence_id)?
-        || visual.host_sha256 != public.execution.audio.host_sha256
-        || visual.browser_sha256 != public.execution.audio.browser_sha256
-        || visual.browser_version != public.execution.audio.browser_version
+    if visual.host_sha256 != execution.audio.host_sha256
+        || visual.browser_sha256 != execution.audio.browser_sha256
+        || visual.browser_version != execution.audio.browser_version
         || visual.playwright_version != "1.63.0" || visual.mediabunny_version != "1.41.0" || visual.gpu_backend != "webgpu" || visual.texture_format != "bgra8unorm" || visual.decoder_profile != crate::project_v4_frame_jobs::CLASSIC_VISUAL_DECODER_PROFILE_V4 || !valid_id(&visual.browser_version) || !valid_id(&visual.gpu_device)
-        || [&visual.host_sha256, &visual.browser_sha256, &visual.module_sha256, &visual.shader_sha256, &encoder.ffmpeg_sha256, &encoder.ffprobe_sha256, &public.execution.frame_receipts_sha256].into_iter().any(|h| !valid_hash(h))
-        || public.execution.frames_rendered != plan.identity.frame_count || public.execution.rgba_bytes != expected_rgba.to_string() || encoder.observed_video_frames != plan.identity.frame_count || encoder.video_codec != "h264" || encoder.audio_codec != "aac" || encoder.pixel_format != "yuv420p" || encoder.crf != 18 || encoder.audio_bitrate != 192000
+        || [&visual.host_sha256, &visual.browser_sha256, &visual.module_sha256, &visual.shader_sha256, &encoder.ffmpeg_sha256, &encoder.ffprobe_sha256, &execution.frame_receipts_sha256].into_iter().any(|h| !valid_hash(h))
+        || execution.frames_rendered != plan.identity.frame_count || execution.rgba_bytes != expected_rgba.to_string() || encoder.observed_video_frames != plan.identity.frame_count || encoder.video_codec != "h264" || encoder.audio_codec != "aac" || encoder.pixel_format != "yuv420p" || encoder.crf != 18 || encoder.audio_bitrate != 192000
         || !encoder.observed_video_duration_seconds.is_finite() || (encoder.observed_video_duration_seconds - video_seconds).abs() > 0.002 || !encoder.observed_audio_duration_seconds.is_finite() || (encoder.observed_audio_duration_seconds - audio_seconds).abs() > 0.05
-        || public.execution.audio.mastering_profile != crate::project_v4_audio_jobs::V4AudioMasteringProfileV1::ClassicExportWholeSceneWebAudioV31
-        || stored.artifact.mime_type != "video/mp4" || public.artifact.mime_type != "video/mp4" || stored.artifact.size == 0 || stored.artifact.size > input.processing_policy.max_output_bytes || public.artifact.size_bytes != stored.artifact.size.to_string() || public.artifact.content_hash != stored.artifact.content_hash || !valid_hash(&stored.artifact.content_hash)
+        || execution.audio.mastering_profile != crate::project_v4_audio_jobs::V4AudioMasteringProfileV1::ClassicExportWholeSceneWebAudioV31
+        || descriptor.mime_type != "video/mp4" || artifact.mime_type != "video/mp4" || descriptor.size == 0 || descriptor.size > input.processing_policy.max_output_bytes || artifact.size_bytes != descriptor.size.to_string() || artifact.content_hash != descriptor.content_hash || !valid_hash(&descriptor.content_hash)
     { return Err(stored_invalid()); }
-    Ok(public.clone())
+    Ok(())
 }
+
 #[cfg(test)]
 mod tests;

@@ -62,7 +62,7 @@ impl V4VideoJobSubmissionStore for EditorApplication {
         )
     }
 }
-struct Assets(opencut_asset_store::AssetStore);
+pub(super) struct Assets(pub(super) opencut_asset_store::AssetStore);
 impl V4VideoAssetCapture for Assets {
     fn capture(
         &self,
@@ -150,6 +150,24 @@ pub(super) fn verified_target(
         return Ok(None);
     }
     Ok(Some((project, revision)))
+}
+pub(super) fn require_prepared_authority(
+    connection: &Connection,
+    caller: &ExecutionContext,
+    prepared: &PreparedV4VideoMp4V1,
+) -> Result<(), EditorError> {
+    require_scope(connection, caller, &prepared.snapshot.project.id)?;
+    if prepared.authority != authority(caller)
+        || prepared.processing_policy != policy()
+        || fixed(
+            connection,
+            &prepared.snapshot.project.id,
+            &prepared.snapshot.revision,
+        )? != prepared.snapshot
+    {
+        return Err(access::denied());
+    }
+    Ok(())
 }
 /// Called inside the same IMMEDIATE transaction as acceptance, including owners.
 pub(super) fn validate_acceptance(

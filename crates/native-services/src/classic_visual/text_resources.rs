@@ -129,6 +129,24 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
         font_policy: &FontImportPolicyV1,
         checkpoint: F,
     ) -> Result<Self, EditorError> {
+        Self::new_caption_inner(root, prepared, font_policy, checkpoint, true)
+    }
+    /// Original caption-font proof without opening any media for live preview.
+    pub fn new_caption_fonts_v3(
+        root: &Path,
+        prepared: &PreparedTextFrameV3,
+        font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        Self::new_caption_inner(root, prepared, font_policy, checkpoint, false)
+    }
+    fn new_caption_inner(
+        root: &Path,
+        prepared: &PreparedTextFrameV3,
+        font_policy: &FontImportPolicyV1,
+        checkpoint: F,
+        verify_media: bool,
+    ) -> Result<Self, EditorError> {
         let caption_ids: BTreeSet<String> = prepared
             .captions()
             .iter()
@@ -146,7 +164,7 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicTextResources<F> {
             prepared.execution(),
             font_policy,
             checkpoint,
-            true,
+            verify_media,
             Some(&space_fonts),
             Some(&caption_ids),
         )

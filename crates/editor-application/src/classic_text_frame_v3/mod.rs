@@ -1,7 +1,6 @@
 //! V3 validates caption layout observations against immutable original text
 //! before delegating the complete frame binding to the unchanged V2 kernel.
 use crate::classic_text_frame_v2::ClassicTextFrameSessionV2;
-use opencut_api_contracts::visual_text_frame_v2::ClassicTextFramePlanV2;
 use opencut_composition::project_v4::*;
 use opencut_contracts::{EditorError, text_frame_v2::*, text_frame_v3::*};
 use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
@@ -12,14 +11,8 @@ mod session;
 #[cfg(test)]
 mod tests;
 mod wrapping;
+pub use opencut_api_contracts::visual_text_frame_v3::ClassicTextFramePlanV3;
 pub use session::*;
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ClassicTextFramePlanV3 {
-    pub identity: opencut_contracts::text_frame_v2::TextFrameIdentityV2,
-    pub execution: ClassicTextFramePlanV2,
-    pub captions: Vec<CaptionRasterPlanV3>,
-}
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_VISUAL_PLAN", message)
 }

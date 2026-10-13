@@ -294,6 +294,7 @@ pub fn transition(
                                 | "render.project_text_frame.v4"
                                 | "render.project_caption_frame.v4"
                                 | "render.project_video.v4"
+                                | "render.project_caption_video.v4"
                                 | "analysis.sequence_transcribe.v4"
                         ) || current.kind == "media.import"
                             && matches!(update, WorkerUpdate::Complete(_))) =>
@@ -407,6 +408,7 @@ mod tests {
     fn caption_and_transcription_cancel_retire_late_worker_outputs() {
         for kind in [
             "render.project_caption_frame.v4",
+            "render.project_caption_video.v4",
             "analysis.sequence_transcribe.v4",
         ] {
             let queued = JobRecord {

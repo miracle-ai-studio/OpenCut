@@ -41,7 +41,8 @@ export class V4VisualPreview {
   private presentedTime: V4AudioPreviewSession["authoritative_time"] | null =
     null;
   private currentToken: string | null = null;
-  private consumedTime: V4AudioPreviewSession["authoritative_time"] | null = null;
+  private consumedTime: V4AudioPreviewSession["authoritative_time"] | null =
+    null;
   private running: Promise<void> | null = null;
   private authorityTimer: ReturnType<typeof setInterval> | null = null;
   private watchdog: ReturnType<typeof setTimeout> | null = null;
@@ -59,7 +60,12 @@ export class V4VisualPreview {
     };
   };
   private publish(patch: Partial<VisualPreviewView>) {
-    if ("pixels" in patch && this.view.pixels && patch.pixels !== this.view.pixels && "close" in this.view.pixels)
+    if (
+      "pixels" in patch &&
+      this.view.pixels &&
+      patch.pixels !== this.view.pixels &&
+      "close" in this.view.pixels
+    )
       this.view.pixels.close();
     this.view = { ...this.view, ...patch };
     for (const listener of this.listeners) listener();
@@ -120,13 +126,21 @@ export class V4VisualPreview {
         // Worklet observation only fences presentation. It never compiles IR
         // or substitutes for Rust's confirmed consumer time.
         this.consumedTime = {
-          ticks: (BigInt(session.actual_start_sample) + BigInt(frames)).toString(),
+          ticks: (
+            BigInt(session.actual_start_sample) + BigInt(frames)
+          ).toString(),
           timebase: session.identity.sample_rate,
         };
         if (this.presentedTime) {
-          const c = this.consumedTime, t = this.presentedTime;
-          const delta = BigInt(c.ticks) * BigInt(t.timebase) - BigInt(t.ticks) * BigInt(c.timebase);
-          if (delta < 0n || delta * 1000n > 150n * BigInt(c.timebase) * BigInt(t.timebase))
+          const c = this.consumedTime,
+            t = this.presentedTime;
+          const delta =
+            BigInt(c.ticks) * BigInt(t.timebase) -
+            BigInt(t.ticks) * BigInt(c.timebase);
+          if (
+            delta < 0n ||
+            delta * 1000n > 150n * BigInt(c.timebase) * BigInt(t.timebase)
+          )
             this.publish({ pixels: null, phase: "loading" });
         }
       },
@@ -235,10 +249,15 @@ export class V4VisualPreview {
     while (this.desired && epoch === this.epoch) {
       const session = this.desired;
       this.desired = null;
-      const shown = this.presentedTime, requested = session.authoritative_time;
+      const shown = this.presentedTime,
+        requested = session.authoritative_time;
       // A consumer report may renew the lease without advancing the cursor.
       // Re-executing that same confirmed frame wastes decode/GPU and FIFO time.
-      if (shown && BigInt(requested.ticks) * BigInt(shown.timebase) <= BigInt(shown.ticks) * BigInt(requested.timebase))
+      if (
+        shown &&
+        BigInt(requested.ticks) * BigInt(shown.timebase) <=
+          BigInt(shown.ticks) * BigInt(requested.timebase)
+      )
         continue;
       const signal = this.abort.signal;
       try {
@@ -282,15 +301,26 @@ export class V4VisualPreview {
         lease_id: session.lease_id,
       },
       signal,
+      !!(
+        this.host.state()?.historical ?? this.host.state()?.head
+      )?.project.sequences.find((s) => s.id === session.identity.sequence_id)
+        ?.captions.length,
     );
-    const discard = () => { if ("close" in result.pixels) result.pixels.close(); };
-    if (signal.aborted) { discard(); signal.throwIfAborted(); }
+    const discard = () => {
+      if ("close" in result.pixels) result.pixels.close();
+    };
+    if (signal.aborted) {
+      discard();
+      signal.throwIfAborted();
+    }
     if (
       epoch !== this.epoch ||
       this.currentToken !== identity ||
       api !== this.host.api()
-    )
-      { discard(); return; }
+    ) {
+      discard();
+      return;
+    }
     const latest = this.host.state()?.audioPreview.session;
     // Compare rational public Times exactly, never divide ticks to evaluate IR.
     if (latest && token(latest) === identity) {

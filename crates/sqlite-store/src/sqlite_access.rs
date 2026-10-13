@@ -152,6 +152,9 @@ pub(super) fn verified_target(
     if kind == "render.project_video.v4" {
         return sqlite_project_v4_video_jobs::verified_target(connection, input);
     }
+    if kind == "render.project_caption_video.v4" {
+        return sqlite_project_v4_caption_video_jobs::verified_target(connection, input);
+    }
     if matches!(
         kind,
         "render.project_text_frame.v4" | "render.project_caption_frame.v4"
@@ -290,6 +293,7 @@ pub(super) fn require_submission(
             | "render.project_text_frame.v4"
             | "render.project_caption_frame.v4"
             | "render.project_video.v4"
+            | "render.project_caption_video.v4"
             | "analysis.sequence_transcribe.v4"
     ) {
         let (project, _) = verified_target(connection, &request.kind, &request.input)?

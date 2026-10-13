@@ -1,9 +1,11 @@
 //! Process-local host assembly for fixed-revision audio. The application owns
 //! clocks and control semantics; this host owns authorization, CAS and lifetime.
+mod caption;
 mod producer;
 mod stream;
 mod text;
 use crate::{Automation, Caller, ExecutionContext};
+pub(crate) use caption::caption_picture;
 use opencut_composition::project_v4::{PcmFormatV4, PreparedPreviewAudioV4};
 use opencut_contracts::EditorError;
 use opencut_editor_application::audio_preview_v4::*;
@@ -50,6 +52,7 @@ struct SessionState {
     authority: TrustedJobAuthorityV1,
     picture: Option<CachedPicture>,
     text_picture: Option<text::CachedTextPicture>,
+    caption_picture: Option<caption::CachedCaptionPicture>,
     text_coverage: Option<text::CachedTextCoverage>,
 }
 struct CachedPicture {
@@ -67,6 +70,7 @@ impl SessionState {
         ) {
             self.picture = None;
             self.text_picture = None;
+            self.caption_picture = None;
             self.text_coverage = None;
         }
         Ok(changed)
@@ -94,6 +98,7 @@ impl Entry {
         if state.expire(now())? {
             state.picture = None;
             state.text_picture = None;
+            state.caption_picture = None;
             state.text_coverage = None;
             self.credit.notify_all();
         }
@@ -115,6 +120,7 @@ impl Entry {
             if state.expire(now())? {
                 state.picture = None;
                 state.text_picture = None;
+                state.caption_picture = None;
                 state.text_coverage = None;
                 self.credit.notify_all();
             }
@@ -154,6 +160,7 @@ impl Entry {
         let mut state = lock(&self.state)?;
         state.picture = None;
         state.text_picture = None;
+        state.caption_picture = None;
         state.text_coverage = None;
         self.shutdown.store(true, Ordering::Release);
         self.credit.notify_all();
@@ -295,6 +302,7 @@ pub(crate) fn create(
             authority: selected.authority,
             picture: None,
             text_picture: None,
+            caption_picture: None,
             text_coverage: None,
         }),
         credit: Condvar::new(),
@@ -357,6 +365,7 @@ pub(crate) fn control(
         if transition.effect != AudioPreviewEffectV4::None {
             state.picture = None;
             state.text_picture = None;
+            state.caption_picture = None;
             state.text_coverage = None;
         }
         // Predicate changes and notification share the stream wait mutex.
@@ -411,6 +420,7 @@ pub(crate) fn acquire(
         if next.effect != AudioPreviewEffectV4::None {
             state.picture = None;
             state.text_picture = None;
+            state.caption_picture = None;
             state.text_coverage = None;
             state.authority = trusted(&host.caller);
         } else {

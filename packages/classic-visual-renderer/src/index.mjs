@@ -1,3 +1,4 @@
+export { renderClassicCaptionFrameV3 } from "./text-frame-v3.mjs";
 import { decodeImage, decodeVideo } from "./decoder.mjs";
 export { VisualDecoderCache } from "./decoder.mjs";
 export { measureClassicText } from "./text-layout.mjs";

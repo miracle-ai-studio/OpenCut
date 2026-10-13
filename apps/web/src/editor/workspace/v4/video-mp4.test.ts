@@ -104,3 +104,45 @@ it("keeps service capability failures isolated to MP4 export", async () => {
   expect(f.controller.getSnapshot().v4!.head.project.id).toBeTruthy();
   expect(f.requests).toHaveLength(0);
 });
+
+it("caption export preserves its versioned tool through uncertain retry after scene changes", async () => {
+  const f = await setup();
+  const state = f.controller.getSnapshot().v4!;
+  // Only presence is used by submission routing; no caption layout is mocked.
+  state.head.project.sequences[0].captions.push({} as never);
+  const previous = vi.mocked(f.api.sdk.call).getMockImplementation()!;
+  let original: V4VideoMp4Request | null = null;
+  vi.mocked(f.api.sdk.call).mockImplementation(async (name, input, options) => {
+    if (name === "opencut_project_v4_caption_video_mp4_capability")
+      return {
+        schema_version: 2,
+        available: true,
+        submit_tool: "opencut_job_v4_caption_video_mp4",
+        unavailable_reason: null,
+      } as never;
+    if (name === "opencut_job_v4_caption_video_mp4") {
+      if (!original) {
+        original = structuredClone(input as V4VideoMp4Request);
+        throw new TypeError("Lost caption submission");
+      }
+      expect(input).toEqual(original);
+      return {
+        ...f.jobFor(input as V4VideoMp4Request),
+        kind: "render.project_caption_video.v4",
+      } as never;
+    }
+    if (name === "opencut_job_v4_video_mp4")
+      throw new Error("Caption retry switched operation");
+    return previous(name, input, options);
+  });
+  await f.controller.v4.videoMp4.refreshCapability();
+  await expect(f.controller.v4.videoMp4.start()).rejects.toThrow(
+    "Lost caption submission",
+  );
+  expect(f.controller.getSnapshot().v4!.videoMp4?.tool).toBe(
+    "opencut_job_v4_caption_video_mp4",
+  );
+  state.head.project.sequences[0].captions.length = 0;
+  await f.controller.v4.videoMp4.retry();
+  expect(f.controller.getSnapshot().v4!.videoMp4?.phase).toBe("accepted");
+});

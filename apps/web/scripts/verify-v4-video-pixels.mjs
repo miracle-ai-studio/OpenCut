@@ -15,10 +15,20 @@ import { chromium } from "@playwright/test";
 // Near-black/white alpha must remain 255.
 const directory = process.argv[2];
 assert(directory, "Usage: node apps/web/scripts/verify-v4-video-pixels.mjs OWNED_WORKSPACE");
-const evidence = JSON.parse(await fs.readFile(path.join(directory, "b2-video-evidence.json"), "utf8"));
+const evidence = JSON.parse(await fs.readFile(path.join(directory, process.argv[3] ?? "b2-video-evidence.json"), "utf8"));
+const prefix = evidence.captions ? "b3-caption-video" : "b2";
+if (evidence.captions) for (const cue of evidence.captions) {
+  assert.deepEqual(cue.style.font_size, { unit: "canvas_pixels", value: 24 });
+  assert.equal(cue.style.layout, "pinned_caption_v4");
+  assert.equal(cue.style.text_align, "center");
+  assert.equal(cue.style.line_height_px, null); assert.equal(cue.style.max_width_px, null);
+  assert.equal(cue.style.background_color, null);
+  assert.deepEqual(cue.style.color, { alpha: 1, blue: 1, encoding: "srgb", green: 1, red: 1 });
+}
+
 // Preserve the first failed raw-RGB evidence before adding a second independent
 // observation strategy. No existing threshold or result is rewritten in place.
-try { await fs.copyFile(path.join(directory, "b2-independent-pixels.json"), path.join(directory, "b2-independent-pixels-original-rawrgb.json"), 1); }
+try { await fs.copyFile(path.join(directory, `${prefix}-independent-pixels.json`), path.join(directory, `${prefix}-independent-pixels-original-rawrgb.json`), 1); }
 catch (error) { if (!["ENOENT", "EEXIST"].includes(error.code)) throw error; }
 const fontsDirectory = process.env.OPENCUT_B1_FONT_SOURCES;
 assert(fontsDirectory, "OPENCUT_B1_FONT_SOURCES must identify the retained independent font-source manifest directory");
@@ -40,18 +50,18 @@ const candidates = [];
 for (let i = 0; i < evidence.pictures.length; i++) {
   const picture = evidence.pictures[i];
   candidates.push({ kind: "preview", time: picture.time, actual: (await fs.readFile(picture.output)).toString("base64"),
-    source: (await decode(path.join(directory, "sample.mp4"), picture.time, `b2-oracle-preview-source-${i}.png`)).png });
+    source: (await decode(path.join(directory, "sample.mp4"), picture.time, `${prefix}-oracle-preview-source-${i}.png`)).png });
 }
-for (const time of [.5, 1.5]) {
-  candidates.push({ kind: "mp4", time, actual: (await decode(evidence.output, time, `b2-mp4-${time}.png`)).png,
-    source: (await decode(path.join(directory, "sample.mp4"), time, `b2-oracle-mp4-source-${time}.png`)).png });
+for (const time of evidence.mp4_sample_times ?? [.5, 1.5]) {
+  candidates.push({ kind: "mp4", time, actual: (await decode(evidence.output, time, `${prefix}-mp4-${time}.png`)).png,
+    source: (await decode(path.join(directory, "sample.mp4"), time, `${prefix}-oracle-mp4-source-${time}.png`)).png });
 }
 const browser = await chromium.launch({ headless: true, executablePath: process.env.OPENCUT_CHROME });
 const observations = [];
 try {
   const page = await browser.newPage();
   for (const candidate of candidates) {
-    const measured = await page.evaluate(async ({ candidate, fonts, titles, settings }) => {
+    const measured = await page.evaluate(async ({ candidate, fonts, titles, settings, captions }) => {
       const width = settings.canvas_size.width, height = settings.canvas_size.height;
       const load = async base64 => { const image = new Image(); image.src = `data:image/png;base64,${base64}`; await image.decode(); return image; };
       const base = new OffscreenCanvas(width, height), baseCtx = base.getContext("2d");
@@ -72,9 +82,40 @@ try {
           const size = height / 90 * title.text.font_size.value;
           const x = width / 2 + title.visual.transform.position_x_px, y = height / 2 + title.visual.transform.position_y_px;
           ctx.font = `${size}px ${family}`; ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.fillStyle = "white";
-          const metrics = ctx.measureText(title.text.content);
-          rectangles.push({ x0: Math.floor(x - metrics.width / 2 - 4), x1: Math.ceil(x + metrics.width / 2 + 4), y0: Math.floor(y - size - 4), y1: Math.ceil(y + size + 4) });
-          ctx.fillText(title.text.content, x, y);
+          const lines = title.text.content.split("\n");
+          const lineHeight = size * title.text.line_height_multiplier;
+          const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+          const firstY = y - (lines.length - 1) * lineHeight / 2;
+          rectangles.push({ x0: Math.floor(x - maxWidth / 2 - 4), x1: Math.ceil(x + maxWidth / 2 + 4), y0: Math.floor(firstY - size - 4), y1: Math.ceil(firstY + (lines.length - 1) * lineHeight + size + 4) });
+          lines.forEach((line, i) => ctx.fillText(line, x, firstY + i * lineHeight));
+        }
+        // Caption source metadata, never a production wrap/layout receipt.
+        // Fixture is the same independently checked 24px centered white style.
+        for (const [index, caption] of (captions ?? []).entries()) {
+          const start = Number(caption.timeline_range.start.ticks) / caption.timeline_range.start.timebase;
+          const duration = Number(caption.timeline_range.duration.ticks) / caption.timeline_range.duration.timebase;
+          if (candidate.time < start || candidate.time >= start + duration) continue;
+          const font = fonts.find(f => f.id === caption.style.font.font_id);
+          const family = `CaptionIndependentOracle${index}`;
+          const face = new FontFace(family, Uint8Array.from(atob(font.bytes), c => c.charCodeAt(0)));
+          await face.load(); document.fonts.add(face); faces.push(face);
+          ctx.font = `24px "${family}"`; ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.fillStyle = "white";
+          const lines = [];
+          for (const paragraph of caption.text.replace(/\r\n?/g, "\n").split("\n")) {
+            const words = paragraph.trim().split(/\s+/u).filter(Boolean);
+            if (!words.length) { lines.push(""); continue; }
+            let line = "";
+            for (const word of words) {
+              const next = line ? `${line} ${word}` : word;
+              if (line && ctx.measureText(next).width > width * .8) { lines.push(line); line = word; }
+              else line = next;
+            }
+            lines.push(line);
+          }
+          const lineHeight = 24 * 1.2, top = height * .95 - lines.length * lineHeight;
+          const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+          rectangles.push({ x0: Math.floor(width / 2 - maxWidth / 2 - 4), x1: Math.ceil(width / 2 + maxWidth / 2 + 4), y0: Math.floor(top - 4), y1: Math.ceil(height * .95 + 4) });
+          lines.forEach((line, i) => ctx.fillText(line, width / 2, top + (i + .5) * lineHeight));
         }
         const a = actualCtx.getImageData(0, 0, width, height).data;
         const e = ctx.getImageData(0, 0, width, height).data;
@@ -106,7 +147,7 @@ try {
           outsideP99: outsideDiffs[Math.floor(outsideDiffs.length * .99)], alphaErrors,
           glyphs: glyphs.map(g => ({ ...g, iou: g.intersection / g.union })), lumaGlyphs: lumaGlyphs.map(g => ({ ...g, iou: g.intersection / g.union })), rectangles };
       } finally { for (const face of faces) document.fonts.delete(face); }
-    }, { candidate, fonts, titles: evidence.titles, settings: evidence.settings });
+    }, { candidate, fonts, titles: evidence.titles, settings: evidence.settings, captions: evidence.captions });
     const limits = candidate.kind === "preview" ? { mean: 3, p99: 8, iou: .98 } : { mean: 5, p99: 20, iou: .90 };
     observations.push({ kind: candidate.kind, time: candidate.time, limits, selectedMask: candidate.kind === "preview" ? "raw_rgb_delta32" : "bt601_luma_delta32", rawRgbGatePassed: measured.glyphs.every(g => g.iou >= limits.iou), ...measured });
     assert.equal(measured.alphaErrors, 0);
@@ -116,6 +157,6 @@ try {
   }
 } finally {
   await browser.close();
-  await fs.writeFile(path.join(directory, "b2-independent-pixels.json"), JSON.stringify({ source: "original sample.mp4 and independently hashed font source bytes", project_id: evidence.project_id, revision: evidence.revision, observations }, null, 2) + "\n");
+  await fs.writeFile(path.join(directory, `${prefix}-independent-pixels.json`), JSON.stringify({ source: "original sample.mp4 and independently hashed font source bytes", project_id: evidence.project_id, revision: evidence.revision, observations }, null, 2) + "\n");
 }
 process.stdout.write(JSON.stringify({ passed: true, observations }, null, 2) + "\n");

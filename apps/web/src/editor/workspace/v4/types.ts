@@ -5,7 +5,9 @@ import type { ClipboardState } from "./timeline-edit/clipboard";
 import type { FontRecoveryState } from "./text/font-recovery";
 import type { EditRecoveryState } from "./edit-recovery";
 
-export type V4FrameRequest = ToolInput<"opencut_job_v4_frame_png"> | ToolInput<"opencut_job_v4_text_frame_png">;
+export type V4FrameRequest =
+  | ToolInput<"opencut_job_v4_frame_png">
+  | ToolInput<"opencut_job_v4_text_frame_png">;
 export type V4AudioPreviewCreate = ToolInput<"opencut_audio_preview_v4_create">;
 export type V4AudioPreviewControl =
   ToolInput<"opencut_audio_preview_v4_control">;
@@ -30,7 +32,10 @@ export type V4AudioPreviewState = {
 };
 export type V4FrameCapability =
   ToolOutput<"opencut_project_v4_frame_capability">;
-export type V4FrameResult = JobResultMap["render.project_frame.v4"] | JobResultMap["render.project_text_frame.v4"] | JobResultMap["render.project_caption_frame.v4"];
+export type V4FrameResult =
+  | JobResultMap["render.project_frame.v4"]
+  | JobResultMap["render.project_text_frame.v4"]
+  | JobResultMap["render.project_caption_frame.v4"];
 export type V4FrameAttempt = {
   protocol: 1 | 2 | 3;
   request: V4FrameRequest;
@@ -181,8 +186,11 @@ export type V4GainDraft = {
 };
 
 export type V4VideoMp4Request = ToolInput<"opencut_job_v4_video_mp4">;
-export type V4VideoMp4Capability = ToolOutput<"opencut_project_v4_video_capability">;
+export type V4VideoMp4Capability =
+  | ToolOutput<"opencut_project_v4_video_capability">
+  | ToolOutput<"opencut_project_v4_caption_video_mp4_capability">;
 export type V4VideoMp4Attempt = {
+  tool?: "opencut_job_v4_video_mp4" | "opencut_job_v4_caption_video_mp4";
   request: V4VideoMp4Request;
   sceneName: string;
   phase: "submitting" | "unconfirmed" | "retryable" | "accepted";
