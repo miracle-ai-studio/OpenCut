@@ -15,3 +15,17 @@ export async function executeVisualPage({plan,admission}) {
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {globalThis.__opencutVisualGpu?.device.destroy();}
 }
+
+// Kept as a standalone serializable function for the isolated page. Transport
+// dispatch selects this only for the new, independently validated operation.
+export async function executeTextVisualPage({plan,admission}) {
+  try {
+    const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
+      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
+    }};
+    const receipt=await globalThis.__opencutVisualModule.renderClassicTextFrameV2(plan,host,globalThis.__opencutVisualGpu);
+    return {ok:true,receipt};
+  } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
+  finally {globalThis.__opencutVisualGpu?.device.destroy();}
+}

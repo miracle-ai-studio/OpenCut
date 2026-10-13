@@ -33,7 +33,7 @@ export function TasksPanel() {
                   ? t("Audio range WAV export")
                   : job.kind === "render.project_audio.v4"
                     ? t("Audio WAV export")
-                  : job.kind === "render.project_frame.v4"
+                  : (job.kind === "render.project_frame.v4" || job.kind === "render.project_text_frame.v4")
                     ? t("Scene frame")
                     : job.kind.startsWith("render.")
                       ? t("Export")

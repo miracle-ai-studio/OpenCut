@@ -2,6 +2,7 @@
 //! Versions and job manifests identify bytes independently of provenance paths.
 pub mod catalog;
 pub mod gate;
+pub mod font_import_v1;
 pub mod uploads;
 use opencut_contracts::{Asset, AssetVersion, EditorError, ProjectSnapshot};
 use sha2::{Digest, Sha256};

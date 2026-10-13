@@ -1,7 +1,7 @@
 //! Fixed verified CAS descriptors shared by isolated audio and visual adapters.
 use opencut_asset_store::AssetStore;
 use opencut_composition::project_v4::CasResourceV4;
-use opencut_contracts::EditorError;
+use opencut_contracts::{AssetVersion, EditorError};
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -25,26 +25,45 @@ impl<F: FnMut() -> Result<(), EditorError>> VerifiedBrowserResources<F> {
     pub(crate) fn new<'a>(
         root: &Path,
         resources: impl IntoIterator<Item = &'a CasResourceV4>,
+        checkpoint: F,
+        invalid_code: &'static str,
+    ) -> Result<Self, EditorError> {
+        Self::new_versions(
+            root,
+            resources
+                .into_iter()
+                .map(|resource| (resource.asset_id.as_str(), &resource.version)),
+            checkpoint,
+            invalid_code,
+        )
+    }
+    /// The host supplies already authorized fixed identities. A font uses its
+    /// AssetVersion directly; media kind or source URI is not an access grant.
+    pub(crate) fn new_versions<'a, I: Into<String>>(
+        root: &Path,
+        resources: impl IntoIterator<Item = (I, &'a AssetVersion)>,
         mut checkpoint: F,
         invalid_code: &'static str,
     ) -> Result<Self, EditorError> {
         checkpoint()?;
         let store = AssetStore::read_only(root)?;
         let mut files = BTreeMap::new();
-        for resource in resources {
-            if files.contains_key(&resource.asset_id) {
+        for (id, version) in resources {
+            let id = id.into();
+            if files.contains_key(&id) {
                 continue;
             }
             checkpoint()?;
-            let (file, size) = store.open_version_verified(&resource.version)?;
+            let (file, size) = store.open_version_verified(version)?;
+            checkpoint()?;
             let descriptor = Descriptor {
                 handle: format!("resource-{}", files.len()),
                 file,
                 size,
-                hash: resource.version.content_hash.clone(),
+                hash: version.content_hash.clone(),
                 active: false,
             };
-            files.insert(resource.asset_id.clone(), descriptor);
+            files.insert(id, descriptor);
         }
         Ok(Self {
             _store: store,

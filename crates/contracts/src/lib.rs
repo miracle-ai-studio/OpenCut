@@ -23,6 +23,10 @@ pub mod source_audio_v4;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
+pub mod text_authoring_v1;
+pub mod text_frame_v2;
+pub mod font_import_v1;
+pub mod font_recovery_v1;
 pub mod visual_frame_v4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

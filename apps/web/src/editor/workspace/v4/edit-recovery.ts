@@ -2,6 +2,7 @@ import { OpenCutApiError } from "../../../lib/editor-sdk";
 import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
 import type { V4SessionHost } from "./session";
+import { fontRecoveryBlocked } from "./text/font-recovery";
 import { RecoveryPointersV2 } from "./edit-recovery-pointers";
 
 export type RecoveryContextV2 = ToolInput<"opencut_edit_recovery_v2_stage">["context"];
@@ -122,6 +123,7 @@ export class V4EditRecovery {
     this.pointers.remove(fence.identity, fence.projectId, record.recovery_id); return proof.receipt ?? null;
   }
   async execute(api: EditorApi, context: RecoveryContextV2): Promise<RecoveryReceiptV2> {
+    if (fontRecoveryBlocked(this.host.state()?.fontRecovery)) throw new Error("Resolve the original font import before starting another operation.");
     const captured = fixed(context), projectId = captured.intent.request.project_id, fence = this.fence(api, projectId);
     const previous = this.value(fence);
     if (this.legacy?.identity === fence.identity && this.legacy.projectId === projectId && this.host.state()?.timelineEdit.attempt?.recoveryId)

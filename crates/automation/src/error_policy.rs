@@ -18,7 +18,10 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "DATABASE_BUSY" => (429, 7),
         "UPLOAD_TIMEOUT" | "SOURCE_ART_DEADLINE_EXCEEDED" | "SOURCE_ART_TIME_LIMIT" => (408, 124),
         "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
-        "NOT_AUTHORIZED" | "PERMISSION_DENIED" => (403, 3),
+        "NOT_AUTHORIZED" | "PERMISSION_DENIED" | "FONT_NETWORK_DENIED" => (403, 3),
+        "FONT_SOURCE_TIMEOUT" => (408, 124),
+        "INVALID_FONT" | "UNSUPPORTED_FONT" | "FONT_GLYPH_MISSING" | "FONT_FACE_MISMATCH" | "FONT_BUDGET_EXCEEDED" => (422, 6),
+        "FONT_SOURCE_UNAVAILABLE" => (502, 7),
         "NOT_FOUND" => (404, 4),
         "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" => (410, 4),
         "STORAGE_POLICY_CONFLICT"
@@ -39,6 +42,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "REDO_UNAVAILABLE"
         | "NO_EFFECT"
         | "COLLABORATION_CONFLICT"
+        | "RECOVERY_PROTOCOL_REQUIRED"
         | "ANALYSIS_NOT_READY"
         | "IDEMPOTENCY_KEY_REUSED"
         | "ALREADY_EXISTS"

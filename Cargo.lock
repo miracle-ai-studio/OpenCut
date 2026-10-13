@@ -4699,6 +4699,8 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "ttf-parser 0.25.1",
+ "ureq",
  "uuid",
 ]
 

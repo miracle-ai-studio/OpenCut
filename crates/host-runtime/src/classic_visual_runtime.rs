@@ -126,3 +126,27 @@ pub(crate) fn capability() -> V4FramePngCapabilityV1 {
         unavailable_reason: result.err().map(|error| error.message),
     }
 }
+
+/// The V2 capability requires its additional source modules. V1 configuration
+/// remains valid for older installed runtimes that lack text rendering.
+pub(crate) fn text_capability() -> opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
+    let result = paths().and_then(|(_, _, runner)| check_text_modules(&runner));
+    opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
+        schema_version: 2,
+        available: result.is_ok(),
+        submit_tool: "opencut_job_v4_text_frame_png".into(),
+        unavailable_reason: result.err().map(|error| error.message),
+    }
+}
+
+fn check_text_modules(runner: &Path) -> Result<(), EditorError> {
+    let package = runner.parent().and_then(Path::parent).ok_or_else(unavailable)?;
+    package_file(package, "src/text-frame.mjs").map_err(|_| unavailable())?;
+    package_file(package, "src/text-layout.mjs").map_err(|_| unavailable())?;
+    Ok(())
+}
+pub(crate) fn configured_text(policy: &LocalVisualExecutionPolicyV1) -> Result<ClassicVisualProcessConfig, EditorError> {
+    let config = configured(policy)?;
+    check_text_modules(&config.runner)?;
+    Ok(config)
+}

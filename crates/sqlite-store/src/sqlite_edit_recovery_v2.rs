@@ -51,7 +51,43 @@ fn load(
 fn corrupt(message: &str) -> EditorError {
     EditorError::new("STORAGE_ERROR", message)
 }
+fn require_original_font_authority(
+    connection: &Connection,
+    context: &ExecutionContext,
+    stored: &Stored,
+) -> Result<(), EditorError> {
+    if matches!(
+        sqlite_edit_recovery_shared::classify_v2_payload(
+            &stored.payload,
+            &stored.digest,
+            &stored.project
+        )?,
+        sqlite_edit_recovery_shared::V2SlotKind::Font { .. }
+    ) {
+        let original = opencut_editor_application::font_import_v1::recovery::decode_payload(
+            &stored.payload,
+            &stored.digest,
+            &stored.project,
+        )?;
+        sqlite_project_v4::authorize(
+            connection,
+            context,
+            V4Intent::FontImport(&original.context.request),
+        )?;
+    }
+    Ok(())
+}
 fn decode(stored: &Stored) -> Result<StageEditRecoveryV2, EditorError> {
+    if matches!(
+        sqlite_edit_recovery_shared::classify_v2_payload(
+            &stored.payload,
+            &stored.digest,
+            &stored.project
+        )?,
+        sqlite_edit_recovery_shared::V2SlotKind::Font { .. }
+    ) {
+        return Err(sqlite_edit_recovery_shared::font_protocol_required());
+    }
     if stored.payload.len() > opencut_editor_application::edit_recovery_v1::MAX_RECORD_BYTES
         || recovery::exact_payload_digest(&stored.payload) != stored.digest
     {
@@ -67,7 +103,7 @@ fn decode(stored: &Stored) -> Result<StageEditRecoveryV2, EditorError> {
 }
 
 /// Verify the receipt's actual transaction/revision edges, not the present head.
-fn receipt_journal(
+pub(super) fn receipt_journal(
     connection: &Connection,
     intent: V4Intent<'_>,
     receipt: &TransactionResult,
@@ -311,9 +347,13 @@ impl EditRecoveryStoreV2 for EditorApplication {
         )?;
         if let Some(stored) = load(&sql, &identity, intent.project_id(), None)? {
             if stored.digest != prepared.digest() || stored.payload != prepared.payload() {
-                let old = decode(&stored)?;
+                let old = sqlite_edit_recovery_shared::classify_v2_payload(
+                    &stored.payload,
+                    &stored.digest,
+                    &stored.project,
+                )?;
                 return Err(EditorError::new(
-                    if recovery::intent(&old.context.intent).key() == intent.key() {
+                    if old.key() == intent.key() {
                         "IDEMPOTENCY_KEY_REUSED"
                     } else {
                         "RECOVERY_CONFLICT"
@@ -423,6 +463,7 @@ impl EditRecoveryStoreV2 for EditorApplication {
             &input.project_id,
             input.recovery_id.as_deref(),
         )? {
+            require_original_font_authority(&sql, context, &stored)?;
             let decoded = decode(&stored)?;
             sqlite_project_v4::authorize(&sql, context, recovery::intent(&decoded.context.intent))?;
             Some(DiscoveredEditRecoveryV2::CurrentV2 {
@@ -459,6 +500,7 @@ impl EditRecoveryStoreV2 for EditorApplication {
                 "Recovery record does not exist in the authenticated V2 scope",
             )
         })?;
+        require_original_font_authority(&sql, &context, &stored)?;
         let decoded = decode(&stored)?;
         let intent = recovery::intent(&decoded.context.intent);
         sqlite_project_v4::authorize(&sql, &context, intent)?;

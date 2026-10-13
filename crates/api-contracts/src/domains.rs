@@ -75,13 +75,15 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
         || suffix.starts_with("visual_preview_v4_")
     {
         ("task", suffix.replace('_', "."))
-    } else if suffix.starts_with("subtitle_") || suffix.starts_with("timeline_v4_") {
+    } else if suffix.starts_with("subtitle_") || suffix.starts_with("timeline_v4_") || suffix.starts_with("text_v1_") {
         ("edit", suffix.replace('_', "."))
     } else if suffix.starts_with("classic_") {
         ("project", suffix.replace('_', "."))
     } else if suffix.starts_with("project_media_")
         || suffix.starts_with("upload_")
         || suffix.starts_with("media_")
+        || suffix.starts_with("font_v1_")
+        || suffix.starts_with("font_recovery_v1_")
     {
         ("media", suffix.replace('_', "."))
     } else if suffix.starts_with("project_plugin_") || suffix.starts_with("plugin_") {

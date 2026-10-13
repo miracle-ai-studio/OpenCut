@@ -19,6 +19,7 @@ mod sqlite_edit_control;
 mod sqlite_edit_recovery_shared;
 mod sqlite_edit_recovery_v1;
 mod sqlite_edit_recovery_v2;
+mod sqlite_font_recovery_v1;
 mod sqlite_gc;
 mod sqlite_history_navigation;
 mod sqlite_jobs;
@@ -38,6 +39,7 @@ pub mod sqlite_project_v3_jobs;
 mod sqlite_project_v4;
 pub mod sqlite_project_v4_audio_jobs;
 pub mod sqlite_project_v4_frame_jobs;
+pub mod sqlite_project_v4_text_frame_jobs;
 mod sqlite_project_v4_history;
 mod sqlite_project_v4_jobs;
 mod sqlite_projects;
@@ -75,6 +77,7 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project_audio.v4",
     "render.project_audio_range.v4",
     "render.project_frame.v4",
+    "render.project_text_frame.v4",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
@@ -635,6 +638,9 @@ impl EditorApplication {
                 &request,
                 &execution_input,
             )?;
+        }
+        if request.kind == "render.project_text_frame.v4" {
+            sqlite_project_v4_text_frame_jobs::validate_acceptance(&tx, &context, &request, &execution_input)?;
         }
         if request.kind == "render.project_frame.v4" {
             sqlite_project_v4_frame_jobs::validate_acceptance(

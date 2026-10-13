@@ -9,6 +9,7 @@ pub mod audio_preview_v4;
 mod browser_runtime;
 mod classic_audio_runtime;
 mod classic_visual_runtime;
+mod font_import_v1;
 pub mod denials;
 mod source_art_runtime;
 mod source_art_v1;
@@ -244,6 +245,19 @@ impl Automation {
 
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value, EditorError> {
         match name {
+            "opencut_font_recovery_v1_stage" => to_value(self.app.stage_font_recovery_v1(&parse(arguments)?)?),
+            "opencut_font_recovery_v1_inspect" => to_value(self.app.inspect_font_recovery_v1(&parse(arguments)?)?),
+            "opencut_font_recovery_v1_ack" => to_value(self.app.ack_font_recovery_v1(&parse(arguments)?)?),
+            "opencut_font_v1_catalog" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(font_import_v1::catalog())
+            }
+            "opencut_font_v1_import" => {
+                to_value(font_import_v1::import(self, &parse(arguments)?)?)
+            }
+            "opencut_text_v1_plan" => {
+                to_value(opencut_editor_application::text_authoring_v1::plan(&self.app, &parse(arguments)?)?)
+            }
             "opencut_media_import_plan_v1" => {
                 let input: opencut_contracts::media_import::MediaImportRequestV1 =
                     parse(arguments)?;
@@ -331,6 +345,16 @@ impl Automation {
                     parse(arguments)?,
                 )
                 .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_project_v4_text_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::text_capability())
+            }
+            "opencut_job_v4_text_frame_png" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_text_frame_png(
+                    &mut self.app, parse(arguments)?,
+                ).map_err(opencut_editor_application::job_views::public_error)?;
                 to_value(opencut_editor_application::job_views::project(result))
             }
             "opencut_project_v4_frame_capability" => {

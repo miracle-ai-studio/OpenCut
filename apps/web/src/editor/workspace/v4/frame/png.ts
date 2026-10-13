@@ -4,12 +4,17 @@ import { publicJobResult } from "../../../../lib/editor-sdk";
 import type { ArtifactReference, PublicJob } from "../../../../lib/editor-sdk";
 import type { EditorApi } from "../../api";
 import type { V4FrameRequest, V4FrameResult } from "../types";
-const KIND = "render.project_frame.v4";
+const kindFor = (protocol: 1 | 2) =>
+  protocol === 2 ? "render.project_text_frame.v4" : "render.project_frame.v4";
 const MAX_PNG_BYTES = 32 * 1024 * 1024;
 
-export function sameTarget(job: PublicJob, request: V4FrameRequest) {
+export function sameTarget(
+  job: PublicJob,
+  request: V4FrameRequest,
+  protocol: 1 | 2 = 1,
+) {
   return (
-    job.kind === KIND &&
+    job.kind === kindFor(protocol) &&
     job.target?.project_id === request.project_id &&
     job.target.revision === request.revision &&
     job.target.sequence_id === request.sequence_id
@@ -21,20 +26,24 @@ export function verifiedResult(
   request: V4FrameRequest,
   width: number,
   height: number,
+  protocol: 1 | 2 = 1,
 ) {
-  if (!sameTarget(job, request))
+  if (!sameTarget(job, request, protocol))
     throw new Error("Scene frame returned an unexpected task identity.");
-  const result: V4FrameResult = publicJobResult(job, KIND);
+  const result: V4FrameResult = publicJobResult(job, kindFor(protocol));
   const identity = result?.identity;
   if (
-    result?.schema_version !== 1 ||
+    result?.schema_version !== protocol ||
     !identity ||
     identity.project_id !== request.project_id ||
     identity.revision !== request.revision ||
     identity.sequence_id !== request.sequence_id ||
     identity.time?.ticks !== request.time.ticks ||
     identity.time.timebase !== request.time.timebase ||
-    identity.profile !== "classic-v31-gpu-normal-frame" ||
+    identity.profile !==
+      (protocol === 2
+        ? "classic-v31-gpu-normal-text-frame-v2"
+        : "classic-v31-gpu-normal-frame") ||
     !Number.isSafeInteger(identity.width) ||
     !Number.isSafeInteger(identity.height) ||
     identity.width <= 0 ||

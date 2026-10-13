@@ -59,16 +59,16 @@ fn stored_invalid() -> EditorError {
         "Stored V4 frame result differs from its fixed input",
     )
 }
-fn valid_id(value: &str) -> bool {
+pub(crate) fn valid_id(value: &str) -> bool {
     !value.trim().is_empty() && value.len() <= 1024 && !value.chars().any(char::is_control)
 }
-fn valid_hash(value: &str) -> bool {
+pub(crate) fn valid_hash(value: &str) -> bool {
     value.len() == 64
         && value
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
-fn validate_authority(authority: &TrustedJobAuthorityV1) -> Result<(), EditorError> {
+pub(crate) fn validate_authority(authority: &TrustedJobAuthorityV1) -> Result<(), EditorError> {
     if let TrustedJobAuthorityV1::Credential {
         principal_id,
         credential_id,
@@ -332,7 +332,7 @@ pub fn public_sources(
         })
         .collect())
 }
-fn private_sources(
+pub(crate) fn private_sources(
     sources: &[V4FrameSourceObservationV1],
 ) -> Result<Vec<DecodedVisualSourceV4>, EditorError> {
     sources

@@ -7,6 +7,10 @@ use opencut_editor_application::gc::{
 use opencut_editor_core::project_v4::legacy::*;
 use std::{collections::HashSet, path::Path};
 
+#[cfg(test)]
+#[path = "font_import_tests.rs"]
+mod font_import_tests;
+
 #[derive(Default)]
 struct ScanBudget {
     bytes: usize,
@@ -309,6 +313,11 @@ pub(super) fn authorize_intent(
     context: &opencut_editor_application::audit::ExecutionContext,
     intent: V4Intent<'_>,
 ) -> Result<(), EditorError> {
+    if let V4Intent::FontImport(input) = intent {
+        // Read/Edit/write-control are checked by the common outer authorizer.
+        // The only new resource authority is the exact reviewed catalog entry.
+        return opencut_editor_application::font_import_v1::validate_import_request_v1(input);
+    }
     if let V4Intent::PublicApply(input) = intent {
         return super::public::authorize_bindings(connection, context, input);
     }
@@ -330,7 +339,10 @@ pub(super) fn authorize_intent(
     }
     let scope = ResourceScope::load(connection, intent.project_id())?;
     match intent {
-        V4Intent::PublicApply(_) | V4Intent::Undo(_) | V4Intent::Redo(_) => {
+        V4Intent::PublicApply(_)
+        | V4Intent::Undo(_)
+        | V4Intent::Redo(_)
+        | V4Intent::FontImport(_) => {
             unreachable!("handled above")
         }
         V4Intent::Create(_) | V4Intent::Copy(_) => Err(access::denied()),
@@ -374,21 +386,39 @@ pub(super) fn authorize_intent(
 pub(super) fn authorize_document(
     connection: &Connection,
     context: &opencut_editor_application::audit::ExecutionContext,
-    project: &str,
+    intent: V4Intent<'_>,
     document: &ProjectDocumentV4,
 ) -> Result<(), EditorError> {
+    let project = intent.project_id();
+    let imported = match intent {
+        V4Intent::FontImport(input) => {
+            let font =
+                opencut_editor_application::font_import_v1::expected_import_resource_v1(input)?;
+            if !document.fonts.iter().any(|candidate| candidate == &font) {
+                return Err(access::denied());
+            }
+            Some(font)
+        }
+        _ => None,
+    };
     if context.caller().is_owner() {
         return Ok(());
     }
     let current = ResourceScope::current(connection, project)?;
     if document.assets.iter().all(|asset| current.asset(asset))
-        && document.fonts.iter().all(|font| current.font(font))
+        && document
+            .fonts
+            .iter()
+            .all(|font| current.font(font) || imported.as_ref() == Some(font))
     {
         return Ok(());
     }
     let scope = ResourceScope::load(connection, project)?;
     if document.assets.iter().any(|asset| !scope.asset(asset))
-        || document.fonts.iter().any(|font| !scope.font(font))
+        || document
+            .fonts
+            .iter()
+            .any(|font| !scope.font(font) && imported.as_ref() != Some(font))
     {
         return Err(access::denied());
     }

@@ -33,6 +33,7 @@ pub enum V4Intent<'a> {
     PublicApply(&'a opencut_contracts::project_v4_public::ApplyPublicV4Project),
     Undo(&'a opencut_contracts::project_v4_history::UndoV4Project),
     Redo(&'a opencut_contracts::project_v4_history::RedoV4Project),
+    FontImport(&'a opencut_contracts::font_import_v1::ImportFontV1),
 }
 impl<'a> V4Intent<'a> {
     pub fn project_id(self) -> &'a str {
@@ -45,6 +46,7 @@ impl<'a> V4Intent<'a> {
             Self::PublicApply(r) => &r.project_id,
             Self::Undo(r) => &r.project_id,
             Self::Redo(r) => &r.project_id,
+            Self::FontImport(r) => &r.project_id,
         }
     }
     pub fn family(self) -> &'static str {
@@ -57,6 +59,7 @@ impl<'a> V4Intent<'a> {
             Self::PublicApply(_) => "project_v4_public_apply",
             Self::Undo(_) => "project_v4_undo",
             Self::Redo(_) => "project_v4_redo",
+            Self::FontImport(_) => "project_v4_font_import_v1",
         }
     }
     pub fn scope(self) -> &'a str {
@@ -75,6 +78,7 @@ impl<'a> V4Intent<'a> {
             Self::PublicApply(r) => &r.idempotency_key,
             Self::Undo(r) => &r.idempotency_key,
             Self::Redo(r) => &r.idempotency_key,
+            Self::FontImport(r) => &r.idempotency_key,
         }
     }
     pub fn expected_revision(self) -> Option<&'a str> {
@@ -86,6 +90,7 @@ impl<'a> V4Intent<'a> {
             Self::PublicApply(r) => Some(&r.expected_revision),
             Self::Undo(r) => Some(&r.expected_revision),
             Self::Redo(r) => Some(&r.expected_revision),
+            Self::FontImport(r) => Some(&r.expected_revision),
         }
     }
     pub fn identity(self) -> Result<crate::identity::RequestIdentity, EditorError> {
@@ -100,6 +105,9 @@ impl<'a> V4Intent<'a> {
             }
             Self::Undo(r) => crate::identity::request_identity(self.family(), self.scope(), r),
             Self::Redo(r) => crate::identity::request_identity(self.family(), self.scope(), r),
+            Self::FontImport(r) => {
+                crate::identity::request_identity(self.family(), self.scope(), r)
+            }
         }
     }
     pub fn request_json(self) -> Result<String, EditorError> {
@@ -112,6 +120,7 @@ impl<'a> V4Intent<'a> {
             Self::PublicApply(r) => encode_json(r, "Public V4 edit request"),
             Self::Undo(r) => encode_json(r, "V4 undo request"),
             Self::Redo(r) => encode_json(r, "V4 redo request"),
+            Self::FontImport(r) => encode_json(r, "V1 font import request"),
         }
     }
 }

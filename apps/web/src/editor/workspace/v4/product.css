@@ -181,6 +181,19 @@
   width: 100%;
   resize: vertical;
 }
+.v4-text-authoring:empty {
+  display: none;
+}
+.v4-text-authoring {
+  margin-bottom: 16px;
+}
+.v4-text-authoring textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+.v4-text-authoring fieldset {
+  min-width: 0;
+}
 .v4-product details {
   margin-top: 14px;
 }

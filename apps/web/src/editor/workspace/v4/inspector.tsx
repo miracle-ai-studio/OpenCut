@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { formatTime } from "../../model/time";
 import { t } from "../../shared/locale";
 import type { V4Document, V4Element, V4Sequence } from "./types";
+import { V4TextEditButton } from "./text/workspace";
 const label = (kind: string) =>
   t(
     (
@@ -156,6 +157,7 @@ export function V4Inspector({
           )}
           {content?.kind === "text" && (
             <>
+              <V4TextEditButton elementId={element.id} locked={sequence.tracks.find((track) => track.elements.some((item) => item.id === element.id))?.locked ?? true} />
               <p className="v4-note-text">{content.text.content}</p>
               <Properties
                 rows={[

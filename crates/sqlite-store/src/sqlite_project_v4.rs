@@ -396,7 +396,7 @@ impl ProjectV4Store for EditorApplication {
         resources::authorize_document(
             &self.connection,
             &self.connection.1,
-            intent.project_id(),
+            intent,
             &prepared.snapshot().project,
         )?;
         let fixed = load_source(
@@ -443,7 +443,7 @@ impl ProjectV4Store for EditorApplication {
             ));
         }
         opencut_editor_core::project_v4::validate_project_v4(&snapshot.project)?;
-        resources::authorize_document(&tx, &context, intent.project_id(), &snapshot.project)?;
+        resources::authorize_document(&tx, &context, intent, &snapshot.project)?;
         let document = encode_json(&snapshot.project, "V4 committed document")?;
         let receipt = encode_json(result, "V4 transaction receipt")?;
         tx.execute("INSERT INTO revisions(revision,project_id,parent_revision,transaction_id,document_json) VALUES (?1,?2,?3,?4,?5)", params![result.revision,intent.project_id(),result.base_revision,result.transaction_id,document]).map_err(storage_error)?;

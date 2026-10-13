@@ -26,6 +26,8 @@ import { EditRecoveryPanel } from "./edit-recovery-panel";
 import { MediaPlanDialog } from "./media-dialog";
 import type { MediaFileTarget } from "./media";
 import type { V4Element } from "./types";
+import { V4TextActions, V4TextAuthoringProvider, V4TextPanel } from "./text/workspace";
+import { fontRecoveryBlocked } from "./text/font-recovery";
 
 /** Full V4 remains in the workspace controller. Read panels never manufacture
  * a legacy document. Changes use versioned public application operations. */
@@ -81,7 +83,11 @@ export function V4Product() {
       setPending(false);
     }
   };
-  const readonly = !!v4.historical || busy || pending;
+  const fontBlocked = fontRecoveryBlocked(v4.fontRecovery);
+  const textAvailable = v4.textFrameCapability?.schema_version === 2 && v4.textFrameCapability.available && v4.textFrameCapability.submit_tool === "opencut_job_v4_text_frame_png";
+  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0]) => controller.v4.importFont(request) : undefined;
+  const fontImportBlockedReason = fontBlocked ? "Resolve the original font import before starting another operation." : null;
+  const readonly = !!v4.historical || busy || pending || fontBlocked;
   const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {
     const capturedApi = api;
     try { await controller.v4.media.importFiles(files, undefined, target); }
@@ -105,6 +111,7 @@ export function V4Product() {
     } catch (error) { controller.report(error); }
   };
   return (
+    <V4TextAuthoringProvider available={textAvailable} importFont={importFont} fontImportBlockedReason={fontImportBlockedReason}>
     <main className="workspace-layout v4-product" aria-label={t("V4 editor")}>
       <EditRecoveryPanel />
       <div className="v4-scene-bar toolbar">
@@ -199,6 +206,7 @@ export function V4Product() {
         </Panel>
         <Panel title={t("Inspector")} className="v4-inspector">
           <div className="scroll padded">
+            <V4TextPanel />
             {editing ? (
               <BookmarkEditor
                 key={editing === "new" ? `new:${sequence.id}` : editing.id}
@@ -276,6 +284,7 @@ export function V4Product() {
         className="v4-timeline"
         actions={
           <>
+            <V4TextActions />
             <Button
               disabled={readonly}
               onClick={() => {
@@ -378,5 +387,6 @@ export function V4Product() {
       />}
       <V4AudioGainStatus />
     </main>
+    </V4TextAuthoringProvider>
   );
 }

@@ -2,14 +2,15 @@ import { decodeImage, decodeVideo } from "./decoder.mjs";
 export { VisualDecoderCache } from "./decoder.mjs";
 import { openGpuRealm, renderGpuFrame } from "./gpu.mjs";
 import { byteBudget, checkAbort, integer, natural, reject, sameJsonFacts } from "./validation.mjs";
+import { composeTextFrame, validateTextFramePlan } from "./text-frame.mjs";
 export { openGpuRealm };
 const clone = value => structuredClone(value);
-async function encodedResource(resource,host,budget,signal) {
+async function encodedResource(resource,host,budget,signal,operation="resolveVerifiedBytes",argument="resource") {
   const expected=natural(resource.size,"encoded resource size");
   if(expected===0n||expected>BigInt(host.admission.maxEncodedBytes)||expected>BigInt(Number.MAX_SAFE_INTEGER)) reject("VISUAL_BUDGET_EXCEEDED","Encoded resource exceeds admission");
   const release=budget.reserve(Number(expected)*3);let transfer;
   try {
-    checkAbort(signal);transfer=await host.callback("resolveVerifiedBytes",{resource});checkAbort(signal);
+    checkAbort(signal);transfer=await host.callback(operation,{[argument]:resource});checkAbort(signal);
     if(natural(transfer.byteLength,"verified byte length")!==expected) reject("INVALID_VISUAL_PLAN","Verified byte length changed");
     const bytes=new Uint8Array(Number(expected));let offset=0;
     while(offset<bytes.length) {
@@ -27,6 +28,13 @@ async function encodedResource(resource,host,budget,signal) {
   finally {if(transfer)await host.callback("releaseVerifiedBytes",{transferId:transfer.transferId});}
 }
 export async function renderClassicFrame(fixedPlan,host,realm,signal,cache,decoders) {
+  return renderFrame(fixedPlan,host,realm,signal,cache,decoders);
+}
+export async function renderClassicTextFrameV2(fixedPlan,host,realm,signal,cache,decoders) {
+  checkAbort(signal);const plan=clone(fixedPlan);validateTextFramePlan(plan,host.admission);
+  return renderFrame(plan.media,host,realm,signal,cache,decoders,state=>composeTextFrame(plan,host,state,signal));
+}
+async function renderFrame(fixedPlan,host,realm,signal,cache,decoders,compose) {
   checkAbort(signal);const plan=clone(fixedPlan),admission=host.admission;
   const width=integer(plan.identity.width,"frame width",1,16384),height=integer(plan.identity.height,"frame height",1,16384);
   const rgba=BigInt(width)*BigInt(height)*4n;
@@ -105,12 +113,13 @@ export async function renderClassicFrame(fixedPlan,host,realm,signal,cache,decod
       sources.set(layer.elementId,source);
       decoded.push({kind:decode.kind==="image"?"readyImage":"readyVideo",elementId:layer.elementId,width:source.width,height:source.height,...(decode.kind==="video"?{requestedTime:clone(decode.requestedTime),selectedVideoStream:null,actualTimestampSeconds:source.actualTimestampSeconds,frameDurationSeconds:source.frameDurationSeconds}:{})});
     }
-    checkAbort(signal);const bound=clone(await host.callback("bindFrame",{decoded:clone(decoded)}));checkAbort(signal);
+    checkAbort(signal);let bound=clone(await host.callback("bindFrame",{decoded:clone(decoded)}));checkAbort(signal);
     if(!sameJsonFacts(bound.identity,plan.identity)||!sameJsonFacts(bound.decoded,decoded))reject("INVALID_VISUAL_PLAN","Bound frame changed fixed identity or decoder facts");
+    if(compose)bound=await compose({bound,sources,budget,canvases,releases,encoded,retainedDecoded,resolveFont:resource=>encodedResource(resource,host,budget,signal,"resolveVerifiedFontBytes","font")});
     const gpu = await renderGpuFrame(bound,sources,admission,async(offset,bytes)=>{checkAbort(signal);await host.rgba(offset,bytes);checkAbort(signal);},signal,realm,host.surface);
     host.observeExecution?.({ ...gpu, peakAccountedBytes: String(budget.peak), retainedDecodedBytes: String(retainedDecoded), retainedEncodedBytes: String([...cache?.values() ?? []].reduce((n,b)=>n+b.byteLength,0)) });
     checkAbort(signal);
-    return {identity:clone(plan.identity),engineIdentity:"classic-v31-gpu-normal-frame",bound,rgbaBytes:host.surface ? "0" : String(rgba),peakAccountedBytes:String(budget.peak)};
+    return {identity:clone(compose?bound.identity:plan.identity),engineIdentity:compose?bound.identity.profile:"classic-v31-gpu-normal-frame",bound,rgbaBytes:host.surface ? "0" : String(rgba),peakAccountedBytes:String(budget.peak)};
   } finally {
     for(const canvas of canvases){canvas.width=0;canvas.height=0;}
     for(const item of encoded.values())item.release();for(const release of releases)release();

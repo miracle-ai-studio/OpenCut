@@ -625,6 +625,7 @@ fn media_workspace_dispatch_reuses_fixed_assets_and_commits_new_track_once() {
 
 #[test]
 fn frame_tool_dispatch_preserves_fixed_scope_and_requires_read_and_jobs() {
+    for (tool, capability_tool, kind, version) in [("opencut_job_v4_frame_png", "opencut_project_v4_frame_capability", "render.project_frame.v4", 1), ("opencut_job_v4_text_frame_png", "opencut_project_v4_text_frame_capability", "render.project_text_frame.v4", 2)] {
     let directory = tempfile::tempdir().unwrap();
     let database = directory.path().join("workspace.sqlite");
     let mut automation = Automation::open(&database).unwrap();
@@ -637,32 +638,33 @@ fn frame_tool_dispatch_preserves_fixed_scope_and_requires_read_and_jobs() {
     let issued = automation.app.issue_credential("agent").unwrap();
     let caller = automation.app.authenticate(&issued.secret).unwrap();
     automation.caller = caller.clone();
-    let capability = data(automation.call("opencut_project_v4_frame_capability", json!({})));
-    assert_eq!(capability["schema_version"], 1);
-    assert_eq!(capability["submit_tool"], "opencut_job_v4_frame_png");
+    let capability = data(automation.call(capability_tool, json!({})));
+    assert_eq!(capability["schema_version"], version);
+    assert_eq!(capability["submit_tool"], tool);
     let request = json!({"project_id":"p","revision":snapshot["revision"],"sequence_id":"main",
         "idempotency_key":"frame","time":{"ticks":"1","timebase":7}});
-    let accepted = data(automation.call("opencut_job_v4_frame_png", request.clone()));
-    assert_eq!(accepted["kind"], "render.project_frame.v4");
+    let accepted = data(automation.call(tool, request.clone()));
+    assert_eq!(accepted["kind"], kind);
     assert_eq!(accepted["target"]["revision"], snapshot["revision"]);
     assert_eq!(accepted["target"]["sequence_id"], "main");
     assert_eq!(accepted["artifacts"], json!([]));
     assert_eq!(
-        data(automation.call("opencut_job_v4_frame_png", request.clone())),
+        data(automation.call(tool, request.clone())),
         accepted
     );
     let mut changed = request.clone();
     changed["time"]["ticks"] = json!("2");
     error(
-        automation.call("opencut_job_v4_frame_png", changed),
+        automation.call(tool, changed),
         "IDEMPOTENCY_KEY_REUSED",
     );
     for (generation, actions) in [("1", vec![ProjectAction::Read]), ("2", vec![])] {
         policy(&mut automation, generation, actions);
         automation.caller = caller.clone();
         error(
-            automation.call("opencut_job_v4_frame_png", request.clone()),
+            automation.call(tool, request.clone()),
             "NOT_AUTHORIZED",
         );
     }
+}
 }

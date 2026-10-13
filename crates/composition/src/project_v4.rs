@@ -24,11 +24,15 @@ mod source;
 #[cfg(test)]
 mod tests;
 mod visual_execution;
+mod text_execution;
+mod text_frame_execution;
 pub use capabilities::*;
 pub use compiler::compile_frame_v4;
 pub use coverage::*;
 pub use source::*;
 pub use visual_execution::*;
+pub use text_execution::*;
+pub use text_frame_execution::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompositionV4 {

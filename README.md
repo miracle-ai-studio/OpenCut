@@ -40,7 +40,10 @@ target/release/opencut --json server stop
 
 开发时 `npm run dev --prefix apps/web` 使用本地 Vite 代理，`OPENCUT_SERVER_URL` 可配置开发服务目标；后台服务仍独立运行。
 
-V4 场景声音试听、WAV 与单帧 PNG 需配置共享浏览器运行时，分别见[音频运行时](packages/classic-audio-renderer/README.md)和[视觉运行时](packages/classic-visual-renderer/README.md)。安装锁定依赖并指定已有 Chromium 后，在启动服务前设置 `OPENCUT_CLASSIC_AUDIO_PACKAGE`、`OPENCUT_CLASSIC_AUDIO_CHROMIUM`、`OPENCUT_CLASSIC_VISUAL_PACKAGE`、`OPENCUT_CLASSIC_VISUAL_CHROMIUM` 的绝对路径；Node 可通过对应的 `OPENCUT_CLASSIC_AUDIO_NODE` / `OPENCUT_CLASSIC_VISUAL_NODE` 指定。配置变化需重新启动服务。Web 根据服务能力提供固定修订声音播放、暂停/继续、WAV 导出和场景静帧；播放头来自实际 AudioWorklet 消费，场景画面仍为静帧。PNG 当前支持视频、静态 PNG/JPEG、normal 混合、变换、透明度和纯色背景。文字、效果、蒙版、连续画面与视频导出仍待迁移；这些运行时尚未完成正式发行包验收。
+V4 场景声音试听、WAV 与单帧 PNG 需配置共享浏览器运行时，分别见[音频运行时](packages/classic-audio-renderer/README.md)和[视觉运行时](packages/classic-visual-renderer/README.md)。安装锁定依赖并指定已有 Chromium 后，在启动服务前设置 `OPENCUT_CLASSIC_AUDIO_PACKAGE`、`OPENCUT_CLASSIC_AUDIO_CHROMIUM`、`OPENCUT_CLASSIC_VISUAL_PACKAGE`、`OPENCUT_CLASSIC_VISUAL_CHROMIUM` 的绝对路径；Node 可通过对应的 `OPENCUT_CLASSIC_AUDIO_NODE` / `OPENCUT_CLASSIC_VISUAL_NODE` 指定。配置变化需重新启动服务。Web 根据服务能力提供固定修订声音播放、暂停/继续、WAV 导出和场景静帧；播放头来自实际 AudioWorklet 消费，normal 媒体连续声画已有指定范围验收。PNG 当前支持视频、静态 PNG/JPEG、锁定静态字体自由文字、normal 混合、变换、透明度和纯色背景。文字连续预览、完整文字样式、效果、蒙版与视频导出仍待迁移；这些运行时尚未完成正式发行包验收。
+
+固定字体文字使用版本化文字帧入口，Web 可导入 Lato/Ma Shan Zheng、创建和编辑自由文字并渲染场景 PNG；整体验收状态以[交付台账](design/architecture/headless-completion-ledger.md)为准。导入目录中的字体需要在启动服务前设置 `OPENCUT_ALLOW_PUBLIC_FONT_DOWNLOAD=1`，默认关闭网络获取。仅下载固定提交、固定哈希的开放许可字体，文本内容不发送给字体来源。固定 HTTPS 源优先使用 `HTTPS_PROXY` / `https_proxy`，保留 `NO_PROXY` 规则；仅配置不支持的 SOCKS 代理时明确报错。已导入字体从本机 CAS 读取，重开与渲染不依赖继续启用网络获取。
+
 
 `start` 等待认证 API 与数据库读取成功，`status` 只有 `ready=true` 时退出 0。默认运行目录为 `~/.opencut/server`，凭证在其 `api-token`，日志在 `server.log`。CLI 退出不停止后台服务；不安装开机启动或崩溃自动拉起。多实例、Agent 调用及 Web/Desktop 开发顺序见[独立服务与客户端优先级](design/architecture/service-and-client-priority.md)。
 

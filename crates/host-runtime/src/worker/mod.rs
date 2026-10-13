@@ -4,6 +4,7 @@ mod output_attempt;
 mod project_v3;
 mod project_v4_audio;
 mod project_v4_frame;
+mod project_v4_text_frame;
 pub(crate) mod receipts;
 use opencut_job_execution::{
     AnalysisOptions, PreparedAnalysisInput, PreparedProjectFrameInput, PreparedProjectRangeInput,
@@ -84,6 +85,7 @@ impl JobStore for SqliteJobStore {
                     "render.project_audio.v4"
                         | "render.project_audio_range.v4"
                         | "render.project_frame.v4"
+                        | "render.project_text_frame.v4"
                 ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
             {
                 // Completion revalidates the original caller inside its SQL
@@ -257,6 +259,8 @@ fn execute_monitored(
                     | opencut_job_contracts::project_v4_audio::V4_AUDIO_RANGE_WAV_KIND
             ) {
                 project_v4_audio::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind == opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND {
+                project_v4_text_frame::execute(database, root, worker, job, &cancel, publication_attempt)
             } else if job.kind == opencut_job_contracts::project_v4_frame::V4_FRAME_PNG_KIND {
                 project_v4_frame::execute(database, root, worker, job, &cancel, publication_attempt)
             } else {

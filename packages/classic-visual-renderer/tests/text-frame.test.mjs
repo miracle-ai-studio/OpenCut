@@ -1,0 +1,177 @@
+import { test, mock } from "node:test";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+
+// Only orchestration, accounting and identity are tested here. Actual glyphs,
+// WebGPU pixels and native coverage require the separately owned browser run.
+const canvases = [], gpuCalls = [], faces = new Set();
+let decodes = 0;
+globalThis.OffscreenCanvas = class {
+  constructor(width, height) { this.width = width; this.height = height; canvases.push(this); }
+  getContext() {
+    return { letterSpacing: "0px", font: "10px sans-serif", save() {}, restore() {},
+      translate() {}, scale() {}, rotate() {}, beginPath() {}, roundRect() {}, fill() {}, fillText() {}, fillRect() {},
+      measureText: text => ({ width: text.length * 2, actualBoundingBoxAscent: 1, actualBoundingBoxDescent: .5 }) };
+  }
+};
+globalThis.FontFace = class {
+  constructor(family, bytes, descriptors) { Object.assign(this, { family, bytes, descriptors, status: "unloaded" }); }
+  async load() { this.status = "loaded"; return this; }
+};
+globalThis.fonts = { add: face => faces.add(face), delete: face => faces.delete(face) };
+mock.module("../src/decoder.mjs", { namedExports: {
+  VisualDecoderCache: class {},
+  decodeVideo: async () => { throw new Error("This test declares only static images"); },
+  decodeImage: async () => { decodes++; return { width: 2, height: 1, canvas: new OffscreenCanvas(2, 1) }; },
+} });
+mock.module("../src/gpu.mjs", { namedExports: {
+  openGpuRealm: async () => ({}),
+  renderGpuFrame: async (bound, sources, _admission, emit) => {
+    gpuCalls.push({ bound: structuredClone(bound), sources: new Map(sources) });
+    for (const layer of bound.layers) assert.ok(sources.get(layer.elementId).canvas.width > 0);
+    await emit(0, Uint8Array.of(1, 2, 3, 255)); return { peakGpuBytes: "4" };
+  },
+} });
+const { renderClassicFrame, renderClassicTextFrameV2 } = await import("../src/index.mjs");
+const { validateTextFramePlan, fontResource } = await import("../src/text-frame.mjs");
+const hash = value => createHash("sha256").update(value).digest("hex");
+const imageBytes = Uint8Array.of(1, 2, 3, 4), fontBytes = Uint8Array.of(7, 6, 5, 4);
+const code = expected => error => error.code === expected;
+
+function plan() {
+  const identity = { projectId: "p", revision: "r", sequenceId: "s", time: { ticks: "1", timebase: 7 }, width: 8, height: 4, profile: "classic-v31-gpu-normal-text-frame-v2" };
+  const image = { assetId: "image", contentHash: hash(imageBytes), size: "4", kind: "image" };
+  const text = content => ({ content, fontSizePx: 2, lineHeightPx: 2.4, letterSpacingPx: .25, align: "center", decoration: "none", color: [1, 1, 1, 1],
+    transform: { centerX: 5, centerY: 1, scaleX: 2, scaleY: .5, rotationRadians: Math.PI / 2 },
+    background: { enabled: false, color: [0, 0, 0, 0], paddingXPx: 0, paddingYPx: 0, offsetXPx: 0, offsetYPx: 0, cornerRadiusPercent: 0 } });
+  const title = (elementId, content) => ({ elementId, text: text(content), opacity: .3,
+    font: { fontId: "font", contentHash: hash(fontBytes), size: "4", weight: 400, style: "normal", faceIndex: 0, glyphCoverageValidated: true, validatedTextHash: hash(content) } });
+  return { identity, media: { identity: { ...structuredClone(identity), profile: "classic-v31-gpu-normal-frame" }, resources: [image],
+    layers: ["back", "front"].map(elementId => ({ elementId, resource: image, decode: { kind: "image" } })) },
+    texts: [title("title", "AV"), title("second-title", "中文")], order: ["back", "title", "front", "second-title"] };
+}
+const admission = { maxFramePixels: "32", maxDecodedPixels: "66", maxEncodedBytes: 8, maxRgbaBytes: "1208", maxGpuBytes: "4096" };
+function host(plan, options = {}) {
+  const transfers = new Map(), calls = [], chunks = [];
+  let mediaBound, transferNumber = 0;
+  const quad = opacity => ({ centerX: 4, centerY: 2, width: 8, height: 4, rotationRadians: 0, opacity, flipX: false, flipY: false });
+  return { admission: { ...admission, ...options.admission }, transfers, calls, chunks,
+    rgba: async (offset, bytes) => chunks.push({ offset, bytes: Array.from(bytes) }),
+    callback: async (op, args) => {
+      calls.push({ op, args: structuredClone(args) });
+      if (op === "admitDecode") return { maxWidth: 2, maxHeight: 1, maxPixels: "2", maxDecodedBytes: "32" };
+      if (op === "resolveVerifiedBytes" || op === "resolveVerifiedFontBytes") {
+        const bytes = op === "resolveVerifiedBytes" ? imageBytes : options.corruptFont ? Uint8Array.of(0, 0, 0, 0) : fontBytes;
+        const transferId = String(++transferNumber); transfers.set(transferId, bytes);
+        return { transferId, byteLength: String(bytes.length) };
+      }
+      if (op === "readVerifiedBytes") {
+        const bytes = transfers.get(args.transferId), start = Number(args.offset);
+        return { offset: args.offset, bytesHex: Buffer.from(bytes.subarray(start, start + args.count)).toString("hex"), eof: start + args.count === bytes.length };
+      }
+      if (op === "releaseVerifiedBytes") { assert.equal(transfers.delete(args.transferId), true); return {}; }
+      if (op === "bindFrame") {
+        mediaBound = { identity: plan.media.identity, decoded: args.decoded, clear: [0, 0, 0, 1], background: [0, 0, 0, 1],
+          layers: plan.media.layers.map(layer => ({ elementId: layer.elementId, assetId: layer.resource.assetId, quad: quad(.75) })) };
+        return mediaBound;
+      }
+      if (op === "bindTextFrame") {
+        const byId = new Map(mediaBound.layers.map(layer => [layer.elementId, layer]));
+        for (const text of plan.texts) byId.set(text.elementId, { elementId: text.elementId, assetId: text.font.fontId, quad: quad(Math.fround(text.opacity)) });
+        const result = { ...mediaBound, identity: plan.identity, layers: plan.order.map(id => structuredClone(byId.get(id))), rasters: args.rasters };
+        options.changeBound?.(result);
+        options.abort?.();
+        return result;
+      }
+      throw new Error(`Unexpected callback: ${op}`);
+    },
+  };
+}
+function reset() { canvases.length = 0; gpuCalls.length = 0; decodes = 0; assert.equal(faces.size, 0); }
+function released(h) { assert.equal(h.transfers.size, 0); assert.equal(faces.size, 0); assert.ok(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)); }
+
+test("V2 reuses one media decode and shared font transfer, preserving full mixed order and exact cumulative budget", async () => {
+  reset(); const p = plan(), h = host(p);
+  const result = await renderClassicTextFrameV2(p, h, {});
+  assert.equal(decodes, 1); assert.equal(gpuCalls.length, 1);
+  assert.equal(h.calls.filter(call => call.op === "resolveVerifiedBytes").length, 1);
+  assert.equal(h.calls.filter(call => call.op === "resolveVerifiedFontBytes").length, 1);
+  assert.deepEqual(h.calls.find(call => call.op === "resolveVerifiedFontBytes").args, { font: fontResource(p.texts[0].font) });
+  assert.equal(result.peakAccountedBytes, "1208"); // 128 output + 32 image + 2*512 text + 2*12 bytes.
+  assert.equal(result.engineIdentity, p.identity.profile);
+  assert.deepEqual(result.bound.layers.map(layer => layer.elementId), p.order);
+  assert.deepEqual(result.bound.rasters.map(raster => raster.layout.lines[0].content), ["AV", "中文"]);
+  assert.equal(gpuCalls[0].sources.get("back"), gpuCalls[0].sources.get("front"));
+  assert.deepEqual(result.bound.layers[1].quad, { centerX: 4, centerY: 2, width: 8, height: 4, rotationRadians: 0, opacity: Math.fround(.3), flipX: false, flipY: false });
+  released(h);
+});
+
+test("V1 retains its original media path and never calls the text or font protocol", async () => {
+  reset(); const p = plan(), h = host(p);
+  const result = await renderClassicFrame(p.media, h, {});
+  assert.equal(result.engineIdentity, "classic-v31-gpu-normal-frame");
+  assert.equal(result.peakAccountedBytes, "172");
+  assert.ok(h.calls.every(call => !["resolveVerifiedFontBytes", "bindTextFrame"].includes(call.op)));
+  assert.deepEqual(result.bound.layers.map(layer => layer.elementId), ["back", "front"]);
+  released(h);
+});
+
+test("aggregate encoded, decoded pixels and cumulative canvas bytes cannot be bypassed by text partitions", async () => {
+  for (const limit of [{ maxEncodedBytes: 7 }, { maxDecodedPixels: "65" }, { maxRgbaBytes: "1207" }]) {
+    reset(); const p = plan(), h = host(p, { admission: limit });
+    await assert.rejects(renderClassicTextFrameV2(p, h, {}), code("VISUAL_BUDGET_EXCEEDED"));
+    assert.equal(gpuCalls.length, 0); released(h);
+  }
+});
+
+test("font byte corruption and another title's coverage fail before GPU output with all resources retired", async () => {
+  for (const corruptBytes of [true, false]) {
+    reset(); const p = plan();
+    if (!corruptBytes) p.texts[1].font.validatedTextHash = p.texts[0].font.validatedTextHash;
+    const h = host(p, { corruptFont: corruptBytes });
+    await assert.rejects(renderClassicTextFrameV2(p, h, {}), code(corruptBytes ? "ASSET_HASH_MISMATCH" : "INVALID_VISUAL_PLAN"));
+    assert.equal(gpuCalls.length, 0); assert.equal(h.chunks.length, 0); released(h);
+  }
+});
+
+test("final binding cannot alter media, omit text, reorder layers, change observed layout or double-apply transform/opacity", async () => {
+  const corruptions = [
+    result => { result.identity.revision = "other"; },
+    result => { result.layers.reverse(); },
+    result => { result.layers[0].quad.width--; },
+    result => { result.layers[1].quad.rotationRadians = Math.PI / 2; },
+    result => { result.layers[1].quad.opacity = .09; },
+    result => { result.layers[1].assetId = "other-font"; },
+    result => { result.rasters.pop(); },
+    result => { result.rasters[0].layout.lines[0].content = "wrong"; },
+    result => { result.background[0] = .5; },
+  ];
+  for (const changeBound of corruptions) {
+    reset(); const p = plan(), h = host(p, { changeBound });
+    await assert.rejects(renderClassicTextFrameV2(p, h, {}), code("INVALID_VISUAL_PLAN"));
+    assert.equal(gpuCalls.length, 0); released(h);
+  }
+});
+
+test("cancellation after native binding releases full canvases and emits no tentative output", async () => {
+  reset(); const p = plan(), cancel = new AbortController(), reason = new Error("owner cancelled");
+  const h = host(p, { abort: () => cancel.abort(reason) });
+  await assert.rejects(renderClassicTextFrameV2(p, h, {}, cancel.signal), error => error === reason);
+  assert.equal(gpuCalls.length, 0); assert.equal(h.chunks.length, 0); released(h);
+});
+
+test("V2 plan keeps resource and element namespaces, exact media identity and complete order fixed", () => {
+  const corruptions = [
+    p => { p.media.identity.time.ticks = "2"; },
+    p => { p.texts[1].elementId = "title"; },
+    p => { p.texts[1].font.contentHash = "f".repeat(64); },
+    p => { p.texts[0].font.fontId = "image"; },
+    p => { p.order[1] = "front"; },
+    p => { p.texts[0].opacity = Infinity; },
+    p => { p.media.layers[0].decode.kind = "text"; },
+  ];
+  for (const corrupt of corruptions) {
+    const p = structuredClone(plan()); corrupt(p);
+    assert.throws(() => validateTextFramePlan(p, admission), code("INVALID_VISUAL_PLAN"));
+  }
+});

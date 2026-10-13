@@ -2,9 +2,10 @@ import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
 import type { JobResultMap } from "../../../lib/editor-contracts.generated";
 import type { TimelineEditState } from "./timeline-edit/types";
 import type { ClipboardState } from "./timeline-edit/clipboard";
+import type { FontRecoveryState } from "./text/font-recovery";
 import type { EditRecoveryState } from "./edit-recovery";
 
-export type V4FrameRequest = ToolInput<"opencut_job_v4_frame_png">;
+export type V4FrameRequest = ToolInput<"opencut_job_v4_frame_png"> | ToolInput<"opencut_job_v4_text_frame_png">;
 export type V4AudioPreviewCreate = ToolInput<"opencut_audio_preview_v4_create">;
 export type V4AudioPreviewControl =
   ToolInput<"opencut_audio_preview_v4_control">;
@@ -29,8 +30,9 @@ export type V4AudioPreviewState = {
 };
 export type V4FrameCapability =
   ToolOutput<"opencut_project_v4_frame_capability">;
-export type V4FrameResult = JobResultMap["render.project_frame.v4"];
+export type V4FrameResult = JobResultMap["render.project_frame.v4"] | JobResultMap["render.project_text_frame.v4"];
 export type V4FrameAttempt = {
+  protocol: 1 | 2;
   request: V4FrameRequest;
   phase:
     | "submitting"
@@ -125,6 +127,8 @@ export type V4AudioWavAttempt = {
 };
 export type V4SessionState = {
   recovery?: EditRecoveryState;
+  fontRecovery?: FontRecoveryState;
+  textFrameCapability?: ToolOutput<"opencut_project_v4_text_frame_capability"> | null;
   timelineEdit: TimelineEditState;
   clipboard: ClipboardState;
   audioPreview: V4AudioPreviewState;

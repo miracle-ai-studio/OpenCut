@@ -9,7 +9,8 @@ import { V4TimelineEdit } from "./timeline-edit/controller";
 import { V4TimelineClipboard } from "./timeline-edit/clipboard";
 import { emptyTimelineEdit } from "./timeline-edit/types";
 import { normalizeTimelineSelection } from "./timeline-edit/selection";
-import { V4EditRecovery } from "./edit-recovery";
+import { V4FontRecovery, fontRecoveryBlocked } from "./text/font-recovery";
+import { V4EditRecovery, emptyEditRecovery } from "./edit-recovery";
 import type { ToolInput } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
 import type { ProjectRef, Time } from "../../model/types";
@@ -31,6 +32,7 @@ export type V4SessionHost = {
  * owns the mutually exclusive legacy/V4 session, routing and write fence. */
 export class V4Session {
   readonly recovery: V4EditRecovery;
+  readonly fontRecovery: V4FontRecovery;
   readonly timelineEdit: V4TimelineEdit;
   readonly clipboard: V4TimelineClipboard;
   readonly audioGain: V4AudioGain;
@@ -41,8 +43,10 @@ export class V4Session {
   readonly media: V4Media;
   readonly frame: V4Frame;
   constructor(private readonly host: V4SessionHost) {
-    this.recovery = new V4EditRecovery(host, () => this.refresh());
-    const writes: V4SessionHost = { ...host, publicApply: (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId) };
+    this.fontRecovery = new V4FontRecovery(host, () => this.refresh());
+    const edits = { ...host, acquire: (projectId: string) => this.acquireEdit(projectId) };
+    this.recovery = new V4EditRecovery(edits, () => this.refresh());
+    const writes: V4SessionHost = { ...edits, publicApply: (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId) };
     this.visualPreview = new V4VisualPreview(host, () => { void this.audioPreview.pause().catch(() => {}); });
     this.audioPreview = new V4AudioPreview(host, (time) =>
       this.presentAudio(time),
@@ -57,7 +61,7 @@ export class V4Session {
     this.media = new V4Media(writes, () => this.refresh());
     this.frame = new V4Frame(host);
     this.timelineEdit = new V4TimelineEdit({
-      ...host,
+      ...edits,
       publish: (timelineEdit, primaryId) => {
         const state = host.state();
         if (!state) return;
@@ -69,7 +73,7 @@ export class V4Session {
     }, (api, request, signal) => api.v4.timelinePlan(request, signal), () => this.refresh(), true,
       (api, request, sequenceId) => this.recovery.publicApply(api, request, sequenceId));
     this.clipboard = new V4TimelineClipboard({
-      ...host,
+      ...edits,
       publicApply: writes.publicApply,
       clipboard: () => host.state()!.clipboard,
       publish: clipboard => {
@@ -83,6 +87,11 @@ export class V4Session {
       },
     }, () => this.refresh());
   }
+  private acquireEdit(projectId: string) {
+    if (fontRecoveryBlocked(this.host.state()?.fontRecovery))
+      throw new Error("Resolve the original font import before starting another operation.");
+    return this.host.acquire(projectId);
+  }
   private active() {
     const api = this.host.api(),
       state = this.host.state();
@@ -91,6 +100,7 @@ export class V4Session {
   }
   async open(project: ProjectRef, sequenceId?: string | null) {
     this.recovery.invalidate();
+    this.fontRecovery.invalidate();
     this.clipboard.invalidate();
     this.timelineEdit.invalidate();
     this.audioPreview.invalidate();
@@ -98,7 +108,7 @@ export class V4Session {
     const api = this.host.api();
     if (!api) return;
     const generation = this.host.generation(), view = this.host.viewGeneration();
-    const [head, capability, frameCapability, rangeCapability] =
+    const [head, capability, frameCapability, textFrameCapability, rangeCapability] =
       await Promise.all([
         api.v4.inspect(project.id),
         api.v4.audioCapability().then(
@@ -115,6 +125,7 @@ export class V4Session {
             error: "This service does not support scene frames.",
           }),
         ),
+        api.sdk.call("opencut_project_v4_text_frame_capability", {}).catch(() => null),
         api.v4.audioRangeCapability().then(
           (value) => ({ value, error: null }),
           () => ({
@@ -127,13 +138,17 @@ export class V4Session {
       project.id,
       head.revision,
     );
-    const restoredRecovery = await this.recovery.restore(api, head.project.id);
+    const fontRecovery = await this.fontRecovery.restore(api, head.project.id);
+    const restoredRecovery = fontRecoveryBlocked(fontRecovery) ? { state: emptyEditRecovery(), legacy: false }
+      : await this.recovery.restore(api, head.project.id);
     const restoredTimeline = restoredRecovery.legacy ? await this.timelineEdit.restore(api, head.project.id)
       : { attempt: this.timelineEdit.resume(api, head.project.id), recoveryError: null };
     if (api !== this.host.api() || generation !== this.host.generation() || view !== this.host.viewGeneration()) return;
     this.host.publish({
       head,
       recovery: restoredRecovery.state,
+      fontRecovery,
+      textFrameCapability,
       timelineEdit: { ...emptyTimelineEdit(), ...restoredTimeline },
       clipboard: this.clipboard.resume(api, head.project.id),
       audioPreview: emptyAudioPreview(),
@@ -176,7 +191,9 @@ export class V4Session {
   }
   async recoverEdit(resetPointer = false) {
     const { api, state } = this.active(), generation = this.host.generation(), view = this.host.viewGeneration();
-    if (resetPointer) this.recovery.resetPointer();
+    if (resetPointer) { this.recovery.resetPointer(); this.fontRecovery.resetPointer(); }
+    const fontRecovery = await this.fontRecovery.restore(api, state.head.project.id);
+    if (fontRecoveryBlocked(fontRecovery)) return;
     const restored = await this.recovery.restore(api, state.head.project.id);
     if (api === this.host.api() && generation === this.host.generation() && view === this.host.viewGeneration()) {
       const current = this.host.state();
@@ -350,7 +367,7 @@ export class V4Session {
     const { api, state } = this.active();
     if (state.historical)
       throw new Error("Return to the current revision before editing.");
-    const release = this.host.acquire(state.head.project.id),
+    const release = this.acquireEdit(state.head.project.id),
       generation = this.host.generation(),
       view = this.host.viewGeneration();
     const request = api.v4.request(state.head, label, operations);
@@ -367,6 +384,35 @@ export class V4Session {
     } finally {
       release();
     }
+  }
+  /** A typed application planner already owns defaults, placement and time.
+   * Preserve its original request/key through the shared durable write port. */
+  async applyPlanned(request: ToolInput<"opencut_edit_v4_apply">, sequenceId: string) {
+    const { api, state } = this.active();
+    if (state.historical || state.head.project.id !== request.project_id ||
+      state.head.revision !== request.expected_revision || state.sequenceId !== sequenceId)
+      throw new Error("The edit target changed.");
+    const generation = this.host.generation(), view = this.host.viewGeneration();
+    const release = this.acquireEdit(request.project_id);
+    try {
+      if (api !== this.host.api() || generation !== this.host.generation() || view !== this.host.viewGeneration())
+        throw new Error("The edit target changed.");
+      const receipt = await this.recovery.publicApply(api, request, sequenceId);
+      if (api === this.host.api() && generation === this.host.generation() && this.host.state()?.head.project.id === request.project_id)
+        await this.refresh();
+      return receipt;
+    } finally { release(); }
+  }
+  async importFont(request: ToolInput<"opencut_font_v1_import">) {
+    const { api, state } = this.active();
+    if (state.historical || state.head.project.id !== request.project_id || state.head.revision !== request.expected_revision)
+      throw new Error("The edit target changed.");
+    const generation = this.host.generation(), view = this.host.viewGeneration(), release = this.host.acquire(request.project_id);
+    try {
+      const receipt = await this.fontRecovery.execute(api, { request, sequence_id: state.sequenceId });
+      if (api === this.host.api() && generation === this.host.generation() && view === this.host.viewGeneration() && this.host.state()?.head.project.id === request.project_id) await this.refresh();
+      return receipt;
+    } finally { release(); }
   }
   bookmark(operation: V4BookmarkOperation) {
     return this.write("Edit scene bookmark", [{ type: "bookmark", operation }]);
@@ -465,7 +511,7 @@ export class V4Session {
       throw new Error(
         "Choose a conflict-free history plan for the current revision.",
       );
-    const release = this.host.acquire(state.head.project.id),
+    const release = this.acquireEdit(state.head.project.id),
       generation = this.host.generation();
     try {
       const wrapped = await this.recovery.execute(api, { sequence_id: state.sequenceId,
@@ -481,7 +527,7 @@ export class V4Session {
   async restoreRevision(revision: string) {
     const { api, state } = this.active();
     if (!state.history.revisions.some(item => item.revision === revision)) throw new Error("Choose a saved project revision to restore.");
-    const release = this.host.acquire(state.head.project.id), generation = this.host.generation();
+    const release = this.acquireEdit(state.head.project.id), generation = this.host.generation();
     try {
       const receipt = await this.recovery.execute(api, { sequence_id: null, intent: { kind: "restore", request: {
         project_id: state.head.project.id, expected_revision: state.head.revision, target_revision: revision, idempotency_key: crypto.randomUUID(), asset_versions: {} } } });

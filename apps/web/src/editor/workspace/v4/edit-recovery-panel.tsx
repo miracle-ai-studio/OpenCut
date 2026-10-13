@@ -1,3 +1,5 @@
+import { fontRecoveryBlocked } from "./text/font-recovery";
+import { FontRecoveryPanel } from "./text/font-recovery-panel";
 import { useState } from "react";
 import { useWorkspace } from "../context";
 import { Button } from "../../shared/ui";
@@ -8,6 +10,7 @@ export function EditRecoveryPanel() {
   useLocale();
   const { controller, v4, busy } = useWorkspace(), [pending, setPending] = useState(false);
   const recovery = v4?.recovery;
+  if (v4?.fontRecovery && v4.fontRecovery.phase !== "idle" && (fontRecoveryBlocked(v4.fontRecovery) || !recovery || recovery.phase === "idle")) return <FontRecoveryPanel />;
   if (!recovery || recovery.phase === "idle") return null;
   const intent = recovery.record?.context.intent;
   const label = intent?.kind === "public_apply" ? intent.request.label

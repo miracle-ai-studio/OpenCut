@@ -195,6 +195,73 @@ pub fn apply(
     let proposed = plan(&snapshot, request)?;
     store.commit_v4_atomic(intent, prepare(&source, proposed, intent)?)
 }
+
+/// One original-request receipt and one fixed-head font edit. Acquisition is
+/// skipped on an authorized replay; downloaded content cannot re-plan a newer
+/// project head. The native publisher retains CAS protection through commit.
+pub fn import_font_v1(
+    store: &mut impl ProjectV4Store,
+    fetcher: &impl crate::font_import_v1::catalog::FontSourceFetchV1,
+    inspector: &impl crate::font_import_v1::FontInspectorV1,
+    publisher: &impl crate::font_import_v1::FontCasPublishV1,
+    request: &opencut_contracts::font_import_v1::ImportFontV1,
+    fetch_policy: &crate::font_import_v1::catalog::FontFetchPolicyV1,
+    inspection_policy: &crate::font_import_v1::FontImportPolicyV1,
+    checkpoint: &mut dyn crate::font_import_v1::FontImportCheckpointV1,
+) -> Result<TransactionResult, EditorError> {
+    use crate::font_import_v1::{catalog::prepare_catalog_font_v1, *};
+    let intent = V4Intent::FontImport(request);
+    let source = match begin(store, intent)? {
+        Ok(source) => source,
+        Err(result) => return Ok(result),
+    };
+    checkpoint.check()?;
+    let font = expected_import_resource_v1(request)?;
+    let StoredProjectDocumentV4::V4(project) = &source.document else {
+        return Err(EditorError::new(
+            "UNSUPPORTED_PROJECT_VERSION",
+            "Promote the project before importing fonts",
+        ));
+    };
+    // This internal edit is a pure planner input only. Its family/key is never
+    // persisted; receipt and journal remain the exact original import request.
+    let operation = ApplyV4Project {
+        project_id: request.project_id.clone(),
+        expected_revision: request.expected_revision.clone(),
+        idempotency_key: request.idempotency_key.clone(),
+        label: format!("Import {}", font.family),
+        operations: vec![ProjectOperationV4::FontPut { font: font.clone() }],
+    };
+    let proposed = plan(
+        &ProjectSnapshotV4 {
+            project: (**project).clone(),
+            revision: source.revision.clone(),
+        },
+        &operation,
+    )?;
+    let commit = prepare(&source, proposed, intent)?;
+    let acquired = prepare_catalog_font_v1(
+        fetcher,
+        inspector,
+        &request.catalog_id,
+        request.font_id.clone(),
+        request.required_text.clone(),
+        fetch_policy,
+        inspection_policy,
+        checkpoint,
+    )?;
+    if acquired.font.resource != font {
+        return Err(EditorError::new(
+            "FONT_SOURCE_INTEGRITY_ERROR",
+            "Inspected font differs from its admitted catalog resource",
+        ));
+    }
+    checkpoint.check()?;
+    let _publication = publisher.publish(&acquired.font, &acquired.bytes, checkpoint)?;
+    checkpoint.check()?;
+    store.commit_v4_atomic(intent, commit)
+}
+
 pub fn restore(
     store: &mut impl ProjectV4Store,
     request: &RestoreV4Revision,

@@ -117,6 +117,9 @@ export class V4Api {
   frameCapability() {
     return this.sdk.call("opencut_project_v4_frame_capability", {});
   }
+  textFramePng(request: ToolInput<"opencut_job_v4_text_frame_png">) {
+    return this.sdk.call("opencut_job_v4_text_frame_png", request);
+  }
   framePng(request: ToolInput<"opencut_job_v4_frame_png">) {
     return this.sdk.call("opencut_job_v4_frame_png", request);
   }

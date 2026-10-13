@@ -19,7 +19,7 @@ mod ports;
 pub mod public;
 pub mod resources;
 pub use edits::plan;
-pub use persistence::{apply, copy, create, inspect, list, promote, restore};
+pub use persistence::{apply, copy, create, import_font_v1, inspect, list, promote, restore};
 pub use ports::*;
 #[cfg(test)]
 mod tests;

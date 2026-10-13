@@ -124,7 +124,7 @@ export async function setupV4() {
     revision: current.revision,
     format: "v4" as const,
   });
-  vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({} as never);
+  vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({ tools: [] } as never);
   vi.spyOn(api, "projects").mockImplementation(async () => [ref()]);
   vi.spyOn(api, "tasks").mockResolvedValue({ jobs: [], next_cursor: null });
   const publish = (candidate: V4Snapshot, label: string) => {

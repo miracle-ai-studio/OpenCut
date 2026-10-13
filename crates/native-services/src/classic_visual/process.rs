@@ -1,5 +1,7 @@
+use super::session_adapter::VisualProcessSession;
 use crate::{browser_process::BrowserProcess, classic_audio::transport};
 use opencut_contracts::EditorError;
+use opencut_editor_application::classic_text_frame_v2::*;
 use opencut_editor_application::classic_visual::*;
 use opencut_editor_application::project_v4_frame_jobs::LocalVisualExecutionPolicyV1;
 use serde_json::{Value, json};
@@ -62,6 +64,26 @@ impl ClassicVisualProcess {
         handles: &[ClassicVisualResourceHandle],
         sink: &mut dyn ClassicVisualRgbaSink,
     ) -> Result<ClassicVisualExecutionReceipt, EditorError> {
+        self.render_session(
+            session,
+            resources,
+            "begin",
+            serde_json::to_value(handles)
+                .map_err(|_| error("INVALID_VISUAL_PLAN", "Invalid resource handles"))?,
+            None,
+            sink,
+        )
+    }
+    #[cfg(unix)]
+    fn render_session<R: ClassicVisualResources + ?Sized, S: VisualProcessSession<R>>(
+        &self,
+        session: &mut S,
+        resources: &mut R,
+        begin_kind: &str,
+        handles: Value,
+        fonts: Option<Value>,
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<S::Output, EditorError> {
         let config = &self.config;
         let policy = &config.policy;
         if config.deadline.is_zero()
@@ -85,12 +107,15 @@ impl ClassicVisualProcess {
             .ok_or_else(|| error("VISUAL_HOST_FAILED", "Missing runner input"))?;
         let pid = process.guard.child.id();
         let started = Instant::now();
-        let begin = json!({"type":"begin","plan":plan,"resources":handles,"runtime":{"chromiumExecutable":config.chromium},"admission":{
+        let mut begin = json!({"type":begin_kind,"plan":plan,"resources":handles,"runtime":{"chromiumExecutable":config.chromium},"admission":{
             "maxFramePixels":policy.max_frame_pixels.to_string(),"maxDecodedPixels":policy.max_decoded_pixels.to_string(),
             "maxGpuBytes":policy.max_gpu_bytes.to_string(),"maxRgbaBytes":policy.max_rgba_bytes.to_string(),
             "maxEncodedBytes":policy.max_encoded_bytes,"maxOutputBytes":policy.max_output_bytes.to_string(),
             "maxRssBytes":policy.max_rss_bytes.to_string(),"deadlineMs":policy.deadline_ms,
             "quotaProfile":if config.strict_cgroup.is_some(){"strict-hard"}else{"monitored-terminate"},"cgroupDirectory":config.strict_cgroup}});
+        if let Some(fonts) = fonts {
+            begin["fonts"] = fonts;
+        }
         let result = (|| {
             transport::packet(&mut input, &execution, begin).map_err(wire)?;
             let mut runtime = None;
@@ -165,7 +190,7 @@ impl ClassicVisualProcess {
                                 "Invalid or reused callback ID",
                             ));
                         }
-                        let callback: VisualCallback = serde_json::from_value(
+                        let callback: S::Callback = serde_json::from_value(
                             json!({"op":message.get("op"),"args":message.get("args")}),
                         )
                         .map_err(|_| {
@@ -205,14 +230,13 @@ impl ClassicVisualProcess {
                         let identity = runtime.take().ok_or_else(|| {
                             error("VISUAL_PROTOCOL_ERROR", "Completion before readiness")
                         })?;
-                        let receipt: ClassicVisualRenderReceipt =
+                        let receipt: S::Receipt =
                             serde_json::from_value(message.get("receipt").cloned().ok_or_else(
                                 || error("VISUAL_PROTOCOL_ERROR", "Missing frame receipt"),
                             )?)
                             .map_err(|_| {
                                 error("VISUAL_PROTOCOL_ERROR", "Invalid typed frame receipt")
                             })?;
-                        session.validate_receipt(&receipt)?;
                         let quota: VisualQuotaReceipt =
                             serde_json::from_value(message.get("quota").cloned().ok_or_else(
                                 || error("VISUAL_PROTOCOL_ERROR", "Missing quota receipt"),
@@ -221,14 +245,14 @@ impl ClassicVisualProcess {
                                 error("VISUAL_PROTOCOL_ERROR", "Invalid typed quota receipt")
                             })?;
                         validate_quota(&quota, config)?;
-                        return Ok(ClassicVisualExecutionReceipt {
+                        return session.finish(
                             receipt,
                             quota,
-                            runtime_identity: ClassicVisualRuntimeReceipt {
+                            ClassicVisualRuntimeReceipt {
                                 browser_pid: process.guard.browser_pid.load(Ordering::Acquire),
                                 identity,
                             },
-                        });
+                        );
                     }
                     "failed" => {
                         return Err(error(
@@ -329,6 +353,41 @@ impl ClassicVisualExecutor for ClassicVisualProcess {
             Err(error(
                 "CAPABILITY_UNAVAILABLE",
                 "Isolated visual execution requires process-group termination",
+            ))
+        }
+    }
+}
+
+impl ClassicTextFrameExecutorV2 for ClassicVisualProcess {
+    fn execute_text_frame(
+        &self,
+        session: &mut ClassicTextFrameSessionV2<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicTextFrameExecutionV2, EditorError> {
+        #[cfg(unix)]
+        {
+            self.render_session(
+                session,
+                resources,
+                "beginTextFrameV2",
+                serde_json::to_value(handles)
+                    .map_err(|_| error("INVALID_VISUAL_PLAN", "Invalid media handles"))?,
+                Some(
+                    serde_json::to_value(fonts)
+                        .map_err(|_| error("INVALID_VISUAL_PLAN", "Invalid font handles"))?,
+                ),
+                sink,
+            )
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (session, resources, handles, fonts, sink);
+            Err(error(
+                "CAPABILITY_UNAVAILABLE",
+                "Isolated text execution requires process-group termination",
             ))
         }
     }

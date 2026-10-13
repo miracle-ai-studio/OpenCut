@@ -34,7 +34,7 @@ pub(super) fn entry(
     let before_schema = document_schema(before, project)?;
     let after_schema = document_schema(after, project)?;
     let value: Value = decode_json(raw, "V4 historical journal")?;
-    let label = value
+    let mut label = value
         .get("label")
         .or_else(|| value.get("request").and_then(|r| r.get("label")))
         .and_then(Value::as_str)
@@ -129,6 +129,44 @@ pub(super) fn entry(
                 if request.project_id != project || request.expected_revision != base {
                     return Err(malformed());
                 }
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_contracts::font_import_v1::ImportFontV1,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                let font = opencut_editor_application::font_import_v1::expected_import_resource_v1(
+                    &request,
+                )
+                .map_err(|_| malformed())?;
+                let VersionedProjectDocument::V4(before_document) =
+                    decode_versioned_project(before)?
+                else {
+                    return Err(malformed());
+                };
+                let VersionedProjectDocument::V4(after_document) = decode_versioned_project(after)?
+                else {
+                    return Err(malformed());
+                };
+                let expected = opencut_editor_application::project_v4::plan(
+                    &opencut_contracts::project_v4::ProjectSnapshotV4 {
+                        project: before_document,
+                        revision: base.into(),
+                    },
+                    &ApplyV4Project {
+                        project_id: request.project_id,
+                        expected_revision: request.expected_revision,
+                        idempotency_key: request.idempotency_key,
+                        label: format!("Import {}", font.family),
+                        operations: vec![ProjectOperationV4::FontPut { font: font.clone() }],
+                    },
+                )
+                .map_err(|_| malformed())?;
+                if expected != after_document {
+                    return Err(malformed());
+                }
+                label = Some(format!("Import {}", font.family));
             } else if let Ok(request) = serde_json::from_value::<RestoreV4Revision>(value) {
                 if request.project_id != project || request.expected_revision != base {
                     return Err(malformed());

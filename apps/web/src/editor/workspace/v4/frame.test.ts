@@ -4,6 +4,8 @@ import {
   OpenCutTransportError,
 } from "../../../lib/editor-sdk";
 import { png, setupFrame } from "./frame-fixture";
+import { frameAvailability } from "./frame";
+import { textInitial } from "./text/fixture";
 import type { V4FrameRequest } from "./types";
 afterEach(() => vi.restoreAllMocks());
 
@@ -357,4 +359,124 @@ it("discards a pending image read when the authoritative task feed reports revok
   } finally {
     f.controller.dispose();
   }
+});
+
+it("prefers the declared text frame protocol and keeps an unknown retry on that protocol after capability loss", async () => {
+  const f = await setupFrame();
+  try {
+    const previous = vi.mocked(f.api.sdk.call).getMockImplementation()!;
+    let available = true;
+    vi.mocked(f.api.sdk.call).mockImplementation(
+      async (name, input, options) => {
+        if (name === "opencut_project_v4_text_frame_capability")
+          return {
+            schema_version: 2,
+            available,
+            submit_tool: "opencut_job_v4_text_frame_png",
+            unavailable_reason: null,
+          } as never;
+        return previous(name, input, options);
+      },
+    );
+    const submit = vi
+      .spyOn(f.api.v4, "textFramePng")
+      .mockRejectedValue(new Error("Receipt lost"));
+    await f.controller.v4.frame.refreshCapability();
+    await expect(f.controller.v4.frame.start()).rejects.toThrow("Receipt lost");
+    const original = structuredClone(submit.mock.calls[0][0]);
+    expect(f.controller.getSnapshot().v4!.frame!.protocol).toBe(2);
+    available = false;
+    await f.controller.v4.frame.refreshCapability();
+    submit.mockImplementation(async (request) => {
+      const job = f.jobFor(request);
+      job.kind = "render.project_text_frame.v4";
+      f.rows.push(job);
+      return job;
+    });
+    await f.controller.v4.frame.retry();
+    expect(submit.mock.calls[1][0]).toEqual(original);
+    expect(f.requests).toHaveLength(0);
+    expect(f.controller.getSnapshot().v4!.frame!.phase).toBe("accepted");
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it("does not choose a text frame tool when its capability version or submit name is incompatible", async () => {
+  const f = await setupFrame();
+  try {
+    const previous = vi.mocked(f.api.sdk.call).getMockImplementation()!;
+    vi.mocked(f.api.sdk.call).mockImplementation(
+      async (name, input, options) => {
+        if (name === "opencut_project_v4_text_frame_capability")
+          return {
+            schema_version: 2,
+            available: true,
+            submit_tool: "opencut_job_v4_frame_png",
+            unavailable_reason: null,
+          } as never;
+        return previous(name, input, options);
+      },
+    );
+    const submit = vi.spyOn(f.api.v4, "textFramePng");
+    await f.controller.v4.frame.refreshCapability();
+    await f.controller.v4.frame.start();
+    expect(submit).not.toHaveBeenCalled();
+    expect(f.requests).toHaveLength(1);
+    expect(f.controller.getSnapshot().v4!.frame!.protocol).toBe(1);
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it("keeps text explicit on a media-only host and ignores a disabled title without projecting it as a graphic", async () => {
+  const f = await setupFrame();
+  try {
+    const state = structuredClone(f.controller.getSnapshot().v4!);
+    const track = state.head.project.sequences[0].tracks[0];
+    track.elements[0].content = { kind: "text", text: textInitial().text };
+    state.textFrameCapability = null;
+    expect(frameAvailability(state)).toContain("containing text");
+    track.elements[0].enabled = false;
+    expect(frameAvailability(state)).toBeNull();
+    track.elements[0].enabled = true;
+    track.enabled = false;
+    expect(frameAvailability(state)).toBeNull();
+    track.enabled = true;
+    state.textFrameCapability = {
+      schema_version: 2,
+      available: true,
+      submit_tool: "opencut_job_v4_text_frame_png",
+      unavailable_reason: null,
+    };
+    expect(frameAvailability(state)).toBeNull();
+  } finally {
+    f.controller.dispose();
+  }
+});
+
+it("consumes a schema-2 text PNG through the schema-1 extended public wrapper", async () => {
+  const f = await setupFrame();
+  try {
+    const request = { project_id: "p", revision: "r0", sequence_id: "scene", time: { ticks: "0", timebase: 1 }, idempotency_key: "a".repeat(32) };
+    const job = f.jobFor(request);
+    const legacy = f.complete(job, request);
+    job.kind = "render.project_text_frame.v4";
+    const result = { ...legacy, schema_version: 2, identity: { ...legacy.identity, profile: "classic-v31-gpu-normal-text-frame-v2" }, font_lock: [], texts: [] };
+    job.extended_result = { schema_version: 1, kind: job.kind, data: result };
+    const { verifiedResult, readPng } = await import("./frame/png");
+    const verified = verifiedResult(job, request, 1, 1, 2);
+    expect(verified.result).toEqual(result);
+    const blob = await readPng(f.api, verified.artifact, verified.result, new AbortController().signal);
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png);
+    expect(() => verifiedResult(job, request, 1, 1, 1)).toThrow("task identity");
+    job.extended_result.schema_version = 2;
+    expect(() => verifiedResult(job, request, 1, 1, 2)).toThrow("available successful");
+    job.extended_result.schema_version = 1;
+    result.schema_version = 1;
+    expect(() => verifiedResult(job, request, 1, 1, 2)).toThrow("render identity");
+    result.schema_version = 2;
+    result.identity.profile = "classic-v31-gpu-normal-frame";
+    expect(() => verifiedResult(job, request, 1, 1, 2)).toThrow("render identity");
+  } finally { f.controller.dispose(); }
 });

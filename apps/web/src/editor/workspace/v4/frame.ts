@@ -9,7 +9,36 @@ import { sameTarget, verifiedResult, readPng } from "./frame/png";
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+export function textFrameAvailable(state: V4SessionState) {
+  const capability = state.textFrameCapability;
+  return (
+    capability?.available === true &&
+    capability.schema_version === 2 &&
+    capability.submit_tool === "opencut_job_v4_text_frame_png"
+  );
+}
+
 export function frameAvailability(state: V4SessionState) {
+  const view = state.historical ?? state.head;
+  if (view.project.settings.profile !== "classic_global")
+    return "Scene frames currently require Classic scene settings.";
+  if (textFrameAvailable(state)) return null;
+  const sequence = view.project.sequences.find(
+    (row) => row.id === state.sequenceId,
+  );
+  if (
+    sequence?.tracks.some(
+      (track) =>
+        track.enabled &&
+        track.elements.some(
+          (element) => element.enabled && element.content.kind === "text",
+        ),
+    )
+  )
+    return (
+      state.textFrameCapability?.unavailable_reason ??
+      "This service does not support scene frames containing text."
+    );
   const capability = state.frameCapability;
   return !capability
     ? (state.frameCapabilityError ??
@@ -79,7 +108,12 @@ export class V4Frame {
       generation = this.host.generation(),
       epoch = ++this.capabilityEpoch;
     try {
-      const capability = await api.v4.frameCapability();
+      const [capability, textFrameCapability] = await Promise.all([
+        api.v4.frameCapability().catch(() => null),
+        api.sdk
+          .call("opencut_project_v4_text_frame_capability", {})
+          .catch(() => null),
+      ]);
       const current = this.host.state();
       if (
         epoch === this.capabilityEpoch &&
@@ -90,7 +124,10 @@ export class V4Frame {
         this.host.publish({
           ...current,
           frameCapability: capability,
-          frameCapabilityError: null,
+          textFrameCapability,
+          frameCapabilityError: capability
+            ? null
+            : "This service does not support scene frames.",
         });
     } catch (error) {
       const current = this.host.state();
@@ -141,6 +178,7 @@ export class V4Frame {
     this.invalidate();
     const view = state.historical ?? state.head;
     const attempt: V4FrameAttempt = {
+      protocol: textFrameAvailable(state) ? 2 : 1,
       request: {
         project_id: view.project.id,
         revision: view.revision,
@@ -175,8 +213,10 @@ export class V4Frame {
     attempt = { ...attempt, phase: "submitting", error: null };
     this.publish(api, attempt);
     try {
-      const job = await api.v4.framePng(attempt.request);
-      if (!job.job_id || !sameTarget(job, attempt.request))
+      const job = await (attempt.protocol === 2
+        ? api.v4.textFramePng(attempt.request)
+        : api.v4.framePng(attempt.request));
+      if (!job.job_id || !sameTarget(job, attempt.request, attempt.protocol))
         throw new Error("Scene frame returned an unexpected task identity.");
       attempt = {
         ...attempt,
@@ -319,6 +359,7 @@ export class V4Frame {
         attempt.request,
         settings.settings.canvas_size.width,
         settings.settings.canvas_size.height,
+        attempt.protocol,
       );
       const blob = await readPng(api, artifact, result, request.signal);
       if (

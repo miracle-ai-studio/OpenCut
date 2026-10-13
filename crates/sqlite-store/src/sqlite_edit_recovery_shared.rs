@@ -1,4 +1,4 @@
-//! Private scope and capacity authority shared by frozen V1 and typed V2.
+//! Private scope and capacity authority shared by frozen V1/V2 and font recovery.
 use super::*;
 use opencut_editor_application::{
     audit::ExecutionContext, edit_recovery_v1 as v1, edit_recovery_v2 as v2,
@@ -43,6 +43,56 @@ pub(super) fn reserve(connection: &Connection, bytes: usize) -> Result<(), Edito
     Ok(())
 }
 
+pub(super) enum V2SlotKind {
+    Edit { key: String },
+    Font { key: String },
+}
+impl V2SlotKind {
+    pub(super) fn key(&self) -> &str {
+        match self {
+            Self::Edit { key } | Self::Font { key } => key,
+        }
+    }
+}
+/// Inspect only a bounded, digest-verified payload. The private font envelope
+/// never becomes an extra case in the frozen V2 public intent or discovery DTO.
+pub(super) fn classify_v2_payload(
+    payload: &str,
+    digest: &str,
+    project: &str,
+) -> Result<V2SlotKind, EditorError> {
+    if payload.len() > v1::MAX_RECORD_BYTES {
+        return Err(corrupt());
+    }
+    let value: Value = decode_json(payload, "Stored recovery slot")?;
+    if value.get("kind").is_some() {
+        let input = opencut_editor_application::font_import_v1::recovery::decode_payload(
+            payload, digest, project,
+        )?;
+        return Ok(V2SlotKind::Font {
+            key: input.context.request.idempotency_key,
+        });
+    }
+    if v2::exact_payload_digest(payload) != digest {
+        return Err(corrupt());
+    }
+    let input: v2::StageEditRecoveryV2 = decode_json(payload, "Stored V2 recovery context")?;
+    v2::prepare(&input).map_err(|_| corrupt())?;
+    let intent = v2::intent(&input.context.intent);
+    if intent.project_id() != project {
+        return Err(corrupt());
+    }
+    Ok(V2SlotKind::Edit {
+        key: intent.key().to_owned(),
+    })
+}
+pub(super) fn font_protocol_required() -> EditorError {
+    EditorError::new(
+        "RECOVERY_PROTOCOL_REQUIRED",
+        "This record requires font recovery V1 inspection and acknowledgement",
+    )
+}
+
 /// Call inside the same immediate lock as insertion. Never convert or rewrite
 /// the other protocol's raw JSON/digest in order to replace its unresolved edit.
 pub(super) fn require_no_other_version(
@@ -69,15 +119,9 @@ pub(super) fn require_no_other_version(
         return Err(corrupt());
     }
     let previous_key = if version == 1 {
-        if v2::exact_payload_digest(&payload) != digest {
-            return Err(corrupt());
-        }
-        let input: v2::StageEditRecoveryV2 = decode_json(&payload, "Stored V2 recovery context")?;
-        let intent = v2::intent(&input.context.intent);
-        if intent.project_id() != project {
-            return Err(corrupt());
-        }
-        intent.key().to_owned()
+        classify_v2_payload(&payload, &digest, project)?
+            .key()
+            .to_owned()
     } else {
         if v1::exact_payload_digest(&payload) != digest {
             return Err(corrupt());

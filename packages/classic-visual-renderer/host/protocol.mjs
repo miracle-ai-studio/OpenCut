@@ -1,5 +1,6 @@
 import { validateEnvelope } from "@opencut/classic-audio-renderer/internal-host-runtime";
 import { integer, natural, reject } from "../src/validation.mjs";
+import { validateTextFramePlan } from "../src/text-frame.mjs";
 export function validateAdmission(value) {
   if(!value||!["monitored-terminate","strict-hard"].includes(value.quotaProfile))reject("INVALID_VISUAL_ADMISSION","Explicit quota profile is required");
   integer(value.deadlineMs,"deadline",1,300000);integer(value.maxEncodedBytes,"encoded budget",1,32*1024*1024);
@@ -25,5 +26,23 @@ export function validateBegin(packet) {
     if(typeof layer.elementId!=="string"||!layer.elementId||elements.has(layer.elementId)||JSON.stringify(known.get(layer.resource?.assetId))!==JSON.stringify(layer.resource)||!["image","video"].includes(layer.decode?.kind))reject("INVALID_HOST_PROTOCOL","Invalid fixed visual binding");
     elements.add(layer.elementId);
   }
+  return begin;
+}
+
+// A distinct operation under the unchanged transport envelope. V1 `begin`
+// keeps its media-only plan and validator; it cannot opt into text implicitly.
+export function validateTextBegin(packet) {
+  validateEnvelope(packet);
+  if(packet.type!=="beginTextFrameV2")reject("INVALID_HOST_PROTOCOL","V2 text frames require their versioned begin operation");
+  const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
+  validateBegin({...begin,type:"begin",plan:begin.plan?.media});
+  const fonts=validateTextFramePlan(begin.plan,begin.admission);
+  if(!Array.isArray(begin.fonts))reject("INVALID_HOST_PROTOCOL","Missing private font handle collection");
+  const handles=new Set();
+  for(const font of begin.fonts) {
+    if(!fonts.has(font.fontId)||handles.has(font.fontId)||typeof font.handle!=="string"||!font.handle||font.handle.length>1024)reject("INVALID_HOST_PROTOCOL","Invalid private font handles");
+    handles.add(font.fontId);
+  }
+  if(handles.size!==fonts.size)reject("INVALID_HOST_PROTOCOL","Every fixed font requires its private host handle");
   return begin;
 }
