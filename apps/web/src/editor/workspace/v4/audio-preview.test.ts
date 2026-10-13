@@ -2,6 +2,207 @@ import { afterEach, expect, it, vi } from "vitest";
 import { OpenCutApiError } from "../../../lib/editor-sdk";
 import { setupAudioPreview } from "./audio-preview-fixture";
 
+const gainDraft = (
+  f: Awaited<ReturnType<typeof setupAudioPreview>>,
+  tenths = -120,
+) => ({
+  id: "overlap-gesture",
+  projectId: f.state().head.project.id,
+  revision: f.state().head.revision,
+  sequenceId: "scene",
+  trackId: "track",
+  elementId: "audio",
+  originalDb: 0,
+  tenths,
+  changed: true,
+});
+
+it.each(["seek", "set_temporary_gain"] as const)(
+  "applies the latest gain after an accepted %s without streaming its superseded overlay",
+  async (kind) => {
+    const f = await setupAudioPreview();
+    try {
+      await f.preview.play(48000);
+      f.outputs[0].finalFrames = "256";
+      const actual = f.control.getMockImplementation()!;
+      let release!: () => void, entered!: () => void;
+      const began = new Promise<void>((r) => {
+        entered = r;
+      });
+      let held = false;
+      f.control.mockImplementation(async (...args) => {
+        const result = await actual(...args);
+        if (!held && args[0].command.kind === kind) {
+          held = true;
+          entered();
+          await new Promise<void>((r) => {
+            release = r;
+          });
+        }
+        return result;
+      });
+      if (kind === "seek") f.preview.seek({ ticks: "1", timebase: 1 });
+      else f.preview.draft(gainDraft(f, -60));
+      await began;
+      f.preview.draft(gainDraft(f, -180));
+      release();
+      await vi.waitFor(() =>
+        expect(
+          f.state().audioPreview.session?.temporary_gain?.decibels_tenths,
+        ).toBe(-180),
+      );
+      await flush();
+      expect(f.stream.mock.calls.map(([s]) => s.generation)).toEqual([
+        "1",
+        "3",
+      ]);
+      expect(
+        f.controls.filter((r) => r.command.kind === "report_consumed"),
+      ).toHaveLength(1);
+      expect(f.controls.some((r) => r.command.kind === "stop")).toBe(false);
+    } finally {
+      f.cleanup();
+    }
+  },
+);
+
+it.each([false, true])(
+  "serializes Escape, seek and pause=%s behind the accepted gain",
+  async (pause) => {
+    const f = await setupAudioPreview();
+    try {
+      const before = structuredClone(f.state().head);
+      await f.preview.play(48000);
+      f.outputs[0].finalFrames = "256";
+      const actual = f.control.getMockImplementation()!;
+      let release!: () => void, entered!: () => void;
+      const began = new Promise<void>((r) => {
+        entered = r;
+      });
+      let active = 0,
+        maximum = 0;
+      f.control.mockImplementation(async (...args) => {
+        maximum = Math.max(maximum, ++active);
+        try {
+          const result = await actual(...args);
+          if (args[0].command.kind === "set_temporary_gain") {
+            entered();
+            await new Promise<void>((r) => {
+              release = r;
+            });
+          }
+          return result;
+        } finally {
+          active--;
+        }
+      });
+      f.preview.draft(gainDraft(f));
+      await began;
+      expect(f.preview.seek({ ticks: "3", timebase: 2 })).toBe(true);
+      f.preview.draft(null);
+      const paused = pause ? f.preview.pause() : null;
+      release();
+      if (paused) await paused;
+      else
+        await vi.waitFor(() =>
+          expect(f.state().audioPreview.session?.generation).toBe("4"),
+        );
+      await flush();
+      expect(maximum).toBe(1);
+      expect(
+        f.controls
+          .filter((r) => r.command.kind !== "report_consumed")
+          .map((r) => [r.generation, r.command.kind]),
+      ).toEqual([
+        ["1", "play"],
+        ["1", "set_temporary_gain"],
+        ["2", "seek"],
+        ["3", "clear_temporary_gain"],
+        ...(pause ? [["4", "pause"]] : []),
+      ]);
+      expect(f.stream.mock.calls.map(([s]) => s.generation)).toEqual(
+        pause ? ["1"] : ["1", "4"],
+      );
+      expect(f.state().audioPreview.phase).toBe(pause ? "paused" : "loading");
+      expect(f.state().audioPreview.session?.temporary_gain).toBeNull();
+      expect(f.state().head).toEqual(before);
+    } finally {
+      f.cleanup();
+    }
+  },
+);
+
+it("changes and cancels paused gain without reporting the retired device or restarting sound", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    f.outputs[0].finalFrames = "256";
+    await f.preview.pause();
+    f.preview.draft(gainDraft(f));
+    await vi.waitFor(() =>
+      expect(
+        f.state().audioPreview.session?.temporary_gain?.decibels_tenths,
+      ).toBe(-120),
+    );
+    f.preview.draft(null);
+    await vi.waitFor(() =>
+      expect(f.state().audioPreview.session?.temporary_gain).toBeNull(),
+    );
+    expect(f.state().audioPreview.phase).toBe("paused");
+    expect(f.state().playhead).toEqual({ ticks: "256", timebase: 48000 });
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(1);
+    expect(f.outputs).toHaveLength(1);
+    expect(f.stream).toHaveBeenCalledTimes(1);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("retires a late accepted gain generation after departure using original authority", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    const actual = f.control.getMockImplementation()!;
+    let release!: () => void, entered!: () => void;
+    const began = new Promise<void>((r) => {
+      entered = r;
+    });
+    f.control.mockImplementation(async (...args) => {
+      const result = await actual(...args);
+      if (args[0].command.kind === "set_temporary_gain") {
+        entered();
+        await new Promise<void>((r) => {
+          release = r;
+        });
+      }
+      return result;
+    });
+    f.preview.draft(gainDraft(f));
+    await began;
+    f.preview.retireDocument();
+    release();
+    await flush();
+    const stops = f.control.mock.calls.filter(
+      ([r]) => r.command.kind === "stop",
+    );
+    expect(stops.map(([r]) => r.generation)).toEqual(["1", "2"]);
+    expect(
+      stops.every(
+        ([r, , options]) =>
+          r.owner_id === "owner" &&
+          r.lease_id === "lease" &&
+          options?.keepalive,
+      ),
+    ).toBe(true);
+    expect(f.stream).toHaveBeenCalledTimes(1);
+    expect(f.state().audioPreview.session).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -951,6 +1152,77 @@ it("cancels a superseded seek picture preparation before starting its PCM and pr
     ).toEqual({ kind: "seek", sequence_time: { ticks: "7", timebase: 2 } });
     expect(f.state().audioPreview.phase).toBe("loading");
     expect(picture.close).not.toHaveBeenCalled();
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("Escape cancels obsolete gain picture preparation before any intermediate PCM starts", async () => {
+  const f = await setupAudioPreview();
+  let entered!: () => void;
+  const began = new Promise<void>((r) => {
+    entered = r;
+  });
+  const prepared: string[] = [];
+  const picture = {
+    suspend: vi.fn(),
+    close: vi.fn(),
+    observe: vi.fn(),
+    prepare: vi.fn(async (s: { generation: string }, signal: AbortSignal) => {
+      prepared.push(s.generation);
+      if (s.generation === "2") {
+        entered();
+        await new Promise<void>((_, reject) =>
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Replaced", "AbortError")),
+            { once: true },
+          ),
+        );
+      }
+    }),
+  };
+  try {
+    await f.preview.play(48000, picture);
+    f.outputs[0].finalFrames = "256";
+    f.preview.draft(gainDraft(f));
+    await began;
+    f.preview.draft(null);
+    await vi.waitFor(() =>
+      expect(f.state().audioPreview.session?.generation).toBe("3"),
+    );
+    expect(prepared).toEqual(["1", "2", "3"]);
+    expect(f.outputs[1].silenced).toBe(true);
+    expect(f.stream.mock.calls.map(([s]) => s.generation)).toEqual(["1", "3"]);
+    expect(
+      f.controls.filter((r) => r.command.kind === "report_consumed"),
+    ).toHaveLength(1);
+    expect(f.state().audioPreview.session?.temporary_gain).toBeNull();
+  } finally {
+    f.cleanup();
+  }
+});
+
+it("preserves pause caller errors while publishing failure and retiring original authority", async () => {
+  const f = await setupAudioPreview();
+  try {
+    await f.preview.play(48000);
+    const actual = f.control.getMockImplementation()!;
+    f.control.mockImplementation(async (...args) => {
+      if (args[0].command.kind === "pause")
+        throw new Error("Pause response unavailable");
+      return actual(...args);
+    });
+    await expect(f.preview.pause()).rejects.toThrow(
+      "Pause response unavailable",
+    );
+    expect(f.state().audioPreview.phase).toBe("failed");
+    expect(
+      f.controls
+        .filter((r) => r.command.kind === "stop")
+        .map((r) => r.generation),
+    ).toEqual(["1"]);
+    expect(f.outputs[0].silenced).toBe(true);
   } finally {
     f.cleanup();
   }

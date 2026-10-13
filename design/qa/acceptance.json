@@ -289,7 +289,7 @@
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
     "scope": "32 unique scoped records. Current coalesced seek implementation passes32 affected lifecycle/visual/control cases and15 observers; one integrated Web build,0Rust/native/SDK builds. Same original fixture3 real control cases pass with exact latest target/original authority and independent PCM/pixels/sync. Prior300s windows/performance/document scopes keep their identities; fullS1/whole tree incomplete.",
-    "latest_candidate": "audio_preview_coalesced_seek",
+    "latest_candidate": "audio_preview_gain_transitions",
     "plan_coverage": {
       "remaining_groups": 36,
       "routes": 13,
@@ -6866,12 +6866,163 @@
           "user_media_touched": false,
           "media_database_credentials_in_git": false
         }
+      },
+      {
+        "evidence_id": "audio_preview_gain_transitions",
+        "status": "implemented_and_scoped_real_gain_controls_verified_full_S1_incomplete",
+        "candidate": {
+          "base_commit": "8e0f9eee61dd5a89b59e3ec4cb06e67a3ba6fd70",
+          "source_files": [
+            "apps/web/src/editor/workspace/v4/audio-preview.ts",
+            "apps/web/src/editor/workspace/v4/audio-preview.test.ts",
+            "apps/web/scripts/verify-v4-scene-preview-gain.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "source_manifest_sha256": "898a4b79f777d9a8126b07275f21d9e445d2916699571d876e5dba0aef2684fd",
+          "binary_sha256": "ff8019c58f5bbd14fd39b8b80c341ae763909241c3f3fe36193ac653b5c92905",
+          "web_dist_manifest_sha256": "883ad2c486a128495767ecbf9d500297ba7727cea74e3b3ee538f278199d03b7",
+          "binary_ref": "audio_preview_document_retirement.candidate",
+          "native_runtime_ref": "audio_preview_owned_collocated_transport.candidate",
+          "rust_native_sources_unchanged": true,
+          "runtime": "preview-direct-v1; Node24.19.0; actual browser153.0.8010.12; Playwright1.63.0. Explicit one accepted control-response delay; functional observation, not prior performance runtime identity."
+        },
+        "implemented": [
+          "Extend existing coalesced seek loop to own latest target gain/Escape and sticky pause. Real final device cursor confirmed once, one control in flight, every validated generation adopted before the next control; superseded overlays do not prepare/publish intermediate PCM.",
+          "Reuse volume-line drafts, typed set/clear gain and Rust reanchor. Paused gain changes/cancellation use already confirmed native cursor, do not report through retired pump or restart sound. Abort superseded picture preparation; late accepted gain after document departure receives original-identity keepalive Stop.",
+          "Keep original pause caller error propagation while detached seek/gain observe published failure. No new DTO/tool/module/dependency; unchanged project transaction/unknown-write preservation, lease, two-slot credit and resource budgets."
+        ],
+        "checks": {
+          "audio_preview_tests": 34,
+          "new_lifecycle_tests": 8,
+          "gain_transaction_and_line_tests": 15,
+          "visual_tests": 5,
+          "affected_vitest_unique_tests": 54,
+          "web_boundary_files": 184,
+          "typecheck_and_web_production_builds": 2,
+          "rust_builds": 0,
+          "native_builds": 0,
+          "sdk_builds": 0,
+          "regressions": "Six original-source gain/seek/Escape/pause/late-departure cases fail before fix. Superseded gain picture cancellation also passes. Final integration exposed pause rejection loss; its new regression fails before narrow error propagation correction and passes afterward.",
+          "build_scope": "First integrated product build owns three actual success cases. Only subsequent product delta restores pause rejection (fulfilled internal failure outcome returned to pause caller); final34 audio tests and one final type/production build. No repeated success-path media run. Verifier-only corrections never rebuilt product.",
+          "registration": "Existing DTO/export/tool/access -> host dispatch -> Rust set/clear/seek/pause reanchor -> native replace/cancel -> generated SDK -> volume line and player. New gain/gain-paused suites registered in JS and Python retained-fixture checks.",
+          "reuse": "Unchanged Rust/native/194tools/22frozen wire and architecture14/22modules/0exceptions retain recorded source/runtime scope. Original witness and eight-second media/fixed head reused. No old300s/HD/DSP/export/lifecycle/performance rerun, media copy or new project fixture."
+        },
+        "acceptance": {
+          "scope": "Three serial actual UI cases in sole original eight-second synthetic project; real accepted response held only at target boundary, actual Worklet-transferred stereo samples and independent colors. No fabricated sessions or consumption.",
+          "cases": [
+            {
+              "boundary": "gain_during_seek",
+              "project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+              "revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+              "commands": [
+                "seek",
+                "set_temporary_gain",
+                "clear_temporary_gain",
+                "pause"
+              ],
+              "generation_delta": "4",
+              "independent_pre_master_pcm": [
+                {
+                  "frequency_hz": 439.99991601784757,
+                  "rms": 0.022183939027545643
+                },
+                {
+                  "frequency_hz": 439.99991601784757,
+                  "rms": 0.022183939027545643
+                }
+              ],
+              "restored_pre_master_pcm": [
+                {
+                  "frequency_hz": 440.0001726303251,
+                  "rms": 0.08841441800129878
+                },
+                {
+                  "frequency_hz": 440.0001726303251,
+                  "rms": 0.08841441800129878
+                }
+              ],
+              "pixel_frames": 5,
+              "max_skew_ms": 48.00000000000004,
+              "device_closed": true,
+              "worker_targets": 0,
+              "readonly": true,
+              "scope": "Original single mono440Hz source at-12dB duplicated to stereo. Actual Worklet supply and independent pixels; no separate reference voice, post-master capture/DAC, full control or long-runtime performance claim."
+            },
+            {
+              "boundary": "escape_seek_pause",
+              "project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+              "revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+              "commands": [
+                "set_temporary_gain",
+                "seek",
+                "clear_temporary_gain",
+                "pause"
+              ],
+              "generation_delta": "4",
+              "independent_pre_master_pcm": null,
+              "restored_pre_master_pcm": null,
+              "pixel_frames": 0,
+              "max_skew_ms": null,
+              "device_closed": true,
+              "worker_targets": 0,
+              "readonly": true,
+              "scope": "Original single mono440Hz source at-12dB duplicated to stereo. Actual Worklet supply and independent pixels; no separate reference voice, post-master capture/DAC, full control or long-runtime performance claim."
+            },
+            {
+              "boundary": "paused_gain",
+              "project_id": "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+              "revision": "rev_82c85f787aa592a336bebf90995826b4f14684503ca2c16a6ad9096f93cd277d",
+              "commands": [
+                "pause",
+                "set_temporary_gain",
+                "clear_temporary_gain"
+              ],
+              "generation_delta": "3",
+              "independent_pre_master_pcm": null,
+              "restored_pre_master_pcm": null,
+              "pixel_frames": 0,
+              "max_skew_ms": null,
+              "device_closed": true,
+              "worker_targets": 0,
+              "readonly": true,
+              "scope": "Original single mono440Hz source at-12dB duplicated to stereo. Actual Worklet supply and independent pixels; no separate reference voice, post-master capture/DAC, full control or long-runtime performance claim."
+            }
+          ],
+          "web_dist_manifest_sha256": "22f720baf3cc1155b57538f9062a2f81480e2e2206418880701156b0cdf87c72",
+          "playback_source_manifest_sha256": "443bde932d1e8317cb41ac30c6bb94f4e69c1ca03cc8c18fe8212354b061b14c",
+          "paused_observer_manifest_sha256": "d6a1dfa5c8ab8e20859a5f69ad3f2bbe8e38f7a2eeb6401ce888868f678260a4",
+          "observer_source_files": [
+            "apps/web/scripts/verify-v4-scene-preview-gain.mjs",
+            "apps/web/scripts/verify-suite.mjs",
+            "scripts/verify-web.py"
+          ],
+          "report_paths": [
+            "/private/tmp/opencut-preview-gain-playback-20261013.json",
+            "/private/tmp/opencut-preview-gain-paused-20261013.json"
+          ],
+          "aggregate_scope": "Playback report retains two passed check/evidence records but overall status failed at later paused verifier assertion, which counted ordinary playing reports during Pause. It is not relabeled as passed. Final paused observer compares against actual confirmed-pause report baseline and cursor; only paused suite rerun and its report passed. Earlier transitional witness read corrected by waiting for matching generation/overlay token with real nonzero device consumption before PCM inspection. Previously passed two cases not repeated.",
+          "final_source_scope": "Final Web883ad2c/error propagation delta has unit/type/build evidence, not a repeat of three real success cases on final bytes. Actual cases bind integrated Web22f720b and their two observer identities; no final whole-candidate/performance acceptance claim."
+        },
+        "limits": [
+          "Single mono440Hz target at-12dB and restored0dB, duplicated stereo initial4096-frame pre-master windows only. Existing historical isolated two-voice target-only proof stays at its own candidate. No new independent reference voice, distinct stereo mapping, boundary/phase, post-master graph capture or physical DAC proof.",
+          "Gain picture cancellation and late accepted document departure have lifecycle unit evidence; real unknown overlay result/recovery, scene/revision/original credential revocation, BFCache/kill/network/TTL/complete controls and long/VFR/non-unit-rate/cross-browser scopes remain.",
+          "No new300s performance/terminal aggregate or native tail/RSS causal optimization claim. Actual browser153 differs from earlier154 observation; old performance acceptance is not reused as current runtime measurement. S1/F10/F42/F44 and36groups remain incomplete."
+        ],
+        "next": "Scene/revision and original-credential boundaries in the same player; complete distinct voices/stereo and independent post-master gain expectations; original-key unknown control/BFCache/lease failures, then long/VFR/non-unit-rate media. Reuse typed ports, current fixture and prior evidence; only demonstrated gaps justify changes or targeted rechecks.",
+        "cleanup": {
+          "verifier_services_stopped": true,
+          "workspace_open_handles": 0,
+          "preview_node_actors": 0,
+          "user_media_touched": false,
+          "media_database_credentials_in_git": false
+        }
       }
     ]
   },
   "current_limits": [
     "36 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan.",
-    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete. Current coalesced-seek candidate adds3 real response-boundary/seek-pause cases, latestseek263/362ms and skew117.33/37.33ms. New Web identity separate; gain overlaps/full controls/unknown outcomes and wider media remain pending.",
+    "Continuous normal Video/static PNG-JPEG: final-source known document departure stops original session/native children/Worker; unknown BFCache request-key preservation has scoped unit evidence. Recorded preceding retirement Web candidatec6f8087 actual300s14/14 frozen gates pass: copies14400000/render14405632/misses5632(overall0.03910%), worst10s quantum0.8%/stall0.7911%/confirmed deficit0.7861%, native tree2061082624B<2GiB,21 processes. PTS152-172/skew122.67ms/384 independent pixels and split page/Worker/GPU/cleanup pass. Final90f996c Web retains targeted real retirement and39 laterPCM windows from actual300s observation. Its terminal aggregate hit verifier cursor semantics; final observer correction passed actual8s terminal-only scope, no final300s aggregate/performance rerun. Old product failures/Native observations retain source identities; no permanent-tail or causal performance claim. Original initialPCM remains scoped; current20source/19gap stereointeriors add independent440Hz/three-voice gain/exact silence only. Edge/distinct-stereo/phase/post-master/full controls, true BFCache/abrupt close/network/TTL, real long/VFR/non-unit-rate/complete visual/export scopes remain incomplete. Current coalesced-seek candidate adds3 real response-boundary/seek-pause cases, latestseek263/362ms and skew117.33/37.33ms. New Web identity separate; Current gain transition slice adds three real gain/seek/Escape/pause cases on integrated Web22f720b: pre-master-12dB/restored0dB stereoPCM and5 independent color frames/skew48ms; paused gain sends no new consumer reports and preserves confirmed cursor. FinalWeb883ad2c restores pause caller failure propagation with scoped unit/build evidence; actual success cases not rerun. Distinct voices/channel mapping/post-master/full controls/unknown outcomes and wider media remain pending.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
     "Durable V2 recovery covers fixed-head PublicApply/Undo/Redo/Restore; create/copy, jobs/upload and cross-project transfer remain outside. F16 explicit browser file batches, trusted native PNG paste and scoped fractional PCM/collision/failure recovery are verified by separate candidates; Finder/cross-app transport, native video/audio clipboard, system IME and broader format/duration/failure matrices remain pending.",
@@ -6935,6 +7086,15 @@
       "verification": "Four original-source regressions fail before fix;26 audio tests plus6 existing affected visual/binding tests and15 observers pass. Same-built Web3 actual final-report/accepted-seek/seek-pause cases pass; original head/authority retained.",
       "evidence_id": "audio_preview_coalesced_seek",
       "limits": "Scoped synthetic control matrix; gain overlaps, full scene/revision/real authority/unknown-result/BFCache/kill/network/TTL and broad media/DAC remain incomplete."
+    },
+    {
+      "id": "S1-gain-seek-pause-transition-loss",
+      "status": "resolved_for_recorded_gain_transition_boundaries",
+      "cause": "Separate gain overlay drain drops gain during seek, seek invalidates active gain, pause uses an obsolete pump, Escape opens superseded sound, paused gain is ignored, late accepted gain identity is lost after departure.",
+      "repair": "Reuse one serialized/coalesced transition task; latest gain/seek and sticky pause, confirmed paused cursor, obsolete preparation cancellation, validated generation adoption and original-identity late Stop. Preserve pause caller rejection.",
+      "verification": "Six original-source regressions fail; final34 audio+15 gain+5 visual tests and three scoped actual success cases pass at their recorded candidate identities.",
+      "evidence_id": "audio_preview_gain_transitions",
+      "limits": "Actual single target pre-master PCM scope only; final error propagation has unit/build evidence. Whole S1, unknown control recovery/scene/revision/credentials, independent reference/stereo/post-master/DAC and broader media remain incomplete."
     }
   ],
   "open_failures": [],

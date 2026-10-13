@@ -54,9 +54,10 @@ type Active = {
   progress: AudioOutputProgress;
   draining: boolean;
   seekTarget: Time | null;
-  seekTask: Promise<void> | null;
-  pauseAfterSeek: boolean;
-  seekPreparation: AbortController | null;
+  gainPending: boolean;
+  transitionTask: Promise<void | { error: unknown }> | null;
+  pauseAfterTransition: boolean;
+  transitionPreparation: AbortController | null;
   pump: PreviewPump | null;
   leaseDeadline: number;
   documentDeparted: boolean;
@@ -289,9 +290,10 @@ export class V4AudioPreview {
       controls: new AbortController(),
       draining: false,
       seekTarget: null,
-      seekTask: null,
-      pauseAfterSeek: false,
-      seekPreparation: null,
+      gainPending: false,
+      transitionTask: null,
+      pauseAfterTransition: false,
+      transitionPreparation: null,
       pump: null,
       leaseDeadline: 0,
       documentDeparted: false,
@@ -552,42 +554,28 @@ export class V4AudioPreview {
   }
   async pause() {
     const a = this.active;
-    if (a?.seekTask && this.same(a)) {
-      a.pauseAfterSeek = true;
-      this.localStop(a);
-      a.seekPreparation?.abort();
-      await a.seekTask;
-      return;
-    }
     if (!a || !this.same(a) || !a.session) {
       this.invalidate();
       this.publish({ phase: "paused" });
       return;
     }
+    a.pauseAfterTransition = true;
+    const result = await this.queueTransition(a);
+    if (result) throw result.error;
+  }
+  private queueTransition(a: Active) {
     a.draining = true;
     this.localStop(a);
-    try {
-      const frames = await a.output.stop();
-      if (!this.same(a)) return;
-      await this.report(a, frames);
-      if (!this.same(a)) return;
-      const previous = a.session!,
-        request = this.command(a, { kind: "pause" });
-      const result = await a.api.v4.audioPreviewControl(
-        request,
-        a.controls.signal,
-      );
-      this.checkSession(a, result, previous);
-      if (!this.same(a)) return;
-      a.session = result;
-      this.present(result.authoritative_time);
-      this.publish({ session: result, phase: "paused" });
-    } catch (e) {
-      if (this.same(a)) this.fail(a, e);
-      throw e;
-    } finally {
-      a.abort.abort();
+    a.transitionPreparation?.abort();
+    this.publish({ phase: "loading" });
+    if (!a.transitionTask) {
+      const task = this.transition(a);
+      a.transitionTask = task;
+      void task.finally(() => {
+        if (a.transitionTask === task) a.transitionTask = null;
+      });
     }
+    return a.transitionTask;
   }
   seek(time?: Time) {
     const a = this.active;
@@ -595,24 +583,14 @@ export class V4AudioPreview {
       time &&
       a?.session &&
       this.same(a) &&
-      (a.seekTask ||
+      (a.transitionTask ||
         (!a.draining &&
           ["playing", "stalled", "loading"].includes(
             this.host.state()?.audioPreview.phase ?? "",
           )))
     ) {
       a.seekTarget = time;
-      a.draining = true;
-      this.localStop(a);
-      a.seekPreparation?.abort();
-      this.publish({ phase: "loading" });
-      if (!a.seekTask) {
-        const task = this.seekPlaying(a);
-        a.seekTask = task;
-        void task.finally(() => {
-          if (a.seekTask === task) a.seekTask = null;
-        });
-      }
+      void this.queueTransition(a);
       return true;
     }
     this.invalidate();
@@ -625,23 +603,52 @@ export class V4AudioPreview {
     this.invalidate(false);
     this.publish({ phase: "paused" });
   }
-  private async seekPlaying(a: Active) {
+  private async transition(a: Active) {
     try {
       const frames = await a.output.stop();
       if (!this.same(a)) return;
-      await this.report(a, frames);
+      // Paused consumption is already confirmed; its retired pump cannot report
+      // a new generation, and changing an overlay must not restart the device.
+      if (a.session!.state !== "paused") await this.report(a, frames);
       if (!this.same(a)) return;
       // One latest target, one control in flight. Adopt every accepted identity
       // before the next command, but never prepare/publish a superseded target.
-      while (this.same(a) && (a.seekTarget || a.pauseAfterSeek)) {
+      while (this.same(a) && this.hasTransition(a)) {
         const time = a.seekTarget;
         a.seekTarget = null;
         const previous = a.session!;
+        let command: V4AudioPreviewControl["command"];
+        if (time) command = { kind: "seek", sequence_time: time };
+        else if (a.gainPending) {
+          a.gainPending = false;
+          const draft = this.desired;
+          command = draft
+            ? {
+                kind: "set_temporary_gain",
+                gain: {
+                  track_id: draft.trackId,
+                  element_id: draft.elementId,
+                  decibels_tenths: draft.tenths,
+                  gesture_id: draft.id,
+                  update_sequence: (++this.overlaySequence).toString(),
+                },
+              }
+            : previous.temporary_gain
+              ? {
+                  kind: "clear_temporary_gain",
+                  gesture_id: previous.temporary_gain.gesture_id,
+                }
+              : // Cancelled before dispatch: reanchor the confirmed final cursor
+                // only if playing, because that old output has already closed.
+                previous.state === "paused"
+                ? { kind: "pause" }
+                : { kind: "seek", sequence_time: previous.authoritative_time };
+        } else {
+          a.pauseAfterTransition = false;
+          command = { kind: "pause" };
+        }
         const result = await a.api.v4.audioPreviewControl(
-          this.command(
-            a,
-            time ? { kind: "seek", sequence_time: time } : { kind: "pause" },
-          ),
+          this.command(a, command),
           a.controls.signal,
         );
         this.checkSession(a, result, previous);
@@ -650,10 +657,14 @@ export class V4AudioPreview {
           this.stopRemote(a);
           return;
         }
-        if (a.seekTarget || (a.pauseAfterSeek && result.state !== "paused"))
+        if (
+          a.seekTarget ||
+          a.gainPending ||
+          (a.pauseAfterTransition && result.state !== "paused")
+        )
           continue;
         if (result.state === "paused") {
-          a.pauseAfterSeek = false;
+          a.pauseAfterTransition = false;
           a.abort.abort();
           this.present(result.authoritative_time);
           this.publish({ session: result, phase: "paused" });
@@ -661,7 +672,7 @@ export class V4AudioPreview {
         }
         const started = await this.replaceOutput(a, result, true);
         if (!this.same(a)) return;
-        if (!a.seekTarget && !a.pauseAfterSeek) return;
+        if (!this.hasTransition(a)) return;
         this.localStop(a);
         a.draining = true;
         const finalFrames = await a.output.stop();
@@ -675,14 +686,20 @@ export class V4AudioPreview {
       }
     } catch (e) {
       if (this.same(a)) this.fail(a, e);
+      // Detached seek/gain callers observe the published failure. Pause also
+      // preserves its existing rejected-promise contract for the UI caller.
+      return { error: e };
     }
+  }
+  private hasTransition(a: Active) {
+    return !!(a.seekTarget || a.gainPending || a.pauseAfterTransition);
   }
   private async replaceOutput(
     a: Active,
     session: V4AudioPreviewSession,
-    seeking = false,
+    transitioning = false,
   ) {
-    const superseded = () => seeking && !!(a.seekTarget || a.pauseAfterSeek);
+    const superseded = () => transitioning && this.hasTransition(a);
     a.abort.abort();
     a.pump = null;
     a.session = session;
@@ -714,7 +731,7 @@ export class V4AudioPreview {
     if (!this.same(a) || superseded()) return false;
     if (a.picture) {
       const preparation = new AbortController();
-      if (seeking) a.seekPreparation = preparation;
+      if (transitioning) a.transitionPreparation = preparation;
       try {
         await a.picture.prepare(
           session,
@@ -728,7 +745,8 @@ export class V4AudioPreview {
         if (superseded() && preparation.signal.aborted) return false;
         throw error;
       } finally {
-        if (a.seekPreparation === preparation) a.seekPreparation = null;
+        if (a.transitionPreparation === preparation)
+          a.transitionPreparation = null;
       }
     }
     if (!this.same(a) || superseded()) return false;
@@ -754,49 +772,8 @@ export class V4AudioPreview {
       this.desired = null;
       return;
     }
-    if (!a || !this.same(a) || !a.session || a.draining) return;
-    this.localStop(a);
-    void this.overlay(a);
-  }
-  private async overlay(a: Active) {
-    a.draining = true;
-    try {
-      const frames = await a.output.stop();
-      if (!this.same(a)) return;
-      await this.report(a, frames);
-      if (!this.same(a)) return;
-      // Coalesce pointer movements; only the service replaces the element gain.
-      const draft = this.desired,
-        previous = a.session!;
-      const command: V4AudioPreviewControl["command"] = draft
-        ? {
-            kind: "set_temporary_gain",
-            gain: {
-              track_id: draft.trackId,
-              element_id: draft.elementId,
-              decibels_tenths: draft.tenths,
-              gesture_id: draft.id,
-              update_sequence: (++this.overlaySequence).toString(),
-            },
-          }
-        : previous.temporary_gain
-          ? {
-              kind: "clear_temporary_gain",
-              gesture_id: previous.temporary_gain.gesture_id,
-            }
-          : { kind: "seek", sequence_time: previous.authoritative_time };
-      const request = this.command(a, command);
-      const session = await a.api.v4.audioPreviewControl(
-        request,
-        a.controls.signal,
-      );
-      this.checkSession(a, session, previous);
-      if (!this.same(a)) return;
-      await this.replaceOutput(a, session);
-      if (this.desired !== draft)
-        queueMicrotask(() => this.draft(this.desired));
-    } catch (e) {
-      if (this.same(a)) this.fail(a, e);
-    }
+    if (!a || !this.same(a) || !a.session) return;
+    a.gainPending = true;
+    void this.queueTransition(a);
   }
 }
