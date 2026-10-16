@@ -85,6 +85,8 @@ async fn static_file(
     request: Request,
     content: public_content::PublicContent,
 ) -> Response {
+    // Static responses never read the request body; dropping it keeps the handler future Send.
+    let request = request.map(|_| ());
     if !matches!(*request.method(), Method::GET | Method::HEAD) {
         return StatusCode::METHOD_NOT_ALLOWED.into_response();
     }

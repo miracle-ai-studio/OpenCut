@@ -543,7 +543,7 @@ fn transform_draft_rejects_an_associated_valid_legacy_crossfade() {
         trim_end: t(7),
         source_duration: Some(t(10)),
     };
-    first.content=serde_json::from_value(serde_json::json!({"kind":"video","asset_id":"a","audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap();
+    first.content=serde_json::from_value(serde_json::json!({"kind":"video","asset_id":"a","video_stream":null,"source_audio_enabled":true,"audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap();
     let mut next = first.clone();
     next.id = "next-video".into();
     next.timeline_range.start = t(2);

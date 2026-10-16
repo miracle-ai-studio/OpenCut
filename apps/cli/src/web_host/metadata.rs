@@ -209,7 +209,7 @@ async fn lookup(content: &PublicContent, key: Key) -> Result<std::sync::Arc<Cont
 }
 pub(super) async fn serve(
     root: &Path,
-    request: &Request,
+    request: &Request<()>,
     content: &PublicContent,
 ) -> Option<Response> {
     let path = request.uri().path();

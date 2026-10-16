@@ -22,7 +22,7 @@ function fixture(){
   const imported=vi.fn(async(request:BrandImportV1)=>({transaction_id:"tx",base_revision:request.expected_revision,revision:"r2",created_ids:[request.asset_id],changed_ids:[],deleted_ids:[]}));
   const state={api:{connectionIdentity:identity,authenticateConnection:async()=>{},sdk:{call}},v4:{head:{project:{id:"p",assets:[] as V4Asset[]},revision:"r"},media:{attempt:null}},busy:false,controller:{getSnapshot:()=>state,report:vi.fn(),v4:{importBrandResource:imported,refresh:vi.fn(async()=>{
     const request=imported.mock.calls.at(-1)?.[0];if(!request)return;
-    state.v4.head={revision:"r2",project:{id:"p",assets:[{id:request.asset_id,name:".NET",kind:"image",version,duration:null,origin:{kind:"generated",provider:"simple-icons-browser-raster-v1",generation_id:"fixed-source"},license:{identifier:"CC0-1.0",source_url:null,notice:"full notice",attribution:"source attribution"},metadata:{mime_type:"image/png",intrinsic_size:{width:512,height:512},frame_rate:null,rotation_degrees:null,audio:{kind:"absent"}}}]}};
+    state.v4.head={revision:"r2",project:{id:"p",assets:[{id:request.asset_id,name:".NET",kind:"image",version,duration:null,origin:{kind:"generated",provider:"simple-icons-browser-raster-v1",generation_id:"fixed-source"},license:{identifier:"CC0-1.0",source_url:null,notice:"full notice",attribution:"source attribution"},metadata:{mime_type:"image/png",intrinsic_size:{width:512,height:512},frame_rate:null,rotation_degrees:null,audio:{status:"absent"}}}]}};
   })}}};
   mocks.state=state;return{state,call,imported};
 }

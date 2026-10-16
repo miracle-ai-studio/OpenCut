@@ -1203,7 +1203,7 @@ function draftSceneHarness(digest: (phase: number) => string = () => `sha256:${"
   }));
   const api = { sdk: { call }, v4: {} } as unknown as VisualPreviewExecutionApi;
   const session = { session_id: "s", generation: "1", overlay_epoch: "0", owner_id: "o", lease_id: "l" };
-  const transaction = { project_id: "p", expected_revision: "r", idempotency_key: "preview-only", label: "transform", actions: [] };
+  const transaction = { project_id: "p", expected_revision: "r", idempotency_key: "preview-only", label: "transform", operations: [] };
   const draft = { draftId: "drag-1", transaction, time } as Parameters<VisualPreviewRenderer["render"]>[5];
   return { api, session, call, draft, time };
 }

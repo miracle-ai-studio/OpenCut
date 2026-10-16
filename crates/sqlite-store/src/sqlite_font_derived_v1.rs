@@ -184,6 +184,9 @@ impl DerivedFontProofReadV1 for EditorApplication {
         Ok(result)
     }
 }
+// Test modules share this name through `use super::*`; production code no longer needs it.
+#[cfg(test)]
+use opencut_editor_application::font_derived_v1 as derived;
 #[cfg(test)]
 #[path = "sqlite_font_derived_v2_tests.rs"]
 mod renamed_tests;

@@ -346,7 +346,8 @@ export class VisualPreviewRenderer {
                 if (
                   !("bound_blend" in bound) ||
                   !bound.bound_blend ||
-                  !bound.bound
+                  !bound.bound ||
+                  !("masks" in bound.bound)
                 )
                   throw new Error("Missing bound visual mask frame");
                 blendBound = bound.bound_blend;

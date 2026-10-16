@@ -4,7 +4,7 @@ import type { EditorApi } from "../api";
 import type { V4SessionHost } from "./session";
 import type { V4FrameAttempt, V4FrameRequest, V4SessionState } from "./types";
 import { compareTime } from "../../model/time";
-import { sceneVisualProfile, viewedSequence, viewedVisualProfile } from "./visual-profile";
+import { viewedVisualProfile } from "./visual-profile";
 
 import { sameTarget, verifiedResult, readPng } from "./frame/png";
 const message = (error: unknown) =>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Field, Panel } from "../../shared/ui";
 import { t, useLocale } from "../../shared/locale";
+import { authenticatedIdentity } from "../api";
 import { useWorkspace } from "../context";
 import { uploadMedia } from "../upload";
 import { OpenCutApiError, type ToolOutput } from "../../../lib/editor-sdk";
@@ -26,7 +27,7 @@ export function V4ResourceCatalogPanel() {
     const run = ++epoch.current, cancel = new AbortController(); setCatalog(null); setError(null); setOriginal(null); setPreview(null); setPlacing(null); setReview(false);
     if (api && project) void (async () => {
       await api.authenticateConnection();
-      const saved = recovery.current.get(api.connectionIdentity, project), data = await api.sdk.call("opencut_catalog_resources_v1_list", {}, { signal: cancel.signal });
+      const saved = recovery.current.get(authenticatedIdentity(api), project), data = await api.sdk.call("opencut_catalog_resources_v1_list", {}, { signal: cancel.signal });
       if (run !== epoch.current) return;
       if (data.schema_version !== 1) throw Error("Unsupported resource catalog."); setCatalog(data); setOriginal(saved);
     })().catch(e => { if (!cancel.signal.aborted && run === epoch.current) setError(e instanceof Error ? e.message : String(e)); });
@@ -38,13 +39,13 @@ export function V4ResourceCatalogPanel() {
   const current = () => { const s = controller.getSnapshot(); if (s.api !== api || !s.v4 || s.v4.head.project.id !== project || s.v4.historical) throw Error("Return to the original project before continuing."); return s.v4; };
   const execute = async (request: CatalogRequestV1, signal: AbortSignal, run: number) => {
     // Durably retain the exact typed request before the mutating dispatch.
-    recovery.current.put(api.connectionIdentity, request); if (run === epoch.current) setOriginal(request);
+    recovery.current.put(authenticatedIdentity(api), request); if (run === epoch.current) setOriginal(request);
     let receipt: ToolOutput<"opencut_catalog_resources_v1_import">;
     try { receipt = "recipe" in request ? await controller.v4.generateCatalogSound(request, signal) : await controller.v4.importCatalogResource(request, signal); }
     catch (error) {
       // begin() checks the original-key receipt before reporting conflict: this
       // response proves this exact command did not commit against that head.
-      if (error instanceof OpenCutApiError && error.code === "REVISION_CONFLICT") { recovery.current.remove(api.connectionIdentity, request.project_id, request.idempotency_key); if (run === epoch.current) setOriginal(null); }
+      if (error instanceof OpenCutApiError && error.code === "REVISION_CONFLICT") { recovery.current.remove(authenticatedIdentity(api), request.project_id, request.idempotency_key); if (run === epoch.current) setOriginal(null); }
       throw error;
     }
     if (receipt.base_revision !== request.expected_revision || !receipt.created_ids.includes(request.asset_id)) throw Error("Catalog import returned another resource intent.");
@@ -52,7 +53,7 @@ export function V4ResourceCatalogPanel() {
     await controller.v4.refresh();
     const state = current(), asset = state.head.project.assets.find(a => a.id === request.asset_id);
     if (!asset) throw Error("The acquired resource is not present in the refreshed project. Retry the original request.");
-    recovery.current.remove(api.connectionIdentity, request.project_id, request.idempotency_key); setOriginal(null);
+    recovery.current.remove(authenticatedIdentity(api), request.project_id, request.idempotency_key); setOriginal(null);
     setPreview({ asset, projectId: state.head.project.id, revision: state.head.revision });
   };
   const acquire = async (entry?: CatalogEntryV1, localRecipe?: CatalogGenerateRequestV1["recipe"]) => {
@@ -60,7 +61,7 @@ export function V4ResourceCatalogPanel() {
     const run = epoch.current, cancel = new AbortController(); abort.current = cancel; active.current = true; setPending(true); setError(null); setProgress(null);
     try {
       await api.authenticateConnection();
-      const state = current(), saved = recovery.current.get(api.connectionIdentity, state.head.project.id);
+      const state = current(), saved = recovery.current.get(authenticatedIdentity(api), state.head.project.id);
       if (saved) { await execute(saved, cancel.signal, run); return; }
       if (localRecipe) {
         const request: CatalogGenerateRequestV1 = { project_id: state.head.project.id, expected_revision: state.head.revision, idempotency_key: crypto.randomUUID(), asset_id: crypto.randomUUID(), recipe: structuredClone(localRecipe) };

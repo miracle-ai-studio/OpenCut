@@ -41,6 +41,8 @@ it("cancel during planning aborts the read and never restores its late transacti
     let resolve!: (plan: TimelinePlan) => void;
     f.planner.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     const pending = f.edit.plan(move);
+    // Planning starts after the host capability read.
+    await vi.waitFor(() => expect(f.planner).toHaveBeenCalled());
     const request = f.planner.mock.calls[0][1], signal = f.planner.mock.calls[0][2]!;
     f.edit.cancel(); expect(signal.aborted).toBe(true);
     resolve(f.planFor(request));
@@ -57,7 +59,9 @@ it("a delayed plan is rejected when API, scene or history view changes", async (
     try {
       let resolve!: (plan: TimelinePlan) => void;
       f.planner.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
-      const pending = f.edit.plan(move), request = f.planner.mock.calls[0][1];
+      const pending = f.edit.plan(move);
+      await vi.waitFor(() => expect(f.planner).toHaveBeenCalled());
+      const request = f.planner.mock.calls[0][1];
       if (change === "api") f.changeApi();
       else if (change === "scene") f.set({ sequenceId: "other" });
       else { f.changeView(); f.set({ historical: f.state().head }); }

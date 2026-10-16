@@ -38,6 +38,7 @@ import { V4GraphicAuthoringProvider, V4GraphicActions, V4GraphicPanel } from "./
 import { V4TextActions, V4TextAuthoringProvider, V4TextPanel } from "./text/workspace";
 import { canvasTextPlanner } from "./text/canvas-plan";
 import { fontRecoveryBlocked } from "./text/font-recovery";
+import type { FontImportProtocol } from "./text/font-catalog";
 
 /** Full V4 remains in the workspace controller. Read panels never manufacture
  * a legacy document. Changes use versioned public application operations. */
@@ -100,7 +101,7 @@ export function V4Product() {
   const captionBlocked = controller.v4.captionRecovery.blocked();
   const fontBlocked = fontRecoveryBlocked(v4.fontRecovery);
   const textAvailable = v4.textFrameCapability?.schema_version === 2 && v4.textFrameCapability.available && v4.textFrameCapability.submit_tool === "opencut_job_v4_text_frame_png";
-  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0], protocol?: "derived" | "static_v3") => controller.v4.importFont(request, protocol) : undefined;
+  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0], protocol?: FontImportProtocol) => controller.v4.importFont(request, protocol) : undefined;
   const fontImportBlockedReason = captionBlocked ? "Resolve the original caption edit before starting another operation." : fontBlocked ? "Resolve the original font import before starting another operation." : null;
   const readonly = !!v4.historical || busy || pending || fontBlocked || captionBlocked;
   const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {

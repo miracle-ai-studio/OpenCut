@@ -1,8 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { it, expect, vi } from "vitest";
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, it, expect, vi } from "vitest";
 import { ClassicAssImportOptions } from "./options";
 import { preferences } from "../../../shared/locale";
 import type { ClassicAssPlan } from "./planner";
+
+afterEach(cleanup);
 it("keeps strict import selectable and source losses reviewable before saving", () => {
   preferences({ language: "en" });
   const mode = vi.fn(),

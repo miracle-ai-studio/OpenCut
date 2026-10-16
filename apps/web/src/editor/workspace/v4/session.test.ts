@@ -70,6 +70,8 @@ describe("complete V4 workspace authority", () => {
         kind: "delete", targets: [{ track_id: "track", element_id: "image" }], ripple: false,
       });
       const rejected = expect(pending).rejects.toThrow("Cancelled timeline read");
+      // The plan read begins after the host capability read.
+      await vi.waitFor(() => expect(plan).toHaveBeenCalled());
       await controller.open(ref());
       await rejected;
       expect(plan.mock.calls[0][1]?.aborted).toBe(true);

@@ -17,6 +17,8 @@ it("retains a delayed runtime capability through an idle seek", async () => {
         }),
     );
     const pending = f.preview.capability();
+    // Capability is read only after durable control recovery has been checked.
+    await vi.waitFor(() => expect(resolve).toBeTypeOf("function"));
     f.preview.seek({ ticks: "1", timebase: 2 });
     resolve(capability);
     await pending;
@@ -59,6 +61,7 @@ it.each(["api", "generation"])(
           }),
       );
       const pending = preview.capability();
+      await vi.waitFor(() => expect(resolve).toBeTypeOf("function"));
       if (replacement) api = replacement.api;
       else generation++;
       resolve(capability);

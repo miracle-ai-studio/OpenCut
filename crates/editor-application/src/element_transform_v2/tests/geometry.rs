@@ -21,7 +21,7 @@ fn media_store(kind: &str) -> Store {
                 trim_end: t(7),
                 source_duration: Some(t(12)),
             };
-            serde_json::from_value(json!({"kind":"video","asset_id":"asset","audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap()
+            serde_json::from_value(json!({"kind":"video","asset_id":"asset","video_stream":null,"source_audio_enabled":true,"audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap()
         }
         "sticker" => ElementContentV4::Sticker {
             asset_id: "asset".into(),

@@ -5,6 +5,11 @@ import { setupTimelineEdit } from "./timeline-fixture";
 import { V4TimelinePanel } from "./panel";
 import type { TimelinePanelProps } from "./panel";
 import { preferences } from "../../../shared/locale";
+import { EditorShortcutsProvider } from "../../../shortcuts";
+import type { ReactNode } from "react";
+
+// Product keyboard edits are routed by the editor shortcut registry.
+const Shortcuts = ({ children }: { children: ReactNode }) => <EditorShortcutsProvider>{children}</EditorShortcutsProvider>;
 
 beforeEach(() => {
   Object.defineProperty(window, "DragEvent", { configurable: true, value: class extends MouseEvent {
@@ -111,7 +116,7 @@ it("real pointer cancellation writes nothing; pointerup plans once and consumes 
 it("gain owns its focus; modifiers only select; keyboard split uses the original playhead", async () => {
   const { f, props } = await setup();
   try {
-    const view = render(<V4TimelinePanel {...props} />);
+    const view = render(<V4TimelinePanel {...props} />, { wrapper: Shortcuts });
     const slider = screen.getByRole("slider", { name: "Volume image" });
     fireEvent.pointerDown(slider, { button: 0, pointerId: 1, clientX: 200, clientY: 130 });
     fireEvent.pointerMove(slider, { pointerId: 1, clientX: 240, clientY: 130 });
@@ -158,7 +163,7 @@ it("rubberband uses scrolled content rectangles and Escape restores the captured
     first.elements[0].timeline_range = { start: { ticks: "1", timebase: 1 }, duration: { ticks: "1", timebase: 1 } };
     const second = structuredClone(first); second.id = "second-track"; second.elements[0].id = "second-image";
     props.sequence.tracks.push(second);
-    const view = render(<V4TimelinePanel {...props} />);
+    const view = render(<V4TimelinePanel {...props} />, { wrapper: Shortcuts });
     const viewport = view.container.querySelector(".v4-timeline-viewport")!;
     const lane = view.container.querySelector(".v4-track-lane")!;
     fireEvent.pointerDown(lane, { button: 0, pointerId: 1, clientX: 173, clientY: 110 });

@@ -101,7 +101,8 @@ function SettingsForm() {
     const state = controller.getSnapshot();
     if (
       state.api !== captured.api ||
-      state.v4?.head.project.id !== captured.projectId ||
+      !state.v4 ||
+      state.v4.head.project.id !== captured.projectId ||
       state.v4.head.revision !== captured.revision ||
       state.v4.sequenceId !== captured.sequenceId ||
       state.v4.historical

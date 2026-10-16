@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../shared/ui";
 import { t, useLocale } from "../../shared/locale";
 import { OpenCutApiError, type ToolOutput } from "../../../lib/editor-sdk";
+import { authenticatedIdentity } from "../api";
 import { useWorkspace } from "../context";
 import { uploadMedia } from "../upload";
 import { BrandRecoveryV1 } from "./brand_resources_v1-recovery";
@@ -22,7 +23,7 @@ export function V4BrandCatalogPanel({ query }: { query: string }) {
   useEffect(() => {
     ++context.current; setOriginal(null); setPlacing(null); setPreview(null); setReview(false); setError(null);
     const run = context.current;
-    if (api && project) void api.authenticateConnection().then(() => { if (run === context.current) setOriginal(recovery.current.get(api.connectionIdentity, project)); }).catch(e => { if (run === context.current) setError(e instanceof Error ? e.message : String(e)); });
+    if (api && project) void api.authenticateConnection().then(() => { if (run === context.current) setOriginal(recovery.current.get(authenticatedIdentity(api), project)); }).catch(e => { if (run === context.current) setError(e instanceof Error ? e.message : String(e)); });
     return () => { ++context.current; abort.current?.abort(); };
   }, [api, project]);
   useEffect(() => { setOffset(0); }, [query]);
@@ -56,7 +57,7 @@ export function V4BrandCatalogPanel({ query }: { query: string }) {
     try {
       await api.authenticateConnection();
       cancel.signal.throwIfAborted(); if (run !== context.current) return;
-      const identity = api.connectionIdentity, state = current(identity), saved = recovery.current.get(identity, state.head.project.id);
+      const identity = authenticatedIdentity(api), state = current(identity), saved = recovery.current.get(identity, state.head.project.id);
       if (saved) { await execute(saved, cancel.signal, run, identity); return; }
       if (!entry?.import_available) throw Error(entry?.unavailable_reason ?? "Choose an available brand.");
       const source = await api.sdk.call("opencut_brand_resources_v1_source", { catalog_id: entry.id }, { signal: cancel.signal });
@@ -98,7 +99,7 @@ export function V4BrandCatalogPanel({ query }: { query: string }) {
       {!entry.import_available && <p>{entry.unavailable_reason}</p>}
       <Button disabled={disabled || !!original || !entry.import_available} onClick={() => void acquire(entry)}>{t("Acquire brand")} · {entry.name}</Button>
     </div>)}
-    {catalog && <div><Button disabled={reading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 40))}>{t("Previous")}</Button><Button disabled={reading || catalog.next_offset === null} onClick={() => { if (catalog.next_offset !== null) setOffset(catalog.next_offset); }}>{t("Next")}</Button></div>}
+    {catalog && <div><Button disabled={reading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 40))}>{t("Previous")}</Button><Button disabled={reading || catalog.next_offset == null} onClick={() => { if (catalog.next_offset != null) setOffset(catalog.next_offset); }}>{t("Next")}</Button></div>}
     {acquired.map(asset => <div key={asset.id}>
       <strong>{asset.name}</strong> <small>{asset.license?.identifier}</small>
       <Button onClick={() => setPreview({ asset, projectId: v4.head.project.id, revision: v4.head.revision })}>{t("Preview source")}</Button>

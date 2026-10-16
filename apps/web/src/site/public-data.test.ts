@@ -107,7 +107,7 @@ describe("public site boundaries", () => {
         '<h2>Title</h2><script>alert(1)</script><iframe src="https://example.com"></iframe><p onclick="alert(2)">Safe <a href="javascript:evil">label</a><a href="https://example.com" style="x">link</a><img src="data:evil"><img src="https://example.com/a.png" onerror="evil" alt="Photo"></p>',
       ),
     );
-    expect(result).toContain('<h2 id="title">Title');
+    expect(result).toContain('<h2 id="title" tabindex="-1">Title');
     expect(result).toContain('href="#title"');
     expect(result).toContain("noopener noreferrer");
     expect(result).toContain('alt="Photo"');

@@ -77,6 +77,7 @@ it("reads existing synthesis resources only from the requested fixed revision", 
   expect(call.mock.calls[0]).toMatchObject([
     "opencut_font_synthesis_v1_proof",
     { project_id: "p", revision: "r", font_id: f.font.id },
+    { signal: expect.any(AbortSignal) },
   ]);
 });
 it("verifies a synthesis import through its new proof tool without calling a V1 or V2 proof", async () => {

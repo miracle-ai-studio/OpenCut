@@ -151,7 +151,7 @@ it("defaults to Classic synthesis over a real italic source while preserving bot
   };
   input.readUnifiedSource = vi.fn(async () => ({
     face,
-    details: { kind: "synthesis_v1", source: f.source },
+    details: { kind: "synthesis_v1" as const, source: f.source },
     license_url: f.source.source.license_url,
     license_sha256: JSON.parse(f.source.source.proof_json).license_sha256,
   }));
@@ -249,7 +249,7 @@ it("shows the derived base identity and color profile without claiming its bytes
   };
   input.readUnifiedSource = vi.fn(async () => ({
     face,
-    details: { kind: "synthesis_v1", source: f.source },
+    details: { kind: "synthesis_v1" as const, source: f.source },
     license_url: f.source.source.license_url,
     license_sha256: JSON.parse(f.source.source.proof_json).license_sha256,
   }));

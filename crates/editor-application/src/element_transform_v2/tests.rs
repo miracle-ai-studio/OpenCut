@@ -564,7 +564,7 @@ fn transitions_are_rejected_even_outside_the_transition_window() {
             trim_end: t(7),
             source_duration: Some(t(12)),
         };
-        element.content=serde_json::from_value(json!({"kind":"video","asset_id":"asset","audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap();
+        element.content=serde_json::from_value(json!({"kind":"video","asset_id":"asset","video_stream":null,"source_audio_enabled":true,"audio":{"stream":null,"gain":{"unit":"decibels","value":0},"muted":false},"retime":{"rate":{"numerator":1,"denominator":1},"maintain_pitch":false,"mapping":{"kind":"exact_rational"}}})).unwrap();
     }
     store.project.sequences[0].transitions.push(TransitionV4 {
         id: "crossfade".into(),

@@ -85,7 +85,7 @@ it("discards a delayed plan after cancellation or view replacement and releases 
     const f = await fixture();
     try {
       let resolve!: (value: TrackRemovalReview["transaction"]) => void;
-      f.call.mockImplementationOnce(async () => await new Promise(done => { resolve = done; }) as never);
+      f.call.mockImplementationOnce(async () => await new Promise<TrackRemovalReview["transaction"]>(done => { resolve = done; }) as never);
       const cancel = new AbortController(), pending = f.edit.prepareTrackRemoval(f.request, f.edit.identity(), cancel.signal);
       if (change === "cancel") cancel.abort(); else if (change === "view") f.changeView(); else f.changeApi();
       resolve(f.planFor(f.request)); await expect(pending).rejects.toThrow();

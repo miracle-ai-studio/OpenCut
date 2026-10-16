@@ -24,11 +24,11 @@ fn root() -> tempfile::TempDir {
     std::fs::write(root.path().join("index.html"),"<!doctype html><html><head><title>Generic</title></head><body><div id=\"root\"></div></body></html>").unwrap();
     root
 }
-fn request(path: &str, method: Method) -> Request {
+fn request(path: &str, method: Method) -> Request<()> {
     Request::builder()
         .method(method)
         .uri(path)
-        .body(Body::empty())
+        .body(())
         .unwrap()
 }
 async fn body(response: Response) -> String {

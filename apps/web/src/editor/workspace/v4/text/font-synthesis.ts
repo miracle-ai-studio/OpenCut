@@ -135,8 +135,10 @@ export function synthesisSourceMetadata(
       )
         throw differs();
     } else {
-      const derived = base.source,
-        face = derived.face;
+      const derived = base.source;
+      // The wire route does not discriminate the source union; a derived route must carry derived source facts.
+      if (!("source_url" in derived)) throw differs();
+      const face = derived.face;
       if (
         face.id !== actual.id ||
         (

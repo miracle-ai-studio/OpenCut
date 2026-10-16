@@ -35,11 +35,9 @@ export function moveSelectionCommand(
         "The selection needs a destination track for every element.",
       );
     if (destination.locked) throw new Error("The destination track is locked.");
-    const compatible =
-      "text" in element && !("content" in element)
-        ? destination.kind === "caption"
-        : "content" in element &&
-          (element.content.kind === "audio"
+    const compatible = !("content" in element)
+      ? "text" in element && destination.kind === "caption"
+      : (element.content.kind === "audio"
             ? destination.kind === "audio"
             : element.content.kind === "video"
               ? destination.kind === "video"

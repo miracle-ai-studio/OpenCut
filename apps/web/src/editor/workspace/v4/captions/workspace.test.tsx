@@ -13,7 +13,7 @@ import { V4CaptionWorkspace, type CaptionWorkspaceOptions } from "./workspace";
 const mocks = vi.hoisted(() => ({
   state: {} as any,
   plan: vi.fn(),
-  classic: vi.fn(),
+  classic: vi.fn((..._args: unknown[]) => undefined as unknown),
 }));
 vi.mock("../../context", () => ({ useWorkspace: () => mocks.state }));
 vi.mock("./planned-subtitles", () => ({ planEditableSubtitles: mocks.plan }));
@@ -43,7 +43,7 @@ function fixture() {
       ),
     },
   };
-  const apply = vi.fn(async () => {}),
+  const apply = vi.fn(async (..._args: unknown[]) => {}),
     select = vi.fn();
   const head = {
     revision: "fixed",

@@ -20,6 +20,13 @@ import type {
   ProjectEdit,
 } from "../model/types";
 
+/** Recovery scope after `authenticateConnection()` resolved; a missing identity is a caller error. */
+export function authenticatedIdentity(api: { readonly connectionIdentity: string | null }): string {
+  const identity = api.connectionIdentity;
+  if (identity === null) throw new Error("The connection is not authenticated.");
+  return identity;
+}
+
 export class EditorApi {
   private authenticatedIdentity: string | null = null;
   /** In-memory recovery scope, established only by the authenticated service.

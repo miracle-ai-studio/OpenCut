@@ -2,7 +2,7 @@ import { OpenCutApiError } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
 import type { V4SessionHost } from "./session";
 import type { V4VideoMp4Attempt, V4SessionState } from "./types";
-import { sceneVisualProfile, viewedSequence, viewedVisualProfile } from "./visual-profile";
+import { viewedVisualProfile } from "./visual-profile";
 
 const videoProtocols = {
   text: {

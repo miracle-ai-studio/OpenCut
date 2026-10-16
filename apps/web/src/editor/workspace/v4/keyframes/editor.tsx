@@ -763,20 +763,22 @@ export function KeyframeEditor({
           type="button"
           onClick={() => {
             if (!row || row.channel.kind !== "scalar") return;
+            // Keep the scalar narrowing inside the deferred edit.
+            const channel = row.channel;
             guarded(() => {
               const n = Number(value);
               if (!value.trim() || !Number.isFinite(n))
                 throw new Error("Enter a finite value.");
               return submit(
-                row.channel.keys
+                channel.keys
                   .filter((k) =>
                     selected.has(
-                      refKey({ channel_id: row.channel.id, key_id: k.id }),
+                      refKey({ channel_id: channel.id, key_id: k.id }),
                     ),
                   )
                   .map((key) => ({
                     kind: "put_scalar",
-                    channel_id: row.channel.id,
+                    channel_id: channel.id,
                     key: { ...key, value: n },
                   })),
               );

@@ -11,7 +11,7 @@ const message = (e: unknown) => e instanceof Error ? e.message : String(e);
 
 /** Only capability and the original submission intent live here. The workspace
  * remains the project authority; the existing task feed owns execution/cancel.
- * sessionStorage retains no paths, media bytes, credentials or bearer tokens. */
+ * The recovery module's tab-scoped record retains no paths, media bytes, credentials or bearer tokens. */
 export class ExportVideoV2 {
   private state: State = empty();
   private epoch = 0;
