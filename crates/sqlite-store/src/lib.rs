@@ -1,6 +1,7 @@
 pub mod analysis;
 #[cfg(unix)]
 mod control_vfs;
+pub mod export_video_v2;
 pub mod job_views;
 pub mod jobs;
 pub mod speaker_turns;
@@ -9,21 +10,23 @@ mod sqlite_artifact_gc;
 mod sqlite_artifact_publication;
 mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
+mod sqlite_audio_preview_recovery_v1;
 mod sqlite_audit;
 mod sqlite_branching;
 mod sqlite_caption_generation;
 mod sqlite_caption_v4;
 mod sqlite_classic_import;
 mod sqlite_classic_import_v4;
+mod sqlite_classic_import_v5;
 mod sqlite_collaboration;
 mod sqlite_denials;
+mod sqlite_derived_font_recovery_v1;
 mod sqlite_edit_control;
 mod sqlite_edit_recovery_shared;
 mod sqlite_edit_recovery_v1;
 mod sqlite_edit_recovery_v2;
-mod sqlite_font_recovery_v1;
 mod sqlite_font_derived_v1;
-mod sqlite_derived_font_recovery_v1;
+mod sqlite_font_recovery_v1;
 mod sqlite_gc;
 mod sqlite_history_navigation;
 mod sqlite_jobs;
@@ -32,9 +35,11 @@ mod sqlite_new_project;
 mod sqlite_plugin_v2;
 mod sqlite_project_document;
 mod sqlite_project_edit;
+mod sqlite_project_history_package_v1;
 mod sqlite_project_library;
 mod sqlite_project_package;
 mod sqlite_project_package_v3;
+mod sqlite_project_package_v4;
 mod sqlite_project_plugins;
 mod sqlite_project_v3;
 mod sqlite_project_v3_branching;
@@ -42,10 +47,14 @@ mod sqlite_project_v3_collaboration;
 pub mod sqlite_project_v3_jobs;
 mod sqlite_project_v4;
 pub mod sqlite_project_v4_audio_jobs;
+pub mod sqlite_project_v4_blend_video_jobs;
 pub mod sqlite_project_v4_caption_video_jobs;
 pub mod sqlite_project_v4_frame_jobs;
+pub mod sqlite_project_v4_graphic_video_jobs;
 mod sqlite_project_v4_history;
 mod sqlite_project_v4_jobs;
+pub mod sqlite_project_v4_mask_video_jobs;
+pub mod sqlite_project_v4_scene_video_jobs;
 pub mod sqlite_project_v4_text_frame_jobs;
 pub mod sqlite_project_v4_video_jobs;
 mod sqlite_projects;
@@ -69,7 +78,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 30;
+const DATABASE_SCHEMA_VERSION: i64 = 31;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -86,8 +95,17 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project_frame.v4",
     "render.project_text_frame.v4",
     "render.project_caption_frame.v4",
+    "render.project_graphic_frame.v4",
+    "render.project_blend_frame.v4",
+    "render.project_mask_frame.v4",
+    "render.project_scene_frame.v4",
     "render.project_video.v4",
     "render.project_caption_video.v4",
+    "render.project_graphic_video.v4",
+    "render.project_blend_video.v4",
+    "render.project_mask_video.v4",
+    "render.project_scene_video.v4",
+    "render.export_video.v2",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
@@ -493,7 +511,13 @@ impl EditorApplication {
             version = 29;
         }
         if version == 29 {
-            tx.execute_batch(sqlite_font_derived_v1::MIGRATION).map_err(storage_error)?;
+            tx.execute_batch(sqlite_font_derived_v1::MIGRATION)
+                .map_err(storage_error)?;
+            version = 30;
+        }
+        if version == 30 {
+            tx.execute_batch(sqlite_audio_preview_recovery_v1::MIGRATION)
+                .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
         ensure_wal_for_file_database(&connection)?;
@@ -678,9 +702,49 @@ impl EditorApplication {
                 &execution_input,
             )?;
         }
+        if request.kind == "render.project_graphic_video.v4" {
+            sqlite_project_v4_graphic_video_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
+        if request.kind == "render.export_video.v2" {
+            export_video_v2::validate_acceptance(&tx, &context, &request, &execution_input)?;
+        }
+        if request.kind == "render.project_scene_video.v4" {
+            sqlite_project_v4_scene_video_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
+        if request.kind == "render.project_mask_video.v4" {
+            sqlite_project_v4_mask_video_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
+        if request.kind == "render.project_blend_video.v4" {
+            sqlite_project_v4_blend_video_jobs::validate_acceptance(
+                &tx,
+                &context,
+                &request,
+                &execution_input,
+            )?;
+        }
         if matches!(
             request.kind.as_str(),
-            "render.project_text_frame.v4" | "render.project_caption_frame.v4"
+            "render.project_text_frame.v4"
+                | "render.project_caption_frame.v4"
+                | "render.project_graphic_frame.v4"
+                | "render.project_mask_frame.v4"
+                | "render.project_scene_frame.v4"
+                | "render.project_blend_frame.v4"
         ) {
             sqlite_project_v4_text_frame_jobs::validate_acceptance(
                 &tx,
@@ -2309,7 +2373,7 @@ mod tests {
             .unwrap();
         connection
             .execute_batch(
-                "DROP TABLE font_derivations_v1;
+                "DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
@@ -2474,7 +2538,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
-             DROP TABLE font_derivations_v1;
+             DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
              DROP TABLE project_merge_parents;
              DROP TABLE project_branches;

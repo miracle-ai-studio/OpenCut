@@ -3,6 +3,7 @@ use crate::project_v4::{ProjectV4Read, StoredProjectRevisionV4, public::plan_pub
 use opencut_contracts::{AssetKind, AssetVersion, CreateProject, TimeRange, TransactionResult};
 use std::cell::Cell;
 mod behavior;
+mod complete;
 mod elements;
 mod timing;
 fn t(n: i64, d: u32) -> Time {

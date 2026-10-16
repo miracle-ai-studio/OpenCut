@@ -8,14 +8,28 @@ export type TimelineRequest = ToolInput<"opencut_edit_timeline_plan_v4">;
 export type TimelinePlan = ToolOutput<"opencut_edit_timeline_plan_v4">;
 export type TimelineCommand = TimelineRequest["command"];
 export type TimelineTarget = TimelinePlan["decision"]["selection"][number];
-export type TimelineScope = { projectId: string; revision: string; sequenceId: string };
-export type TimelinePlannerTool = "opencut_edit_timeline_plan_v4" | "opencut_edit_element_timeline_plan_v4";
+export type TimelineScope = {
+  projectId: string;
+  revision: string;
+  sequenceId: string;
+};
+export type TimelinePlannerTool =
+  | "opencut_edit_timeline_v5_plan"
+  | "opencut_edit_timeline_plan_v4"
+  | "opencut_edit_element_timeline_plan_v4";
 export type TimelineAttempt = {
   tool?: TimelinePlannerTool;
   request: TimelineRequest;
   plan: TimelinePlan | null;
   receipt: V4EditReceipt | null;
-  phase: "planning" | "planned" | "applying" | "unconfirmed" | "conflict" | "failed" | "saved";
+  phase:
+    | "planning"
+    | "planned"
+    | "applying"
+    | "unconfirmed"
+    | "conflict"
+    | "failed"
+    | "saved";
   error: string | null;
   recoveryId?: string;
 };
@@ -24,7 +38,10 @@ export type TimelineEditState = {
   attempt: TimelineAttempt | null;
   recoveryError?: string | null;
 };
-export const emptyTimelineEdit = (): TimelineEditState => ({ selection: [], attempt: null });
+export const emptyTimelineEdit = (): TimelineEditState => ({
+  selection: [],
+  attempt: null,
+});
 
 /** The enclosing V4Session owns state and the shared write fence. The delegate
  * retains pending command identities only, never a project or independent SDK. */
@@ -36,4 +53,9 @@ export type TimelineEditHost = {
   publish(state: TimelineEditState, primaryId?: string | null): void;
   acquire(projectId: string): () => void;
 };
-export type TimelinePlanner = (api: EditorApi, request: TimelineRequest, signal?: AbortSignal, tool?: TimelinePlannerTool) => Promise<TimelinePlan>;
+export type TimelinePlanner = (
+  api: EditorApi,
+  request: TimelineRequest,
+  signal?: AbortSignal,
+  tool?: TimelinePlannerTool,
+) => Promise<TimelinePlan>;

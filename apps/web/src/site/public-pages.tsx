@@ -11,21 +11,23 @@ import { richText } from "./rich-text";
 export type Translate = (en: string, zh: string) => string;
 function usePublic<T>(load: (signal: AbortSignal) => Promise<T>, key: string) {
   const [state, setState] = useState<{
+      key: string;
       data?: T;
       error?: string;
       loading: boolean;
-    }>({ loading: true }),
+    }>({ key, loading: true }),
     [retry, setRetry] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
-    setState({ loading: true });
+    setState({ key, loading: true });
     load(abort.signal).then(
       (data) => {
-        if (!abort.signal.aborted) setState({ data, loading: false });
+        if (!abort.signal.aborted) setState({ key, data, loading: false });
       },
       (error) => {
         if (!abort.signal.aborted)
           setState({
+            key,
             error: error instanceof Error ? error.message : "failed",
             loading: false,
           });
@@ -33,7 +35,9 @@ function usePublic<T>(load: (signal: AbortSignal) => Promise<T>, key: string) {
     );
     return () => abort.abort();
   }, [key, retry]);
-  return { ...state, retry: () => setRetry((value) => value + 1) };
+  const current: typeof state =
+    state.key === key ? state : { key, loading: true };
+  return { ...current, retry: () => setRetry((value) => value + 1) };
 }
 function Failure({
   t,
@@ -141,16 +145,67 @@ export function Contributors({ t }: { t: Translate }) {
             "原版社区网站使用 Marble 管理博客，并使用 Databuddy 进行分析。本地应用未接入 Databuddy。",
           )}
         </p>
+        <p className="site-muted">
+          <a
+            href="https://marblecms.com?utm_source=opencut"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Marble
+          </a>
+          {" · "}
+          <a
+            href="https://databuddy.cc?utm_source=opencut"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Databuddy
+          </a>
+        </p>
       </section>
     </>
   );
 }
+/** Mirrors the fixed local adapter's 20-page admission. Unknown page values do
+ * not silently display page one or initiate an unbounded upstream request. */
+export function blogPageFromSearch(search: string): number | null {
+  const pages = new URLSearchParams(search).getAll("page");
+  if (pages.length === 0) return 1;
+  if (pages.length !== 1 || !/^[1-9][0-9]?$/u.test(pages[0])) return null;
+  const page = Number(pages[0]);
+  return page <= 20 ? page : null;
+}
+export const blogListHref = (page: number | null) =>
+  page !== null && page > 1 ? `/blog?page=${page}` : "/blog";
 export function Blog({ t, slug }: { t: Translate; slug?: string }) {
-  const [page, setPage] = useState(1),
+  const [page, setPage] = useState(() =>
+      blogPageFromSearch(
+        typeof location === "undefined" ? "" : location.search,
+      ),
+    ),
     state = usePublic<PostPage | Post>(
-      (signal) => (slug ? post(slug, signal) : posts(page, signal)),
+      (signal) =>
+        slug
+          ? post(slug, signal)
+          : page === null
+            ? Promise.reject(new Error("invalid-blog-page"))
+            : posts(page, signal),
       `${slug ?? "list"}:${page}`,
     );
+  useEffect(() => {
+    const onHistory = () => setPage(blogPageFromSearch(location.search));
+    window.addEventListener("popstate", onHistory);
+    return () => window.removeEventListener("popstate", onHistory);
+  }, []);
+  const goPage = (next: number) => {
+    if (!Number.isInteger(next) || next < 1 || next > 20 || next === page)
+      return;
+    const url = new URL(location.href);
+    if (next === 1) url.searchParams.delete("page");
+    else url.searchParams.set("page", String(next));
+    history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    setPage(next);
+  };
   const article =
     state.data && "content" in state.data ? state.data : undefined;
   useEffect(() => {
@@ -162,6 +217,12 @@ export function Blog({ t, slug }: { t: Translate; slug?: string }) {
   );
   if (state.loading)
     return <p role="status">{t("Loading posts…", "正在读取文章…")}</p>;
+  if (state.error === "invalid-blog-page")
+    return (
+      <p role="status">
+        {t("This blog page could not be found.", "找不到这一博客页。")}
+      </p>
+    );
   if (state.error)
     return state.error === "not-found" ? (
       <p>{t("This article could not be found.", "找不到这篇文章。")}</p>
@@ -171,7 +232,7 @@ export function Blog({ t, slug }: { t: Translate; slug?: string }) {
   if (article)
     return (
       <article className="site-prose site-article">
-        <a href="/blog">← {t("All posts", "全部文章")}</a>
+        <a href={blogListHref(page)}>← {t("All posts", "全部文章")}</a>
         <header>
           <p className="site-muted">
             {article.authors.map((author) => author.name).join(", ")} ·{" "}
@@ -220,7 +281,7 @@ export function Blog({ t, slug }: { t: Translate; slug?: string }) {
             <a
               key={item.slug}
               className="site-post"
-              href={`/blog/${encodeURIComponent(item.slug)}`}
+              href={`/blog/${encodeURIComponent(item.slug)}${page !== null && page > 1 ? `?page=${page}` : ""}`}
             >
               <div>
                 <time>{formatDate(item.date, t)}</time>
@@ -240,8 +301,8 @@ export function Blog({ t, slug }: { t: Translate; slug?: string }) {
           aria-label={t("Blog pages", "博客分页")}
         >
           <button
-            disabled={page <= 1}
-            onClick={() => setPage((value) => value - 1)}
+            disabled={(page ?? 1) <= 1}
+            onClick={() => goPage((page ?? 1) - 1)}
           >
             {t("Previous", "上一页")}
           </button>
@@ -249,8 +310,8 @@ export function Blog({ t, slug }: { t: Translate; slug?: string }) {
             {page} / {list.totalPages}
           </span>
           <button
-            disabled={!list.nextPage}
-            onClick={() => list.nextPage && setPage(list.nextPage)}
+            disabled={!list.nextPage || list.nextPage > 20}
+            onClick={() => list.nextPage && goPage(list.nextPage)}
           >
             {t("Next", "下一页")}
           </button>

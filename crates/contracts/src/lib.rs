@@ -1,15 +1,26 @@
+pub mod export_video_v2;
+pub mod keyframe_edit_v1;
+pub mod keyframe_legacy_conversion_v1;
+pub mod mask_authoring_v1;
+pub mod mask_frame_v1;
+pub mod scene_frame_v1;
 use std::{collections::BTreeMap, error::Error, fmt};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub mod audio_gain_v4;
+pub mod blend_frame_v1;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
 pub mod font_browser_v2;
+pub mod font_catalog_v3;
 pub mod font_derived_v1;
 pub mod font_import_v1;
 pub mod font_recovery_v1;
+pub mod font_synthesis_v1;
+pub mod graphic_edit_v1;
+pub mod graphic_frame_v1;
 pub mod media_import;
 pub mod media_import_v4;
 pub mod project_edit;
@@ -26,10 +37,12 @@ pub mod source_art_waveform_display_v1;
 pub mod source_audio_v4;
 pub mod text_authoring_v1;
 pub mod text_canvas_v1;
+pub mod text_canvas_v2;
 pub mod text_frame_v2;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
+pub mod track_removal_v1;
 pub mod visual_frame_v4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -607,3 +620,15 @@ pub mod subtitle_v4;
 pub mod edit_recovery_v3;
 
 pub mod text_frame_v3;
+
+pub mod element_properties_v1;
+pub mod element_transform_v2;
+
+pub mod scene_authoring_v1;
+
+pub mod keyframe_sample_v1;
+
+pub mod brand_resources_v1;
+pub mod catalog_resources_v1;
+
+pub mod subtitle_classic_ass_v1;

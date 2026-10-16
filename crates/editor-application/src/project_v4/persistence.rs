@@ -138,7 +138,7 @@ pub(super) fn checked_head(
     }
     Ok(source)
 }
-pub(super) fn begin(
+pub(crate) fn begin(
     store: &impl ProjectV4Read,
     intent: V4Intent<'_>,
 ) -> Result<Result<StoredProjectRevisionV4, TransactionResult>, EditorError> {
@@ -272,7 +272,10 @@ pub fn import_derived_font_v1(
     inspection_policy: &crate::font_import_v1::FontImportPolicyV1,
     checkpoint: &mut dyn crate::font_import_v1::FontImportCheckpointV1,
 ) -> Result<TransactionResult, EditorError> {
-    use crate::font_derived_v1::{expected_import_resource_v1, prepare_derived_font_v1};
+    use crate::font_derived_v2::compat::{
+        expected_import_resource as expected_import_resource_v1,
+        prepare_derived_font as prepare_derived_font_v1,
+    };
     let intent = V4Intent::DerivedFontImport(request);
     let source = match begin(store, intent)? {
         Ok(source) => source,
@@ -346,7 +349,7 @@ pub fn restore(
     store.commit_v4_atomic(intent, prepare(&source, proposed, intent)?)
 }
 
-pub(super) fn prepare(
+pub(crate) fn prepare(
     source: &StoredProjectRevisionV4,
     project: ProjectDocumentV4,
     intent: V4Intent<'_>,

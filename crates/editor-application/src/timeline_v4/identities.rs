@@ -77,7 +77,12 @@ impl<'a> Ids<'a> {
         }
         Ok(())
     }
-    fn fresh(&mut self, right: &str, kind: &str, old: &str) -> Result<String, EditorError> {
+    pub(super) fn fresh(
+        &mut self,
+        right: &str,
+        kind: &str,
+        old: &str,
+    ) -> Result<String, EditorError> {
         for attempt in 0..=self.used.len() {
             let seed = crate::encode_json(
                 &(self.revision, self.key, right, kind, old, attempt),
@@ -95,19 +100,78 @@ impl<'a> Ids<'a> {
         e: &mut TimelineElementV4,
         right: &str,
     ) -> Result<(), EditorError> {
-        no_animation(e)?;
+        let mut map = BTreeMap::from([(e.id.clone(), right.to_string())]);
+        if let ElementContentV4::EffectLayer { effect } = &mut e.content {
+            let next = self.fresh(right, "tl_effect", &effect.id)?;
+            map.insert(effect.id.clone(), next.clone());
+            effect.id = next;
+        }
         if let Some(v) = &mut e.visual {
             for effect in &mut v.effects {
                 let next = self.fresh(right, "tl_effect", &effect.id)?;
+                map.insert(effect.id.clone(), next.clone());
                 effect.id = next;
             }
             for mask in &mut v.masks {
                 let next = self.fresh(right, "tl_mask", &mask.id)?;
+                map.insert(mask.id.clone(), next.clone());
                 mask.id = next;
                 if let MaskShapeV4::Freeform { path } = &mut mask.shape {
                     for point in &mut path.points {
                         point.id = self.fresh(right, "tl_point", &point.id)?;
                     }
+                }
+            }
+        }
+        for channel in &mut e.channels {
+            let target = match channel {
+                AnimationChannelV4::Scalar {
+                    id, target, keys, ..
+                } => {
+                    *id = self.fresh(right, "tl_channel", id)?;
+                    for key in keys {
+                        key.id = self.fresh(right, "tl_key", &key.id)?;
+                        if let Some(id) = &mut key.segment_id {
+                            *id = self.fresh(right, "tl_segment", id)?;
+                        }
+                    }
+                    target
+                }
+                AnimationChannelV4::Discrete {
+                    id, target, keys, ..
+                } => {
+                    *id = self.fresh(right, "tl_channel", id)?;
+                    for key in keys {
+                        key.id = self.fresh(right, "tl_key", &key.id)?;
+                    }
+                    target
+                }
+            };
+            let remap = |id: &mut String| -> Result<(), EditorError> {
+                *id = map
+                    .get(id)
+                    .cloned()
+                    .ok_or_else(|| invalid("Split animation target escapes its element"))?;
+                Ok(())
+            };
+            match target {
+                ChannelTargetV4::Element { element_id } => remap(element_id)?,
+                ChannelTargetV4::Effect {
+                    element_id,
+                    effect_id,
+                } => {
+                    remap(element_id)?;
+                    remap(effect_id)?;
+                }
+                ChannelTargetV4::Mask {
+                    element_id,
+                    mask_id,
+                } => {
+                    remap(element_id)?;
+                    remap(mask_id)?;
+                }
+                ChannelTargetV4::Track { .. } => {
+                    return Err(invalid("Element channel cannot target a track"));
                 }
             }
         }

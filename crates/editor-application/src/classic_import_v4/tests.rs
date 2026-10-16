@@ -1,5 +1,11 @@
 use super::*;
 use opencut_contracts::AssetVersion;
+#[path = "graphics_tests.rs"]
+mod graphics;
+#[path = "masks_tests.rs"]
+mod masks;
+#[path = "scene_import_tests.rs"]
+mod scene;
 fn input() -> ClassicAnalyzeV4 {
     ClassicAnalyzeV4 {
         content: include_str!("fixture.json").into(),

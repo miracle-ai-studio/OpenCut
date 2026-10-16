@@ -11,9 +11,9 @@ mod session;
 #[cfg(test)]
 mod tests;
 mod wrapping;
-pub(crate) use wrapping::{verify_line_widths, verify_wrap};
 pub use opencut_api_contracts::visual_text_frame_v3::ClassicTextFramePlanV3;
 pub use session::*;
+pub(crate) use wrapping::{verify_classic_wrap, verify_line_widths, verify_wrap};
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_VISUAL_PLAN", message)
 }

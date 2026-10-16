@@ -40,6 +40,8 @@ pub(super) fn track(
         "video" => TrackKindV4::Video,
         "audio" => TrackKindV4::Audio,
         "text" => TrackKindV4::Text,
+        "graphic" => TrackKindV4::Graphic,
+        "effect" => TrackKindV4::Effect,
         _ => {
             r.block(
                 &format!("{p}.type"),
@@ -56,11 +58,15 @@ pub(super) fn track(
             "Audio tracks have no Classic hidden state",
         );
     }
-    if kind == TrackKindV4::Text && o.contains_key("muted") {
+    if matches!(
+        kind,
+        TrackKindV4::Text | TrackKindV4::Graphic | TrackKindV4::Effect
+    ) && o.contains_key("muted")
+    {
         r.block(
             &format!("{p}.muted"),
             "UNSUPPORTED_FIELD",
-            "Text tracks have no Classic mute state",
+            "Text and graphic tracks have no Classic mute state",
         );
     }
     let mut elements = vec![];
@@ -159,26 +165,37 @@ fn visual(r: &mut Review, o: &Map<String, Value>, p: &str) -> VisualStyleV4 {
         masks: vec![],
     }
 }
-fn text(r: &mut Review, o: &Map<String, Value>, p: &str, res: &ClassicImportResourcesV4) -> TextV4 {
-    let family = r.string(o, "fontFamily", p, Some("Arial"));
-    let weight = r.enumeration(o, "fontWeight", p, FontWeightV4::Normal);
-    let style = r.enumeration(o, "fontStyle", p, FontStyleV4::Normal);
+pub(super) fn font_binding(
+    r: &mut Review,
+    family: String,
+    weight: FontWeightV4,
+    style: FontStyleV4,
+    p: &str,
+    res: &ClassicImportResourcesV4,
+) -> FontBindingV4 {
     let request = ClassicFontRequestV4 {
         family: family.clone(),
         font_weight: weight,
         font_style: style,
     };
     let matches: Vec<_> = res.fonts.iter().filter(|f| f.request == request).collect();
-    let font = if matches.len() == 1 {
+    if matches.len() == 1 {
         let f = &matches[0].font;
-        if f.family != family
-            || f.weight
-                != match weight {
-                    FontWeightV4::Normal => 400,
-                    FontWeightV4::Bold => 700,
-                }
-            || f.style != style
-        {
+        let matches = match r.font_profile {
+            FontMappingProfile::StrictV4 => {
+                f.family == family
+                    && f.weight
+                        == match weight {
+                            FontWeightV4::Normal => 400,
+                            FontWeightV4::Bold => 700,
+                        }
+                    && f.style == style
+            }
+            FontMappingProfile::ApprovedV5 => {
+                crate::classic_import_v5::validate_font_mapping(&request, f).is_ok()
+            }
+        };
+        if !matches {
             r.block(
                 p,
                 "FONT_FACE_MISMATCH",
@@ -203,7 +220,13 @@ fn text(r: &mut Review, o: &Map<String, Value>, p: &str, res: &ClassicImportReso
             family,
             policy: FontResolutionPolicy::Strict {},
         }
-    };
+    }
+}
+fn text(r: &mut Review, o: &Map<String, Value>, p: &str, res: &ClassicImportResourcesV4) -> TextV4 {
+    let family = r.string(o, "fontFamily", p, Some("Arial"));
+    let weight = r.enumeration(o, "fontWeight", p, FontWeightV4::Normal);
+    let style = r.enumeration(o, "fontStyle", p, FontStyleV4::Normal);
+    let font = font_binding(r, family, weight, style, p, res);
     TextV4 {
         content: r.string(o, "content", p, Some("Default text")),
         font,
@@ -252,6 +275,8 @@ fn element(
             "sourceDuration",
             "animations",
             "params",
+            "definitionId",
+            "effectType",
             "mediaId",
             "sourceType",
             "sourceUrl",
@@ -264,7 +289,7 @@ fn element(
         ],
     );
     let kind = r.string(o, "type", p, None);
-    if !["text", "video", "audio", "image"].contains(&kind.as_str()) {
+    if !["text", "video", "audio", "image", "graphic", "effect"].contains(&kind.as_str()) {
         r.block(
             &format!("{p}.type"),
             "UNSUPPORTED_ELEMENT",
@@ -283,23 +308,52 @@ fn element(
             }
         }
     }
-    for k in ["effects", "masks"] {
-        if let Some(v) = o.get(k) {
-            if !v.is_array() {
+    if kind == "graphic" {
+        for k in ["mediaId", "sourceType", "sourceUrl", "buffer"] {
+            if o.contains_key(k) {
                 r.block(
                     &format!("{p}.{k}"),
-                    "INVALID_DEPENDENCY",
-                    "Expected dependency array",
+                    "UNSUPPORTED_FIELD",
+                    "Field is not part of a v31 parametric graphic element",
                 );
-            } else if v.as_array().is_some_and(|a| !a.is_empty()) {
+            }
+        }
+    } else if o.contains_key("definitionId") {
+        r.block(
+            &format!("{p}.definitionId"),
+            "UNSUPPORTED_FIELD",
+            "Graphic definition only belongs to a parametric graphic element",
+        );
+    }
+    if kind != "effect" && o.contains_key("effectType") {
+        r.block(
+            &format!("{p}.effectType"),
+            "UNSUPPORTED_FIELD",
+            "Effect type only belongs to an adjustment layer",
+        );
+    }
+    if kind == "effect" {
+        for field in [
+            "mediaId",
+            "sourceType",
+            "sourceUrl",
+            "buffer",
+            "effects",
+            "masks",
+            "retime",
+            "hidden",
+        ] {
+            if o.contains_key(field) {
                 r.block(
-                    &format!("{p}.{k}"),
-                    "UNSUPPORTED_DEPENDENCY",
-                    "Dependency cannot be silently dropped",
+                    &format!("{p}.{field}"),
+                    "UNSUPPORTED_FIELD",
+                    "Field is not part of a Classic adjustment layer",
                 );
             }
         }
     }
+    let effects = effects::parse(r, o.get("effects"), &format!("{p}.effects"), &kind);
+    let masks = masks::parse(r, o.get("masks"), &format!("{p}.masks"), &kind, res);
     if o.get("buffer").is_some_and(|v| !v.is_null()) {
         r.block(
             &format!("{p}.buffer"),
@@ -321,7 +375,7 @@ fn element(
             "Library source must first be explicitly imported",
         );
     }
-    if (kind == "text" || kind == "image") && o.contains_key("retime") {
+    if matches!(kind.as_str(), "text" | "image" | "graphic") && o.contains_key("retime") {
         r.block(
             &format!("{p}.retime"),
             "UNSUPPORTED_RETIME",
@@ -337,8 +391,15 @@ fn element(
     }
     let pp = format!("{p}.params");
     let params = r.object(&v["params"], &pp)?;
+    let graphic_definition = if kind == "graphic" {
+        Some(graphics::definition(r, o, p)?)
+    } else {
+        None
+    };
     let mut allowed = if kind == "audio" {
         vec!["volume", "muted"]
+    } else if kind == "effect" {
+        vec!["intensity"]
     } else {
         VISUAL.to_vec()
     };
@@ -348,11 +409,27 @@ fn element(
     if kind == "text" {
         allowed.extend(TEXT);
     }
+    if let Some(definition) = graphic_definition {
+        allowed.extend(definition.parameters());
+    }
     r.keys(params, &pp, &allowed);
     let id = r.string(o, "id", p, None);
-    let content = if kind == "text" {
+    let content = if kind == "effect" {
+        let name = r.string(o, "effectType", p, None);
+        ElementContentV4::EffectLayer {
+            effect: EffectV4 {
+                id: crate::content_id("classic_layer_effect", id.as_bytes()),
+                enabled: true,
+                effect: effects::kind(r, &name, params, &pp)?,
+            },
+        }
+    } else if kind == "text" {
         ElementContentV4::Text {
             text: text(r, params, &pp, res),
+        }
+    } else if let Some(definition) = graphic_definition {
+        ElementContentV4::Graphic {
+            graphic: graphics::parse(r, params, &pp, definition),
         }
     } else {
         let media = r.string(o, "mediaId", p, None);
@@ -415,10 +492,14 @@ fn element(
                 .map(|_| r.ticks(o, "sourceDuration", p, None)),
         },
         enabled: !r.boolean(o, "hidden", p, false),
-        visual: if kind == "audio" {
+        visual: if matches!(kind.as_str(), "audio" | "effect") {
             None
         } else {
-            Some(visual(r, params, &pp))
+            Some(VisualStyleV4 {
+                effects: effects.clone(),
+                masks,
+                ..visual(r, params, &pp)
+            })
         },
         channels: animation::parse(
             r,
@@ -426,6 +507,12 @@ fn element(
             &format!("{p}.animations"),
             &id,
             &kind,
+            graphic_definition,
+            &effects,
+            match &content {
+                ElementContentV4::Graphic { graphic } => graphic.stroke.align,
+                _ => StrokeAlignV4::Center,
+            },
         ),
         content,
     };

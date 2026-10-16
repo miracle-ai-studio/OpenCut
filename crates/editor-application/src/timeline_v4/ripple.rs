@@ -101,5 +101,66 @@ pub(super) fn apply(
             }
         }
     }
+    if profile.complete() {
+        for original in before
+            .tracks
+            .iter()
+            .filter(|t| t.kind == TrackKindV4::Caption)
+        {
+            let old: Vec<_> = before
+                .captions
+                .iter()
+                .filter(|c| c.track_id == original.id)
+                .collect();
+            let mut vacated = vec![];
+            for cue in &old {
+                let finish = time(&cue.timeline_range.start)?
+                    .checked_add(time(&cue.timeline_range.duration)?)?;
+                match after.captions.iter().find(|c| c.id == cue.id) {
+                    Some(next) if next.track_id == cue.track_id => {
+                        let end = time(&next.timeline_range.start)?
+                            .checked_add(time(&next.timeline_range.duration)?)?;
+                        if finish.cmp_exact(end).is_gt() {
+                            vacated.push((end, finish));
+                        }
+                    }
+                    Some(_) => {}
+                    None => vacated.push((time(&cue.timeline_range.start)?, finish)),
+                }
+            }
+            let joined = after
+                .captions
+                .iter()
+                .filter(|c| c.track_id == original.id && !old.iter().any(|old| old.id == c.id))
+                .map(|c| {
+                    Ok((
+                        time(&c.timeline_range.start)?,
+                        time(&c.timeline_range.start)?
+                            .checked_add(time(&c.timeline_range.duration)?)?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, EditorError>>()?;
+            for (a, b) in subtract(normalize(vacated), normalize(joined))
+                .into_iter()
+                .rev()
+            {
+                let delta = b.checked_sub(a)?;
+                for cue in after
+                    .captions
+                    .iter_mut()
+                    .filter(|c| c.track_id == original.id)
+                {
+                    let start = time(&cue.timeline_range.start)?;
+                    if !start.cmp_exact(b).is_lt() {
+                        unlocked(original)?;
+                        cue.timeline_range.start = start.checked_sub(delta)?.into();
+                        if !decision.ripple_shifted_ids.contains(&cue.id) {
+                            decision.ripple_shifted_ids.push(cue.id.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }

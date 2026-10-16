@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { publicJobResult } from "../../../../lib/editor-sdk";
 import type { ToolInput, ToolOutput } from "../../../../lib/editor-sdk";
 import { useWorkspace } from "../../context";
+import type { EditorApi } from "../../api";
+import type { ClassicAssRequest } from "../subtitle-classic-ass-v1";
 import { Button, Field, Panel } from "../../../shared/ui";
 import { downloadBlob } from "../../../shared/download";
 import { t, useLocale } from "../../../shared/locale";
@@ -19,6 +21,12 @@ import {
 import type { TranscriptionRequestV4 } from "./submission";
 import { planEditableSubtitles } from "./planned-subtitles";
 import type { SubtitleTextRequest } from "./planned-subtitles";
+import {
+  planClassicAssSubtitles,
+  ClassicAssImportOptions,
+  type ClassicAssPlan,
+  type ClassicAssImportMode,
+} from "../subtitle-classic-ass-v1";
 import { planAssSubtitles, assFontKey } from "./planned-ass";
 import type { AssPlan, AssRequest } from "./planned-ass";
 import "./workspace.css";
@@ -31,6 +39,65 @@ type Capability =
   ToolOutput<"opencut_analysis_sequence_transcribe_v4_capability">;
 type Style = ToolInput<"opencut_subtitle_generate_v4">["style"];
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+type AssReviewScope = {
+  project_id: string;
+  expected_revision: string;
+  sequence_id: string;
+};
+export type FrozenClassicAssReview = {
+  plan: ClassicAssPlan;
+  api: EditorApi;
+  connectionIdentity: EditorApi["connectionIdentity"];
+  scope: AssReviewScope;
+  request: ClassicAssRequest;
+  trackChoice: string;
+  aliases: string;
+  mode: ClassicAssImportMode;
+  format: "srt" | "ass";
+};
+const aliasesIdentity = (aliases: Record<string, string>) =>
+  JSON.stringify(
+    Object.entries(aliases).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
+export type AssReviewLiveContext = {
+  api: EditorApi | null;
+  formApi: EditorApi | null;
+  connectionIdentity: EditorApi["connectionIdentity"] | undefined;
+  formConnectionIdentity: EditorApi["connectionIdentity"] | undefined;
+  historical: boolean;
+  projectId?: string;
+  revision?: string;
+  sequenceId?: string;
+  content: string;
+  format: "srt" | "ass";
+  trackChoice: string;
+  mode: ClassicAssImportMode;
+  aliases: Record<string, string>;
+};
+export function assertAssReviewContext(
+  review: Omit<FrozenClassicAssReview, "plan">,
+  live: AssReviewLiveContext,
+) {
+  if (
+    live.api !== review.api ||
+    live.formApi !== review.api ||
+    live.connectionIdentity !== review.connectionIdentity ||
+    live.formConnectionIdentity !== review.connectionIdentity ||
+    live.historical ||
+    live.projectId !== review.scope.project_id ||
+    live.revision !== review.scope.expected_revision ||
+    live.sequenceId !== review.scope.sequence_id ||
+    live.content !== review.request.content ||
+    live.format !== review.format ||
+    live.trackChoice !== review.trackChoice ||
+    live.mode !== review.mode ||
+    aliasesIdentity(live.aliases) !== review.aliases
+  )
+    throw new Error(
+      "The subtitle review changed. Import the original file again.",
+    );
+}
+
 export function V4CaptionWorkspace({
   recovery,
   mutateCaption,
@@ -54,10 +121,31 @@ export function V4CaptionWorkspace({
   const [pending, setPending] = useState(false),
     [notice, setNotice] = useState<string | null>(null),
     [error, setError] = useState<string | null>(null);
+  const [assMode, setAssMode] = useState<ClassicAssImportMode>("classic");
+  const [classicAssReview, setClassicAssReview] =
+    useState<FrozenClassicAssReview | null>(null);
   const [assRequirements, setAssRequirements] = useState<
     AssPlan["font_requirements"]
   >([]);
   const [assAliases, setAssAliases] = useState<Record<string, string>>({});
+  const assInputs = useRef({
+    api,
+    connectionIdentity: api?.connectionIdentity,
+    content,
+    format,
+    trackId,
+    aliases: assAliases,
+    mode: assMode,
+  });
+  assInputs.current = {
+    api,
+    connectionIdentity: api?.connectionIdentity,
+    content,
+    format,
+    trackId,
+    aliases: assAliases,
+    mode: assMode,
+  };
   const [original, setOriginal] = useState<TranscriptionRequestV4 | null>(null);
   const epoch = useRef(0),
     writing = useRef(false),
@@ -418,6 +506,7 @@ export function V4CaptionWorkspace({
     measuring.current?.abort();
     setAssRequirements([]);
     setAssAliases({});
+    setClassicAssReview(null);
   }, [
     content,
     format,
@@ -426,6 +515,68 @@ export function V4CaptionWorkspace({
     snapshot?.revision,
     scene?.id,
   ]);
+  const requireAssReviewContext = (
+    review: Omit<FrozenClassicAssReview, "plan">,
+  ) => {
+    const state = controller.getSnapshot(),
+      form = assInputs.current,
+      head = state.v4?.head;
+    assertAssReviewContext(review, {
+      api: state.api,
+      formApi: form.api,
+      connectionIdentity: state.api?.connectionIdentity,
+      formConnectionIdentity: form.connectionIdentity,
+      historical: !state.v4 || !!state.v4.historical,
+      projectId: head?.project.id,
+      revision: head?.revision,
+      sequenceId: state.v4?.sequenceId,
+      content: form.content,
+      format: form.format,
+      trackChoice: form.trackId,
+      mode: form.mode,
+      aliases: form.aliases,
+    });
+  };
+  const saveReviewedAss = () =>
+    run(async (active) => {
+      const review = classicAssReview;
+      if (!review?.plan.transaction || !review.plan.selection)
+        throw new Error(
+          "Prepare and review the subtitle import before saving.",
+        );
+      requireAssReviewContext(review);
+      const planned = review.plan,
+        transaction = planned.transaction!,
+        selection = planned.selection!;
+      if (
+        planned.revision !== review.scope.expected_revision ||
+        transaction.project_id !== review.scope.project_id ||
+        transaction.expected_revision !== review.scope.expected_revision ||
+        transaction.idempotency_key !== review.request.idempotency_key ||
+        selection.track_id !== review.request.track.track_id ||
+        transaction.operations.length !== 1 ||
+        transaction.operations.some(
+          (op) =>
+            op.type !== "sequence_put" ||
+            op.sequence.id !== review.scope.sequence_id,
+        )
+      )
+        throw new Error(
+          "The subtitle review changed. Import the original file again.",
+        );
+      await controller.v4.applyPlanned(transaction, review.scope.sequence_id);
+      if (!active()) return;
+      controller.v4.select(selection.element_id);
+      setTrackId(selection.track_id);
+      setClassicAssReview(null);
+      setContent("");
+      setNotice(
+        t("{count} editable subtitles saved. {warnings}", {
+          count: planned.cues.length,
+          warnings: planned.warnings.join(" "),
+        }),
+      );
+    });
   const saveAss = async (
     scope: ReturnType<typeof current>,
     active: () => boolean,
@@ -458,10 +609,46 @@ export function V4CaptionWorkspace({
       }),
       observations: null,
     };
-    const planned = await planAssSubtitles(api, request, abort.signal);
-    if (!active() || current().expected_revision !== scope.expected_revision)
-      throw new Error("The caption target changed.");
+    const frozen: Omit<FrozenClassicAssReview, "plan"> = {
+      api,
+      connectionIdentity: api.connectionIdentity,
+      scope: structuredClone(scope),
+      request: structuredClone({ ...request, observations: null }),
+      trackChoice: trackId,
+      aliases: aliasesIdentity(assAliases),
+      mode: assMode,
+      format,
+    };
+    const planned =
+      assMode === "classic"
+        ? await planClassicAssSubtitles(
+            api,
+            { ...request, observations: null },
+            abort.signal,
+          )
+        : await planAssSubtitles(api, request, abort.signal);
+    if (!active()) throw new Error("The caption target changed.");
+    requireAssReviewContext(frozen);
     setAssRequirements(planned.font_requirements);
+    if (assMode === "classic") {
+      setClassicAssReview({
+        ...frozen,
+        plan: structuredClone(planned as ClassicAssPlan),
+      });
+      if (planned.font_requirements.some((font) => !font.resolved_font_id))
+        setNotice(
+          t(
+            "Map each missing ASS font to an imported face of the same weight and style, then import again.",
+          ),
+        );
+      else if (!planned.cues.length)
+        setNotice(
+          t(
+            "No valid subtitle cues were found. Review the skipped cues and ignored features.",
+          ),
+        );
+      return;
+    }
     if (!planned.transaction || !planned.selection) {
       setNotice(
         t(
@@ -482,6 +669,9 @@ export function V4CaptionWorkspace({
       }),
     );
   };
+  useEffect(() => {
+    setClassicAssReview(null);
+  }, [assAliases]);
   const importFile = () =>
     run(async (active) => {
       const scope = current();
@@ -846,11 +1036,33 @@ export function V4CaptionWorkspace({
           </Field>
           {editableTarget && format === "ass" && (
             <section aria-label={t("ASS font mapping")}>
-              <p>
-                {t(
-                  "ASS styles are preserved where supported. Unsupported ASS features are rejected. Only explicit q2 line breaks are currently supported.",
-                )}
-              </p>
+              <ClassicAssImportOptions
+                mode={assMode}
+                onModeChange={(mode) => {
+                  measuring.current?.abort();
+                  setAssMode(mode);
+                  setClassicAssReview(null);
+                  setAssRequirements([]);
+                  setAssAliases({});
+                }}
+                plan={classicAssReview?.plan ?? null}
+                onAcceptLosses={
+                  classicAssReview?.plan.transaction &&
+                  classicAssReview.plan.selection
+                    ? () => {
+                        void saveReviewedAss();
+                      }
+                    : undefined
+                }
+              />
+
+              {assMode === "strict" && (
+                <p>
+                  {t(
+                    "ASS styles are preserved where supported. Unsupported ASS features are rejected. Only explicit q2 line breaks are currently supported.",
+                  )}
+                </p>
+              )}
               {assRequirements
                 .filter((requirement) => !requirement.resolved_font_id)
                 .map((requirement) => {

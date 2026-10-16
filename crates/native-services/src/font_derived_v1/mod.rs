@@ -50,11 +50,19 @@ fn check(
     Ok(())
 }
 fn bounded(path: &Path, size: u64, hash: &str) -> Result<Vec<u8>, EditorError> {
+    bounded_with_limit(path, size, hash, MAX_BYTES)
+}
+fn bounded_with_limit(
+    path: &Path,
+    size: u64,
+    hash: &str,
+    limit: u64,
+) -> Result<Vec<u8>, EditorError> {
     let metadata = fs::symlink_metadata(path).map_err(|_| unavailable())?;
     if !metadata.is_file()
         || metadata.file_type().is_symlink()
         || metadata.len() != size
-        || size > MAX_BYTES
+        || size > limit
     {
         return Err(integrity());
     }
@@ -73,6 +81,7 @@ pub struct NativeConfiguredDerivedFontSourceV1 {
     python: PathBuf,
     script: PathBuf,
     cache: Option<PathBuf>,
+    renamed_v2: bool,
 }
 impl NativeConfiguredDerivedFontSourceV1 {
     pub fn new(python: PathBuf, script: PathBuf, cache: Option<PathBuf>) -> Self {
@@ -80,6 +89,17 @@ impl NativeConfiguredDerivedFontSourceV1 {
             python,
             script,
             cache,
+            renamed_v2: false,
+        }
+    }
+    /// New wrapper selects independently embedded V2 bytes. The public V1
+    /// constructor, V1 files and V1 runtime identity remain unchanged.
+    pub(crate) fn new_renamed_v2(python: PathBuf, script: PathBuf, cache: Option<PathBuf>) -> Self {
+        Self {
+            python,
+            script,
+            cache,
+            renamed_v2: true,
         }
     }
     /// Read-only installation admission; the child independently verifies every
@@ -89,12 +109,20 @@ impl NativeConfiguredDerivedFontSourceV1 {
             return Err(unavailable());
         }
         let parent = self.script.parent().ok_or_else(unavailable)?;
-        for (path, expected) in [
+        let mut files = vec![
             (self.script.clone(), WRAPPER),
             (parent.join("derive_static.py"), DERIVE),
             (parent.join("generate.py"), GENERATE),
             (parent.join("fonttools-lock.json"), TOOL_LOCK),
-        ] {
+        ];
+        if self.renamed_v2 {
+            files[0].1 = crate::font_derived_v2::WRAPPER;
+            files.push((
+                parent.join("derive_renamed_v2.py"),
+                crate::font_derived_v2::DERIVE,
+            ));
+        }
+        for (path, expected) in files {
             bounded(&path, expected.len() as u64, &digest(expected)).map_err(|_| unavailable())?;
         }
         let mut child = Command::new(&self.python)
@@ -133,7 +161,12 @@ impl NativeConfiguredDerivedFontSourceV1 {
             .read_to_end(&mut bytes)
             .map_err(|_| unavailable())?;
         let observed: Value = serde_json::from_slice(&bytes).map_err(|_| unavailable())?;
-        let expected: Value = serde_json::from_slice(RUNTIME_LOCK).map_err(|_| unavailable())?;
+        let expected: Value = serde_json::from_slice(if self.renamed_v2 {
+            crate::font_derived_v2::RUNTIME_LOCK
+        } else {
+            RUNTIME_LOCK
+        })
+        .map_err(|_| unavailable())?;
         if bytes.len() > 8192 || observed != expected {
             return Err(unavailable());
         }
@@ -157,18 +190,32 @@ impl NativeConfiguredDerivedFontSourceV1 {
                 })
             })
     }
+    /// Bounded catalog availability hint only. Import still hashes every byte;
+    /// listing faces must not reread an entire derived-font inventory.
+    pub fn cached_candidate(&self, source: &PinnedDerivedFontV1) -> bool {
+        let Ok(size) = source.source.face.size_bytes.parse::<u64>() else {
+            return false;
+        };
+        size > 0
+            && size <= MAX_BYTES
+            && self.cache.as_ref().is_some_and(|cache| {
+                fs::symlink_metadata(cache.join("derived").join(&source.source.face.content_hash))
+                    .is_ok_and(|m| m.is_file() && !m.file_type().is_symlink() && m.len() == size)
+            })
+    }
     fn acquire(
         &self,
         url: &str,
         path: &str,
         size: u64,
         hash: &str,
+        source_limit: u64,
         policy: &FontFetchPolicyV1,
         deadline: Instant,
         checkpoint: &mut dyn FontImportCheckpointV1,
     ) -> Result<Vec<u8>, EditorError> {
         check(deadline, checkpoint)?;
-        if size > policy.max_bytes || size > MAX_BYTES {
+        if size > source_limit {
             return Err(err(
                 "FONT_BUDGET_EXCEEDED",
                 "Derived source exceeds host font envelope",
@@ -189,7 +236,7 @@ impl NativeConfiguredDerivedFontSourceV1 {
             .map(|cache| cache.join(relative))
             .unwrap_or_else(|| temporary_cache.path().join(relative));
         if cached.exists() {
-            let bytes = bounded(&cached, size, hash)?;
+            let bytes = bounded_with_limit(&cached, size, hash, source_limit)?;
             check(deadline, checkpoint)?;
             return Ok(bytes);
         }
@@ -247,6 +294,11 @@ impl DerivedFontSourceV1 for NativeConfiguredDerivedFontSourceV1 {
         policy: &FontFetchPolicyV1,
         checkpoint: &mut dyn FontImportCheckpointV1,
     ) -> Result<Vec<u8>, EditorError> {
+        if self.renamed_v2 {
+            opencut_editor_application::font_derived_v2::validate_pinned_source_v2(source)?;
+        } else {
+            opencut_editor_application::font_derived_v1::validate_pinned_source_v1(source)?;
+        }
         let deadline = Instant::now() + Duration::from_millis(policy.deadline_ms);
         check(deadline, checkpoint)?;
         let descriptor = &source.source;
@@ -277,15 +329,56 @@ impl DerivedFontSourceV1 for NativeConfiguredDerivedFontSourceV1 {
         let spec = &proof["source"];
         let string = |name: &str| spec[name].as_str().ok_or_else(integrity);
         let size = spec["source_size"].as_u64().ok_or_else(integrity)?;
-        let bytes = self.acquire(
-            &descriptor.source_url,
-            string("source_path")?,
-            size,
-            &descriptor.source_sha256,
-            policy,
-            deadline,
-            checkpoint,
-        )?;
+        let original_path = string("source_path")?;
+        let repository = spec["source_repository"].as_str().unwrap_or("google/fonts");
+        let historical = self.renamed_v2
+            && descriptor.source_commit
+                != opencut_editor_application::font_import_v1::catalog::GOOGLE_FONTS_COMMIT_V1;
+        let acquisition_path = if self.renamed_v2 && repository == "google/material-design-icons" {
+            format!(
+                "official/google-material-design-icons/{}/{}",
+                descriptor.source_commit, original_path
+            )
+        } else if historical {
+            format!("fixed/{}/{}", descriptor.source_commit, original_path)
+        } else {
+            original_path.into()
+        };
+        let source_limit = policy.max_bytes.min(if self.renamed_v2 {
+            64 * 1024 * 1024
+        } else {
+            MAX_BYTES
+        });
+        // Historical Google inputs may already occupy their previously absent
+        // original path in the authorized cache. Reuse only exact verified
+        // bytes; a different revision never overwrites that existing object.
+        let historical_cached = if historical && repository == "google/fonts" {
+            self.cache.as_ref().and_then(|cache| {
+                bounded_with_limit(
+                    &cache.join(original_path),
+                    size,
+                    &descriptor.source_sha256,
+                    source_limit,
+                )
+                .ok()
+            })
+        } else {
+            None
+        };
+        let bytes = if let Some(bytes) = historical_cached {
+            bytes
+        } else {
+            self.acquire(
+                &descriptor.source_url,
+                &acquisition_path,
+                size,
+                &descriptor.source_sha256,
+                source_limit,
+                policy,
+                deadline,
+                checkpoint,
+            )?
+        };
         // Full original notice is already a pinned part of this internal catalog.
         let notice = descriptor.license_notice.as_bytes();
         if notice.len() > 65536 || digest(notice) != string("license_sha256")? {

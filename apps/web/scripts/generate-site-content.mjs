@@ -1,13 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
 const root = path.resolve(import.meta.dirname, "../src");
-const code = ts.transpile(
-  fs.readFileSync(path.join(root, "site/releases.ts"), "utf8"),
-  { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
-);
-const { releases } = await import(
-  "data:text/javascript;base64," + Buffer.from(code).toString("base64")
+const releases = JSON.parse(
+  fs.readFileSync(path.join(root, "site/releases.json"), "utf8"),
 );
 const { version, date, title, summary } = releases[0];
 const output =

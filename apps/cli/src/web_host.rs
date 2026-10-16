@@ -24,68 +24,11 @@ pub fn validate_root(path: PathBuf) -> std::io::Result<PathBuf> {
     Ok(root)
 }
 
-#[derive(Clone)]
-pub struct BrowserSession {
-    secret: String,
-}
-impl BrowserSession {
-    pub fn new() -> Self {
-        Self {
-            secret: format!(
-                "{}{}",
-                uuid::Uuid::new_v4().simple(),
-                uuid::Uuid::new_v4().simple()
-            ),
-        }
-    }
-    fn same_origin(request: &Request) -> bool {
-        let headers = request.headers();
-        let origin = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok());
-        let host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
-        headers.get_all(header::ORIGIN).iter().count() <= 1
-            && headers
-                .get("sec-fetch-site")
-                .is_none_or(|v| v == "same-origin")
-            && match (origin, host) {
-                (Some(origin), Some(host)) => origin == format!("http://{host}"),
-                (None, _) => matches!(*request.method(), Method::GET | Method::HEAD),
-                _ => false,
-            }
-    }
-    pub fn accepts(&self, request: &Request) -> bool {
-        Self::same_origin(request)
-            && request
-                .headers()
-                .get_all(header::COOKIE)
-                .iter()
-                .filter_map(|v| v.to_str().ok())
-                .flat_map(|v| v.split(';'))
-                .any(|v| v.trim().strip_prefix("opencut_session=") == Some(self.secret.as_str()))
-    }
-    async fn open(self, request: Request) -> Response {
-        if !Self::same_origin(&request)
-            || request
-                .headers()
-                .get("x-opencut-app")
-                .is_none_or(|v| v != "web")
-        {
-            return StatusCode::FORBIDDEN.into_response();
-        }
-        let mut response = StatusCode::NO_CONTENT.into_response();
-        response.headers_mut().insert(
-            header::SET_COOKIE,
-            HeaderValue::from_str(&format!(
-                "opencut_session={}; HttpOnly; SameSite=Strict; Path=/",
-                self.secret
-            ))
-            .unwrap(),
-        );
-        response
-            .headers_mut()
-            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-        response
-    }
-}
+mod metadata;
+mod public_content;
+mod session;
+pub use session::BrowserSession;
+pub(crate) use session::CookieGrant;
 
 pub fn attach(
     router: Router,
@@ -93,27 +36,30 @@ pub fn attach(
     listen: SocketAddr,
     session: Option<BrowserSession>,
 ) -> Router {
+    let content = public_content::PublicContent::new();
+    let response_sessions = session.clone();
     let router = if let Some(root) = root {
         router
             .route(
                 "/app/session",
-                axum::routing::post(move |request: Request| {
+                axum::routing::any(move |request: Request| {
                     let session = session.clone();
                     async move {
                         match session {
-                            Some(session) => session.open(request).await,
+                            Some(session) => session.handle(request),
                             None => StatusCode::NOT_FOUND.into_response(),
                         }
                     }
                 }),
             )
-            .fallback(move |request: Request| static_file(root.clone(), request))
+            .fallback(move |request: Request| static_file(root.clone(), request, content.clone()))
     } else {
         router.fallback(|| async { crate::http::error_response("NOT_FOUND", "Unknown API route") })
     };
     // Loopback binding alone does not prevent a public DNS name from resolving to this host.
-    router.layer(middleware::from_fn(
-        move |request: Request, next: Next| async move {
+    router.layer(middleware::from_fn(move |request: Request, next: Next| {
+        let response_sessions = response_sessions.clone();
+        async move {
             let host = request
                 .headers()
                 .get(header::HOST)
@@ -122,23 +68,41 @@ pub fn attach(
             if !host.is_some_and(|host| allowed.iter().any(|allowed| allowed == host)) {
                 return (StatusCode::FORBIDDEN, "Invalid local host").into_response();
             }
-            next.run(request).await
-        },
-    ))
+            let grant = response_sessions
+                .as_ref()
+                .and_then(|sessions| sessions.response_grant(&request));
+            let response = next.run(request).await;
+            match grant {
+                Some(grant) => grant.wrap(response),
+                None => response,
+            }
+        }
+    }))
 }
 
-async fn static_file(root: PathBuf, request: Request) -> Response {
+async fn static_file(
+    root: PathBuf,
+    request: Request,
+    content: public_content::PublicContent,
+) -> Response {
     if !matches!(*request.method(), Method::GET | Method::HEAD) {
         return StatusCode::METHOD_NOT_ALLOWED.into_response();
+    }
+    if let Some(response) = metadata::serve(&root, &request, &content).await {
+        return response;
     }
     let path = request.uri().path();
     let relative = match path {
         "/" | "/projects" | "/editor" | "/editor/" | "/brand" | "/roadmap" | "/sponsors"
         | "/privacy" | "/terms" | "/contributors" | "/blog" | "/changelog" => "index.html",
-        path if public_detail_route(path) => "index.html",
         path if editor_route(path) => "index.html",
         path if path.starts_with("/assets/") => &path[1..],
-        "/favicon.ico" | "/manifest.json" | "/robots.txt" => &path[1..],
+        "/favicon.ico"
+        | "/manifest.json"
+        | "/robots.txt"
+        | "/open-graph/default.jpg"
+        | "/open-graph/roadmap.jpg"
+        | "/open-graph/changelog.jpg" => &path[1..],
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     if relative.contains('%')
@@ -201,25 +165,6 @@ async fn static_file(root: PathBuf, request: Request) -> Response {
     headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
     headers.insert("referrer-policy", HeaderValue::from_static("no-referrer"));
     response
-}
-
-fn public_detail_route(path: &str) -> bool {
-    if let Some(slug) = path.strip_prefix("/blog/") {
-        return !slug.is_empty()
-            && slug.len() <= 200
-            && slug
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'));
-    }
-    if let Some(version) = path.strip_prefix("/changelog/") {
-        let parts: Vec<_> = version.split('.').collect();
-        return version.len() <= 32
-            && parts.len() == 3
-            && parts
-                .iter()
-                .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()));
-    }
-    false
 }
 
 // Project IDs are application identifiers, not file names or UUIDs. Every valid

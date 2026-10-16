@@ -209,15 +209,60 @@ export class WorkspaceController {
     this.disposed = true;
     this.listeners.clear();
   }
-  async start() {
-    try {
-      const response = await fetch("/app/session", {
-        method: "POST",
+  private localSessionEpoch = 0;
+  private localSessionLogout: Promise<void> | null = null;
+  private localSessionRequests: Promise<void> = Promise.resolve();
+  private requestLocalSession(method: "POST" | "DELETE") {
+    // A late bootstrap response can still set a cookie after its UI is stale.
+    // Queue cookie mutations so logout always revokes that last issued grant.
+    const operation = this.localSessionRequests.then(() =>
+      fetch("/app/session", {
+        method,
         headers: { "X-OpenCut-App": "web" },
         credentials: "same-origin",
-      });
+      }),
+    );
+    this.localSessionRequests = operation.then(
+      () => {},
+      () => {},
+    );
+    return operation;
+  }
+  /** Explicit logout is separate from disconnect: switching APIs or disposing a
+   * view must never revoke another local browser session as a side effect. */
+  async logoutLocalSession() {
+    if (this.localSessionLogout) return this.localSessionLogout;
+    const api = this.state.api;
+    if (
+      api &&
+      (api.audioPreviewConnection.token ||
+        new URL(api.sdk.baseUrl).origin !== location.origin)
+    )
+      throw new Error("Only the local browser session can be ended here.");
+    const attempt = ++this.localSessionEpoch;
+    this.disconnect();
+    const operation = (async () => {
+      const response = await this.requestLocalSession("DELETE");
+      if (!response.ok)
+        throw new Error("The local session could not be ended. Retry ending it.");
+      if (attempt === this.localSessionEpoch && !this.state.api)
+        this.notify("Local session ended.");
+    })();
+    this.localSessionLogout = operation;
+    try {
+      await operation;
+    } finally {
+      if (this.localSessionLogout === operation) this.localSessionLogout = null;
+    }
+  }
+  async start() {
+    try {
+      if (this.localSessionLogout) await this.localSessionLogout;
+      const attempt = ++this.localSessionEpoch;
+      const response = await this.requestLocalSession("POST");
       if (!response.ok)
         throw new Error("OpenCut could not start. Please try again.");
+      if (attempt !== this.localSessionEpoch) return;
       await this.connect(location.origin, "");
     } catch (error) {
       this.report(error);

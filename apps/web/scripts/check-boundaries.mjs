@@ -137,6 +137,22 @@ export function violations(file, code) {
   if (viewPreferences) inspectStorage(source);
   const allowedViews =
     viewPreferences && storageCalls > 0 && !invalidStorageCall;
+  // Fixed, bounded UI preferences only. These adapters must not grow into
+  // project/media/credential stores; both exact file and literal key are pinned.
+  const uiPreferenceKey = file === "editor/shortcuts/persistence.ts" ? "opencut.shortcuts.v1"
+    : file === "editor/workspace/v4/keyframes/presets.ts" ? "opencut.curve-presets.v1" : null;
+  let uiPreferenceStorage = uiPreferenceKey !== null && !/\b(?:indexedDB|EditorCore|sessionStorage)\b/.test(code);
+  function inspectUiPreferenceStorage(node) {
+    if (ts.isIdentifier(node) && node.text === "localStorage") {
+      const base = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
+      const property = base.parent, call = property?.parent;
+      if (!ts.isPropertyAccessExpression(property) || !["getItem", "setItem"].includes(property.name.text)
+          || !ts.isCallExpression(call) || !ts.isStringLiteralLike(call.arguments[0]) || call.arguments[0].text !== uiPreferenceKey)
+        uiPreferenceStorage = false;
+    }
+    ts.forEachChild(node, inspectUiPreferenceStorage);
+  }
+  if (uiPreferenceStorage) inspectUiPreferenceStorage(source);
   // F57 intentionally keeps only the user's message/draft and 20 local mock
   // receipts. This adapter is not project, media or credential persistence.
   let feedbackStorage =
@@ -169,7 +185,11 @@ export function violations(file, code) {
   const recoveryStorageKey = file === "editor/workspace/v4/timeline-edit/recovery.ts"
     ? "opencut.edit-recovery.v1"
     : file === "editor/workspace/v4/edit-recovery-pointers.ts" ? "opencut.edit-recovery.v2"
-    : file === "editor/workspace/v4/captions/client-state.ts" ? "opencut.caption-client.v1" : null;
+    : file === "editor/workspace/v4/captions/client-state.ts" ? "opencut.caption-client.v1"
+    : file === "editor/workspace/v4/export_video_v2-recovery.ts" ? "opencut.export-video-recovery.v2"
+    : file === "editor/workspace/v4/catalog_resources_v1-recovery.ts" ? "opencut.catalog-resources.v1"
+    : file === "editor/workspace/v4/brand_resources_v1-recovery.ts" ? "opencut.brand-resources.v1"
+    : file === "editor/workspace/v4/history-package-recovery.ts" ? "opencut.history-package.v1" : null;
   let recoveryStorage = recoveryStorageKey !== null &&
     !/\b(?:localStorage|indexedDB|EditorCore)\b/.test(code);
   function inspectRecoveryStorage(node) {
@@ -281,6 +301,7 @@ export function violations(file, code) {
     /\b(?:indexedDB|EditorCore|localStorage|sessionStorage)\b/.test(code) &&
     !(file === "editor/shared/locale.ts" && !/\bsessionStorage\b/.test(code)) &&
     !allowedViews &&
+    !uiPreferenceStorage &&
     !feedbackStorage &&
     !recoveryStorage &&
     !legacyReadOnly

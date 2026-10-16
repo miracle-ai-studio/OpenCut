@@ -7,7 +7,11 @@ import type { EditRecoveryState } from "./edit-recovery";
 
 export type V4FrameRequest =
   | ToolInput<"opencut_job_v4_frame_png">
-  | ToolInput<"opencut_job_v4_text_frame_png">;
+  | ToolInput<"opencut_job_v4_text_frame_png">
+  | ToolInput<"opencut_job_v4_graphic_frame_png">
+  | ToolInput<"opencut_job_v4_blend_frame_png">
+  | ToolInput<"opencut_job_v4_mask_frame_png">
+  | ToolInput<"opencut_job_v4_scene_frame_png">;
 export type V4AudioPreviewCreate = ToolInput<"opencut_audio_preview_v4_create">;
 export type V4AudioPreviewControl =
   ToolInput<"opencut_audio_preview_v4_control">;
@@ -35,9 +39,13 @@ export type V4FrameCapability =
 export type V4FrameResult =
   | JobResultMap["render.project_frame.v4"]
   | JobResultMap["render.project_text_frame.v4"]
-  | JobResultMap["render.project_caption_frame.v4"];
+  | JobResultMap["render.project_caption_frame.v4"]
+  | JobResultMap["render.project_graphic_frame.v4"]
+  | JobResultMap["render.project_blend_frame.v4"]
+  | JobResultMap["render.project_mask_frame.v4"]
+  | JobResultMap["render.project_scene_frame.v4"];
 export type V4FrameAttempt = {
-  protocol: 1 | 2 | 3;
+  protocol: 1 | 2 | 3 | "graphic-v1" | "blend-v1" | "mask-v1" | "scene-v1";
   request: V4FrameRequest;
   phase:
     | "submitting"
@@ -133,6 +141,10 @@ export type V4AudioWavAttempt = {
 export type V4SessionState = {
   recovery?: EditRecoveryState;
   fontRecovery?: FontRecoveryState;
+  sceneFrameCapability?: ToolOutput<"opencut_project_v4_scene_frame_capability"> | null;
+  maskFrameCapability?: ToolOutput<"opencut_project_v4_mask_frame_capability"> | null;
+  blendFrameCapability?: ToolOutput<"opencut_project_v4_blend_frame_capability"> | null;
+  graphicFrameCapability?: ToolOutput<"opencut_project_v4_graphic_frame_capability"> | null;
   captionFrameCapability?: ToolOutput<"opencut_project_v4_caption_frame_capability"> | null;
   textFrameCapability?: ToolOutput<"opencut_project_v4_text_frame_capability"> | null;
   timelineEdit: TimelineEditState;
@@ -188,9 +200,19 @@ export type V4GainDraft = {
 export type V4VideoMp4Request = ToolInput<"opencut_job_v4_video_mp4">;
 export type V4VideoMp4Capability =
   | ToolOutput<"opencut_project_v4_video_capability">
-  | ToolOutput<"opencut_project_v4_caption_video_mp4_capability">;
+  | ToolOutput<"opencut_project_v4_caption_video_mp4_capability">
+  | ToolOutput<"opencut_project_v4_graphic_video_mp4_capability">
+  | ToolOutput<"opencut_project_v4_blend_video_mp4_capability">
+  | ToolOutput<"opencut_project_v4_mask_video_mp4_capability">
+  | ToolOutput<"opencut_project_v4_scene_video_mp4_capability">;
 export type V4VideoMp4Attempt = {
-  tool?: "opencut_job_v4_video_mp4" | "opencut_job_v4_caption_video_mp4";
+  tool?:
+    | "opencut_job_v4_video_mp4"
+    | "opencut_job_v4_caption_video_mp4"
+    | "opencut_job_v4_graphic_video_mp4"
+    | "opencut_job_v4_blend_video_mp4"
+    | "opencut_job_v4_mask_video_mp4"
+    | "opencut_job_v4_scene_video_mp4";
   request: V4VideoMp4Request;
   sceneName: string;
   phase: "submitting" | "unconfirmed" | "retryable" | "accepted";

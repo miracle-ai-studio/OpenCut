@@ -55,7 +55,7 @@ fn id(value: &str) -> Result<(), EditorError> {
     Ok(())
 }
 fn validate(context: &DerivedFontRecoveryContextV1) -> Result<(), EditorError> {
-    super::validate_import_request_v1(&context.request)?;
+    crate::font_derived_v2::compat::validate_import_request(&context.request)?;
     id(&context.request.expected_revision)?;
     if let Some(sequence) = &context.sequence_id {
         id(sequence)?;

@@ -20,7 +20,16 @@ const proxy: ProxyOptions = {
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: ["fullscreen", "layer", "blend"].map((name) => ({
+    alias: [
+      "fullscreen",
+      "layer",
+      "blend",
+      "mask",
+      "jfa_init",
+      "jfa_step",
+      "jfa_distance",
+        "gaussian_blur",
+    ].map((name) => ({
       find: `/renderer/vendor/classic-v31/${name}.wgsl`,
       replacement:
         new URL(

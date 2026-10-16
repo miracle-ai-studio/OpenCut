@@ -2,7 +2,7 @@ use super::*;
 use opencut_contracts::{CreateProject, FrameRate, Time, project_v4::*};
 use serde_json::json;
 
-fn fixture() -> (ProjectSnapshotV4, TextCanvasPlanRequestV1) {
+pub(crate) fn fixture() -> (ProjectSnapshotV4, TextCanvasPlanRequestV1) {
     let mut project = crate::project_v4::new_document(&CreateProject {
         id: "p".into(),
         name: "Canvas text".into(),
@@ -168,5 +168,30 @@ fn canvas_text_remains_editable_beside_an_active_caption_without_rewriting_sourc
     assert_eq!(prepared.graph().layers.len(), 1);
     assert!(prepared.media().layers().is_empty());
     assert_eq!(prepared.graph().fonts.len(), 1);
+    assert_eq!(snapshot, before);
+}
+
+#[test]
+fn canvas_observes_intrinsic_glyph_layout_before_blend_and_blur_without_changing_source() {
+    let (mut snapshot, input) = fixture();
+    let style = snapshot.project.sequences[0]
+        .tracks
+        .last_mut()
+        .unwrap()
+        .elements[0]
+        .visual
+        .as_mut()
+        .unwrap();
+    style.blend_mode = BlendModeV4::Multiply;
+    style.effects.push(EffectV4 {
+        id: "blur".into(),
+        enabled: true,
+        effect: EffectKindV4::ClassicBlur { intensity: 25.0 },
+    });
+    let before = snapshot.clone();
+    let prepared = prepare_canvas_plan_v1(&snapshot, &input).unwrap();
+    let transform = prepared.texts()[0].text.transform;
+    assert_eq!(transform.scale_x, 2.0);
+    assert_eq!(transform.scale_y, 0.5);
     assert_eq!(snapshot, before);
 }

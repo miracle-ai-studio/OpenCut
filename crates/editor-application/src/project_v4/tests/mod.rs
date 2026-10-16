@@ -6,6 +6,7 @@ use opencut_contracts::{
     scene_bookmarks::{BookmarkOperationV1, SceneBookmarkV1},
 };
 mod bookmarks;
+mod brands;
 mod store;
 use store::MemoryStore;
 

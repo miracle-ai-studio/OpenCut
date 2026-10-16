@@ -42,7 +42,16 @@ impl EditorMcp {
                 .extensions
                 .get::<axum::http::request::Parts>()
                 .and_then(|parts| parts.extensions.get::<crate::http_identity::Identity>())
-                .map(|identity| identity.caller.clone())
+                .map(|identity| -> Result<_, McpError> {
+                    identity.check_lifetime().map_err(|_| {
+                        McpError::invalid_params(
+                            "The local browser session expired or ended",
+                            Some(json!({"code":"NOT_AUTHORIZED"})),
+                        )
+                    })?;
+                    Ok(identity.caller.clone())
+                })
+                .transpose()?
                 .ok_or_else(|| {
                     McpError::invalid_params(
                         "Authenticated request identity is missing",
@@ -259,16 +268,32 @@ impl ServerHandler for EditorMcp {
         let database = self.database.clone();
         let source = self.source;
         let caller = self.request_caller(&context)?;
-        let response =
-            tokio::task::spawn_blocking(move || match Automation::open(database.as_ref()) {
-                Ok(automation) => automation.with_source(source).with_caller(caller).call(
+        let identity = context
+            .extensions
+            .get::<axum::http::request::Parts>()
+            .and_then(|parts| parts.extensions.get::<crate::http_identity::Identity>())
+            .cloned();
+        let response = tokio::task::spawn_blocking(move || {
+            let dispatch = || -> Result<_, opencut_contracts::EditorError> {
+                if let Some(identity) = &identity {
+                    identity.check_lifetime()?;
+                }
+                let automation = Automation::open(database.as_ref())?;
+                if let Some(identity) = &identity {
+                    identity.check_lifetime()?;
+                }
+                Ok(automation.with_source(source).with_caller(caller).call(
                     &request.name,
                     Value::Object(request.arguments.unwrap_or_default()),
-                ),
+                ))
+            };
+            match dispatch() {
+                Ok(response) => response,
                 Err(error) => opencut_automation::response(Err(error)),
-            })
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let is_error = response.error.is_some();
         let value = serde_json::to_value(response)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;

@@ -1,6 +1,8 @@
 use super::*;
 use opencut_contracts::{AssetVersion, scene_bookmarks::SceneBookmarkV1};
 
+mod font_synthesis;
+
 fn t(ticks: i64, timebase: u32) -> Time {
     Time {
         ticks: ticks.to_string(),
@@ -783,4 +785,64 @@ fn custom_canvas_memory_survives_native_first_visual_canvas_override() {
         height: 1280,
     });
     assert!(validate_project_v4(&value).is_err());
+}
+
+#[test]
+fn classic_open_freeform_drafts_preserve_empty_and_single_point_geometry() {
+    for enabled in [true, false] {
+        for count in 0..=2 {
+            let mut p = project();
+            first(&mut p).visual.as_mut().unwrap().masks.push(MaskV4 {
+                id: "draft-mask".into(),
+                enabled,
+                inverted: true,
+                shape: MaskShapeV4::Freeform {
+                    path: FreeformMaskV4 {
+                        points: (0..count)
+                            .map(|i| FreeformPointV4 {
+                                id: format!("draft-point-{i}"),
+                                x: i as f64,
+                                y: 0.,
+                                in_x: -0.5,
+                                in_y: 0.25,
+                                out_x: 0.75,
+                                out_y: -0.125,
+                            })
+                            .collect(),
+                        closed: false,
+                        center_x: 0.25,
+                        center_y: -0.5,
+                        rotation_degrees: 42.,
+                        scale: 1.25,
+                    },
+                },
+                feather: MaskFeatherV4::ClassicPixels { value: 3. },
+                stroke: StrokeV4 {
+                    color: rgba(1., 0., 0.),
+                    width_px: 2.,
+                    align: StrokeAlignV4::Center,
+                },
+            });
+            let before = p.clone();
+            validate_project_v4(&p).unwrap();
+            assert_eq!(before, p);
+            let MaskShapeV4::Freeform { path } =
+                &mut first(&mut p).visual.as_mut().unwrap().masks[0].shape
+            else {
+                panic!()
+            };
+            path.closed = true;
+            rejected(&p, "enough path points");
+            p = before;
+            if count > 0 {
+                let MaskShapeV4::Freeform { path } =
+                    &mut first(&mut p).visual.as_mut().unwrap().masks[0].shape
+                else {
+                    panic!()
+                };
+                path.points[0].out_y = f64::INFINITY;
+                rejected(&p, "point or handle");
+            }
+        }
+    }
 }

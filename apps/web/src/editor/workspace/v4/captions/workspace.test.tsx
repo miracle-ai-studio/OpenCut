@@ -10,9 +10,17 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { preferences } from "../../../shared/locale";
 import { textFonts, textInitial } from "../text/fixture";
 import { V4CaptionWorkspace, type CaptionWorkspaceOptions } from "./workspace";
-const mocks = vi.hoisted(() => ({ state: {} as any, plan: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  state: {} as any,
+  plan: vi.fn(),
+  classic: vi.fn(),
+}));
 vi.mock("../../context", () => ({ useWorkspace: () => mocks.state }));
 vi.mock("./planned-subtitles", () => ({ planEditableSubtitles: mocks.plan }));
+vi.mock("../subtitle-classic-ass-v1", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../subtitle-classic-ass-v1")>()),
+  planClassicAssSubtitles: mocks.classic,
+}));
 beforeEach(() => preferences({ language: "en" }));
 afterEach(() => {
   cleanup();
@@ -26,6 +34,7 @@ function fixture() {
     operations: [{ kind: "sequence_put" }],
   };
   const api = {
+    connectionIdentity: "original-connection",
     sdk: {
       call: vi.fn(async (name: string) =>
         name === "opencut_text_v1_plan"
@@ -218,5 +227,132 @@ it.each(["stale revision", "locked legacy track"])(
     expect(mocks.plan).not.toHaveBeenCalled();
     expect(f.apply).not.toHaveBeenCalled();
     expect(f.mutateCaption).not.toHaveBeenCalled();
+  },
+);
+
+function classicPlan(request: any, patch: Record<string, unknown> = {}) {
+  return {
+    schema_version: 1,
+    revision: request.expected_revision,
+    width: 320,
+    height: 180,
+    font_requirements: [],
+    cues: [{ layer: { elementId: "classic-cue" } }],
+    warnings: ["Ignored ASS event effects in 1 subtitle cue(s)."],
+    skipped_cue_count: 0,
+    transaction: {
+      project_id: request.project_id,
+      expected_revision: request.expected_revision,
+      idempotency_key: request.idempotency_key,
+      operations: [
+        { type: "sequence_put", sequence: { id: request.sequence_id } },
+      ],
+    },
+    selection: { track_id: request.track.track_id, element_id: "classic-cue" },
+    ...patch,
+  };
+}
+function importClassicAss() {
+  fireEvent.change(screen.getByRole("combobox", { name: /^Format/ }), {
+    target: { value: "ass" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: /^Subtitle content/ }), {
+    target: { value: "original ASS source" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Import subtitles" }));
+}
+it("reviews Classic warnings before committing the exact original transaction once", async () => {
+  const f = fixture();
+  mocks.classic.mockImplementation(async (_api, request) =>
+    classicPlan(request),
+  );
+  render(<V4CaptionWorkspace {...f.props} />);
+  importClassicAss();
+  await screen.findByRole("button", { name: "Save reviewed subtitles" });
+  expect(
+    screen.getByText("Ignored ASS event effects in 1 subtitle cue(s)."),
+  ).toBeTruthy();
+  expect(f.apply).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Save reviewed subtitles" }),
+  );
+  await waitFor(() => expect(f.apply).toHaveBeenCalledOnce());
+  const request = mocks.classic.mock.calls[0][1];
+  expect(f.apply.mock.calls[0][0]).toEqual(classicPlan(request).transaction);
+  expect(f.apply.mock.calls[0][1]).toBe("scene");
+});
+it.each(["API instance", "connection identity", "scene", "revision"])(
+  "synchronously rejects an old review after %s changes before React effects",
+  async (change) => {
+    const f = fixture();
+    mocks.classic.mockImplementation(async (_api, request) =>
+      classicPlan(request),
+    );
+    render(<V4CaptionWorkspace {...f.props} />);
+    importClassicAss();
+    const save = await screen.findByRole("button", {
+      name: "Save reviewed subtitles",
+    });
+    if (change === "API instance") mocks.state.api = { ...mocks.state.api };
+    else if (change === "connection identity")
+      mocks.state.api.connectionIdentity = "different-connection";
+    else if (change === "scene") mocks.state.v4.sequenceId = "different-scene";
+    else mocks.state.v4.head.revision = "new-head";
+    fireEvent.click(save);
+    await screen.findByText(
+      "The subtitle review changed. Import the original file again.",
+    );
+    expect(f.apply).not.toHaveBeenCalled();
+  },
+);
+it.each([false, true])(
+  "displays source warnings and skipped cues without a transaction (unresolved fonts: %s)",
+  async (unresolved) => {
+    const f = fixture();
+    mocks.classic.mockImplementation(async (_api, request) =>
+      classicPlan(request, {
+        cues: [],
+        transaction: null,
+        selection: null,
+        skipped_cue_count: 2,
+        font_requirements: unresolved
+          ? [
+              {
+                family: "Missing",
+                weight: "normal",
+                style: "normal",
+                resolved_font_id: null,
+              },
+            ]
+          : [],
+      }),
+    );
+    render(<V4CaptionWorkspace {...f.props} />);
+    importClassicAss();
+    const review = await screen.findByLabelText("ASS import review");
+    expect(review.textContent).toContain("2 invalid or empty cues skipped");
+    expect(review.textContent).toContain("Ignored ASS event effects");
+    expect(
+      screen.queryByRole("button", { name: "Save reviewed subtitles" }),
+    ).toBeNull();
+    expect(f.apply).not.toHaveBeenCalled();
+    if (unresolved)
+      expect(
+        screen.getByText(
+          "Map each missing ASS font to an imported face of the same weight and style, then import again.",
+        ),
+      ).toBeTruthy();
+    else {
+      expect(
+        screen.getByText(
+          "No valid subtitle cues were found. Review the skipped cues and ignored features.",
+        ),
+      ).toBeTruthy();
+      expect(
+        screen.queryByText(
+          "Map each missing ASS font to an imported face of the same weight and style, then import again.",
+        ),
+      ).toBeNull();
+    }
   },
 );

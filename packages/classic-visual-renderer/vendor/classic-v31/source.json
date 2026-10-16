@@ -14,6 +14,26 @@
     "fullscreen.wgsl": {
       "source": "rust/crates/gpu/src/shaders/fullscreen.wgsl",
       "sha256": "2b58b120d275531b74160283ef3a0ad67943ab37a1e9fd564a7ede2413de9d37"
+    },
+    "mask.wgsl": {
+      "source": "rust/crates/compositor/src/shaders/mask.wgsl",
+      "sha256": "33f535acd7121961584d3cf228783cea6bb94874c4fcb718dbe52db89e1929ca"
+    },
+    "jfa_init.wgsl": {
+      "source": "rust/crates/masks/src/shaders/jfa_init.wgsl",
+      "sha256": "91c37098c08032f508032c3dfa63bf32fc60fa75b3facfaa8cee842f46965192"
+    },
+    "jfa_step.wgsl": {
+      "source": "rust/crates/masks/src/shaders/jfa_step.wgsl",
+      "sha256": "936664251f2b5ce08561b2caf51d6c9ca54b3016c7de853d03d5773e90ec0f74"
+    },
+    "jfa_distance.wgsl": {
+      "source": "rust/crates/masks/src/shaders/jfa_distance.wgsl",
+      "sha256": "60477ad6083306961a7a8c3b035a7c87547d1250165c7775826e45fff490b888"
+    },
+    "gaussian_blur.wgsl": {
+      "source": "rust/crates/effects/src/shaders/gaussian_blur.wgsl",
+      "sha256": "63581401373a3761ee4c4bc8d9314a48f59c7505845b622bb5b6fb39f0ff611a"
     }
   }
 }

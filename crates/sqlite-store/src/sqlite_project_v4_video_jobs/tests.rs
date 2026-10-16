@@ -1,5 +1,11 @@
 //! Queue/publication fixtures use real tiny CAS bytes, not DSP output acceptance.
+#[path = "mask_tests.rs"]
+mod mask_tests;
 use super::*;
+#[path = "blend_tests.rs"]
+mod blend_tests;
+#[path = "graphic_tests.rs"]
+mod graphic_tests;
 use opencut_contracts::{
     Asset, AssetKind, CreateProject, FrameRate, Time, TimeRange, project_v4::*, project_v4_ops::*,
 };

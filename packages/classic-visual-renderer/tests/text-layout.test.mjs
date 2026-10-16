@@ -1,7 +1,8 @@
+import { controlledWorkers } from "./font-hash-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { drawClassicText, measureClassicText, rasterizeClassicText, validateClassicText } from "../src/text-layout.mjs";
+import { createFrameFontChecks, drawClassicText, measureClassicText, rasterizeClassicText, validateClassicText, createSceneTextStyleScopeV1, rasterizeSceneClassicText, validateSceneFontSynthesisV1 } from "../src/text-layout.mjs";
 
 const code = expected => error => error.code === expected;
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -14,6 +15,12 @@ const text = () => ({
 });
 const font = content => ({ fontId: "fixed-font", contentHash: hash(bytes), validatedTextHash: hash(content), weight: 400, style: "normal", faceIndex: 0, glyphCoverageValidated: true });
 const dimensions = { width: 640, height: 360, maxPixels: "230400", maxRasterBytes: "3686400" };
+const synthesisBinding = f => ({
+  schema_version: 1, binding_id: `font-synthesis-v1_${"a".repeat(64)}`, profile: "classic_chromium_italic_v1",
+  actual: { id: "fixture-actual-normal-v1", family: "Fixture actual normal", weight: f.weight, style: f.style, content_hash: f.contentHash, size_bytes: f.size,
+    source_url: "https://example.invalid/fixed/font.ttf", source_commit: "1".repeat(40), license_id: "OFL-1.1", license_notice: "Fixture only; not a real font" },
+  requested: { weight: f.weight, style: "italic" },
+});
 
 function context() {
   const calls = [], measured = [], state = [];
@@ -172,4 +179,152 @@ test("canvas ignoring a CSS font selection fails instead of measuring with the d
     assert.equal(realm.active.size, 0);
     assert.equal(realm.canvases[0].width, 0); assert.equal(realm.canvases[0].height, 0);
   } finally { realm.restore(); }
+});
+
+function controlledFontHashes(t) {
+  const fixture=controlledWorkers(t);fixture.pending.realm=fixture.newRealm();
+  // A warm full-font digest must never run in the calling realm.
+  const digest=crypto.subtle.digest.bind(crypto.subtle);
+  t.mock.method(crypto.subtle,'digest',(algorithm,input)=>{assert.notEqual(input.byteLength,4);return digest(algorithm,input);});
+  return fixture.pending;
+}
+
+test("Scene italic uses the actual normal FontFace and Classic requested Canvas style without changing the old receipt", async () => {
+  const realm = installRealm(), t = text(), f = { ...font(t.content), weight: 700, size: String(bytes.length) };
+  const binding = synthesisBinding(f), scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding }]);
+  try {
+    const token = scope.tokenFor("title", f), retained = { bytes };
+    const result = await rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, retained, token);
+    assert.deepEqual(realm.faces[0].descriptors, { style: "normal", weight: "700" });
+    assert.equal(realm.faces[0].family, `opencut_${f.contentHash}_700_normal`);
+    assert.ok(realm.canvases[0].ctx.measured.every(item => item.font.startsWith("italic 700 ")));
+    assert.equal(result.layout.fontStyle, "normal");
+    assert.equal(result.layout.fontWeight, 700);
+    assert.equal(result.layout.fontContentHash, f.contentHash);
+    // Reusing the same actual face for a normal call never inherits requested
+    // italic. Passing an extra token to the old entry cannot enable synthesis.
+    await rasterizeClassicText(t, f, bytes, dimensions, undefined, retained, token);
+    assert.equal(realm.faces.length, 1);
+    assert.ok(realm.canvases[1].ctx.measured.every(item => item.font.startsWith("normal 700 ")));
+    await assert.rejects(rasterizeClassicText(t, f, bytes, { ...dimensions, fontSynthesis: binding }), code("INVALID_VISUAL_PLAN"));
+  } finally { scope.close(); realm.restore(); }
+});
+
+test("Scene synthesis rejects changed native identity, synthetic bold, unsupported profiles and forged or expired tokens", async () => {
+  const t = text(), f = { ...font(t.content), size: String(bytes.length) }, valid = synthesisBinding(f);
+  for (const change of [
+    b => { b.actual.style = "italic"; }, b => { b.actual.content_hash = "f".repeat(64); },
+    b => { b.actual.size_bytes = "5"; }, b => { b.actual.weight = 700; },
+    b => { b.requested.weight = 700; }, b => { b.requested.style = "normal"; },
+    b => { b.profile = "arbitrary-skew"; }, b => { b.binding_id = "fake"; },
+    b => { b.actual.surprise = true; }, b => { b.requested.surprise = true; },
+  ]) { const bad = structuredClone(valid); change(bad); assert.throws(() => validateSceneFontSynthesisV1(bad, f), code("INVALID_VISUAL_PLAN")); }
+  await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, {}), code("INVALID_VISUAL_PLAN"));
+  const signal = new AbortController().signal, scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: valid }], signal), token = scope.tokenFor("title", f);
+  assert.throws(() => scope.tokenFor("title", { ...f, fontId: "other" }), code("INVALID_VISUAL_PLAN"));
+  await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, token), code("INVALID_VISUAL_PLAN"));
+  scope.close();
+  await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, signal, undefined, token), code("INVALID_VISUAL_PLAN"));
+});
+
+test("Scene scope closing while FontFace loads cannot publish a late raster or leak a font", async () => {
+  let entered, release;
+  const loading = new Promise(resolve => { entered = resolve; }), pending = new Promise(resolve => { release = resolve; });
+  const realm = installRealm({ async load(face) { entered(); await pending; face.status = "loaded"; } });
+  const t = text(), f = { ...font(t.content), size: String(bytes.length) }, scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: synthesisBinding(f) }]);
+  try {
+    const result = rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, scope.tokenFor("title", f));
+    await loading; scope.close(); release();
+    await assert.rejects(result, code("INVALID_VISUAL_PLAN"));
+    assert.equal(realm.additions.length, 0); assert.equal(realm.canvases.length, 0);
+  } finally { scope.close(); release(); realm.restore(); }
+});
+
+test("Scene synthesis retains full-byte hash, exact-text coverage, cancellation and raster budgets", async () => {
+  const realm = installRealm(), t = text(), f = { ...font(t.content), size: String(bytes.length) }, cancel = new AbortController();
+  const scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: synthesisBinding(f) }], cancel.signal), token = scope.tokenFor("title", f);
+  try {
+    await assert.rejects(rasterizeSceneClassicText(t, f, Uint8Array.of(9, 8, 7, 6), dimensions, cancel.signal, undefined, token), code("ASSET_HASH_MISMATCH"));
+    await assert.rejects(rasterizeSceneClassicText({ ...t, content: "uncovered" }, f, bytes, dimensions, cancel.signal, undefined, token), code("INVALID_VISUAL_PLAN"));
+    await assert.rejects(rasterizeSceneClassicText(t, f, bytes, { ...dimensions, maxRasterBytes: "1" }, cancel.signal, undefined, token), code("VISUAL_BUDGET_EXCEEDED"));
+    const reason = new Error("Scene was replaced"); cancel.abort(reason);
+    await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, cancel.signal, undefined, token), error => error === reason);
+    assert.equal(realm.faces.length, 0); assert.equal(realm.canvases.length, 0);
+  } finally { scope.close(); realm.restore(); }
+});
+function fontChecks(source,signal,realm) {
+  const f={...font(text().content),size:String(source.length)};
+  const cache=new Map([[`${f.fontId}:${f.contentHash}:${f.size}`,{bytes:source}]]);
+  const checks=createFrameFontChecks(signal,realm);checks.start([{font:f},{font:f}],cache);
+  return {checks,f,token:checks.tokenFor(f,source),cache};
+}
+
+test('per-frame font checks hash each retained font once and render from the private snapshot, not later mutable bytes',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t),source=bytes.slice(),signal=new AbortController().signal;
+  const {checks,f,token}=fontChecks(source,signal,pending.realm);
+  try {
+    assert.equal(pending.length,1);assert.deepEqual(Object.keys(token),[]);
+    source.fill(0);pending[0].resolve();
+    const first=await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},signal);
+    const second=await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},signal);
+    assert.equal(pending.length,1);assert.notEqual(realm.faces[0].source,source);assert.deepEqual(realm.faces[0].source,bytes);
+    assert.deepEqual(realm.faces[1].source,bytes);first.canvas.width=second.canvas.width=0;
+    await checks.close();
+    // A new frame re-hashes the mutable cache; the old snapshot is not a cache proof.
+    const next=fontChecks(source,signal,pending.realm);assert.equal(pending.length,2);pending[1].resolve();
+    await assert.rejects(rasterizeClassicText(text(),next.f,source,{...dimensions,frameFontCheck:next.token},signal),code('ASSET_HASH_MISMATCH'));
+    await next.checks.close();
+  } finally {await checks.close();realm.restore();}
+});
+
+test('frame font tokens reject forged, changed identity/reference/signal, stale scope and different text coverage',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t),source=bytes.slice(),signal=new AbortController().signal;
+  const {checks,f,token}=fontChecks(source,signal,pending.realm);pending[0].resolve();
+  try {
+    for(const change of [{fontId:'other'},{contentHash:'a'.repeat(64)},{size:'5'},{weight:700},{style:'italic'}]) {
+      await assert.rejects(rasterizeClassicText(text(),{...f,...change},source,{...dimensions,frameFontCheck:token},signal),code('INVALID_VISUAL_PLAN'));
+    }
+    for(const invalid of [{},null,structuredClone(token)])await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:invalid},signal),code('INVALID_VISUAL_PLAN'));
+    await assert.rejects(rasterizeClassicText(text(),f,source.slice(),{...dimensions,frameFontCheck:token},signal),code('INVALID_VISUAL_PLAN'));
+    await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},new AbortController().signal),code('INVALID_VISUAL_PLAN'));
+    await assert.rejects(rasterizeClassicText(text(),{...f,validatedTextHash:hash('wrong')},source,{...dimensions,frameFontCheck:token},signal),code('INVALID_VISUAL_PLAN'));
+    await checks.close();
+    await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},signal),code('INVALID_VISUAL_PLAN'));
+    assert.equal(realm.faces.length,0);assert.equal(realm.canvases.length,0);
+  } finally {await checks.close();realm.restore();}
+});
+
+test('closing a frame invalidates tokens immediately but waits for pending hashes, including failure and cancellation',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t);
+  try {
+    for(const failure of ['closed','digest','cancel']) {
+      const source=bytes.slice(),controller=new AbortController(),reason=Error(failure),{checks,f,token}=fontChecks(source,controller.signal,pending.realm);
+      const current=pending.at(-1);let finished=false;
+      const raster=rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},controller.signal);
+      const rejected=assert.rejects(raster,error=>failure==='cancel'?error===reason:error.code==='INVALID_VISUAL_PLAN');
+      if(failure==='cancel')controller.abort(reason);
+      const closing=checks.close().then(()=>{finished=true;});await Promise.resolve();assert.equal(finished,false);
+      await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},controller.signal),error=>failure==='cancel'?error===reason:error.code==='INVALID_VISUAL_PLAN');
+      if(failure==='digest')current.reject(reason);else current.resolve();
+      await rejected;await closing;assert.equal(finished,true);
+    }
+    assert.equal(realm.faces.length,0);assert.equal(realm.canvases.length,0);
+  } finally {realm.restore();}
+});
+
+test('pending font digest uses the expected hash captured at frame start despite mutable descriptor changes',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t),source=bytes.slice(),signal=new AbortController().signal;
+  const originalHash='a'.repeat(64),f={...font(text().content),size:String(source.length),contentHash:originalHash};
+  const checks=createFrameFontChecks(signal,pending.realm);
+  checks.start([{font:f}],new Map([[`${f.fontId}:${f.contentHash}:${f.size}`,{bytes:source}]]));
+  const token=checks.tokenFor(f,source);
+  try {
+    assert.equal(pending.length,1);
+    f.contentHash=hash(source);pending[0].resolve();
+    // Let the digest's continuation run while the mutable descriptor points
+    // at the actual bytes, then restore the token's original fixed identity.
+    await new Promise(resolve=>setImmediate(resolve));f.contentHash=originalHash;
+    await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:token},signal),code('ASSET_HASH_MISMATCH'));
+    assert.equal(realm.faces.length,0);assert.equal(realm.canvases.length,0);
+  } finally {await checks.close();realm.restore();}
 });

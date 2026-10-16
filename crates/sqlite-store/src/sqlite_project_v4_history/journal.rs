@@ -22,7 +22,7 @@ fn malformed() -> EditorError {
         "History causal journal is malformed or scoped to another request",
     )
 }
-pub(super) fn entry(
+pub(crate) fn entry(
     project: &str,
     transaction: &str,
     base: &str,
@@ -139,14 +139,14 @@ pub(super) fn entry(
                 // Both original import DTOs have the same frozen shape. Their
                 // pinned catalog IDs distinguish the source authority, while
                 // the stored journal remains the complete original request.
-                let font = if opencut_editor_application::font_derived_v1::source(
+                let font = if opencut_editor_application::font_derived_v2::compat::source(
                     &request.catalog_id,
                 )
                 .is_ok()
                 {
                     let derived_request: opencut_contracts::font_derived_v1::ImportDerivedFontV1 =
                         serde_json::from_value(value.clone()).map_err(|_| malformed())?;
-                    opencut_editor_application::font_derived_v1::expected_import_resource_v1(
+                    opencut_editor_application::font_derived_v2::compat::expected_import_resource(
                         &derived_request,
                     )
                 } else {
@@ -198,6 +198,78 @@ pub(super) fn entry(
                     return Err(malformed());
                 }
                 label = Some("Import subtitles".into());
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_contracts::brand_resources_v1::ImportBrandResourceV1,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                opencut_editor_application::brand_resources_v1::validate_request(&request)
+                    .map_err(|_| malformed())?;
+                let VersionedProjectDocument::V4(before_document) =
+                    decode_versioned_project(before)?
+                else {
+                    return Err(malformed());
+                };
+                let VersionedProjectDocument::V4(after_document) = decode_versioned_project(after)?
+                else {
+                    return Err(malformed());
+                };
+                let asset = after_document
+                    .assets
+                    .iter()
+                    .find(|asset| asset.id == request.asset_id)
+                    .ok_or_else(malformed)?;
+                if before_document
+                    .assets
+                    .iter()
+                    .any(|asset| asset.id == request.asset_id)
+                    || opencut_editor_application::brand_resources_v1::bind_resource(
+                        &request,
+                        asset.clone(),
+                    )
+                    .map_err(|_| malformed())?
+                        != *asset
+                {
+                    return Err(malformed());
+                }
+                let expected = opencut_editor_application::project_v4::plan(
+                    &opencut_contracts::project_v4::ProjectSnapshotV4 {
+                        project: before_document,
+                        revision: base.into(),
+                    },
+                    &ApplyV4Project {
+                        project_id: request.project_id.clone(),
+                        expected_revision: request.expected_revision.clone(),
+                        idempotency_key: request.idempotency_key.clone(),
+                        label: format!("Acquire brand {}", asset.name),
+                        operations: vec![ProjectOperationV4::AssetPut {
+                            asset: asset.clone(),
+                        }],
+                    },
+                )
+                .map_err(|_| malformed())?;
+                if expected != after_document {
+                    return Err(malformed());
+                }
+                label = Some("Import brand resource".into());
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_contracts::catalog_resources_v1::ImportCatalogResourceV1,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                label = Some("Import catalog resource".into());
+            } else if let Ok(request) = serde_json::from_value::<
+                opencut_contracts::catalog_resources_v1::GenerateCatalogSoundV1,
+            >(value.clone())
+            {
+                if request.project_id != project || request.expected_revision != base {
+                    return Err(malformed());
+                }
+                label = Some("Generate catalog sound".into());
             } else if let Ok(request) = serde_json::from_value::<RestoreV4Revision>(value) {
                 if request.project_id != project || request.expected_revision != base {
                     return Err(malformed());

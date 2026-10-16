@@ -20,6 +20,18 @@ pub(crate) fn verify_wrap(
     if !max_width.is_finite() || max_width <= 0.0 {
         return Err(invalid("Caption wrap width is invalid"));
     }
+    verify_classic_wrap(original, max_width, measurements)
+}
+/// Classic explicit margins may consume the entire width; its word wrapper
+/// then keeps every oversized word intact. The frozen V3 entry still rejects 0.
+pub(crate) fn verify_classic_wrap(
+    original: &str,
+    max_width: f64,
+    measurements: &[CaptionWrapMeasurementV3],
+) -> Result<String, EditorError> {
+    if !max_width.is_finite() || max_width < 0. {
+        return Err(invalid("Caption wrap width is invalid"));
+    }
     let mut index = 0;
     let normalized = original.trim_matches(js_space).replace("\r\n", "\n");
     let mut paragraphs = Vec::new();

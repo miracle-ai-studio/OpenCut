@@ -1,20 +1,30 @@
+import { graphicSourceLayoutV1 } from "../src/graphic-source.mjs";
 import { moduleRegistry, playwrightRuntime } from "./modules.mjs";
-import { observeVisualPage, executeVisualPage, executeTextVisualPage, executeCaptionVisualPageV3 } from "./page.mjs";
+import { observeVisualPage, executeVisualPage, executeTextVisualPage, executeCaptionVisualPageV3, executeGraphicVisualPageV1, executeBlendVisualPageV1, executeMaskVisualPageV1, executeSceneVisualPageV1 } from "./page.mjs";
 import { checkAbort, integer, natural, reject, sameJsonFacts, VisualExecutionError } from "../src/validation.mjs";
+import { sceneFontResourcesV1 } from "../src/scene-text-v1.mjs";
 import { fontResource } from "../src/text-frame.mjs";
 export const browserHooks={moduleRegistry,playwrightRuntime,
   async configurePage(realm) {
-    const captionFrame=realm.begin.type==="beginCaptionFrameV3",textFrame=captionFrame||realm.begin.type==="beginTextFrameV2";
-    const textPlan=captionFrame?realm.begin.plan.execution:realm.begin.plan,plan=textFrame?textPlan.media:realm.begin.plan;
+    const sceneFrame=realm.begin.type==="beginSceneFrameV1",maskFrame=realm.begin.type==="beginMaskFrameV1",blendFrame=sceneFrame||maskFrame||realm.begin.type==="beginBlendFrameV1",graphicFrame=blendFrame||realm.begin.type==="beginGraphicFrameV1",captionFrame=graphicFrame||realm.begin.type==="beginCaptionFrameV3",textFrame=captionFrame||realm.begin.type==="beginTextFrameV2";
+    const blendPlan=sceneFrame||maskFrame?realm.begin.plan.execution:realm.begin.plan;
+    const graphicPlan=blendFrame?blendPlan.execution:realm.begin.plan;
+    const captionPlan=graphicFrame?graphicPlan.execution:realm.begin.plan;
+    const textPlan=captionFrame?captionPlan.execution:realm.begin.plan,plan=textFrame?textPlan.media:realm.begin.plan;
     const handles=new Map(realm.begin.resources.map(r=>[r.assetId,r.handle])),fixed=new Map(plan.resources.map(r=>[r.assetId,r]));
     const layers=new Set(plan.layers.map(l=>l.elementId));
     const fontHandles=new Map(textFrame?realm.begin.fonts.map(f=>[f.fontId,f.handle]):[]);
-    const fonts=new Map(textFrame?textPlan.texts.map(layer=>[layer.font.fontId,fontResource(layer.font)]):[]);
+    const fonts=sceneFrame?sceneFontResourcesV1(realm.begin.plan):new Map(textFrame?textPlan.texts.map(layer=>[layer.font.fontId,fontResource(layer.font)]):[]);
     const texts=new Set(textFrame?textPlan.texts.map(layer=>layer.elementId):[]);
-    const captions=new Map(captionFrame?realm.begin.plan.captions.map(c=>[c.elementId,c]):[]);
+    const captions=new Map(captionFrame?captionPlan.captions.map(c=>[c.elementId,c]):[]);
+    const expectedGraphics=graphicFrame?graphicPlan.graphics.map(layer=>{
+      const {width,height,originX,originY}=graphicSourceLayoutV1(layer.graphic,{maxPixels:realm.begin.admission.maxDecodedPixels,maxRasterBytes:realm.begin.admission.maxRgbaBytes});
+      return {elementId:layer.elementId,width,height,originX,originY};
+    }):[];
+    let captionBound=false,graphicBound=false,captionBinding=false,graphicBinding=false,blendBound=false,blendBinding=false,maskBound=false,maskBinding=false;
     await realm.page.exposeFunction("__opencutVisualCallback",(op,args)=>{
       checkAbort(realm.signal);
-      if(!["resolveVerifiedBytes","readVerifiedBytes","releaseVerifiedBytes","admitDecode","bindFrame",...(textFrame?["resolveVerifiedFontBytes",captionFrame?"bindCaptionFrameV3":"bindTextFrame"]:[])].includes(op)||!args||typeof args!=="object")reject("INVALID_HOST_CALLBACK","Unknown visual callback");
+      if(!["resolveVerifiedBytes","readVerifiedBytes","releaseVerifiedBytes","admitDecode","bindFrame",...(textFrame?["resolveVerifiedFontBytes",captionFrame?"bindCaptionFrameV3":"bindTextFrame"]:[]),...(graphicFrame?["bindGraphicFrameV1"]:[]),...(blendFrame?["bindBlendFrameV1"]:[]),...(maskFrame?["bindMaskFrameV1"]:[]),...(sceneFrame?["bindSceneFrameV1"]:[])].includes(op)||!args||typeof args!=="object")reject("INVALID_HOST_CALLBACK","Unknown visual callback");
       if(op==="resolveVerifiedBytes") {
         const resource=fixed.get(args.resource?.assetId);
         if(!resource||["contentHash","size","kind"].some(key=>resource[key]!==args.resource[key]))reject("NOT_AUTHORIZED","Visual resource is outside fixed plan");
@@ -37,10 +47,28 @@ export const browserHooks={moduleRegistry,playwrightRuntime,
           if(caption.originalTextHash!==original.font.validatedTextHash||typeof caption.wrappedText!=="string"||!Array.isArray(caption.measurements))reject("INVALID_VISUAL_PLAN","V3 caption observations changed fixed original identity");
         }
       }
+      if(graphicFrame && op==="bindCaptionFrameV3") {
+        if(captionBinding||captionBound||graphicBound)reject("INVALID_HOST_CALLBACK","Graphic child already bound");
+        captionBinding=true;return Promise.resolve(realm.broker.request(op,args)).then(result=>{captionBound=true;return result;});
+      }
+      if(op==="bindGraphicFrameV1") {
+        if(!captionBound||graphicBinding||graphicBound||!sameJsonFacts(args.graphics,expectedGraphics))reject("INVALID_VISUAL_PLAN","Graphic observations require one complete child binding and fixed raster sizes");
+        graphicBinding=true;return Promise.resolve(realm.broker.request(op,args)).then(result=>{graphicBound=true;return result;});
+      }
+      if(op==="bindBlendFrameV1") {
+        if(!graphicBound||blendBinding||blendBound||!sameJsonFacts(args,{}))reject("INVALID_VISUAL_PLAN","Blend binding requires one completed graphic binding and no browser-authored modes");
+        blendBinding=true;return Promise.resolve(realm.broker.request(op,args)).then(result=>{blendBound=true;return result;});
+      }
+      if(op==="bindMaskFrameV1"||op==="bindSceneFrameV1") {
+        if(!blendBound||maskBinding||maskBound||!sameJsonFacts(args,{}))reject("INVALID_VISUAL_PLAN","Mask binding requires completed blend binding and no browser-authored masks");
+        maskBinding=true;return Promise.resolve(realm.broker.request(op,args)).then(result=>{maskBound=true;return result;});
+      }
       return realm.broker.request(op,args);
     });
     await realm.page.exposeFunction("__opencutVisualRgba",async packet=>{
       checkAbort(realm.signal);natural(packet.offsetBytes,"RGBA offset");
+      if((maskFrame||sceneFrame)&&!maskBound)reject("INVALID_VISUAL_PLAN","Mask pixels require final fixed binding");
+      if(blendFrame&&!blendBound)reject("INVALID_VISUAL_PLAN","Blend pixels require the final fixed binding");
       if(typeof packet.bytesHex!=="string"||packet.bytesHex.length===0||packet.bytesHex.length>131072||packet.bytesHex.length%8!==0||!/^(?:[a-f0-9]{2})+$/.test(packet.bytesHex))reject("INVALID_OUTPUT_RGBA","RGBA chunk is invalid");
       await realm.writer.send({...packet,type:"rgba"});
     });
@@ -51,7 +79,7 @@ export const browserHooks={moduleRegistry,playwrightRuntime,
     return {...gpu,shaderSha256:modules.shaderSha256,decoderProfile:"mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",engine:realm.identity.engine+" · "+modules.shaderSha256+" · "+gpu.gpuDevice};
   },
   async render(realm) {
-    const execute=realm.begin.type==="beginCaptionFrameV3"?executeCaptionVisualPageV3:realm.begin.type==="beginTextFrameV2"?executeTextVisualPage:executeVisualPage;
+    const execute=realm.begin.type==="beginSceneFrameV1"?executeSceneVisualPageV1:realm.begin.type==="beginMaskFrameV1"?executeMaskVisualPageV1:realm.begin.type==="beginBlendFrameV1"?executeBlendVisualPageV1:realm.begin.type==="beginGraphicFrameV1"?executeGraphicVisualPageV1:realm.begin.type==="beginCaptionFrameV3"?executeCaptionVisualPageV3:realm.begin.type==="beginTextFrameV2"?executeTextVisualPage:executeVisualPage;
     const result=await realm.page.evaluate(execute,{plan:realm.begin.plan,admission:realm.begin.admission});
     if(result?.ok!==true)throw new VisualExecutionError(result?.error?.code??"VISUAL_BROWSER_EXECUTION_FAILED","Browser visual execution failed");
     return result.receipt;

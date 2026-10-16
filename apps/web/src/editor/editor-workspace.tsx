@@ -1,3 +1,4 @@
+import { LocalSessionButton } from "./workspace/local-session";
 import { editorProjectId, editorProjectPath } from "../routes";
 import { EditorGuide } from "./shared/editor-guide";
 import {
@@ -26,7 +27,6 @@ import {
   Captions,
   SlidersHorizontal,
   Settings2,
-  Keyboard,
   CircleHelp,
   X,
 } from "lucide-react";
@@ -35,7 +35,7 @@ import { Preferences } from "./shared/preferences";
 import { SceneSwitcher } from "./projects/scenes";
 import { RenameProject } from "./projects/rename";
 import { ProjectBrowser } from "./projects/browser";
-import { ShortcutsDialog } from "./shared/shortcuts";
+import { EditorShortcutsProvider, ShortcutsButton, V4WorkspaceShortcutActions } from "./shortcuts";
 import { FeedbackButton } from "./feedback/dialog";
 import { EffectsPanel } from "./effects/panel";
 import { CaptionsPanel } from "./assets/captions";
@@ -49,7 +49,7 @@ import { TasksPanel } from "./tasks/panel";
 import { ExportDialog } from "./tasks/export-dialog";
 import { HistoryPanel } from "./history/panel";
 import { Button, Modal } from "./shared/ui";
-import { VideoMp4Dialog } from "./workspace/v4/video-mp4-dialog";
+import { ExportVideoV2Dialog } from "./workspace/v4/export_video_v2-dialog";
 import { AudioWavDialog } from "./workspace/v4/audio-wav-dialog";
 import { audioWavAvailability } from "./workspace/v4/audio-wav";
 import symbol from "./shared/brand/symbol.svg";
@@ -72,9 +72,13 @@ export function EditorWorkspace() {
   useLocale();
   return (
     <WorkspaceProvider>
-      <Workspace />
+      <ShortcutWorkspace />
     </WorkspaceProvider>
   );
+}
+function ShortcutWorkspace() {
+  const { controller } = useWorkspace();
+  return <EditorShortcutsProvider onError={error => controller.report(error)}><Workspace /></EditorShortcutsProvider>;
 }
 function Workspace() {
   useLocale();
@@ -91,7 +95,6 @@ function Workspace() {
   } = useWorkspace();
   const [layouts] = useState(readWorkspaceLayouts);
   const [guide, setGuide] = useState(false);
-  const [shortcuts, setShortcuts] = useState(false);
   const [videoExporting, setVideoExporting] = useState(false);
   const [audioExporting, setAudioExporting] = useState(false),
     [v4Tasks, setV4Tasks] = useState(false);
@@ -155,6 +158,7 @@ function Workspace() {
   ).length;
   return (
     <div className="editor-app">
+      <V4WorkspaceShortcutActions active={activeV4} />
       <header className="editor-header">
         <div className="header-start">
           <Button
@@ -196,14 +200,9 @@ function Workspace() {
           )}
         </div>
         <div className="toolbar">
+          <LocalSessionButton />
           <FeedbackButton />
-          <Button
-            aria-label={t("Shortcuts")}
-            disabled={activeV4}
-            title={t("Shortcuts")}
-            icon={<Keyboard size={17} />}
-            onClick={() => setShortcuts(true)}
-          />
+          <ShortcutsButton />
           {active && (
             <Button
               aria-label={t("Editor guide")}
@@ -236,7 +235,7 @@ function Workspace() {
               {t("Export audio WAV")}
             </Button>
           )}
-          {activeV4 && <Button disabled={busy} onClick={() => setVideoExporting(true)} icon={<Download size={15} />}>{t("Export video MP4")}</Button>}
+          {activeV4 && <Button disabled={busy} onClick={() => setVideoExporting(true)} icon={<Download size={15} />}>{t("Export video")}</Button>}
           {active && (
             <Button
               className="primary"
@@ -380,14 +379,13 @@ function Workspace() {
           />
         </div>
       )}
-      {shortcuts && <ShortcutsDialog onClose={() => setShortcuts(false)} />}
       {activeV4 && audioExporting && (
         <AudioWavDialog
           onClose={() => setAudioExporting(false)}
           showTasks={() => setV4Tasks(true)}
         />
       )}
-      {activeV4 && videoExporting && <VideoMp4Dialog onClose={() => setVideoExporting(false)} showTasks={() => setV4Tasks(true)} />}
+      {activeV4 && videoExporting && <ExportVideoV2Dialog exporter={controller.v4.exporter} onClose={() => setVideoExporting(false)} showTasks={() => setV4Tasks(true)} />}
       {activeV4 && v4Tasks && (
         <Modal title={t("Tasks")} onClose={() => setV4Tasks(false)}>
           <TasksPanel />

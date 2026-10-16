@@ -21,6 +21,73 @@ doctor = load('doctor', 'doctor.py')
 
 
 class AgentDistributionTest(unittest.TestCase):
+    def catalog_fixture(self, root):
+        files = {}
+        for name in doctor.CATALOG_FILES:
+            path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({'name': '@opencut/classic-visual-renderer', 'version': '0.1.0', 'type': 'module'}) if path.name == 'package.json' else '// fixed fixture adapter')
+            files[name] = {'size': path.stat().st_size, 'sha256': doctor.sha(path)}
+        declaration = {'profile': 'catalog-archive-v1-node-zlib', 'external_runtime': 'node', 'files': files,
+                       'source_archive_included': False, 'download_switch': 'OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD',
+                       'source_archive_sha256': '946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6'}
+        return {'target': 'fixture', 'files': files, 'catalog_archive_runtime': declaration}
+
+    def test_catalog_doctor_reports_helper_identity_and_actual_node_without_claiming_source_audio(self):
+        def execute(args, **_):
+            if '--input-type=module' in args:
+                stdout = 'catalog-zlib-v1'
+            elif '-filters' in args:
+                stdout = '\n'.join(f'TS {name} V->V fixture' for names in doctor.FILTERS.values() for name in names)
+            elif '-encoders' in args:
+                stdout = '\n'.join(f'V....D {name} Encode fixture' for name in doctor.ENCODERS | {'libvpx-vp9', 'libopus'})
+            elif '-show_streams' in args:
+                stdout = json.dumps({'streams': [{'codec_type': 'video', 'codec_name': 'h264'}, {'codec_type': 'audio', 'codec_name': 'aac'}]})
+            else:
+                stdout = 'fixture version\n'
+            return SimpleNamespace(stdout=stdout)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(); manifest = self.catalog_fixture(root)
+            (root / 'manifest.json').write_text(json.dumps(manifest))
+            node = root / 'catalog-node'; node.write_text('fixed external Node fixture'); node.chmod(0o700)
+            with patch.dict(doctor.os.environ, {'OPENCUT_CLASSIC_VISUAL_NODE': str(node)}, clear=True), \
+                 patch.object(doctor.shutil, 'which', side_effect=lambda name: None if name == 'node' else f'/fixture/{name}'), \
+                 patch.object(doctor.subprocess, 'run', side_effect=execute):
+                report = doctor.inspect(root)
+            self.assertEqual(report['status'], 'passed')
+            catalog = next(c for c in report['checks'] if c['check'] == 'catalog_archive_runtime')
+            self.assertTrue(catalog['passed']); self.assertEqual(catalog['node_sha256'], doctor.sha(node))
+            self.assertFalse(catalog['public_download_enabled']); self.assertFalse(catalog['source_archive_verified'])
+            self.assertFalse(catalog['browser_runtime_included']); self.assertEqual(catalog['files'], manifest['files'])
+            codecs = next(c for c in report['checks'] if c['check'] == 'configurable_export_codec_inventory')
+            self.assertEqual(codecs['video_formats'], ['mp4', 'webm'])
+            with patch.dict(doctor.os.environ, {'OPENCUT_CLASSIC_VISUAL_NODE': ''}, clear=True), \
+                 patch.object(doctor.shutil, 'which', side_effect=lambda name: str(node) if name == 'node' else f'/fixture/{name}'), \
+                 patch.object(doctor.subprocess, 'run', side_effect=execute):
+                unavailable = doctor.inspect(root)
+            self.assertEqual(unavailable['status'], 'failed')
+            self.assertFalse(next(c['passed'] for c in unavailable['checks'] if c['check'] == 'catalog_archive_runtime'))
+
+    def test_catalog_doctor_rejects_tampered_missing_escape_or_mismatched_runtime_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(); manifest = self.catalog_fixture(root)
+            doctor.catalog_runtime_files(root, manifest)
+            changed = json.loads(json.dumps(manifest)); changed['catalog_archive_runtime']['files'].pop(next(iter(doctor.CATALOG_FILES)))
+            with self.assertRaisesRegex(ValueError, 'declaration'):
+                doctor.catalog_runtime_files(root, changed)
+            changed = json.loads(json.dumps(manifest)); changed['catalog_archive_runtime']['files']['../outside'] = {'size': 1, 'sha256': '0' * 64}
+            with self.assertRaisesRegex(ValueError, 'declaration'):
+                doctor.catalog_runtime_files(root, changed)
+            helper_name = 'bin/libexec/classic-visual-renderer/host/catalog-archive-v1.mjs'
+            changed = json.loads(json.dumps(manifest)); changed['catalog_archive_runtime']['files'][helper_name]['sha256'] = '0' * 64
+            with self.assertRaisesRegex(ValueError, 'inventory'):
+                doctor.catalog_runtime_files(root, changed)
+            helper = root / helper_name; original = helper.read_bytes(); helper.write_text('changed helper')
+            with self.assertRaisesRegex(ValueError, 'bytes'):
+                doctor.catalog_runtime_files(root, manifest)
+            helper.unlink(); outside = root / 'outside'; outside.write_bytes(original); helper.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, 'Symlink'):
+                doctor.catalog_runtime_files(root, manifest)
+
     def test_configs_preserve_spaces_quotes_unicode_and_do_not_open_database(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

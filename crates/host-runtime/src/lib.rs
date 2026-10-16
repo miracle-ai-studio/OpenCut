@@ -7,17 +7,26 @@ pub use opencut_automation::capabilities;
 pub use opencut_editor_application::access::Caller;
 pub use opencut_editor_application::audit::{CallSource, ExecutionContext};
 pub mod audio_preview_v4;
+mod brand_resources_v1;
 mod browser_runtime;
+mod bundled_runtime;
+mod catalog_resources_v1;
 mod classic_audio_runtime;
 mod classic_visual_runtime;
 pub mod denials;
+mod export_video_v2;
+mod font_catalog_v3;
 mod font_derived_v1;
+mod font_derived_v2;
 mod font_import_v1;
+mod font_synthesis_v1;
 mod source_art_runtime;
 mod source_art_v1;
 mod subtitle_ass_v1;
+mod subtitle_classic_ass_v1;
 mod subtitle_text_v1;
 mod text_canvas_v1;
+mod text_canvas_v2;
 pub use opencut_editor_application::uploads;
 use std::path::Path;
 use uploads::{ImportStore, UploadRetentionStore};
@@ -280,6 +289,54 @@ impl Automation {
             "opencut_edit_recovery_v3_ack" => {
                 to_value(self.app.ack_edit_recovery_v3(&parse(arguments)?)?)
             }
+            "opencut_project_v4_graphic_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::graphic_capability())
+            }
+            "opencut_project_v4_scene_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::scene_capability())
+            }
+            "opencut_project_v4_mask_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::mask_capability())
+            }
+            "opencut_project_v4_blend_frame_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::blend_capability())
+            }
+            "opencut_job_v4_graphic_frame_png" => {
+                let job = opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_graphic_frame_png(&mut self.app, parse(arguments)?)
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_job_v4_scene_frame_png" => {
+                let job =
+                    opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_scene_frame_png(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_job_v4_mask_frame_png" => {
+                let job =
+                    opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_mask_frame_png(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_job_v4_blend_frame_png" => {
+                let job =
+                    opencut_sqlite_store::sqlite_project_v4_text_frame_jobs::start_blend_frame_png(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
             "opencut_project_v4_caption_frame_capability" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(classic_visual_runtime::caption_capability())
@@ -291,6 +348,9 @@ impl Automation {
             }
             "opencut_text_v1_canvas_plan" => {
                 to_value(text_canvas_v1::plan(self, &parse(arguments)?)?)
+            }
+            "opencut_text_v2_canvas_plan" => {
+                to_value(text_canvas_v2::plan(self, &parse(arguments)?)?)
             }
             "opencut_font_v2_catalog" => {
                 let _: EmptyInput = parse(arguments)?;
@@ -349,6 +409,39 @@ impl Automation {
             "opencut_subtitle_text_v1_export" => {
                 to_value(subtitle_text_v1::export(self, &parse(arguments)?)?)
             }
+            "opencut_font_catalog_v3" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(font_catalog_v3::catalog()?)
+            }
+            "opencut_font_source_v3" => to_value(font_catalog_v3::source(&parse(arguments)?)?),
+            "opencut_font_import_v3" => {
+                to_value(font_catalog_v3::import(self, &parse(arguments)?)?)
+            }
+            "opencut_font_derived_v2_catalog" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(font_derived_v2::catalog()?)
+            }
+            "opencut_font_derived_v2_source" => {
+                to_value(font_derived_v2::source(&parse(arguments)?)?)
+            }
+            "opencut_font_derived_v2_import" => {
+                to_value(font_derived_v2::import(self, &parse(arguments)?)?)
+            }
+            "opencut_font_derived_v2_proof" => {
+                to_value(font_derived_v2::proof(self, &parse(arguments)?)?)
+            }
+            "opencut_font_synthesis_v1_source" => {
+                to_value(font_synthesis_v1::source(&parse(arguments)?)?)
+            }
+            "opencut_font_synthesis_v1_import" => {
+                to_value(font_synthesis_v1::import(self, &parse(arguments)?)?)
+            }
+            "opencut_font_synthesis_v1_proof" => {
+                to_value(font_synthesis_v1::proof(self, &parse(arguments)?)?)
+            }
+            "opencut_subtitle_classic_ass_v1_plan" => {
+                to_value(subtitle_classic_ass_v1::plan(self, &parse(arguments)?)?)
+            }
             "opencut_subtitle_ass_v1_plan" => {
                 to_value(subtitle_ass_v1::plan(self, &parse(arguments)?)?)
             }
@@ -358,11 +451,69 @@ impl Automation {
             "opencut_subtitle_export_v4" => {
                 to_value(self.app.export_subtitles_v4(&parse(arguments)?)?)
             }
+            "opencut_brand_resources_v1_list" => {
+                to_value(brand_resources_v1::catalog(&parse(arguments)?)?)
+            }
+            "opencut_brand_resources_v1_source" => {
+                to_value(brand_resources_v1::source(&parse(arguments)?)?)
+            }
+            "opencut_brand_resources_v1_import" => {
+                to_value(brand_resources_v1::import(self, &parse(arguments)?)?)
+            }
+            "opencut_catalog_resources_v1_list" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(catalog_resources_v1::catalog(self))
+            }
+            "opencut_catalog_resources_v1_generate" => {
+                to_value(catalog_resources_v1::generate(self, &parse(arguments)?)?)
+            }
+            "opencut_catalog_resources_v1_import" => {
+                to_value(catalog_resources_v1::import(self, &parse(arguments)?)?)
+            }
             "opencut_font_v1_catalog" => {
                 let _: EmptyInput = parse(arguments)?;
                 to_value(font_import_v1::catalog())
             }
             "opencut_font_v1_import" => to_value(font_import_v1::import(self, &parse(arguments)?)?),
+            "opencut_edit_timeline_v5_plan" => {
+                to_value(opencut_editor_application::timeline_v4::plan_complete(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
+            "opencut_element_properties_v1_plan" => {
+                to_value(opencut_editor_application::element_properties_v1::plan(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
+            "opencut_keyframe_v1_sample" => {
+                to_value(opencut_editor_application::keyframe_sample_v1::sample(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
+            "opencut_keyframe_legacy_conversion_v1_plan" => to_value(
+                opencut_editor_application::keyframe_legacy_conversion_v1::plan(
+                    &self.app,
+                    &parse(arguments)?,
+                )?,
+            ),
+            "opencut_keyframe_v1_plan" => to_value(
+                opencut_editor_application::keyframe_edit_v1::plan(&self.app, &parse(arguments)?)?,
+            ),
+            "opencut_scene_v1_geometry" => {
+                to_value(opencut_editor_application::scene_authoring_v1::plan(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
+            "opencut_mask_v1_geometry" => to_value(
+                opencut_editor_application::mask_authoring_v1::plan(&self.app, &parse(arguments)?)?,
+            ),
+            "opencut_graphic_v1_plan" => to_value(
+                opencut_editor_application::graphic_edit_v1::plan(&self.app, &parse(arguments)?)?,
+            ),
             "opencut_text_v1_plan" => to_value(
                 opencut_editor_application::text_authoring_v1::plan(&self.app, &parse(arguments)?)?,
             ),
@@ -465,6 +616,66 @@ impl Automation {
             }
             "opencut_job_v4_caption_video_mp4" => {
                 let result = opencut_sqlite_store::sqlite_project_v4_caption_video_jobs::start_caption_video_mp4(
+                    &mut self.app,
+                    parse(arguments)?,
+                ).map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_project_v4_graphic_video_mp4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::graphic_video_capability())
+            }
+            "opencut_export_video_v2_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(export_video_v2::capability())
+            }
+            "opencut_job_export_video_v2" => {
+                let job = opencut_sqlite_store::export_video_v2::start_v2(
+                    &mut self.app,
+                    parse(arguments)?,
+                )
+                .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(job))
+            }
+            "opencut_project_v4_scene_video_mp4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::scene_video_capability())
+            }
+            "opencut_project_v4_mask_video_mp4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::mask_video_capability())
+            }
+            "opencut_project_v4_blend_video_mp4_capability" => {
+                let _: EmptyInput = parse(arguments)?;
+                to_value(classic_visual_runtime::blend_video_capability())
+            }
+            "opencut_job_v4_graphic_video_mp4" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_graphic_video_jobs::start_graphic_video_mp4(
+                    &mut self.app,
+                    parse(arguments)?,
+                ).map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_job_v4_scene_video_mp4" => {
+                let result =
+                    opencut_sqlite_store::sqlite_project_v4_scene_video_jobs::start_scene_video_mp4(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_job_v4_mask_video_mp4" => {
+                let result =
+                    opencut_sqlite_store::sqlite_project_v4_mask_video_jobs::start_mask_video_mp4(
+                        &mut self.app,
+                        parse(arguments)?,
+                    )
+                    .map_err(opencut_editor_application::job_views::public_error)?;
+                to_value(opencut_editor_application::job_views::project(result))
+            }
+            "opencut_job_v4_blend_video_mp4" => {
+                let result = opencut_sqlite_store::sqlite_project_v4_blend_video_jobs::start_blend_video_mp4(
                     &mut self.app,
                     parse(arguments)?,
                 ).map_err(opencut_editor_application::job_views::public_error)?;
@@ -634,6 +845,24 @@ impl Automation {
             "opencut_edit_v3_plan" => to_value(self.app.plan_v3_project(&parse(arguments)?)?),
             "opencut_edit_v3_apply" => to_value(self.app.apply_v3_project(&parse(arguments)?)?),
             "opencut_classic_analyze" => to_value(self.analyze_classic(&parse(arguments)?)?),
+            "opencut_classic_analyze_v5" => {
+                to_value(self.app.classic_v5_analyze(&parse(arguments)?)?)
+            }
+            "opencut_classic_import_v5" => {
+                to_value(self.app.classic_v5_import(&parse(arguments)?)?)
+            }
+            "opencut_element_transform_v2_sample" => {
+                to_value(opencut_editor_application::element_transform_v2::sample_v2(
+                    &self.app,
+                    &parse(arguments)?,
+                )?)
+            }
+            "opencut_visual_preview_v4_transform_draft_v2_frame" => to_value(
+                audio_preview_v4::transform_draft_picture_v2(self, parse(arguments)?)?,
+            ),
+            "opencut_track_v1_remove_plan" => to_value(
+                opencut_editor_application::track_removal_v1::plan(&self.app, &parse(arguments)?)?,
+            ),
             "opencut_classic_analyze_v4" => {
                 to_value(self.app.classic_v4_analyze(&parse(arguments)?)?)
             }
@@ -770,6 +999,33 @@ impl Automation {
             }
             "opencut_visual_preview_v4_caption_frame" => {
                 to_value(audio_preview_v4::caption_picture(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_graphic_frame" => {
+                to_value(audio_preview_v4::graphic_picture(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_recovery_v1_stage" => {
+                to_value(audio_preview_v4::recovery::stage(self, parse(arguments)?)?)
+            }
+            "opencut_audio_preview_recovery_v1_inspect" => to_value(
+                audio_preview_v4::recovery::inspect(self, parse(arguments)?)?,
+            ),
+            "opencut_audio_preview_recovery_v1_dispatch" => to_value(
+                audio_preview_v4::recovery::dispatch(self, parse(arguments)?)?,
+            ),
+            "opencut_audio_preview_recovery_v1_ack" => {
+                to_value(audio_preview_v4::recovery::ack(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_transform_draft_frame" => to_value(
+                audio_preview_v4::transform_draft_picture(self, parse(arguments)?)?,
+            ),
+            "opencut_visual_preview_v4_scene_frame" => {
+                to_value(audio_preview_v4::scene_picture(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_mask_frame" => {
+                to_value(audio_preview_v4::mask_picture(self, parse(arguments)?)?)
+            }
+            "opencut_visual_preview_v4_blend_frame" => {
+                to_value(audio_preview_v4::blend_picture(self, parse(arguments)?)?)
             }
             "opencut_visual_preview_v4_font_authorize" => {
                 let input: visual_preview_text_contracts::VisualPreviewFontV2 = parse(arguments)?;
@@ -1238,6 +1494,77 @@ impl Automation {
                     &self.caller,
                     &opencut_native_services::reproducibility::NativeReproducibility,
                 )?)
+            }
+            "opencut_project_v4_history_package_export" => {
+                self.app.package_require_owner()?;
+                let input:opencut_api_contracts::project_history_package_v1::ExportHistoryPackageV1=parse(arguments)?;
+                let source = self.app.history_package_v1_export_source(
+                    &input.project_id,
+                    &input.expected_revision,
+                )?;
+                to_value(
+                    opencut_native_services::project_history_package_v1::export_history_package_v1(
+                        &input,
+                        &source,
+                        self.app.asset_store_root(),
+                    )?,
+                )
+            }
+            "opencut_project_v4_history_package_inspect" => {
+                self.app.package_require_owner()?;
+                to_value(opencut_native_services::project_history_package_v1::inspect_history_package_v1(&parse(arguments)?)?)
+            }
+            "opencut_project_v4_history_package_import" => {
+                self.app.package_require_owner()?;
+                let input:opencut_api_contracts::project_history_package_v1::ImportHistoryPackageV1=parse(arguments)?;
+                if let Some(receipt) = self.app.history_package_v1_import_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let prepared =
+                    opencut_native_services::project_history_package_v1::read_history_package_v1(
+                        &input,
+                        self.app.asset_store_root(),
+                    )?;
+                to_value(
+                    self.app
+                        .history_package_v1_import_commit(&input, &prepared)?,
+                )
+            }
+            "opencut_project_v4_package_export" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package_v4::ExportPackageV4 =
+                    parse(arguments)?;
+                let source = self
+                    .app
+                    .package_v4_export_source(&input.project_id, &input.revision)?;
+                to_value(
+                    opencut_native_services::project_package_v4::export_package_v4(
+                        &input,
+                        &source,
+                        self.app.asset_store_root(),
+                    )?,
+                )
+            }
+            "opencut_project_v4_package_inspect" => {
+                self.app.package_require_owner()?;
+                to_value(
+                    opencut_native_services::project_package_v4::inspect_package_v4(&parse(
+                        arguments,
+                    )?)?,
+                )
+            }
+            "opencut_project_v4_package_import" => {
+                self.app.package_require_owner()?;
+                let input: opencut_api_contracts::project_package_v4::ImportPackageV4 =
+                    parse(arguments)?;
+                if let Some(receipt) = self.app.package_v4_import_replay(&input)? {
+                    return to_value(receipt);
+                }
+                let prepared = opencut_native_services::project_package_v4::read_package_v4(
+                    &input,
+                    self.app.asset_store_root(),
+                )?;
+                to_value(self.app.package_v4_import_commit(&input, &prepared)?)
             }
             "opencut_project_v3_package_export" => {
                 self.app.package_require_owner()?;

@@ -14,6 +14,8 @@ import type { PreparedRecovery, RecoveryProgress } from "./recovery";
 export type FontMappingV4 =
   ToolInput<"opencut_classic_analyze_v4">["font_mappings"][number];
 export type RecoveryReviewV4 = {
+  /** Captured on first analysis; retries never promote an existing request. */
+  protocol?: 4 | 5;
   prepared: PreparedRecovery;
   source: ToolInput<"opencut_classic_analyze_v4">;
   analysis: ToolOutput<"opencut_classic_analyze_v4">;
@@ -41,6 +43,7 @@ export async function reviewRecoveryV4(
   prepared: PreparedRecovery,
   signal: AbortSignal,
   progress: (p: RecoveryProgress) => void,
+  protocol: 4 | 5 = 4,
 ): Promise<RecoveryReviewV4> {
   const { source: mediaSource, revision } = await stageRecoveryMedia(
     sdk,
@@ -52,10 +55,11 @@ export async function reviewRecoveryV4(
     ...mediaSource,
     font_mappings: [],
   };
-  const analysis = await sdk.call("opencut_classic_analyze_v4", source, {
+  const analysis = await sdk.call(protocol === 5 ? "opencut_classic_analyze_v5" : "opencut_classic_analyze_v4", source, {
     signal,
   });
-  return { prepared, source, revision, analysis };
+  if (analysis.schema_version !== protocol) throw new Error("Classic analysis changed protocol identity.");
+  return { prepared, source, revision, analysis, protocol };
 }
 /** Reanalysis changes only authorized selectors, never the captured source/media revision. */
 export async function mapRecoveryFontsV4(
@@ -68,9 +72,10 @@ export async function mapRecoveryFontsV4(
     ...review.source,
     font_mappings: structuredClone(fontMappings),
   };
-  const analysis = await sdk.call("opencut_classic_analyze_v4", source, {
+  const analysis = await sdk.call(review.protocol === 5 ? "opencut_classic_analyze_v5" : "opencut_classic_analyze_v4", source, {
     signal,
   });
+  if (analysis.schema_version !== (review.protocol ?? 4)) throw new Error("Classic analysis changed protocol identity.");
   return { ...review, source, analysis };
 }
 export function recoveryImportRequestV4(
@@ -83,7 +88,7 @@ export function recoveryImportRequestV4(
       ...new Set(review.analysis.losses.map((loss) => loss.code)),
     ].sort(),
     // A changed font selector is a different request; never reuse the original key.
-    idempotency_key: legacyId("recover-v4", [
+    idempotency_key: legacyId(review.protocol === 5 ? "recover-v5" : "recover-v4", [
       review.source,
       review.analysis.source_content_id,
     ]),
@@ -95,13 +100,14 @@ export async function publishRecoveryV4(
   signal: AbortSignal,
 ) {
   signal.throwIfAborted();
+  if (review.analysis.schema_version !== (review.protocol ?? 4)) throw new Error("Classic recovery protocol differs from its captured review.");
   if (review.analysis.blockers.length || !review.analysis.proposed_project)
     throw new Error(
       "Classic source has unsupported content; original project is preserved",
     );
   // Admission/retry observes this exact request. No current-head inference or promotion.
   const result = await sdk.callWithAdmissionRetry(
-    "opencut_classic_import_v4",
+    review.protocol === 5 ? "opencut_classic_import_v5" : "opencut_classic_import_v4",
     recoveryImportRequestV4(review),
     { beforeAttempt: () => signal.throwIfAborted() },
   );
@@ -168,7 +174,7 @@ export async function findRecoveredV4(
     change = page.events.find(
       (row) =>
         row.event.type === "project" &&
-        row.event.data.event_type === "project.classic_imported_v4",
+        ["project.classic_imported_v4", "project.classic_imported_v5"].includes(row.event.data.event_type),
     );
     if (change || !page.events.length) break;
     cursor = page.next_cursor ?? null;
@@ -201,7 +207,7 @@ export async function findRecoveredV4(
     };
   });
   const report = await sdk.call(
-    "opencut_classic_analyze_v4",
+    event.event_type === "project.classic_imported_v5" ? "opencut_classic_analyze_v5" : "opencut_classic_analyze_v4",
     {
       content: prepared.decoded.content,
       target_project_id: prepared.targetId,
@@ -218,4 +224,19 @@ export async function findRecoveredV4(
       "The existing recovery receipt differs from this source; no project will be overwritten",
     );
   return prepared.targetId;
+}
+
+export type RecoveryFontCatalogV5 = ToolOutput<"opencut_font_catalog_v3">["fonts"];
+export function recoveryFontMatchesV5(
+  font: ToolOutput<"opencut_project_v4_inspect">["project"]["fonts"][number],
+  request: RecoveryReviewV4["analysis"]["unresolved_fonts"][number],
+  catalog: RecoveryFontCatalogV5,
+): boolean {
+  const weight = request.font_weight === "bold" ? 700 : 400;
+  if (font.weight !== weight) return false;
+  if (font.family === request.family && font.style === request.font_style) return true;
+  return catalog.some(face => face.display_family === request.family
+    && face.family === font.family && face.weight === font.weight && face.style === font.style
+    && (face.requested_style ?? face.style) === request.font_style
+    && face.content_hash === font.content.content_hash && face.size_bytes === String(font.content.size));
 }

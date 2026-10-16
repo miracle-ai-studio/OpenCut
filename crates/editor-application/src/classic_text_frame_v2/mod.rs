@@ -5,8 +5,8 @@ mod session;
 use crate::classic_visual::ClassicVisualResources;
 use opencut_contracts::EditorError;
 pub use protocol::*;
-pub(crate) use session::validate_layout;
 pub(crate) use session::text_input;
+pub(crate) use session::validate_layout;
 pub use session::*;
 #[cfg(test)]
 pub(crate) mod tests;

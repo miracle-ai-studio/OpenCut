@@ -1,3 +1,6 @@
+import { controlledWorkers } from "./font-hash-fixture.mjs";
+import { clearFontHashWorker } from "../src/font-hash.mjs";
+import { clearGraphicSourceCacheV1 } from "../src/graphic-source.mjs";
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -26,6 +29,8 @@ mock.module("../src/decoder.mjs", { namedExports: {
 } });
 mock.module("../src/gpu.mjs", { namedExports: {
   openGpuRealm: async () => ({}),
+    clearGpuFrameCaches: realm => {clearGraphicSourceCacheV1(realm);clearFontHashWorker(realm);},
+    closeGpuRealm: clearGraphicSourceCacheV1,
   renderGpuFrame: async (bound, sources, _admission, emit) => {
     gpuCalls.push({ bound: structuredClone(bound), sources: new Map(sources) });
     for (const layer of bound.layers) assert.ok(sources.get(layer.elementId).canvas.width > 0);
@@ -236,5 +241,89 @@ test("V3 fixed caption directives and native original text coverage are mandator
     reset(); const p = captionPlan(); corrupt(p); const h = captionHost(p);
     await assert.rejects(renderClassicCaptionFrameV3(p, h, {}), code("INVALID_VISUAL_PLAN"));
     assert.equal(gpuCalls.length, 0); assert.equal(h.chunks.length, 0); released(h);
+  }
+});
+
+const {renderClassicGraphicFrameV1}=await import('../src/graphic-frame-v1.mjs');
+function graphicTextPlan() {
+  const execution=captionPlan();
+  return {identity:{...execution.identity,profile:'classic-v31-gpu-normal-graphic-frame-v1'},execution,graphics:[],order:execution.execution.order};
+}
+function graphicTextHost(p,options={}) {
+  const base=captionHost(p.execution,options),callback=base.callback;let child;
+  base.callback=async(op,args)=>{
+    if(op==='bindCaptionFrameV3'){child=await callback(op,args);return child;}
+    if(op==='bindGraphicFrameV1')return {...child,identity:p.identity,captions:base.captionCalls.at(-1).captions,graphics:args.graphics};
+    return callback(op,args);
+  };
+  return base;
+}
+const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
+function gateFontHashes(t) {
+  const fixture=controlledWorkers(t),digest=crypto.subtle.digest.bind(crypto.subtle),inputs=[];
+  t.mock.method(crypto.subtle,'digest',(algorithm,input)=>{
+    inputs.push(new Uint8Array(input));assert.notEqual(input.byteLength,4);return digest(algorithm,input);
+  });
+  return {...fixture,realm:fixture.newRealm(),inputs};
+}
+function cachedResources(p) {
+  const media=p.execution.execution.media.resources[0],font=p.execution.execution.texts[0].font;
+  return {mediaCache:new Map([[`${media.assetId}:${media.contentHash}:${media.size}`,imageBytes.slice()]]),fontCache:new Map([[`${font.fontId}:${font.contentHash}:${font.size}`,{bytes:fontBytes.slice()}]])};
+}
+function clearTestFonts(cache) {for(const value of cache.values())if(value.face)fonts.delete(value.face);cache.clear();}
+
+test('graphic warm hash starts before media binding and does not block it; shared font hashes once per frame with unchanged budget',async t=>{
+  reset();const p=graphicTextPlan(),mediaCache=new Map(),fontCache=new Map();
+  const first=await renderClassicGraphicFrameV1(p,graphicTextHost(p),{},undefined,mediaCache,undefined,fontCache);
+  const {pending,inputs,realm}=gateFontHashes(t),mediaSeen=deferred(),mediaFinish=deferred(),fontSeen=deferred();
+  const h=graphicTextHost(p),callback=h.callback;gpuCalls.length=0;
+  h.callback=async(op,args)=>{
+    if(op==='bindFrame'){assert.equal(pending.length,1);mediaSeen.resolve();await mediaFinish.promise;}
+    if(op==='resolveVerifiedFontBytes')fontSeen.resolve();
+    return callback(op,args);
+  };
+  try {
+    const rendering=renderClassicGraphicFrameV1(p,h,realm,undefined,mediaCache,undefined,fontCache);
+    await mediaSeen.promise;assert.equal(gpuCalls.length,0);
+    mediaFinish.resolve();await fontSeen.promise;assert.equal(gpuCalls.length,0);
+    pending[0].resolve();const warm=await rendering;
+    assert.equal(pending.length,1);assert.equal(warm.execution.execution.peakAccountedBytes,first.execution.execution.peakAccountedBytes);
+    assert.equal(warm.execution.execution.peakAccountedBytes,'1208');
+    assert.equal(h.calls.filter(c=>c.op==='resolveVerifiedFontBytes').length,1);
+    assert.ok(inputs.some(input=>Buffer.from(input).toString()==='AV To'));assert.ok(inputs.some(input=>Buffer.from(input).toString()==='中文'));
+    const next=renderClassicGraphicFrameV1(p,graphicTextHost(p),realm,undefined,mediaCache,undefined,fontCache);
+    assert.equal(pending.length,2);pending[1].resolve();await next;
+    fontCache.values().next().value.bytes[0]^=255;const before=gpuCalls.length;
+    const corrupt=renderClassicGraphicFrameV1(p,graphicTextHost(p),realm,undefined,mediaCache,undefined,fontCache);
+    const rejected=assert.rejects(corrupt,code('ASSET_HASH_MISMATCH'));assert.equal(pending.length,3);pending[2].resolve();await rejected;
+    assert.equal(gpuCalls.length,before);assert.ok(canvases.every(canvas=>canvas.width===0));
+  } finally {clearTestFonts(fontCache);}
+});
+
+test('complete retained-font reservation precedes every speculative hash or media callback',async t=>{
+  reset();const p=graphicTextPlan(),{mediaCache,fontCache}=cachedResources(p),{pending,realm}=gateFontHashes(t);
+  // Even an inactive cache entry is retained/accounted. Failure on that last
+  // reservation must happen before hashing the active entry.
+  fontCache.set('inactive',{bytes:fontBytes.slice()});
+  const h=graphicTextHost(p,{admission:{maxRgbaBytes:'163'}});
+  await assert.rejects(renderClassicGraphicFrameV1(p,h,realm,undefined,mediaCache,undefined,fontCache),code('VISUAL_BUDGET_EXCEEDED'));
+  assert.equal(pending.length,0);assert.equal(h.calls.length,0);assert.equal(canvases.length,0);assert.equal(gpuCalls.length,0);
+});
+
+test('media failure/cancellation waits for speculative hash cleanup and digest failure never reaches GPU',async t=>{
+  const {pending,realm,workers}=gateFontHashes(t);
+  for(const fault of ['media','cancel','digest']) {
+    reset();const p=graphicTextPlan(),{mediaCache,fontCache}=cachedResources(p),h=graphicTextHost(p),callback=h.callback;
+    const reason=Error(fault),controller=new AbortController();let settled=false;
+    h.callback=async(op,args)=>{
+      if(op==='admitDecode'&&fault!=='digest'){if(fault==='cancel')controller.abort(reason);throw reason;}
+      return callback(op,args);
+    };
+    const rendering=renderClassicGraphicFrameV1(p,h,realm,controller.signal,mediaCache,undefined,fontCache);
+    const rejected=assert.rejects(rendering,error=>fault==='digest'?error.code==='FONT_LOAD_FAILED':error===reason).then(()=>{settled=true;});
+    const gate=pending.at(-1);await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(settled,fault!=='digest');assert.equal(gpuCalls.length,0);assert.equal(faces.size,0);
+    if(fault==='digest')gate.reject(reason);else assert.equal(workers.at(-1).terminated,true);await rejected;
+    assert.equal(settled,true);assert.equal(gpuCalls.length,0);assert.equal(h.chunks.length,0);released(h);
   }
 });

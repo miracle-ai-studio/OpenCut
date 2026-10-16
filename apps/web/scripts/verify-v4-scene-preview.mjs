@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { importProductMedia, placeProductMedia } from "./verify-v4-editor.mjs";
 
-export function installScenePreviewWitness({ deferReadback = false, rolling = false, sampleSchedule = null } = {}) {
+export function installScenePreviewWitness({ deferReadback = false, rolling = false, sampleSchedule = null, exactConsumerOrigin = false } = {}) {
     const deferred = [], sampledSeconds = new Set();
     const w = (window.__scenePreviewWitness = {
       session: null,
@@ -19,6 +19,30 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
       supplies: [],
       controls: [],
     });
+    // D2 opt-in: a pause reanchors the session but leaves the stopped device's
+    // final receipt on its old token. Keep that token's own origin; adding its
+    // cursor to the newly paused origin would count consumption twice.
+    const consumerOrigins = new Map();
+    const rememberSession = session => { w.session = session; };
+    const rememberConsumer = (token, session) => {
+      if (!exactConsumerOrigin) return;
+      const origin = { start: session.actual_start_sample, rate: session.identity.sample_rate };
+      consumerOrigins.set(token, origin);
+      if (consumerOrigins.size > 64) consumerOrigins.delete(consumerOrigins.keys().next().value);
+      // Initial preparation precedes Worker.start. Preserve its actual receipt
+      // token/cursor and resolve that same origin when start supplies it.
+      for (const frame of w.frames)
+        if (frame.consumer_token === token)
+          frame.actual = (Number(origin.start) + Number(frame.consumer_frames)) / origin.rate;
+    };
+    const consumerSnapshot = progress => exactConsumerOrigin
+      ? { consumer_token: progress?.token ?? null, consumer_frames: progress?.consumedFrames ?? null } : {};
+    const actualConsumerTime = (session, progress) => {
+      if (!exactConsumerOrigin)
+        return session && progress ? Number(session.actual_start_sample) / session.identity.sample_rate + Number(progress.consumedFrames) / session.identity.sample_rate : 0;
+      const origin = consumerOrigins.get(progress?.token);
+      return origin ? (Number(origin.start) + Number(progress.consumedFrames)) / origin.rate : NaN;
+    };
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const began = performance.now();
@@ -33,7 +57,7 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
           .clone()
           .json()
           .then((r) => {
-            if (r.data) w.session = r.data;
+            if (r.data) rememberSession(r.data);
           })
           .catch(() => {});
       if (url.endsWith("opencut_visual_preview_v4_frame"))
@@ -61,11 +85,18 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
       constructor(...args) {
         super(...args);
         if (args[1]?.name !== "opencut-audio-pump") return;
+        const post = this.postMessage.bind(this);
+        this.postMessage = (data, ...rest) => {
+          const result = post(data, ...rest);
+          if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start")
+            rememberConsumer(data.token, data.session);
+          return result;
+        };
         this.addEventListener("message", ({data}) => {
           if (data.channel !== "opencut-audio-pump" || data.version !== 1 || data.token !== w.progress?.token) return;
           if (data.kind === "progress") observe(data.receipt, contexts.get(data.token));
           if (data.kind === "session" || data.kind === "reply" && data.session) {
-            w.session = data.session;
+            rememberSession(data.session);
             if (data.session.state === "ended") w.endedSession = data.session;
           }
         });
@@ -113,13 +144,7 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
         const t = Number(this.canvas.dataset.time),
           s = w.session,
           p = w.progress;
-        const start = s
-          ? Number(s.actual_start_sample) / s.identity.sample_rate
-          : 0;
-        const actual =
-          s && p
-            ? start + Number(p.consumedFrames) / s.identity.sample_rate
-            : 0;
+        const actual = actualConsumerTime(s, p);
         const pixel =
           (Math.floor(data.height / 2) * data.width +
             Math.floor(data.width / 2)) *
@@ -129,11 +154,12 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
           height: data.height,
           pts: w.bindings.findLast(b => b.time === t)?.pts ?? [],
           time: t,
+          ...consumerSnapshot(p),
           actual,
           confirmed: s
             ? Number(s.authoritative_time.ticks) / s.authoritative_time.timebase
             : 0,
-          generation: this.canvas.dataset.generation,
+          session_id: s?.session_id ?? null, generation: this.canvas.dataset.generation,
           color: [...data.data.subarray(pixel, pixel + 4)],
           at: performance.now(),
           runtime: this.canvas.dataset.runtime,
@@ -150,9 +176,9 @@ export function installScenePreviewWitness({ deferReadback = false, rolling = fa
         const s = w.session, p = w.progress, t = Number(this.canvas.dataset.time);
         const record = { width: bitmap.width, height: bitmap.height,
           pts: w.bindings.findLast(b => b.time === t)?.pts ?? [], time: t,
-          actual: s && p ? Number(s.actual_start_sample) / s.identity.sample_rate + Number(p.consumedFrames) / s.identity.sample_rate : 0,
+          ...consumerSnapshot(p), actual: actualConsumerTime(s, p),
           confirmed: s ? Number(s.authoritative_time.ticks) / s.authoritative_time.timebase : 0,
-          generation: this.canvas.dataset.generation, color: null,
+          session_id: s?.session_id ?? null, generation: this.canvas.dataset.generation, color: null,
           at: performance.now(), runtime: this.canvas.dataset.runtime };
         const read = (source) => {
           const sample = new OffscreenCanvas(1, 1), context = sample.getContext("2d", { willReadFrequently: true });

@@ -20,6 +20,15 @@ import { verifyV4EditableSubtitles } from "./verify-v4-editable-subtitles.mjs";
 import { verifyV4AsrEditable } from "./verify-v4-asr-editable.mjs";
 import { verifyV4DerivedFont } from "./verify-v4-derived-font.mjs";
 import { verifyV4AssImport } from "./verify-v4-ass-import.mjs";
+import { verifyV4Mask } from "./verify-v4-mask.mjs";
+import { verifyV4SceneStack } from "./verify-v4-scene-stack.mjs";
+import { verifyV4ParallelEditing } from "./verify-v4-parallel-editing.mjs";
+import { verifyV4Blend } from "./verify-v4-blend.mjs";
+import { verifyV4Graphic } from "./verify-v4-graphic.mjs";
+import { verifyV4Package } from "./verify-v4-package.mjs";
+import { verifyV4PackageOutput } from "./verify-v4-package-output.mjs";
+import { verifyClassicGraphicV4 } from "./verify-classic-graphic-v4.mjs";
+import { verifyV4GraphicOutput } from "./verify-v4-graphic-output.mjs";
 import { verifyV4BookmarkLifecycle } from "./verify-v4-bookmark-lifecycle.mjs";
 import { verifyV4Text } from "./verify-v4-text.mjs";
 import { verifyV4Editor } from "./verify-v4-editor.mjs";
@@ -86,6 +95,16 @@ const suites = new Map([
   ["v4-editable-subtitles", verifyV4EditableSubtitles],
   ["v4-asr-editable", verifyV4AsrEditable],
   ["v4-ass-import", verifyV4AssImport],
+  ["v4-graphic", verifyV4Graphic],
+  ["v4-blend", verifyV4Blend],
+  ["v4-mask", verifyV4Mask],
+  ["v4-scene-stack", verifyV4SceneStack],
+  ["v4-parallel-editing", verifyV4ParallelEditing],
+  ["v4-blend-outputs", (...args) => verifyV4Blend(...args, { outputsOnly: true })],
+  ["v4-graphic-output", verifyV4GraphicOutput],
+  ["v4-package", verifyV4Package],
+  ["v4-package-output", verifyV4PackageOutput],
+  ["classic-graphic-v4", verifyClassicGraphicV4],
   ["v4-derived-font", verifyV4DerivedFont],
   ["v4-derived-font-offline", (...args) => verifyV4DerivedFont(...args, { offlineOnly: true })],
   ["v4-video", verifyV4Video],

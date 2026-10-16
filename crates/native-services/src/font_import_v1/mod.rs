@@ -9,7 +9,7 @@ pub(crate) mod fetch;
 pub use fetch::GoogleFontsFetchV1;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub struct StaticFontInspectorV1;
 
@@ -23,9 +23,29 @@ fn unsupported(message: &str) -> EditorError {
 /// ttf-parser intentionally ignores malformed optional tables. Check the SFNT
 /// directory and checksums before parsing so damaged bytes cannot silently
 /// become a different face. This is format validation, not a shaping oracle.
-fn validate_sfnt(
+pub(crate) fn validate_sfnt(
     bytes: &[u8],
     checkpoint: &mut dyn FontImportCheckpointV1,
+) -> Result<(), EditorError> {
+    validate_sfnt_with(bytes, checkpoint, |tag| {
+        if matches!(
+            &tag,
+            b"COLR" | b"SVG " | b"CBDT" | b"sbix" | b"EBDT" | b"bdat"
+        ) {
+            return Err(unsupported(
+                "Color and bitmap glyph rendering requires an explicit capability",
+            ));
+        }
+        Ok(())
+    })
+}
+
+/// Shared byte integrity; the caller supplies only its extra table admission.
+/// The original V1 color gate above and unconditional variation gate stay frozen.
+pub(crate) fn validate_sfnt_with(
+    bytes: &[u8],
+    checkpoint: &mut dyn FontImportCheckpointV1,
+    mut admit: impl FnMut([u8; 4]) -> Result<(), EditorError>,
 ) -> Result<(), EditorError> {
     if bytes.starts_with(b"ttcf") {
         return Err(unsupported(
@@ -60,14 +80,7 @@ fn validate_sfnt(
                 "Variable-font instances are not represented by this contract",
             ));
         }
-        if matches!(
-            &tag,
-            b"COLR" | b"SVG " | b"CBDT" | b"sbix" | b"EBDT" | b"bdat"
-        ) {
-            return Err(unsupported(
-                "Color and bitmap glyph rendering requires an explicit capability",
-            ));
-        }
+        admit(tag)?;
         let start = record.offset as usize;
         let end = start
             .checked_add(record.length as usize)
@@ -149,88 +162,97 @@ impl FontInspectorV1 for StaticFontInspectorV1 {
         checkpoint.check()?;
         validate_font_input_v1(bytes, required_text, policy)?;
         validate_sfnt(bytes, checkpoint)?;
-        let face =
-            Face::parse(bytes, 0).map_err(|_| malformed("Font face tables could not be parsed"))?;
-        let tables = face.tables();
-        if tables.os2.is_none()
-            || tables.name.is_none()
-            || tables.cmap.is_none()
-            || tables.hmtx.is_none()
-            || (tables.glyf.is_none() && tables.cff.is_none())
-        {
-            return Err(malformed(
-                "Font requires valid names, style, Unicode cmap, metrics and outlines",
-            ));
+        inspect_static_face(bytes, required_text, checkpoint)
+    }
+}
+
+/// Existing metadata, Unicode coverage and outline requirements shared verbatim.
+pub(crate) fn inspect_static_face(
+    bytes: &[u8],
+    required_text: &str,
+    checkpoint: &mut dyn FontImportCheckpointV1,
+) -> Result<ParsedFontFaceV1, EditorError> {
+    let face =
+        Face::parse(bytes, 0).map_err(|_| malformed("Font face tables could not be parsed"))?;
+    let tables = face.tables();
+    if tables.os2.is_none()
+        || tables.name.is_none()
+        || tables.cmap.is_none()
+        || tables.hmtx.is_none()
+        || (tables.glyf.is_none() && tables.cff.is_none())
+    {
+        return Err(malformed(
+            "Font requires valid names, style, Unicode cmap, metrics and outlines",
+        ));
+    }
+    if !tables
+        .cmap
+        .unwrap()
+        .subtables
+        .into_iter()
+        .any(|subtable| subtable.is_unicode())
+    {
+        return Err(unsupported("Font has no Unicode character map"));
+    }
+    // Shaping tables may be absent, but a declared malformed table is not
+    // silently discarded while claiming the original face was inspected.
+    for (tag, parsed) in [
+        (*b"GSUB", tables.gsub.is_some()),
+        (*b"GPOS", tables.gpos.is_some()),
+        (*b"GDEF", tables.gdef.is_some()),
+    ] {
+        if face.raw_face().table(Tag::from_bytes(&tag)).is_some() && !parsed {
+            return Err(malformed("Declared font shaping table could not be parsed"));
         }
-        if !tables
-            .cmap
-            .unwrap()
-            .subtables
-            .into_iter()
-            .any(|subtable| subtable.is_unicode())
-        {
-            return Err(unsupported("Font has no Unicode character map"));
-        }
-        // Shaping tables may be absent, but a declared malformed table is not
-        // silently discarded while claiming the original face was inspected.
-        for (tag, parsed) in [
-            (*b"GSUB", tables.gsub.is_some()),
-            (*b"GPOS", tables.gpos.is_some()),
-            (*b"GDEF", tables.gdef.is_some()),
-        ] {
-            if face.raw_face().table(Tag::from_bytes(&tag)).is_some() && !parsed {
-                return Err(malformed("Declared font shaping table could not be parsed"));
-            }
-        }
-        if face.is_oblique() {
-            return Err(unsupported(
-                "Oblique is not an expressed font style in this version",
-            ));
-        }
-        let weight = face.weight().to_number();
-        if !(1..=1000).contains(&weight) {
-            return Err(malformed(
-                "Font numeric weight is outside the OpenType range",
-            ));
-        }
-        let mut checked = BTreeSet::new();
-        let mut missing = Vec::new();
-        let mut missing_count = 0u32;
-        for c in required_text.chars().filter(|c| *c != '\n' && *c != '\r') {
-            if !checked.insert(c) {
-                continue;
-            }
-            checkpoint.check()?;
-            let glyph = face.glyph_index(c);
-            if glyph.is_none_or(|g| g == GlyphId(0) || g.0 >= face.number_of_glyphs()) {
-                missing_count += 1;
-                if missing.len() < 32 {
-                    missing.push(format!("U+{:04X}", c as u32));
-                }
-            } else if face.glyph_hor_advance(glyph.unwrap()).is_none() {
-                return Err(malformed("Mapped font glyph has no horizontal metrics"));
-            }
-        }
-        if missing_count != 0 {
-            let mut error = EditorError::new(
-                "FONT_GLYPH_MISSING",
-                "Locked font does not cover the required text",
-            );
-            error.details =
-                serde_json::json!({"missing_codepoints": missing, "missing_count": missing_count});
-            return Err(error);
+    }
+    if face.is_oblique() {
+        return Err(unsupported(
+            "Oblique is not an expressed font style in this version",
+        ));
+    }
+    let weight = face.weight().to_number();
+    if !(1..=1000).contains(&weight) {
+        return Err(malformed(
+            "Font numeric weight is outside the OpenType range",
+        ));
+    }
+    let mut checked = BTreeSet::new();
+    let mut missing = Vec::new();
+    let mut missing_count = 0u32;
+    for c in required_text.chars().filter(|c| *c != '\n' && *c != '\r') {
+        if !checked.insert(c) {
+            continue;
         }
         checkpoint.check()?;
-        Ok(ParsedFontFaceV1 {
-            family: family(&face, checkpoint)?,
-            weight,
-            style: if face.is_italic() {
-                FontStyleV4::Italic
-            } else {
-                FontStyleV4::Normal
-            },
-            glyph_count: face.number_of_glyphs(),
-            checked_codepoints: checked.len() as u32,
-        })
+        let glyph = face.glyph_index(c);
+        if glyph.is_none_or(|g| g == GlyphId(0) || g.0 >= face.number_of_glyphs()) {
+            missing_count += 1;
+            if missing.len() < 32 {
+                missing.push(format!("U+{:04X}", c as u32));
+            }
+        } else if face.glyph_hor_advance(glyph.unwrap()).is_none() {
+            return Err(malformed("Mapped font glyph has no horizontal metrics"));
+        }
     }
+    if missing_count != 0 {
+        let mut error = EditorError::new(
+            "FONT_GLYPH_MISSING",
+            "Locked font does not cover the required text",
+        );
+        error.details =
+            serde_json::json!({"missing_codepoints": missing, "missing_count": missing_count});
+        return Err(error);
+    }
+    checkpoint.check()?;
+    Ok(ParsedFontFaceV1 {
+        family: family(&face, checkpoint)?,
+        weight,
+        style: if face.is_italic() {
+            FontStyleV4::Italic
+        } else {
+            FontStyleV4::Normal
+        },
+        glyph_count: face.number_of_glyphs(),
+        checked_codepoints: checked.len() as u32,
+    })
 }

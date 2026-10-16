@@ -361,7 +361,7 @@ fn schema_twenty_seven_migration_preserves_raw_history_and_receipt_and_rolls_bac
             .unwrap();
         let history = raw_history(&app);
         let original_receipt = raw_receipt(&app.connection);
-        app.connection.execute_batch("DROP TABLE font_derivations_v1;
+        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; UPDATE metadata SET value='27' WHERE key='schema_version';").unwrap();
         if collision {
             app.connection

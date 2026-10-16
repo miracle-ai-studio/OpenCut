@@ -68,7 +68,7 @@ export class V4Api {
   timelinePlan(
     request: ToolInput<"opencut_edit_timeline_plan_v4">,
     signal?: AbortSignal,
-    tool: "opencut_edit_timeline_plan_v4" | "opencut_edit_element_timeline_plan_v4" = "opencut_edit_timeline_plan_v4",
+    tool: "opencut_edit_timeline_plan_v4" | "opencut_edit_element_timeline_plan_v4" | "opencut_edit_timeline_v5_plan" = "opencut_edit_timeline_plan_v4",
   ) {
     return this.sdk.call(tool, request, { signal });
   }

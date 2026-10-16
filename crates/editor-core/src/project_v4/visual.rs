@@ -118,7 +118,9 @@ pub(super) fn mask(
             nonnegative(mask.scale, "Text mask scale")?;
         }
         MaskShapeV4::Freeform { path } => {
-            if path.points.len() < if path.closed { 3 } else { 2 } {
+            // Classic preserves open pen drafts, including zero or one point.
+            // They are inactive until closed; never drop their authored geometry.
+            if path.closed && path.points.len() < 3 {
                 return Err(invalid("Freeform mask lacks enough path points"));
             }
             for x in [path.center_x, path.center_y, path.rotation_degrees] {

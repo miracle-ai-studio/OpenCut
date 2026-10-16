@@ -1,16 +1,50 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   parseContributors,
   parsePost,
   parsePosts,
   safePublicUrl,
+  post,
+  posts,
 } from "./public-data";
 import { richText } from "./rich-text";
 import { siteRoute, isEditorPath } from "./routes";
 import { zipAssets } from "./brand-assets";
+afterEach(() => vi.unstubAllGlobals());
 describe("public site boundaries", () => {
+  it("reads public blog metadata from the fixed local adapter without editor credentials", async () => {
+    const value = { slug: "known", title: "Source title", authors: [] };
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            posts: [value],
+            pagination: { currpage: 1, totalPages: 1, nextPage: null },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ post: value })))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetcher);
+    const signal = new AbortController().signal;
+    expect((await posts(1, signal)).posts[0].title).toBe("Source title");
+    expect((await post("known", signal)).slug).toBe("known");
+    await expect(post("missing", signal)).rejects.toThrow("not-found");
+    await expect(post("../private-token", signal)).rejects.toThrow("not-found");
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "/app/public/v1/blog?page=1",
+      "/app/public/v1/blog/known",
+      "/app/public/v1/blog/missing",
+    ]);
+    for (const [, options] of fetcher.mock.calls) {
+      expect(options.credentials).toBe("omit");
+      expect(options.headers).toEqual({ Accept: "application/json" });
+      expect(options.referrerPolicy).toBe("no-referrer");
+    }
+  });
   it("keeps declared public routes separate from authenticated editor assembly", () => {
     expect(siteRoute("/").page).toBe("home");
     expect(siteRoute("/blog/a-slug")).toEqual({ page: "blog", slug: "a-slug" });
@@ -73,7 +107,8 @@ describe("public site boundaries", () => {
         '<h2>Title</h2><script>alert(1)</script><iframe src="https://example.com"></iframe><p onclick="alert(2)">Safe <a href="javascript:evil">label</a><a href="https://example.com" style="x">link</a><img src="data:evil"><img src="https://example.com/a.png" onerror="evil" alt="Photo"></p>',
       ),
     );
-    expect(result).toContain("<h2>Title</h2>");
+    expect(result).toContain('<h2 id="title">Title');
+    expect(result).toContain('href="#title"');
     expect(result).toContain("noopener noreferrer");
     expect(result).toContain('alt="Photo"');
     expect(result).not.toMatch(

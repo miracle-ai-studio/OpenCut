@@ -1,3 +1,4 @@
+import { RestoreProjectPackage } from "../workspace/v4/package";
 import { RenameProject } from "./rename";
 import { ProjectCover } from "./cover";
 import { MigrateClassic } from "./migrate";
@@ -47,6 +48,7 @@ export function ProjectBrowser({
     [info, setInfo] = useState<ProjectRef | null>(null);
   const [deleting, setDeleting] = useState<ProjectRef[] | null>(null);
   const [recovering, setRecovering] = useState(false);
+  const [restoringPackage, setRestoringPackage] = useState(false);
   const [coverRefresh, setCoverRefresh] = useState<Record<string, number>>({});
   const anchor = useRef<string | null>(null),
     shift = useRef(false);
@@ -130,6 +132,7 @@ export function ProjectBrowser({
           >
             {t("Recover Classic projects")}
           </Button>
+          <Button disabled={connection !== "connected"} onClick={() => setRestoringPackage(true)}>{t("Restore project package")}</Button>
           <Button
             aria-label={t("Refresh projects")}
             disabled={connection !== "connected"}
@@ -431,6 +434,7 @@ export function ProjectBrowser({
           )}
         </div>
       )}
+      {restoringPackage && <RestoreProjectPackage onClose={() => setRestoringPackage(false)} onOpen={onOpen} />}
       {info && <ProjectInfo project={info} onClose={() => setInfo(null)} />}
       {deleting && (
         <DeleteProjects projects={deleting} onClose={() => setDeleting(null)} />

@@ -12,6 +12,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         "INVALID_ARGUMENT" | "TIME_OVERFLOW" | "INVALID_CURSOR" => (400, 2),
         "UPLOAD_CONTENT_MISMATCH" => (400, 2),
         "UPLOAD_BUSY"
+        | "PREVIEW_DRAFT_BUSY"
         | "STORAGE_SCAN_BUSY"
         | "STORAGE_BUSY"
         | "STORAGE_BUDGET_BUSY"
@@ -19,7 +20,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         "UPLOAD_TIMEOUT" | "SOURCE_ART_DEADLINE_EXCEEDED" | "SOURCE_ART_TIME_LIMIT" => (408, 124),
         "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" | "FONT_NETWORK_DENIED" => (403, 3),
-        "FONT_SOURCE_TIMEOUT" => (408, 124),
+        "FONT_SOURCE_TIMEOUT" | "RESOURCE_SOURCE_TIMEOUT" => (408, 124),
         "INVALID_FONT"
         | "UNSUPPORTED_FONT"
         | "FONT_GLYPH_MISSING"
@@ -27,10 +28,11 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "FONT_BUDGET_EXCEEDED"
         | "FONT_DERIVATION_UNAVAILABLE"
         | "FONT_DERIVATION_INVALID"
+        | "FONT_SYNTHESIS_INVALID"
         | "FONT_FACE_UNAVAILABLE" => (422, 6),
-        "FONT_SOURCE_UNAVAILABLE" => (502, 7),
+        "FONT_SOURCE_UNAVAILABLE" | "RESOURCE_SOURCE_UNAVAILABLE" => (502, 7),
         "NOT_FOUND" => (404, 4),
-        "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" => (410, 4),
+        "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" | "PREVIEW_RECOVERY_RETIRED" => (410, 4),
         "STORAGE_POLICY_CONFLICT"
         | "GC_PLAN_CONFLICT"
         | "ARTIFACT_ALREADY_RELEASED"
@@ -50,6 +52,8 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "REDO_UNAVAILABLE"
         | "NO_EFFECT"
         | "COLLABORATION_CONFLICT"
+        | "RECOVERY_CONFLICT"
+        | "RECOVERY_UNCONFIRMED"
         | "RECOVERY_PROTOCOL_REQUIRED"
         | "ANALYSIS_NOT_READY"
         | "IDEMPOTENCY_KEY_REUSED"
@@ -89,9 +93,12 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "SUBTITLE_INVALID"
         | "INVALID_SUBTITLE_TEXT_PLAN"
         | "INVALID_SUBTITLE_ASS_PLAN"
+        | "INVALID_SUBTITLE_CLASSIC_ASS_PLAN"
         | "SUBTITLE_ASS_UNSUPPORTED"
         | "PACKAGE_INVALID"
         | "PACKAGE_DEPENDENCY_UNSUPPORTED"
+        | "PACKAGE_HISTORY_UNSUPPORTED"
+        | "RECOVERY_QUOTA_EXCEEDED"
         | "UNSUPPORTED_JOB_KIND"
         | "MISSING_ASSET"
         | "ASSET_LOCK_REQUIRED"
@@ -108,5 +115,33 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
     ErrorPolicy {
         http_status,
         exit_code,
+    }
+}
+
+#[cfg(test)]
+mod additive_migration_policy_tests {
+    use super::*;
+    #[test]
+    fn preview_retirement_never_looks_retryable_as_a_new_intent_and_resource_failures_keep_their_class()
+     {
+        for (code, status, exit) in [
+            ("PREVIEW_RECOVERY_RETIRED", 410, 4),
+            ("RECOVERY_UNCONFIRMED", 409, 5),
+            ("RECOVERY_CONFLICT", 409, 5),
+            ("RECOVERY_QUOTA_EXCEEDED", 422, 6),
+            ("PACKAGE_HISTORY_UNSUPPORTED", 422, 6),
+            ("INVALID_SUBTITLE_CLASSIC_ASS_PLAN", 422, 6),
+            ("RESOURCE_SOURCE_TIMEOUT", 408, 124),
+            ("RESOURCE_SOURCE_UNAVAILABLE", 502, 7),
+        ] {
+            assert_eq!(
+                error_policy(code),
+                ErrorPolicy {
+                    http_status: status,
+                    exit_code: exit
+                }
+            );
+        }
+        assert_eq!(error_policy("RESOURCE_SOURCE_INVALID").http_status, 500);
     }
 }

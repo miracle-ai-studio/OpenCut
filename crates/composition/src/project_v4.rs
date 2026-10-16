@@ -218,6 +218,19 @@ fn unsupported(message: impl Into<String>) -> CompositionError {
         message: message.into(),
     }
 }
+/// Frozen raster profiles have no explicit actual/requested font descriptor.
+/// Reject the marker before partitions can discard unused or blank layers.
+fn reject_legacy_synthesis_fonts(fonts: &[FontResourceV4]) -> Result<(), CompositionError> {
+    if fonts
+        .iter()
+        .any(opencut_editor_core::project_v4::is_font_synthesis_resource_v1)
+    {
+        return Err(unsupported(
+            "Explicit font synthesis requires the versioned Scene or Canvas profile",
+        ));
+    }
+    Ok(())
+}
 fn time(value: &Time) -> Result<RationalTime, CompositionError> {
     RationalTime::try_from(value).map_err(error)
 }
@@ -241,3 +254,13 @@ fn contains(range: &TimeRange, at: RationalTime) -> Result<bool, CompositionErro
 
 mod text_frame_execution_v3;
 pub use text_frame_execution_v3::*;
+
+mod graphic_frame_execution_v1;
+pub use graphic_frame_execution_v1::*;
+mod blend_frame_execution_v1;
+pub use blend_frame_execution_v1::*;
+mod mask_frame_execution_v1;
+pub use mask_frame_execution_v1::*;
+
+mod scene_frame_execution_v1;
+pub use scene_frame_execution_v1::*;

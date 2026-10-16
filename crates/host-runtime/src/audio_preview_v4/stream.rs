@@ -273,8 +273,6 @@ mod tests {
                 machine,
                 authority: TrustedJobAuthorityV1::LocalOwner,
                 picture: None,
-                text_picture: None,
-                caption_picture: None,
                 text_coverage: None,
             }),
             Mutex::new(None),
@@ -541,9 +539,7 @@ mod picture_expiry_tests {
     #[test]
     fn an_already_expired_session_releases_its_prepared_frame() {
         use opencut_contracts::{CreateProject, FrameRate, Time, project_v4::ProjectSnapshotV4};
-        use opencut_editor_application::{
-            project_v4::new_document, visual_preview_v4::PreparedPictureV4,
-        };
+        use opencut_editor_application::project_v4::new_document;
         use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
         let start = Time {
             ticks: "0".into(),
@@ -599,45 +595,27 @@ mod picture_expiry_tests {
             max_rss_bytes: 1024,
             deadline_ms: 1000,
         };
-        let prepared = Arc::new(PreparedPictureV4::new(&snapshot, "s", &start, &policy).unwrap());
+        let prepared = Arc::new(
+            opencut_editor_application::visual_preview_graphic_v1::PreparedGraphicPictureV1::new(
+                opencut_editor_application::project_v4_graphic_frame_jobs::prepare(
+                    &snapshot, "s", &start,
+                )
+                .unwrap(),
+                policy.clone(),
+                vec![],
+            )
+            .unwrap(),
+        );
         let weak = Arc::downgrade(&prepared);
         let mut state = SessionState {
             machine,
             authority: TrustedJobAuthorityV1::LocalOwner,
             picture: Some(CachedPicture {
                 session: session.clone(),
-                prepared,
-            }),
-            caption_picture: Some(caption::CachedCaptionPicture {
-                session: session.clone(),
-                prepared: Arc::new(
-                    opencut_editor_application::visual_preview_caption_v3::PreparedCaptionPictureV3::new(
-                        opencut_editor_application::project_v4_caption_frame_jobs::prepare(
-                            &snapshot, "s", &start,
-                        )
-                        .unwrap(),
-                        policy.clone(),
-                        vec![],
-                    )
-                    .unwrap(),
-                ),
-            }),
-            text_picture: Some(text::CachedTextPicture {
-                session: session.clone(),
-                prepared: Arc::new(
-                    opencut_editor_application::visual_preview_text_v2::PreparedTextPictureV2::new(
-                        opencut_editor_application::project_v4_video_jobs::prepare_frame(
-                            &snapshot, "s", &start,
-                        )
-                        .unwrap(),
-                        policy,
-                        vec![],
-                    )
-                    .unwrap(),
-                ),
+                prepared: PreparedPicture::Graphic(prepared),
             }),
             text_coverage: Some(text::CachedTextCoverage {
-                session,
+                session: session.clone(),
                 coverage: vec![],
             }),
         };
@@ -646,8 +624,63 @@ mod picture_expiry_tests {
         assert!(!state.expire(31000).unwrap());
         assert!(weak.upgrade().is_none());
         assert!(state.picture.is_none());
-        assert!(state.text_picture.is_none());
-        assert!(state.caption_picture.is_none());
         assert!(state.text_coverage.is_none());
+        // Every legacy frame shares the same cache slot and terminal cleanup.
+        let media = Arc::new(
+            opencut_editor_application::visual_preview_v4::PreparedPictureV4::new(
+                &snapshot, "s", &start, &policy,
+            )
+            .unwrap(),
+        );
+        let text = Arc::new(
+            opencut_editor_application::visual_preview_text_v2::PreparedTextPictureV2::new(
+                opencut_editor_application::project_v4_video_jobs::prepare_frame(
+                    &snapshot, "s", &start,
+                )
+                .unwrap(),
+                policy.clone(),
+                vec![],
+            )
+            .unwrap(),
+        );
+        let blend = Arc::new(
+            opencut_editor_application::visual_preview_blend_v1::PreparedBlendPictureV1::new(
+                opencut_editor_application::project_v4_blend_frame_jobs::prepare(
+                    &snapshot, "s", &start,
+                )
+                .unwrap(),
+                policy.clone(),
+                vec![],
+            )
+            .unwrap(),
+        );
+        let caption = Arc::new(
+            opencut_editor_application::visual_preview_caption_v3::PreparedCaptionPictureV3::new(
+                opencut_editor_application::project_v4_caption_frame_jobs::prepare(
+                    &snapshot, "s", &start,
+                )
+                .unwrap(),
+                policy,
+                vec![],
+            )
+            .unwrap(),
+        );
+        for prepared in [
+            PreparedPicture::Media(media.clone()),
+            PreparedPicture::Text(text.clone()),
+            PreparedPicture::Caption(caption.clone()),
+            PreparedPicture::Blend(blend.clone()),
+        ] {
+            state.picture = Some(CachedPicture {
+                session: session.clone(),
+                prepared,
+            });
+            assert!(!state.expire(31000).unwrap());
+            assert!(state.picture.is_none());
+        }
+        assert_eq!(Arc::strong_count(&media), 1);
+        assert_eq!(Arc::strong_count(&text), 1);
+        assert_eq!(Arc::strong_count(&caption), 1);
+        assert_eq!(Arc::strong_count(&blend), 1);
     }
 }

@@ -36,6 +36,8 @@
   line-height: 1.5;
 }
 .v4-canvas {
+  flex-shrink: 0;
+  min-height: 160px;
   margin: auto 18px;
   max-height: 280px;
   background: #101116;

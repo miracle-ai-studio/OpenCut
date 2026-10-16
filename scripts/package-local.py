@@ -3,6 +3,7 @@
 import argparse
 import gzip
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import shutil
@@ -13,6 +14,9 @@ import tempfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
+_runtime_spec = importlib.util.spec_from_file_location('opencut_runtime_bundle', ROOT / 'scripts/distribution/runtime_bundle.py')
+runtime_bundle = importlib.util.module_from_spec(_runtime_spec)
+_runtime_spec.loader.exec_module(runtime_bundle)
 
 
 def run(args, cwd=ROOT):
@@ -28,18 +32,28 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def archive(source, target):
+def archive(source, target, allowed_links=None):
+    allowed_links = allowed_links or {}
     with target.open('wb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0) as gz, tarfile.open(fileobj=gz, mode='w') as tar:
         for path in sorted(source.rglob('*')):
             if path.is_symlink():
-                raise ValueError(f'Unexpected symlink in delivery source: {path}')
+                relative = path.relative_to(source).as_posix()
+                if (relative not in allowed_links or path.readlink().as_posix() != allowed_links[relative]
+                        or not path.resolve(strict=True).is_relative_to(source.resolve(strict=True))):
+                    raise ValueError(f'Unexpected symlink in delivery source: {path}')
+                info = tar.gettarinfo(str(path), arcname=f'{source.name}/{relative}')
+                info.uid = info.gid = info.mtime = 0
+                info.uname = info.gname = ''
+                info.mode = 0o777
+                tar.addfile(info)
+                continue
             if not path.is_file():
                 continue
             info = tar.gettarinfo(str(path), arcname=f'{source.name}/{path.relative_to(source)}')
             info.uid = info.gid = 0
             info.uname = info.gname = ''
             info.mtime = 0
-            info.mode = 0o755 if path.parent.name == 'bin' else 0o644
+            info.mode = 0o755 if path.stat().st_mode & 0o111 else 0o644
             with path.open('rb') as f:
                 tar.addfile(info, f)
 
@@ -147,13 +161,49 @@ def copy_packet_rate_runtime(packages_root, destination):
     }
 
 
-def package(output, skip_build, supplied_binary=None):
+def copy_catalog_runtime(packages_root, destination):
+    """Deliver the fixed Node/zlib adapter only, without a browser runtime or audio."""
+    packages_root = Path(packages_root)
+    resolved_root = packages_root.resolve(strict=True)
+    selected = ['classic-visual-renderer/package.json',
+                'classic-visual-renderer/host/catalog-archive-v1.mjs']
+    for relative in selected:
+        file = packages_root / relative
+        for ancestor in [file, *file.parents]:
+            if ancestor.is_symlink():
+                raise ValueError(f'Symlink in catalog runtime: {relative}')
+            if ancestor == packages_root:
+                break
+        if not file.resolve(strict=True).is_relative_to(resolved_root) or not file.is_file():
+            raise ValueError(f'Invalid catalog runtime file: {relative}')
+        if not 0 < file.stat().st_size <= (65536 if file.name == 'package.json' else 262144):
+            raise ValueError(f'Catalog runtime file exceeds budget: {relative}')
+    metadata = json.loads((packages_root / selected[0]).read_text())
+    if (metadata.get('name'), metadata.get('version'), metadata.get('type')) != ('@opencut/classic-visual-renderer', '0.1.0', 'module'):
+        raise ValueError('Unpinned catalog runtime package')
+    files = {}
+    for relative in selected:
+        source, target = packages_root / relative, Path(destination) / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        files[f'bin/libexec/{relative}'] = {'sha256': sha(target), 'size': target.stat().st_size}
+    return {
+        'profile': 'catalog-archive-v1-node-zlib', 'external_runtime': 'node',
+        'files': files, 'source_archive_included': False,
+        'source_archive_sha256': '946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6',
+        'download_switch': 'OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD',
+        'scope': 'fixed Kenney archive extraction; original audio acquisition also requires ffprobe and host download permission or the exact local cache',
+        'excluded': 'Chromium, full audio/visual rendering and preview remain external; no resource audio is bundled',
+    }
+
+
+def package(output, skip_build, supplied_binary=None, runtime_spec=None):
     # Build assets away from the directory a running service may be serving.
     with tempfile.TemporaryDirectory(prefix='opencut-package-web-') as web_directory:
-        return package_with_web_root(output, skip_build, supplied_binary, Path(web_directory))
+        return package_with_web_root(output, skip_build, supplied_binary, Path(web_directory), runtime_spec)
 
 
-def package_with_web_root(output, skip_build, supplied_binary, web_root):
+def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime_spec=None):
     if not skip_build and supplied_binary is None:
         run(['cargo', 'build', '--locked', '--release', '-p', 'opencut-cli'])
     run(['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], ROOT / 'apps/web')
@@ -206,18 +256,29 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root):
         (host / 'bin').mkdir(parents=True)
         shutil.copy2(binary, host / 'bin/opencut')
         packet_runtime = copy_packet_rate_runtime(ROOT / 'packages', host / 'bin/libexec')
+        catalog_runtime = copy_catalog_runtime(ROOT / 'packages', host / 'bin/libexec')
+        runtime = runtime_bundle.bundle(ROOT, host / 'bin/libexec', target, runtime_spec)
+        runtime_bundle.verify(host / 'bin/libexec')
+        packet_runtime['scope'] = 'fixed packet probe inside the complete renderer module delivery; executable selection is declared by runtime_bundle'
+        packet_runtime['excluded'] = 'No project/source media or implicit runtime acquisition; full renderer acceptance remains separate'
+        catalog_runtime['excluded'] = 'No resource audio/source archive; executable installations are declared by runtime_bundle'
         shutil.copy2(ROOT / 'LICENSE', host / 'LICENSE')
         copy_web_build(web_root, host / 'web')
         shutil.copy2(ROOT / 'scripts/distribution/doctor.py', host / 'doctor.py')
+        shutil.copy2(ROOT / 'scripts/distribution/runtime_bundle.py', host / 'runtime_bundle.py')
         shutil.copy2(ROOT / 'scripts/distribution/agent-config.py', host / 'agent-config.py')
         shutil.copy2(ROOT / 'design/architecture/local-distribution.md', host / 'README.md')
         with (host / 'README.md').open('a') as readme:
-            readme.write('\n\nBundled Classic packet runtime\n\n'
-                         'bin/libexec contains only the Node packet-rate helper and locked Mediabunny 1.41.0. '
-                         'Install Node.js externally on PATH (or configure OPENCUT_CLASSIC_AUDIO_NODE). '
-                         'The classic-audio-renderer package name supports trusted discovery; this packet-only subset '
-                         'does not include Chromium, complete audio/visual rendering or preview. '
-                         'Those features still require a separately configured full runtime.\n')
+            readme.write('\n\nExplicit local runtime delivery\n\n'
+                         'bin/libexec contains the complete Classic renderer modules and locked Node dependencies, '
+                         'the fixed catalog adapter, and both font derivation implementations and locks. '
+                         'runtime-bundle.json records every file, executable bit and permitted internal link. '
+                         'Runtime state: ' + runtime['delivery'] + '. '
+                         'Without an explicit build-time --runtime-spec, Node, Chromium and standalone Python with locked fontTools remain external. '
+                         'A complete spec includes those installations and original redistribution licenses; it does not constitute relocated execution acceptance. '
+                         'Run doctor.py after extracting elsewhere. Explicit OPENCUT runtime environment variables take priority. '
+                         'FFmpeg/ffprobe remain external. No runtime is downloaded automatically. '
+                         'Catalog downloads remain disabled unless OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD=1; no source archive, user media or font cache is bundled.\n')
         for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
                          'storage-governance-contract.md', 'cas-gc-contract.md',
                          'storage-admission-contract.md', 'database-control-admission.md',
@@ -242,18 +303,22 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root):
             pending.extend(nodes[current]['dependencies'])
         inventory = sorted([{'name': packages[i]['name'], 'version': packages[i]['version'], 'license': packages[i]['license']} for i in reached], key=lambda p: (p['name'], p['version']))
         (host / 'dependency-inventory.json').write_text(json.dumps(inventory, indent=2)+'\n')
-        files = {str(p.relative_to(host)): {'sha256': sha(p), 'size': p.stat().st_size} for p in sorted(host.rglob('*')) if p.is_file()}
+        files = {str(p.relative_to(host)): {'sha256': sha(p), 'size': p.stat().st_size} for p in sorted(host.rglob('*')) if p.is_file() and not p.is_symlink()}
+        links = {'bin/libexec/' + name: entry['target'] for name, entry in runtime['files'].items() if entry['kind'] == 'symlink'}
         manifest = {'format': 'opencut.local-bundle.v1', 'version': version, 'maturity': 'development', 'target': target,
                     'api_version': '1', 'database_schema': database_schema, 'operation_count': len(tools),
                     'domain_count': len(domains), 'binary_sha256': sha(binary), 'files': files,
-                    'external_dependencies': ['ffmpeg', 'ffprobe', 'node'],
+                    'external_dependencies': runtime['external_dependencies'], 'links': links,
+                    'runtime_bundle': {'manifest': 'bin/libexec/runtime-bundle.json', 'sha256': sha(host / 'bin/libexec/runtime-bundle.json'),
+                                       'delivery': runtime['delivery']},
                     'classic_packet_rate_runtime': packet_runtime,
-                    'scope': 'local Web, CLI, HTTP, MCP and SDKs; bundled Classic packet-only runtime; full browser audio/visual runtime external; full R0-R7 acceptance not complete'}
+                    'catalog_archive_runtime': catalog_runtime,
+                    'scope': 'local Web, CLI, HTTP, MCP and SDKs; complete renderer and font scripts; explicitly declared runtime installations require relocated doctor and project acceptance; full R0-R7 acceptance not complete'}
         (host / 'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
         bundle_id = sha(host / 'manifest.json')[:12]
         destination = output / f'opencut-{version}-dev-{bundle_id}-{target}.tar.gz'
         assembled = stage / destination.name
-        archive(host, assembled)
+        archive(host, assembled, links)
         if destination.exists():
             assert sha(destination) == sha(assembled), 'Existing delivery differs; refusing to overwrite'
         else:
@@ -270,5 +335,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, default=ROOT / 'dist/local')
     parser.add_argument('--skip-build', action='store_true')
     parser.add_argument('--binary', type=Path, help='Package an already-built local CLI instead of building release')
+    parser.add_argument('--runtime-spec', type=Path, help='Trusted explicit Node/Chromium/standalone-Python installation and license spec; never downloads runtimes')
     args = parser.parse_args()
-    package(args.output.resolve(), args.skip_build, args.binary.resolve() if args.binary else None)
+    package(args.output.resolve(), args.skip_build, args.binary.resolve() if args.binary else None,
+            args.runtime_spec.resolve() if args.runtime_spec else None)

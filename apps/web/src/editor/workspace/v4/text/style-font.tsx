@@ -1,9 +1,10 @@
 import { Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
 import type { V4TextFont } from "./types";
+import { requestedFontStyle, preferredFontVariant } from "./font-synthesis";
 
-/** Variant controls select a real authorized face. Missing variants never become
- * browser-synthesized styles or a change to a locked font's authored identity. */
+/** Variant controls select an authorized face or an explicitly proven Classic
+ * synthesis binding. Native resource metadata remains its actual face. */
 export function TextFontVariantFields({
   fontId,
   fonts,
@@ -16,15 +17,7 @@ export function TextFontVariantFields({
   useLocale();
   const font = fonts.find((item) => item.id === fontId);
   const variant = (weight: number, style: V4TextFont["style"]) =>
-    font &&
-    (font.weight === weight && font.style === style
-      ? font
-      : fonts.find(
-          (item) =>
-            item.family === font.family &&
-            item.weight === weight &&
-            item.style === style,
-        ));
+    font && preferredFontVariant(font, fonts, weight, style);
   return (
     <div className="field-pair">
       <Field label={t("Font weight")}>
@@ -33,17 +26,24 @@ export function TextFontVariantFields({
           value={font?.weight ?? ""}
           onChange={(event) => {
             const next =
-              font && variant(Number(event.target.value), font.style);
+              font &&
+              variant(Number(event.target.value), requestedFontStyle(font));
             if (next) select(next.id);
           }}
         >
           {!font && (
             <option value="">{t("Choose an imported font face")}</option>
           )}
-          <option value={400} disabled={!font || !variant(400, font.style)}>
+          <option
+            value={400}
+            disabled={!font || !variant(400, requestedFontStyle(font))}
+          >
             {t("Regular")}
           </option>
-          <option value={700} disabled={!font || !variant(700, font.style)}>
+          <option
+            value={700}
+            disabled={!font || !variant(700, requestedFontStyle(font))}
+          >
             {t("Bold")}
           </option>
         </select>
@@ -51,7 +51,7 @@ export function TextFontVariantFields({
       <Field label={t("Font style")}>
         <select
           disabled={!font}
-          value={font?.style ?? ""}
+          value={font ? requestedFontStyle(font) : ""}
           onChange={(event) => {
             const next =
               font &&

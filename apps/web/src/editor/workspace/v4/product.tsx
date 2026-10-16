@@ -1,7 +1,14 @@
+import { V4SceneStackProvider, V4SceneEffectsPanel } from "./scene-stack";
+import { V4GainKeyframeLine } from "./gain-keyframes";
+import { gainChannel } from "./gain-keyframes/model";
+import { V4ResourceCatalogPanel } from "./catalog_resources_v1-panel";
+import { V4ProjectSettingsEditor } from "./property-edit/settings";
+import { V4MaskAuthoringProvider, V4MaskPanel } from "./mask/workspace";
+import { ExportProjectPackage, type PackageSource } from "./package";
 import { V4CaptionWorkspace } from "./captions/workspace";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "../context";
-import { Button, Field, Panel } from "../../shared/ui";
+import { Button, Field, Panel, Modal } from "../../shared/ui";
 import {
   formatTime,
   secondsForDisplay,
@@ -27,6 +34,7 @@ import { EditRecoveryPanel } from "./edit-recovery-panel";
 import { MediaPlanDialog } from "./media-dialog";
 import type { MediaFileTarget } from "./media";
 import type { V4Element } from "./types";
+import { V4GraphicAuthoringProvider, V4GraphicActions, V4GraphicPanel } from "./graphic/workspace";
 import { V4TextActions, V4TextAuthoringProvider, V4TextPanel } from "./text/workspace";
 import { canvasTextPlanner } from "./text/canvas-plan";
 import { fontRecoveryBlocked } from "./text/font-recovery";
@@ -40,8 +48,10 @@ export function V4Product() {
   const [editing, setEditing] = useState<V4Bookmark | "new" | null>(null);
   const [timelineReview, setTimelineReview] = useState(false);
   const [mediaReview, setMediaReview] = useState(false);
+  const [settingsVisible,setSettingsVisible] = useState(false);
+  const [packageSource, setPackageSource] = useState<PackageSource | null>(null);
   const selectGain = useCallback((id: string) => { controller.v4.select(id); setEditing(null); }, [controller]);
-  const renderAudioControls = useCallback((element: V4Element) => <V4AudioGainLine elementId={element.id} onSelect={selectGain} />, [selectGain]);
+  const renderAudioControls = useCallback((element: V4Element) => gainChannel(element) ? <V4GainKeyframeLine compact elementId={element.id} onSelect={selectGain} /> : <V4AudioGainLine elementId={element.id} onSelect={selectGain} />, [selectGain]);
   const [seek, setSeek] = useState("0"),
     [pending, setPending] = useState(false);
   const seekIntent = useRef({ dirty: false, focused: false });
@@ -90,7 +100,7 @@ export function V4Product() {
   const captionBlocked = controller.v4.captionRecovery.blocked();
   const fontBlocked = fontRecoveryBlocked(v4.fontRecovery);
   const textAvailable = v4.textFrameCapability?.schema_version === 2 && v4.textFrameCapability.available && v4.textFrameCapability.submit_tool === "opencut_job_v4_text_frame_png";
-  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0], protocol?: "derived") => controller.v4.importFont(request, protocol) : undefined;
+  const importFont = v4.fontRecovery?.supported === true ? (request: Parameters<typeof controller.v4.importFont>[0], protocol?: "derived" | "static_v3") => controller.v4.importFont(request, protocol) : undefined;
   const fontImportBlockedReason = captionBlocked ? "Resolve the original caption edit before starting another operation." : fontBlocked ? "Resolve the original font import before starting another operation." : null;
   const readonly = !!v4.historical || busy || pending || fontBlocked || captionBlocked;
   const importTimelineFiles = async (files: File[], target: MediaFileTarget) => {
@@ -116,11 +126,18 @@ export function V4Product() {
     } catch (error) { controller.report(error); }
   };
   return (
+    <V4SceneStackProvider>
+    <V4MaskAuthoringProvider>
+    <V4GraphicAuthoringProvider>
     <V4TextAuthoringProvider available={textAvailable} planCanvasText={planCanvasText} importFont={importFont} fontImportBlockedReason={fontImportBlockedReason}>
     <main className="workspace-layout v4-product" aria-label={t("V4 editor")}>
       <EditRecoveryPanel />
+      {settingsVisible && <Modal title={t("Canvas and background")} onClose={()=>setSettingsVisible(false)}><V4ProjectSettingsEditor /></Modal>}
+      {packageSource && <ExportProjectPackage source={packageSource} onClose={() => setPackageSource(null)} />}
       <div className="v4-scene-bar toolbar">
         <strong>{t("Scenes")}</strong>
+        <Button disabled={busy || !!v4.historical} onClick={()=>setSettingsVisible(true)}>{t("Canvas and background")}</Button>
+        <Button disabled={!api || busy} onClick={() => setPackageSource({project_id:project.id, revision:snapshot.revision, name:project.name})}>{t("Export project package")}</Button>
         <select
           aria-label={t("V4 scene")}
           value={sequence.id}
@@ -167,7 +184,7 @@ export function V4Product() {
         <Panel title={t("Scene")} className="v4-canvas-panel">
           <div className="v4-capability" role="status">
             {t(
-              "Edit video, audio, images and text on the timeline. Preview and MP4 export support normal media composition, pinned text and captions when this service provides rendering. Animated trim and split are not yet supported.",
+              "Edit video, audio, images, text and graphics on the timeline. Preview and MP4 export support the available blend modes when this service provides rendering. Animation and timeline edits use the available planning operations.",
             )}
             <p>
               {t(
@@ -211,7 +228,11 @@ export function V4Product() {
         </Panel>
         <Panel title={t("Inspector")} className="v4-inspector">
           <div className="scroll padded">
+            <V4ResourceCatalogPanel />
+            <V4SceneEffectsPanel />
             <V4TextPanel />
+            <V4GraphicPanel />
+            <V4MaskPanel />
           <V4CaptionWorkspace recovery={controller.v4.captionRecovery} mutateCaption={context => controller.v4.applyCaption(context)} />
             {editing ? (
               <BookmarkEditor
@@ -291,6 +312,7 @@ export function V4Product() {
         actions={
           <>
             <V4TextActions />
+            <V4GraphicActions />
             <Button
               disabled={readonly}
               onClick={() => {
@@ -394,5 +416,8 @@ export function V4Product() {
       <V4AudioGainStatus />
     </main>
     </V4TextAuthoringProvider>
+    </V4GraphicAuthoringProvider>
+    </V4MaskAuthoringProvider>
+    </V4SceneStackProvider>
   );
 }

@@ -7,6 +7,7 @@ use opencut_contracts::{
 };
 use opencut_time::RationalTime as R;
 use std::collections::{BTreeMap, BTreeSet};
+mod animation;
 mod edits;
 mod identities;
 mod ripple;
@@ -14,6 +15,20 @@ mod ripple;
 mod tests;
 mod timing;
 mod transitions;
+
+/// Internal property-edit reuse of the existing exact curve split and stable
+/// identity allocation. Public V4/V5 timeline operations remain unchanged.
+pub(crate) fn clamp_animation_duration_classic_v1(
+    project: &ProjectDocumentV4,
+    channels: &[AnimationChannelV4],
+    duration: &Time,
+    revision: &str,
+    key: &str,
+    owner: &str,
+) -> Result<Vec<AnimationChannelV4>, EditorError> {
+    let mut ids = identities::Ids::new(project, revision, key)?;
+    animation::clamp_duration_classic(channels, time(duration)?, &mut ids, owner)
+}
 
 fn invalid(message: impl Into<String>) -> EditorError {
     EditorError::new("INVALID_ARGUMENT", message)
@@ -52,14 +67,19 @@ fn unlocked(track: &TrackV4) -> Result<(), EditorError> {
 enum Profile {
     Media,
     Elements,
+    Complete,
 }
 impl Profile {
+    fn complete(self) -> bool {
+        matches!(self, Self::Complete)
+    }
     fn accepts_text(self) -> bool {
-        matches!(self, Self::Elements)
+        matches!(self, Self::Elements | Self::Complete)
     }
 }
 fn media(e: &TimelineElementV4, profile: Profile) -> Result<(), EditorError> {
-    if !(profile.accepts_text() && matches!(e.content, ElementContentV4::Text { .. }))
+    if !profile.complete()
+        && !(profile.accepts_text() && matches!(e.content, ElementContentV4::Text { .. }))
         && !matches!(
             e.content,
             ElementContentV4::Video { .. }
@@ -123,6 +143,14 @@ pub fn plan_elements(
     input: &TimelineEditRequestV4,
 ) -> Result<TimelineEditPlanV4, EditorError> {
     plan_with_profile(store, input, Profile::Elements)
+}
+/// Additive complete typed element profile; the two older operation profiles
+/// retain their original supported kinds and animation rejection semantics.
+pub fn plan_complete(
+    store: &impl ProjectV4PublicResources,
+    input: &TimelineEditRequestV4,
+) -> Result<TimelineEditPlanV4, EditorError> {
+    plan_with_profile(store, input, Profile::Complete)
 }
 fn plan_with_profile(
     store: &impl ProjectV4PublicResources,
@@ -231,6 +259,7 @@ fn plan_with_profile(
             match profile {
                 Profile::Media => "project_v4_timeline",
                 Profile::Elements => "project_v4_element_timeline",
+                Profile::Complete => "project_v5_complete_timeline",
             },
             &input.project_id,
             input,

@@ -1,8 +1,15 @@
 //! Transport-neutral contracts for durable native media jobs.
+pub mod export_video_v2;
 pub mod project_v3;
 pub mod project_v4_audio;
+pub mod project_v4_blend_frame;
+pub mod project_v4_blend_video;
 pub mod project_v4_caption_video;
 pub mod project_v4_frame;
+pub mod project_v4_graphic_video;
+pub mod project_v4_mask_frame;
+pub mod project_v4_mask_video;
+pub mod project_v4_scene_frame;
 pub mod project_v4_text_frame;
 pub mod project_v4_video;
 pub mod sequence_transcribe_v4;
@@ -620,6 +627,15 @@ job_kinds! {
     RenderProjectTextFrameV4: (project_v4_text_frame::SubmitV4TextFramePng, project_v4_text_frame::V4TextFramePngResultV2, "render.project_text_frame.v4"),
     RenderProjectVideoV4: (project_v4_video::SubmitV4VideoMp4V1, project_v4_video::V4VideoMp4ResultV1, "render.project_video.v4"),
     RenderProjectCaptionVideoV4: (project_v4_caption_video::SubmitV4CaptionVideoMp4V2, project_v4_caption_video::V4CaptionVideoMp4ResultV2, "render.project_caption_video.v4"),
+    RenderProjectGraphicVideoV4: (project_v4_graphic_video::SubmitV4GraphicVideoMp4V1, project_v4_graphic_video::V4GraphicVideoMp4ResultV1, "render.project_graphic_video.v4"),
+    RenderProjectMaskVideoV4: (project_v4_mask_video::SubmitV4MaskVideoMp4V1, project_v4_mask_video::V4MaskVideoMp4ResultV1, "render.project_mask_video.v4"),
+    RenderProjectBlendVideoV4: (project_v4_blend_video::SubmitV4BlendVideoMp4V1, project_v4_blend_video::V4BlendVideoMp4ResultV1, "render.project_blend_video.v4"),
+    RenderProjectGraphicFrameV4: (project_v4_graphic_frame::SubmitV4GraphicFramePng, project_v4_graphic_frame::V4GraphicFramePngResultV1, "render.project_graphic_frame.v4"),
+    RenderProjectSceneFrameV4: (project_v4_scene_frame::SubmitV4SceneFramePng, project_v4_scene_frame::V4SceneFramePngResultV1, "render.project_scene_frame.v4"),
+    RenderProjectSceneVideoV4: (project_v4_scene_video::SubmitV4SceneVideoMp4V1, project_v4_scene_video::V4SceneVideoMp4ResultV1, "render.project_scene_video.v4"),
+    ExportVideoV2: (export_video_v2::SubmitExportVideoV2, export_video_v2::ExportVideoResultV2, "render.export_video.v2"),
+    RenderProjectMaskFrameV4: (project_v4_mask_frame::SubmitV4MaskFramePng, project_v4_mask_frame::V4MaskFramePngResultV1, "render.project_mask_frame.v4"),
+    RenderProjectBlendFrameV4: (project_v4_blend_frame::SubmitV4BlendFramePng, project_v4_blend_frame::V4BlendFramePngResultV1, "render.project_blend_frame.v4"),
     RenderProjectCaptionFrameV4: (project_v4_caption_frame::SubmitV4CaptionFramePng, project_v4_caption_frame::V4CaptionFramePngResultV3, "render.project_caption_frame.v4"),
     RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
 }
@@ -911,3 +927,6 @@ pub struct MediaImportJobResult {
 }
 
 pub mod project_v4_caption_frame;
+pub mod project_v4_graphic_frame;
+
+pub mod project_v4_scene_video;

@@ -1,17 +1,26 @@
 //! Process-local host assembly for fixed-revision audio. The application owns
 //! clocks and control semantics; this host owns authorization, CAS and lifetime.
+mod blend;
 mod caption;
+mod graphic;
+mod mask;
 mod producer;
+pub(crate) mod recovery;
+mod scene;
 mod stream;
 mod text;
 use crate::{Automation, Caller, ExecutionContext};
+pub(crate) use blend::blend_picture;
 pub(crate) use caption::caption_picture;
+pub(crate) use graphic::graphic_picture;
+pub(crate) use mask::mask_picture;
 use opencut_composition::project_v4::{PcmFormatV4, PreparedPreviewAudioV4};
 use opencut_contracts::EditorError;
 use opencut_editor_application::audio_preview_v4::*;
 use opencut_editor_application::project_v4_frame_jobs::V4FrameJobSubmissionStore;
 use opencut_job_execution::project_v4_audio::TrustedJobAuthorityV1;
 use opencut_native_services::classic_audio_preview::new_identity;
+pub(crate) use scene::{scene_picture, transform_draft_picture, transform_draft_picture_v2};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -51,13 +60,34 @@ struct SessionState {
     machine: AudioPreviewMachineV4,
     authority: TrustedJobAuthorityV1,
     picture: Option<CachedPicture>,
-    text_picture: Option<text::CachedTextPicture>,
-    caption_picture: Option<caption::CachedCaptionPicture>,
     text_coverage: Option<text::CachedTextCoverage>,
 }
 struct CachedPicture {
     session: AudioPreviewStreamV4,
-    prepared: Arc<opencut_editor_application::visual_preview_v4::PreparedPictureV4>,
+    prepared: PreparedPicture,
+}
+/// Exactly one typed frame per sound session, independent of the public version.
+enum PreparedPicture {
+    Media(Arc<opencut_editor_application::visual_preview_v4::PreparedPictureV4>),
+    Text(Arc<opencut_editor_application::visual_preview_text_v2::PreparedTextPictureV2>),
+    Caption(Arc<opencut_editor_application::visual_preview_caption_v3::PreparedCaptionPictureV3>),
+    Graphic(Arc<opencut_editor_application::visual_preview_graphic_v1::PreparedGraphicPictureV1>),
+    Mask(Arc<opencut_editor_application::visual_preview_mask_v1::PreparedMaskPictureV1>),
+    Scene(Arc<opencut_editor_application::visual_preview_scene_v1::PreparedScenePictureV1>),
+    Blend(Arc<opencut_editor_application::visual_preview_blend_v1::PreparedBlendPictureV1>),
+}
+impl PreparedPicture {
+    fn time(&self) -> &opencut_contracts::Time {
+        match self {
+            Self::Media(frame) => frame.time(),
+            Self::Text(frame) => frame.time(),
+            Self::Caption(frame) => frame.time(),
+            Self::Graphic(frame) => frame.time(),
+            Self::Mask(frame) => frame.time(),
+            Self::Scene(frame) => frame.time(),
+            Self::Blend(frame) => frame.time(),
+        }
+    }
 }
 impl SessionState {
     fn expire(&mut self, at: u64) -> Result<bool, EditorError> {
@@ -69,8 +99,6 @@ impl SessionState {
             AudioPreviewStateV4::Stopped | AudioPreviewStateV4::Failed
         ) {
             self.picture = None;
-            self.text_picture = None;
-            self.caption_picture = None;
             self.text_coverage = None;
         }
         Ok(changed)
@@ -81,6 +109,7 @@ struct Actor {
     thread: JoinHandle<()>,
 }
 struct Entry {
+    transform_draft_gate: Mutex<()>,
     database: PathBuf,
     request: AudioPreviewCreateV4,
     creator: String,
@@ -97,8 +126,6 @@ impl Entry {
         let mut state = lock(&self.state)?;
         if state.expire(now())? {
             state.picture = None;
-            state.text_picture = None;
-            state.caption_picture = None;
             state.text_coverage = None;
             self.credit.notify_all();
         }
@@ -119,8 +146,6 @@ impl Entry {
             let mut state = lock(&self.state)?;
             if state.expire(now())? {
                 state.picture = None;
-                state.text_picture = None;
-                state.caption_picture = None;
                 state.text_coverage = None;
                 self.credit.notify_all();
             }
@@ -159,8 +184,6 @@ impl Entry {
     fn signal_shutdown(&self) -> Result<(), EditorError> {
         let mut state = lock(&self.state)?;
         state.picture = None;
-        state.text_picture = None;
-        state.caption_picture = None;
         state.text_coverage = None;
         self.shutdown.store(true, Ordering::Release);
         self.credit.notify_all();
@@ -292,6 +315,7 @@ pub(crate) fn create(
         now(),
     )?;
     let entry = Arc::new(Entry {
+        transform_draft_gate: Mutex::new(()),
         database,
         request: input,
         creator: host.caller.principal_id().into(),
@@ -301,8 +325,6 @@ pub(crate) fn create(
             machine,
             authority: selected.authority,
             picture: None,
-            text_picture: None,
-            caption_picture: None,
             text_coverage: None,
         }),
         credit: Condvar::new(),
@@ -364,8 +386,6 @@ pub(crate) fn control(
             .control_validated(&input, gain.as_ref(), now())?;
         if transition.effect != AudioPreviewEffectV4::None {
             state.picture = None;
-            state.text_picture = None;
-            state.caption_picture = None;
             state.text_coverage = None;
         }
         // Predicate changes and notification share the stream wait mutex.
@@ -419,8 +439,6 @@ pub(crate) fn acquire(
         )?;
         if next.effect != AudioPreviewEffectV4::None {
             state.picture = None;
-            state.text_picture = None;
-            state.caption_picture = None;
             state.text_coverage = None;
             state.authority = trusted(&host.caller);
         } else {
@@ -491,7 +509,10 @@ pub(crate) fn picture(
                     && c.session == input.session
                     && input.time.as_ref() == Some(c.prepared.time())
             })
-            .map(|c| c.prepared.clone());
+            .and_then(|c| match &c.prepared {
+                PreparedPicture::Media(prepared) => Some(prepared.clone()),
+                _ => None,
+            });
         (state.machine.snapshot(now()), cached)
     };
     opencut_editor_application::visual_preview_v4::validate_picture_time(
@@ -529,7 +550,7 @@ pub(crate) fn picture(
     if input.decoded.is_none() {
         state.picture = Some(CachedPicture {
             session: input.session,
-            prepared,
+            prepared: PreparedPicture::Media(prepared),
         });
     }
     Ok(result)

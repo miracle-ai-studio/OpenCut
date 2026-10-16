@@ -4,6 +4,8 @@ use super::parameters::{apply_sample, validate_stored_discrete, validate_stored_
 use super::*;
 
 mod curves;
+mod legacy_conversion;
+pub use legacy_conversion::*;
 #[cfg(test)]
 mod tests;
 mod validation;

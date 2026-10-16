@@ -70,7 +70,7 @@ pub(super) fn revalidate(
         .unchecked_transaction()
         .map_err(storage_error)?;
     let row: (String, String, String, u32, Option<String>, Option<i64>, bool, String, String) = tx.query_row(
-            "SELECT p.project_id,p.revision,j.state,j.attempt,j.lease_owner,j.lease_until,j.cancel_requested,json_extract(j.input_json,'$.authority'),json_extract(j.input_json,'$.processing_policy') FROM jobs j JOIN job_projects p USING(job_id) JOIN revisions r ON r.project_id=p.project_id AND r.revision=p.revision WHERE j.job_id=?1 AND j.kind=?2",
+            "SELECT p.project_id,p.revision,j.state,j.attempt,j.lease_owner,j.lease_until,j.cancel_requested,json_extract(j.input_json,CASE WHEN j.kind='render.export_video.v2' THEN '$.execution.authority' ELSE '$.authority' END),json_extract(j.input_json,CASE WHEN j.kind='render.export_video.v2' THEN '$.execution.processing_policy' ELSE '$.processing_policy' END) FROM jobs j JOIN job_projects p USING(job_id) JOIN revisions r ON r.project_id=p.project_id AND r.revision=p.revision WHERE j.job_id=?1 AND j.kind=?2",
             params![job_id, kind], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?,r.get(8)?))).map_err(storage_error)?;
     let now = lifecycle::JobClock::now_ms(&sqlite_jobs::SystemClock)?;
     if row.2 != "running"

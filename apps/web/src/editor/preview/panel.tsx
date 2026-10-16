@@ -23,8 +23,12 @@ import { activeSequence } from "../model/types";
 import { formatTime, zero } from "../model/time";
 import { Button, Empty, Panel } from "../shared/ui";
 import { Playback } from "./playback";
+import { useShortcutActions, useShortcutLabels } from "../shortcuts";
+import { useShortcutText } from "../shortcuts/messages";
 export function PreviewPanel() {
   useLocale();
+  const shortcut = useShortcutLabels(),
+    st = useShortcutText();
   const {
     controller,
     api,
@@ -118,22 +122,22 @@ export function PreviewPanel() {
       }
     });
   };
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if (
-        !event.defaultPrevented &&
-        !(event.target as HTMLElement).closest(".preview-stage") &&
-        event.code === "Space" &&
-        !(event.target as HTMLElement).closest(
-          "input,textarea,select,dialog,button,[contenteditable=true]",
-        )
-      ) {
-        event.preventDefault();
-        play();
-      }
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+  useShortcutActions({
+    "toggle-play": {
+      run: play,
+      enabled: !!sequence && !loading,
+      reason: loading
+        ? "Finish the current interaction first."
+        : "Open a project first.",
+    },
+    "stop-playback": {
+      run: () => {
+        stop();
+        controller.seek(zero);
+      },
+      enabled: !!sequence,
+      reason: "Open a project first.",
+    },
   });
   const previewFrame = async (): Promise<Blob | null> => {
     if (!api || !view || !sequence) return null;
@@ -231,6 +235,7 @@ export function PreviewPanel() {
         tabIndex={0}
         aria-label={t("Preview canvas")}
         className={`preview-stage${viewport.panning ? " panning" : ""}`}
+        data-shortcut-scope="canvas"
         {...viewport.events}
         onContextMenu={(event) => {
           if (!sequence) return;
@@ -297,7 +302,11 @@ export function PreviewPanel() {
           <ViewportControls viewport={viewport} />
           <GuideControls value={guides} onChange={setGuides} />
         </div>
-        <span className="muted">{t("Middle drag or Space + drag to pan")}</span>
+        <span className="muted">
+          {st("Middle drag to pan. Hold {key} and drag to use the hand tool.", {
+            key: shortcut("pan-preview") || st("Unassigned"),
+          })}
+        </span>
       </div>
       <div className="preview-controls">
         <div className="toolbar">
@@ -309,6 +318,7 @@ export function PreviewPanel() {
           <Button
             className="play-button"
             aria-label={playing ? t("Pause preview") : t("Play preview")}
+            title={shortcut("toggle-play")}
             disabled={!sequence || loading}
             onClick={play}
             icon={playing ? <Pause size={18} /> : <Play size={18} />}

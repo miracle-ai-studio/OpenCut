@@ -1,0 +1,44 @@
+[
+  {
+    "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+    "source_path": "ofl/chirongoroundtc/ChironGoRoundTC[wght].ttf",
+    "source_sha256": "47cd5ff5153799d4c0d05bcc64da849e13b8eb842e46728a66bf2d52c480231f",
+    "source_size": 51170304,
+    "source_git_blob": "19c23f315935741f8e2079a6dc430162dd6f5826",
+    "license_path": "ofl/chirongoroundtc/OFL.txt",
+    "license_sha256": "7b9cc84fe1935d1418de4af57b4106038fb836b3a162e1b86507c7fc8543a759",
+    "license_git_blob": "74040b82cc3e6618977ccbf9c612e1438206627b",
+    "license_identifier": "OFL-1.1",
+    "family": "Chiron GoRound TC",
+    "weight": 400,
+    "style": "normal",
+    "render_profile": "static_outline",
+    "axes": {
+      "wght": 400
+    },
+    "metadata_path": "ofl/chirongoroundtc/METADATA.pb",
+    "metadata_sha256": "4b87fa4db6248dbb53a27d402823b6290777b3f498e2be996f805d30320f52b3",
+    "source_byte_limit": 67108864
+  },
+  {
+    "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+    "source_path": "ofl/chirongoroundtc/ChironGoRoundTC[wght].ttf",
+    "source_sha256": "47cd5ff5153799d4c0d05bcc64da849e13b8eb842e46728a66bf2d52c480231f",
+    "source_size": 51170304,
+    "source_git_blob": "19c23f315935741f8e2079a6dc430162dd6f5826",
+    "license_path": "ofl/chirongoroundtc/OFL.txt",
+    "license_sha256": "7b9cc84fe1935d1418de4af57b4106038fb836b3a162e1b86507c7fc8543a759",
+    "license_git_blob": "74040b82cc3e6618977ccbf9c612e1438206627b",
+    "license_identifier": "OFL-1.1",
+    "family": "Chiron GoRound TC",
+    "weight": 700,
+    "style": "normal",
+    "render_profile": "static_outline",
+    "axes": {
+      "wght": 700
+    },
+    "metadata_path": "ofl/chirongoroundtc/METADATA.pb",
+    "metadata_sha256": "4b87fa4db6248dbb53a27d402823b6290777b3f498e2be996f805d30320f52b3",
+    "source_byte_limit": 67108864
+  }
+]

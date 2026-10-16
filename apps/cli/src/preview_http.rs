@@ -28,10 +28,13 @@ pub(super) async fn stream(
     let session = input.session_id.clone();
     let database = host.database.clone();
     let caller = host.identity.caller.clone();
+    let identity = host.identity.clone();
     let opened = tokio::task::spawn_blocking(move || {
+        identity.check_lifetime()?;
         let mut app = Automation::open(database.as_ref())?
             .with_source(CallSource::Http)
             .with_caller(caller);
+        identity.check_lifetime()?;
         app.preview_stream(input)
     })
     .await;

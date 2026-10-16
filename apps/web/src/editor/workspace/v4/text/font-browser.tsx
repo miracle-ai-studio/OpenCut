@@ -6,7 +6,13 @@ import type { V4FontImportProps } from "./font-import";
 import "./font-browser.css";
 import { mergeDerivedFontCatalog, derivedSourceMetadata } from "./font-derived";
 import type { FontSourceMetadata } from "./font-derived";
+import { unifiedSourceMetadata } from "./font-catalog";
 import { FontAtlasPreview } from "./font-atlas-preview";
+import {
+  fontSynthesisText,
+  fontRenderProfileLabel,
+  synthesisBaseRouteLabel,
+} from "./font-synthesis";
 
 export type FontBrowserCatalog = ToolOutput<"opencut_font_v2_catalog">;
 export type FontBrowserSource = ToolOutput<"opencut_font_v2_source">;
@@ -39,11 +45,18 @@ export function FontBrowserImport(
     readSource: FontSourceReader;
   },
 ) {
-  useLocale();
+  const { language } = useLocale();
+  const synthesisText = (message: string) =>
+    fontSynthesisText(message, language);
   const catalog = props.browserCatalog;
   const families = useMemo(
-    () => mergeDerivedFontCatalog(catalog, props.derivedCatalog),
-    [catalog, props.derivedCatalog],
+    () =>
+      mergeDerivedFontCatalog(
+        catalog,
+        props.derivedCatalog,
+        props.unifiedCatalog,
+      ),
+    [catalog, props.derivedCatalog, props.unifiedCatalog],
   );
   const [query, setQuery] = useState("");
   const [familyName, setFamilyName] = useState(
@@ -54,6 +67,9 @@ export function FontBrowserImport(
       "",
   );
   const [styleKey, setStyleKey] = useState("400:normal");
+  const [sourceMode, setSourceMode] = useState<"classic" | "real_italic">(
+    "classic",
+  );
   const [text, setText] = useState(props.requiredText);
   const [source, setSource] = useState<FontSourceMetadata | null>(null);
   const [reading, setReading] = useState(false);
@@ -79,20 +95,21 @@ export function FontBrowserImport(
     );
   }, [families, query]);
   const family = families.find((item) => item.family === familyName);
-  const face =
+  const slot =
     family?.faces.find((item) => faceKey(item) === styleKey) ??
     family?.faces[0];
+  const face =
+    sourceMode === "real_italic" && slot?.realItalic ? slot.realItalic : slot;
   const catalogId = face?.catalog_id ?? null;
   const admitted = source?.id === catalogId ? source : null;
   const locked = !!props.disabled || !!props.disabledReason || pending;
-  const canImport =
-    !locked &&
-    (face?.derived
+  const importAvailable = face?.unified
+    ? face.unified.import_available
+    : face?.derived
       ? props.derivedCatalog?.import_available
-      : catalog.download_available) &&
-    !!admitted &&
-    !reading &&
-    !!catalogId;
+      : catalog.download_available;
+  const canImport =
+    !locked && importAvailable && !!admitted && !reading && !!catalogId;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -106,25 +123,33 @@ export function FontBrowserImport(
     }
     setReading(true);
     const readingSource: Promise<FontSourceMetadata> =
-      face.derived && props.readDerivedSource
+      face.unified && props.readUnifiedSource
         ? props
-            .readDerivedSource(catalogId, controller.signal)
-            .then(derivedSourceMetadata)
-        : sourceReader.current(catalogId, controller.signal);
+            .readUnifiedSource(
+              { catalog_id: catalogId, kind: face.unified.kind },
+              controller.signal,
+            )
+            .then((result) => unifiedSourceMetadata(result, face.unified!))
+        : face.derived && props.readDerivedSource
+          ? props
+              .readDerivedSource(catalogId, controller.signal)
+              .then(derivedSourceMetadata)
+          : sourceReader.current(catalogId, controller.signal);
     void readingSource
       .then((result) => {
         if (!live) return;
         if (
           result.id !== catalogId ||
-          result.family !== family.family ||
+          result.family !== (face.unified?.family ?? family.family) ||
           result.weight !== face.weight ||
-          result.style !== face.style ||
+          (result.requested_style ?? result.style) !== face.style ||
           !result.license_notice ||
           !result.content_hash ||
-          result.source_commit !==
-            (face.derived
-              ? props.derivedCatalog?.source_commit
-              : catalog.source_commit) ||
+          (!face.unified &&
+            result.source_commit !==
+              (face.derived
+                ? props.derivedCatalog?.source_commit
+                : catalog.source_commit)) ||
           (face.derived &&
             (result.derived?.face.derivation_id !==
               face.derived.derivation_id ||
@@ -155,6 +180,9 @@ export function FontBrowserImport(
     catalog.source_commit,
     props.derivedCatalog,
     face?.derived,
+    face?.unified,
+    props.unifiedCatalog,
+    props.readUnifiedSource,
     props.scope.projectId,
     props.scope.revision,
     retry,
@@ -167,7 +195,16 @@ export function FontBrowserImport(
     setPending(true);
     setImportError(null);
     try {
-      if (face?.derived) await props.importFont(catalogId, text, "derived");
+      if (face?.unified?.kind === "synthesis_v1")
+        await props.importFont(catalogId, text, "synthesis");
+      else if (face?.unified?.kind === "static_v3")
+        await props.importFont(catalogId, text, "static_v3");
+      else if (
+        face?.derived ||
+        face?.unified?.kind === "derived_v1" ||
+        face?.unified?.kind === "derived_v2"
+      )
+        await props.importFont(catalogId, text, "derived");
       else await props.importFont(catalogId, text);
       if (active.current) props.close();
     } catch (error) {
@@ -179,6 +216,7 @@ export function FontBrowserImport(
   };
   const chooseFamily = (name: string) => {
     setFamilyName(name);
+    setSourceMode("classic");
     setImportError(null);
     const next = families.find((item) => item.family === name);
     const preferred =
@@ -216,14 +254,17 @@ export function FontBrowserImport(
       <h3>{t("Import font")}</h3>
       <p className="muted">
         {catalog.classic_family_count} {t("Google font families")} ·{" "}
-        {catalog.pinned_face_count} {t("fixed static faces")}
+        {props.unifiedCatalog?.fonts.length ?? catalog.pinned_face_count}{" "}
+        {synthesisText("Pinned font sources")}
       </p>
       {props.disabledReason && <p role="status">{t(props.disabledReason)}</p>}
-      {!(face?.derived
-        ? props.derivedCatalog?.import_available
-        : catalog.download_available) && (
+      {!importAvailable && (
         <p role="status">
-          {t(catalog.unavailable_reason ?? "Font import is unavailable.")}
+          {t(
+            face?.unified?.unavailable_reason ??
+              catalog.unavailable_reason ??
+              "Font import is unavailable.",
+          )}
         </p>
       )}
       <fieldset disabled={locked}>
@@ -266,6 +307,7 @@ export function FontBrowserImport(
             value={face ? faceKey(face) : ""}
             onChange={(event) => {
               setStyleKey(event.target.value);
+              setSourceMode("classic");
               setImportError(null);
             }}
           >
@@ -277,6 +319,24 @@ export function FontBrowserImport(
             ))}
           </select>
         </Field>
+        {slot?.realItalic && (
+          <Field label={synthesisText("Italic source")}>
+            <select
+              value={sourceMode}
+              onChange={(event) => {
+                setSourceMode(event.target.value as "classic" | "real_italic");
+                setImportError(null);
+              }}
+            >
+              <option value="classic">
+                {synthesisText("Classic Canvas italic synthesis")}
+              </option>
+              <option value="real_italic">
+                {synthesisText("Real italic font")}
+              </option>
+            </select>
+          </Field>
+        )}
         {face && !catalogId && (
           <p role="status">{t(fontFaceUnavailableMessage(face))}</p>
         )}
@@ -289,6 +349,14 @@ export function FontBrowserImport(
               props.derivedCatalog?.unavailable_reason ??
                 "Derived font import is unavailable.",
             )}
+          </p>
+        )}
+        {face?.unified?.alias_reason && (
+          <p className="muted">{face.unified.alias_reason}</p>
+        )}
+        {admitted && face?.unified && admitted.family !== family?.family && (
+          <p className="muted">
+            {t("Imported font family")}: {admitted.family}
           </p>
         )}
         {admitted?.derived && (
@@ -321,15 +389,94 @@ export function FontBrowserImport(
             </details>
           </div>
         )}
+        {admitted?.synthesis && (
+          <div className="font-browser-source">
+            <p>{synthesisText("Classic Canvas italic synthesis")}</p>
+            <p>
+              {synthesisText("Actual font")}: {admitted.family} ·{" "}
+              {admitted.weight} · {admitted.style}
+            </p>
+            <p>
+              {synthesisText("Requested style")}:{" "}
+              {admitted.synthesis.binding.requested.style}
+            </p>
+            <p>
+              {synthesisText(
+                "Synthesis preserves the base font bytes and full license. The base source may have been derived.",
+              )}
+            </p>
+            {admitted.synthesis_base && (
+              <>
+                <p>
+                  {synthesisText("Classic family")}:{" "}
+                  {admitted.synthesis_base.display_family}
+                </p>
+                <p>
+                  {synthesisText("Base acquisition")}:{" "}
+                  {synthesisText(
+                    synthesisBaseRouteLabel(admitted.synthesis_base.route),
+                  )}
+                </p>
+                <p>
+                  {synthesisText("Base catalog identity")}:{" "}
+                  {admitted.synthesis_base.catalog_id}
+                </p>
+                {(admitted.synthesis_base.route === "derived_v1" ||
+                  admitted.synthesis_base.route === "derived_v2") && (
+                  <>
+                    <p>
+                      {synthesisText("Base derivation identity")}:{" "}
+                      {admitted.synthesis_base.source.face.derivation_id}
+                    </p>
+                    <p>
+                      {synthesisText("Upstream source hash")}:{" "}
+                      {admitted.synthesis_base.source.source_sha256}
+                    </p>
+                    <p>
+                      {synthesisText("Synthesis input hash")}:{" "}
+                      {admitted.content_hash}
+                    </p>
+                    <p>
+                      {admitted.synthesis_base.source.axes
+                        .map((axis) => `${axis.tag}=${axis.coordinate}`)
+                        .join(" · ")}
+                    </p>
+                  </>
+                )}
+                <details>
+                  <summary>{synthesisText("Base acquisition proof")}</summary>
+                  <pre>{JSON.stringify(admitted.synthesis_base, null, 2)}</pre>
+                </details>
+              </>
+            )}
+            <details>
+              <summary>{synthesisText("Font synthesis proof")}</summary>
+              <pre>{admitted.synthesis.source.proof_json}</pre>
+            </details>
+          </div>
+        )}
         {admitted && (
           <div className="font-browser-source">
+            {admitted.render_profile && (
+              <p>
+                {synthesisText("Native rendering profile")}:{" "}
+                {synthesisText(fontRenderProfileLabel(admitted.render_profile))}
+              </p>
+            )}
             <p className="muted">
               {admitted.family} · {fontFaceLabel(admitted)} ·{" "}
               {admitted.license_id}
             </p>
             <a href={admitted.source_url} target="_blank" rel="noreferrer">
-              {t("Font source and license")}
+              {admitted.synthesis_base
+                ? synthesisText("Upstream source")
+                : t("Font source and license")}
             </a>
+            {admitted.license_url && (
+              <a href={admitted.license_url} target="_blank" rel="noreferrer">
+                {t("Font license")}
+              </a>
+            )}
             <details>
               <summary>{t("License notice")}</summary>
               <pre>{admitted.license_notice}</pre>

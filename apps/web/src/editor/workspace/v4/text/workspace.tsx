@@ -3,9 +3,13 @@ import type { ReactNode } from "react";
 import { useWorkspace } from "../../context";
 import { Button, Field } from "../../../shared/ui";
 import { t, useLocale } from "../../../shared/locale";
+import { compareTime } from "../../../model/time";
 import { secondsForDisplay } from "../../../model/time";
+import type { UnifiedFontCatalog, FontImportProtocol } from "./font-catalog";
 import type { DerivedFontCatalog } from "./font-derived";
 import { fontRecoveryBlocked } from "./font-recovery";
+import { useSynthesisFonts } from "./font-synthesis-hook";
+import { requestedFontStyle, fontSynthesisText } from "./font-synthesis";
 import { editableTextFonts } from "./draft";
 import { V4TextEditor } from "./editor";
 import { V4FontImport } from "./font-import";
@@ -17,7 +21,13 @@ import type {
   TextPlanRequest,
   TextPlanResult,
 } from "./planning";
-import type { V4TextEditorValue, V4TextInitial, V4TextScope } from "./types";
+import type {
+  V4TextEditorValue,
+  V4TextInitial,
+  V4TextScope,
+  V4TextFont,
+} from "./types";
+const NO_FONTS: readonly V4TextFont[] = [];
 import type { CanvasTextPlan, CanvasTextPlanning } from "./canvas-types";
 
 export type TextWorkspaceOptions = {
@@ -26,7 +36,7 @@ export type TextWorkspaceOptions = {
   planCanvasText?: CanvasTextPlanning;
   importFont?: (
     request: FontImportRequest,
-    protocol?: "derived",
+    protocol?: FontImportProtocol,
   ) => Promise<FontImportResult>;
   fontImportBlockedReason?: string | null;
 };
@@ -59,10 +69,11 @@ export function V4TextAuthoringProvider({
   children,
   ...options
 }: TextWorkspaceOptions & { children: ReactNode }) {
-  useLocale();
+  const { language } = useLocale();
   const { controller, api, v4, busy } = useWorkspace();
   const [canvas, setCanvas] = useState<CanvasTextPlan | null>(null);
   const canvasInitial = useRef<V4TextInitial | null>(null);
+  const canvasRead = useRef(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [review, setReview] = useState<TextPlanResult | null>(null);
   const [catalog, setCatalog] = useState<FontCatalog | null>(null);
@@ -76,6 +87,13 @@ export function V4TextAuthoringProvider({
     reviewScope = useRef<V4TextScope | null>(null);
   const snapshot = v4?.historical ?? v4?.head;
   const project = snapshot?.project;
+  const resolvedFonts = useSynthesisFonts(
+    api,
+    project && snapshot
+      ? { projectId: project.id, revision: snapshot.revision }
+      : null,
+    project?.fonts ?? NO_FONTS,
+  );
   const sequence = project?.sequences.find(
     (scene) => scene.id === v4?.sequenceId,
   );
@@ -90,7 +108,10 @@ export function V4TextAuthoringProvider({
       ? "Resolve the original font import before starting another operation."
       : recoveryBlocked
         ? "Resolve the original edit before starting another operation."
-        : (options.fontImportBlockedReason ?? null);
+        : (resolvedFonts.error ??
+          (resolvedFonts.loading
+            ? fontSynthesisText("Reading font synthesis proof…", language)
+            : (options.fontImportBlockedReason ?? null)));
   const disabled = busy || pending || !!disabledReason;
   const currentScope = () => {
     const state = controller.getSnapshot();
@@ -169,11 +190,14 @@ export function V4TextAuthoringProvider({
         setError(message(value));
     } finally {
       if (serial === epoch.current) {
+        canvasRead.current = false;
         setPending(false);
         reading.current = null;
       }
     }
   };
+  const [unifiedCatalog, setUnifiedCatalog] =
+    useState<UnifiedFontCatalog | null>(null);
   const [derivedCatalog, setDerivedCatalog] =
     useState<DerivedFontCatalog | null>(null);
   const beginImport = () => {
@@ -189,16 +213,27 @@ export function V4TextAuthoringProvider({
         throw new Error("The service returned an invalid font catalog.");
       const capabilities = await api!.sdk.hostCapabilities();
       checkScope(scope, serial);
-      const derived = capabilities.tools.includes(
-        "opencut_font_derived_v1_catalog",
-      )
-        ? await api!.sdk.call("opencut_font_derived_v1_catalog", {}, { signal })
+      const unified = capabilities.tools.includes("opencut_font_catalog_v3")
+        ? await api!.sdk.call("opencut_font_catalog_v3", {}, { signal })
         : null;
+      checkScope(scope, serial);
+      if (unified && unified.schema_version !== 3)
+        throw new Error("The service returned an invalid font catalog.");
+      const derived =
+        !unified &&
+        capabilities.tools.includes("opencut_font_derived_v1_catalog")
+          ? await api!.sdk.call(
+              "opencut_font_derived_v1_catalog",
+              {},
+              { signal },
+            )
+          : null;
       checkScope(scope, serial);
       if (derived && derived.schema_version !== 1)
         throw new Error(
           "The service returned an invalid derived font catalog.",
         );
+      setUnifiedCatalog(unified);
       setDerivedCatalog(derived);
       setCatalog(result);
       setDraft(null);
@@ -208,7 +243,7 @@ export function V4TextAuthoringProvider({
   };
   const beginCreate = () => {
     if (!project || !sequence) return;
-    const font = editableTextFonts(project.fonts)[0];
+    const font = editableTextFonts(resolvedFonts.fonts)[0];
     if (!font) {
       if (options.importFont) beginImport();
       return;
@@ -235,10 +270,12 @@ export function V4TextAuthoringProvider({
           track.id === v4?.selectedId ||
           track.elements.some((element) => element.id === v4?.selectedId),
       );
+      const initial = structuredClone(result.initial!);
+      initial.text.font_style = requestedFontStyle(font);
       setDraft({
         mode: "create",
         scope,
-        initial: result.initial!,
+        initial,
         elementId: crypto.randomUUID(),
         trackId:
           selectedTrack?.kind === "text" && !selectedTrack.locked
@@ -275,13 +312,27 @@ export function V4TextAuthoringProvider({
     setError(null);
     setNotice(null);
   };
+  const canvasClock = `${v4?.playhead.ticks}/${v4?.playhead.timebase}:${v4?.audioPreview.phase}`;
+  useEffect(() => {
+    if (!canvas && !canvasRead.current) return;
+    epoch.current++;
+    reading.current?.abort();
+    reading.current = null;
+    canvasRead.current = false;
+    setCanvas(null);
+    canvasInitial.current = null;
+    setPending(false);
+  }, [canvasClock]);
   const beginCanvasEdit = (elementId: string) => {
     if (
       !options.planCanvasText ||
       !sequence ||
       !v4 ||
       canvas ||
-      writing.current
+      writing.current ||
+      ["loading", "playing", "stalled", "unconfirmed"].includes(
+        v4.audioPreview.phase,
+      )
     )
       return;
     const track = sequence.tracks.find((track) =>
@@ -295,10 +346,22 @@ export function V4TextAuthoringProvider({
       text: element.content.text,
       timeline_range: element.timeline_range,
     };
+    canvasRead.current = true;
+    const capturedTime = structuredClone(v4.playhead);
     void read(async (scope, serial, signal) => {
       const target = { ...scope, elementId };
-      const plan = await options.planCanvasText!(target, v4.playhead, signal);
+      const plan = await options.planCanvasText!(target, capturedTime, signal);
       checkScope(target, serial);
+      const current = controller.getSnapshot().v4;
+      if (
+        !current ||
+        compareTime(current.playhead, capturedTime) !== 0 ||
+        ["loading", "playing", "stalled", "unconfirmed"].includes(
+          current.audioPreview.phase,
+        )
+      )
+        throw new Error("The canvas edit time changed.");
+      canvasRead.current = false;
       if (
         plan.scope.projectId !== target.projectId ||
         plan.scope.revision !== target.revision ||
@@ -368,6 +431,7 @@ export function V4TextAuthoringProvider({
     } finally {
       writing.current = false;
       if (serial === epoch.current) {
+        canvasRead.current = false;
         setPending(false);
         reading.current = null;
       }
@@ -414,6 +478,7 @@ export function V4TextAuthoringProvider({
       } else setNotice("No text changes to save.");
     } finally {
       if (serial === epoch.current) {
+        canvasRead.current = false;
         setPending(false);
         reading.current = null;
       }
@@ -454,7 +519,7 @@ export function V4TextAuthoringProvider({
   const importFont = async (
     choiceId: string,
     requiredText: string,
-    protocol?: "derived",
+    protocol?: FontImportProtocol,
   ) => {
     if (!api || !options.importFont || disabled)
       throw new Error("Font import is unavailable.");
@@ -502,7 +567,7 @@ export function V4TextAuthoringProvider({
               mode={draft.mode}
               scope={draft.scope}
               initial={draft.initial}
-              fonts={project.fonts}
+              fonts={resolvedFonts.fonts}
               available
               disabled={busy || pending}
               disabledReason={disabledReason}
@@ -560,6 +625,10 @@ export function V4TextAuthoringProvider({
             available={true}
             choices={[]}
             browserCatalog={catalog}
+            unifiedCatalog={unifiedCatalog}
+            readUnifiedSource={(request, signal) =>
+              api!.sdk.call("opencut_font_source_v3", request, { signal })
+            }
             derivedCatalog={derivedCatalog}
             readDerivedSource={(catalog_id, signal) =>
               api!.sdk.call(

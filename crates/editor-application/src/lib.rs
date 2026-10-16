@@ -7,25 +7,38 @@ pub mod analysis_query;
 pub mod artifact_gc;
 pub mod artifact_retention;
 pub mod audio_gain_v4;
+pub mod audio_preview_recovery_v1;
 pub mod audio_preview_v4;
 pub mod audit;
 pub mod branching;
 pub mod caption_generation;
 pub mod caption_v4;
+pub mod classic_blend_frame_v1;
 pub mod classic_import;
 pub mod classic_import_v4;
+pub mod classic_import_v5;
+pub mod classic_mask_frame_v1;
+pub mod classic_scene_frame_v1;
 pub mod collaboration;
 pub mod edit_recovery_v1;
 pub mod edit_recovery_v2;
 pub mod events;
-pub mod font_import_v1;
+pub mod export_video_v2;
+pub mod font_catalog_v3;
 pub mod font_derived_v1;
+pub mod font_derived_v2;
+pub mod font_import_v1;
+pub mod font_synthesis_v1;
+pub mod graphic_edit_v1;
 pub mod history_navigation;
 pub mod identity;
 pub mod job_views;
 pub mod jobs;
+pub mod keyframe_edit_v1;
+pub mod keyframe_legacy_conversion_v1;
 pub mod lifecycle;
 pub mod maintenance;
+pub mod mask_authoring_v1;
 pub mod media;
 pub mod media_import;
 pub mod media_import_v4;
@@ -34,16 +47,24 @@ pub mod plugin_v2;
 pub mod plugins;
 pub mod preview;
 pub mod project_edit;
+pub mod project_history_package_v1;
 pub mod project_library;
 pub mod project_package;
 pub mod project_package_v3;
+pub mod project_package_v4;
 pub mod project_v3;
 pub mod project_v3_collaboration;
 pub mod project_v3_jobs;
 pub mod project_v4;
 pub mod project_v4_audio_jobs;
+pub mod project_v4_blend_frame_jobs;
+pub mod project_v4_blend_video_jobs;
 pub mod project_v4_caption_video_jobs;
 pub mod project_v4_frame_jobs;
+pub mod project_v4_graphic_video_jobs;
+pub mod project_v4_mask_frame_jobs;
+pub mod project_v4_mask_video_jobs;
+pub mod project_v4_scene_frame_jobs;
 pub mod project_v4_text_frame_jobs;
 pub mod project_v4_video_jobs;
 pub mod projects;
@@ -63,12 +84,19 @@ pub mod subtitle_text_export_v1;
 pub mod subtitle_text_v1;
 pub mod text_authoring_v1;
 pub mod text_canvas_v1;
+pub mod text_canvas_v2;
 pub mod timeline_clipboard_v4;
 pub mod timeline_edit;
 pub mod timeline_v4;
+pub mod track_removal_v1;
+pub mod visual_preview_blend_v1;
 pub mod visual_preview_caption_v3;
+pub mod visual_preview_graphic_v1;
+pub mod visual_preview_mask_v1;
+pub mod visual_preview_scene_v1;
 pub mod visual_preview_text_v2;
 pub mod visual_preview_v4;
+pub mod visual_transform_draft_v1;
 use identity::content_id;
 pub use opencut_api_contracts::{
     JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
@@ -145,6 +173,22 @@ pub mod workspace_port;
 
 pub mod edit_recovery_v3;
 
+pub mod classic_graphic_frame_v1;
 pub mod classic_text_frame_v3;
+pub mod project_v4_graphic_frame_jobs;
 
 pub mod project_v4_caption_frame_jobs;
+
+pub mod project_v4_scene_video_jobs;
+
+pub mod element_properties_v1;
+pub mod element_transform_v2;
+
+pub mod scene_authoring_v1;
+
+pub mod keyframe_sample_v1;
+
+pub mod brand_resources_v1;
+pub mod catalog_resources_v1;
+
+pub mod subtitle_classic_ass_v1;

@@ -115,6 +115,7 @@ pub fn prepare_text_raster_v1(
     graph: &CompositionV4,
     element_id: &str,
 ) -> Result<TextRasterPlanV1, CompositionError> {
+    reject_legacy_synthesis_fonts(&graph.fonts)?;
     if graph.scope != CompositionScope::Visual
         || graph.format.profile != FormatProfileV4::ClassicGlobal
         || !graph.audio.is_empty()

@@ -8,6 +8,7 @@ import {
 import { t, useLocale } from "../shared/locale";
 import { Button } from "../shared/ui";
 import { Minus, Plus, Scan } from "lucide-react";
+import { useShortcutActions } from "../shortcuts";
 export function usePreviewViewport(
   width: number,
   height: number,
@@ -18,7 +19,7 @@ export function usePreviewViewport(
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
-  const space = useRef(false);
+  const panHeld = useRef(false);
   const drag = useRef<{
     id: number;
     x: number;
@@ -33,10 +34,27 @@ export function usePreviewViewport(
     zoom,
     pan,
   );
+  const releasePan = () => {
+    panHeld.current = false;
+    const active = drag.current;
+    drag.current = null;
+    if (active && ref.current?.hasPointerCapture?.(active.id))
+      ref.current.releasePointerCapture(active.id);
+    setPanning(false);
+  };
+  useShortcutActions({
+    "pan-preview": {
+      run: () => {
+        panHeld.current = true;
+      },
+      release: releasePan,
+    },
+  });
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
     drag.current = null;
+    panHeld.current = false;
     setPanning(false);
   }, [scope]);
   useEffect(() => {
@@ -47,22 +65,18 @@ export function usePreviewViewport(
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     measure();
-    const keydown = (event: KeyboardEvent) => {
-      if (event.code === "Space" && event.target === element) {
-        event.preventDefault();
-        space.current = true;
-      }
-    };
     const release = () => {
-      space.current = false;
+      panHeld.current = false;
+      const active = drag.current;
+      drag.current = null;
+      if (active && element.hasPointerCapture?.(active.id))
+        element.releasePointerCapture(active.id);
+      setPanning(false);
     };
-    element.addEventListener("keydown", keydown);
-    window.addEventListener("keyup", release);
     window.addEventListener("blur", release);
     return () => {
       observer.disconnect();
-      element.removeEventListener("keydown", keydown);
-      window.removeEventListener("keyup", release);
+      release();
       window.removeEventListener("blur", release);
     };
   }, []);
@@ -75,7 +89,7 @@ export function usePreviewViewport(
     setPan(geometry.pan);
   };
   const down = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 1 && !(event.button === 0 && space.current)) return;
+    if (event.button !== 1 && !(event.button === 0 && panHeld.current)) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.focus({ preventScroll: true });

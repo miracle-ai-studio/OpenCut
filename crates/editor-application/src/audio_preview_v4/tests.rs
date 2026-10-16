@@ -127,6 +127,29 @@ fn control(
         command,
     }
 }
+#[test]
+fn recovery_receipt_reads_exact_control_without_mutation_or_lease_refresh() {
+    let mut m = machine();
+    let play = control(&m, "recovery-play", AudioPreviewCommandV4::Play);
+    let before = m.snapshot(0);
+    assert!(m.recover_control_receipt(&play).unwrap().is_none());
+    assert_eq!(m.snapshot(0), before);
+    let applied = m.control(&play, 1).unwrap().session;
+    let stop = control(&m, "recovery-stop", AudioPreviewCommandV4::Stop);
+    m.control(&stop, 2).unwrap();
+    let stopped = m.snapshot(2);
+    assert_eq!(m.recover_control_receipt(&play).unwrap(), Some(applied));
+    assert_eq!(m.snapshot(2), stopped);
+    let mut changed = play.clone();
+    changed.command = AudioPreviewCommandV4::Seek {
+        sequence_time: time(0, 1),
+    };
+    assert_eq!(
+        m.recover_control_receipt(&changed).unwrap_err().code,
+        "IDEMPOTENCY_KEY_REUSED"
+    );
+    assert_eq!(m.snapshot(2), stopped);
+}
 fn report(m: &mut AudioPreviewMachineV4, key: &str, count: u64, sequence: u64) {
     let input = control(
         m,

@@ -3,15 +3,25 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { publicJobResult } from "../../../../lib/editor-sdk";
 import type { ArtifactReference, PublicJob } from "../../../../lib/editor-sdk";
 import type { EditorApi } from "../../api";
-import type { V4FrameRequest, V4FrameResult } from "../types";
-const kindFor = (protocol: 1 | 2 | 3) =>
-  protocol === 3 ? "render.project_caption_frame.v4" : protocol === 2 ? "render.project_text_frame.v4" : "render.project_frame.v4";
+import type { V4FrameAttempt, V4FrameRequest, V4FrameResult } from "../types";
+const kindFor = (protocol: V4FrameAttempt["protocol"]) =>
+  protocol === "scene-v1" ? "render.project_scene_frame.v4" : protocol === "mask-v1"
+    ? "render.project_mask_frame.v4"
+    : protocol === "blend-v1"
+    ? "render.project_blend_frame.v4"
+    : protocol === "graphic-v1"
+      ? "render.project_graphic_frame.v4"
+      : protocol === 3
+        ? "render.project_caption_frame.v4"
+        : protocol === 2
+          ? "render.project_text_frame.v4"
+          : "render.project_frame.v4";
 const MAX_PNG_BYTES = 32 * 1024 * 1024;
 
 export function sameTarget(
   job: PublicJob,
   request: V4FrameRequest,
-  protocol: 1 | 2 | 3 = 1,
+  protocol: V4FrameAttempt["protocol"] = 1,
 ) {
   return (
     job.kind === kindFor(protocol) &&
@@ -26,14 +36,14 @@ export function verifiedResult(
   request: V4FrameRequest,
   width: number,
   height: number,
-  protocol: 1 | 2 | 3 = 1,
+  protocol: V4FrameAttempt["protocol"] = 1,
 ) {
   if (!sameTarget(job, request, protocol))
     throw new Error("Scene frame returned an unexpected task identity.");
   const result: V4FrameResult = publicJobResult(job, kindFor(protocol));
   const identity = result?.identity;
   if (
-    result?.schema_version !== protocol ||
+    result?.schema_version !== (typeof protocol === "string" ? 1 : protocol) ||
     !identity ||
     identity.project_id !== request.project_id ||
     identity.revision !== request.revision ||
@@ -41,9 +51,17 @@ export function verifiedResult(
     identity.time?.ticks !== request.time.ticks ||
     identity.time.timebase !== request.time.timebase ||
     identity.profile !==
-      (protocol === 3 ? "classic-v31-gpu-normal-caption-frame-v3" : protocol === 2
-        ? "classic-v31-gpu-normal-text-frame-v2"
-        : "classic-v31-gpu-normal-frame") ||
+      (protocol === "scene-v1" ? "classic-v31-gpu-scene-frame-v1" : protocol === "mask-v1"
+        ? "classic-v31-gpu-mask-frame-v1"
+        : protocol === "blend-v1"
+        ? "classic-v31-gpu-blend-frame-v1"
+        : protocol === "graphic-v1"
+          ? "classic-v31-gpu-normal-graphic-frame-v1"
+          : protocol === 3
+            ? "classic-v31-gpu-normal-caption-frame-v3"
+            : protocol === 2
+              ? "classic-v31-gpu-normal-text-frame-v2"
+              : "classic-v31-gpu-normal-frame") ||
     !Number.isSafeInteger(identity.width) ||
     !Number.isSafeInteger(identity.height) ||
     identity.width <= 0 ||

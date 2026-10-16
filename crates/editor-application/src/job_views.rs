@@ -219,6 +219,7 @@ fn artifact(
     let mime = match value.mime_type.as_str() {
         "image/png" => "image/png",
         "video/mp4" => "video/mp4",
+        "video/webm" => "video/webm",
         "video/x-matroska" => "video/x-matroska",
         "audio/wav" => "audio/wav",
         "audio/mpeg" => "audio/mpeg",
@@ -380,7 +381,27 @@ fn analysis_result<R: DeserializeOwned + serde::Serialize>(
 pub fn project(record: JobRecord) -> JobView {
     // Public intent identity is useful even before a result exists; only these three
     // fields are selected from the legacy prepared input, never its snapshot or URIs.
-    let target = if record.kind == "analysis.sequence_transcribe.v4" {
+    let target = if record.kind == "render.export_video.v2" {
+        (|| {
+            Some(ProjectTaskTarget {
+                project_id: record
+                    .input
+                    .pointer("/execution/snapshot/project/id")?
+                    .as_str()?
+                    .into(),
+                revision: record
+                    .input
+                    .pointer("/execution/snapshot/revision")?
+                    .as_str()?
+                    .into(),
+                sequence_id: record
+                    .input
+                    .pointer("/execution/sequence_id")?
+                    .as_str()?
+                    .into(),
+            })
+        })()
+    } else if record.kind == "analysis.sequence_transcribe.v4" {
         (|| {
             Some(ProjectTaskTarget {
                 project_id: record
@@ -408,8 +429,17 @@ pub fn project(record: JobRecord) -> JobView {
             | "render.project_frame.v4"
             | "render.project_text_frame.v4"
             | "render.project_caption_frame.v4"
+            | "render.project_graphic_frame.v4"
+            | "render.project_mask_frame.v4"
+            | "render.project_scene_frame.v4"
+            | "render.project_blend_frame.v4"
             | "render.project_video.v4"
             | "render.project_caption_video.v4"
+            | "render.project_graphic_video.v4"
+            | "render.project_mask_video.v4"
+            | "render.project_scene_video.v4"
+            | "render.export_video.v2"
+            | "render.project_blend_video.v4"
             | "preview.project_frame.v3"
             | "preview.project_range.v3"
             | "analysis.speaker_turns"
@@ -532,6 +562,111 @@ pub fn project(record: JobRecord) -> JobView {
             Ok(result) => view.extended_result = Some(result),
             Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
         }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_graphic_frame.v4"
+    {
+        let projected = (|| {
+            use crate::project_v4_graphic_frame_jobs::{
+                PreparedV4GraphicFramePng, StoredV4GraphicFramePngResultV1, validate_stored_result,
+            };
+            let input: PreparedV4GraphicFramePng = decode(record.input.clone())?;
+            let stored: StoredV4GraphicFramePngResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_scene_frame.v4" {
+        let projected = (|| {
+            use crate::project_v4_scene_frame_jobs::{
+                PreparedV4SceneFramePng, StoredV4SceneFramePngResultV1, validate_stored_result,
+            };
+            let input: PreparedV4SceneFramePng = decode(record.input.clone())?;
+            let stored: StoredV4SceneFramePngResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_mask_frame.v4" {
+        let projected = (|| {
+            use crate::project_v4_mask_frame_jobs::{
+                PreparedV4MaskFramePng, StoredV4MaskFramePngResultV1, validate_stored_result,
+            };
+            let input: PreparedV4MaskFramePng = decode(record.input.clone())?;
+            let stored: StoredV4MaskFramePngResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_blend_frame.v4" {
+        let projected = (|| {
+            use crate::project_v4_blend_frame_jobs::{
+                PreparedV4BlendFramePng, StoredV4BlendFramePngResultV1, validate_stored_result,
+            };
+            let input: PreparedV4BlendFramePng = decode(record.input.clone())?;
+            let stored: StoredV4BlendFramePngResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
     } else if record.state == JobState::Succeeded && view.kind == "render.project_caption_frame.v4"
     {
         let projected = (|| {
@@ -593,6 +728,137 @@ pub fn project(record: JobRecord) -> JobView {
             };
             let input: PreparedV4CaptionVideoMp4V2 = decode(record.input.clone())?;
             let stored: StoredV4CaptionVideoMp4ResultV2 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_graphic_video.v4"
+    {
+        let projected = (|| {
+            use crate::project_v4_graphic_video_jobs::{
+                PreparedV4GraphicVideoMp4V1, StoredV4GraphicVideoMp4ResultV1,
+                validate_stored_result,
+            };
+            let input: PreparedV4GraphicVideoMp4V1 = decode(record.input.clone())?;
+            let stored: StoredV4GraphicVideoMp4ResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_scene_video.v4" {
+        let projected = (|| {
+            use crate::project_v4_scene_video_jobs::{
+                PreparedV4SceneVideoMp4V1, StoredV4SceneVideoMp4ResultV1, validate_stored_result,
+            };
+            let input: PreparedV4SceneVideoMp4V1 = decode(record.input.clone())?;
+            let stored: StoredV4SceneVideoMp4ResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.export_video.v2" {
+        let projected = (|| {
+            use crate::export_video_v2::{
+                PreparedExportVideoV2, StoredExportVideoV2, validate_stored_result,
+            };
+            let input: PreparedExportVideoV2 = decode(record.input.clone())?;
+            let stored: StoredExportVideoV2 = decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 2,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_mask_video.v4" {
+        let projected = (|| {
+            use crate::project_v4_mask_video_jobs::{
+                PreparedV4MaskVideoMp4V1, StoredV4MaskVideoMp4ResultV1, validate_stored_result,
+            };
+            let input: PreparedV4MaskVideoMp4V1 = decode(record.input.clone())?;
+            let stored: StoredV4MaskVideoMp4ResultV1 =
+                decode(record.result.unwrap_or(Value::Null))?;
+            let public = validate_stored_result(&input, &stored)?;
+            let reference = artifact(&view.job_id, stored.artifact)?;
+            Ok::<_, EditorError>((
+                ExtendedJobResult {
+                    kind: view.kind.clone(),
+                    schema_version: 1,
+                    data: serde_json::to_value(public).map_err(|_| bad_result())?,
+                },
+                vec![reference],
+            ))
+        })();
+        match projected {
+            Ok((result, artifacts)) => {
+                view.extended_result = Some(result);
+                view.artifacts = artifacts;
+            }
+            Err(error) => view.result_unavailable = Some(public_failure(&view.job_id, &error.code)),
+        }
+    } else if record.state == JobState::Succeeded && view.kind == "render.project_blend_video.v4" {
+        let projected = (|| {
+            use crate::project_v4_blend_video_jobs::{
+                PreparedV4BlendVideoMp4V1, StoredV4BlendVideoMp4ResultV1, validate_stored_result,
+            };
+            let input: PreparedV4BlendVideoMp4V1 = decode(record.input.clone())?;
+            let stored: StoredV4BlendVideoMp4ResultV1 =
                 decode(record.result.unwrap_or(Value::Null))?;
             let public = validate_stored_result(&input, &stored)?;
             let reference = artifact(&view.job_id, stored.artifact)?;

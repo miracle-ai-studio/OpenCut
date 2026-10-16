@@ -24,6 +24,7 @@ impl PreparedTextFrameV3 {
 pub fn prepare_text_frame_v3(
     graph: &CompositionV4,
 ) -> Result<PreparedTextFrameV3, CompositionError> {
+    reject_legacy_synthesis_fonts(&graph.fonts)?;
     let mut execution = graph.clone();
     let mut captions = Vec::new();
     let width = f64::from(graph.format.canvas_size.width);

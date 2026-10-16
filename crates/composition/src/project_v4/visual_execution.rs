@@ -68,6 +68,7 @@ fn covers_request(request: &Time, timestamp: f64, duration: f64) -> Result<bool,
 pub fn prepare_visual_frame_v4(
     graph: &CompositionV4,
 ) -> Result<PreparedVisualFrameV4, CompositionError> {
+    reject_legacy_synthesis_fonts(&graph.fonts)?;
     if graph.scope != CompositionScope::Visual
         || graph.format.profile != FormatProfileV4::ClassicGlobal
         || !graph.audio.is_empty()

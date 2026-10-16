@@ -130,3 +130,24 @@ it("does not substitute a derived recipe for an existing admitted static face", 
   expect(merged[0].faces[0].derived).toBeUndefined();
   expect(catalog.families[0].faces[0].catalog_id).toBe("static");
 });
+
+it("uses the independent V2 proof operation and rejects a V1 provider for a renamed output", async () => {
+  const f = fixture();
+  f.request.catalog_id = "google-example-bolditalic-derived-v2";
+  f.proof.schema_version = 2;
+  f.proof.source.face.id = f.request.catalog_id;
+  f.proof.source.face.family = "OCDF explicit";
+  f.snapshot.project.fonts[0].family = "OCDF explicit";
+  f.snapshot.project.fonts[0].origin.provider =
+    "opencut-fonttools-static-renamed-v2";
+  await verifyDerivedFontImport(f.api, f.request, "published");
+  expect(f.call.mock.calls[0][0]).toBe("opencut_font_derived_v2_proof");
+  f.call
+    .mockReset()
+    .mockResolvedValueOnce(f.proof)
+    .mockResolvedValueOnce(f.snapshot);
+  f.snapshot.project.fonts[0].origin.provider = "opencut-fonttools-static-v1";
+  await expect(
+    verifyDerivedFontImport(f.api, f.request, "published"),
+  ).rejects.toThrow("published project font");
+});

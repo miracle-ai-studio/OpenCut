@@ -2,7 +2,11 @@
 use super::sqlite_project_v4_jobs::{authority, context, fixed, require_scope};
 use super::*;
 use opencut_contracts::{AssetLockManifest, LockedAsset, project_v4::ProjectSnapshotV4};
+use opencut_editor_application::project_v4_blend_frame_jobs as blend;
 use opencut_editor_application::project_v4_caption_frame_jobs as caption;
+use opencut_editor_application::project_v4_graphic_frame_jobs as graphic;
+use opencut_editor_application::project_v4_mask_frame_jobs as mask;
+use opencut_editor_application::project_v4_scene_frame_jobs as scene;
 use opencut_editor_application::{
     audit::ExecutionContext,
     project_v4_text_frame_jobs::{
@@ -166,7 +170,15 @@ pub(super) fn validate_acceptance(
 ) -> Result<(), EditorError> {
     let prepared: PreparedV4TextFramePng = serde_json::from_value(input.clone())
         .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Invalid prepared frame input"))?;
-    if request.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
+    if request.kind == scene::V4_SCENE_FRAME_PNG_KIND {
+        scene::validate_prepared_request(request, &prepared)?;
+    } else if request.kind == mask::V4_MASK_FRAME_PNG_KIND {
+        mask::validate_prepared_request(request, &prepared)?;
+    } else if request.kind == blend::V4_BLEND_FRAME_PNG_KIND {
+        blend::validate_prepared_request(request, &prepared)?;
+    } else if request.kind == graphic::V4_GRAPHIC_FRAME_PNG_KIND {
+        graphic::validate_prepared_request(request, &prepared)?;
+    } else if request.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
         caption::validate_prepared_request(request, &prepared)?;
     } else {
         frame::validate_prepared_request(request, &prepared)?;
@@ -208,7 +220,25 @@ pub(super) fn require_completion(
         .result
         .clone()
         .ok_or_else(|| EditorError::new("INVALID_STORED_RESULT", "Missing frame result"))?;
-    if job.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
+    if job.kind == scene::V4_SCENE_FRAME_PNG_KIND {
+        let result: scene::StoredV4SceneFramePngResultV1 = serde_json::from_value(value)
+            .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid scene frame result"))?;
+        scene::validate_stored_result(&prepared, &result)?;
+    } else if job.kind == mask::V4_MASK_FRAME_PNG_KIND {
+        let result: mask::StoredV4MaskFramePngResultV1 = serde_json::from_value(value)
+            .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid mask frame result"))?;
+        mask::validate_stored_result(&prepared, &result)?;
+    } else if job.kind == blend::V4_BLEND_FRAME_PNG_KIND {
+        let result: blend::StoredV4BlendFramePngResultV1 = serde_json::from_value(value)
+            .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid blend frame result"))?;
+        blend::validate_stored_result(&prepared, &result)?;
+    } else if job.kind == graphic::V4_GRAPHIC_FRAME_PNG_KIND {
+        let result: graphic::StoredV4GraphicFramePngResultV1 = serde_json::from_value(value)
+            .map_err(|_| {
+                EditorError::new("INVALID_STORED_RESULT", "Invalid graphic frame result")
+            })?;
+        graphic::validate_stored_result(&prepared, &result)?;
+    } else if job.kind == caption::V4_CAPTION_FRAME_PNG_KIND {
         let result: caption::StoredV4CaptionFramePngResultV3 = serde_json::from_value(value)
             .map_err(|_| {
                 EditorError::new("INVALID_STORED_RESULT", "Invalid caption frame result")
@@ -279,6 +309,172 @@ impl EditorApplication {
         sqlite_project_v4_jobs::revalidate(
             self,
             caption::V4_CAPTION_FRAME_PNG_KIND,
+            job_id,
+            worker,
+            attempt,
+            selected_authority,
+            &policy(),
+        )
+    }
+}
+
+impl graphic::V4GraphicFrameJobSubmissionStore for EditorApplication {
+    fn accept_v4_graphic_frame_job(
+        &mut self,
+        request: JobRequest,
+        prepared: graphic::PreparedV4GraphicFramePng,
+    ) -> Result<JobRecord, EditorError> {
+        self.create_prepared_job(
+            request,
+            serde_json::to_value(prepared).map_err(|_| {
+                EditorError::new("SERIALIZATION_ERROR", "Cannot persist graphic frame")
+            })?,
+        )
+    }
+}
+pub fn start_graphic_frame_png(
+    app: &mut EditorApplication,
+    input: graphic::SubmitV4GraphicFramePng,
+) -> Result<JobRecord, EditorError> {
+    let assets = Assets(opencut_asset_store::AssetStore::read_only(
+        app.asset_store_root(),
+    )?);
+    graphic::submit_graphic_frame_png(app, &assets, input)
+}
+impl EditorApplication {
+    pub fn revalidate_v4_graphic_frame_job(
+        &self,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        selected_authority: &TrustedJobAuthorityV1,
+    ) -> Result<(), EditorError> {
+        sqlite_project_v4_jobs::revalidate(
+            self,
+            graphic::V4_GRAPHIC_FRAME_PNG_KIND,
+            job_id,
+            worker,
+            attempt,
+            selected_authority,
+            &policy(),
+        )
+    }
+}
+
+impl scene::V4SceneFrameJobSubmissionStore for EditorApplication {
+    fn accept_v4_scene_frame_job(
+        &mut self,
+        request: JobRequest,
+        prepared: scene::PreparedV4SceneFramePng,
+    ) -> Result<JobRecord, EditorError> {
+        self.create_prepared_job(
+            request,
+            serde_json::to_value(prepared).map_err(|_| {
+                EditorError::new("SERIALIZATION_ERROR", "Cannot persist scene frame")
+            })?,
+        )
+    }
+}
+impl mask::V4MaskFrameJobSubmissionStore for EditorApplication {
+    fn accept_v4_mask_frame_job(
+        &mut self,
+        request: JobRequest,
+        prepared: mask::PreparedV4MaskFramePng,
+    ) -> Result<JobRecord, EditorError> {
+        self.create_prepared_job(
+            request,
+            serde_json::to_value(prepared).map_err(|_| {
+                EditorError::new("SERIALIZATION_ERROR", "Cannot persist mask frame")
+            })?,
+        )
+    }
+}
+impl blend::V4BlendFrameJobSubmissionStore for EditorApplication {
+    fn accept_v4_blend_frame_job(
+        &mut self,
+        request: JobRequest,
+        prepared: blend::PreparedV4BlendFramePng,
+    ) -> Result<JobRecord, EditorError> {
+        self.create_prepared_job(
+            request,
+            serde_json::to_value(prepared).map_err(|_| {
+                EditorError::new("SERIALIZATION_ERROR", "Cannot persist blend frame")
+            })?,
+        )
+    }
+}
+pub fn start_scene_frame_png(
+    app: &mut EditorApplication,
+    input: scene::SubmitV4SceneFramePng,
+) -> Result<JobRecord, EditorError> {
+    let assets = Assets(opencut_asset_store::AssetStore::read_only(
+        app.asset_store_root(),
+    )?);
+    scene::submit_scene_frame_png(app, &assets, input)
+}
+pub fn start_mask_frame_png(
+    app: &mut EditorApplication,
+    input: mask::SubmitV4MaskFramePng,
+) -> Result<JobRecord, EditorError> {
+    let assets = Assets(opencut_asset_store::AssetStore::read_only(
+        app.asset_store_root(),
+    )?);
+    mask::submit_mask_frame_png(app, &assets, input)
+}
+pub fn start_blend_frame_png(
+    app: &mut EditorApplication,
+    input: blend::SubmitV4BlendFramePng,
+) -> Result<JobRecord, EditorError> {
+    let assets = Assets(opencut_asset_store::AssetStore::read_only(
+        app.asset_store_root(),
+    )?);
+    blend::submit_blend_frame_png(app, &assets, input)
+}
+impl EditorApplication {
+    pub fn revalidate_v4_scene_frame_job(
+        &self,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        selected_authority: &TrustedJobAuthorityV1,
+    ) -> Result<(), EditorError> {
+        sqlite_project_v4_jobs::revalidate(
+            self,
+            scene::V4_SCENE_FRAME_PNG_KIND,
+            job_id,
+            worker,
+            attempt,
+            selected_authority,
+            &policy(),
+        )
+    }
+    pub fn revalidate_v4_mask_frame_job(
+        &self,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        selected_authority: &TrustedJobAuthorityV1,
+    ) -> Result<(), EditorError> {
+        sqlite_project_v4_jobs::revalidate(
+            self,
+            mask::V4_MASK_FRAME_PNG_KIND,
+            job_id,
+            worker,
+            attempt,
+            selected_authority,
+            &policy(),
+        )
+    }
+    pub fn revalidate_v4_blend_frame_job(
+        &self,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        selected_authority: &TrustedJobAuthorityV1,
+    ) -> Result<(), EditorError> {
+        sqlite_project_v4_jobs::revalidate(
+            self,
+            blend::V4_BLEND_FRAME_PNG_KIND,
             job_id,
             worker,
             attempt,

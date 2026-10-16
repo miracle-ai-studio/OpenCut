@@ -4,6 +4,7 @@ import type { EditorApi } from "../api";
 import type { V4SessionHost } from "./session";
 import type { V4FrameAttempt, V4FrameRequest, V4SessionState } from "./types";
 import { compareTime } from "../../model/time";
+import { sceneVisualProfile, viewedSequence, viewedVisualProfile } from "./visual-profile";
 
 import { sameTarget, verifiedResult, readPng } from "./frame/png";
 const message = (error: unknown) =>
@@ -20,14 +21,81 @@ export function textFrameAvailable(state: V4SessionState) {
 
 export function captionFrameAvailable(state: V4SessionState) {
   const capability = state.captionFrameCapability;
-  return capability?.available === true && capability.schema_version === 3 && capability.submit_tool === "opencut_job_v4_caption_frame_png";
+  return (
+    capability?.available === true &&
+    capability.schema_version === 3 &&
+    capability.submit_tool === "opencut_job_v4_caption_frame_png"
+  );
 }
-const hasCaptions = (state: V4SessionState) => ((state.historical ?? state.head).project.sequences.find(s => s.id === state.sequenceId)?.captions.length ?? 0) > 0;
+export function hasGraphics(state: V4SessionState) {
+  return (
+    (state.historical ?? state.head).project.sequences
+      .find((s) => s.id === state.sequenceId)
+      ?.tracks.some(
+        (track) =>
+          track.enabled &&
+          track.elements.some(
+            (element) => element.enabled && element.content.kind === "graphic",
+          ),
+      ) ?? false
+  );
+}
+export function graphicFrameAvailable(state: V4SessionState) {
+  const capability = state.graphicFrameCapability;
+  return (
+    capability?.available === true &&
+    capability.schema_version === 1 &&
+    capability.submit_tool === "opencut_job_v4_graphic_frame_png"
+  );
+}
+export function sceneFrameAvailable(state: V4SessionState) {
+  const c = state.sceneFrameCapability; return !!c && c.available && c.schema_version === 1 && c.submit_tool === "opencut_job_v4_scene_frame_png";
+}
+export function maskFrameAvailable(state: V4SessionState) {
+  const capability = state.maskFrameCapability;
+  return (
+    capability?.available === true &&
+    capability.schema_version === 1 &&
+    capability.submit_tool === "opencut_job_v4_mask_frame_png"
+  );
+}
+export function blendFrameAvailable(state: V4SessionState) {
+  const capability = state.blendFrameCapability;
+  return (
+    capability?.available === true &&
+    capability.schema_version === 1 &&
+    capability.submit_tool === "opencut_job_v4_blend_frame_png"
+  );
+}
+const hasCaptions = (state: V4SessionState) =>
+  ((state.historical ?? state.head).project.sequences.find(
+    (s) => s.id === state.sequenceId,
+  )?.captions.length ?? 0) > 0;
 export function frameAvailability(state: V4SessionState) {
   const view = state.historical ?? state.head;
   if (view.project.settings.profile !== "classic_global")
     return "Scene frames currently require Classic scene settings.";
-  if (hasCaptions(state)) return captionFrameAvailable(state) ? null : (state.captionFrameCapability?.unavailable_reason ?? "This service does not support pinned caption frames.");
+  if (viewedVisualProfile(state) === "scene") return sceneFrameAvailable(state) ? null : (state.sceneFrameCapability?.unavailable_reason ?? "This service does not support Classic scene effects and mask stacks.");
+  if (viewedVisualProfile(state) === "mask")
+    return maskFrameAvailable(state)
+      ? null
+      : (state.maskFrameCapability?.unavailable_reason ??
+          "This service does not support scene frames with rectangular or elliptical masks.");
+  if (viewedVisualProfile(state) === "blend")
+    return blendFrameAvailable(state)
+      ? null
+      : (state.blendFrameCapability?.unavailable_reason ??
+          "This service does not support scene frames with blend modes.");
+  if (hasGraphics(state))
+    return graphicFrameAvailable(state)
+      ? null
+      : (state.graphicFrameCapability?.unavailable_reason ??
+          "This service does not support scene frames containing graphics.");
+  if (hasCaptions(state))
+    return captionFrameAvailable(state)
+      ? null
+      : (state.captionFrameCapability?.unavailable_reason ??
+          "This service does not support pinned caption frames.");
   if (textFrameAvailable(state)) return null;
   const sequence = view.project.sequences.find(
     (row) => row.id === state.sequenceId,
@@ -114,12 +182,32 @@ export class V4Frame {
       generation = this.host.generation(),
       epoch = ++this.capabilityEpoch;
     try {
-      const [capability, textFrameCapability, captionFrameCapability] = await Promise.all([
+      const [
+        capability,
+        textFrameCapability,
+        captionFrameCapability,
+        graphicFrameCapability,
+        blendFrameCapability,
+        maskFrameCapability,
+        sceneFrameCapability,
+      ] = await Promise.all([
         api.v4.frameCapability().catch(() => null),
         api.sdk
           .call("opencut_project_v4_text_frame_capability", {})
           .catch(() => null),
-        api.sdk.call("opencut_project_v4_caption_frame_capability", {}).catch(() => null),
+        api.sdk
+          .call("opencut_project_v4_caption_frame_capability", {})
+          .catch(() => null),
+        api.sdk
+          .call("opencut_project_v4_graphic_frame_capability", {})
+          .catch(() => null),
+        api.sdk
+          .call("opencut_project_v4_blend_frame_capability", {})
+          .catch(() => null),
+        api.sdk
+          .call("opencut_project_v4_mask_frame_capability", {})
+          .catch(() => null),
+        api.sdk.call("opencut_project_v4_scene_frame_capability", {}).catch(() => null),
       ]);
       const current = this.host.state();
       if (
@@ -133,6 +221,10 @@ export class V4Frame {
           frameCapability: capability,
           textFrameCapability,
           captionFrameCapability,
+          graphicFrameCapability,
+          blendFrameCapability,
+          maskFrameCapability,
+        sceneFrameCapability,
           frameCapabilityError: capability
             ? null
             : "This service does not support scene frames.",
@@ -186,7 +278,18 @@ export class V4Frame {
     this.invalidate();
     const view = state.historical ?? state.head;
     const attempt: V4FrameAttempt = {
-      protocol: hasCaptions(state) && captionFrameAvailable(state) ? 3 : textFrameAvailable(state) ? 2 : 1,
+      protocol:
+        viewedVisualProfile(state) === "scene" ? "scene-v1" : viewedVisualProfile(state) === "mask"
+          ? "mask-v1"
+          : viewedVisualProfile(state) === "blend"
+            ? "blend-v1"
+            : hasGraphics(state)
+              ? "graphic-v1"
+              : hasCaptions(state) && captionFrameAvailable(state)
+                ? 3
+                : textFrameAvailable(state)
+                  ? 2
+                  : 1,
       request: {
         project_id: view.project.id,
         revision: view.revision,
@@ -221,11 +324,20 @@ export class V4Frame {
     attempt = { ...attempt, phase: "submitting", error: null };
     this.publish(api, attempt);
     try {
-      const job = await (attempt.protocol === 3
-        ? api.sdk.call("opencut_job_v4_caption_frame_png", attempt.request)
-        : attempt.protocol === 2
-        ? api.v4.textFramePng(attempt.request)
-        : api.v4.framePng(attempt.request));
+      const job = await (attempt.protocol === "scene-v1" ? api.sdk.call("opencut_job_v4_scene_frame_png", attempt.request) : attempt.protocol === "mask-v1"
+        ? api.sdk.call("opencut_job_v4_mask_frame_png", attempt.request)
+        : attempt.protocol === "blend-v1"
+          ? api.sdk.call("opencut_job_v4_blend_frame_png", attempt.request)
+          : attempt.protocol === "graphic-v1"
+            ? api.sdk.call("opencut_job_v4_graphic_frame_png", attempt.request)
+            : attempt.protocol === 3
+              ? api.sdk.call(
+                  "opencut_job_v4_caption_frame_png",
+                  attempt.request,
+                )
+              : attempt.protocol === 2
+                ? api.v4.textFramePng(attempt.request)
+                : api.v4.framePng(attempt.request));
       if (!job.job_id || !sameTarget(job, attempt.request, attempt.protocol))
         throw new Error("Scene frame returned an unexpected task identity.");
       attempt = {

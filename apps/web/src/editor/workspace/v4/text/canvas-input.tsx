@@ -34,7 +34,13 @@ export function CanvasTextInput({
   useEffect(() => {
     const abort = new AbortController();
     let font: Awaited<ReturnType<typeof loadCanvasFont>> | undefined;
-    void loadCanvasFont(api, plan.scope, plan.layer.font, abort.signal)
+    void loadCanvasFont(
+      api,
+      plan.scope,
+      plan.layer.font,
+      abort.signal,
+      plan.actualFont,
+    )
       .then((loaded) => {
         font = loaded;
         if (abort.signal.aborted) loaded.release();

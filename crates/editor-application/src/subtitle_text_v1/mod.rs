@@ -18,6 +18,24 @@ pub struct PreparedSubtitleTextV1 {
     ids: Vec<String>,
     frames: Vec<PreparedTextFrameV2>,
     warnings: Vec<String>,
+    layouts: Vec<SubtitleCueLayoutV1>,
+}
+/// Private per-cue input shared by the Classic-compatible ASS operation.
+/// These are prepared domain facts, never a new public bypass around parsing.
+#[derive(Clone, Debug)]
+pub(crate) struct SubtitleCueLayoutV1 {
+    pub max_width_px: Option<f64>,
+    pub left_margin_ratio: f64,
+    pub right_margin_ratio: f64,
+    pub vertical_margin_ratio: f64,
+    /// 0 bottom, 1 middle, 2 top, as Classic's numpad alignment rows.
+    pub vertical_align: u8,
+    pub allow_zero_width: bool,
+}
+pub(crate) struct SubtitleCueInputV1 {
+    pub range: TimeRange,
+    pub text: TextV4,
+    pub layout: SubtitleCueLayoutV1,
 }
 impl PreparedSubtitleTextV1 {
     pub fn frames(&self) -> &[PreparedTextFrameV2] {
@@ -103,6 +121,42 @@ pub fn prepare_with_checkpoint(
     result: Option<&SequenceTranscribeResultV4>,
     checkpoint: &mut impl FnMut() -> Result<(), EditorError>,
 ) -> Result<PreparedSubtitleTextV1, EditorError> {
+    prepare_cues_with_checkpoint(
+        snapshot,
+        request,
+        || {
+            let (cues, warnings) = source(request, result)?;
+            let cues = cues
+                .into_iter()
+                .map(|(range, content)| {
+                    let mut text = request.style.clone();
+                    text.content = content;
+                    SubtitleCueInputV1 {
+                        range,
+                        text,
+                        layout: SubtitleCueLayoutV1 {
+                            max_width_px: request.max_width_px.map(f64::from),
+                            left_margin_ratio: 0.,
+                            right_margin_ratio: 0.,
+                            vertical_margin_ratio: 0.05,
+                            vertical_align: 0,
+                            allow_zero_width: false,
+                        },
+                    }
+                })
+                .collect();
+            Ok((cues, warnings))
+        },
+        checkpoint,
+    )
+}
+
+pub(crate) fn prepare_cues_with_checkpoint(
+    snapshot: &ProjectSnapshotV4,
+    request: &SubtitleTextPlanRequestV1,
+    source: impl FnOnce() -> Result<(Vec<SubtitleCueInputV1>, Vec<String>), EditorError>,
+    checkpoint: &mut impl FnMut() -> Result<(), EditorError>,
+) -> Result<PreparedSubtitleTextV1, EditorError> {
     checkpoint()?;
     crate::require_idempotency_key(&request.idempotency_key)?;
     if snapshot.project.id != request.project_id || snapshot.revision != request.expected_revision {
@@ -168,12 +222,32 @@ pub fn prepare_with_checkpoint(
             "Subtitle target must be an enabled ordinary text track",
         ));
     }
-    let (cues, warnings) = source(request, result)?;
+    let (cues, warnings) = source()?;
     if cues.is_empty() || cues.len() > 5000 {
         return Err(invalid("Subtitle source requires 1..5000 cues"));
     }
     let mut ids = Vec::new();
-    for (i, (range, content)) in cues.into_iter().enumerate() {
+    let mut layouts = Vec::new();
+    for (i, cue) in cues.into_iter().enumerate() {
+        checkpoint()?;
+        let SubtitleCueInputV1 {
+            range,
+            text,
+            layout,
+        } = cue;
+        if !matches!(text.font, FontBindingV4::Locked { .. })
+            || layout.vertical_align > 2
+            || [
+                layout.left_margin_ratio,
+                layout.right_margin_ratio,
+                layout.vertical_margin_ratio,
+            ]
+            .iter()
+            .any(|v| !v.is_finite())
+        {
+            return Err(invalid("Invalid fixed subtitle cue style/placement"));
+        }
+        layouts.push(layout);
         let id = crate::content_id(
             "subtitle-text",
             format!(
@@ -182,8 +256,6 @@ pub fn prepare_with_checkpoint(
             )
             .as_bytes(),
         );
-        let mut text = request.style.clone();
-        text.content = content;
         track.elements.push(TimelineElementV4 {
             id: id.clone(),
             name: format!("Subtitle {}", i + 1),
@@ -276,6 +348,7 @@ pub fn prepare_with_checkpoint(
         ids,
         frames,
         warnings,
+        layouts,
     })
 }
 
@@ -327,12 +400,20 @@ pub fn finish(
             ));
         }
         let canvas = frame.identity();
+        let placement = &prepared.layouts[i];
+        let max_width_px = placement
+            .max_width_px
+            .unwrap_or(f64::from(canvas.width) * 0.8);
+        if !max_width_px.is_finite()
+            || max_width_px < 0.
+            || (!placement.allow_zero_width && max_width_px == 0.)
+            || (!placement.allow_zero_width && max_width_px > f64::from(canvas.width))
+        {
+            return Err(invalid("Subtitle wrap width must fit canvas"));
+        }
         let directive = CaptionRasterPlanV3 {
             element_id: layer.element_id.clone(),
-            max_width_px: request
-                .max_width_px
-                .map(f64::from)
-                .unwrap_or(f64::from(canvas.width) * 0.8),
+            max_width_px,
             bottom_margin_px: f64::from(canvas.height) * 0.05,
             wrap_profile: CLASSIC_CAPTION_WRAP_PROFILE_V3.into(),
         };
@@ -353,7 +434,12 @@ pub fn finish(
             {
                 return Err(invalid("Subtitle observation identity/hash/canvas differs"));
             }
-            let wrapped = crate::classic_text_frame_v3::verify_wrap(
+            let verify_wrap = if placement.allow_zero_width {
+                crate::classic_text_frame_v3::verify_classic_wrap
+            } else {
+                crate::classic_text_frame_v3::verify_wrap
+            };
+            let wrapped = verify_wrap(
                 &original.text.content,
                 directive.max_width_px,
                 &receipt.measurements,
@@ -372,7 +458,7 @@ pub fn finish(
             let (left, top, width, height) = match &layout.background {
                 Some(bg) => (bg.left, bg.top, bg.width, bg.height),
                 None => {
-                    let left = match request.style.align {
+                    let left = match original.text.align {
                         TextAlignV4::Left => 0.0,
                         TextAlignV4::Right => -layout.block.max_width,
                         TextAlignV4::Center => -layout.block.max_width / 2.0,
@@ -385,12 +471,22 @@ pub fn finish(
                     )
                 }
             };
-            let x = match request.style.align {
-                TextAlignV4::Left => -left,
-                TextAlignV4::Right => f64::from(canvas.width) - (left + width),
-                TextAlignV4::Center => f64::from(canvas.width) / 2.0 - (left + width / 2.0),
+            let left_margin = f64::from(canvas.width) * placement.left_margin_ratio;
+            let right_margin = f64::from(canvas.width) * placement.right_margin_ratio;
+            let margin = f64::from(canvas.height) * placement.vertical_margin_ratio;
+            let x = match original.text.align {
+                TextAlignV4::Left => left_margin - left,
+                TextAlignV4::Right => f64::from(canvas.width) - right_margin - (left + width),
+                TextAlignV4::Center => {
+                    left_margin + (f64::from(canvas.width) - left_margin - right_margin) / 2.
+                        - (left + width / 2.)
+                }
             };
-            let y = f64::from(canvas.height) - directive.bottom_margin_px - (top + height);
+            let y = match placement.vertical_align {
+                2 => margin - top,
+                1 => f64::from(canvas.height) / 2. - (top + height / 2.),
+                _ => f64::from(canvas.height) - margin - (top + height),
+            };
             // Reprepare only the sampled target after applying application-owned
             // wrapping/placement. V2 checks every font, style and layout fact.
             let mut graph = frame.graph().clone();

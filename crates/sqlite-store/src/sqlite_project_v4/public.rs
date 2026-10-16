@@ -41,7 +41,7 @@ fn media_observation(
     Ok(asset)
 }
 
-fn media(
+pub(super) fn media(
     connection: &Connection,
     context: &opencut_editor_application::audit::ExecutionContext,
     project: &str,

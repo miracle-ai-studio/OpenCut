@@ -31,7 +31,10 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function fixture(derived = false) {
+async function fixture(
+  derived = false,
+  version?: "static_v3" | "derived_v2" | "synthesis",
+) {
   const data = new Map<string, string>();
   const storage = {
     getItem: (key: string) => data.get(key) ?? null,
@@ -44,6 +47,16 @@ async function fixture(derived = false) {
   const discovery = vi.spyOn(api.sdk, "hostCapabilities").mockResolvedValue({
     tools: [
       "opencut_font_recovery_v1_inspect",
+      ...(version === "static_v3"
+        ? ["opencut_font_import_v3"]
+        : version === "derived_v2"
+          ? ["opencut_font_derived_v2_import"]
+          : version === "synthesis"
+            ? [
+                "opencut_font_synthesis_v1_import",
+                "opencut_font_synthesis_v1_proof",
+              ]
+            : []),
       ...(derived ? ["opencut_font_derived_v1_recovery_read"] : []),
     ],
   } as never);
@@ -114,7 +127,15 @@ async function fixture(derived = false) {
       }
       if (
         name ===
-        (derived ? "opencut_font_derived_v1_import" : "opencut_font_v1_import")
+        (version === "static_v3"
+          ? "opencut_font_import_v3"
+          : version === "derived_v2"
+            ? "opencut_font_derived_v2_import"
+            : version === "synthesis"
+              ? "opencut_font_synthesis_v1_import"
+              : derived
+                ? "opencut_font_derived_v1_import"
+                : "opencut_font_v1_import")
       ) {
         expect(input).toEqual(record!.context.request);
         return (await dispatch()) as never;
@@ -488,3 +509,60 @@ it("retains a concurrently saved derived acknowledgment receipt until its fixed 
     Array(3).fill([context.request, receipt.revision]),
   );
 });
+
+it.each(["static_v3", "derived_v2", "synthesis"] as const)(
+  "recovers %s through the existing durable slot and retries the exact versioned original request",
+  async (version) => {
+    const derived = version !== "static_v3";
+    vi.spyOn(derivedProof, "verifyDerivedFontImport").mockResolvedValue(
+      {} as never,
+    );
+    const f = await fixture(derived, version),
+      first = f.fresh();
+    const original = structuredClone(context);
+    original.request.catalog_id =
+      version === "synthesis"
+        ? "google-example-bold-synthetic-italic-v1"
+        : derived
+          ? "google-example-bold-derived-v2"
+          : "google-example-regular-alias-v3";
+    await first.restore(f.api, "v4-project");
+    f.dispatch.mockRejectedValueOnce(new Error("Original reply lost"));
+    await expect(
+      first.execute(
+        f.api,
+        original,
+        version === "synthesis"
+          ? "synthesis"
+          : derived
+            ? "derived"
+            : "static_v3",
+      ),
+    ).rejects.toThrow("Original reply lost");
+    const second = f.fresh();
+    await second.restore(f.api, "v4-project");
+    expect(f.dispatch).toHaveBeenCalledOnce();
+    expect(f.state().fontRecovery!.record!.context).toEqual(original);
+    await second.retry();
+    const importName =
+      version === "synthesis"
+        ? "opencut_font_synthesis_v1_import"
+        : derived
+          ? "opencut_font_derived_v2_import"
+          : "opencut_font_import_v3";
+    expect(
+      f.call.mock.calls
+        .filter(([name]) => name === importName)
+        .map(([, input]) => input),
+    ).toEqual([original.request, original.request]);
+    expect(
+      f.call.mock.calls.some(
+        ([name]) =>
+          name === "opencut_font_v1_import" ||
+          name === "opencut_font_derived_v1_import",
+      ),
+    ).toBe(false);
+    expect(f.record()).toBeNull();
+    expect(f.state().fontRecovery!.receipt).toEqual(receipt);
+  },
+);

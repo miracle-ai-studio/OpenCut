@@ -132,9 +132,13 @@ async fn upload_inner(
     let root = host.media_root.clone();
     let database = host.database.clone();
     let staging = staging.to_path_buf();
+    let identity = host.identity.clone();
     let (_file, result) = file
         .run(move |file| {
             file.sync()?;
+            // Staging bytes are not a published import. Check again in this
+            // queued worker immediately before the durable operation starts.
+            identity.check_lifetime()?;
             let asset = opencut_host_runtime::transport_io::import_uploaded_media(
                 &database,
                 context,

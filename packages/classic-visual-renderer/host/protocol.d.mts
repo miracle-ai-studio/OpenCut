@@ -42,3 +42,11 @@ export type TextRasterReceiptV1 = { elementId: string; width: number; height: nu
 export type TextCallbackV2 = Callback | { op: "resolveVerifiedFontBytes"; args: { font: FontResourceV1; handle: string } } | { op: "bindTextFrame"; args: { rasters: TextRasterReceiptV1[] } };
 export type BeginTextFrameV2 = Omit<Begin, "type" | "plan"> & { type: "beginTextFrameV2"; plan: TextPlanV2; fonts: { fontId: string; handle: string }[] };
 export function validateTextBegin(packet: unknown): BeginTextFrameV2;
+
+/** Versioned blend wrapper uses generated Rust plan DTOs at its consumers. */
+export function validateBlendBeginV1(packet: unknown): Omit<BeginTextFrameV2, "type" | "plan"> & { type: "beginBlendFrameV1"; plan: unknown };
+
+/** Additive mask profile; public nested plans remain generated from Rust. */
+export function validateMaskBeginV1(packet: unknown): Omit<BeginTextFrameV2, "type" | "plan"> & { type: "beginMaskFrameV1"; plan: unknown };
+
+export function validateSceneBeginV1(packet: unknown): Omit<BeginTextFrameV2, "type" | "plan"> & { type: "beginSceneFrameV1"; plan: unknown };

@@ -3,13 +3,13 @@ use std::collections::BTreeMap;
 
 // Construct our own tiny static font. It is a parser/identity fixture, not an
 // expected-pixel oracle or a copy of a third-party redistributable font.
-fn put16(bytes: &mut [u8], at: usize, value: u16) {
+pub(crate) fn put16(bytes: &mut [u8], at: usize, value: u16) {
     bytes[at..at + 2].copy_from_slice(&value.to_be_bytes());
 }
-fn put32(bytes: &mut [u8], at: usize, value: u32) {
+pub(crate) fn put32(bytes: &mut [u8], at: usize, value: u32) {
     bytes[at..at + 4].copy_from_slice(&value.to_be_bytes());
 }
-fn table_map() -> BTreeMap<[u8; 4], Vec<u8>> {
+pub(crate) fn table_map() -> BTreeMap<[u8; 4], Vec<u8>> {
     let mut tables = BTreeMap::new();
     let mut head = vec![0; 54];
     put32(&mut head, 0, 0x10000);
@@ -90,7 +90,7 @@ fn table_map() -> BTreeMap<[u8; 4], Vec<u8>> {
     }
     tables
 }
-fn encode(tables: BTreeMap<[u8; 4], Vec<u8>>) -> Vec<u8> {
+pub(crate) fn encode(tables: BTreeMap<[u8; 4], Vec<u8>>) -> Vec<u8> {
     let mut bytes = vec![0; 12 + tables.len() * 16];
     put32(&mut bytes, 0, 0x10000);
     put16(&mut bytes, 4, tables.len() as u16);

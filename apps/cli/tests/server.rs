@@ -214,7 +214,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     fs::create_dir_all(root.join("assets")).unwrap();
     fs::write(
         root.join("index.html"),
-        "<title>OpenCut test editor</title>",
+        "<!doctype html><html><head><title>OpenCut test editor</title></head><body>OpenCut test editor</body></html>",
     )
     .unwrap();
     fs::write(root.join("assets/app.js"), "export const app = true;").unwrap();
@@ -264,7 +264,6 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
         "/terms",
         "/contributors",
         "/blog",
-        "/blog/first-post",
         "/changelog",
         "/changelog/0.3.0",
     ] {
@@ -289,6 +288,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
         "/blog/a/b",
         "/changelog/../private-token",
         "/changelog/no-release",
+        "/changelog/999.999.999",
     ] {
         assert!(
             request("GET", route, address, "").starts_with("HTTP/1.1 404"),
@@ -362,6 +362,39 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     ] {
         assert!(request("POST", "/app/session", address, &extra).starts_with("HTTP/1.1 403"));
     }
+    let status = request(
+        "GET",
+        "/app/session",
+        address,
+        &format!("Cookie: {cookie}\r\nSec-Fetch-Site: same-origin\r\n"),
+    );
+    assert!(
+        status.starts_with("HTTP/1.1 200") && status.contains("\"active\":true"),
+        "{status}"
+    );
+    assert!(!status.contains(cookie));
+    let logout = request(
+        "DELETE",
+        "/app/session",
+        address,
+        &format!(
+            "Origin: http://{address}\r\nSec-Fetch-Site: same-origin\r\nX-OpenCut-App: web\r\nCookie: {cookie}\r\nContent-Length: 0\r\n"
+        ),
+    );
+    assert!(
+        logout.starts_with("HTTP/1.1 204") && logout.contains("Max-Age=0"),
+        "{logout}"
+    );
+    assert!(
+        request(
+            "GET",
+            "/v1/capabilities",
+            address,
+            &format!("Cookie: {cookie}\r\nSec-Fetch-Site: same-origin\r\n")
+        )
+        .starts_with("HTTP/1.1 403")
+    );
+    assert!(request("GET", "/blog", address, "").starts_with("HTTP/1.1 200"));
     let token = fs::read_to_string(service.directory().join("api-token")).unwrap();
     let localhost = format!("localhost:{}", address.rsplit(':').next().unwrap());
     let same_origin = request(

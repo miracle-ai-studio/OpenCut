@@ -1,0 +1,61 @@
+.v4-keyframes {
+  display: grid;
+  gap: 0.65rem;
+  border-top: 1px solid var(--border, #444);
+  padding-top: 0.75rem;
+}
+.v4-keyframes fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+.v4-keyframes label {
+  display: grid;
+  gap: 0.2rem;
+}
+.v4-keyframes input[type="number"] {
+  width: 7rem;
+}
+.v4-keyframe-chart {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  background: var(--panel-bg, #16181c);
+  border: 1px solid var(--border, #444);
+}
+.v4-keyframe-chart .key {
+  fill: #bbc1ca;
+  stroke: #16181c;
+  stroke-width: 1;
+  cursor: ew-resize;
+}
+.v4-keyframe-chart .selected {
+  fill: #7cb9ff;
+  stroke: white;
+}
+.v4-keyframe-chart .selection {
+  fill: #7cb9ff22;
+  stroke: #7cb9ff;
+  stroke-width: 1;
+}
+.v4-keyframe-rows {
+  max-height: 12rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.3rem;
+}
+.v4-keyframe-rows label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.v4-keyframe-curve {
+  width: 150px;
+  height: 120px;
+  background: #16181c;
+  touch-action: none;
+}
+.v4-keyframes .error {
+  color: #f88;
+}

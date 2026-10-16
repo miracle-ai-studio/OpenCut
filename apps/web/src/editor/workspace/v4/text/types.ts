@@ -1,7 +1,14 @@
 import type { V4Document, V4Element } from "../types";
+import type { FontSynthesisBinding } from "./font-synthesis";
 
 export type V4Text = Extract<V4Element["content"], { kind: "text" }>["text"];
-export type V4TextFont = V4Document["fonts"][number];
+/** Read-only UI enrichment; actual resource fields are never relabeled. */
+export type V4TextFont = V4Document["fonts"][number] & {
+  requested_style?: "normal" | "italic";
+  synthesis_binding?: FontSynthesisBinding;
+  /** From a validated synthesis base proof, for UI grouping only. */
+  display_family?: string;
+};
 export type V4TextInitial = Pick<V4Element, "name" | "timeline_range"> & {
   text: V4Text;
 };

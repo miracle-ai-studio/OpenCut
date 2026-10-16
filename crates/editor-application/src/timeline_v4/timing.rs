@@ -102,9 +102,11 @@ fn asset<'a>(
     let id = match &e.content {
         ElementContentV4::Video { asset_id, .. }
         | ElementContentV4::Audio { asset_id, .. }
-        | ElementContentV4::Image { asset_id } => asset_id,
-        ElementContentV4::Text { .. } => return Ok(None),
-        _ => return Err(unsupported("Timeline timing requires media or free text")),
+        | ElementContentV4::Image { asset_id }
+        | ElementContentV4::Sticker { asset_id, .. } => asset_id,
+        ElementContentV4::Text { .. }
+        | ElementContentV4::Graphic { .. }
+        | ElementContentV4::EffectLayer { .. } => return Ok(None),
     };
     project
         .assets
@@ -121,6 +123,8 @@ pub(super) fn trim(
     e: &TimelineElementV4,
     edge: TimelineTrimEdgeV4,
     boundary: &Time,
+    profile: Profile,
+    ids: &mut identities::Ids<'_>,
 ) -> Result<TimelineElementV4, EditorError> {
     let (fps, classic) = fps(project, &scene.id)?;
     let start = time(&e.timeline_range.start)?;
@@ -209,7 +213,9 @@ pub(super) fn trim(
     if delta.ticks() == 0 {
         return Ok(e.clone());
     }
-    no_animation(e)?;
+    if !profile.complete() {
+        no_animation(e)?;
+    }
     let source_delta = map(delta, e, false)?;
     let mut result = e.clone();
     let new_duration = match edge {
@@ -240,6 +246,20 @@ pub(super) fn trim(
             range.duration = map(new_duration, e, false)?.into();
         }
     }
+    if profile.complete() && !e.channels.is_empty() {
+        let local_start = if edge == TimelineTrimEdgeV4::Left {
+            delta
+        } else {
+            zero()
+        };
+        result.channels = animation::crop(
+            &e.channels,
+            local_start,
+            local_start.checked_add(new_duration)?,
+            ids,
+            &e.id,
+        )?;
+    }
     // Classic update pipeline pins the earliest main element to zero. The
     // duration/source patch remains based on the snapped requested drag delta.
     if classic
@@ -266,8 +286,12 @@ pub(super) fn split(
     project: &ProjectDocumentV4,
     e: &TimelineElementV4,
     at: R,
+    profile: Profile,
+    ids: &mut identities::Ids<'_>,
 ) -> Result<(TimelineElementV4, TimelineElementV4), EditorError> {
-    no_animation(e)?;
+    if !profile.complete() {
+        no_animation(e)?;
+    }
     let original = resolve_element_source_request_v4(e, asset(project, e)?)?;
     let left_duration = at.checked_sub(time(&e.timeline_range.start)?)?;
     let right_duration = time(&e.timeline_range.duration)?.checked_sub(left_duration)?;
@@ -275,8 +299,13 @@ pub(super) fn split(
     // split once and derive its complement from the rounded total, while the
     // requested timeline point and durations remain exact. Keep frozen media
     // and historical LegacySourceRange behavior unchanged.
-    let classic_text = matches!(e.content, ElementContentV4::Text { .. })
-        && matches!(e.source_span, ElementSourceSpanV4::ClassicTrimmed { .. });
+    let classic_text = matches!(
+        e.content,
+        ElementContentV4::Text { .. }
+            | ElementContentV4::Graphic { .. }
+            | ElementContentV4::EffectLayer { .. }
+            | ElementContentV4::Sticker { .. }
+    ) && matches!(e.source_span, ElementSourceSpanV4::ClassicTrimmed { .. });
     let left_source = map(left_duration, e, false)?;
     let total_source = time(&original.duration)?;
     let (left_source, total_source) = if classic_text {
@@ -310,6 +339,16 @@ pub(super) fn split(
             right.duration = right_source.into();
         }
         _ => unreachable!(),
+    }
+    if profile.complete() && !e.channels.is_empty() {
+        left.channels = animation::crop(&e.channels, zero(), left_duration, ids, &e.id)?;
+        right.channels = animation::crop(
+            &e.channels,
+            left_duration,
+            time(&e.timeline_range.duration)?,
+            ids,
+            &e.id,
+        )?;
     }
     left.name = format!("{} (left)", e.name);
     right.name = format!("{} (right)", e.name);

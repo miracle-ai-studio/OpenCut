@@ -5,6 +5,11 @@ export const CAPTION_WRAP_PROFILE_V3 = "classic-v31-greedy-whitespace-v1";
  * Chinese stay intact. Explicit paragraph breaks and empty paragraphs survive. */
 export function wrapCaptionTextV3(content, maxWidth, measure) {
   if (typeof content !== "string" || finite(maxWidth, "caption width") <= 0) reject("INVALID_VISUAL_PLAN", "Invalid caption wrap input");
+  return wrapClassicSubtitleTextV1(content,maxWidth,measure);
+}
+/** Exact Classic word wrapping also accepts an exhausted 0px margin box. */
+export function wrapClassicSubtitleTextV1(content,maxWidth,measure) {
+  if(typeof content!=="string"||finite(maxWidth,"Classic subtitle width")<0)reject("INVALID_VISUAL_PLAN","Invalid Classic subtitle wrap input");
   const measurements = [], width = text => {
     const value = finite(measure(text), "caption candidate width");
     if (value < 0) reject("INVALID_VISUAL_PLAN", "Negative caption candidate width");

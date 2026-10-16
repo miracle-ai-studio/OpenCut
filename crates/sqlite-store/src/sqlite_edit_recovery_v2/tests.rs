@@ -536,7 +536,7 @@ fn db28_to29_preserves_old_raw_context_digest_history_and_rollback_on_table_coll
             .unwrap();
         app.connection
             .execute_batch(
-                "DROP TRIGGER recovery_v1_excludes_v2; DROP TABLE font_derivations_v1;
+                "DROP TRIGGER recovery_v1_excludes_v2; DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; UPDATE metadata SET value='28' WHERE key='schema_version';",
             )
             .unwrap();

@@ -46,6 +46,29 @@ impl Drop for TemporaryArtifacts {
 }
 
 impl FfmpegBackend {
+    /// Fixed, read-only encoder inventory for configurable native export. Uses
+    /// the existing cancellable probe transport (5 s, 1 MiB/64 KiB pipe caps),
+    /// rather than discover()'s legacy unbounded version probes. No user flags,
+    /// source paths, network input or output file enter this command.
+    pub fn export_encoder_names_v2(
+        ffmpeg: &Path,
+        cancel: &CancellationToken,
+    ) -> MediaResult<std::collections::BTreeSet<String>> {
+        if !ffmpeg.is_absolute() {
+            return Err(MediaError::InvalidRequest(
+                "Export encoder probe requires a resolved executable".into(),
+            ));
+        }
+        let bytes = process::checked_output_limited(
+            Command::new(ffmpeg).args(["-hide_banner", "-encoders"]),
+            "ffmpeg",
+            cancel,
+            Duration::from_secs(5),
+            None,
+        )?;
+        parse_export_encoder_names_v2(&bytes)
+    }
+
     pub(crate) fn audio_ffmpeg_command(&self) -> Command {
         Command::new(&self.ffmpeg)
     }
@@ -1640,6 +1663,77 @@ impl FfmpegBackend {
             MediaError::InvalidRequest("no frame satisfies the requested alignment".into())
         })?;
         Ok((stream.index, tb, chosen))
+    }
+}
+
+fn parse_export_encoder_names_v2(bytes: &[u8]) -> MediaResult<std::collections::BTreeSet<String>> {
+    let text = std::str::from_utf8(bytes).map_err(|_| MediaError::InvalidToolOutput {
+        tool: "ffmpeg".into(),
+        detail: "Encoder inventory is not UTF-8".into(),
+    })?;
+    Ok(text
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let flags = fields.next()?;
+            let name = fields.next()?;
+            if fields.next().is_none()
+                || flags.len() != 6
+                || !flags.bytes().all(|b| b".VASTFXBD".contains(&b))
+            {
+                return None;
+            }
+            match (flags.as_bytes()[0], name) {
+                (b'V', "libx264" | "libvpx-vp9") | (b'A', "aac" | "libopus") => {
+                    Some(name.to_owned())
+                }
+                _ => None,
+            }
+        })
+        .collect())
+}
+
+#[cfg(test)]
+mod export_encoder_inventory_tests {
+    use super::*;
+    #[test]
+    fn recognizes_exact_typed_encoder_names_not_descriptions_or_related_codecs() {
+        let names = parse_export_encoder_names_v2(b" V....D libx264 H264\n V....D libvpx-vp9 VP9\n A..... aac AAC\n A..... libopus Opus\n V..... unrelated description contains libopus\n A..... libx264 wrong media type\n V..... libx265 HEVC\n").unwrap();
+        assert_eq!(
+            names,
+            ["aac", "libopus", "libvpx-vp9", "libx264"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert!(
+            parse_export_encoder_names_v2(
+                b"libx264\n A..... libopus\n unknown libvpx-vp9 description"
+            )
+            .unwrap()
+            .is_empty()
+        );
+        assert!(parse_export_encoder_names_v2(&[0xff]).is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn cancelled_probe_never_attempts_to_launch_the_resolved_tool() {
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+        assert!(matches!(
+            FfmpegBackend::export_encoder_names_v2(
+                Path::new("/not-launched-export-probe"),
+                &cancel
+            ),
+            Err(MediaError::Cancelled)
+        ));
+        assert!(matches!(
+            FfmpegBackend::export_encoder_names_v2(
+                Path::new("relative-tool"),
+                &CancellationToken::new()
+            ),
+            Err(MediaError::InvalidRequest(_))
+        ));
     }
 }
 

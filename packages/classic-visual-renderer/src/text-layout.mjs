@@ -1,4 +1,5 @@
-import { checkAbort, finite, integer, natural, reject } from "./validation.mjs";
+import { checkAbort, finite, integer, natural, reject, sameJsonFacts } from "./validation.mjs";
+import { hashFontSnapshot } from "./font-hash.mjs";
 
 // Classic v31 text/primitives.ts, text/layout.ts and renderer/nodes/text-node.ts
 // define these layout semantics (MIT; vendor/classic-v31/LICENSE). This module
@@ -137,6 +138,122 @@ function validateFont(font) {
   }
 }
 
+const exactFields = (value, keys) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+const sceneStyles = new WeakMap();
+/** This is an explicit Scene request, never a replacement for native metadata.
+ * Rust authenticates the compiled source/proof; JS links that fixed request to
+ * the actual byte/face identity which the existing raster path verifies again. */
+export function validateSceneFontSynthesisV1(binding, font) {
+  validateFont(font);
+  const actual = binding?.actual, requested = binding?.requested;
+  if (!exactFields(binding, ["schema_version", "binding_id", "profile", "actual", "requested"]) || binding.schema_version !== 1 || binding.profile !== "classic_chromium_italic_v1" || !/^font-synthesis-v1_[a-f0-9]{64}$/.test(binding.binding_id) ||
+      !exactFields(actual, ["id", "family", "weight", "style", "source_url", "source_commit", "content_hash", "size_bytes", "license_id", "license_notice"]) ||
+      !["id", "family", "source_url", "source_commit", "license_id", "license_notice"].every(key => typeof actual[key] === "string" && actual[key].length > 0) ||
+      !/^[a-f0-9]{40}$/.test(actual.source_commit) || !exactFields(requested, ["weight", "style"]) ||
+      actual.content_hash !== font.contentHash || actual.size_bytes !== font.size || natural(actual.size_bytes, "Scene synthesis font bytes") === 0n ||
+      actual.style !== "normal" || font.style !== "normal" || actual.weight !== font.weight || requested.weight !== actual.weight || requested.style !== "italic") {
+    reject("INVALID_VISUAL_PLAN", "Scene synthesis must preserve the actual fixed normal face and request only same-weight italic");
+  }
+}
+
+/** Private, frame-local capabilities. No plain binding object can be passed to
+ * the normal raster entry point to change its style; only Scene creates these
+ * after checking complete owner/font mappings. Tokens never contain font bytes. */
+export function createSceneTextStyleScopeV1(entries, signal) {
+  checkAbort(signal);
+  const scope = { active: true }, records = new Map();
+  for (const { key, font, binding } of entries) {
+    if (typeof key !== "string" || !key || records.has(key)) reject("INVALID_VISUAL_PLAN", "Repeated Scene synthesis owner");
+    validateSceneFontSynthesisV1(binding, font);
+    const token = Object.freeze({});
+    const record = { scope, signal, font: structuredClone(font), requested: structuredClone(binding.requested) };
+    records.set(key, { token, record }); sceneStyles.set(token, record);
+  }
+  return {
+    tokenFor(key, font) {
+      if (!scope.active) reject("INVALID_VISUAL_PLAN", "Scene synthesis scope is closed");
+      checkAbort(signal);
+      const found = records.get(key);
+      if (found && !sameJsonFacts(found.record.font, font)) reject("INVALID_VISUAL_PLAN", "Scene synthesis font changed after admission");
+      return found?.token;
+    },
+    close() { scope.active = false; for (const { token } of records.values()) sceneStyles.delete(token); records.clear(); },
+  };
+}
+export function sceneTextStyleV1(token, font, signal) {
+  checkAbort(signal);
+  const record = token && sceneStyles.get(token);
+  if (!record?.scope.active || record.signal !== signal || !sameJsonFacts(record.font, font)) reject("INVALID_VISUAL_PLAN", "Unknown, closed or changed Scene synthesis request");
+  return { ...font, ...record.requested };
+}
+
+const hashBytes = async bytes => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), byte => byte.toString(16).padStart(2, "0")).join("");
+const frameFontChecks = new WeakMap();
+const fontIdentity = font => JSON.stringify([font.fontId, font.contentHash, font.size, font.weight, font.style, font.faceIndex]);
+
+// Only the current graphic frame's already retained fonts use this path. The
+// caller reserves 3N before start: retained bytes + this private N-byte snapshot
+// + WebCrypto's N-byte input copy. Cold transfers retain their original path.
+export function createFrameFontChecks(signal, realm) {
+  const scope = { active: true }, records = new Map();
+  let started = false;
+  return {
+    start(texts, fontCache) {
+      if (started || !scope.active) reject("INVALID_VISUAL_PLAN", "Font checks already started or closed");
+      started = true;
+      for (const { font } of texts) {
+        checkAbort(signal); validateFont(font);
+        const identity = fontIdentity(font);
+        if (records.has(identity)) continue;
+        const retained = fontCache.get(`${font.fontId}:${font.contentHash}:${font.size}`);
+        if (!retained) continue;
+        const bytes = retained.bytes;
+        if (!(bytes instanceof Uint8Array) || BigInt(bytes.byteLength) !== natural(font.size, "font snapshot bytes") || bytes.byteLength === 0) reject("INVALID_VISUAL_PLAN", "Retained font bytes changed size");
+        const snapshot = new Uint8Array(bytes), token = Object.freeze({}), expectedHash = font.contentHash;
+        const record = { scope, identity, bytes, snapshot: null, signal, token };
+        records.set(identity, record); frameFontChecks.set(token, record);
+        // Consume errors here even when media fails before text is reached.
+        record.pending = (async () => {
+          try {
+            const result = await hashFontSnapshot(realm, identity, snapshot, signal); checkAbort(signal);
+            if (result.hash !== expectedHash) reject("ASSET_HASH_MISMATCH", "Font bytes changed after native validation");
+            record.snapshot = result.snapshot;
+            return { ok: true };
+          } catch (error) { return { ok: false, error }; }
+        })();
+      }
+    },
+    tokenFor(font, bytes) {
+      if (!scope.active) reject("INVALID_VISUAL_PLAN", "Frame font checks are closed");
+      checkAbort(signal);
+      const record = records.get(fontIdentity(font));
+      if (record && record.bytes !== bytes) reject("INVALID_VISUAL_PLAN", "Retained font bytes changed reference");
+      return record?.token;
+    },
+    async close() {
+      scope.active = false;
+      await Promise.all([...records.values()].map(record => record.pending));
+      for (const record of records.values()) {
+        frameFontChecks.delete(record.token); record.snapshot = null; record.bytes = null;
+      }
+      records.clear();
+    },
+  };
+}
+
+function checkedFrameFontRecord(token, font, bytes, signal) {
+  const record = token && frameFontChecks.get(token);
+  if (!record?.scope.active || record.identity !== fontIdentity(font) || record.bytes !== bytes || record.signal !== signal) reject("INVALID_VISUAL_PLAN", "Unknown or changed frame font check");
+  return record;
+}
+async function frameFontSnapshot(token, font, bytes, signal) {
+  const record = checkedFrameFontRecord(token, font, bytes, signal);
+  const result = await record.pending; checkAbort(signal);
+  checkedFrameFontRecord(token, font, bytes, signal);
+  if (!result.ok) throw result.error;
+  return record.snapshot;
+}
+
 /** Full-frame raster from a native-validated static font and sampled text. */
 export async function rasterizeClassicText(text, font, bytes, dimensions, signal, retained) {
   return rasterizePreparedClassicText(text, font, bytes, dimensions, signal, retained);
@@ -144,7 +261,19 @@ export async function rasterizeClassicText(text, font, bytes, dimensions, signal
 
 /** V3-only hook runs after the original native coverage/hash has been checked. */
 export async function rasterizePreparedClassicText(text, font, bytes, dimensions, signal, retained, prepare) {
+  return rasterizeText(text, font, bytes, dimensions, signal, retained, prepare);
+}
+
+/** Scene-only style override; FontFace, hashing, coverage and layout receipt
+ * retain the actual font identity. Classic Canvas performs synthesis itself. */
+export async function rasterizeSceneClassicText(text, font, bytes, dimensions, signal, retained, token) {
+  sceneTextStyleV1(token, font, signal);
+  return rasterizeText(text, font, bytes, dimensions, signal, retained, undefined, token);
+}
+
+async function rasterizeText(text, font, bytes, dimensions, signal, retained, prepare, sceneToken) {
   checkAbort(signal);
+  if (Object.hasOwn(dimensions, "fontSynthesis") || Object.hasOwn(dimensions, "sceneFontSynthesis")) reject("INVALID_VISUAL_PLAN", "Font synthesis requires the explicit Scene raster entry point");
   validateClassicText(text);
   validateFont(font);
   const width = integer(dimensions.width, "text canvas width", 1, 16384);
@@ -152,23 +281,29 @@ export async function rasterizePreparedClassicText(text, font, bytes, dimensions
   const pixels = BigInt(width) * BigInt(height);
   if (pixels > natural(dimensions.maxPixels, "text canvas pixel admission") || pixels * 16n > natural(dimensions.maxRasterBytes, "text canvas byte admission")) reject("VISUAL_BUDGET_EXCEEDED", "Text canvas exceeds its explicit admission");
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) reject("INVALID_VISUAL_PLAN", "Missing verified font bytes");
-  const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", value)), byte => byte.toString(16).padStart(2, "0")).join("");
-  const digest = await hash(bytes);
+  let fontBytes = bytes;
+  if (dimensions.frameFontCheck !== undefined) fontBytes = await frameFontSnapshot(dimensions.frameFontCheck, font, bytes, signal);
+  else {
+    const digest = await hashBytes(bytes); checkAbort(signal);
+    if (digest !== font.contentHash) reject("ASSET_HASH_MISMATCH", "Font bytes changed after native validation");
+  }
+  if (await hashBytes(new TextEncoder().encode(text.content)) !== font.validatedTextHash) reject("INVALID_VISUAL_PLAN", "Glyph coverage belongs to different text content");
   checkAbort(signal);
-  if (digest !== font.contentHash) reject("ASSET_HASH_MISMATCH", "Font bytes changed after native validation");
-  if (await hash(new TextEncoder().encode(text.content)) !== font.validatedTextHash) reject("INVALID_VISUAL_PLAN", "Glyph coverage belongs to different text content");
-  checkAbort(signal);
+  if (sceneToken !== undefined) sceneTextStyleV1(sceneToken, font, signal);
+  if (dimensions.frameFontCheck !== undefined) checkedFrameFontRecord(dimensions.frameFontCheck, font, bytes, signal);
   const fontSet = globalThis.fonts ?? globalThis.document?.fonts;
   if (!fontSet || typeof globalThis.FontFace !== "function") reject("CAPABILITY_UNAVAILABLE", "The admitted realm has no font loading support");
   const family = `opencut_${font.contentHash}_${font.weight}_${font.style}`;
   let face, canvas, added = false, complete = false;
   try {
     try {
-      face = retained?.face ?? new FontFace(family, bytes, { style: font.style, weight: String(font.weight) });
+      face = retained?.face ?? new FontFace(family, fontBytes, { style: font.style, weight: String(font.weight) });
       if (!retained?.face) await face.load();
     }
     catch { checkAbort(signal); reject("FONT_LOAD_FAILED", "The browser rejected the verified static font bytes"); }
     checkAbort(signal);
+    if (sceneToken !== undefined) sceneTextStyleV1(sceneToken, font, signal);
+    if (dimensions.frameFontCheck !== undefined) checkedFrameFontRecord(dimensions.frameFontCheck, font, bytes, signal);
     if (face.status !== "loaded") reject("FONT_LOAD_FAILED", "The browser did not load the verified static font face");
     if (!retained?.face) {fontSet.add(face); added = true;if(retained)retained.face=face;}
     canvas = new OffscreenCanvas(width, height);
@@ -179,10 +314,11 @@ export async function rasterizePreparedClassicText(text, font, bytes, dimensions
       checkAbort(signal);
       text = prepared.text;
       validateClassicText(text);
-      font = { ...font, validatedTextHash: await hash(new TextEncoder().encode(text.content)) };
+      font = { ...font, validatedTextHash: await hashBytes(new TextEncoder().encode(text.content)) };
     }
-    const layout = measureClassicText(ctx, text, family, font);
-    drawClassicText(ctx, text, layout, family, font);
+    const drawingFont = sceneToken === undefined ? font : sceneTextStyleV1(sceneToken, font, signal);
+    const layout = measureClassicText(ctx, text, family, drawingFont);
+    drawClassicText(ctx, text, layout, family, drawingFont);
     checkAbort(signal);
     complete = true;
     return {

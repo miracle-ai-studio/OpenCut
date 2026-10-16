@@ -94,7 +94,7 @@ test("serialized page adapters select the exact renderer export and always destr
     await host.rgba(4, Uint8Array.of(0, 15, 128, 255));
     return { version };
   };
-  globalThis.__opencutVisualModule = { renderClassicFrame: render(1), renderClassicTextFrameV2: render(2) };
+  globalThis.__opencutVisualModule = { renderClassicFrame: render(1), renderClassicTextFrameV2: render(2), closeGpuRealm: realm => realm.device.destroy() };
   globalThis.__opencutVisualGpu = { device: { destroy: () => destroyed++ } };
   globalThis.__opencutVisualRgba = async packet => packets.push(packet);
   try {

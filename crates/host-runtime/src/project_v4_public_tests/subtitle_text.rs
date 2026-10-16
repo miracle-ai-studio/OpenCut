@@ -150,3 +150,42 @@ fn ass_plan_resolves_fonts_without_mutation_and_requires_current_edit_authority(
         "NOT_AUTHORIZED",
     );
 }
+
+#[test]
+fn classic_ass_registered_plan_keeps_fixed_head_and_requires_current_edit_authority() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = Automation::open(dir.path().join("workspace.sqlite")).unwrap();
+    let before = seed(&mut host);
+    let history = data(host.call(
+        "opencut_project_v4_history_navigation",
+        json!({"project_id":"p","revision":null}),
+    ));
+    // Missing PlayRes, V4 Styles, border3, q0, overrides and warnings are actual
+    // Classic inputs. No native font bytes are opened while unresolved.
+    let content = "[Script Info]\nWrapStyle: 0\n[V4 Styles]\nFormat: Name,Fontname,Fontsize,BackColour,Bold,BorderStyle\nStyle: Default,Lato,24,&H80000000,0,3\n[Events]\nFormat: Start,End,Style,Effect,Text\nDialogue: 0:00:00.0,0:00:01.0,Default,scroll,{\\move(0,0,1,1)}Hello\n";
+    let request = json!({"project_id":"p","expected_revision":before["revision"],"sequence_id":"main","idempotency_key":"classic-ass-plan","track":{"kind":"new","track_id":"classic-ass-text"},"content":content,"font_bindings":[],"observations":null});
+    let result = data(host.call("opencut_subtitle_classic_ass_v1_plan", request.clone()));
+    assert_eq!(result["schema_version"], 1);
+    assert!(result["transaction"].is_null());
+    assert_eq!(result["cues"], json!([]));
+    assert_eq!(
+        result["font_requirements"],
+        json!([{"family":"Lato","weight":"normal","style":"normal","resolved_font_id":null}])
+    );
+    assert_eq!(result["skipped_cue_count"], 0);
+    assert_eq!(result["warnings"].as_array().unwrap().len(), 2);
+    let mut stale = request.clone();
+    stale["expected_revision"] = json!("stale");
+    error(
+        host.call("opencut_subtitle_classic_ass_v1_plan", stale),
+        "REVISION_CONFLICT",
+    );
+    unchanged(&mut host, &before, &history);
+    policy(&mut host, "0", vec![ProjectAction::Read]);
+    let credential = host.app.issue_credential("agent").unwrap();
+    host.caller = host.app.authenticate(&credential.secret).unwrap();
+    error(
+        host.call("opencut_subtitle_classic_ass_v1_plan", request),
+        "NOT_AUTHORIZED",
+    );
+}

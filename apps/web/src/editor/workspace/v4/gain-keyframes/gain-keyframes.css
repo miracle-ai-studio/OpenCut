@@ -1,0 +1,48 @@
+.v4-gain-keyframes {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+.v4-gain-keyframes svg {
+  width: 100%;
+  height: 76px;
+  overflow: hidden;
+  touch-action: none;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+}
+.gain-sampled-curve {
+  stroke: #71d8bd;
+  stroke-width: 1.5;
+}
+.v4-gain-keyframes circle {
+  fill: #d6fff4;
+  stroke: #17694f;
+  stroke-width: 1;
+  cursor: move;
+}
+.v4-gain-keyframes circle.selected {
+  fill: #ffd578;
+  stroke: #895d17;
+}
+.v4-gain-keyframes [data-gain-handle="curve"] {
+  cursor: ns-resize;
+}
+.v4-gain-keyframes p {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  margin: 0.1rem 0;
+}
+.gain-keyframe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+.gain-keyframe-actions button {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.v4-gain-keyframes-compact { height: 44px; }
+.v4-gain-keyframes-compact svg { height: 32px; }
+.v4-gain-keyframes-compact p, .v4-gain-keyframes-compact .gain-keyframe-actions { display: none; }

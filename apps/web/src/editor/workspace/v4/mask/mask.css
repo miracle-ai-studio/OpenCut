@@ -1,0 +1,66 @@
+.v4-mask-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+.v4-mask-overlay svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+.v4-mask-outline {
+  fill: rgb(90 180 255 / 8%);
+  stroke: #62bcff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}
+.v4-mask-handle {
+  fill: #fff;
+  stroke: #2075b2;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.v4-mask-handle-rotate {
+  fill: #62bcff;
+  cursor: crosshair;
+}
+.v4-mask-handle-feather {
+  fill: #ffca68;
+  cursor: ns-resize;
+}
+.v4-mask-handle-left,
+.v4-mask-handle-right {
+  cursor: ew-resize;
+}
+.v4-mask-handle-top,
+.v4-mask-handle-bottom {
+  cursor: ns-resize;
+}
+.v4-mask-editor {
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 8px;
+}
+.v4-mask-editor fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.v4-mask-editor input {
+  width: 100%;
+}
+.v4-mask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}

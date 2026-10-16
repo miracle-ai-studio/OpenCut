@@ -6,6 +6,11 @@ import { TextBackgroundFields } from "./style-background";
 import { TextFontVariantFields } from "./style-font";
 import type { TextDraft } from "./draft";
 import type { V4TextEditorProps } from "./types";
+import {
+  requestedFontStyle,
+  fontSynthesisText,
+  displayFontFamily,
+} from "./font-synthesis";
 
 /** A form-only consumer. The host owns planning, original-intent recovery,
  * commit and native PNG refresh; there is no DOM text-layout preview here. */
@@ -27,7 +32,7 @@ export function V4TextEditor(props: V4TextEditorProps) {
 }
 
 function TextEditorForm(props: V4TextEditorProps) {
-  useLocale();
+  const { language } = useLocale();
   const [initial] = useState(() => structuredClone(props.initial));
   const [original] = useState(() => textDraft(initial));
   const [draft, setDraft] = useState(original);
@@ -130,9 +135,15 @@ function TextEditorForm(props: V4TextEditorProps) {
               </option>
             )}
             {fonts.map((font) => (
-              <option key={font.id} value={font.id}>
-                {font.family} · {t(font.weight === 700 ? "Bold" : "Regular")}
-                {font.style === "italic" ? ` · ${t("Italic")}` : ""}
+              <option key={font.id} value={font.id} title={font.family}>
+                {displayFontFamily(font)} ·{" "}
+                {t(font.weight === 700 ? "Bold" : "Regular")}
+                {requestedFontStyle(font) === "italic"
+                  ? ` · ${t("Italic")}`
+                  : ""}
+                {font.synthesis_binding
+                  ? ` · ${fontSynthesisText("Classic Canvas italic synthesis", language)}`
+                  : ""}
               </option>
             ))}
           </select>

@@ -8,6 +8,7 @@ use opencut_contracts::{AssetLockManifest, EditorError, Time, project_v4::*};
 use opencut_job_contracts::ArtifactDescriptor;
 pub use opencut_job_contracts::project_v4_video::*;
 pub use opencut_job_execution::project_v4_audio::TrustedJobAuthorityV1;
+use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
 pub use opencut_job_execution::project_v4_video::*;
 use opencut_time::RationalTime;
 use serde::{Deserialize, Serialize};
@@ -59,10 +60,22 @@ pub struct PreparedVideoV4 {
     pub asset_ids: Vec<String>,
     pub font_ids: Vec<String>,
 }
+/// Internal configurable export selection. Legacy MP4 callers always request
+/// audio and retain their original mandatory-audio preparation and wire schema.
+pub struct PreparedVideoSelectionV2 {
+    pub identity: V4VideoIdentityV1,
+    pub audio: Option<PreparedAudioV4>,
+    pub asset_ids: Vec<String>,
+    pub font_ids: Vec<String>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VideoFrameProfile {
     TextV2,
     CaptionV3,
+    GraphicV1,
+    BlendV1,
+    MaskV1,
+    SceneV1,
 }
 impl VideoFrameProfile {
     pub fn kind(self) -> &'static str {
@@ -71,18 +84,49 @@ impl VideoFrameProfile {
             Self::CaptionV3 => {
                 opencut_job_contracts::project_v4_caption_video::V4_CAPTION_VIDEO_MP4_KIND
             }
+            Self::SceneV1 => opencut_job_contracts::project_v4_scene_video::V4_SCENE_VIDEO_MP4_KIND,
+            Self::MaskV1 => opencut_job_contracts::project_v4_mask_video::V4_MASK_VIDEO_MP4_KIND,
+            Self::BlendV1 => opencut_job_contracts::project_v4_blend_video::V4_BLEND_VIDEO_MP4_KIND,
+            Self::GraphicV1 => {
+                opencut_job_contracts::project_v4_graphic_video::V4_GRAPHIC_VIDEO_MP4_KIND
+            }
         }
     }
 }
 pub enum PreparedVideoFrame {
     Text(PreparedTextFrameV2),
     Caption(PreparedTextFrameV3),
+    Graphic(PreparedGraphicFrameV1),
+    Blend(PreparedBlendFrameV1),
+    Mask(PreparedMaskFrameV1),
+    Scene(PreparedSceneFrameV1),
 }
 impl PreparedVideoFrame {
     pub fn execution(&self) -> &PreparedTextFrameV2 {
         match self {
             Self::Text(frame) => frame,
             Self::Caption(frame) => frame.execution(),
+            Self::Graphic(frame) => frame.execution().execution(),
+            Self::Mask(frame) => frame.execution().execution().execution(),
+            Self::Scene(frame) => frame.execution().execution().execution(),
+            Self::Blend(frame) => frame.execution().execution().execution(),
+        }
+    }
+    /// Admission belongs to the complete selected frame, including generated sources.
+    pub fn admit(&self, policy: &LocalVisualExecutionPolicyV1) -> Result<(), EditorError> {
+        match self {
+            Self::Mask(frame) => crate::classic_mask_frame_v1::admit_mask_frame_v1(frame, policy),
+            Self::Scene(frame) => {
+                crate::classic_scene_frame_v1::admit_scene_frame_v1(frame, policy)
+            }
+            Self::Blend(frame) => {
+                crate::classic_blend_frame_v1::admit_blend_frame_v1(frame, policy)
+            }
+            Self::Graphic(frame) => {
+                crate::classic_graphic_frame_v1::admit_graphic_frame_v1(frame, policy)
+            }
+            _ => crate::classic_text_frame_v2::admit_text_frame_v2(self.execution(), policy)
+                .map(|_| ()),
         }
     }
 }
@@ -100,7 +144,47 @@ pub fn prepare_profiled_frame(
             crate::project_v4_caption_frame_jobs::prepare(snapshot, sequence_id, at)
                 .map(PreparedVideoFrame::Caption)
         }
+        VideoFrameProfile::SceneV1 => {
+            crate::project_v4_scene_frame_jobs::prepare(snapshot, sequence_id, at)
+                .map(PreparedVideoFrame::Scene)
+        }
+        VideoFrameProfile::MaskV1 => {
+            crate::project_v4_mask_frame_jobs::prepare(snapshot, sequence_id, at)
+                .map(PreparedVideoFrame::Mask)
+        }
+        VideoFrameProfile::BlendV1 => {
+            crate::project_v4_blend_frame_jobs::prepare(snapshot, sequence_id, at)
+                .map(PreparedVideoFrame::Blend)
+        }
+        VideoFrameProfile::GraphicV1 => {
+            crate::project_v4_graphic_frame_jobs::prepare(snapshot, sequence_id, at)
+                .map(PreparedVideoFrame::Graphic)
+        }
     }
+}
+fn valid_authored_box_masks(element: &TimelineElementV4, visual: &VisualStyleV4) -> bool {
+    let active = visual
+        .masks
+        .iter()
+        .filter(|m| m.enabled)
+        .collect::<Vec<_>>();
+    active.len() <= 1
+        && (active.is_empty()
+            || matches!(
+                element.content,
+                ElementContentV4::Video { .. }
+                    | ElementContentV4::Image { .. }
+                    | ElementContentV4::Graphic { .. }
+            ))
+        && active.iter().all(|m| {
+            !m.inverted
+                && m.stroke.width_px == 0.0
+                && matches!(m.feather, MaskFeatherV4::ClassicPixels { .. })
+                && matches!(
+                    m.shape,
+                    MaskShapeV4::Rectangle { .. } | MaskShapeV4::Ellipse { .. }
+                )
+        })
 }
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_ARGUMENT", message)
@@ -171,6 +255,7 @@ pub fn prepare_frame(
     sequence_id: &str,
     at: &Time,
 ) -> Result<PreparedTextFrameV2, EditorError> {
+    crate::font_synthesis_v1::reject_legacy_project(&snapshot.project)?;
     let graph = compile_frame_v4(snapshot, sequence_id, at, CompositionScope::Visual)
         .map_err(|e| EditorError::new(e.code, e.message))?;
     prepare_text_frame_v2(&graph).map_err(|e| EditorError::new(e.code, e.message))
@@ -188,7 +273,27 @@ pub fn prepare_with_profile(
     policy: &LocalVideoExecutionPolicyV1,
     profile: VideoFrameProfile,
 ) -> Result<PreparedVideoV4, EditorError> {
+    let selected = prepare_with_audio_selection(snapshot, sequence_id, policy, profile, true)?;
+    Ok(PreparedVideoV4 {
+        identity: selected.identity,
+        audio: selected
+            .audio
+            .expect("Legacy MP4 always includes audio preparation"),
+        asset_ids: selected.asset_ids,
+        font_ids: selected.font_ids,
+    })
+}
+pub fn prepare_with_audio_selection(
+    snapshot: &ProjectSnapshotV4,
+    sequence_id: &str,
+    policy: &LocalVideoExecutionPolicyV1,
+    profile: VideoFrameProfile,
+    include_audio: bool,
+) -> Result<PreparedVideoSelectionV2, EditorError> {
     validate_policy(policy)?;
+    if profile != VideoFrameProfile::SceneV1 {
+        crate::font_synthesis_v1::reject_legacy_project(&snapshot.project)?;
+    }
     opencut_editor_core::project_v4::validate_project_v4(&snapshot.project)?;
     let SettingsProfileV4::ClassicGlobal { settings } = &snapshot.project.settings else {
         return Err(unsupported());
@@ -219,21 +324,41 @@ pub fn prepare_with_profile(
                     | ElementContentV4::Image { .. }
                     | ElementContentV4::Audio { .. }
                     | ElementContentV4::Text { .. }
-            ) {
+            ) && !(matches!(
+                profile,
+                VideoFrameProfile::GraphicV1
+                    | VideoFrameProfile::BlendV1
+                    | VideoFrameProfile::MaskV1
+                    | VideoFrameProfile::SceneV1
+            ) && matches!(element.content, ElementContentV4::Graphic { .. }))
+                && !(profile == VideoFrameProfile::SceneV1
+                    && matches!(
+                        element.content,
+                        ElementContentV4::EffectLayer { .. } | ElementContentV4::Sticker { .. }
+                    ))
+            {
                 return Err(unsupported());
             }
             if element.visual.as_ref().is_some_and(|visual| {
                 visual.profile != VisualProfileV4::ClassicCanvasV31
-                    || visual.blend_mode != BlendModeV4::Normal
-                    || !visual.effects.is_empty()
-                    || !visual.masks.is_empty()
+                    || (!matches!(
+                        profile,
+                        VideoFrameProfile::BlendV1
+                            | VideoFrameProfile::MaskV1
+                            | VideoFrameProfile::SceneV1
+                    ) && visual.blend_mode != BlendModeV4::Normal)
+                    || (profile != VideoFrameProfile::SceneV1 && !visual.effects.is_empty())
+                    || (profile != VideoFrameProfile::SceneV1
+                        && !visual.masks.is_empty()
+                        && (profile != VideoFrameProfile::MaskV1
+                            || !valid_authored_box_masks(element, visual)))
             }) || matches!(&element.content, ElementContentV4::Text { text } if !matches!(text.font, FontBindingV4::Locked { .. }))
             {
                 return Err(unsupported());
             }
         }
     }
-    if profile == VideoFrameProfile::CaptionV3 {
+    if profile != VideoFrameProfile::TextV2 {
         for caption in &sequence.captions {
             if caption.style.layout != CaptionLayoutProfileV4::PinnedCaptionV4
                 || !matches!(caption.style.font, FontBindingV4::Locked { .. })
@@ -256,21 +381,29 @@ pub fn prepare_with_profile(
     if frame_count == 0 || frame_count > policy.max_frames {
         return Err(budget());
     }
-    let audio = prepare_audio_v4(
-        snapshot,
-        sequence_id,
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
-            sample_rate: 48_000,
-            channels: 2,
-        },
-    )
-    .map_err(|e| EditorError::new(e.code, e.message))?;
-    crate::classic_audio::ClassicAudioSession::new(
-        &audio,
-        policy.audio.max_pcm_bytes,
-        policy.audio.max_encoded_bytes,
-    )?;
+    let audio = if include_audio {
+        Some(
+            prepare_audio_v4(
+                snapshot,
+                sequence_id,
+                AudioExecutionProfileV4::ClassicV31,
+                PcmFormatV4 {
+                    sample_rate: 48_000,
+                    channels: 2,
+                },
+            )
+            .map_err(|e| EditorError::new(e.code, e.message))?,
+        )
+    } else {
+        None
+    };
+    if let Some(audio) = &audio {
+        crate::classic_audio::ClassicAudioSession::new(
+            audio,
+            policy.audio.max_pcm_bytes,
+            policy.audio.max_encoded_bytes,
+        )?;
+    }
     let identity = V4VideoIdentityV1 {
         project_id: snapshot.project.id.clone(),
         revision: snapshot.revision.clone(),
@@ -284,12 +417,20 @@ pub fn prepare_with_profile(
         video_duration: grid_time(&settings.fps, frame_count)?,
         sample_rate: 48_000,
         channels: 2,
-        audio_frame_count: audio.duration_samples().to_string(),
+        audio_frame_count: audio
+            .as_ref()
+            .map_or(0, |a| a.duration_samples())
+            .to_string(),
     };
     if identity.width % 2 != 0 || identity.height % 2 != 0 {
         return Err(unsupported());
     }
-    let mut assets: BTreeSet<String> = audio.resources().map(|r| r.asset_id.clone()).collect();
+    let mut assets: BTreeSet<String> = audio
+        .as_ref()
+        .into_iter()
+        .flat_map(|audio| audio.resources())
+        .map(|r| r.asset_id.clone())
+        .collect();
     let mut fonts = BTreeSet::new();
     for index in 0..frame_count {
         let selected = prepare_profiled_frame(
@@ -298,10 +439,13 @@ pub fn prepare_with_profile(
             &frame_time(&identity, index)?,
             profile,
         )?;
+        selected.admit(&policy.visual)?;
         let frame = selected.execution();
-        crate::classic_text_frame_v2::admit_text_frame_v2(frame, &policy.visual)?;
         assets.extend(frame.media().resources().iter().map(|r| r.asset_id.clone()));
         fonts.extend(frame.graph().fonts.iter().map(|f| f.id.clone()));
+        if let PreparedVideoFrame::Scene(scene) = &selected {
+            fonts.extend(scene.mask_texts().iter().map(|m| m.font.id.clone()));
+        }
     }
     if assets.iter().any(|id| fonts.contains(id)) {
         return Err(invalid("Font and media identities must be distinct"));
@@ -331,7 +475,7 @@ pub fn prepare_with_profile(
     {
         return Err(budget());
     }
-    Ok(PreparedVideoV4 {
+    Ok(PreparedVideoSelectionV2 {
         identity,
         audio,
         asset_ids: assets.into_iter().collect(),
@@ -579,4 +723,4 @@ pub(crate) fn validate_result_evidence(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

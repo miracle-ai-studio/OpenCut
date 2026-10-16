@@ -1,0 +1,90 @@
+.scene-stack {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.scene-stack form,
+.scene-stack fieldset,
+.scene-mask-fields {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.scene-stack fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.scene-stack h3,
+.scene-stack h4 {
+  margin: 0.4rem 0;
+}
+.scene-stack p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0.8;
+  margin: 0.3rem 0;
+}
+.scene-stack-list {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.65rem;
+}
+.scene-stack-list > li {
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: grid;
+  gap: 0.45rem;
+}
+.scene-stack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.scene-stack-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.scene-stack input:not([type="checkbox"]),
+.scene-stack select,
+.scene-stack textarea {
+  width: 100%;
+  min-width: 0;
+}
+.scene-stack label {
+  font-size: 0.8rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.scene-mask-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.scene-mask-overlay svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+.scene-mask-overlay [data-handle] {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: move;
+}
+.scene-mask-outline {
+  fill: none;
+  stroke: #70d4ff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.scene-mask-handle {
+  fill: #fff;
+  stroke: #168dc6;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

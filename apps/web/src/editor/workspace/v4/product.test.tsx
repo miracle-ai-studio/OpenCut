@@ -171,7 +171,7 @@ it("provides bookmark CRUD through timeline markers, canvas notes and selective 
     expect(screen.getByText("Preview unavailable")).toBeTruthy();
     expect(
       screen.getByText(
-        "Edit video, audio, images and text on the timeline. Preview and MP4 export support normal media composition, pinned text and captions when this service provides rendering. Animated trim and split are not yet supported.",
+        "Edit video, audio, images, text and graphics on the timeline. Preview and MP4 export support the available blend modes when this service provides rendering. Animated trim and split are not yet supported.",
       ),
     ).toBeTruthy();
     await clickReady("Add bookmark");

@@ -63,6 +63,7 @@ export function extension(mime: string) {
       {
         "image/png": "png",
         "video/mp4": "mp4",
+        "video/webm": "webm",
         "video/x-matroska": "mkv",
         "audio/wav": "wav",
         "application/json": "json",

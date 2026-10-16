@@ -12,7 +12,21 @@ export async function loadCanvasFont(
   scope: V4TextScope,
   font: CanvasTextLayer["font"],
   signal: AbortSignal,
+  actualFont: CanvasTextLayer["font"] = font,
 ) {
+  const connection = api.connectionIdentity;
+  const checkConnection = () => {
+    signal.throwIfAborted();
+    if (api.connectionIdentity !== connection)
+      throw new Error("The locked font identity changed.");
+  };
+  if (
+    font.fontId !== actualFont.fontId ||
+    font.contentHash !== actualFont.contentHash ||
+    font.size !== actualFont.size ||
+    font.weight !== actualFont.weight
+  )
+    throw new Error("The locked font identity changed.");
   if (!font.glyphCoverageValidated || font.faceIndex !== 0)
     throw new Error("Canvas text editing unavailable");
   const resource = await api.sdk.call(
@@ -34,15 +48,16 @@ export async function loadCanvasFont(
     signal,
   });
   const bytes = await readPreviewBytes(response, font.size, signal);
+  checkConnection();
   if (bytesToHex(sha256(bytes)) !== font.contentHash)
     throw new Error("The locked font identity changed.");
   const family = `OpenCutCanvas_${font.contentHash}`;
   const face = new FontFace(family, bytes.slice().buffer as ArrayBuffer, {
-    weight: String(font.weight),
-    style: font.style,
+    weight: String(actualFont.weight),
+    style: actualFont.style,
   });
   await face.load();
-  signal.throwIfAborted();
+  checkConnection();
   document.fonts.add(face);
   return {
     family,

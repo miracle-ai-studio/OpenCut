@@ -48,7 +48,14 @@ pub(super) fn font_request(
             FontWeightV4::Normal => 400,
             FontWeightV4::Bold => 700,
         };
-        if face.weight != requested_weight || face.style != style {
+        if is_font_synthesis_resource_v1(face) {
+            validate_font_synthesis_resource_v1(face)?;
+            if requested_weight != face.weight || style != FontStyleV4::Italic {
+                return Err(invalid(
+                    "Font synthesis binding requires an explicit same-weight italic request",
+                ));
+            }
+        } else if face.weight != requested_weight || face.style != style {
             return Err(invalid(
                 "Locked font face does not match requested weight and style",
             ));
@@ -89,6 +96,13 @@ pub(super) fn caption_validate(
     required(&value.text, "Caption text")?;
     range(&value.timeline_range)?;
     font_binding(&value.style.font, fonts)?;
+    if let FontBindingV4::Locked { font_id } = &value.style.font
+        && is_font_synthesis_resource_v1(fonts[font_id.as_str()])
+    {
+        return Err(invalid(
+            "CaptionV4 has no requested font style and cannot bind a synthesis font",
+        ));
+    }
     font_size(&value.style.font_size)?;
     color(&value.style.color)?;
     if let Some(value) = &value.style.background_color {

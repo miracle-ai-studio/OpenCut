@@ -37,6 +37,9 @@ pub enum V4Intent<'a> {
     DerivedFontImport(&'a opencut_contracts::font_derived_v1::ImportDerivedFontV1),
     CaptionGenerate(&'a opencut_api_contracts::subtitle_v4::GenerateCaptionsV4),
     CaptionImport(&'a opencut_api_contracts::subtitle_v4::SubtitleImportV4),
+    CatalogImport(&'a opencut_contracts::catalog_resources_v1::ImportCatalogResourceV1),
+    CatalogGenerate(&'a opencut_contracts::catalog_resources_v1::GenerateCatalogSoundV1),
+    BrandImport(&'a opencut_contracts::brand_resources_v1::ImportBrandResourceV1),
 }
 impl<'a> V4Intent<'a> {
     pub fn project_id(self) -> &'a str {
@@ -53,6 +56,9 @@ impl<'a> V4Intent<'a> {
             Self::DerivedFontImport(r) => &r.project_id,
             Self::CaptionGenerate(r) => &r.project_id,
             Self::CaptionImport(r) => &r.project_id,
+            Self::CatalogImport(r) => &r.project_id,
+            Self::CatalogGenerate(r) => &r.project_id,
+            Self::BrandImport(r) => &r.project_id,
         }
     }
     pub fn family(self) -> &'static str {
@@ -69,6 +75,9 @@ impl<'a> V4Intent<'a> {
             Self::DerivedFontImport(_) => "project_v4_derived_font_import_v1",
             Self::CaptionGenerate(_) => "subtitle_generate_v4",
             Self::CaptionImport(_) => "subtitle_import_v4",
+            Self::CatalogImport(_) => "catalog_resources_import_v1",
+            Self::CatalogGenerate(_) => "catalog_resources_generate_v1",
+            Self::BrandImport(_) => "brand_resources_import_v1",
         }
     }
     pub fn scope(self) -> &'a str {
@@ -91,6 +100,9 @@ impl<'a> V4Intent<'a> {
             Self::DerivedFontImport(r) => &r.idempotency_key,
             Self::CaptionGenerate(r) => &r.idempotency_key,
             Self::CaptionImport(r) => &r.idempotency_key,
+            Self::CatalogImport(r) => &r.idempotency_key,
+            Self::CatalogGenerate(r) => &r.idempotency_key,
+            Self::BrandImport(r) => &r.idempotency_key,
         }
     }
     pub fn expected_revision(self) -> Option<&'a str> {
@@ -106,10 +118,22 @@ impl<'a> V4Intent<'a> {
             Self::DerivedFontImport(r) => Some(&r.expected_revision),
             Self::CaptionGenerate(r) => Some(&r.expected_revision),
             Self::CaptionImport(r) => Some(&r.expected_revision),
+            Self::CatalogImport(r) => Some(&r.expected_revision),
+            Self::CatalogGenerate(r) => Some(&r.expected_revision),
+            Self::BrandImport(r) => Some(&r.expected_revision),
         }
     }
     pub fn identity(self) -> Result<crate::identity::RequestIdentity, EditorError> {
         match self {
+            Self::CatalogImport(r) => {
+                crate::identity::request_identity(self.family(), self.scope(), r)
+            }
+            Self::CatalogGenerate(r) => {
+                crate::identity::request_identity(self.family(), self.scope(), r)
+            }
+            Self::BrandImport(r) => {
+                crate::identity::request_identity(self.family(), self.scope(), r)
+            }
             Self::Create(r) => crate::identity::request_identity(self.family(), self.scope(), r),
             Self::Copy(r) => crate::identity::request_identity(self.family(), self.scope(), r),
             Self::Promote(r) => crate::identity::request_identity(self.family(), self.scope(), r),
@@ -136,6 +160,9 @@ impl<'a> V4Intent<'a> {
     }
     pub fn request_json(self) -> Result<String, EditorError> {
         match self {
+            Self::CatalogImport(r) => encode_json(r, "V1 catalog resource import request"),
+            Self::CatalogGenerate(r) => encode_json(r, "V1 local sound generation request"),
+            Self::BrandImport(r) => encode_json(r, "V1 pinned brand acquisition request"),
             Self::Create(r) => encode_json(r, "V4 create request"),
             Self::Copy(r) => encode_json(r, "V4 copy request"),
             Self::Promote(r) => encode_json(r, "V4 promotion request"),

@@ -2,7 +2,7 @@
 use super::*;
 use opencut_contracts::{font_derived_v1::*, project_v4::*, project_v4_ops::*};
 use opencut_editor_application::{
-    font_derived_v1::{self as derived, proof::*},
+    font_derived_v1::proof::*,
     project_v4::{StoredProjectDocumentV4, V4Intent},
 };
 pub(super) const MIGRATION: &str = "
@@ -33,7 +33,8 @@ pub(super) fn require_derived_proposal(
     let V4Intent::DerivedFontImport(request) = intent else {
         return Ok(());
     };
-    let font = derived::expected_import_resource_v1(request)?;
+    let font =
+        opencut_editor_application::font_derived_v2::compat::expected_import_resource(request)?;
     let stored = sqlite_project_v4::load_source(
         connection,
         &request.project_id,
@@ -71,15 +72,25 @@ pub(super) fn persist_proof(
     let V4Intent::DerivedFontImport(request) = intent else {
         return Ok(());
     };
-    let source = derived::source(&request.catalog_id)?.source;
+    let source =
+        opencut_editor_application::font_derived_v2::compat::source(&request.catalog_id)?.source;
     let font = snapshot
         .project
         .fonts
         .iter()
         .find(|f| f.id == request.font_id)
         .ok_or_else(corrupt)?;
-    validate_resource_source(font, &source)?;
-    let raw = serde_json::to_string(&source).map_err(|_| corrupt())?;
+    persist_verified_source(connection, font, &source)
+}
+/// Shared package/import publication primitive. Caller holds the same transaction
+/// as the referencing revision; an existing immutable ID must match every byte.
+pub(super) fn persist_verified_source(
+    connection: &Connection,
+    font: &FontResourceV4,
+    source: &FontDerivedSourceV1,
+) -> Result<(), EditorError> {
+    opencut_editor_application::font_derived_v2::compat::validate_resource_source(font, source)?;
+    let raw = serde_json::to_string(source).map_err(|_| corrupt())?;
     let existing:Option<(String,String,String,String)>=connection.query_row("SELECT source_json,proof_json,output_sha256,output_size FROM font_derivations_v1 WHERE derivation_id=?1",[&source.face.derivation_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(storage_error)?;
     let expected = (
         raw,
@@ -95,6 +106,38 @@ pub(super) fn persist_proof(
         connection.execute("INSERT INTO font_derivations_v1(derivation_id,source_json,proof_json,output_sha256,output_size) VALUES(?1,?2,?3,?4,?5)",params![source.face.derivation_id,expected.0,expected.1,expected.2,expected.3]).map_err(storage_error)?;
     }
     Ok(())
+}
+/// Read a retained proof from the caller's fixed-revision transaction.
+pub(super) fn read_source_for_font(
+    connection: &Connection,
+    font: &FontResourceV4,
+) -> Result<FontDerivedSourceV1, EditorError> {
+    let ResourceOriginV4::Generated {
+        provider,
+        generation_id,
+    } = &font.origin
+    else {
+        return Err(EditorError::new("NOT_FOUND", "Font has no derived proof"));
+    };
+    if !opencut_editor_application::font_derived_v2::compat::is_provider(provider) {
+        return Err(EditorError::new(
+            "NOT_FOUND",
+            "Font has no supported derived proof",
+        ));
+    }
+    let row:Option<(String,String,String,String)>=connection.query_row("SELECT source_json,proof_json,output_sha256,output_size FROM font_derivations_v1 WHERE derivation_id=?1",[generation_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(storage_error)?;
+    let (raw, proof, hash, size) = row.ok_or_else(corrupt)?;
+    let source: FontDerivedSourceV1 = decode_json(&raw, "Retained derived font source")?;
+    if source.face.derivation_id != *generation_id
+        || source.proof_json != proof
+        || source.face.content_hash != hash
+        || source.face.size_bytes != size
+    {
+        return Err(corrupt());
+    }
+    opencut_editor_application::font_derived_v2::compat::validate_resource_source(font, &source)
+        .map_err(|_| corrupt())?;
+    Ok(source)
 }
 impl DerivedFontProofReadV1 for EditorApplication {
     fn read_derived_font_proof_v1(
@@ -126,32 +169,12 @@ impl DerivedFontProofReadV1 for EditorApplication {
             .ok_or_else(|| {
                 EditorError::new("NOT_FOUND", "Font is absent from this fixed revision")
             })?;
-        let ResourceOriginV4::Generated {
-            provider,
-            generation_id,
-        } = &font.origin
-        else {
-            return Err(EditorError::new("NOT_FOUND", "Font has no derived proof"));
-        };
-        if provider != derived::DERIVED_FONT_PROVIDER_V1 {
-            return Err(EditorError::new(
-                "NOT_FOUND",
-                "Font has no supported derived proof",
-            ));
-        }
-        let row:Option<(String,String,String,String)>=tx.query_row("SELECT source_json,proof_json,output_sha256,output_size FROM font_derivations_v1 WHERE derivation_id=?1",[generation_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(storage_error)?;
-        let (raw, proof, hash, size) = row.ok_or_else(corrupt)?;
-        let source: FontDerivedSourceV1 = decode_json(&raw, "Retained derived font source")?;
-        if source.face.derivation_id != *generation_id
-            || source.proof_json != proof
-            || source.face.content_hash != hash
-            || source.face.size_bytes != size
-        {
-            return Err(corrupt());
-        }
-        validate_resource_source(font, &source).map_err(|_| corrupt())?;
+        let source = read_source_for_font(&tx, font)?;
         let result = DerivedFontProofV1 {
-            schema_version: 1,
+            schema_version:
+                opencut_editor_application::font_derived_v2::compat::proof_schema_version(
+                    font, &source,
+                )?,
             project_id: request.project_id.clone(),
             revision: request.revision.clone(),
             font_id: request.font_id.clone(),
@@ -161,6 +184,12 @@ impl DerivedFontProofReadV1 for EditorApplication {
         Ok(result)
     }
 }
+#[cfg(test)]
+#[path = "sqlite_font_derived_v2_tests.rs"]
+mod renamed_tests;
+#[cfg(test)]
+#[path = "sqlite_font_synthesis_v1_tests.rs"]
+mod synthesis_tests;
 #[cfg(test)]
 #[path = "sqlite_font_derived_v1_tests.rs"]
 mod tests;

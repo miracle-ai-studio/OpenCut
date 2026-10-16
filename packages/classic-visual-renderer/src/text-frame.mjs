@@ -45,7 +45,7 @@ export function validateTextFramePlan(plan, admission) {
 }
 
 export async function composeTextFrame(plan, host, state, signal, hooks) {
-  const { bound: media, sources, budget, canvases, releases, encoded, retainedDecoded, resolveFont, fontCache } = state;
+  const { bound: media, sources, budget, canvases, releases, encoded, retainedDecoded, resolveFont, fontCache, frameFontChecks } = state;
   const fonts = new Map(), rasters = [];
   // Retained video pools account for three RGBA canvases. Other distinct source
   // objects each own a single observed image canvas; shared observations count
@@ -69,6 +69,7 @@ export async function composeTextFrame(plan, host, state, signal, hooks) {
     const source = await rasterize(layer.text, layer.font, font.bytes, {
       width: plan.identity.width, height: plan.identity.height,
       maxPixels: host.admission.maxDecodedPixels, maxRasterBytes: host.admission.maxRgbaBytes,
+      frameFontCheck: frameFontChecks?.tokenFor(layer.font, font.bytes),
     }, signal, fontCache?.get(`${layer.font.fontId}:${layer.font.contentHash}:${layer.font.size}`), layer);
     canvases.add(source.canvas); sources.set(layer.elementId, source);
     rasters.push({ elementId: layer.elementId, width: source.width, height: source.height, layout: clone(source.layout) });

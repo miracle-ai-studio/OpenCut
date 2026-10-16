@@ -14,12 +14,14 @@ use std::{path::Path, time::Duration};
 pub(super) struct Identity {
     pub caller: Caller,
     pub policy_revision: Option<String>,
+    pub browser_grant: Option<crate::web_host::CookieGrant>,
 }
 impl Identity {
     pub fn owner() -> Self {
         Self {
             caller: Caller::LocalOwner,
             policy_revision: None,
+            browser_grant: None,
         }
     }
     pub fn authenticate(database: &Path, secret: &str) -> Result<Self, EditorError> {
@@ -30,9 +32,11 @@ impl Identity {
         Ok(Self {
             caller,
             policy_revision,
+            browser_grant: None,
         })
     }
     pub fn validate(&self, app: &mut EditorApplication) -> Result<(), EditorError> {
+        self.check_lifetime()?;
         if self.caller.is_owner() {
             return Ok(());
         }
@@ -44,6 +48,14 @@ impl Identity {
             ));
         }
         Ok(())
+    }
+    /// The dispatch checkpoint. Once a native operation passes this check and
+    /// starts, logout does not pretend to cancel an accepted atomic transaction
+    /// or durable Job. Queued operations must check when their worker starts.
+    pub fn check_lifetime(&self) -> Result<(), EditorError> {
+        self.browser_grant
+            .as_ref()
+            .map_or(Ok(()), |grant| grant.check())
     }
 }
 
@@ -72,6 +84,9 @@ impl FromRequestParts<super::http::Host> for AuthorizedHost {
                 "Authenticated request identity is missing",
             )
         })?;
+        identity
+            .check_lifetime()
+            .map_err(|error| super::http::error_response(&error.code, &error.message))?;
         let mut host = state.clone();
         host.identity = identity;
         Ok(Self(host))

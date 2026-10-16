@@ -1,4 +1,4 @@
-//! Persistent V2 frame execution and encoding adapters. FFmpeg consumes the
+//! Persistent versioned frame execution and encoding adapters. FFmpeg consumes the
 //! verified shared RGBA/PCM only; it never compiles a project or lays out text.
 mod encoder;
 mod process;

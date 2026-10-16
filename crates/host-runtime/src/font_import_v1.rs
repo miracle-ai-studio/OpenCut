@@ -32,6 +32,11 @@ pub(super) fn import(
     host: &mut Automation,
     request: &ImportFontV1,
 ) -> Result<opencut_contracts::TransactionResult, EditorError> {
+    // V3 shares the private original-request receipt shape, but the frozen V1
+    // tool still selects only its original reviewed source inventory.
+    opencut_editor_application::font_import_v1::catalog::pinned_font_source_v1(
+        &request.catalog_id,
+    )?;
     let policy = policy();
     // A second connection checks live authority between bounded native reads;
     // no transaction or database write lock is held across network I/O.

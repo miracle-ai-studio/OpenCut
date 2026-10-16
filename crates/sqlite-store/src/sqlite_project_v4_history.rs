@@ -12,7 +12,7 @@ use opencut_editor_application::project_v4::history::{
 };
 use std::collections::HashSet;
 
-mod journal;
+pub(crate) mod journal;
 #[cfg(test)]
 mod tests;
 

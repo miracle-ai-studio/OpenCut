@@ -1,3 +1,7 @@
+import { validateSceneFramePlanV1, sceneFontResourcesV1 } from "../src/scene-plan-v1.mjs";
+import { validateMaskFramePlanV1 } from "../src/mask-plan-v1.mjs";
+import { validateGraphicFramePlanV1 } from "../src/graphic-plan-v1.mjs";
+import { validateBlendFramePlanV1 } from "../src/blend-plan-v1.mjs";
 import { validateEnvelope } from "@opencut/classic-audio-renderer/internal-host-runtime";
 import { integer, natural, reject } from "../src/validation.mjs";
 import { validateTextFramePlan } from "../src/text-frame.mjs";
@@ -56,5 +60,42 @@ export function validateCaptionBeginV3(packet) {
   begin.admission = validateAdmission(begin.admission);
   validateTextBegin({ ...begin, type: "beginTextFrameV2", plan: begin.plan?.execution });
   validateCaptionFramePlanV3(begin.plan, begin.admission);
+  return begin;
+}
+
+export function validateGraphicBeginV1(packet) {
+  validateEnvelope(packet);
+  if(packet.type!=="beginGraphicFrameV1")reject("INVALID_HOST_PROTOCOL","Graphics require their versioned begin operation");
+  const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
+  validateCaptionBeginV3({...begin,type:"beginCaptionFrameV3",plan:begin.plan?.execution});
+  validateGraphicFramePlanV1(begin.plan,begin.admission);return begin;
+}
+
+export function validateBlendBeginV1(packet) {
+  validateEnvelope(packet);
+  if(packet.type!=="beginBlendFrameV1")reject("INVALID_HOST_PROTOCOL","Blend frames require their versioned begin operation");
+  const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
+  validateGraphicBeginV1({...begin,type:"beginGraphicFrameV1",plan:begin.plan?.execution});
+  validateBlendFramePlanV1(begin.plan,begin.admission);return begin;
+}
+
+export function validateMaskBeginV1(packet) {
+  validateEnvelope(packet);
+  if(packet.type!=="beginMaskFrameV1")reject("INVALID_HOST_PROTOCOL","Masks require their versioned begin operation");
+  const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
+  validateBlendBeginV1({...begin,type:"beginBlendFrameV1",plan:begin.plan?.execution});
+  validateMaskFramePlanV1(begin.plan,begin.admission);return begin;
+}
+
+export function validateSceneBeginV1(packet) {
+  validateEnvelope(packet);
+  if(packet.type!=="beginSceneFrameV1")reject("INVALID_HOST_PROTOCOL","Scene stacks require their versioned begin operation");
+  const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
+  validateSceneFramePlanV1(begin.plan,begin.admission);
+  const fonts=sceneFontResourcesV1(begin.plan),titleIds=new Set(begin.plan.execution.execution.execution.execution.texts.map(t=>t.font.fontId));
+  if(!Array.isArray(begin.fonts))reject('INVALID_HOST_PROTOCOL','Missing Scene font handles');
+  const seen=new Set();for(const font of begin.fonts){if(!font||!fonts.has(font.fontId)||seen.has(font.fontId)||typeof font.handle!=='string'||!font.handle||font.handle.length>1024)reject('INVALID_HOST_PROTOCOL','Invalid complete Scene font handles');seen.add(font.fontId);}
+  if(seen.size!==fonts.size)reject('INVALID_HOST_PROTOCOL','Missing Scene font handle');
+  validateBlendBeginV1({...begin,type:'beginBlendFrameV1',plan:begin.plan.execution,fonts:begin.fonts.filter(f=>titleIds.has(f.fontId))});
   return begin;
 }

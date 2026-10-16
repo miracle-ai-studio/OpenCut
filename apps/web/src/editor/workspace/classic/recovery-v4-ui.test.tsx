@@ -55,6 +55,7 @@ it("maps only exact fixed-revision fonts and freezes original request after an u
     vi.fn(async () => ({ ok: true, text: async () => "exporter" })),
   );
   const sdk = new OpenCutClient({ baseUrl: "http://localhost", token: "" });
+  vi.spyOn(sdk, "hostCapabilities").mockResolvedValue({ tools: ["opencut_classic_analyze_v4", "opencut_classic_import_v4"] } as never);
   const stage = {
     revision: "stage-fixed",
     project: { id: "stage", name: "Preparing", assets: [] },

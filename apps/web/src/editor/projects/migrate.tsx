@@ -28,10 +28,12 @@ import {
   recoveryFontProjectsV4,
   recoveryFontSnapshotV4,
   mapRecoveryFontsV4,
+  recoveryFontMatchesV5,
 } from "../workspace/classic/recovery-v4";
 import type {
   RecoveryReviewV4,
   FontMappingV4,
+  RecoveryFontCatalogV5,
 } from "../workspace/classic/recovery-v4";
 export function MigrateClassic({
   onClose,
@@ -63,6 +65,7 @@ export function MigrateClassic({
   const [fontSnapshot, setFontSnapshot] = useState<Awaited<
     ReturnType<typeof recoveryFontSnapshotV4>
   > | null>(null);
+  const [fontCatalog, setFontCatalog] = useState<RecoveryFontCatalogV5>([]);
   const [fontChoices, setFontChoices] = useState<Record<string, string>>({});
   const [fontRequests, setFontRequests] = useState<
     RecoveryReviewV4["analysis"]["unresolved_fonts"]
@@ -119,6 +122,7 @@ export function MigrateClassic({
     setBusy(false);
     setReview(null);
     setFontSnapshot(null);
+    setFontCatalog([]);
     setFontChoices({});
     setFontRequests([]);
     setFontDirty(false);
@@ -135,6 +139,7 @@ export function MigrateClassic({
   const reset = () => {
     setReview(null);
     setFontSnapshot(null);
+    setFontCatalog([]);
     setFontChoices({});
     setFontRequests([]);
     setFontDirty(false);
@@ -225,8 +230,11 @@ export function MigrateClassic({
         }
         return;
       }
+      const capabilities = await api.sdk.hostCapabilities({ signal });
+      const protocol = capabilities.tools.includes("opencut_classic_analyze_v5")
+        && capabilities.tools.includes("opencut_classic_import_v5") ? 5 : 4;
       const result = await reviewRecoveryV4(api.sdk, item, signal, (p) =>
-        update(generation, p),
+        update(generation, p), protocol,
       );
       if (epoch.current !== generation) return;
       setReview(result);
@@ -262,8 +270,12 @@ export function MigrateClassic({
       const snapshot = projectId
         ? await recoveryFontSnapshotV4(api.sdk, projectId, signal)
         : null;
+      const catalog = snapshot && review?.protocol === 5
+        ? (await api.sdk.call("opencut_font_catalog_v3", {}, { signal })).fonts
+        : [];
       if (epoch.current === generation) {
         setFontSnapshot(snapshot);
+        setFontCatalog(catalog);
         setFontChoices({});
         setFontDirty(true);
       }
@@ -520,14 +532,14 @@ export function MigrateClassic({
                     {fontSnapshot?.project.fonts
                       .filter(
                         (font) =>
-                          font.family === request.family &&
-                          font.weight ===
-                            (request.font_weight === "bold" ? 700 : 400) &&
-                          font.style === request.font_style,
+                          review.protocol === 5
+                            ? recoveryFontMatchesV5(font, request, fontCatalog)
+                            : font.family === request.family && font.weight ===
+                              (request.font_weight === "bold" ? 700 : 400) && font.style === request.font_style,
                       )
                       .map((font) => (
                         <option key={font.id} value={font.id}>
-                          {font.family} · {font.weight} · {font.style}
+                          {font.family} · {font.weight} · {font.style}{font.style !== request.font_style ? ` → ${request.font_style}` : ""}
                         </option>
                       ))}
                   </select>

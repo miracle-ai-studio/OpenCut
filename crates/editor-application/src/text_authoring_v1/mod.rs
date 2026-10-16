@@ -84,7 +84,7 @@ fn decimal(value: &str) -> Result<Time, EditorError> {
     ))
 }
 
-fn authored_time(
+pub(crate) fn authored_time(
     value: &TextTimeInputV1,
     fps: &FrameRate,
     positive: bool,

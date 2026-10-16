@@ -13,13 +13,55 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const FAMILY: &str = "import_classic_v4";
 const RESULT: &str = "classic_import_v4";
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum ImportVersion {
+    V4,
+    V5,
+}
+impl ImportVersion {
+    fn family(self) -> &'static str {
+        match self {
+            Self::V4 => FAMILY,
+            Self::V5 => "import_classic_v5",
+        }
+    }
+    fn result(self) -> &'static str {
+        match self {
+            Self::V4 => RESULT,
+            Self::V5 => "classic_import_v5",
+        }
+    }
+    fn event(self) -> &'static str {
+        match self {
+            Self::V4 => "project.classic_imported_v4",
+            Self::V5 => "project.classic_imported_v5",
+        }
+    }
+    fn schema(self) -> u32 {
+        match self {
+            Self::V4 => 4,
+            Self::V5 => 5,
+        }
+    }
+    fn analyze(
+        self,
+        input: &ClassicAnalyzeV4,
+        resources: &ClassicImportResourcesV4,
+    ) -> Result<classic_import_v4::PreparedClassicImportV4, EditorError> {
+        match self {
+            Self::V4 => classic_import_v4::analyze(input, resources),
+            Self::V5 => opencut_editor_application::classic_import_v5::analyze(input, resources),
+        }
+    }
+}
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_ARGUMENT", message)
 }
-fn resolve(
+pub(super) fn resolve_version(
     connection: &Connection,
     context: &opencut_editor_application::audit::ExecutionContext,
     input: &ClassicAnalyzeV4,
+    version: ImportVersion,
 ) -> Result<ClassicImportResourcesV4, EditorError> {
     sqlite_access::owner(context)?;
     if input.content.len() > 1024 * 1024
@@ -110,7 +152,23 @@ fn resolve(
             FontWeightV4::Normal => 400,
             FontWeightV4::Bold => 700,
         };
-        if font.family != mapping.classic_family
+        if version == ImportVersion::V5 {
+            opencut_editor_application::classic_import_v5::validate_font_mapping(
+                &ClassicFontRequestV4 {
+                    family: mapping.classic_family.clone(),
+                    font_weight: mapping.font_weight,
+                    font_style: mapping.font_style,
+                },
+                &font,
+            )?;
+            // Generated identity is not sufficient. Its retained immutable proof
+            // must exist and match this authorized fixed-revision resource.
+            if let ResourceOriginV4::Generated { provider, .. } = &font.origin
+                && opencut_editor_application::font_derived_v2::compat::is_provider(provider)
+            {
+                sqlite_font_derived_v1::read_source_for_font(connection, &font)?;
+            }
+        } else if font.family != mapping.classic_family
             || font.weight != weight
             || font.style != mapping.font_style
         {
@@ -136,17 +194,29 @@ impl ClassicImportV4Resources for EditorApplication {
         &self,
         input: &ClassicAnalyzeV4,
     ) -> Result<ClassicImportResourcesV4, EditorError> {
-        resolve(&self.connection, &self.connection.1, input)
+        resolve_version(
+            &self.connection,
+            &self.connection.1,
+            input,
+            ImportVersion::V4,
+        )
     }
 }
+#[cfg(test)]
 fn identity(input: &ClassicImportV4) -> Result<RequestIdentity, EditorError> {
+    identity_version(input, ImportVersion::V4)
+}
+fn identity_version(
+    input: &ClassicImportV4,
+    version: ImportVersion,
+) -> Result<RequestIdentity, EditorError> {
     if opencut_editor_application::classic_import::source_content_id(&input.source.content)
         != input.expected_source_content_id
     {
         return Err(invalid("Classic source content ID mismatch"));
     }
     request_hash(
-        FAMILY,
+        version.family(),
         "workspace",
         &serde_json::to_value(input).map_err(|_| invalid("Invalid Classic import request"))?,
     )
@@ -163,21 +233,29 @@ impl EditorApplication {
         &mut self,
         input: &ClassicImportV4,
     ) -> Result<ClassicImportReceiptV4, EditorError> {
+        self.classic_import_version(input, ImportVersion::V4)
+    }
+    pub(super) fn classic_import_version(
+        &mut self,
+        input: &ClassicImportV4,
+        version: ImportVersion,
+    ) -> Result<ClassicImportReceiptV4, EditorError> {
         sqlite_access::owner(&self.connection.1)?;
         require_idempotency_key(&input.idempotency_key)?;
-        let identity = identity(input)?;
+        let identity = identity_version(input, version)?;
         if let Some(raw) = load_idempotent(
             &self.connection,
-            FAMILY,
+            version.family(),
             "workspace",
             &input.idempotency_key,
             &identity,
-            RESULT,
+            version.result(),
         )? {
             return decode_json(&raw, "Classic V4 receipt");
         }
-        let resources = self.resolve_classic_resources_v4(&input.source)?;
-        let prepared = classic_import_v4::analyze(&input.source, &resources)?;
+        let resources =
+            resolve_version(&self.connection, &self.connection.1, &input.source, version)?;
+        let prepared = version.analyze(&input.source, &resources)?;
         let analysis = prepared.analysis;
         let document = prepared
             .document
@@ -205,7 +283,7 @@ impl EditorApplication {
             Sha256::digest(encode_json(&document, "Classic V4 project")?.as_bytes())
         );
         let receipt = ClassicImportReceiptV4 {
-            schema_version: 4,
+            schema_version: version.schema(),
             target_project_id: document.id.clone(),
             revision: revision.clone(),
             source_content_id: analysis.source_content_id,
@@ -224,15 +302,15 @@ impl EditorApplication {
         sqlite_access::owner(&context)?;
         if let Some(raw) = load_idempotent(
             &tx,
-            FAMILY,
+            version.family(),
             "workspace",
             &input.idempotency_key,
             &identity,
-            RESULT,
+            version.result(),
         )? {
             return decode_json(&raw, "Classic V4 receipt");
         }
-        let latest = resolve(&tx, &context, &input.source)?;
+        let latest = resolve_version(&tx, &context, &input.source, version)?;
         if encode_json(&latest.media, "Classic media authority")?
             != encode_json(&resources.media, "Classic media authority")?
             || encode_json(
@@ -253,7 +331,17 @@ impl EditorApplication {
         {
             return Err(invalid("Classic fixed resource authority changed"));
         }
-        let receipt_json = encode_json(&receipt, "Classic V4 receipt")?;
+        if version == ImportVersion::V5 {
+            for font in &document.fonts {
+                if let ResourceOriginV4::Generated { provider, .. } = &font.origin
+                    && opencut_editor_application::font_derived_v2::compat::is_provider(provider)
+                {
+                    let proof = sqlite_font_derived_v1::read_source_for_font(&tx, font)?;
+                    sqlite_font_derived_v1::persist_verified_source(&tx, font, &proof)?;
+                }
+            }
+        }
+        let receipt_json = encode_json(&receipt, "Classic import receipt")?;
         let payload = json!({"project_id":document.id,"revision":revision,"source_content_id":receipt.source_content_id});
         sqlite_new_project::publish(
             &tx,
@@ -261,12 +349,12 @@ impl EditorApplication {
             sqlite_new_project::NewProjectPublication {
                 document: &document,
                 revision: &revision,
-                operation_family: FAMILY,
+                operation_family: version.family(),
                 idempotency_key: &input.idempotency_key,
                 request_digest: identity.current_digest(),
-                result_kind: RESULT,
+                result_kind: version.result(),
                 result_json: &receipt_json,
-                event_type: "project.classic_imported_v4",
+                event_type: version.event(),
                 event_payload: &payload,
             },
         )?;

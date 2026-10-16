@@ -1,0 +1,3973 @@
+[
+  {
+    "id": "flags:ad",
+    "name": "Andorra",
+    "code": "ad",
+    "region": "Western Europe",
+    "keywords": [
+      "catalan",
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "sha256": "55622a293abcd10acafa7b8fbeeebba51304de56c50031c9eb2cee24754e462e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ae",
+    "name": "United Arab Emirates",
+    "code": "ae",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "green",
+      "white",
+      "black"
+    ],
+    "sha256": "2c32f61fb5f64b7efa80d5cb59ad372ac786b1e5d34b196e55e89a6cbb580acf",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:af",
+    "name": "Afghanistan",
+    "code": "af",
+    "region": "South Asia",
+    "keywords": [
+      "dari",
+      "pashto",
+      "black",
+      "red",
+      "green"
+    ],
+    "sha256": "6042d0943b37ceb086386c27f0a1f83f477d52f27ce4522fccbfe9ca58c1528e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ag",
+    "name": "Antigua and Barbuda",
+    "code": "ag",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "red",
+      "black",
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "bb10aabfdaeec4c83fa1d7d6c8340ccc75639d0992582475f8106224dd9457d2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ai",
+    "name": "Anguilla",
+    "code": "ai",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "orange"
+    ],
+    "sha256": "c51ed6c20333660f1dbadc015b68363bde8c7291a44b6c49ae0d8e21e743151e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:al",
+    "name": "Albania",
+    "code": "al",
+    "region": "Southern Europe",
+    "keywords": [
+      "albanian",
+      "red",
+      "black"
+    ],
+    "sha256": "99c217163ce36509822e0d001f48b638f1ffda60ea732a408544177b4315dc9f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:am",
+    "name": "Armenia",
+    "code": "am",
+    "region": "Middle East",
+    "keywords": [
+      "armenian",
+      "red",
+      "blue",
+      "orange"
+    ],
+    "sha256": "c1bc5ee625890cebb65efcd04d10522ebc75a800ead72cdc8e06239d570b0818",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ao",
+    "name": "Angola",
+    "code": "ao",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "portuguese",
+      "red",
+      "black",
+      "yellow"
+    ],
+    "sha256": "d16abb546cc930bce65d5f0c808ed3237c7281475350d001aa1daf80c4f2791f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:aq",
+    "name": "Antarctica",
+    "code": "aq",
+    "region": "Antarctica",
+    "keywords": [],
+    "sha256": "66f93daa7a747544c75ab6c3a37f879e642a41f4cc9720b05c53f7200601aade",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ar",
+    "name": "Argentina",
+    "code": "ar",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "3689ccdb754d5fd3b9790b2584130774a05abba5a8df403425edfc1df3f2f929",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:as",
+    "name": "American Samoa",
+    "code": "as",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "samoan",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "d38636386b7cd083e5e0c5a90cf192fd86d8fbe8f549e8d5715a49c0d885639e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:at",
+    "name": "Austria",
+    "code": "at",
+    "region": "Western Europe",
+    "keywords": [
+      "german",
+      "red",
+      "white"
+    ],
+    "sha256": "546dc68f4d4c238b494ae63af7078746c41f23f0545c3ddf2f4a24841b0eab46",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:au",
+    "name": "Australia",
+    "code": "au",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "01559ba97a8be0bb52f35037cf06a98f185c692396a33eea3f997470b4eade8c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:aw",
+    "name": "Aruba",
+    "code": "aw",
+    "region": "Caribbean",
+    "keywords": [
+      "dutch",
+      "papiamento",
+      "blue",
+      "yellow",
+      "red",
+      "white"
+    ],
+    "sha256": "b88d08eb522573fcb11dfbe62e67518d639008f625c09cebb653157343da87e3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ax",
+    "name": "Aland Islands",
+    "code": "ax",
+    "region": "Northern Europe",
+    "keywords": [
+      "swedish",
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "sha256": "04bbfdcf44722213ef0447e48b2d0b90824d81f116c7a298350cfa8f4d296f7d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:az",
+    "name": "Azerbaijan",
+    "code": "az",
+    "region": "Middle East",
+    "keywords": [
+      "azerbaijani",
+      "blue",
+      "red",
+      "green",
+      "white"
+    ],
+    "sha256": "0e341483fbb63a1a6f6f15b6375feaf4782226e5c3736b355f34cad878160dbc",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ba",
+    "name": "Bosnia and Herzegovina",
+    "code": "ba",
+    "region": "Southern Europe",
+    "keywords": [
+      "bosnian",
+      "croatian",
+      "serbian",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "794156c6e22dd008925c30f5ea882d50c0003c5e5b8b9b8f47c1ed32d7f0ff85",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bb",
+    "name": "Barbados",
+    "code": "bb",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "yellow",
+      "black"
+    ],
+    "sha256": "808260424b1f1e658d20fec540f18d071cc3fb8ac8a8d68ec870aabcd55a9320",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bd",
+    "name": "Bangladesh",
+    "code": "bd",
+    "region": "South Asia",
+    "keywords": [
+      "bengali",
+      "green",
+      "red"
+    ],
+    "sha256": "57ffcec38a3b306e8008674bb62e247cab855bf9d9e527b9a504691d2a6a688e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:be",
+    "name": "Belgium",
+    "code": "be",
+    "region": "Western Europe",
+    "keywords": [
+      "french",
+      "dutch",
+      "german",
+      "black",
+      "yellow",
+      "red"
+    ],
+    "sha256": "d927f4ec29a2897e4f49bc20969cb37e933437ee1461780360daa5891b44e063",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bf",
+    "name": "Burkina Faso",
+    "code": "bf",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "red",
+      "green",
+      "yellow"
+    ],
+    "sha256": "699163e6f1c96fb3b5d42d67252da350152ffa4c598f34762feade66ede15968",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bg",
+    "name": "Bulgaria",
+    "code": "bg",
+    "region": "Eastern Europe",
+    "keywords": [
+      "bulgarian",
+      "white",
+      "green",
+      "red"
+    ],
+    "sha256": "f276f57bb3dcbcc883ab2aa5ce129deb3ff1d7e34d093606063e66b182047783",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bh",
+    "name": "Bahrain",
+    "code": "bh",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white"
+    ],
+    "sha256": "cb65152e9748ccc3357de4e0c156ff92352312d43985018f9679479809d0c5be",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bi",
+    "name": "Burundi",
+    "code": "bi",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "kirundi",
+      "french",
+      "english",
+      "red",
+      "green",
+      "white"
+    ],
+    "sha256": "343403d8f421b5ae57a8b91b0760709d9ead5adb90d389942a2cc920980a2aca",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bj",
+    "name": "Benin",
+    "code": "bj",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "de34202031ef2747ef0c6975cd8185db5ab80cc679e1932ff248994a845911fa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bl",
+    "name": "Saint Barthelemy",
+    "code": "bl",
+    "region": "Caribbean",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "31fad6ccb87a655d7c29d6a0afb3a2886cd6fda7834a5394b105abcd85439cec",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bm",
+    "name": "Bermuda",
+    "code": "bm",
+    "region": "North Atlantic",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "8b6df35b9e7b7f33aed5020d757eba113d69aae2c64de39d51b0b38b1a27ff82",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bn",
+    "name": "Brunei",
+    "code": "bn",
+    "region": "Southeast Asia",
+    "keywords": [
+      "malay",
+      "yellow",
+      "white",
+      "black",
+      "red"
+    ],
+    "sha256": "d8eaf0bb05d44edeeb482999c7d815474889ee4a130ffd5f6293336e7b452815",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bo",
+    "name": "Bolivia",
+    "code": "bo",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "quechua",
+      "aymara",
+      "red",
+      "yellow",
+      "green"
+    ],
+    "sha256": "cc07ef5d69cc2ac80819fb17744034b54a35a0efbf60a30a65333918d028923b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bq",
+    "name": "Caribbean Netherlands",
+    "code": "bq",
+    "region": "Caribbean",
+    "keywords": [
+      "dutch",
+      "papiamento",
+      "english",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "f36cf2e0a3df5ffde868aa0b6bbaa3cc3ec5975d1e4b9475e146299f19e9089c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:br",
+    "name": "Brazil",
+    "code": "br",
+    "region": "South America",
+    "keywords": [
+      "portuguese",
+      "green",
+      "yellow",
+      "blue",
+      "white"
+    ],
+    "sha256": "9c1593b22317fdd1a2f778e3c9550ef72c6f1b1bb33b7c35f255c727da9bbce4",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bs",
+    "name": "Bahamas",
+    "code": "bs",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "yellow",
+      "black"
+    ],
+    "sha256": "62b41fcf9bc2e771b1296d693bbdf6563d24c630dfff34f99a6130c3a60a64cc",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bt",
+    "name": "Bhutan",
+    "code": "bt",
+    "region": "South Asia",
+    "keywords": [
+      "dzongkha",
+      "yellow",
+      "orange",
+      "white"
+    ],
+    "sha256": "812df3a32ea985bbab36251580f6c8adf802a0db313c52f717b2e791483ceab5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bv",
+    "name": "Bouvet Island",
+    "code": "bv",
+    "region": "Antarctica",
+    "keywords": [
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "3ad33ce4b0b8681f966b51d5d116335395d87c547137dd25b677b5b6b2555eb7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bw",
+    "name": "Botswana",
+    "code": "bw",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "tswana",
+      "blue",
+      "black",
+      "white"
+    ],
+    "sha256": "1e48430b141b3152c251e9d07d8ff387fda5bd68656aa7cc6e2b0a2f71f50974",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:by",
+    "name": "Belarus",
+    "code": "by",
+    "region": "Eastern Europe",
+    "keywords": [
+      "belarusian",
+      "russian",
+      "red",
+      "green",
+      "white"
+    ],
+    "sha256": "26f525383e2db0675c9f8677ac9a9ec86f0d093c1b0da1d12f075d8a657dc0aa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:bz",
+    "name": "Belize",
+    "code": "bz",
+    "region": "Central America",
+    "keywords": [
+      "english",
+      "blue",
+      "red",
+      "white"
+    ],
+    "sha256": "ec22667fe274420c20778b922c1ec4ec0352b7ba7f4cf9a9ef5cb8b8980859b5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ca",
+    "name": "Canada",
+    "code": "ca",
+    "region": "North America",
+    "keywords": [
+      "english",
+      "french",
+      "red",
+      "white"
+    ],
+    "sha256": "15b03747f7993b1d79372bc914271c6ae6d453a1cdc4317e434fbbbe9f11242f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cc",
+    "name": "Cocos (Keeling) Islands",
+    "code": "cc",
+    "region": "Southeast Asia",
+    "keywords": [
+      "english",
+      "green",
+      "red",
+      "yellow",
+      "white"
+    ],
+    "sha256": "ae3bc185bbece979a8443ca82191f60327fc9f0be21afb520a342eda9bb565f2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cd",
+    "name": "Democratic Republic of the Congo",
+    "code": "cd",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "lingala",
+      "swahili",
+      "tshiluba",
+      "kikongo",
+      "blue",
+      "red",
+      "yellow"
+    ],
+    "sha256": "ba04a5f022ec2f660ed1358ea002108ffd25759448aef4fa8a6e0c07b562cfb8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cf",
+    "name": "Central African Republic",
+    "code": "cf",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "sango",
+      "blue",
+      "white",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "d0ed4f5bd5c556be47828850a179135d863078a71c19122726fcc24c634ad2a4",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cg",
+    "name": "Republic of the Congo",
+    "code": "cg",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "lingala",
+      "kituba",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "345c27883b54bf13d0cac0c38ebd5c148737d838a1b6480df5501484249a51d1",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ch",
+    "name": "Switzerland",
+    "code": "ch",
+    "region": "Western Europe",
+    "keywords": [
+      "german",
+      "french",
+      "italian",
+      "red",
+      "white"
+    ],
+    "sha256": "545f81d511d73a7d970bc12973ca868f4e810e40bfe7af357d9891d62dee10d6",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ci",
+    "name": "Cote d'Ivoire",
+    "code": "ci",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "orange",
+      "white",
+      "green"
+    ],
+    "sha256": "ad93a3b190de6a8b0543e1fa7dbff6b89f220d3d2de3fa16622a1c27c49c50ed",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ck",
+    "name": "Cook Islands",
+    "code": "ck",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "cook islands maori",
+      "blue",
+      "white"
+    ],
+    "sha256": "768c8c94472474b41f3ca02bf3e1f7ce465fc5b5431d3b765e26befca2f748c7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cl",
+    "name": "Chile",
+    "code": "cl",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "white",
+      "red",
+      "blue"
+    ],
+    "sha256": "c12cf595d3ed4fd643bf54b56000b6c3c1ccb198a8a884b3c9aa04cf9da41c6e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cm",
+    "name": "Cameroon",
+    "code": "cm",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "french",
+      "green",
+      "red",
+      "yellow"
+    ],
+    "sha256": "b1317c1873e65e14c10fc9617815197743be015c337c944501e5ea36da878d6a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cn",
+    "name": "China",
+    "code": "cn",
+    "region": "East Asia",
+    "keywords": [
+      "mandarin",
+      "red",
+      "yellow"
+    ],
+    "sha256": "25d19da98eb4e4432dc3ca62bb029141d197d04d94c96a4160f3c7dfbe6af577",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:co",
+    "name": "Colombia",
+    "code": "co",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "yellow",
+      "blue",
+      "red"
+    ],
+    "sha256": "0b73af67ca78d2a0f24a748079cc18c6e1a04c8b0506c25d96aff0e68df157d2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cr",
+    "name": "Costa Rica",
+    "code": "cr",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "2e847fccea27a7dbabbb82694809ba7ee659c19788db2c628271dc69d86f77ec",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cu",
+    "name": "Cuba",
+    "code": "cu",
+    "region": "Caribbean",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "dab45a35d925720735cc172b87a5f6e50710e68edc2eff3c554ef1e2bb36b1ad",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cv",
+    "name": "Cape Verde",
+    "code": "cv",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "portuguese",
+      "blue",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "b09b68a637f1154ac37173470d082c0b39096ff9a2593cbcd19eb98114e2822f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cw",
+    "name": "Curacao",
+    "code": "cw",
+    "region": "Caribbean",
+    "keywords": [
+      "dutch",
+      "papiamento",
+      "english",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "7615ce6600116c95a972314e3d90d41476a1e1979781725c330b6561fd2bdf31",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cx",
+    "name": "Christmas Island",
+    "code": "cx",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "green",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "9ed9ef0ae50e362225e8a685708c2853bb7c232f21dac3aab2245ebfd907679f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cy",
+    "name": "Cyprus",
+    "code": "cy",
+    "region": "Middle East",
+    "keywords": [
+      "greek",
+      "turkish",
+      "white",
+      "orange",
+      "green"
+    ],
+    "sha256": "a0d13e24582e01ba0a4ffd3c8d1f58931121ff05a35cdb8384f2580f7af8d2b6",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:cz",
+    "name": "Czechia",
+    "code": "cz",
+    "region": "Eastern Europe",
+    "keywords": [
+      "czech",
+      "white",
+      "red",
+      "blue"
+    ],
+    "sha256": "5f94f95acf2ef9f90a05594d1e96373d9dd84c834214ed79a64ac72ff5c48046",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:de",
+    "name": "Germany",
+    "code": "de",
+    "region": "Western Europe",
+    "keywords": [
+      "german",
+      "black",
+      "red",
+      "yellow"
+    ],
+    "sha256": "c17cbb0ad2efe8c9a9ddb3b7c6f0ed7f310bb2cd0aee3199ac7f056c5668d946",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:dj",
+    "name": "Djibouti",
+    "code": "dj",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "arabic",
+      "french",
+      "afar",
+      "somali",
+      "blue",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "5b85d71db6a955352d5a902425c4079262c0fda3db21dbaa537675001ae32a7d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:dk",
+    "name": "Denmark",
+    "code": "dk",
+    "region": "Northern Europe",
+    "keywords": [
+      "danish",
+      "red",
+      "white"
+    ],
+    "sha256": "edf424a2b65e7d1108b66f74d9ade6ad240dbdc7ed02b355c3cf6450c6b4a506",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:dm",
+    "name": "Dominica",
+    "code": "dm",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "green",
+      "yellow",
+      "black",
+      "white",
+      "red"
+    ],
+    "sha256": "dbe49b39b25a6e8508d65f0e3f04cc9e30d772ede01be59913bec8800e184073",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:do",
+    "name": "Dominican Republic",
+    "code": "do",
+    "region": "Caribbean",
+    "keywords": [
+      "spanish",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "e579c05046d4e1bf20d58375babd5b9594f1bc79a33a713b9f52910441db8fe9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:dz",
+    "name": "Algeria",
+    "code": "dz",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "tamazight",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "8f698b5c0fa1e0c10e88c8d0318aea2588057017ea6f54d541445b46a74b84a8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ec",
+    "name": "Ecuador",
+    "code": "ec",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "yellow",
+      "blue",
+      "red"
+    ],
+    "sha256": "03ec24c0bed794df279496a65a88821d1d61d4bd3ea91bdf2f0e1e943e5493df",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ee",
+    "name": "Estonia",
+    "code": "ee",
+    "region": "Northern Europe",
+    "keywords": [
+      "estonian",
+      "blue",
+      "black",
+      "white"
+    ],
+    "sha256": "015b13f24bed077aaf2c6151833917dca334252af832863587bb435636070baa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:eg",
+    "name": "Egypt",
+    "code": "eg",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "red",
+      "white",
+      "black",
+      "yellow"
+    ],
+    "sha256": "1b009f068fe3747828b2dad30c48fbfd247b512c7d69c6eba22edb47b347b4ba",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:eh",
+    "name": "Western Sahara",
+    "code": "eh",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "spanish",
+      "black",
+      "white",
+      "green",
+      "red"
+    ],
+    "sha256": "932c0e9d8659e230058b3536b85f4e802aba6f28d61d228f652b5100ad89812e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:er",
+    "name": "Eritrea",
+    "code": "er",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "tigrinya",
+      "arabic",
+      "english",
+      "red",
+      "green",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "0e1df7cdecbf0adabc1b8180d5f511467dc38d1a14f164b2d85775fa3671c88a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:es",
+    "name": "Spain",
+    "code": "es",
+    "region": "Southern Europe",
+    "keywords": [
+      "spanish",
+      "red",
+      "yellow"
+    ],
+    "sha256": "d37f54eda66065acad575bebd04a85c974493e5c0bc0f05ab5b0a1c1b2cce7a7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:et",
+    "name": "Ethiopia",
+    "code": "et",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "amharic",
+      "oromo",
+      "green",
+      "yellow",
+      "red",
+      "blue"
+    ],
+    "sha256": "5cfe43ee54eacb925d789d0426694eb1364c71b0df398ab347e343b4b7c17b2e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:eu",
+    "name": "European Union",
+    "code": "eu",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "french",
+      "german",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "4a8de5b59a7dadf8694684eca2644df9c9929a7c94f03daa2cbe4448282832fb",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fi",
+    "name": "Finland",
+    "code": "fi",
+    "region": "Northern Europe",
+    "keywords": [
+      "finnish",
+      "swedish",
+      "white",
+      "blue"
+    ],
+    "sha256": "e0842af8b7da612c46e7e6b511168c85fba01b2b57fc65ff0d8b8cb349be3019",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fj",
+    "name": "Fiji",
+    "code": "fj",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "fijian",
+      "hindi",
+      "blue",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "35553b221aafdd68aff1f663f6884a493ae43110283724bf907ace5d31f2074a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fk",
+    "name": "Falkland Islands",
+    "code": "fk",
+    "region": "South America",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "a6e448f7ab858853b888656cb5138c7fdb1385517ccb11659f774f69f348294b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fm",
+    "name": "Micronesia",
+    "code": "fm",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "blue",
+      "white"
+    ],
+    "sha256": "3d400bf6fbc83d46124dc45479aa22cb1be083781fdf23d9fddd25fef4abef89",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fo",
+    "name": "Faroe Islands",
+    "code": "fo",
+    "region": "Northern Europe",
+    "keywords": [
+      "faroese",
+      "danish",
+      "white",
+      "red",
+      "blue"
+    ],
+    "sha256": "d6df050084a2c4692e609ed812e6584e20c78fd0d65bde773380363cb21a8336",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:fr",
+    "name": "France",
+    "code": "fr",
+    "region": "Western Europe",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "2dae22c94c898e9b3bfefac18309a35eaa0049c9e8d20ea2d572463739e49eee",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ga",
+    "name": "Gabon",
+    "code": "ga",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "blue"
+    ],
+    "sha256": "ad40ff8edeb12050d1fc920832d5f1a3e7ad88fda8b296e417a52df8686a4332",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gb-eng",
+    "name": "England",
+    "code": "gb-eng",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "red",
+      "white"
+    ],
+    "sha256": "493c7e0b5962413a481897d07ec375b994095b5df4e9c789a56bf2550e38327f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gb-nir",
+    "name": "Northern Ireland",
+    "code": "gb-nir",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "irish",
+      "white",
+      "red"
+    ],
+    "sha256": "47bdb0f79a8b83797f103771b49b9ad3422feeb49d58ffca6029978db08abcf2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gb-sct",
+    "name": "Scotland",
+    "code": "gb-sct",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "scottish gaelic",
+      "blue",
+      "white"
+    ],
+    "sha256": "04d6456dbcb26707ee045e0db7f95b0f290d6de6556757d56883bdf829638423",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gb-wls",
+    "name": "Wales",
+    "code": "gb-wls",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "welsh",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "097bf99a5d608419810f8585a66a444f5c490faecb8fbf0304456d2ed366bf49",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gb",
+    "name": "United Kingdom",
+    "code": "gb",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "70146e79a2c236bab5d58a22da551c034247e8fdae57e2f25af6a9c562d6b811",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gd",
+    "name": "Grenada",
+    "code": "gd",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "red",
+      "yellow",
+      "green",
+      "black"
+    ],
+    "sha256": "908645098a62d067e3f7e26d94e75e46cb7cd1ac1d2c2c2030aec9749c1653bc",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ge",
+    "name": "Georgia",
+    "code": "ge",
+    "region": "Middle East",
+    "keywords": [
+      "georgian",
+      "white",
+      "red"
+    ],
+    "sha256": "21ba28f7377cbfea125c702632f9dec4946a6475926fcaf64d4b397561e51af2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gf",
+    "name": "French Guiana",
+    "code": "gf",
+    "region": "South America",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "7da8783a1ec0f9588fd59c28bce26eb29e7a36d739cb292968cc0d536800f126",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gg",
+    "name": "Guernsey",
+    "code": "gg",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "french",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "bae5858c37efb11cb0f31de8306d3ed1b08129a14bb12ec52a8a5edc3c513006",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gh",
+    "name": "Ghana",
+    "code": "gh",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "red",
+      "yellow",
+      "green",
+      "black"
+    ],
+    "sha256": "dae64d34692fb411368d964baec2d27daaa44b8dd79ec2c31a9555147b4d6ddd",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gi",
+    "name": "Gibraltar",
+    "code": "gi",
+    "region": "Southern Europe",
+    "keywords": [
+      "english",
+      "red",
+      "white",
+      "yellow"
+    ],
+    "sha256": "97f15efd4cc6064598b12e0eb1da8e13c19f9263c7e5913af35341730afaf9fa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gl",
+    "name": "Greenland",
+    "code": "gl",
+    "region": "North America",
+    "keywords": [
+      "kalaallisut",
+      "danish",
+      "red",
+      "white"
+    ],
+    "sha256": "264aba051c03509e5f0169517a321dcd66bcfa4179f2fa3c3b4f5f1b7b0eb662",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gm",
+    "name": "Gambia",
+    "code": "gm",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "red",
+      "blue",
+      "green",
+      "white"
+    ],
+    "sha256": "debe62c974957dc8a4b95b23c674ececf9e476fbb95a01d1a5899f6de00ae936",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gn",
+    "name": "Guinea",
+    "code": "gn",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "red",
+      "yellow",
+      "green"
+    ],
+    "sha256": "7e882fbb91565e4299c9ff9d4c74a8c6e3dac9bd4f2622fde77586e9b02421a0",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gp",
+    "name": "Guadeloupe",
+    "code": "gp",
+    "region": "Caribbean",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "2c3488f784e0b750c2ee99d7f8d7c2074aa2388024bdd6cf409bbb54dbb277bf",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gq",
+    "name": "Equatorial Guinea",
+    "code": "gq",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "spanish",
+      "french",
+      "portuguese",
+      "green",
+      "white",
+      "red",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "e4a5fab2e22857e6797583368cec560b10e9df4029e9b4ee1dbbca5d9f0a974a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gr",
+    "name": "Greece",
+    "code": "gr",
+    "region": "Southern Europe",
+    "keywords": [
+      "greek",
+      "blue",
+      "white"
+    ],
+    "sha256": "fb7fcd235a146045b4c4dca2696898a0dd50a26251106b653566d343ddfd2c3d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gs",
+    "name": "South Georgia and the South Sandwich Islands",
+    "code": "gs",
+    "region": "Atlantic Ocean",
+    "keywords": [
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "1d18f551888b27115bdaa8abb17439f3e89b91dfb94683748436f874ea671f40",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gt",
+    "name": "Guatemala",
+    "code": "gt",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white"
+    ],
+    "sha256": "7af6c4fc23691ebafcf57ea44547b2302eab2232a082aeb799414879f9608c40",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gu",
+    "name": "Guam",
+    "code": "gu",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "chamorro",
+      "blue",
+      "red"
+    ],
+    "sha256": "7c967a4764ad0d9bb3fa30f40e143445f850c6dc69223410df271750304789d7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gw",
+    "name": "Guinea-Bissau",
+    "code": "gw",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "portuguese",
+      "red",
+      "yellow",
+      "green",
+      "black"
+    ],
+    "sha256": "ce0eace7cf845c27c2fe0134dcaf6df5e0eaa2b42d4f9c8da9185b471f5251cc",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:gy",
+    "name": "Guyana",
+    "code": "gy",
+    "region": "South America",
+    "keywords": [
+      "english",
+      "green",
+      "yellow",
+      "red",
+      "black",
+      "white"
+    ],
+    "sha256": "6e2c0cd11c1214c5f0e4411e30a68d30c385520e28b25f7f20749ff9ffca15fe",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:hk",
+    "name": "Hong Kong",
+    "code": "hk",
+    "region": "East Asia",
+    "keywords": [
+      "cantonese",
+      "english",
+      "red",
+      "white"
+    ],
+    "sha256": "3cb5eb3bb2539783b6a0bd33596a2fe19dbacaeab9edfd7c47fba832d68d5a70",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:hm",
+    "name": "Heard Island and McDonald Islands",
+    "code": "hm",
+    "region": "Oceania",
+    "keywords": [
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "dbddd5215d0f8fb8c1354a98f8d01b9877053fd4cdccb3c19530e703440e124e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:hn",
+    "name": "Honduras",
+    "code": "hn",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white"
+    ],
+    "sha256": "b60b520f2732ddc9dc0ec1e65121142140b5a099d16f7e2c0ea5bdcb1ede0373",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:hr",
+    "name": "Croatia",
+    "code": "hr",
+    "region": "Southern Europe",
+    "keywords": [
+      "croatian",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "77fd58c69d3416f1c71ddb4b627e41557305949d7d578bda4a5c21d45b70b488",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ht",
+    "name": "Haiti",
+    "code": "ht",
+    "region": "Caribbean",
+    "keywords": [
+      "haitian creole",
+      "french",
+      "blue",
+      "red",
+      "white"
+    ],
+    "sha256": "f1a0a6f8f6da9e1def8edea80463bb345199ec68bba17af2129b67b9e09f3b02",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:hu",
+    "name": "Hungary",
+    "code": "hu",
+    "region": "Eastern Europe",
+    "keywords": [
+      "hungarian",
+      "red",
+      "white",
+      "green"
+    ],
+    "sha256": "85b2a17986bb6b1df48937cde93e1a2d016700029e6de7eb9b43afe66ebbda36",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:id",
+    "name": "Indonesia",
+    "code": "id",
+    "region": "Southeast Asia",
+    "keywords": [
+      "indonesian",
+      "red",
+      "white"
+    ],
+    "sha256": "8bb5c17b65df59c16f9e609e7f606abdb63acf3fdbf04ede7a05552d1db59190",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ie",
+    "name": "Ireland",
+    "code": "ie",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "irish",
+      "green",
+      "white",
+      "orange"
+    ],
+    "sha256": "d2bc890df7b3d3aa5ea6a75916f75763d829035f1f6d010252ed32698c3da4d8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:il",
+    "name": "Israel",
+    "code": "il",
+    "region": "Middle East",
+    "keywords": [
+      "hebrew",
+      "arabic",
+      "blue",
+      "white"
+    ],
+    "sha256": "ebf7902910d20020fea1049b52e04d9ff72feda7fc9fc4b8449a8a9d4cee61ac",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:im",
+    "name": "Isle of Man",
+    "code": "im",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "manx",
+      "red",
+      "yellow"
+    ],
+    "sha256": "099af8413b21282450e7c2978ae4e0d04b060667493ff2881a3d56e88c406b82",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:in",
+    "name": "India",
+    "code": "in",
+    "region": "South Asia",
+    "keywords": [
+      "hindi",
+      "english",
+      "orange",
+      "white",
+      "green",
+      "blue"
+    ],
+    "sha256": "9e2755b5975c3dd97950ce7e49037abaff19c0cbebafd2b639f3eea0866f28e5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:io",
+    "name": "British Indian Ocean Territory",
+    "code": "io",
+    "region": "South Asia",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "d0c315d7980b810d29fa9f083f5ed9e52157a7569f22181a977d8b4488381b33",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:iq",
+    "name": "Iraq",
+    "code": "iq",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "kurdish",
+      "red",
+      "white",
+      "black",
+      "green"
+    ],
+    "sha256": "d22e890d23b9f1e0fff0ac8879d65089d35c75ac42a34b473f617e9ee018c07e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ir",
+    "name": "Iran",
+    "code": "ir",
+    "region": "Middle East",
+    "keywords": [
+      "persian",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "5ff71caf1c377f042b9041723f004046a7932daaa5a84882fcc7fc7ad42a8967",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:is",
+    "name": "Iceland",
+    "code": "is",
+    "region": "Northern Europe",
+    "keywords": [
+      "icelandic",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "a2818a19d4269118809d5afd4a83e144c0d5a49f89a45a9f193d2abc88391922",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:it",
+    "name": "Italy",
+    "code": "it",
+    "region": "Southern Europe",
+    "keywords": [
+      "italian",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "f242a38036ad87c9fbc7db1b901bbc273da0c10812f783485862bce3fa547a97",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:je",
+    "name": "Jersey",
+    "code": "je",
+    "region": "Western Europe",
+    "keywords": [
+      "english",
+      "french",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "a0906e164e257cb9afa03d70f8a979c90e33294fc70e43ee2b2ba5becb92a984",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:jm",
+    "name": "Jamaica",
+    "code": "jm",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "green",
+      "yellow",
+      "black"
+    ],
+    "sha256": "b26654683959f7e94b6c2464a6c5a117b644e9aac41717208ebabee1a96066d5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:jo",
+    "name": "Jordan",
+    "code": "jo",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "black",
+      "white",
+      "green",
+      "red"
+    ],
+    "sha256": "bc8110617130eedf52851fd464a8c6b92946d96ea59305e95a23b3b764a96cf2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:jp",
+    "name": "Japan",
+    "code": "jp",
+    "region": "East Asia",
+    "keywords": [
+      "japanese",
+      "red",
+      "white"
+    ],
+    "sha256": "ade9d4144877f577263d1220f257fa9c8929720700568a82c0eb936bd01fb0a7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ke",
+    "name": "Kenya",
+    "code": "ke",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "swahili",
+      "black",
+      "red",
+      "green",
+      "white"
+    ],
+    "sha256": "08f6c25a6884b5c575d085ef022b295077d08655e8615f713fb9418c79d94800",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kg",
+    "name": "Kyrgyzstan",
+    "code": "kg",
+    "region": "Central Asia",
+    "keywords": [
+      "kyrgyz",
+      "russian",
+      "red",
+      "yellow"
+    ],
+    "sha256": "c317228fa6a1e0f376337d511064aca0271b2f35668930842838c915752593a7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kh",
+    "name": "Cambodia",
+    "code": "kh",
+    "region": "Southeast Asia",
+    "keywords": [
+      "khmer",
+      "blue",
+      "red",
+      "white"
+    ],
+    "sha256": "8e5d9301ca781e88374aab6319cfc64e4f5d58687bc7625e857736c0d9497253",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ki",
+    "name": "Kiribati",
+    "code": "ki",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "kiribati",
+      "red",
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "f48f5ce98a1d6de3272a6aa596e6cc2e1c29dd9157fa1e0defd6014fd837cb15",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:km",
+    "name": "Comoros",
+    "code": "km",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "comorian",
+      "arabic",
+      "french",
+      "green",
+      "yellow",
+      "white",
+      "red",
+      "blue"
+    ],
+    "sha256": "2ade75d378a06e60a3eafa6dcde2ef015129a09935cfc891f057b36b7f524e20",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kn",
+    "name": "Saint Kitts and Nevis",
+    "code": "kn",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "green",
+      "red",
+      "black",
+      "yellow",
+      "white"
+    ],
+    "sha256": "917cb0976a3c1e2bad6eca400e4b4356b66598c178d598205854a9b8226d9b44",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kp",
+    "name": "North Korea",
+    "code": "kp",
+    "region": "East Asia",
+    "keywords": [
+      "korean",
+      "red",
+      "blue",
+      "white"
+    ],
+    "sha256": "b76b5c23a4a768ef3ee0859cc23f539eeab5f5fe9e2cda06834f004ad9b67679",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kr",
+    "name": "South Korea",
+    "code": "kr",
+    "region": "East Asia",
+    "keywords": [
+      "korean",
+      "white",
+      "red",
+      "blue",
+      "black"
+    ],
+    "sha256": "927d19e6e98a0f5d6342ba997d33d802ca83e898c5e7b3ec82798692fa84178d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kw",
+    "name": "Kuwait",
+    "code": "kw",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "green",
+      "white",
+      "red",
+      "black"
+    ],
+    "sha256": "fde620074099a438ebe9d33cbb7f36ea9a1eebd70801ca835a06fe35f427bdb6",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ky",
+    "name": "Cayman Islands",
+    "code": "ky",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "67addd34b6b837616940ce501bf92b98ffd0c90ead094ef9512ba8d63dfc7cd5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:kz",
+    "name": "Kazakhstan",
+    "code": "kz",
+    "region": "Central Asia",
+    "keywords": [
+      "kazakh",
+      "russian",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "1becbddf1f16a0907753a1cc51c2a1388a437262db19c53f744fe03821d848a8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:la",
+    "name": "Laos",
+    "code": "la",
+    "region": "Southeast Asia",
+    "keywords": [
+      "lao",
+      "red",
+      "blue",
+      "white"
+    ],
+    "sha256": "28cbc30d50f4ae061d5322596affb776fddda78d0009189d589d5172ceaabdce",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lb",
+    "name": "Lebanon",
+    "code": "lb",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white",
+      "green"
+    ],
+    "sha256": "b01f79aac4705c5f09b64dd3e9cbb2b6aebeb20b9dcdcd5e7d1120c8b0b674c7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lc",
+    "name": "Saint Lucia",
+    "code": "lc",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "yellow",
+      "black",
+      "white"
+    ],
+    "sha256": "914f58776d8df1dddce31ada8a92fa4743ba103740dfba4d22ec1e638d224d61",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:li",
+    "name": "Liechtenstein",
+    "code": "li",
+    "region": "Western Europe",
+    "keywords": [
+      "german",
+      "blue",
+      "red",
+      "yellow"
+    ],
+    "sha256": "6e54f62b2e372585869442643537af2a8e6c290a59e5452186ef5853217d65d2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lk",
+    "name": "Sri Lanka",
+    "code": "lk",
+    "region": "South Asia",
+    "keywords": [
+      "sinhala",
+      "tamil",
+      "yellow",
+      "green",
+      "orange",
+      "red"
+    ],
+    "sha256": "ce1b5f925af94cb18396d951632f3ddcc4b447617931ab75d94d70bc04e5b869",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lr",
+    "name": "Liberia",
+    "code": "lr",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "b3491661a0938cbba30b859ddebf2dfa2a6006982ccef1ea05ae7e3a2acd7568",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ls",
+    "name": "Lesotho",
+    "code": "ls",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "sesotho",
+      "english",
+      "blue",
+      "white",
+      "green",
+      "black"
+    ],
+    "sha256": "ef68d0f6f9b399cb5bc63eb9c8dbc593df0856924a8186d522a1425b94b3bab3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lt",
+    "name": "Lithuania",
+    "code": "lt",
+    "region": "Northern Europe",
+    "keywords": [
+      "lithuanian",
+      "yellow",
+      "green",
+      "red"
+    ],
+    "sha256": "9426893a004a5861061ec459108d363f0032e4861bf39873214276359d2f67aa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lu",
+    "name": "Luxembourg",
+    "code": "lu",
+    "region": "Western Europe",
+    "keywords": [
+      "luxembourgish",
+      "french",
+      "german",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "344c8f2975bc009b35aa60709db742ba413428057a138de8e0b861a87ce8e0ac",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:lv",
+    "name": "Latvia",
+    "code": "lv",
+    "region": "Northern Europe",
+    "keywords": [
+      "latvian",
+      "red",
+      "white"
+    ],
+    "sha256": "f1de0e705b46116fdbe5030189840836c76dfa5b7b48f8010d5ed2b557bd4625",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ly",
+    "name": "Libya",
+    "code": "ly",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "red",
+      "black",
+      "green",
+      "white"
+    ],
+    "sha256": "11e52c3b85b0b04e03630f9b60c5b9057299137ba65aae9a4d0996cd5321c532",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ma",
+    "name": "Morocco",
+    "code": "ma",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "tamazight",
+      "red",
+      "green"
+    ],
+    "sha256": "14dc289634ca9dea94ff97cc3e07b1873c8200fad56363980459c866032f183e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mc",
+    "name": "Monaco",
+    "code": "mc",
+    "region": "Western Europe",
+    "keywords": [
+      "french",
+      "red",
+      "white"
+    ],
+    "sha256": "20c581a0f729f1deeaa356fef49e945f1b837fa20d84baf41a8a7ea3fa42fa0e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:md",
+    "name": "Moldova",
+    "code": "md",
+    "region": "Eastern Europe",
+    "keywords": [
+      "romanian",
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "sha256": "b1ab40b8c28c6e8c19cadb45c7cd13f4853e988e0d4f816adbfcc7a3c2e5befa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:me",
+    "name": "Montenegro",
+    "code": "me",
+    "region": "Southern Europe",
+    "keywords": [
+      "montenegrin",
+      "red",
+      "yellow"
+    ],
+    "sha256": "3df1fa705efb0c7d635a97eed55666242dd7941e21560c6da47ba01252a8afd6",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mf",
+    "name": "Saint Martin",
+    "code": "mf",
+    "region": "Caribbean",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "0f3179f0bf479f6325e18bbc586183ec0450772a772617d389993a5a7a878751",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mg",
+    "name": "Madagascar",
+    "code": "mg",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "malagasy",
+      "french",
+      "white",
+      "red",
+      "green"
+    ],
+    "sha256": "05aea9cad613418a501d4f13a79b5326c4647b17d3a03edb190699de9878b04a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mh",
+    "name": "Marshall Islands",
+    "code": "mh",
+    "region": "Oceania",
+    "keywords": [
+      "marshallese",
+      "english",
+      "blue",
+      "white",
+      "orange"
+    ],
+    "sha256": "c0b2ff4afe1343c2a73890505475260f0b31157978b58abfe8a636c55385fc11",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mk",
+    "name": "North Macedonia",
+    "code": "mk",
+    "region": "Southern Europe",
+    "keywords": [
+      "macedonian",
+      "albanian",
+      "red",
+      "yellow"
+    ],
+    "sha256": "103a71cec088f02ea226e11c8850a6430c842f2c2bb9122d388fd65152e043c2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ml",
+    "name": "Mali",
+    "code": "ml",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "f57ee880502f6cc236b8ea1d9f89a9f933b24bd530b784b8c10968e3714f3ca9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mm",
+    "name": "Myanmar",
+    "code": "mm",
+    "region": "Southeast Asia",
+    "keywords": [
+      "burmese",
+      "yellow",
+      "green",
+      "red",
+      "white"
+    ],
+    "sha256": "1d812fa4d7ad166b5a9f62aa218f7039c9e0df5adea89af95f7158256299ee7d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mn",
+    "name": "Mongolia",
+    "code": "mn",
+    "region": "East Asia",
+    "keywords": [
+      "mongolian",
+      "red",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "69b09e73ad2716424436e84f89f126df53d6b07f74389cec1a0070f93f61bff3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mo",
+    "name": "Macao",
+    "code": "mo",
+    "region": "East Asia",
+    "keywords": [
+      "cantonese",
+      "portuguese",
+      "green",
+      "white",
+      "yellow"
+    ],
+    "sha256": "796428c2e384fb7a241e85cf62e4d322e2e3dc5a2662a68f05c9c39fd5344a60",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mp",
+    "name": "Northern Mariana Islands",
+    "code": "mp",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "chamorro",
+      "carolinian",
+      "blue",
+      "white"
+    ],
+    "sha256": "c74b622a8fecda7cc70ce38d1b9313f9b7d8bf76f1fdf46efb5c617f6cf9ddc5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mq",
+    "name": "Martinique",
+    "code": "mq",
+    "region": "Caribbean",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "5bc1cf55bd8be591e7385985791965ddbdda27a73097a4fa73154e4478009971",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mr",
+    "name": "Mauritania",
+    "code": "mr",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "e918622a4e8d91af14d9d2072d8f3a3e8c465b424c9d464350c5551bf79f834c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ms",
+    "name": "Montserrat",
+    "code": "ms",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "green",
+      "white",
+      "yellow",
+      "red"
+    ],
+    "sha256": "fde3654e2dbb6453fd8a6dcde4b3ab7796b83d2fa749eb4272f8ac2edb4c6eca",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mt",
+    "name": "Malta",
+    "code": "mt",
+    "region": "Southern Europe",
+    "keywords": [
+      "maltese",
+      "english",
+      "white",
+      "red"
+    ],
+    "sha256": "e4d5c0a1a83384e79b90ed170d2dd74c1c841788ced2c07716d8b3da1389e3d3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mu",
+    "name": "Mauritius",
+    "code": "mu",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "french",
+      "mauritian creole",
+      "red",
+      "blue",
+      "yellow",
+      "green"
+    ],
+    "sha256": "6d335805442ad2b1df5980af857740334bb5741ad30e247190b3fea65c18b0e9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mv",
+    "name": "Maldives",
+    "code": "mv",
+    "region": "South Asia",
+    "keywords": [
+      "divehi",
+      "red",
+      "green",
+      "white"
+    ],
+    "sha256": "7afa2ed7800afa59077f2cd4a3b6db3ca46649ecfec4020c90bf7c4ab522cfbf",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mw",
+    "name": "Malawi",
+    "code": "mw",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "chichewa",
+      "black",
+      "red",
+      "green"
+    ],
+    "sha256": "3cd430dc1a3f9f6350f10269b44f3ba5c5e80ef9f051012ee11f143d0302d250",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mx",
+    "name": "Mexico",
+    "code": "mx",
+    "region": "North America",
+    "keywords": [
+      "spanish",
+      "green",
+      "white",
+      "red"
+    ],
+    "sha256": "771271ded76d8e29fdc3c2c9557782c10cf877a1b857cf09adb2054196959482",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:my",
+    "name": "Malaysia",
+    "code": "my",
+    "region": "Southeast Asia",
+    "keywords": [
+      "malay",
+      "red",
+      "white",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "eb0ff78f3d2b2064e41f581a18a5dcac192fc4041fd08b46d972bb7ad0ffccca",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:mz",
+    "name": "Mozambique",
+    "code": "mz",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "portuguese",
+      "green",
+      "black",
+      "yellow",
+      "white",
+      "red"
+    ],
+    "sha256": "49a2424f6eb6e374c414c4583c24acd70ee1939c90c300acc0c31768a9bb9b73",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:na",
+    "name": "Namibia",
+    "code": "na",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "blue",
+      "red",
+      "green",
+      "white",
+      "yellow"
+    ],
+    "sha256": "9de8c00ffbfae0ffab5f2c3f2ffab9d12ef2c84a835307fc2b2864f61ae234e2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nc",
+    "name": "New Caledonia",
+    "code": "nc",
+    "region": "Oceania",
+    "keywords": [
+      "french",
+      "blue",
+      "red",
+      "green",
+      "yellow",
+      "black"
+    ],
+    "sha256": "a2ff6f4957be1c2aa8e8dd58602f187d8de4d0efadc5dd16d3170ad300e9a5df",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ne",
+    "name": "Niger",
+    "code": "ne",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "orange",
+      "white",
+      "green"
+    ],
+    "sha256": "db563b4a617f6d2c134eaf2154264b703f57eb18480d5bad08f7fa7d04c5ec6c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nf",
+    "name": "Norfolk Island",
+    "code": "nf",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "norfuk",
+      "green",
+      "white"
+    ],
+    "sha256": "fb1b3aafd10a010c56a42d80af56957796bd5c1b3ff1d773e9c85c1b2b96007e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ng",
+    "name": "Nigeria",
+    "code": "ng",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "green",
+      "white"
+    ],
+    "sha256": "b6adc99423525f2f2d4724ff72078a354fab6765584130e91f914906778e8097",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ni",
+    "name": "Nicaragua",
+    "code": "ni",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white"
+    ],
+    "sha256": "9592923e265f5c1b378a9f540f8c2e8f1da847fa8722cd85e148c46d83dfc3f7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nl",
+    "name": "Netherlands",
+    "code": "nl",
+    "region": "Western Europe",
+    "keywords": [
+      "dutch",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "bffc2d9c2d61931f8976fd0e3deb2f2548f1630ea3003175581109ee2d5cc4fa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:no",
+    "name": "Norway",
+    "code": "no",
+    "region": "Northern Europe",
+    "keywords": [
+      "norwegian",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "842512a50a37e4c35d225719678fbfae31828cc58225b9a7e41e2398fec20447",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:np",
+    "name": "Nepal",
+    "code": "np",
+    "region": "South Asia",
+    "keywords": [
+      "nepali",
+      "red",
+      "blue",
+      "white"
+    ],
+    "sha256": "8b67cc7986bba6b3a8817c7fd152a92a0c52b6b713a7a4df9517d47f5f984038",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nr",
+    "name": "Nauru",
+    "code": "nr",
+    "region": "Oceania",
+    "keywords": [
+      "nauruan",
+      "english",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "5658521992be2e257290a2e00a78c71b273697efce3fbc3d2470dac06a629a1c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nu",
+    "name": "Niue",
+    "code": "nu",
+    "region": "Oceania",
+    "keywords": [
+      "niuean",
+      "english",
+      "yellow",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "f55c369b37ac3142b31ae338cad93992503065b8acd2e6319e63e7cee89c1f92",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:nz",
+    "name": "New Zealand",
+    "code": "nz",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "maori",
+      "blue",
+      "red",
+      "white"
+    ],
+    "sha256": "4b86b56e4157c76d19a1d273c6fa2a702b1ba7541599a5a411823dd123cbe833",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:om",
+    "name": "Oman",
+    "code": "om",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white",
+      "green"
+    ],
+    "sha256": "16cf3015e78d7b032a7a44c22c01be7c061515b5e4a03ecdda998dd6edad99a9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pa",
+    "name": "Panama",
+    "code": "pa",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "0b319ffc4a51147b634e96ccc3bb1436869462fb6af23c7689c7ce7bc4203e0c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pe",
+    "name": "Peru",
+    "code": "pe",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "quechua",
+      "aymara",
+      "red",
+      "white"
+    ],
+    "sha256": "0b234568c33985cfe5a2fc7a88c8c0a81e7ea3807b41d43c33a32e0f51f710f3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pf",
+    "name": "French Polynesia",
+    "code": "pf",
+    "region": "Oceania",
+    "keywords": [
+      "french",
+      "tahitian",
+      "red",
+      "white"
+    ],
+    "sha256": "f80a96db3217a9baf44d865e529d4fb2e6b1851b2bbdc14f41b15af442fd6481",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pg",
+    "name": "Papua New Guinea",
+    "code": "pg",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "tok pisin",
+      "hiri motu",
+      "red",
+      "black",
+      "yellow",
+      "white"
+    ],
+    "sha256": "4cda06b7cfe445cdb77e1660f82dd3cee8e968c46711e45186e69d1141c819c6",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ph",
+    "name": "Philippines",
+    "code": "ph",
+    "region": "Southeast Asia",
+    "keywords": [
+      "filipino",
+      "english",
+      "blue",
+      "red",
+      "white",
+      "yellow"
+    ],
+    "sha256": "7cb799c7306295f7b55f9f29a6315f583dd8b1a0309ea4b70dcdfab1a6c2459a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pk",
+    "name": "Pakistan",
+    "code": "pk",
+    "region": "South Asia",
+    "keywords": [
+      "urdu",
+      "english",
+      "green",
+      "white"
+    ],
+    "sha256": "da8375e9679486c914a662fe6e611c5821bae28d81447ce0d85732057afdc159",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pl",
+    "name": "Poland",
+    "code": "pl",
+    "region": "Eastern Europe",
+    "keywords": [
+      "polish",
+      "white",
+      "red"
+    ],
+    "sha256": "33d6dd75847888a634ecb2987df48a28747389756628c33242cb35347aea7a06",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pm",
+    "name": "Saint Pierre and Miquelon",
+    "code": "pm",
+    "region": "North America",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red",
+      "yellow",
+      "black"
+    ],
+    "sha256": "24cde4bb70baad1185e95b361577b3b052aca5cfcea4c71852d03767333b170f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pn",
+    "name": "Pitcairn Islands",
+    "code": "pn",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "pitkern",
+      "blue",
+      "green",
+      "yellow",
+      "red",
+      "white"
+    ],
+    "sha256": "e7707c7914c284c1920c459c19b80374790fbc3c663b5542457daef24dfc2ac9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pr",
+    "name": "Puerto Rico",
+    "code": "pr",
+    "region": "Caribbean",
+    "keywords": [
+      "spanish",
+      "english",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "fea08128d166cf47abe234c9c13fd1810ab1733cb611461e499ea5eed42a33ec",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ps",
+    "name": "Palestine",
+    "code": "ps",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "green",
+      "white",
+      "black"
+    ],
+    "sha256": "dfa980f47dc92f7423a592345d7ba48b49d66d6e9c6196ef999f0093588dc43b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pt",
+    "name": "Portugal",
+    "code": "pt",
+    "region": "Southern Europe",
+    "keywords": [
+      "portuguese",
+      "green",
+      "red",
+      "yellow"
+    ],
+    "sha256": "94357d0c548a30c2234eff924b042fc6ab1118900f1ee9c658d3c458b22c254b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:pw",
+    "name": "Palau",
+    "code": "pw",
+    "region": "Oceania",
+    "keywords": [
+      "palauan",
+      "english",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "12dea72054866d107ce73d46b48b320a89d53c1ebce4835749bb58889dd13ca4",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:py",
+    "name": "Paraguay",
+    "code": "py",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "guarani",
+      "red",
+      "white",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "22f5295570da348f05b5c69befffd7bb572f04c9fa44934303774ca55813f628",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:qa",
+    "name": "Qatar",
+    "code": "qa",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white"
+    ],
+    "sha256": "36322458fe32dc64f3808c93c35f972a0b7a497e1a4d5a11ae8c99b2017523a3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:re",
+    "name": "Reunion",
+    "code": "re",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "reunion creole",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "614630af340f0d536801f9d589e0ab592b3d2444b08e1916f741138f302adf0b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ro",
+    "name": "Romania",
+    "code": "ro",
+    "region": "Eastern Europe",
+    "keywords": [
+      "romanian",
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "sha256": "d0067aa8b99bf3878e26b9d7962ba44cbdfb420a34857786cf2681e625ef5e2c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:rs",
+    "name": "Serbia",
+    "code": "rs",
+    "region": "Eastern Europe",
+    "keywords": [
+      "serbian",
+      "red",
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "decda287dbac8ee4a2061a56d22fbb986efa397fa401ec55216a019ee4ea45c9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ru",
+    "name": "Russia",
+    "code": "ru",
+    "region": "Eastern Europe",
+    "keywords": [
+      "russian",
+      "white",
+      "blue",
+      "red"
+    ],
+    "sha256": "a2133cff2b389e4a2fd082b13650236ab84bf12af03a3659cdaa10d97341499c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:rw",
+    "name": "Rwanda",
+    "code": "rw",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "kinyarwanda",
+      "french",
+      "english",
+      "blue",
+      "yellow",
+      "green"
+    ],
+    "sha256": "1cd35a7d248d09fbd764534bf329d31b2a6163c59ee26dd8c33bc4a210fed3ed",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sa",
+    "name": "Saudi Arabia",
+    "code": "sa",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "green",
+      "white"
+    ],
+    "sha256": "eabac7982c2014f944b7070ecaa76d39c93397e89a8d73577611f4b85a46a679",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sb",
+    "name": "Solomon Islands",
+    "code": "sb",
+    "region": "Oceania",
+    "keywords": [
+      "english",
+      "blue",
+      "green",
+      "yellow",
+      "white"
+    ],
+    "sha256": "2a587da1e3a4ad68de13ded3e0724a98f2c7a68d6cc8889548c2a5279557dea2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sc",
+    "name": "Seychelles",
+    "code": "sc",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "seychellois creole",
+      "english",
+      "french",
+      "blue",
+      "yellow",
+      "red",
+      "white",
+      "green"
+    ],
+    "sha256": "f4480b06b5031b574d7ef4df0a999caa2147a95883fec6fe240e03ff93067daf",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sd",
+    "name": "Sudan",
+    "code": "sd",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "english",
+      "red",
+      "white",
+      "black",
+      "green"
+    ],
+    "sha256": "c9000b349e0bd288e08c223871a5119ca33cca09379c513c315ac5dd6f37a1de",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:se",
+    "name": "Sweden",
+    "code": "se",
+    "region": "Northern Europe",
+    "keywords": [
+      "swedish",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "6f4b4a90ed7efd16ca5ba902f2ae8ecdfc7c528be75eafd16dbec10b0d71dd9f",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sg",
+    "name": "Singapore",
+    "code": "sg",
+    "region": "Southeast Asia",
+    "keywords": [
+      "english",
+      "malay",
+      "mandarin",
+      "tamil",
+      "red",
+      "white"
+    ],
+    "sha256": "66c4e6fb26db42fc95e3b1bed59c71d3256ee73a2da757d6f12d7bf908be15b2",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sh",
+    "name": "Saint Helena",
+    "code": "sh",
+    "region": "Atlantic Ocean",
+    "keywords": [
+      "english",
+      "blue",
+      "red",
+      "white",
+      "yellow",
+      "green"
+    ],
+    "sha256": "5d3b6abba01654954a4291870f8ef57b9c960da084e3b7fc5a20307984e6729e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:si",
+    "name": "Slovenia",
+    "code": "si",
+    "region": "Southern Europe",
+    "keywords": [
+      "slovenian",
+      "white",
+      "blue",
+      "red"
+    ],
+    "sha256": "e981b97b0b659bd762274cb82b29c32bf319885a3e4c3083899ed433e3c4fe10",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sj",
+    "name": "Svalbard and Jan Mayen",
+    "code": "sj",
+    "region": "Northern Europe",
+    "keywords": [
+      "norwegian",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "2b90d2a26cd641fecd61fcf0371601fe76b9c9513129b0f7aba3b51dad24571e",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sk",
+    "name": "Slovakia",
+    "code": "sk",
+    "region": "Eastern Europe",
+    "keywords": [
+      "slovak",
+      "white",
+      "blue",
+      "red"
+    ],
+    "sha256": "e2f2d1b9b2aee186ad976fc5c0e48c045455a53ed65d710e4e6be47f6e13436b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sl",
+    "name": "Sierra Leone",
+    "code": "sl",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "green",
+      "white",
+      "blue"
+    ],
+    "sha256": "61f5d2e81b7cc63e06574c2c1640a9266ea3c56b7b459a331a2f5c3c5bd08c55",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sm",
+    "name": "San Marino",
+    "code": "sm",
+    "region": "Southern Europe",
+    "keywords": [
+      "italian",
+      "white",
+      "blue"
+    ],
+    "sha256": "68b49615ff833ed0062ac680000ae661c444587e6df6fc298b3f99e22d2e4967",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sn",
+    "name": "Senegal",
+    "code": "sn",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "red"
+    ],
+    "sha256": "0e9f66e309cd3b2cad158dee3b72d1ace23c8a0183f9b9197af9d4a5d9900815",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:so",
+    "name": "Somalia",
+    "code": "so",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "somali",
+      "arabic",
+      "blue",
+      "white"
+    ],
+    "sha256": "c4dc794abcdb62fd4f488a6d7c27ea33088bc9b1627822210cccb82c3bac6c9c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sr",
+    "name": "Suriname",
+    "code": "sr",
+    "region": "South America",
+    "keywords": [
+      "dutch",
+      "green",
+      "white",
+      "red",
+      "yellow"
+    ],
+    "sha256": "4c6921f0f0415fc368f4d1c2b11fbddbf0047f9adba542699037012660c38be8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ss",
+    "name": "South Sudan",
+    "code": "ss",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "black",
+      "red",
+      "green",
+      "blue",
+      "white",
+      "yellow"
+    ],
+    "sha256": "e2cb726e389cca6b3798183a090724f41fa1a571c4597ddcb30973a6d08472a5",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:st",
+    "name": "Sao Tome and Principe",
+    "code": "st",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "portuguese",
+      "green",
+      "yellow",
+      "red",
+      "black"
+    ],
+    "sha256": "3e8cdc46335e5959dce80d92f380819165a0dd15fdfa06ab63bed5c8d7a8b0bb",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sv",
+    "name": "El Salvador",
+    "code": "sv",
+    "region": "Central America",
+    "keywords": [
+      "spanish",
+      "blue",
+      "white"
+    ],
+    "sha256": "3b9e0f304227000d43587230008ee487e167b54e3b65981636e3a2f391193f93",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sx",
+    "name": "Sint Maarten",
+    "code": "sx",
+    "region": "Caribbean",
+    "keywords": [
+      "dutch",
+      "english",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "02691d98d7f0915950773900d1f763745418f63e68c598cb9261088e011d25dc",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sy",
+    "name": "Syria",
+    "code": "sy",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white",
+      "black",
+      "green"
+    ],
+    "sha256": "7783716de37dea5379e8eb29937bf726f600893c78047e31bb25ade1d2285151",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:sz",
+    "name": "Eswatini",
+    "code": "sz",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "swazi",
+      "english",
+      "blue",
+      "red",
+      "yellow",
+      "black",
+      "white"
+    ],
+    "sha256": "75a863deb245ecdbf52ed1191fefe9780372348a2821c6f32df22a4d34dab14d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tc",
+    "name": "Turks and Caicos Islands",
+    "code": "tc",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "red",
+      "white",
+      "yellow",
+      "green"
+    ],
+    "sha256": "538edf896bdf3725e5c3798b11d1a063f032c09ae2fd83546f09ead676346032",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:td",
+    "name": "Chad",
+    "code": "td",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "arabic",
+      "blue",
+      "yellow",
+      "red"
+    ],
+    "sha256": "29e54ee7d0cfcafc8fa240b1d94b534243c6c5c39c37092b4ef77e0cef201c30",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tf",
+    "name": "French Southern Territories",
+    "code": "tf",
+    "region": "Oceania",
+    "keywords": [
+      "french",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "09cef19ad3ab25b78ff0d047d83d74debd29784947d2aa05a840dd844a87ec3b",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tg",
+    "name": "Togo",
+    "code": "tg",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "green",
+      "yellow",
+      "red",
+      "white"
+    ],
+    "sha256": "e001852221c6847cc09bd4778eec4bba8fa806ad34fb5871eb7f13d2c6c267fd",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:th",
+    "name": "Thailand",
+    "code": "th",
+    "region": "Southeast Asia",
+    "keywords": [
+      "thai",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "be6062629a7e65b3a3a7c572a2a4beadbcaaf8d101007673d4a02e167cb0d9ba",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tj",
+    "name": "Tajikistan",
+    "code": "tj",
+    "region": "Central Asia",
+    "keywords": [
+      "tajik",
+      "red",
+      "white",
+      "green",
+      "yellow"
+    ],
+    "sha256": "97efacb5ac6801385f7880aefb68199f3f6a1bb7852349babed702e57a8a748a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tk",
+    "name": "Tokelau",
+    "code": "tk",
+    "region": "Oceania",
+    "keywords": [
+      "tokelauan",
+      "english",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "c32b1f68dd7d7d1bc87e3973b424b15f6c578c30e410c85736191f5239cbfff1",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tl",
+    "name": "Timor-Leste",
+    "code": "tl",
+    "region": "Southeast Asia",
+    "keywords": [
+      "tetum",
+      "portuguese",
+      "red",
+      "yellow",
+      "black",
+      "white"
+    ],
+    "sha256": "ee189552466903531937332ad6495ab1fe638f5680eb4f39df0c35a2211a877a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tm",
+    "name": "Turkmenistan",
+    "code": "tm",
+    "region": "Central Asia",
+    "keywords": [
+      "turkmen",
+      "green",
+      "red",
+      "white"
+    ],
+    "sha256": "bd5772c77bb205295f3c15eb017d20e23369288a80dbf8fca46a1b142677c1a8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tn",
+    "name": "Tunisia",
+    "code": "tn",
+    "region": "North Africa",
+    "keywords": [
+      "arabic",
+      "red",
+      "white"
+    ],
+    "sha256": "fc49fd54138550915c4f16425bb3e43c47f2b6d3cfdf5f1f794a21aba43e89f3",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:to",
+    "name": "Tonga",
+    "code": "to",
+    "region": "Oceania",
+    "keywords": [
+      "tongan",
+      "english",
+      "red",
+      "white"
+    ],
+    "sha256": "283503279ec4d341d7d00b925f451b1669783641079adfc07a35bc940b33fb30",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tr",
+    "name": "Turkey",
+    "code": "tr",
+    "region": "Middle East",
+    "keywords": [
+      "turkish",
+      "red",
+      "white"
+    ],
+    "sha256": "c7d64cc27e99509e285d4e3fb71dbc76ee3c51cd32d72e6c2347ef1ae843e5f1",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tt",
+    "name": "Trinidad and Tobago",
+    "code": "tt",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "red",
+      "black",
+      "white"
+    ],
+    "sha256": "b88d80766c6995bd8ff99aebd2b07589652d536a475c22f4ed2999127df0af1a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tv",
+    "name": "Tuvalu",
+    "code": "tv",
+    "region": "Oceania",
+    "keywords": [
+      "tuvaluan",
+      "english",
+      "blue",
+      "yellow",
+      "red",
+      "white"
+    ],
+    "sha256": "03316896c22aa1a35e996652ce36c0774644900366b908526738fda0f6010bd8",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tw",
+    "name": "Taiwan",
+    "code": "tw",
+    "region": "East Asia",
+    "keywords": [
+      "mandarin",
+      "red",
+      "blue",
+      "white"
+    ],
+    "sha256": "5e5c96938e728405e60941bc4ab417def2abaeeb09b8c77ef9a769df5774a1e9",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:tz",
+    "name": "Tanzania",
+    "code": "tz",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "swahili",
+      "english",
+      "green",
+      "yellow",
+      "black",
+      "blue"
+    ],
+    "sha256": "3f13ac49581d703eba0884e630280e8ce41442791caf69d115c4d0aedd317151",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ua",
+    "name": "Ukraine",
+    "code": "ua",
+    "region": "Eastern Europe",
+    "keywords": [
+      "ukrainian",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "377aa7b05c886a35e384279eb6c2e9ab609fe636150195ea75aae4c5b0a75d9a",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ug",
+    "name": "Uganda",
+    "code": "ug",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "swahili",
+      "black",
+      "yellow",
+      "red",
+      "white"
+    ],
+    "sha256": "3556ba3ec94be21db0cdeea803fcdd4b3237be17937fa9d7eb8f71dbc9f13388",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:us",
+    "name": "United States",
+    "code": "us",
+    "region": "North America",
+    "keywords": [
+      "english",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "eb8f6fec109a1d935232edb6e74000faa6d7aaa3791def50c9b9c9eb46e6b9aa",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:uy",
+    "name": "Uruguay",
+    "code": "uy",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "white",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "c403e567fcf7dda4dfffe2ae49c12f2b7061faa0fdf7119188b13ccc613a54db",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:uz",
+    "name": "Uzbekistan",
+    "code": "uz",
+    "region": "Central Asia",
+    "keywords": [
+      "uzbek",
+      "blue",
+      "white",
+      "green",
+      "red"
+    ],
+    "sha256": "d1d658d1ca0f03359d57b4ba9170630213f3f5c8648619ff89807e01ed0c0b54",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:va",
+    "name": "Vatican City",
+    "code": "va",
+    "region": "Southern Europe",
+    "keywords": [
+      "italian",
+      "latin",
+      "yellow",
+      "white"
+    ],
+    "sha256": "765c89324247460719043e33975c735654d5d4f86e2311f6f14a1f20e7752c39",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:vc",
+    "name": "Saint Vincent and the Grenadines",
+    "code": "vc",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "yellow",
+      "green",
+      "white"
+    ],
+    "sha256": "1965956a0df1c3636b7c541b0a3990414d851e5244a161564cf2df43ad08e7d1",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ve",
+    "name": "Venezuela",
+    "code": "ve",
+    "region": "South America",
+    "keywords": [
+      "spanish",
+      "yellow",
+      "blue",
+      "red",
+      "white"
+    ],
+    "sha256": "c53dc4db182eec8c61a2fe5408669143b962d27d8f08bc91ec71d9ca6fec8bac",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:vg",
+    "name": "British Virgin Islands",
+    "code": "vg",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "blue",
+      "white",
+      "red"
+    ],
+    "sha256": "6eb34d449483006ac5b1bf96e777187db424cdb3eba0669cfd5bbb51626e4da0",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:vi",
+    "name": "U.S. Virgin Islands",
+    "code": "vi",
+    "region": "Caribbean",
+    "keywords": [
+      "english",
+      "red",
+      "white",
+      "blue",
+      "yellow"
+    ],
+    "sha256": "d1152c84f43b52e324dcf1c14e5c0d7dac0af308986d2b6c2247628bd26f60ff",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:vn",
+    "name": "Vietnam",
+    "code": "vn",
+    "region": "Southeast Asia",
+    "keywords": [
+      "vietnamese",
+      "red",
+      "yellow"
+    ],
+    "sha256": "881cda76f853d307e6fd3f33f5a5b7e2f68f87b1c61b3c538bdbad250bccf1cb",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:vu",
+    "name": "Vanuatu",
+    "code": "vu",
+    "region": "Oceania",
+    "keywords": [
+      "bislama",
+      "english",
+      "french",
+      "red",
+      "green",
+      "black",
+      "yellow"
+    ],
+    "sha256": "2827163e1be7a98e41b7293becb256851190ba9a431ad906a63650439e4ebb68",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:wf",
+    "name": "Wallis and Futuna",
+    "code": "wf",
+    "region": "Oceania",
+    "keywords": [
+      "french",
+      "wallisian",
+      "futunan",
+      "red",
+      "white",
+      "blue"
+    ],
+    "sha256": "34ed5e04374ac92123e78c19f8e06018c140831c30a5531fa6c030f39aaffa1c",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ws",
+    "name": "Samoa",
+    "code": "ws",
+    "region": "Oceania",
+    "keywords": [
+      "samoan",
+      "english",
+      "red",
+      "blue",
+      "white"
+    ],
+    "sha256": "d8f31cd3ba0a912274bde6e063baaea0c754f420e7c8a81fd78e2b341ccda1ee",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:xk",
+    "name": "Kosovo",
+    "code": "xk",
+    "region": "Eastern Europe",
+    "keywords": [
+      "albanian",
+      "serbian",
+      "blue",
+      "yellow",
+      "white"
+    ],
+    "sha256": "3af879a2c27d4c02f39602fbef42b2139cff77729e79200191464fac7e4aaa8d",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:ye",
+    "name": "Yemen",
+    "code": "ye",
+    "region": "Middle East",
+    "keywords": [
+      "arabic",
+      "red",
+      "white",
+      "black"
+    ],
+    "sha256": "650def8da8fab5bed9e22088fa927c5a3ead48241c3626ed203218080e16de87",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:yt",
+    "name": "Mayotte",
+    "code": "yt",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "french",
+      "shimaore",
+      "kibushi",
+      "white"
+    ],
+    "sha256": "b42a9174b028ec0eaa6d6cdd1b4ed534046bca4991b9054b87cc5515f5fe15ba",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:za",
+    "name": "South Africa",
+    "code": "za",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "zulu",
+      "xhosa",
+      "afrikaans",
+      "english",
+      "red",
+      "blue",
+      "green",
+      "yellow",
+      "black",
+      "white"
+    ],
+    "sha256": "1fd6dbad231416825d5361a1527001c1a957e769584dffa63cf3924f3e481be7",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:zm",
+    "name": "Zambia",
+    "code": "zm",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "green",
+      "red",
+      "black",
+      "orange"
+    ],
+    "sha256": "e5542172f7e3b831ec7c724c6635db87287f63b3b6dbcd5451d06d2680878b22",
+    "width": 640.0,
+    "height": 480.0
+  },
+  {
+    "id": "flags:zw",
+    "name": "Zimbabwe",
+    "code": "zw",
+    "region": "Sub-Saharan Africa",
+    "keywords": [
+      "english",
+      "shona",
+      "ndebele",
+      "green",
+      "yellow",
+      "red",
+      "black",
+      "white"
+    ],
+    "sha256": "b8b0f3136af8fbbba8faa988c008ebaf469be07f486035215d950411106b36e3",
+    "width": 640.0,
+    "height": 480.0
+  }
+]

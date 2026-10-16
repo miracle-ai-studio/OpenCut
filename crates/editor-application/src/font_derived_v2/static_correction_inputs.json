@@ -1,0 +1,344 @@
+[
+  {
+    "family": "Averia Gruesa Libre",
+    "source_path": "ofl/averiagruesalibre/AveriaGruesaLibre-Regular.ttf",
+    "source_sha256": "df080c6c99c694b3d741835957e4ebc37d640a9c54f4079ceb8c7211e3f2e209",
+    "source_size": 111584,
+    "source_git_blob": "328bb0a20ccb69db557e178a51e0bc09f961959a",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Averia Gruesa Libre",
+      "weight": 400,
+      "style": "italic",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": -1.70001220703125
+    }
+  },
+  {
+    "family": "Della Respira",
+    "source_path": "ofl/dellarespira/DellaRespira-Regular.ttf",
+    "source_sha256": "81518be5b7baf69db5b8e4cff1a447ac2f6bf7a6029ca4963a67e1fb1b0b9218",
+    "source_size": 51208,
+    "source_git_blob": "3d7e9941a49c5d5984cb37da67ee2ca6282a12f7",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Della Respira",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Fascinate",
+    "source_path": "ofl/fascinate/Fascinate-Regular.ttf",
+    "source_sha256": "2f3d4e1d3b1f58ba4700eba078c07d9f05d9f39513f6d29b0306ddc007bd7fec",
+    "source_size": 51900,
+    "source_git_blob": "64dd735dc5c706acb75821ffbd75b54e552a27bf",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Fascinate",
+      "weight": 900,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Fascinate Inline",
+    "source_path": "ofl/fascinateinline/FascinateInline-Regular.ttf",
+    "source_sha256": "413101810fe420520122880404d1f8e892269e6a6afa2e00e980f65ef632ee3b",
+    "source_size": 59604,
+    "source_git_blob": "736f692019e4d5daf7a74c14ae2d174cf77f05bf",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Fascinate Inline",
+      "weight": 900,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Geo",
+    "source_path": "ofl/geo/Geo-Regular.ttf",
+    "source_sha256": "38669ed77c0ffe1859f45143c63614c0f1953074331536cb35d3caca944be605",
+    "source_size": 38680,
+    "source_git_blob": "8b8f4d56ae0cccdc3dc1684bc2765424f5daf1a1",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Geo",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Iceland",
+    "source_path": "ofl/iceland/Iceland-Regular.ttf",
+    "source_sha256": "5b5919189e5d01a6fac79251aaf9fa9565a738c39974cbe13de98ac02ec7fff5",
+    "source_size": 47632,
+    "source_git_blob": "df1938c29ed86f9a0b678b6ded65958d93799a0e",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_checksum_repaired",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Iceland",
+      "weight": 400,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Jaldi",
+    "source_path": "ofl/jaldi/Jaldi-Bold.ttf",
+    "source_sha256": "5518eef27bab146f957c70fe50ef10bea8fe363d3ac75cc797aa882a7226bd99",
+    "source_size": 468300,
+    "source_git_blob": "e05dbd6a523441a51094867e3fe5a8597fca5ad3",
+    "weight": 700,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Jaldi",
+      "weight": 400,
+      "style": "normal",
+      "fs_selection": 32,
+      "mac_style": 1,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Kaushan Script",
+    "source_path": "ofl/kaushanscript/KaushanScript-Regular.ttf",
+    "source_sha256": "6d8d379d9bba98178bee476d68114c8f83812c18005ecccf679e70f60e03d8f6",
+    "source_size": 210672,
+    "source_git_blob": "e69e4ac0192b8890c1d3a3aeb1df731df9de6ff6",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_checksum_repaired",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Kaushan Script",
+      "weight": 400,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Kristi",
+    "source_path": "ofl/kristi/Kristi-Regular.ttf",
+    "source_sha256": "6725b7a28d9bd8761e2834a6ab380babe073678c6f42017fe576116b9d6fd2a0",
+    "source_size": 47440,
+    "source_git_blob": "5e0a598dd2fd54f52a6e2b7300afc5fa44bf72d9",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Kristi",
+      "weight": 400,
+      "style": "italic",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": -15.0
+    }
+  },
+  {
+    "family": "Magra",
+    "source_path": "ofl/magra/Magra-Bold.ttf",
+    "source_sha256": "3e991012c290becfeb29943f86391a435b8bbf1fc853dc8399ccbfcce6b56a81",
+    "source_size": 44500,
+    "source_git_blob": "f5f86b7472b2b11cac005a5ce5cce0921e0da330",
+    "weight": 700,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Magra",
+      "weight": 600,
+      "style": "normal",
+      "fs_selection": 32,
+      "mac_style": 1,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Modern Antiqua",
+    "source_path": "ofl/modernantiqua/ModernAntiqua-Regular.ttf",
+    "source_sha256": "36ce0d70604b58915a29189065a1b8383d5197ba117994c87cbfd4f360831efd",
+    "source_size": 70108,
+    "source_git_blob": "8aad763be0d9ec273dc8240b1e05a0d3fd0791cf",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Modern Antiqua",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Nova Script",
+    "source_path": "ofl/novascript/NovaScript-Regular.ttf",
+    "source_sha256": "470a4b2ca317b49f8bfc21d2b8f70d506b2652643664e1c3898852e72122a28d",
+    "source_size": 117388,
+    "source_git_blob": "9457ebc70362c4eec5102ed7f92d523b76a51c59",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Nova Script",
+      "weight": 400,
+      "style": "italic",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": -13.0
+    }
+  },
+  {
+    "family": "Shrikhand",
+    "source_path": "ofl/shrikhand/Shrikhand-Regular.ttf",
+    "source_sha256": "8ba32f6d6a96fb8dbc92fc1acfbc4d2123d5348063d89b2c3dd784e7afcb81af",
+    "source_size": 220804,
+    "source_git_blob": "e52b55e45676ec8ad4a78a8dc798a6e0155932bf",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Shrikhand",
+      "weight": 400,
+      "style": "italic",
+      "fs_selection": 192,
+      "mac_style": 0,
+      "italic_angle": -14.0
+    }
+  },
+  {
+    "family": "MedievalSharp",
+    "source_path": "ofl/medievalsharp/MedievalSharp.ttf",
+    "source_sha256": "74cb2e6738bd7703adf120802f68fba0c9ddb9147a08e6847f1005b1e55df5a5",
+    "source_size": 148712,
+    "source_git_blob": "4534f0e5d7fb1eb27e929052630edcf39af7855e",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "MedievalSharp",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Megrim",
+    "source_path": "ofl/megrim/Megrim.ttf",
+    "source_sha256": "88d30544a63121ab021f4cf60f57257c81caaeddeeb2eb4d6ec1a600ae779cfd",
+    "source_size": 57872,
+    "source_git_blob": "8fc9351ccd26e37cc985c93d3dfbedce1b65f5be",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Megrim",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Reenie Beanie",
+    "source_path": "ofl/reeniebeanie/ReenieBeanie.ttf",
+    "source_sha256": "0ea608aa325bf9e11c9590cc0b63dcf7cd215e270784f1ebbe6fad4927b31ff8",
+    "source_size": 147036,
+    "source_git_blob": "e910d08d2c3f0c19788f96f3ef5b87ee003d373e",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Reenie Beanie",
+      "weight": 500,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Waiting for the Sunrise",
+    "source_path": "ofl/waitingforthesunrise/WaitingfortheSunrise.ttf",
+    "source_sha256": "ac74e70390f5b1be6927c1e079bd6143821a362550b264c5eb7edde34f0899f4",
+    "source_size": 59240,
+    "source_git_blob": "ef89efdaae560c70678ede2da5ba61bf8826dcdb",
+    "weight": 400,
+    "style": "normal",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Waiting for the Sunrise",
+      "weight": 300,
+      "style": "normal",
+      "fs_selection": 64,
+      "mac_style": 0,
+      "italic_angle": 0.0
+    }
+  },
+  {
+    "family": "Geo",
+    "source_path": "ofl/geo/Geo-Oblique.ttf",
+    "source_sha256": "4f0083782a238a2c03fb8864119b1df5c0c8388a208a0f03d7a7c11313e679f3",
+    "source_size": 50036,
+    "source_git_blob": "03a2e79b4a50fad9b2d8b794a704cf41f1ace5b0",
+    "weight": 400,
+    "style": "italic",
+    "recipe_kind": "static_metadata_corrected",
+    "render_profile": "static_outline",
+    "original_metadata": {
+      "family": "Geo",
+      "weight": 500,
+      "style": "italic",
+      "fs_selection": 1,
+      "mac_style": 2,
+      "italic_angle": -11.0
+    }
+  }
+]

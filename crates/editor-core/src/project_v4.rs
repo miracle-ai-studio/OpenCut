@@ -12,19 +12,23 @@ use std::{
 mod channels;
 mod content;
 mod evaluation;
+mod font_synthesis;
 pub mod legacy;
 mod parameters;
 mod resources;
 mod text;
 mod timing;
+mod transform_animation_v1;
 mod visual;
 use content::{element, transition};
 pub use evaluation::*;
+pub use font_synthesis::{is_font_synthesis_resource_v1, validate_font_synthesis_resource_v1};
 pub use parameters::*;
 pub use resources::gain_amplitude;
 use resources::{background, origin};
 use text::{caption_validate, font_request, font_size, text};
 use timing::{checked_sum, element_source};
+pub use transform_animation_v1::*;
 use visual::{effect, graphic, visual};
 #[cfg(test)]
 mod tests;
@@ -203,6 +207,7 @@ pub fn validate_project_v4(project: &ProjectDocumentV4) -> Result<(), EditorErro
         }
         crate::validate_asset_version(&font.content).map_err(|e| invalid(e.message))?;
         origin(&font.origin)?;
+        validate_font_synthesis_resource_v1(font)?;
     }
     let sequence_ids: HashSet<_> = project.sequences.iter().map(|s| s.id.as_str()).collect();
     if !sequence_ids.contains(project.default_sequence_id.as_str()) {

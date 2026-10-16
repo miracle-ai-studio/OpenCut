@@ -13,19 +13,25 @@ export type FontRecoveryRecord = NonNullable<
   ToolOutput<"opencut_font_recovery_v1_inspect">["record"]
 >;
 type FontProtocol = "static" | "derived";
-const protocolTools = (protocol: FontProtocol) =>
+const protocolTools = (protocol: FontProtocol, catalogId = "") =>
   protocol === "derived"
     ? ({
         read: "opencut_font_derived_v1_recovery_read",
         stage: "opencut_font_derived_v1_recovery_stage",
         ack: "opencut_font_derived_v1_recovery_ack",
-        import: "opencut_font_derived_v1_import",
+        import: catalogId.endsWith("-synthetic-italic-v1")
+          ? "opencut_font_synthesis_v1_import"
+          : catalogId.endsWith("-derived-v2")
+            ? "opencut_font_derived_v2_import"
+            : "opencut_font_derived_v1_import",
       } as const)
     : ({
         read: "opencut_font_recovery_v1_inspect",
         stage: "opencut_font_recovery_v1_stage",
         ack: "opencut_font_recovery_v1_ack",
-        import: "opencut_font_v1_import",
+        import: catalogId.endsWith("-v3")
+          ? "opencut_font_import_v3"
+          : "opencut_font_v1_import",
       } as const);
 type Receipt = NonNullable<FontRecoveryRecord["receipt"]>;
 export type FontRecoveryState = {
@@ -34,6 +40,9 @@ export type FontRecoveryState = {
   derivedRequest?: DerivedFontImport;
   derivedSupported?: boolean;
   staticSupported?: boolean;
+  staticV3Supported?: boolean;
+  derivedV2Supported?: boolean;
+  synthesisSupported?: boolean;
   phase:
     | "idle"
     | "reading"
@@ -241,6 +250,15 @@ export class V4FontRecovery {
             : previous.derivedRequest,
         derivedSupported,
         staticSupported,
+        staticV3Supported: capabilities.tools.includes(
+          "opencut_font_import_v3",
+        ),
+        derivedV2Supported: capabilities.tools.includes(
+          "opencut_font_derived_v2_import",
+        ),
+        synthesisSupported:
+          capabilities.tools.includes("opencut_font_synthesis_v1_import") &&
+          capabilities.tools.includes("opencut_font_synthesis_v1_proof"),
         record: record ? fixed(record) : null,
         receipt: record ? (record.receipt ?? null) : previous.receipt,
         phase: record
@@ -346,13 +364,19 @@ export class V4FontRecovery {
   async execute(
     api: EditorApi,
     context: FontRecoveryContext,
-    protocol: FontProtocol = "static",
+    requestedProtocol: FontProtocol | "static_v3" | "synthesis" = "static",
   ): Promise<Receipt> {
+    const protocol: FontProtocol =
+      requestedProtocol === "static_v3"
+        ? "static"
+        : requestedProtocol === "synthesis"
+          ? "derived"
+          : requestedProtocol;
     const captured = fixed(context),
       projectId = captured.request.project_id,
       fence = this.fence(api, projectId),
       previous = this.value(fence);
-    const tools = protocolTools(protocol),
+    const tools = protocolTools(protocol, captured.request.catalog_id),
       derivedRequest = protocol === "derived" ? captured.request : undefined;
     const edit = this.host.state()?.recovery,
       legacy = this.host.state()?.timelineEdit.attempt;
@@ -367,6 +391,12 @@ export class V4FontRecovery {
       );
     if (
       previous.supported !== true ||
+      (tools.import === "opencut_font_import_v3" &&
+        previous.staticV3Supported !== true) ||
+      (tools.import === "opencut_font_derived_v2_import" &&
+        previous.derivedV2Supported !== true) ||
+      (tools.import === "opencut_font_synthesis_v1_import" &&
+        previous.synthesisSupported !== true) ||
       (protocol === "derived" && previous.derivedSupported !== true) ||
       (protocol === "static" && previous.staticSupported === false) ||
       (previous.record && (previous.protocol ?? "static") !== protocol) ||
@@ -539,6 +569,8 @@ export class V4FontRecovery {
         derivedRequest: this.value(fence).derivedRequest,
         derivedSupported: state.fontRecovery?.derivedSupported,
         staticSupported: state.fontRecovery?.staticSupported,
+        staticV3Supported: state.fontRecovery?.staticV3Supported,
+        derivedV2Supported: state.fontRecovery?.derivedV2Supported,
         supported: true,
         phase: receipt ? "saved" : "idle",
         receipt,
@@ -565,6 +597,8 @@ export class V4FontRecovery {
       ...emptyFontRecovery(),
       derivedSupported: state.fontRecovery?.derivedSupported,
       staticSupported: state.fontRecovery?.staticSupported,
+      staticV3Supported: state.fontRecovery?.staticV3Supported,
+      derivedV2Supported: state.fontRecovery?.derivedV2Supported,
       supported: true,
     });
   }

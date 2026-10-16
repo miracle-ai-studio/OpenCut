@@ -16,7 +16,8 @@ fn selection(targets: &[TimelineTargetV4]) -> Result<(), EditorError> {
     Ok(())
 }
 fn media_track(track: &TrackV4, profile: Profile) -> Result<(), EditorError> {
-    if !(profile.accepts_text() && track.kind == TrackKindV4::Text)
+    if !profile.complete()
+        && !(profile.accepts_text() && track.kind == TrackKindV4::Text)
         && !matches!(
             track.kind,
             TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
@@ -43,6 +44,30 @@ pub(super) fn apply(
             let (fps, classic) = timing::fps(project, &before.id)?;
             let mut moved = vec![];
             for movement in moves {
+                if profile.complete()
+                    && before
+                        .captions
+                        .iter()
+                        .any(|c| c.id == movement.target.element_id)
+                {
+                    let index = caption_target(before, &movement.target)?;
+                    let destination = track(before, &movement.target_track_id)?;
+                    unlocked(&before.tracks[destination])?;
+                    if before.tracks[destination].kind != TrackKindV4::Caption {
+                        return Err(invalid("Caption move requires a caption track"));
+                    }
+                    let (fps, classic) = timing::fps(project, &before.id)?;
+                    let mut cue = before.captions[index].clone();
+                    cue.track_id = movement.target_track_id.clone();
+                    cue.timeline_range.start =
+                        timing::align(&movement.new_start, fps, classic)?.into();
+                    after.captions[index] = cue;
+                    decision.selection.push(TimelineTargetV4 {
+                        track_id: movement.target_track_id.clone(),
+                        element_id: movement.target.element_id.clone(),
+                    });
+                    continue;
+                }
                 let (source, index) = target(before, &movement.target, profile)?;
                 id(&movement.target_track_id)?;
                 let destination = track(before, &movement.target_track_id)?;
@@ -78,6 +103,29 @@ pub(super) fn apply(
             boundary,
             ripple,
         } => {
+            if profile.complete() && before.captions.iter().any(|c| c.id == value.element_id) {
+                let index = caption_target(before, value)?;
+                let mut cue = before.captions[index].clone();
+                let (fps, classic) = timing::fps(project, &before.id)?;
+                let boundary = timing::align(boundary, fps, classic)?;
+                let minimum = R::new(i64::from(fps.denominator), fps.numerator)?;
+                let start = time(&cue.timeline_range.start)?;
+                let finish = start.checked_add(time(&cue.timeline_range.duration)?)?;
+                let (next_start, next_end) = match edge {
+                    TimelineTrimEdgeV4::Left => (boundary, finish),
+                    TimelineTrimEdgeV4::Right => (start, boundary),
+                };
+                if next_start.ticks() < 0
+                    || next_end.checked_sub(next_start)?.cmp_exact(minimum).is_lt()
+                {
+                    return Err(invalid("Caption trim must retain one frame"));
+                }
+                cue.timeline_range.start = next_start.into();
+                cue.timeline_range.duration = next_end.checked_sub(next_start)?.into();
+                after.captions[index] = cue;
+                decision.selection.push(value.clone());
+                return Ok(*ripple);
+            }
             let (t, e) = target(before, value, profile)?;
             after.tracks[t].elements[e] = timing::trim(
                 project,
@@ -86,6 +134,8 @@ pub(super) fn apply(
                 &before.tracks[t].elements[e],
                 *edge,
                 boundary,
+                profile,
+                ids,
             )?;
             decision.selection.push(value.clone());
             Ok(*ripple)
@@ -114,6 +164,48 @@ pub(super) fn apply(
                 }
             }
             for value in targets {
+                if profile.complete()
+                    && before
+                        .captions
+                        .iter()
+                        .any(|c| c.id == value.target.element_id)
+                {
+                    let i = caption_target(before, &value.target)?;
+                    let cue = &before.captions[i];
+                    let start = time(&cue.timeline_range.start)?;
+                    let finish = start.checked_add(time(&cue.timeline_range.duration)?)?;
+                    if !at.cmp_exact(start).is_gt() || !at.cmp_exact(finish).is_lt() {
+                        decision.selection.push(value.target.clone());
+                        continue;
+                    }
+                    let mut left = cue.clone();
+                    let mut right = cue.clone();
+                    left.timeline_range.duration = at.checked_sub(start)?.into();
+                    right.id = value.right_element_id.clone();
+                    right.timeline_range.start = at.into();
+                    right.timeline_range.duration = finish.checked_sub(at)?.into();
+                    let index = after
+                        .captions
+                        .iter()
+                        .position(|c| c.id == cue.id)
+                        .ok_or_else(|| missing("Caption split target disappeared"))?;
+                    match retain {
+                        TimelineSplitRetainV4::Both => {
+                            after.captions.splice(index..=index, [left, right]);
+                        }
+                        TimelineSplitRetainV4::Left => after.captions[index] = left,
+                        TimelineSplitRetainV4::Right => after.captions[index] = right,
+                    }
+                    decision.selection.push(TimelineTargetV4 {
+                        track_id: cue.track_id.clone(),
+                        element_id: if *retain == TimelineSplitRetainV4::Left {
+                            cue.id.clone()
+                        } else {
+                            value.right_element_id.clone()
+                        },
+                    });
+                    continue;
+                }
                 let (t, e) = target(before, &value.target, profile)?;
                 let original = &before.tracks[t].elements[e];
                 let index = after.tracks[t]
@@ -127,7 +219,7 @@ pub(super) fn apply(
                     decision.selection.push(value.target.clone());
                     continue;
                 }
-                let (left, mut right) = timing::split(project, original, at)?;
+                let (left, mut right) = timing::split(project, original, at, profile, ids)?;
                 if *retain != TimelineSplitRetainV4::Left {
                     ids.rebind(&mut right, &value.right_element_id)?;
                 }
@@ -159,11 +251,18 @@ pub(super) fn apply(
         Delete { targets, ripple } => {
             selection(targets)?;
             for value in targets {
-                target(before, value, profile)?;
+                if profile.complete() && before.captions.iter().any(|c| c.id == value.element_id) {
+                    caption_target(before, value)?;
+                } else {
+                    target(before, value, profile)?;
+                }
             }
             let selected: BTreeSet<_> = targets.iter().map(|t| t.element_id.as_str()).collect();
             for t in &mut after.tracks {
                 t.elements.retain(|e| !selected.contains(e.id.as_str()));
+            }
+            if profile.complete() {
+                after.captions.retain(|c| !selected.contains(c.id.as_str()));
             }
             Ok(*ripple)
         }
@@ -175,7 +274,8 @@ pub(super) fn apply(
             ids.claim(track_id)?;
             if name.trim().is_empty()
                 || name.len() > 4096
-                || (!(profile.accepts_text() && *kind == TrackKindV4::Text)
+                || (!profile.complete()
+                    && !(profile.accepts_text() && *kind == TrackKindV4::Text)
                     && !matches!(
                         kind,
                         TrackKindV4::Video | TrackKindV4::Audio | TrackKindV4::Graphic
@@ -255,6 +355,29 @@ pub(super) fn diff(
                 sequence_id: before.id.clone(),
                 transition_id: cut.id.clone(),
             });
+        }
+    }
+    for cue in &before.captions {
+        if !after.captions.iter().any(|c| c.id == cue.id) {
+            ops.push(CaptionDelete {
+                sequence_id: before.id.clone(),
+                caption_id: cue.id.clone(),
+            });
+            decision.deleted_ids.push(cue.id.clone());
+        }
+    }
+    for cue in &after.captions {
+        let old = before.captions.iter().find(|c| c.id == cue.id);
+        if old != Some(cue) {
+            ops.push(CaptionPut {
+                sequence_id: before.id.clone(),
+                caption: cue.clone(),
+            });
+            if old.is_some() {
+                decision.changed_ids.push(cue.id.clone());
+            } else {
+                decision.created_ids.push(cue.id.clone());
+            }
         }
     }
     for t in &before.tracks {
@@ -408,6 +531,20 @@ pub(super) fn diff(
 }
 pub(super) fn public(op: &ProjectOperationV4) -> PublicProjectOperationV4 {
     match op {
+        ProjectOperationV4::CaptionPut {
+            sequence_id,
+            caption,
+        } => PublicProjectOperationV4::CaptionPut {
+            sequence_id: sequence_id.clone(),
+            caption: Box::new(caption.clone()),
+        },
+        ProjectOperationV4::CaptionDelete {
+            sequence_id,
+            caption_id,
+        } => PublicProjectOperationV4::CaptionDelete {
+            sequence_id: sequence_id.clone(),
+            caption_id: caption_id.clone(),
+        },
         ProjectOperationV4::ElementPut {
             sequence_id,
             track_id,
@@ -453,4 +590,19 @@ pub(super) fn public(op: &ProjectOperationV4) -> PublicProjectOperationV4 {
         },
         _ => unreachable!("Timeline diff cannot acquire private resources"),
     }
+}
+
+fn caption_target(scene: &SequenceV4, value: &TimelineTargetV4) -> Result<usize, EditorError> {
+    id(&value.track_id)?;
+    id(&value.element_id)?;
+    let t = track(scene, &value.track_id)?;
+    unlocked(&scene.tracks[t])?;
+    if scene.tracks[t].kind != TrackKindV4::Caption {
+        return Err(invalid("Caption belongs to a caption track"));
+    }
+    scene
+        .captions
+        .iter()
+        .position(|c| c.id == value.element_id && c.track_id == value.track_id)
+        .ok_or_else(|| missing("Caption does not belong to its explicit track"))
 }

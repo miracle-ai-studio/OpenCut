@@ -116,6 +116,7 @@ pub struct BoundTextFrameV2 {
 pub fn prepare_text_frame_v2(
     graph: &CompositionV4,
 ) -> Result<PreparedTextFrameV2, CompositionError> {
+    reject_legacy_synthesis_fonts(&graph.fonts)?;
     let mut ids = BTreeSet::new();
     let mut required_fonts = BTreeSet::new();
     let mut media_layers = Vec::new();

@@ -1,3 +1,8 @@
+import { V4SceneStackInspector } from "./scene-stack";
+import { V4GainKeyframeLine } from "./gain-keyframes";
+import { V4ElementPropertiesEditor } from "./property-edit/editor";
+import { KeyframeEditor } from "./keyframes/editor";
+import { V4MaskInspector } from "./mask/workspace";
 import { SourceAudioControls } from "./source-audio-controls";
 import { useState, type ReactNode } from "react";
 import { useWorkspace } from "../context";
@@ -5,15 +10,36 @@ import { Button } from "../../shared/ui";
 import { formatTime } from "../../model/time";
 import { t } from "../../shared/locale";
 import type { V4Document, V4Element, V4Sequence } from "./types";
+import { V4GraphicEditButton } from "./graphic/workspace";
 import { V4TextEditButton } from "./text/workspace";
 import { V4TextTransformEditor } from "./text/transform-editor";
+import { V4BlendEditor } from "./blend-editor";
 
-function TextTransformControl({ trackId, elementId, locked }: { trackId: string; elementId: string; locked: boolean }) {
+function TextTransformControl({
+  trackId,
+  elementId,
+  locked,
+}: {
+  trackId: string;
+  elementId: string;
+  locked: boolean;
+}) {
   const { v4, busy } = useWorkspace();
   const [editing, setEditing] = useState(false);
-  return editing
-    ? <V4TextTransformEditor trackId={trackId} elementId={elementId} onClose={() => setEditing(false)} />
-    : <Button disabled={busy || locked || !!v4?.historical} onClick={() => setEditing(true)}>{t("Edit text position and scale")}</Button>;
+  return editing ? (
+    <V4TextTransformEditor
+      trackId={trackId}
+      elementId={elementId}
+      onClose={() => setEditing(false)}
+    />
+  ) : (
+    <Button
+      disabled={busy || locked || !!v4?.historical}
+      onClick={() => setEditing(true)}
+    >
+      {t("Edit text position and scale")}
+    </Button>
+  );
 }
 const label = (kind: string) =>
   t(
@@ -61,10 +87,13 @@ export function V4Inspector({
   sequence: V4Sequence;
   selectedId: string | null;
 }) {
+  const { api, v4 } = useWorkspace();
   const element = sequence.tracks
     .flatMap((t) => t.elements)
     .find((e) => e.id === selectedId);
-  const elementTrack = sequence.tracks.find(track => track.elements.some(item => item.id === selectedId));
+  const elementTrack = sequence.tracks.find((track) =>
+    track.elements.some((item) => item.id === selectedId),
+  );
   const track = sequence.tracks.find((t) => t.id === selectedId);
   const caption = sequence.captions.find((c) => c.id === selectedId);
   const settings =
@@ -100,6 +129,10 @@ export function V4Inspector({
         <>
           <h3>{element.name}</h3>
           <Properties rows={elementRows(element)} />
+          <V4GainKeyframeLine elementId={element.id} />
+          <V4ElementPropertiesEditor elementId={element.id} locked={elementTrack?.locked ?? false} />
+          <V4SceneStackInspector elementId={element.id} locked={elementTrack?.locked ?? false} />
+          <KeyframeEditor elementId={element.id} locked={elementTrack?.locked ?? false} />
           {resource && (
             <Properties
               rows={[
@@ -169,8 +202,18 @@ export function V4Inspector({
           )}
           {content?.kind === "text" && (
             <>
-              <V4TextEditButton elementId={element.id} locked={elementTrack?.locked ?? true} />
-              {element.visual && elementTrack && <TextTransformControl key={`${project.id}/${sequence.id}/${element.id}`} trackId={elementTrack.id} elementId={element.id} locked={elementTrack.locked} />}
+              <V4TextEditButton
+                elementId={element.id}
+                locked={elementTrack?.locked ?? true}
+              />
+              {element.visual && elementTrack && (
+                <TextTransformControl
+                  key={`${project.id}/${sequence.id}/${element.id}`}
+                  trackId={elementTrack.id}
+                  elementId={element.id}
+                  locked={elementTrack.locked}
+                />
+              )}
               <p className="v4-note-text">{content.text.content}</p>
               <Properties
                 rows={[
@@ -184,12 +227,23 @@ export function V4Inspector({
             </>
           )}
           {content?.kind === "graphic" && (
-            <Properties
-              rows={[
-                ["Shape", label(content.graphic.geometry.kind)],
-                ["Stroke width", content.graphic.stroke.width_px],
-              ]}
-            />
+            <>
+              {element.visual &&
+                !["legacy_rectangle", "legacy_ellipse"].includes(
+                  content.graphic.geometry.kind,
+                ) && (
+                  <V4GraphicEditButton
+                    elementId={element.id}
+                    locked={elementTrack?.locked ?? true}
+                  />
+                )}
+              <Properties
+                rows={[
+                  ["Shape", label(content.graphic.geometry.kind)],
+                  ["Stroke width", content.graphic.stroke.width_px],
+                ]}
+              />
+            </>
           )}
           {content?.kind === "effect_layer" && (
             <Properties
@@ -199,20 +253,29 @@ export function V4Inspector({
               ]}
             />
           )}
+          <V4MaskInspector elementId={element.id} locked={elementTrack?.locked} />
           {element.visual && (
-            <Properties
-              rows={[
-                ["Position X", element.visual.transform.position_x_px],
-                ["Position Y", element.visual.transform.position_y_px],
-                ["Rotation", element.visual.transform.rotation_degrees],
-                ["Scale X", element.visual.transform.scale_x],
-                ["Scale Y", element.visual.transform.scale_y],
-                ["Opacity", element.visual.opacity],
-                ["Blend mode", label(element.visual.blend_mode)],
-                ["Effects", element.visual.effects.length],
-                ["Masks", element.visual.masks.length],
-              ]}
-            />
+            <>
+              {elementTrack && (
+                <V4BlendEditor
+                  key={`${api?.connectionIdentity}/${project.id}/${v4?.head.revision}/${v4?.historical?.revision}/${sequence.id}/${element.id}`}
+                  trackId={elementTrack.id}
+                  elementId={element.id}
+                />
+              )}
+              <Properties
+                rows={[
+                  ["Position X", element.visual.transform.position_x_px],
+                  ["Position Y", element.visual.transform.position_y_px],
+                  ["Rotation", element.visual.transform.rotation_degrees],
+                  ["Scale X", element.visual.transform.scale_x],
+                  ["Scale Y", element.visual.transform.scale_y],
+                  ["Opacity", element.visual.opacity],
+                  ["Effects", element.visual.effects.length],
+                  ["Masks", element.visual.masks.length],
+                ]}
+              />
+            </>
           )}
           <p className="muted">
             {t(

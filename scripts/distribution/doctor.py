@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Inspect a local bundle and its actual media runtime without opening a workspace."""
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import tempfile
 
@@ -15,6 +17,130 @@ FILTERS = {
     'audio': {'anullsrc', 'atrim', 'asetpts', 'aresample', 'aformat', 'asetrate', 'volume', 'adelay', 'apad', 'amix'},
 }
 ENCODERS = {'libx264', 'aac', 'png'}
+CATALOG_FILES = {'bin/libexec/classic-visual-renderer/package.json',
+                 'bin/libexec/classic-visual-renderer/host/catalog-archive-v1.mjs'}
+
+
+def runtime_module():
+    spec = importlib.util.spec_from_file_location('opencut_runtime_bundle_doctor', Path(__file__).with_name('runtime_bundle.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def runtime_probe(args, timeout=20):
+    # Probes can create Chromium children. Terminate the whole owned process
+    # group on failure/timeout, including when the direct Node child exits first.
+    child = subprocess.Popen([str(p) for p in args], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        stdout, stderr = child.communicate(timeout=timeout)
+        if child.returncode != 0 or len(stdout) > 1024 * 1024 or len(stderr) > 1024 * 1024:
+            raise ValueError('Bounded runtime probe failed')
+        return stdout.decode('utf-8')
+    finally:
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        child.wait()
+
+
+def declared_runtime(root, outer):
+    declaration = outer['runtime_bundle']
+    if set(declaration) != {'manifest', 'sha256', 'delivery'} or declaration['manifest'] != 'bin/libexec/runtime-bundle.json':
+        raise ValueError('Invalid runtime manifest pointer')
+    path = root / declaration['manifest']
+    if declaration['sha256'] != sha(path) or outer['files'][declaration['manifest']]['sha256'] != declaration['sha256']:
+        raise ValueError('Runtime manifest identity mismatch')
+    runtime = runtime_module().verify(path.parent)
+    if runtime['target'] != outer['target'] or runtime['delivery'] != declaration['delivery']:
+        raise ValueError('Runtime target or delivery state mismatch')
+    expected_links = {'bin/libexec/' + name: value['target'] for name, value in runtime['files'].items() if value['kind'] == 'symlink'}
+    if outer.get('links') != expected_links:
+        raise ValueError('Runtime links differ from bundle inventory')
+    for name, value in runtime['files'].items():
+        if value['kind'] == 'file' and outer['files'].get('bin/libexec/' + name) != {'sha256': value['sha256'], 'size': value['size']}:
+            raise ValueError('Runtime bytes differ from bundle inventory')
+    return runtime
+
+
+def runtime_executable(root, runtime, component, variables, path_fallback=False):
+    for variable in variables:
+        if variable in os.environ:
+            value = os.environ[variable]
+            break
+    else:
+        bundled = runtime.get('components', {}).get(component) if runtime else None
+        value = str(root / 'bin/libexec' / bundled['entry']) if bundled else (shutil.which(component) if path_fallback else None)
+    if not value or not Path(value).is_absolute() or not Path(value).is_file() or not os.access(value, os.X_OK):
+        raise ValueError('Configured ' + component + ' executable is unavailable')
+    return Path(value).resolve()
+
+
+def check_renderer_and_fonts(root, runtime, checks):
+    libexec = root / 'bin/libexec'
+    try:
+        node = runtime_executable(root, runtime, 'node', ('OPENCUT_CLASSIC_VISUAL_NODE', 'OPENCUT_CLASSIC_AUDIO_NODE'), True)
+        chromium = runtime_executable(root, runtime, 'chromium', ('OPENCUT_CLASSIC_VISUAL_CHROMIUM', 'OPENCUT_CLASSIC_AUDIO_CHROMIUM'))
+        # Import from the relocated package paths; no npm install, source-tree
+        # fallback, download or project material is involved.
+        probe = """import {pathToFileURL} from 'node:url';
+const root=process.argv[1], executablePath=process.argv[2];
+const load=p=>import(pathToFileURL(root+'/'+p).href);
+const visual=await load('classic-visual-renderer/src/index.mjs');
+const audio=await load('classic-audio-renderer/src/index.mjs');
+const art=await load('classic-source-art-renderer/src/art.mjs');
+const {chromium}=await load('classic-audio-renderer/node_modules/playwright-core/index.mjs');
+if(typeof visual.renderClassicSceneFrameV1!=='function'||typeof visual.renderClassicMaskFrameV1!=='function'||typeof audio.renderClassicExport!=='function'||typeof art.thumbnailSize!=='function')throw Error('missing runtime export');
+const browser=await chromium.launch({executablePath,headless:true,timeout:12000,args:['--disable-background-networking','--disable-component-update','--no-first-run']});
+try{process.stdout.write(JSON.stringify({node:process.version,chromium:browser.version(),module_imports:true}));}finally{await browser.close();}
+"""
+        value = json.loads(runtime_probe([node, '--input-type=module', '-e', probe, libexec, chromium]))
+        for name, path in [('node', node), ('chromium', chromium)]:
+            if name in runtime['components'] and path.is_relative_to((libexec / 'runtimes' / name).resolve()):
+                actual = value[name].removeprefix('v') if name == 'node' else value[name]
+                if actual != runtime['components'][name]['version'].removeprefix('v'):
+                    raise ValueError('Actual bundled runtime version differs from declaration')
+        bundled = bool(runtime['components']) and all(
+            path.is_relative_to((libexec / 'runtimes' / name).resolve()) for name, path in [('node', node), ('chromium', chromium)])
+        checks.append({'check': 'renderer_runtime_executes', 'passed': value.get('module_imports') is True,
+                       'node_sha256': sha(node), 'chromium_sha256': sha(chromium), 'versions': value,
+                       'bundled_executables_used': bundled,
+                       'scope': 'delivered module imports and explicit browser launch; no project render or pixel/PCM acceptance'})
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+        checks.append({'check': 'renderer_runtime_executes', 'passed': False, 'error': str(error)})
+    try:
+        python = runtime_executable(root, runtime, 'python', ('OPENCUT_FONT_DERIVE_PYTHON',))
+        provenance = json.loads(runtime_probe([python, '-I', '-B', '-c',
+            'import sys,json,fontTools; print(json.dumps({"prefix":sys.prefix,"fonttools":fontTools.__file__}))']))
+        if runtime['components'].get('python') and 'OPENCUT_FONT_DERIVE_PYTHON' not in os.environ:
+            prefix = (libexec / 'runtimes/python').resolve()
+            if not all(Path(provenance[k]).resolve().is_relative_to(prefix) for k in ('prefix', 'fonttools')):
+                raise ValueError('Bundled Python still depends on an external installation')
+        identities = {}
+        for script, variable, lock in [('run_derived.py', 'OPENCUT_FONT_DERIVE_SCRIPT', 'derived-runtime-lock.json'),
+                                       ('run_derived_v2.py', 'OPENCUT_FONT_DERIVE_V2_SCRIPT', 'derived-v2-runtime-lock.json')]:
+            if variable in os.environ:
+                filename = Path(os.environ[variable])
+            elif script == 'run_derived_v2.py' and 'OPENCUT_FONT_DERIVE_SCRIPT' in os.environ:
+                if not os.environ['OPENCUT_FONT_DERIVE_SCRIPT']:
+                    raise ValueError('Configured font script is unavailable')
+                filename = Path(os.environ['OPENCUT_FONT_DERIVE_SCRIPT']).with_name(script)
+            else:
+                filename = libexec / runtime['scripts'][script]
+            if not filename.is_absolute() or not filename.is_file():
+                raise ValueError('Configured font script is unavailable')
+            actual = json.loads(runtime_probe([python, '-I', '-B', filename, '--identity']))
+            if actual != json.loads((libexec / 'font-catalog' / lock).read_text()):
+                raise ValueError('Actual Python/fontTools/script identity differs from lock')
+            identities[script] = actual
+        checks.append({'check': 'font_derivation_runtime_executes', 'passed': True,
+                       'python_sha256': sha(python), 'identities': identities,
+                       'bundled_executable_used': bool(runtime['components']) and python.is_relative_to((libexec / 'runtimes/python').resolve()),
+                       'scope': 'isolated runtime identity only; no font source download or project import'})
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+        checks.append({'check': 'font_derivation_runtime_executes', 'passed': False, 'error': str(error)})
 
 
 def sha(path):
@@ -30,14 +156,54 @@ def registered_names(output):
             if len(parts := line.split()) >= 3 and set(parts[0]) <= set('.TSCAVFBDX') and parts[1] != '='}
 
 
+def catalog_runtime_files(root, manifest):
+    declaration = manifest['catalog_archive_runtime']
+    if (declaration.get('profile') != 'catalog-archive-v1-node-zlib'
+            or declaration.get('external_runtime') != 'node'
+            or declaration.get('source_archive_included') is not False
+            or declaration.get('source_archive_sha256') != '946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6'
+            or declaration.get('download_switch') != 'OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD'
+            or set(declaration.get('files', {})) != CATALOG_FILES):
+        raise ValueError('Invalid fixed catalog runtime declaration')
+    for name, expected in declaration['files'].items():
+        path = root / name
+        if expected != manifest['files'].get(name):
+            raise ValueError('Catalog runtime identity differs from bundle file inventory')
+        for ancestor in [path, *path.parents]:
+            if ancestor.is_symlink():
+                raise ValueError('Symlink in catalog runtime')
+            if ancestor == root:
+                break
+        limit = 65536 if path.name == 'package.json' else 262144
+        if (not path.resolve().is_relative_to(root) or not path.is_file()
+                or not 0 < path.stat().st_size <= limit
+                or path.stat().st_size != expected['size'] or sha(path) != expected['sha256']):
+            raise ValueError('Catalog runtime bytes differ from pinned manifest')
+    metadata = json.loads((root / 'bin/libexec/classic-visual-renderer/package.json').read_text())
+    if (metadata.get('name'), metadata.get('version'), metadata.get('type')) != ('@opencut/classic-visual-renderer', '0.1.0', 'module'):
+        raise ValueError('Invalid catalog runtime package metadata')
+    return declaration
+
+
 def inspect(root):
     root = Path(root).resolve()
     manifest = json.loads((root / 'manifest.json').read_text())
     checks = []
+    runtime, runtime_invalid = None, False
+    if 'runtime_bundle' in manifest:
+        try:
+            runtime = declared_runtime(root, manifest)
+            checks.append({'check': 'runtime_bundle_identity', 'passed': True,
+                           'delivery': runtime['delivery'], 'target': runtime['target'],
+                           'files': len(runtime['files']), 'components': sorted(runtime['components']),
+                           'execution_verified': False})
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            runtime_invalid = True
+            checks.append({'check': 'runtime_bundle_identity', 'passed': False, 'error': str(error)})
     for name, expected in manifest['files'].items():
         try:
             path = (root / name).resolve()
-            valid = path.is_relative_to(root) and path.is_file()
+            valid = path.is_relative_to(root) and path.is_file() and not (root / name).is_symlink()
             valid = valid and path.stat().st_size == expected['size'] and sha(path) == expected['sha256']
             checks.append({'check': 'bundle_file', 'path': name, 'passed': valid})
         except OSError as error:
@@ -47,11 +213,16 @@ def inspect(root):
         return subprocess.run([str(p) for p in args], capture_output=True, text=True, timeout=20, check=True)
 
     installed = {}
-    needs_node = 'classic_packet_rate_runtime' in manifest or 'node' in manifest.get('external_dependencies', [])
+    needs_node = 'classic_packet_rate_runtime' in manifest or 'catalog_archive_runtime' in manifest or 'node' in manifest.get('external_dependencies', [])
     for name in ['ffmpeg', 'ffprobe'] + (['node'] if needs_node else []):
-        override = os.environ.get('OPENCUT_CLASSIC_AUDIO_NODE') if name == 'node' else None
+        node_variable = 'OPENCUT_CLASSIC_VISUAL_NODE' if 'catalog_archive_runtime' in manifest and 'classic_packet_rate_runtime' not in manifest else 'OPENCUT_CLASSIC_AUDIO_NODE'
+        override = os.environ.get(node_variable) if name == 'node' else None
         path = override if override is not None else shutil.which(name)
         try:
+            if name == 'node' and override is None and 'runtime_bundle' in manifest:
+                if runtime_invalid:
+                    raise ValueError('Bundled runtime is damaged; external fallback refused')
+                path = str(runtime_executable(root, runtime, 'node', (), True))
             if override is not None:
                 configured = Path(override)
                 if not configured.is_absolute() or not configured.is_file() or not os.access(configured, os.X_OK):
@@ -63,13 +234,39 @@ def inspect(root):
             installed[name] = path
             checks.append({'check': 'external_tool', 'tool': name, 'passed': True,
                            'path': path, 'version': value.stdout.splitlines()[0]})
-        except (OSError, subprocess.SubprocessError, IndexError) as error:
+        except (OSError, subprocess.SubprocessError, IndexError, ValueError) as error:
             checks.append({'check': 'external_tool', 'tool': name, 'passed': False, 'error': str(error)})
     try:
         value = run([root / 'bin/opencut', '--version'])
         checks.append({'check': 'binary_executes', 'passed': True, 'version': value.stdout.strip()})
     except (OSError, subprocess.SubprocessError) as error:
         checks.append({'check': 'binary_executes', 'passed': False, 'error': str(error)})
+    if 'catalog_archive_runtime' in manifest:
+        try:
+            declaration = catalog_runtime_files(root, manifest)
+            configured_node = os.environ.get('OPENCUT_CLASSIC_VISUAL_NODE')
+            if configured_node is None and runtime_invalid:
+                raise ValueError('Bundled runtime is damaged; external fallback refused')
+            node = (configured_node if configured_node is not None else
+                    str(runtime_executable(root, runtime, 'node', (), True)) if runtime else shutil.which('node'))
+            if not node or not Path(node).is_absolute() or not Path(node).is_file() or not os.access(node, os.X_OK):
+                raise FileNotFoundError('Catalog Node executable is unavailable')
+            node = Path(node).resolve()
+            version = run([node, '--version']).stdout.strip()
+            # Built-in DEFLATE only: no audio, browser, network or workspace.
+            probe = run([node, '--input-type=module', '-e', "import { inflateRawSync, deflateRawSync } from 'node:zlib'; const b=Buffer.from('catalog-zlib-v1'); if(!inflateRawSync(deflateRawSync(b),{maxOutputLength:64}).equals(b)) process.exit(1); process.stdout.write('catalog-zlib-v1');"])
+            if probe.stdout != 'catalog-zlib-v1' or 'ffprobe' not in installed:
+                raise ValueError('Catalog DEFLATE or media probe runtime is unavailable')
+            checks.append({'check': 'catalog_archive_runtime', 'passed': True,
+                           'profile': declaration['profile'], 'files': declaration['files'],
+                           'node_path': str(node), 'node_version': version, 'node_sha256': sha(node),
+                           'public_download_enabled': os.environ.get('OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD') == '1',
+                           'source_archive_verified': False, 'browser_runtime_included': bool(runtime and runtime['components']),
+                           'scope': 'fixed archive adapter and media probe available; source audio and project use require separate admission'})
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+            checks.append({'check': 'catalog_archive_runtime', 'passed': False, 'error': str(error)})
+    if runtime is not None:
+        check_renderer_and_fonts(root, runtime, checks)
     if 'ffmpeg' in installed:
         try:
             filters = registered_names(run([installed['ffmpeg'], '-hide_banner', '-filters']).stdout)
@@ -77,6 +274,10 @@ def inspect(root):
             for profile, required in {**FILTERS, 'export_encoders': ENCODERS}.items():
                 missing = sorted(required - (encoders if profile == 'export_encoders' else filters))
                 checks.append({'check': 'media_capabilities', 'profile': profile, 'passed': not missing, 'missing': missing})
+            checks.append({'check': 'configurable_export_codec_inventory', 'passed': True,
+                           'video_formats': [format for format, encoder in [('mp4', 'libx264'), ('webm', 'libvpx-vp9')] if encoder in encoders],
+                           'audio_formats': [format for format, video, audio in [('mp4', 'libx264', 'aac'), ('webm', 'libvpx-vp9', 'libopus')] if {video, audio} <= encoders],
+                           'scope': 'codec inventory only; full browser visual/audio runtime and fixed project admission remain required'})
         except (OSError, subprocess.SubprocessError) as error:
             checks.append({'check': 'media_capabilities', 'passed': False, 'error': str(error)})
     if {'ffmpeg', 'ffprobe'} <= installed.keys():
@@ -94,7 +295,9 @@ def inspect(root):
     return {'status': 'passed' if all(item['passed'] for item in checks) else 'failed',
             'target': manifest['target'], 'checks': checks,
             'scope': 'Bundle integrity and baseline H.264/AAC runtime; project fonts, alternate codecs and exact rendering require project preflight'
-                     + ('; declared packet runtime Node executable checked, packet media acceptance remains separate' if needs_node else '')}
+                     + ('; declared Node runtime executable checked, source media acceptance remains separate' if needs_node else '')
+                     + ('; fixed catalog helper identity and Node DEFLATE checked; source audio acceptance remains separate' if 'catalog_archive_runtime' in manifest else '')
+                     + ('; complete renderer and font runtime identities checked; bundled executables require relocated execution checks and project acceptance' if 'runtime_bundle' in manifest else '')}
 
 
 if __name__ == '__main__':

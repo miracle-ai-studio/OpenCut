@@ -145,66 +145,76 @@ impl FontSourceFetchV1 for GoogleFontsFetchV1 {
     ) -> Result<Vec<u8>, EditorError> {
         checkpoint.check()?;
         let source = validate_font_fetch_v1(catalog_id, policy)?;
-        let duration = Duration::from_millis(policy.deadline_ms);
-        let deadline = Instant::now() + duration;
-        // No redirects, cookie jar, arbitrary request headers or gzip. TLS and
-        // environment-configured HTTP(S) proxies use the existing native stack.
-        let proxy = source_proxy(source.source_url, |key| std::env::var(key).ok())?;
-        let agent = ureq::Agent::config_builder()
-            .proxy(proxy)
-            .https_only(true)
-            .http_status_as_error(false)
-            .max_redirects(0)
-            .timeout_global(Some(duration))
-            .timeout_resolve(Some(duration.min(Duration::from_secs(5))))
-            .timeout_connect(Some(duration.min(Duration::from_secs(5))))
-            .timeout_recv_response(Some(duration.min(Duration::from_secs(10))))
-            .build()
-            .new_agent();
-        check(deadline, checkpoint)?;
-        let response = agent
-            .get(source.source_url)
-            .header("Accept", "font/ttf,application/octet-stream")
-            .header("Accept-Encoding", "identity")
-            .header("User-Agent", "OpenCut-Font-Import-V1")
-            .call();
-        check(deadline, checkpoint)?;
-        let mut response = response.map_err(|error| match error {
-            ureq::Error::Timeout(_) => timeout(),
-            _ => unavailable(),
-        })?;
-        if response.status().as_u16() != 200 {
-            return Err(unavailable());
-        }
-        if response
-            .headers()
-            .get("content-encoding")
-            .is_some_and(|value| value.as_bytes() != b"identity")
-        {
+        fetch_pinned_source(source, policy, checkpoint)
+    }
+}
+
+/// Crate-private transport shared only by compiled source selectors. Each
+/// version validates its own catalog and policy before entering this adapter.
+pub(crate) fn fetch_pinned_source(
+    source: &PinnedFontSourceV1,
+    policy: &FontFetchPolicyV1,
+    checkpoint: &mut dyn FontImportCheckpointV1,
+) -> Result<Vec<u8>, EditorError> {
+    let duration = Duration::from_millis(policy.deadline_ms);
+    let deadline = Instant::now() + duration;
+    // No redirects, cookie jar, arbitrary request headers or gzip. TLS and
+    // environment-configured HTTP(S) proxies use the existing native stack.
+    let proxy = source_proxy(source.source_url, |key| std::env::var(key).ok())?;
+    let agent = ureq::Agent::config_builder()
+        .proxy(proxy)
+        .https_only(true)
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .timeout_global(Some(duration))
+        .timeout_resolve(Some(duration.min(Duration::from_secs(5))))
+        .timeout_connect(Some(duration.min(Duration::from_secs(5))))
+        .timeout_recv_response(Some(duration.min(Duration::from_secs(10))))
+        .build()
+        .new_agent();
+    check(deadline, checkpoint)?;
+    let response = agent
+        .get(source.source_url)
+        .header("Accept", "font/ttf,application/octet-stream")
+        .header("Accept-Encoding", "identity")
+        .header("User-Agent", "OpenCut-Font-Import-V1")
+        .call();
+    check(deadline, checkpoint)?;
+    let mut response = response.map_err(|error| match error {
+        ureq::Error::Timeout(_) => timeout(),
+        _ => unavailable(),
+    })?;
+    if response.status().as_u16() != 200 {
+        return Err(unavailable());
+    }
+    if response
+        .headers()
+        .get("content-encoding")
+        .is_some_and(|value| value.as_bytes() != b"identity")
+    {
+        return Err(integrity());
+    }
+    if let Some(value) = response.headers().get("content-length") {
+        let length = value
+            .to_str()
+            .ok()
+            .and_then(|text| text.parse::<u64>().ok());
+        if length != Some(source.size_bytes) {
             return Err(integrity());
         }
-        if let Some(value) = response.headers().get("content-length") {
-            let length = value
-                .to_str()
-                .ok()
-                .and_then(|text| text.parse::<u64>().ok());
-            if length != Some(source.size_bytes) {
-                return Err(integrity());
-            }
-        }
-        let reader = response
-            .body_mut()
-            .with_config()
-            .limit(source.size_bytes + 1)
-            .reader();
-        read_pinned_bytes(
-            reader,
-            source.size_bytes,
-            source.content_hash,
-            deadline,
-            checkpoint,
-        )
     }
+    let reader = response
+        .body_mut()
+        .with_config()
+        .limit(source.size_bytes + 1)
+        .reader();
+    read_pinned_bytes(
+        reader,
+        source.size_bytes,
+        source.content_hash,
+        deadline,
+        checkpoint,
+    )
 }
 
 #[cfg(test)]

@@ -8,6 +8,7 @@ import {
   publishRecoveryV4,
   recoveryImportRequestV4,
   findRecoveredV4,
+  recoveryFontMatchesV5,
 } from "./recovery-v4";
 import type { ClassicSnapshot } from "./decode";
 const signal = () => new AbortController().signal;
@@ -250,4 +251,36 @@ it("stops at an empty event tail even when its continuation cursor is retained",
   call.mockClear();
   expect(await findRecoveredV4(sdk, prepared, signal())).toBeNull();
   expect(call).toHaveBeenCalledTimes(2);
+});
+
+it("captures V5 analysis and retries its exact original V5 publication without changing V4 requests", async () => {
+  const { sdk, prepared, review: oldReview, call } = await setup();
+  call.mockImplementation(async (name) => {
+    if (name === "opencut_project_create" || name === "opencut_project_inspect")
+      return { revision: "stage-fixed", project: { id: prepared.stageId, assets: [] } } as never;
+    if (name === "opencut_classic_analyze_v5") return { ...analysis, schema_version: 5 } as never;
+    throw new Error(`Unexpected call ${name}`);
+  });
+  const review = await reviewRecoveryV4(sdk, prepared, signal(), () => {}, 5);
+  expect(review.protocol).toBe(5);
+  expect(review.source.content).toBe(oldReview.source.content);
+  expect(recoveryImportRequestV4(review).idempotency_key).not.toBe(recoveryImportRequestV4(oldReview).idempotency_key);
+  const mutation = vi.spyOn(sdk, "callWithAdmissionRetry")
+    .mockRejectedValueOnce(new Error("acknowledgement lost"))
+    .mockResolvedValueOnce({ target_project_id: prepared.targetId } as never);
+  await expect(publishRecoveryV4(sdk, review, signal())).rejects.toThrow("acknowledgement lost");
+  await expect(publishRecoveryV4(sdk, review, signal())).resolves.toBe(prepared.targetId);
+  expect(mutation.mock.calls[0][0]).toBe("opencut_classic_import_v5");
+  expect(mutation.mock.calls[0].slice(0, 2)).toEqual(mutation.mock.calls[1].slice(0, 2));
+  expect(oldReview.protocol).toBe(4);
+});
+
+it("offers exact catalog aliases and explicit requested italic while retaining native metadata", () => {
+  const font = { id: "font", family: "Native family", weight: 700, style: "normal", content: { content_hash: "a".repeat(64), size: 1234 } } as never;
+  const request = { family: "Classic family", font_weight: "bold", font_style: "italic" } as const;
+  const face = { display_family: "Classic family", family: "Native family", weight: 700, style: "normal", requested_style: "italic", content_hash: "a".repeat(64), size_bytes: "1234" } as Parameters<typeof recoveryFontMatchesV5>[2][number];
+  expect(recoveryFontMatchesV5(font, request, [face])).toBe(true);
+  expect(recoveryFontMatchesV5(font, request, [])).toBe(false);
+  for (const change of [{ family: "Other" }, { weight: 400 }, { style: "italic" }, { content_hash: "b".repeat(64) }, { size_bytes: "1235" }])
+    expect(recoveryFontMatchesV5(font, request, [{ ...face, ...change } as never])).toBe(false);
 });

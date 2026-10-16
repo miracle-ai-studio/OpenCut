@@ -331,16 +331,10 @@ async fn authorize(
         add_cors(response.headers_mut(), origin.as_ref());
         return response;
     }
-    let browser_authorized = host
-        .browser_session
-        .as_ref()
-        .is_some_and(|session| session.accepts(&request));
-    let Some(secret) = request
-        .headers()
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .or_else(|| browser_authorized.then_some(host.token.as_str()))
+    // Header presence chooses the authentication route. A malformed Basic or
+    // Bearer header must never fall back to a browser's owner cookie.
+    let Some((secret, browser_grant)) =
+        request_credentials(host.token.as_str(), host.browser_session.as_ref(), &request)
     else {
         return crate::denials::refuse(
             &host,
@@ -350,7 +344,7 @@ async fn authorize(
         )
         .await;
     };
-    let identity = if secret == host.token.as_str() {
+    let mut identity = if secret == host.token.as_str() {
         Identity::owner()
     } else {
         let database = host.database.clone();
@@ -372,7 +366,56 @@ async fn authorize(
             }
         }
     };
+    identity.browser_grant = browser_grant.clone();
     request.extensions_mut().insert(identity.clone());
+    if let Some(grant) = &browser_grant {
+        request.extensions_mut().insert(grant.clone());
+        let path = request.uri().path();
+        let upload = path == "/v1/media/upload"
+            || path.starts_with("/v1/uploads/")
+            || path.starts_with("/v1/stream-uploads/");
+        // Ordinary JSON/MCP bodies keep the original 2 MiB admission. Raw
+        // uploads retain streaming; chunks keep their existing 60s deadline,
+        // and a whole legacy upload has an explicit 15-minute receive budget.
+        let limit = std::time::Duration::from_secs(if path == "/v1/media/upload" {
+            900
+        } else if upload {
+            opencut_automation::capabilities::UPLOAD_CHUNK_TIMEOUT_SECONDS
+        } else {
+            30
+        });
+        let (parts, body) = request.into_parts();
+        let started = std::time::Instant::now();
+        let body = grant.incoming(body, limit);
+        let body = if upload {
+            body
+        } else {
+            match axum::body::to_bytes(body, 2_097_152).await {
+                Ok(bytes) => axum::body::Body::from(bytes),
+                Err(_) => {
+                    if let Err(error) = grant.check() {
+                        return error_response(&error.code, &error.message);
+                    }
+                    let mut response = error_response(
+                        "INVALID_ARGUMENT",
+                        if started.elapsed() >= limit {
+                            "Cookie request body deadline exceeded"
+                        } else {
+                            "Request body could not be admitted within 2 MiB"
+                        },
+                    );
+                    if started.elapsed() >= limit {
+                        *response.status_mut() = StatusCode::REQUEST_TIMEOUT;
+                    }
+                    return response;
+                }
+            }
+        };
+        request = axum::extract::Request::from_parts(parts, body);
+        if let Err(error) = grant.check() {
+            return error_response(&error.code, &error.message);
+        }
+    }
     let mut request_host = host;
     request_host.identity = identity;
     let response = crate::denials::http(
@@ -385,8 +428,26 @@ async fn authorize(
     )
     .await;
     let mut response = crate::http_identity::guard_stream(&request_host, response, source);
+    if let Some(grant) = browser_grant {
+        response = grant.wrap_response(response);
+    }
     add_cors(response.headers_mut(), origin.as_ref());
     response
+}
+
+pub(crate) fn request_credentials<'a>(
+    token: &'a str,
+    sessions: Option<&crate::web_host::BrowserSession>,
+    request: &'a axum::extract::Request,
+) -> Option<(&'a str, Option<crate::web_host::CookieGrant>)> {
+    if let Some(header) = request.headers().get("authorization") {
+        let secret = header.to_str().ok()?.strip_prefix("Bearer ")?;
+        if secret.is_empty() || secret.chars().any(char::is_whitespace) {
+            return None;
+        }
+        return Some((secret, None));
+    }
+    Some((token, Some(sessions?.capture(request)?)))
 }
 
 fn add_cors(headers: &mut HeaderMap, origin: Option<&HeaderValue>) {
@@ -412,10 +473,12 @@ fn add_cors(headers: &mut HeaderMap, origin: Option<&HeaderValue>) {
 
 async fn invoke(host: Host, name: String, args: Value) -> HttpResponse {
     match tokio::task::spawn_blocking(move || {
-        Automation::open(host.database.as_ref()).map(|a| {
-            a.with_source(opencut_automation::CallSource::Http)
+        host.identity.check_lifetime()?;
+        Automation::open(host.database.as_ref()).and_then(|a| {
+            host.identity.check_lifetime()?;
+            Ok(a.with_source(opencut_automation::CallSource::Http)
                 .with_caller(host.identity.caller)
-                .call(&name, args)
+                .call(&name, args))
         })
     })
     .await

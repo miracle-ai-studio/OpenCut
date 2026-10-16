@@ -68,16 +68,31 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
     let suffix = operation.strip_prefix("opencut_")?;
     let (domain, action) = if suffix == "capabilities" {
         ("system", "capabilities".to_owned())
-    } else if suffix.starts_with("analysis_") || suffix.starts_with("source_art_") {
+    } else if suffix.starts_with("analysis_")
+        || suffix.starts_with("source_art_")
+        || suffix.starts_with("catalog_resources_v1_")
+    {
         ("media", suffix.replace('_', "."))
+    } else if suffix.starts_with("export_video_v2_") {
+        ("task", suffix.replace('_', "."))
     } else if suffix.starts_with("preview_")
         || suffix.starts_with("audio_preview_v4_")
+        || suffix.starts_with("audio_preview_recovery_v1_")
         || suffix.starts_with("visual_preview_v4_")
     {
         ("task", suffix.replace('_', "."))
     } else if suffix.starts_with("subtitle_")
         || suffix.starts_with("timeline_v4_")
         || suffix.starts_with("text_v1_")
+        || suffix.starts_with("text_v2_")
+        || suffix.starts_with("track_v1_")
+        || suffix.starts_with("graphic_v1_")
+        || suffix.starts_with("mask_v1_")
+        || suffix.starts_with("keyframe_v1_")
+        || suffix.starts_with("keyframe_legacy_conversion_v1_")
+        || suffix.starts_with("element_properties_v1_")
+        || suffix.starts_with("element_transform_v2_")
+        || suffix.starts_with("scene_v1_")
     {
         ("edit", suffix.replace('_', "."))
     } else if suffix.starts_with("classic_") {
@@ -85,9 +100,15 @@ fn route(operation: &str) -> Option<(&'static str, String)> {
     } else if suffix.starts_with("project_media_")
         || suffix.starts_with("upload_")
         || suffix.starts_with("media_")
+        || suffix.starts_with("brand_resources_v1_")
         || suffix.starts_with("font_v1_")
         || suffix.starts_with("font_v2_")
+        || suffix.starts_with("font_catalog_v3")
+        || suffix.starts_with("font_source_v3")
+        || suffix.starts_with("font_import_v3")
         || suffix.starts_with("font_derived_v1_")
+        || suffix.starts_with("font_derived_v2_")
+        || suffix.starts_with("font_synthesis_v1_")
         || suffix.starts_with("font_recovery_v1_")
     {
         ("media", suffix.replace('_', "."))

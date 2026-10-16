@@ -182,6 +182,14 @@ impl EditorApplication {
                 [&item.project_id],
             )
             .map_err(storage_error)?;
+            // Ephemeral preview credentials have no place in deleted-project
+            // history or packages. Clear every caller's host-only pending slot
+            // under the same delete fence; late dispatch then sees NOT_FOUND.
+            tx.execute(
+                "DELETE FROM audio_preview_recovery_v1 WHERE project_id=?1",
+                [&item.project_id],
+            )
+            .map_err(storage_error)?;
             tx.execute("INSERT INTO outbox(event_id,project_id,revision,event_type,payload_json) VALUES (?1,?2,?3,'project.deleted',?4)", params![format!("evt_{}",Uuid::new_v4().simple()),item.project_id,head,encode_json(item,"project deletion")?]).map_err(storage_error)?;
             sqlite_audit::insert(
                 &tx,
@@ -682,7 +690,7 @@ mod tests {
         let path = dir.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&path).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE font_derivations_v1;
+        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&path).is_err());
@@ -1103,7 +1111,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         let db = temp.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&db).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE font_derivations_v1;
+        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
 DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&db).is_err());

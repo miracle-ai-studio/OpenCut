@@ -1,9 +1,12 @@
 //! Internal persisted worker inputs; never imported by a client SDK.
+pub mod project_v4_mask_video;
 use opencut_contracts::{AssetLockManifest, ProjectSnapshot, Time, TimeRange};
 pub mod project_v3;
 pub mod project_v4_audio;
+pub mod project_v4_blend_video;
 pub mod project_v4_caption_video;
 pub mod project_v4_frame;
+pub mod project_v4_graphic_video;
 pub mod project_v4_text_frame;
 pub mod project_v4_video;
 use opencut_media_contracts::{Container, FrameAlignment, VideoCodec};
@@ -160,3 +163,5 @@ pub struct PreparedUploadChunk {
     pub size_bytes: u64,
     pub content_hash: String,
 }
+
+pub mod project_v4_scene_video;

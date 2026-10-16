@@ -155,9 +155,29 @@ pub(super) fn verified_target(
     if kind == "render.project_caption_video.v4" {
         return sqlite_project_v4_caption_video_jobs::verified_target(connection, input);
     }
+    if kind == "render.project_graphic_video.v4" {
+        return sqlite_project_v4_graphic_video_jobs::verified_target(connection, input);
+    }
+    if kind == "render.export_video.v2" {
+        return export_video_v2::verified_target(connection, input);
+    }
+    if kind == "render.project_scene_video.v4" {
+        return sqlite_project_v4_scene_video_jobs::verified_target(connection, input);
+    }
+    if kind == "render.project_mask_video.v4" {
+        return sqlite_project_v4_mask_video_jobs::verified_target(connection, input);
+    }
+    if kind == "render.project_blend_video.v4" {
+        return sqlite_project_v4_blend_video_jobs::verified_target(connection, input);
+    }
     if matches!(
         kind,
-        "render.project_text_frame.v4" | "render.project_caption_frame.v4"
+        "render.project_text_frame.v4"
+            | "render.project_caption_frame.v4"
+            | "render.project_graphic_frame.v4"
+            | "render.project_mask_frame.v4"
+            | "render.project_scene_frame.v4"
+            | "render.project_blend_frame.v4"
     ) {
         return sqlite_project_v4_text_frame_jobs::verified_target(connection, input);
     }
@@ -292,8 +312,16 @@ pub(super) fn require_submission(
             | "render.project_frame.v4"
             | "render.project_text_frame.v4"
             | "render.project_caption_frame.v4"
+            | "render.project_graphic_frame.v4"
+            | "render.project_blend_frame.v4"
+            | "render.project_scene_frame.v4"
             | "render.project_video.v4"
             | "render.project_caption_video.v4"
+            | "render.project_graphic_video.v4"
+            | "render.project_mask_video.v4"
+            | "render.project_scene_video.v4"
+            | "render.export_video.v2"
+            | "render.project_blend_video.v4"
             | "analysis.sequence_transcribe.v4"
     ) {
         let (project, _) = verified_target(connection, &request.kind, &request.input)?

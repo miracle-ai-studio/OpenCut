@@ -6,7 +6,10 @@ use opencut_contracts::{
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 mod animation;
+mod effects;
 mod elements;
+mod graphics;
+mod masks;
 #[cfg(test)]
 mod tests;
 pub struct ClassicImportResourcesV4 {
@@ -27,7 +30,13 @@ pub trait ClassicImportV4Resources {
         input: &ClassicAnalyzeV4,
     ) -> Result<ClassicImportResourcesV4, EditorError>;
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FontMappingProfile {
+    StrictV4,
+    ApprovedV5,
+}
 struct Review {
+    font_profile: FontMappingProfile,
     report: ClassicAnalysisV4,
 }
 impl Review {
@@ -275,9 +284,20 @@ pub fn analyze(
     input: &ClassicAnalyzeV4,
     resources: &ClassicImportResourcesV4,
 ) -> Result<PreparedClassicImportV4, EditorError> {
+    analyze_with_profile(input, resources, FontMappingProfile::StrictV4)
+}
+pub(crate) fn analyze_with_profile(
+    input: &ClassicAnalyzeV4,
+    resources: &ClassicImportResourcesV4,
+    font_profile: FontMappingProfile,
+) -> Result<PreparedClassicImportV4, EditorError> {
     let mut r = Review {
+        font_profile,
         report: ClassicAnalysisV4 {
-            schema_version: 4,
+            schema_version: match font_profile {
+                FontMappingProfile::StrictV4 => 4,
+                FontMappingProfile::ApprovedV5 => 5,
+            },
             source_format: "classic-indexeddb-serialized-project".into(),
             source_version: None,
             source_content_id: crate::classic_import::source_content_id(&input.content),

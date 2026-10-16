@@ -1,7 +1,16 @@
 //! Queue/authorization tests. Real GPU/PNG acceptance belongs to the native suite.
+#[path = "mask_tests.rs"]
+mod mask_tests;
+#[path = "scene_tests.rs"]
+mod scene_tests;
 use super::*;
 use opencut_contracts::{CreateProject, FrameRate, Time, project_v4_ops::*};
 use opencut_editor_application::access::{Caller, PrincipalPolicy, ProjectGrant};
+
+#[path = "blend_tests.rs"]
+mod blend_tests;
+#[path = "graphic_tests.rs"]
+mod graphic_tests;
 
 fn now() -> i64 {
     lifecycle::JobClock::now_ms(&sqlite_jobs::SystemClock).unwrap()

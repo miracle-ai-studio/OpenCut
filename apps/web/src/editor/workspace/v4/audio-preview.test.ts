@@ -1,6 +1,140 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { OpenCutApiError } from "../../../lib/editor-sdk";
 import { setupAudioPreview } from "./audio-preview-fixture";
+import { V4AudioPreview } from "./audio-preview";
+import type { V4SessionHost } from "./session";
+
+it("retains a delayed runtime capability through an idle seek", async () => {
+  const f = await setupAudioPreview();
+  try {
+    const capability = f.state().audioPreview.capability!;
+    f.update({ audioPreview: { ...f.state().audioPreview, capability: null } });
+    let resolve!: (value: typeof capability) => void;
+    vi.mocked(f.api.v4.audioPreviewCapability).mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    );
+    const pending = f.preview.capability();
+    f.preview.seek({ ticks: "1", timebase: 2 });
+    resolve(capability);
+    await pending;
+    expect(f.state().audioPreview.capability).toEqual(capability);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it.each(["api", "generation"])(
+  "ignores a delayed runtime capability after its %s changes",
+  async (changed) => {
+    const f = await setupAudioPreview();
+    const replacement = changed === "api" ? await setupAudioPreview() : null;
+    let api = f.api,
+      generation = 1,
+      state = f.state();
+    const capability = state.audioPreview.capability!;
+    state = {
+      ...state,
+      audioPreview: { ...state.audioPreview, capability: null },
+    };
+    const preview = new V4AudioPreview(
+      {
+        api: () => api,
+        generation: () => generation,
+        state: () => state,
+        publish: (next) => {
+          state = next;
+        },
+      } as V4SessionHost,
+      () => {},
+    );
+    try {
+      let resolve!: (value: typeof capability) => void;
+      vi.mocked(f.api.v4.audioPreviewCapability).mockImplementationOnce(
+        () =>
+          new Promise((r) => {
+            resolve = r;
+          }),
+      );
+      const pending = preview.capability();
+      if (replacement) api = replacement.api;
+      else generation++;
+      resolve(capability);
+      await pending;
+      expect(state.audioPreview.capability).toBeNull();
+    } finally {
+      preview.invalidate();
+      replacement?.cleanup();
+      f.cleanup();
+    }
+  },
+);
+
+it("a superseded capability response cannot replace the newest runtime result", async () => {
+  const f = await setupAudioPreview();
+  try {
+    const capability = f.state().audioPreview.capability!;
+    let resolve!: (value: typeof capability) => void;
+    vi.mocked(f.api.v4.audioPreviewCapability).mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    );
+    const older = f.preview.capability();
+    await f.preview.capability();
+    resolve({
+      ...capability,
+      available: false,
+      unavailable_reason: "Old request",
+    });
+    await older;
+    expect(f.state().audioPreview.capability).toEqual(capability);
+  } finally {
+    f.cleanup();
+  }
+});
+
+it.each(["success", "failure"])(
+  "late capability %s preserves an intervening playback error",
+  async (result) => {
+    const f = await setupAudioPreview();
+    try {
+      const capability = f.state().audioPreview.capability!;
+      let resolve!: (value: typeof capability) => void,
+        reject!: (error: Error) => void;
+      vi.mocked(f.api.v4.audioPreviewCapability).mockImplementationOnce(
+        () =>
+          new Promise((a, b) => {
+            resolve = a;
+            reject = b;
+          }),
+      );
+      const pending = f.preview.capability();
+      await expect(
+        f.preview.play(48000, {
+          prepare: async () => {
+            throw new Error("Picture authorization was revoked");
+          },
+          observe: () => {},
+          suspend: () => {},
+          close: () => {},
+        }),
+      ).rejects.toThrow("Picture authorization was revoked");
+      if (result === "success") resolve(capability);
+      else reject(new Error("Capability connection failed"));
+      await pending;
+      expect(f.state().audioPreview.error).toBe(
+        "Picture authorization was revoked",
+      );
+      expect(f.state().audioPreview.phase).toBe("failed");
+    } finally {
+      f.cleanup();
+    }
+  },
+);
 
 const gainDraft = (
   f: Awaited<ReturnType<typeof setupAudioPreview>>,
@@ -828,61 +962,77 @@ it("resumes a paused fixed session without recreating native preparation and rep
   }
 });
 
-it("gates PCM behind first picture and reuses the same picture port after seek", async () => {
-  const f = await setupAudioPreview();
-  const prepare = vi.fn(async () => {}),
-    observe = vi.fn(),
-    suspend = vi.fn(),
-    close = vi.fn();
-  try {
-    let release!: () => void;
-    prepare.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          release = resolve;
-        }),
-    );
-    const playing = f.preview.play(undefined, {
-      prepare,
-      observe,
-      suspend,
-      close,
-    });
-    await flush();
-    expect(prepare).toHaveBeenCalledOnce();
-    expect(f.stream).not.toHaveBeenCalled();
-    release();
-    await playing;
-    expect(f.controls.some((r) => r.command.kind === "play")).toBe(true);
-    f.preview.seek({ ticks: "1", timebase: 2 });
-    await flush();
-    expect(suspend).toHaveBeenCalled();
-    expect(prepare).toHaveBeenCalledTimes(2);
-  } finally {
-    f.preview.invalidate();
-  }
-});
+it.each([false, true])(
+  "gates PCM behind first picture and reuses its port after seek (graphics=%s)",
+  async (graphics) => {
+    const f = await setupAudioPreview();
+    if (graphics)
+      f.state().head.project.sequences[0].tracks[0].elements.push({
+        enabled: true,
+        content: { kind: "graphic" },
+      } as never);
+    const prepare = vi.fn(async () => {}),
+      observe = vi.fn(),
+      suspend = vi.fn(),
+      close = vi.fn();
+    try {
+      let release!: () => void;
+      prepare.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+      );
+      const playing = f.preview.play(undefined, {
+        prepare,
+        observe,
+        suspend,
+        close,
+      });
+      await flush();
+      expect(prepare).toHaveBeenCalledOnce();
+      expect(f.stream).not.toHaveBeenCalled();
+      release();
+      await playing;
+      expect(f.controls.some((r) => r.command.kind === "play")).toBe(true);
+      f.preview.seek({ ticks: "1", timebase: 2 });
+      await flush();
+      expect(suspend).toHaveBeenCalled();
+      expect(prepare).toHaveBeenCalledTimes(2);
+    } finally {
+      f.preview.invalidate();
+    }
+  },
+);
 
-it("known first-picture failure stops its created session and never opens PCM", async () => {
-  const f = await setupAudioPreview();
-  try {
-    await expect(
-      f.preview.play(undefined, {
-        prepare: async () => {
-          throw new Error("Unsupported picture");
-        },
-        observe: () => {},
-        suspend: () => {},
-        close: () => {},
-      }),
-    ).rejects.toThrow("Unsupported picture");
-    expect(f.stream).not.toHaveBeenCalled();
-    expect(f.controls.some((r) => r.command.kind === "stop")).toBe(true);
-    expect(f.state().audioPreview.phase).toBe("failed");
-  } finally {
-    f.preview.invalidate();
-  }
-});
+it.each([false, true])(
+  "known first-picture failure stops its session and never opens PCM (graphics=%s)",
+  async (graphics) => {
+    const f = await setupAudioPreview();
+    if (graphics)
+      f.state().head.project.sequences[0].tracks[0].elements.push({
+        enabled: true,
+        content: { kind: "graphic" },
+      } as never);
+    try {
+      await expect(
+        f.preview.play(undefined, {
+          prepare: async () => {
+            throw new Error("Unsupported picture");
+          },
+          observe: () => {},
+          suspend: () => {},
+          close: () => {},
+        }),
+      ).rejects.toThrow("Unsupported picture");
+      expect(f.stream).not.toHaveBeenCalled();
+      expect(f.controls.some((r) => r.command.kind === "stop")).toBe(true);
+      expect(f.state().audioPreview.phase).toBe("failed");
+    } finally {
+      f.preview.invalidate();
+    }
+  },
+);
 
 it("producer EOF during pause cannot replace its final confirmed pause receipt with failure", async () => {
   const f = await setupAudioPreview();

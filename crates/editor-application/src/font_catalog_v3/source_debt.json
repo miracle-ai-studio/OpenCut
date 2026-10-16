@@ -1,0 +1,128 @@
+{
+  "scope": "source_data_only_not_native_or_product_acceptance",
+  "source_commit": "66928797f271fed5ee428544e7229685e2d90127",
+  "counts": {
+    "static_v1": 1836,
+    "derived_v1": 1182,
+    "derived_v2": 209,
+    "static_source_pins.json": 32,
+    "color_source_pins.json": 12,
+    "supplemental_source_pins.json": 41
+  },
+  "classic_family_count": 1920,
+  "applicable_face_count": 3326,
+  "covered_applicable_faces": 3312,
+  "missing_applicable_faces": [
+    {
+      "family": "Bona Nova",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Bona Nova SC",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Cardo",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Gudea",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Judson",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Lekton",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Libertinus Sans",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Material Symbols",
+      "weight": 400,
+      "style": "normal",
+      "reason": "ambiguous_generic_family_no_same_name_in_official_icons_source"
+    },
+    {
+      "family": "Material Symbols",
+      "weight": 700,
+      "style": "normal",
+      "reason": "ambiguous_generic_family_no_same_name_in_official_icons_source"
+    },
+    {
+      "family": "Neuton",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Old Standard TT",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Pushster",
+      "weight": 400,
+      "style": "normal",
+      "reason": "fixed_source_bytes_are_lobster_not_a_classic_label_alias"
+    },
+    {
+      "family": "Trochut",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    },
+    {
+      "family": "Zain",
+      "weight": 700,
+      "style": "italic",
+      "reason": "no_bold_italic_or_variable_source_in_fixed_tree_browser_synthesis_is_not_a_source_face"
+    }
+  ],
+  "missing_regular_family_count": 2,
+  "families": [
+    {
+      "family": "Material Symbols",
+      "category": "ambiguous_generic_family_no_same_name_in_official_icons_source",
+      "fixed_tree_paths": [],
+      "pending_input": null
+    },
+    {
+      "family": "Pushster",
+      "category": "fixed_source_bytes_are_lobster_not_a_classic_label_alias",
+      "fixed_tree_paths": [
+        "ofl/pushster/DESCRIPTION.en_us.html",
+        "ofl/pushster/METADATA.pb",
+        "ofl/pushster/OFL.txt",
+        "ofl/pushster/Pushster-Regular.ttf",
+        "ofl/pushster/article",
+        "ofl/pushster/article/ARTICLE.en_us.html",
+        "ofl/pushster/article/suspect.png",
+        "ofl/pushster/article/tofu.png",
+        "ofl/pushster/upstream_info.md"
+      ],
+      "pending_input": null
+    }
+  ],
+  "historical_source_evidence": "supplemental_source_pins.json: fixed official commit and exact font/license blobs; no substitution with successor families",
+  "classic_icon_behavior": "Classic google-fonts.ts loads every atlas family through css2 and document.fonts.load; no special generic Material Symbols character mapping exists"
+}

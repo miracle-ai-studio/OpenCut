@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { moduleRegistry as sharedRegistry, playwrightRuntime as sharedPlaywright, PACKAGE_ROOT as SHARED_ROOT } from "@opencut/classic-audio-renderer/internal-host-runtime";
 export const PACKAGE_ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-export const SHADERS=["vendor/classic-v31/fullscreen.wgsl","vendor/classic-v31/layer.wgsl","vendor/classic-v31/blend.wgsl"];
+export const SHADERS=["vendor/classic-v31/fullscreen.wgsl","vendor/classic-v31/layer.wgsl","vendor/classic-v31/blend.wgsl","vendor/classic-v31/mask.wgsl","vendor/classic-v31/jfa_init.wgsl","vendor/classic-v31/jfa_step.wgsl","vendor/classic-v31/jfa_distance.wgsl","vendor/classic-v31/gaussian_blur.wgsl"];
 export async function moduleRegistry(runtime) {
   const identityFiles=[];
   for(const file of await fs.readdir(path.join(SHARED_ROOT,"host")))if(file.endsWith(".mjs"))identityFiles.push({root:SHARED_ROOT,prefix:"/shared-host/",relative:"host/"+file});

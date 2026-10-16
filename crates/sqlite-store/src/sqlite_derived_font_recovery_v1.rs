@@ -5,10 +5,7 @@ use super::*;
 use opencut_contracts::font_recovery_v1::FontRecoveryResolutionV1;
 use opencut_editor_application::{
     audit::ExecutionContext,
-    font_derived_v1::{
-        expected_import_resource_v1,
-        recovery::{self as recovery, *},
-    },
+    font_derived_v1::recovery::{self as recovery, *},
     project_v4::{StoredProjectDocumentV4, V4Intent},
 };
 
@@ -120,7 +117,8 @@ fn proposal(
             "Recovery scene is not in the captured revision",
         ));
     }
-    let font = expected_import_resource_v1(request)?;
+    let font =
+        opencut_editor_application::font_derived_v2::compat::expected_import_resource(request)?;
     opencut_editor_application::project_v4::plan(
         &opencut_contracts::project_v4::ProjectSnapshotV4 {
             project: *project,

@@ -313,8 +313,35 @@ pub(super) fn authorize_intent(
     context: &opencut_editor_application::audit::ExecutionContext,
     intent: V4Intent<'_>,
 ) -> Result<(), EditorError> {
+    if let V4Intent::BrandImport(input) = intent {
+        opencut_editor_application::brand_resources_v1::validate_request(input)?;
+        super::public::media(
+            connection,
+            context,
+            intent.project_id(),
+            &input.uploaded.media_id,
+            &input.uploaded.version,
+        )?;
+        return Ok(());
+    }
+    if let V4Intent::CatalogGenerate(input) = intent {
+        return opencut_editor_application::catalog_resources_v1::validate_generate(input);
+    }
+    if let V4Intent::CatalogImport(input) = intent {
+        opencut_editor_application::catalog_resources_v1::validate_request(input)?;
+        if let Some(uploaded) = &input.uploaded {
+            super::public::media(
+                connection,
+                context,
+                intent.project_id(),
+                &uploaded.media_id,
+                &uploaded.version,
+            )?;
+        }
+        return Ok(());
+    }
     if let V4Intent::DerivedFontImport(input) = intent {
-        return opencut_editor_application::font_derived_v1::validate_import_request_v1(input);
+        return opencut_editor_application::font_derived_v2::compat::validate_import_request(input);
     }
     if let V4Intent::FontImport(input) = intent {
         // Read/Edit/write-control are checked by the common outer authorizer.
@@ -351,6 +378,9 @@ pub(super) fn authorize_intent(
         V4Intent::PublicApply(_)
         | V4Intent::Undo(_)
         | V4Intent::Redo(_)
+        | V4Intent::CatalogImport(_)
+        | V4Intent::CatalogGenerate(_)
+        | V4Intent::BrandImport(_)
         | V4Intent::FontImport(_)
         | V4Intent::DerivedFontImport(_)
         | V4Intent::CaptionGenerate(_)
@@ -402,10 +432,71 @@ pub(super) fn authorize_document(
     document: &ProjectDocumentV4,
 ) -> Result<(), EditorError> {
     let project = intent.project_id();
+    let catalog_imported = if let V4Intent::BrandImport(input) = intent {
+        let asset = document
+            .assets
+            .iter()
+            .find(|asset| asset.id == input.asset_id)
+            .ok_or_else(access::denied)?;
+        let observed = super::public::media(
+            connection,
+            context,
+            project,
+            &input.uploaded.media_id,
+            &input.uploaded.version,
+        )?;
+        if opencut_editor_application::brand_resources_v1::bind_resource(input, observed)? != *asset
+        {
+            return Err(access::denied());
+        }
+        Some(asset)
+    } else if let V4Intent::CatalogImport(input) = intent {
+        let asset = document
+            .assets
+            .iter()
+            .find(|asset| asset.id == input.asset_id)
+            .ok_or_else(access::denied)?;
+        let bound =
+            opencut_editor_application::catalog_resources_v1::bind_resource(input, asset.clone())?;
+        if &bound != asset {
+            return Err(access::denied());
+        }
+        if let Some(uploaded) = &input.uploaded {
+            let observed = super::public::media(
+                connection,
+                context,
+                project,
+                &uploaded.media_id,
+                &uploaded.version,
+            )?;
+            if opencut_editor_application::catalog_resources_v1::bind_resource(input, observed)?
+                != *asset
+            {
+                return Err(access::denied());
+            }
+        }
+        Some(asset)
+    } else if let V4Intent::CatalogGenerate(input) = intent {
+        let asset = document
+            .assets
+            .iter()
+            .find(|asset| asset.id == input.asset_id)
+            .ok_or_else(access::denied)?;
+        if opencut_editor_application::catalog_resources_v1::bind_generated(input, asset.clone())?
+            != *asset
+        {
+            return Err(access::denied());
+        }
+        Some(asset)
+    } else {
+        None
+    };
     let imported = match intent {
         V4Intent::DerivedFontImport(input) => {
             let font =
-                opencut_editor_application::font_derived_v1::expected_import_resource_v1(input)?;
+                opencut_editor_application::font_derived_v2::compat::expected_import_resource(
+                    input,
+                )?;
             if !document.fonts.iter().any(|candidate| candidate == &font) {
                 return Err(access::denied());
             }
@@ -425,7 +516,10 @@ pub(super) fn authorize_document(
         return Ok(());
     }
     let current = ResourceScope::current(connection, project)?;
-    if document.assets.iter().all(|asset| current.asset(asset))
+    if document
+        .assets
+        .iter()
+        .all(|asset| current.asset(asset) || catalog_imported == Some(asset))
         && document
             .fonts
             .iter()
@@ -434,7 +528,10 @@ pub(super) fn authorize_document(
         return Ok(());
     }
     let scope = ResourceScope::load(connection, project)?;
-    if document.assets.iter().any(|asset| !scope.asset(asset))
+    if document
+        .assets
+        .iter()
+        .any(|asset| !scope.asset(asset) && catalog_imported != Some(asset))
         || document
             .fonts
             .iter()

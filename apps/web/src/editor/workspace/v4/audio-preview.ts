@@ -14,6 +14,7 @@ import type { AudioOutputProgress } from "./audio-preview/output";
 import { PreviewConsumptionPump } from "./audio-preview/pump";
 import type { PreviewPump } from "./audio-preview/pump";
 import { checkPreviewSession } from "./audio-preview/session-identity";
+import { PreviewRecoveryV1 } from "./audio-preview/recovery";
 
 export const emptyAudioPreview = (): V4AudioPreviewState => ({
   phase: "idle",
@@ -68,7 +69,9 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Fixed-revision playback delegate. Project evaluation, overlays and sample→Time
  * belong to the service; this client only reports actual device consumption. */
 export class V4AudioPreview {
+  private readonly recovery = new PreviewRecoveryV1();
   private epoch = 0;
+  private capabilityEpoch = 0;
   private active: Active | null = null;
   private pending: {
     api: EditorApi;
@@ -117,27 +120,41 @@ export class V4AudioPreview {
   async capability() {
     const api = this.host.api(),
       generation = this.host.generation(),
-      epoch = this.epoch;
+      epoch = ++this.capabilityEpoch;
     if (!api) return;
+    const project = this.host.state()?.head.project.id;
+    if (project) {
+      try {
+        await this.recovery.restore(api, project);
+      } catch (error) {
+        if (
+          api === this.host.api() &&
+          generation === this.host.generation() &&
+          epoch === this.capabilityEpoch
+        )
+          this.publish({ phase: "unconfirmed", error: message(error) });
+        return;
+      }
+    }
     try {
       const capability = await api.v4.audioPreviewCapability();
       if (
         api !== this.host.api() ||
         generation !== this.host.generation() ||
-        epoch !== this.epoch
+        epoch !== this.capabilityEpoch
       )
         return;
-      this.publish({ capability, error: null });
+      // Runtime admission belongs to the service, not a playback generation.
+      // Seek/pause may retire a session while this request is in flight. Its
+      // result must neither disappear nor clear a newer playback failure.
+      this.publish({ capability });
     } catch {
       if (
         api === this.host.api() &&
         generation === this.host.generation() &&
-        epoch === this.epoch
+        epoch === this.capabilityEpoch
       )
-        this.publish({
-          capability: null,
-          error: "This service does not support live scene audio.",
-        });
+        this.publish({ capability: null });
     }
   }
   private checkSession(
@@ -219,6 +236,7 @@ export class V4AudioPreview {
     const pending = this.pending,
       s = this.host.state(),
       api = this.host.api();
+    if (!pending && api && s) return this.capability();
     if (
       !pending ||
       !s ||
@@ -318,9 +336,11 @@ export class V4AudioPreview {
       let session = preparedSession;
       if (!session) {
         dispatched = true;
-        session = await a.api.v4.audioPreviewCreate(
+        session = await this.recovery.create(
+          a.api,
           a.request,
           a.controls.signal,
+          () => this.same(a),
         );
       }
       this.checkSession(a, session);
@@ -332,9 +352,12 @@ export class V4AudioPreview {
       // A replayed session may have advanced: never play stale producer state.
       if (originalControl) {
         dispatched = true;
-        const result = await a.api.v4.audioPreviewControl(
+        const result = await this.recovery.control(
+          a.api,
+          a.request,
           originalControl,
           a.controls.signal,
+          () => this.same(a),
         );
         this.checkSession(a, result, session);
         a.session = result;
@@ -347,9 +370,12 @@ export class V4AudioPreview {
       if (!originalControl) {
         control = this.command(a, { kind: "play" });
         dispatched = true;
-        a.session = await a.api.v4.audioPreviewControl(
+        a.session = await this.recovery.control(
+          a.api,
+          a.request,
           control,
           a.controls.signal,
+          () => this.same(a),
         );
       }
       this.checkSession(a, a.session, session);
@@ -381,7 +407,7 @@ export class V4AudioPreview {
             api: a.api,
             request: a.request,
             control,
-            session: preparedSession,
+            session: a.session ?? preparedSession,
             picture: a.picture,
           }
         : null;
@@ -489,12 +515,8 @@ export class V4AudioPreview {
     ) {
       const request = this.command(a, { kind: "stop" });
       a.stopRequest = request;
-      void a.api.v4
-        .audioPreviewControl(
-          request,
-          undefined,
-          a.documentDeparted ? { keepalive: true } : {},
-        )
+      void this.recovery
+        .stop(a.api, a.request, request, a.documentDeparted)
         .catch(() => {});
     }
   }
@@ -533,6 +555,9 @@ export class V4AudioPreview {
       a.controls.abort();
       void a.output.stop().catch(() => {});
       this.stopRemote(a);
+      void this.recovery
+        .retire(a.api, a.request, documentDeparted)
+        .catch(() => {});
     }
   }
   private fail(a: Active, error: unknown, unknown = false) {
@@ -653,9 +678,12 @@ export class V4AudioPreview {
         }
         const request = this.command(a, command);
         unconfirmed = { request, previous };
-        const result = await a.api.v4.audioPreviewControl(
+        const result = await this.recovery.control(
+          a.api,
+          a.request,
           request,
           a.controls.signal,
+          () => this.same(a),
         );
         this.checkSession(a, result, previous);
         a.session = result;

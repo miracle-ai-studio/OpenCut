@@ -1,3 +1,4 @@
+mod export_video_v2;
 #[cfg(unix)]
 mod media_output;
 mod output_attempt;
@@ -94,8 +95,17 @@ impl JobStore for SqliteJobStore {
                         | "render.project_frame.v4"
                         | "render.project_text_frame.v4"
                         | "render.project_caption_frame.v4"
+                        | "render.project_graphic_frame.v4"
+                        | "render.project_mask_frame.v4"
+                        | "render.project_scene_frame.v4"
+                        | "render.project_blend_frame.v4"
                         | "render.project_video.v4"
                         | "render.project_caption_video.v4"
+                        | "render.project_graphic_video.v4"
+                        | "render.project_mask_video.v4"
+                        | "render.project_scene_video.v4"
+                        | "render.export_video.v2"
+                        | "render.project_blend_video.v4"
                         | "analysis.sequence_transcribe.v4"
                 ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
             {
@@ -281,6 +291,20 @@ fn execute_monitored(
                     &cancel,
                     publication_attempt,
                 )
+            } else if job.kind == opencut_job_contracts::export_video_v2::EXPORT_VIDEO_V2_KIND {
+                export_video_v2::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind
+                == opencut_job_contracts::project_v4_scene_video::V4_SCENE_VIDEO_MP4_KIND
+            {
+                project_v4_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::SceneV1,
+                )
             } else if job.kind == opencut_job_contracts::project_v4_video::V4_VIDEO_MP4_KIND {
                 project_v4_video::execute(database, root, worker, job, &cancel, publication_attempt)
             } else if job.kind
@@ -294,10 +318,50 @@ fn execute_monitored(
                     &cancel,
                     publication_attempt,
                 )
+            } else if job.kind
+                == opencut_job_contracts::project_v4_graphic_video::V4_GRAPHIC_VIDEO_MP4_KIND
+            {
+                project_v4_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::GraphicV1,
+                )
+            } else if job.kind
+                == opencut_job_contracts::project_v4_mask_video::V4_MASK_VIDEO_MP4_KIND
+            {
+                project_v4_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::MaskV1,
+                )
+            } else if job.kind
+                == opencut_job_contracts::project_v4_blend_video::V4_BLEND_VIDEO_MP4_KIND
+            {
+                project_v4_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::BlendV1,
+                )
             } else if matches!(
                 job.kind.as_str(),
                 opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND
                     | opencut_job_contracts::project_v4_caption_frame::V4_CAPTION_FRAME_PNG_KIND
+                    | opencut_job_contracts::project_v4_graphic_frame::V4_GRAPHIC_FRAME_PNG_KIND
+                    | opencut_job_contracts::project_v4_mask_frame::V4_MASK_FRAME_PNG_KIND
+                    | opencut_job_contracts::project_v4_scene_frame::V4_SCENE_FRAME_PNG_KIND
+                    | opencut_job_contracts::project_v4_blend_frame::V4_BLEND_FRAME_PNG_KIND
             ) {
                 project_v4_text_frame::execute(
                     database,

@@ -3,7 +3,7 @@
 
 pub mod analysis;
 pub mod packet_rate;
-pub use packet_rate::{ClassicPacketRateV1, CLASSIC_PACKET_RATE_METADATA_KEY_V1};
+pub use packet_rate::{CLASSIC_PACKET_RATE_METADATA_KEY_V1, ClassicPacketRateV1};
 pub mod composition;
 pub mod composition_v3;
 pub use analysis::*;

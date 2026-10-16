@@ -320,6 +320,19 @@ impl AudioPreviewMachineV4 {
         }
         Ok(None)
     }
+    /// Inspect an exact control's retained receipt without executing its command
+    /// or refreshing a lease. Reload recovery must never replay Play/Seek merely
+    /// to discover which generation should be retired.
+    pub fn recover_control_receipt(
+        &self,
+        input: &AudioPreviewControlV4,
+    ) -> Result<Option<AudioPreviewSessionV4>, EditorError> {
+        bounded_id(&input.control_id)?;
+        let request = serde_json::to_string(input).map_err(|_| err("SERIALIZATION_ERROR"))?;
+        Ok(self
+            .replay(&input.control_id, &input.owner_id, &request)?
+            .map(|r| r.session))
+    }
     fn receipt(
         &mut self,
         key: String,

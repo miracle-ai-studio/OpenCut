@@ -4,8 +4,8 @@ use crate::classic_text_frame_v2::ClassicTextFrameSessionV2;
 use opencut_composition::{
     CompositionScope,
     project_v4::{
-        NativeTextCoverageV1, PreparedTextFrameV2, compile_frame_v4, prepare_text_frame_v2,
-        prepare_text_raster_v1,
+        CompositionV4, NativeTextCoverageV1, PreparedTextFrameV2, compile_frame_v4,
+        prepare_text_frame_v2, prepare_text_raster_v1,
     },
 };
 use opencut_contracts::{EditorError, project_v4::ProjectSnapshotV4, text_canvas_v1::*};
@@ -24,6 +24,15 @@ pub fn prepare_canvas_plan_v1(
     snapshot: &ProjectSnapshotV4,
     request: &TextCanvasPlanRequestV1,
 ) -> Result<PreparedTextFrameV2, EditorError> {
+    validate_canvas_request(snapshot, request)?;
+    crate::font_synthesis_v1::reject_legacy_project(&snapshot.project)?;
+    prepare_canvas_partition(sample_canvas_graph(snapshot, request)?, request)
+}
+
+pub(crate) fn validate_canvas_request(
+    snapshot: &ProjectSnapshotV4,
+    request: &TextCanvasPlanRequestV1,
+) -> Result<(), EditorError> {
     if ![
         &request.project_id,
         &request.revision,
@@ -72,6 +81,13 @@ pub fn prepare_canvas_plan_v1(
     ) {
         return Err(invalid("Canvas editing requires a free-text element"));
     }
+    Ok(())
+}
+
+pub(crate) fn sample_canvas_graph(
+    snapshot: &ProjectSnapshotV4,
+    request: &TextCanvasPlanRequestV1,
+) -> Result<CompositionV4, EditorError> {
     // Sample the authorized complete source exactly once. Canvas input observes
     // one target, so unrelated captions/graphics need not be executable by the
     // free-text frame backend. This is an execution partition of sampled IR,
@@ -93,8 +109,26 @@ pub fn prepare_canvas_plan_v1(
             "Canvas text is inactive at the requested exact time",
         ));
     }
-    // Validate against the full sampled graph first: target effects, masks and
-    // transitions must not disappear merely because we then select its layer.
+    Ok(sampled)
+}
+
+pub(crate) fn prepare_canvas_partition(
+    mut sampled: CompositionV4,
+    request: &TextCanvasPlanRequestV1,
+) -> Result<PreparedTextFrameV2, EditorError> {
+    // This operation observes a text input layout, before downstream compositing.
+    // Preserve the sampled transform/opacity and reject transitions in the pure
+    // preparer; blend/effect stacks do not change the intrinsic glyph geometry.
+    if let Some(style) = sampled
+        .layers
+        .iter_mut()
+        .find(|layer| layer.element_id == request.element_id)
+        .and_then(|layer| layer.visual.as_mut())
+    {
+        style.blend_mode = opencut_contracts::project_v4::BlendModeV4::Normal;
+        style.effects.clear();
+        style.masks.clear();
+    }
     let target = prepare_text_raster_v1(&sampled, &request.element_id)
         .map_err(|error| EditorError::new(error.code, error.message))?;
     let mut partition = sampled;
@@ -141,4 +175,4 @@ pub fn canvas_plan_result_v1(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

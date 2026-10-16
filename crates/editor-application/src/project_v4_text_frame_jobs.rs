@@ -85,6 +85,7 @@ pub(crate) fn prepare(
     sequence_id: &str,
     at: &Time,
 ) -> Result<PreparedTextFrameV2, EditorError> {
+    crate::font_synthesis_v1::reject_legacy_project(&snapshot.project)?;
     let graph = compile_frame_v4(snapshot, sequence_id, at, CompositionScope::Visual)
         .map_err(|e| EditorError::new(e.code, e.message))?;
     prepare_text_frame_v2(&graph).map_err(|e| EditorError::new(e.code, e.message))

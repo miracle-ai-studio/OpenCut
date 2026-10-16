@@ -25,7 +25,7 @@ fn policy() -> LocalVideoExecutionPolicyV1 {
         max_pcm_bytes: 256 * 1024 * 1024, max_encoded_bytes: 32 * 1024 * 1024, max_rss_bytes: 2 * 1024 * 1024 * 1024, deadline_ms: 120000,
     }, max_frames: 1800, max_output_bytes: 256 * 1024 * 1024, deadline_ms: 300000 }
 }
-fn input() -> PreparedV4VideoMp4V1 {
+pub(crate) fn input() -> PreparedV4VideoMp4V1 {
     let mut project = new_document(&CreateProject {
         id: "project".into(),
         name: "Picture".into(),

@@ -1,0 +1,53 @@
+{
+  "admitted_svg_count": 80,
+  "archive_sha256": "dc719873cd6c44bfefc5d82f3c0eef99bc355c89a959e576119d83765b305c5c",
+  "commit": "ed9a5192b24ad2f169bf1009931da0df27d5a49a",
+  "license_sources": {
+    "CC-BY-2.5": {
+      "sha256": "82d2eddedf451177a12c9753e518352f7f90fd4ca3542111c499be981e9a9600",
+      "size": 12781,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-2.5.txt"
+    },
+    "CC-BY-3.0": {
+      "sha256": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76",
+      "size": 19467,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-3.0.txt"
+    },
+    "CC-BY-4.0": {
+      "sha256": "d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744",
+      "size": 17023,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-4.0.txt"
+    },
+    "CC-BY-SA-2.0": {
+      "sha256": "6d6b3bb586e5f4ae7e6a955556442fbfcc2a6cedb89be5e4e0492b2983e40760",
+      "size": 14122,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-SA-2.0.txt"
+    },
+    "CC-BY-SA-2.5": {
+      "sha256": "dbe7fadf81c75e0cb15a0cb338a6f42a7b34dced43958a4921ca056ca1b87a93",
+      "size": 14331,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-SA-2.5.txt"
+    },
+    "CC-BY-SA-3.0": {
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "size": 22240,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-SA-3.0.txt"
+    },
+    "CC-BY-SA-4.0": {
+      "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966",
+      "size": 18375,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC-BY-SA-4.0.txt"
+    },
+    "CC0-1.0": {
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "size": 7048,
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/d46e94e2c78ceede1cfc63cfa0396472d2798d4c/text/CC0-1.0.txt"
+    }
+  },
+  "metadata_count": 3466,
+  "policy": "Only explicitly recorded CC0/BY/BY-SA; preserve all provided source, guideline and attribution metadata. No trademark permission or endorsement is granted. Missing/custom/restrictive licenses or unbundled original notices remain unavailable.",
+  "release": "16.35.0",
+  "repository": "https://github.com/simple-icons/simple-icons",
+  "tag_object": "37ada29537474766bd71595af691abfe295798ef",
+  "upstream_metadata_sha256": "256322f4f06fe56b5ae8aed66375fda9d8f16a8955449f010c8533ef8b993ad2"
+}

@@ -10,11 +10,13 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 
 mod bookmarks;
+pub mod brand_resources_v1;
+pub mod catalog_resources_v1;
 mod edits;
 mod entities;
 pub mod history;
 mod locks;
-mod persistence;
+pub(crate) mod persistence;
 mod ports;
 pub mod public;
 pub mod resources;

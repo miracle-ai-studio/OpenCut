@@ -2,6 +2,7 @@ import { V4CaptionRecovery, type CaptionContext } from "./captions/recovery";
 import { V4VisualPreview } from "./visual-preview";
 import { V4AudioGain } from "./audio-gain";
 import { V4AudioPreview, emptyAudioPreview } from "./audio-preview";
+import { ExportVideoV2 } from "./export_video_v2";
 import { V4VideoMp4 } from "./video-mp4";
 import { V4AudioWav } from "./audio-wav";
 import { V4SourceAudio } from "./source-audio";
@@ -44,6 +45,7 @@ export class V4Session {
   readonly sourceAudio: V4SourceAudio;
   readonly audioWav: V4AudioWav;
   readonly videoMp4: V4VideoMp4;
+  readonly exporter: ExportVideoV2;
   readonly media: V4Media;
   readonly frame: V4Frame;
   constructor(private readonly host: V4SessionHost) {
@@ -64,6 +66,7 @@ export class V4Session {
     this.sourceAudio = new V4SourceAudio(writes, () => this.refresh());
     this.audioWav = new V4AudioWav(host);
     this.videoMp4 = new V4VideoMp4(host);
+    this.exporter = new ExportVideoV2(host);
     this.media = new V4Media(writes, () => this.refresh());
     this.frame = new V4Frame(host);
     this.timelineEdit = new V4TimelineEdit({
@@ -93,6 +96,24 @@ export class V4Session {
       },
     }, () => this.refresh());
   }
+  async generateCatalogSound(request:ToolInput<"opencut_catalog_resources_v1_generate">,signal?:AbortSignal) {
+    const {api,state}=this.active();
+    if(state.historical||state.head.project.id!==request.project_id||state.gainDraft||state.recovery?.record||state.recovery?.error||["reading","staging","applying"].includes(state.recovery?.phase??""))throw new Error("Resolve the current edit in the original project before generating a sound.");
+    const release=this.acquireEdit(request.project_id);
+    try{return await api.sdk.callWithAdmissionRetry("opencut_catalog_resources_v1_generate",request,{signal});}finally{release();}
+  }
+  async importCatalogResource(request:ToolInput<"opencut_catalog_resources_v1_import">,signal?:AbortSignal) {
+    const {api,state}=this.active();
+    if(state.historical||state.head.project.id!==request.project_id||state.gainDraft||state.recovery?.record||state.recovery?.error||["reading","staging","applying"].includes(state.recovery?.phase??""))throw new Error("Resolve the current edit in the original project before acquiring a resource.");
+    const release=this.acquireEdit(request.project_id);
+    try {return await api.sdk.callWithAdmissionRetry("opencut_catalog_resources_v1_import",request,{signal});} finally {release();}
+  }
+  async importBrandResource(request:ToolInput<"opencut_brand_resources_v1_import">,signal?:AbortSignal) {
+    const {api,state}=this.active();
+    if(state.historical||state.head.project.id!==request.project_id||state.gainDraft||state.recovery?.record||state.recovery?.error||["reading","staging","applying"].includes(state.recovery?.phase??""))throw new Error("Resolve the current edit in the original project before acquiring a brand.");
+    const release=this.acquireEdit(request.project_id);
+    try{return await api.sdk.callWithAdmissionRetry("opencut_brand_resources_v1_import",request,{signal});}finally{release();}
+  }
   private acquireEdit(projectId: string) {
     if (this.captionRecovery.blocked()) throw new Error("Resolve the original caption edit before starting another operation.");
     if (fontRecoveryBlocked(this.host.state()?.fontRecovery))
@@ -116,7 +137,7 @@ export class V4Session {
     const api = this.host.api();
     if (!api) return;
     const generation = this.host.generation(), view = this.host.viewGeneration();
-    const [head, capability, frameCapability, textFrameCapability, rangeCapability, captionFrameCapability] =
+    const [head, capability, frameCapability, textFrameCapability, rangeCapability, captionFrameCapability, graphicFrameCapability, blendFrameCapability, maskFrameCapability, sceneFrameCapability] =
       await Promise.all([
         api.v4.inspect(project.id),
         api.v4.audioCapability().then(
@@ -142,6 +163,10 @@ export class V4Session {
           }),
         ),
         api.sdk.call("opencut_project_v4_caption_frame_capability", {}).catch(() => null),
+        api.sdk.call("opencut_project_v4_graphic_frame_capability", {}).catch(() => null),
+        api.sdk.call("opencut_project_v4_blend_frame_capability", {}).catch(() => null),
+        api.sdk.call("opencut_project_v4_mask_frame_capability", {}).catch(() => null),
+        api.sdk.call("opencut_project_v4_scene_frame_capability", {}).catch(() => null),
       ]);
     const { history, navigation } = await api.v4.history(
       project.id,
@@ -161,6 +186,10 @@ export class V4Session {
       fontRecovery,
       textFrameCapability,
       captionFrameCapability,
+      graphicFrameCapability,
+      blendFrameCapability,
+      maskFrameCapability,
+      sceneFrameCapability,
       timelineEdit: { ...emptyTimelineEdit(), ...restoredTimeline },
       clipboard: this.clipboard.resume(api, head.project.id),
       audioPreview: emptyAudioPreview(),
@@ -433,7 +462,7 @@ export class V4Session {
       return receipt;
     } finally { release(); }
   }
-  async importFont(request: ToolInput<"opencut_font_v1_import"> | ToolInput<"opencut_font_derived_v1_import">, protocol: "static" | "derived" = "static") {
+  async importFont(request: ToolInput<"opencut_font_v1_import"> | ToolInput<"opencut_font_derived_v1_import">, protocol: "static" | "derived" | "static_v3" | "synthesis" = "static") {
     if (this.captionRecovery.blocked()) throw new Error("Resolve the original caption edit before importing fonts.");
     const { api, state } = this.active();
     if (state.historical || state.head.project.id !== request.project_id || state.head.revision !== request.expected_revision)

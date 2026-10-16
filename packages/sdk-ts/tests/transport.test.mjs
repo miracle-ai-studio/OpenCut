@@ -220,7 +220,7 @@ test("public job wait reads the public projection, never the raw job record", as
 
 test("versioned renders and speaker turns decode only explicit successful public extensions", async () => {
   const { publicJobResult } = await import("../dist/index.js");
-  for (const kind of ["render.project.v3", "preview.project_frame.v3", "preview.project_range.v3", "render.project_audio.v4", "render.project_audio_range.v4", "analysis.speaker_turns"]) {
+  for (const kind of ["render.project.v3", "preview.project_frame.v3", "preview.project_range.v3", "render.project_audio.v4", "render.project_audio_range.v4", "render.project_graphic_frame.v4", "render.project_graphic_video.v4", "render.project_blend_frame.v4", "render.project_blend_video.v4", "analysis.speaker_turns"]) {
     const data = {revision:"fixed",width:64};
     const job = {state:"succeeded",kind,result:null,result_unavailable:null,
       extended_result:{kind,schema_version:1,data}};

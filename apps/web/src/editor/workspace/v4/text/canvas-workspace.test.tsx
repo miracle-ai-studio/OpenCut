@@ -31,14 +31,14 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
-async function setup() {
+async function setup(customPlanner?: CanvasTextPlanning) {
   const f = await setupV4();
   const track = f.current().project.sequences[0].tracks[0];
   track.kind = "text";
   track.elements[0].content = { kind: "text", text: textInitial().text };
   f.current().project.fonts = textFonts();
   await f.controller.v4.refresh();
-  const planner: CanvasTextPlanning = vi.fn(
+  const planner: CanvasTextPlanning = customPlanner ?? vi.fn(
     async (scope) =>
       ({
         scope,
@@ -87,4 +87,18 @@ it("external fixed head change retires the canvas draft before commit", async ()
   } finally {
     f.controller.dispose();
   }
+});
+
+it("seek retires both an open canvas draft and a late native text plan without a write", async () => {
+  let resolve!: (plan: CanvasTextPlan)=>void;
+  let captured!: CanvasTextPlan["scope"];
+  const planner=vi.fn<CanvasTextPlanning>((scope)=>{captured=scope;return new Promise(done=>{resolve=done;});});
+  const f=await setup(planner);
+  try {
+    const apply=vi.spyOn(f.controller.v4,"applyPlanned");
+    fireEvent.click(screen.getByText("Begin"));
+    await waitFor(()=>expect(planner).toHaveBeenCalledTimes(1));
+    await act(async()=>{f.controller.v4.seek({ticks:"1",timebase:1});resolve({scope:captured,width:320,height:180,block:{maxWidth:80,height:72},layer:{elementId:"image"}} as CanvasTextPlan);});
+    expect(screen.queryByText("Canvas draft")).toBeNull();expect(apply).not.toHaveBeenCalled();expect(f.current().revision).toBe("r0");
+  }finally{f.controller.dispose();}
 });

@@ -1,5 +1,6 @@
 import { converter, formatHex } from "culori";
 import { secondsForDisplay } from "../../../model/time";
+import { requestedFontStyle, synthesisFont } from "./font-synthesis";
 import type {
   V4Text,
   V4TextEditorValue,
@@ -33,7 +34,11 @@ export type TextDraft = {
 /** These are the two authored weights represented by TextV4. The importer and
  * renderer still validate bytes, face identity, licensing and glyph support. */
 export const editableTextFonts = (fonts: readonly V4TextFont[]) =>
-  fonts.filter((font) => font.weight === 400 || font.weight === 700);
+  fonts.filter(
+    (font) =>
+      (font.weight === 400 || font.weight === 700) &&
+      (!synthesisFont(font) || !!font.synthesis_binding),
+  );
 
 const toRgb = converter("rgb");
 function displayColor(color: V4Text["color"]) {
@@ -101,7 +106,7 @@ export function textDraftValue(
   text.content = draft.content;
   text.font = { kind: "locked", font_id: font.id };
   text.font_weight = font.weight === 700 ? "bold" : "normal";
-  text.font_style = font.style;
+  text.font_style = requestedFontStyle(font);
   text.font_size.value = numeric(draft.size, "Font size", true);
   text.align = draft.align;
   text.decoration = draft.decoration;

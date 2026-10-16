@@ -112,13 +112,32 @@ pub struct ClassicVideoEncoder<F: FnMut() -> Result<(), EditorError>> {
     ffprobe_hash: String,
     next_frame: u64,
     offset: u64,
+    export_options: Option<opencut_contracts::export_video_v2::ExportVideoOptionsV2>,
 }
 impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
     #[cfg(unix)]
     pub fn start(
         config: ClassicVideoEncoderConfig,
         admission: &dyn OutputAdmission,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        Self::start_internal(config, admission, checkpoint, None)
+    }
+    #[cfg(unix)]
+    pub fn start_v2(
+        config: ClassicVideoEncoderConfig,
+        options: opencut_contracts::export_video_v2::ExportVideoOptionsV2,
+        admission: &dyn OutputAdmission,
+        checkpoint: F,
+    ) -> Result<Self, EditorError> {
+        Self::start_internal(config, admission, checkpoint, Some(options))
+    }
+    #[cfg(unix)]
+    fn start_internal(
+        config: ClassicVideoEncoderConfig,
+        admission: &dyn OutputAdmission,
         mut checkpoint: F,
+        export_options: Option<opencut_contracts::export_video_v2::ExportVideoOptionsV2>,
     ) -> Result<Self, EditorError> {
         if config.width == 0
             || config.height == 0
@@ -136,62 +155,67 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         let ffmpeg_hash = hash(&config.ffmpeg, &mut checkpoint)?;
         let ffprobe_hash = hash(&config.ffprobe, &mut checkpoint)?;
         let mut command = Command::new(&config.ffmpeg);
+        if let Some(options) = &export_options {
+            crate::export_video_v2::append_arguments(&mut command, &config, options)?;
+        } else {
+            command
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-nostdin",
+                    "-n",
+                    "-protocol_whitelist",
+                    "file,pipe",
+                    "-f",
+                    "rawvideo",
+                    "-pixel_format",
+                    "rgba",
+                    "-video_size",
+                ])
+                .arg(format!("{}x{}", config.width, config.height))
+                .arg("-framerate")
+                .arg(format!(
+                    "{}/{}",
+                    config.fps_numerator, config.fps_denominator
+                ))
+                .args(["-i", "pipe:0", "-i"])
+                .arg(&config.audio)
+                .args([
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-crf",
+                    "18",
+                    "-preset",
+                    "medium",
+                    "-threads",
+                    "2",
+                    "-filter_threads",
+                    "1",
+                    "-filter_complex_threads",
+                    "1",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192000",
+                    "-ar",
+                    "48000",
+                    "-ac",
+                    "2",
+                    "-movflags",
+                    "+faststart",
+                    "-f",
+                    "mp4",
+                ])
+                .arg(&config.output);
+        }
         command
-            .args([
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-nostdin",
-                "-n",
-                "-protocol_whitelist",
-                "file,pipe",
-                "-f",
-                "rawvideo",
-                "-pixel_format",
-                "rgba",
-                "-video_size",
-            ])
-            .arg(format!("{}x{}", config.width, config.height))
-            .arg("-framerate")
-            .arg(format!(
-                "{}/{}",
-                config.fps_numerator, config.fps_denominator
-            ))
-            .args(["-i", "pipe:0", "-i"])
-            .arg(&config.audio)
-            .args([
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-c:v",
-                "libx264",
-                "-pix_fmt",
-                "yuv420p",
-                "-crf",
-                "18",
-                "-preset",
-                "medium",
-                "-threads",
-                "2",
-                "-filter_threads",
-                "1",
-                "-filter_complex_threads",
-                "1",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "192000",
-                "-ar",
-                "48000",
-                "-ac",
-                "2",
-                "-movflags",
-                "+faststart",
-                "-f",
-                "mp4",
-            ])
-            .arg(&config.output)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
@@ -223,6 +247,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
             ffprobe_hash,
             next_frame: 0,
             offset: 0,
+            export_options,
         })
     }
     fn check(&mut self) -> Result<(), EditorError> {
@@ -330,6 +355,16 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
                 "EXECUTION_IDENTITY_CHANGED",
                 "Encoder/probe binary changed during execution",
             ));
+        }
+        if let Some(options) = &self.export_options {
+            let observed = crate::export_video_v2::verify_probe(&probe, &self.config, options)?;
+            return Ok(ClassicVideoEncoderObservation {
+                ffmpeg_sha256: self.ffmpeg_hash.clone(),
+                ffprobe_sha256: self.ffprobe_hash.clone(),
+                video_frames: observed.frames,
+                video_duration_seconds: observed.video_seconds,
+                audio_duration_seconds: observed.audio_seconds.unwrap_or(0.0),
+            });
         }
         let streams = probe
             .get("streams")
@@ -466,6 +501,7 @@ fn probe(
             "file,pipe",
             "-count_frames",
             "-show_streams",
+            "-show_format",
             "-of",
             "json",
         ])

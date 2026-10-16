@@ -11,6 +11,36 @@ spec.loader.exec_module(package)
 
 
 class PackageContentsTest(unittest.TestCase):
+    def test_catalog_delivery_is_exact_two_file_subset_with_identity_and_no_source_audio(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / 'packages'; visual = source / 'classic-visual-renderer'
+            (visual / 'host').mkdir(parents=True)
+            (visual / 'package.json').write_text(json.dumps({'name': '@opencut/classic-visual-renderer', 'version': '0.1.0', 'type': 'module'}))
+            (visual / 'host/catalog-archive-v1.mjs').write_text('// fixed fixture adapter')
+            (visual / 'host/browser.mjs').write_text('not bundled')
+            (visual / 'user.ogg').write_text('not bundled')
+            destination = root / 'bundle/bin/libexec'
+            record = package.copy_catalog_runtime(source, destination)
+            copied = {str(p.relative_to(root / 'bundle')) for p in destination.rglob('*') if p.is_file()}
+            self.assertEqual(copied, set(record['files']))
+            self.assertEqual(len(copied), 2)
+            self.assertFalse(record['source_archive_included'])
+            self.assertEqual(record['external_runtime'], 'node')
+            for name, expected in record['files'].items():
+                path = root / 'bundle' / name
+                self.assertEqual(expected, {'sha256': package.sha(path), 'size': path.stat().st_size})
+            helper = visual / 'host/catalog-archive-v1.mjs'
+            helper.unlink(); helper.symlink_to(visual / 'host/browser.mjs')
+            with self.assertRaisesRegex(ValueError, 'Symlink'):
+                package.copy_catalog_runtime(source, root / 'bad-link')
+            helper.unlink(); helper.write_bytes(b'x' * 262145)
+            with self.assertRaisesRegex(ValueError, 'budget'):
+                package.copy_catalog_runtime(source, root / 'oversize')
+            helper.write_text('// fixed fixture adapter')
+            (visual / 'package.json').write_text(json.dumps({'name': '@opencut/classic-visual-renderer', 'version': '9.0.0', 'type': 'module'}))
+            with self.assertRaisesRegex(ValueError, 'Unpinned'):
+                package.copy_catalog_runtime(source, root / 'wrong-package')
+
     def test_packet_runtime_copies_only_pinned_files_and_rejects_escape(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

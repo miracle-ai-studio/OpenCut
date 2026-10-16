@@ -1,3 +1,8 @@
+import { SceneMaskCanvasOverlay, useSceneStack } from "./scene-stack";
+import { V4CanvasTransformOverlay } from "./canvas-transform";
+import { useMaskAuthoring } from "./mask/workspace";
+import { useCanvasTextAuthoring } from "./text/workspace";
+import { CanvasMaskOverlay } from "./mask/canvas-overlay";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "../context";
 import { Button } from "../../shared/ui";
@@ -20,6 +25,8 @@ export function V4FrameCanvas({
 }) {
   useLocale();
   const { controller, api, v4, jobs } = useWorkspace();
+  const maskAuthoring=useMaskAuthoring(),textAuthoring=useCanvasTextAuthoring(),sceneAuthoring=useSceneStack();
+  const canvasEditing=!!maskAuthoring?.draft || !!textAuthoring?.canvas || !!sceneAuthoring?.draft;
   const visual = controller.v4.visualPreview;
   const live = useSyncExternalStore(visual.subscribe, visual.snapshot);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -249,7 +256,10 @@ export function V4FrameCanvas({
             )}
           </span>
         )}
+        <V4CanvasTransformOverlay width={width} height={height} disabled={canvasEditing} />
         <CanvasTextOverlay />
+        <CanvasMaskOverlay width={width} height={height} />
+        <SceneMaskCanvasOverlay width={width} height={height} />
         <div className="v4-note-hud" aria-live="polite">
           {notes.map((b) => (
             <div

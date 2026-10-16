@@ -97,6 +97,11 @@ pub trait FontCasPublishV1 {
 pub fn validate_import_request_v1(
     request: &opencut_contracts::font_import_v1::ImportFontV1,
 ) -> Result<(), EditorError> {
+    // Private recovery/journal authority shares the frozen request shape. Only
+    // exact compiled V3 IDs enter the additive path; V1 source/fetch stay V1-only.
+    if crate::font_catalog_v3::native_source_v3(&request.catalog_id).is_ok() {
+        return crate::font_catalog_v3::validate_import_request_v3(request);
+    }
     crate::require_idempotency_key(&request.idempotency_key)?;
     if [
         &request.project_id,
@@ -124,6 +129,9 @@ pub fn validate_import_request_v1(
 pub fn expected_import_resource_v1(
     request: &opencut_contracts::font_import_v1::ImportFontV1,
 ) -> Result<FontResourceV4, EditorError> {
+    if crate::font_catalog_v3::native_source_v3(&request.catalog_id).is_ok() {
+        return crate::font_catalog_v3::expected_import_resource_v3(request);
+    }
     validate_import_request_v1(request)?;
     let source = catalog::pinned_font_source_v1(&request.catalog_id)?;
     let spec = source.import_spec(request.font_id.clone(), request.required_text.clone());

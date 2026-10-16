@@ -2,14 +2,48 @@ import { OpenCutApiError } from "../../../lib/editor-sdk";
 import type { EditorApi } from "../api";
 import type { V4SessionHost } from "./session";
 import type { V4VideoMp4Attempt, V4SessionState } from "./types";
+import { sceneVisualProfile, viewedSequence, viewedVisualProfile } from "./visual-profile";
 
+const videoProtocols = {
+  text: {
+    schema: 1,
+    capability: "opencut_project_v4_video_capability",
+    submit: "opencut_job_v4_video_mp4",
+    kind: "render.project_video.v4",
+  },
+  caption: {
+    schema: 2,
+    capability: "opencut_project_v4_caption_video_mp4_capability",
+    submit: "opencut_job_v4_caption_video_mp4",
+    kind: "render.project_caption_video.v4",
+  },
+  graphic: {
+    schema: 1,
+    capability: "opencut_project_v4_graphic_video_mp4_capability",
+    submit: "opencut_job_v4_graphic_video_mp4",
+    kind: "render.project_graphic_video.v4",
+  },
+  mask: {
+    schema: 1,
+    capability: "opencut_project_v4_mask_video_mp4_capability",
+    submit: "opencut_job_v4_mask_video_mp4",
+    kind: "render.project_mask_video.v4",
+  },
+  scene: { schema: 1, capability: "opencut_project_v4_scene_video_mp4_capability", submit: "opencut_job_v4_scene_video_mp4", kind: "render.project_scene_video.v4" },
+  blend: {
+    schema: 1,
+    capability: "opencut_project_v4_blend_video_mp4_capability",
+    submit: "opencut_job_v4_blend_video_mp4",
+    kind: "render.project_blend_video.v4",
+  },
+} as const;
+const videoProtocol = (state: V4SessionState) =>
+  videoProtocols[viewedVisualProfile(state, "authored")];
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 export function videoMp4Availability(state: V4SessionState) {
   const capability = state.videoMp4Capability;
-  const captions = !!(state.historical ?? state.head).project.sequences.find(
-    (s) => s.id === state.sequenceId,
-  )?.captions.length;
+  const protocol = videoProtocol(state);
   const view = state.historical ?? state.head;
   const reason = !capability
     ? (state.videoMp4CapabilityError ??
@@ -17,11 +51,8 @@ export function videoMp4Availability(state: V4SessionState) {
     : !capability.available
       ? (capability.unavailable_reason ??
         "Scene video MP4 export is unavailable on this service.")
-      : capability.schema_version !== (captions ? 2 : 1) ||
-          capability.submit_tool !==
-            (captions
-              ? "opencut_job_v4_caption_video_mp4"
-              : "opencut_job_v4_video_mp4")
+      : capability.schema_version !== protocol.schema ||
+          capability.submit_tool !== protocol.submit
         ? "This service does not support scene video MP4 export."
         : view.project.settings.profile !== "classic_global"
           ? "Video MP4 export currently requires Classic scene settings."
@@ -72,14 +103,11 @@ export class V4VideoMp4 {
     let value = null,
       error = null;
     try {
-      value = (state.historical ?? state.head).project.sequences.find(
-        (s) => s.id === state.sequenceId,
-      )?.captions.length
-        ? await api.sdk.call(
-            "opencut_project_v4_caption_video_mp4_capability",
-            {},
-          )
-        : await api.v4.videoCapability();
+      const protocol = videoProtocol(state);
+      value =
+        protocol === videoProtocols.text
+          ? await api.v4.videoCapability()
+          : await api.sdk.call(protocol.capability, {});
     } catch (e) {
       error = message(e);
     }
@@ -108,9 +136,7 @@ export class V4VideoMp4 {
       sequence = view.project.sequences.find((s) => s.id === state.sequenceId);
     if (!sequence) throw new Error("The selected scene is unavailable.");
     const attempt: V4VideoMp4Attempt = {
-      tool: sequence.captions.length
-        ? "opencut_job_v4_caption_video_mp4"
-        : "opencut_job_v4_video_mp4",
+      tool: videoProtocol(state).submit,
       request: {
         project_id: view.project.id,
         revision: view.revision,
@@ -180,15 +206,15 @@ export class V4VideoMp4 {
       dispatched = true;
       const tool = attempt.tool ?? "opencut_job_v4_video_mp4";
       const job =
-        tool === "opencut_job_v4_caption_video_mp4"
+        tool !== "opencut_job_v4_video_mp4"
           ? await api.sdk.call(tool, attempt.request)
           : await api.v4.videoMp4(attempt.request);
       if (
         !job.job_id ||
         job.kind !==
-          (tool === "opencut_job_v4_caption_video_mp4"
-            ? "render.project_caption_video.v4"
-            : "render.project_video.v4") ||
+          Object.values(videoProtocols).find(
+            (protocol) => protocol.submit === tool,
+          )?.kind ||
         job.target?.project_id !== attempt.request.project_id ||
         job.target.revision !== attempt.request.revision ||
         job.target.sequence_id !== attempt.request.sequence_id

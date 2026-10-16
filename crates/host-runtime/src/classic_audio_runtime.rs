@@ -203,14 +203,19 @@ fn resolve_package_node(
     }
     let node = match &configuration.node {
         Some(path) => executable(Path::new(path))?,
-        None => configuration
-            .search_path
-            .as_deref()
-            .into_iter()
-            .flat_map(env::split_paths)
-            .filter(|directory| directory.is_absolute())
-            .find_map(|directory| executable(&directory.join("node")).ok())
-            .ok_or(Unavailable::Unavailable)?,
+        None => match crate::bundled_runtime::executable("node")
+            .map_err(|_| Unavailable::Unavailable)?
+        {
+            Some(path) => executable(&path)?,
+            None => configuration
+                .search_path
+                .as_deref()
+                .into_iter()
+                .flat_map(env::split_paths)
+                .filter(|directory| directory.is_absolute())
+                .find_map(|directory| executable(&directory.join("node")).ok())
+                .ok_or(Unavailable::Unavailable)?,
+        },
     };
     let manifest = metadata(&package.join("package.json"))?;
     if manifest["name"] != "@opencut/classic-audio-renderer"
@@ -225,13 +230,14 @@ fn resolve_package_node(
 }
 
 fn resolve(configuration: &HostConfiguration) -> Result<RuntimePaths, Unavailable> {
-    let chromium = configuration
-        .chromium
-        .as_deref()
-        .map(Path::new)
-        .ok_or(Unavailable::NotConfigured)?;
+    let chromium = match &configuration.chromium {
+        Some(path) => PathBuf::from(path),
+        None => crate::bundled_runtime::executable("chromium")
+            .map_err(|_| Unavailable::Unavailable)?
+            .ok_or(Unavailable::NotConfigured)?,
+    };
     let (package, node) = resolve_package_node(configuration)?;
-    let chromium = executable(chromium)?;
+    let chromium = executable(&chromium)?;
     for module in HOST_MODULES {
         package_file(&package, &format!("host/{module}.mjs"))?;
     }

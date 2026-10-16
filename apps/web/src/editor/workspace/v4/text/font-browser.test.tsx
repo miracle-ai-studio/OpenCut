@@ -12,6 +12,10 @@ import { preferences } from "../../../shared/locale";
 import { V4FontImport } from "./font-import";
 import type { V4FontImportProps } from "./font-import";
 import type { FontBrowserCatalog, FontBrowserSource } from "./font-browser";
+import {
+  synthesisFixture,
+  derivedSynthesisFixture,
+} from "./font-synthesis-fixture";
 
 beforeEach(() => preferences({ language: "en" }));
 afterEach(() => {
@@ -99,6 +103,173 @@ const props = (): V4FontImportProps => ({
   readSource: vi.fn(async (id) => source(id)),
   importFont: vi.fn(async () => {}),
   close: vi.fn(),
+});
+
+it("defaults to Classic synthesis over a real italic source while preserving both explicit import routes", async () => {
+  const f = synthesisFixture(),
+    input = props(),
+    face = {
+      id: f.source.source.face.id,
+      display_family: "Example",
+      family: "Example",
+      weight: 700,
+      style: "normal" as const,
+      requested_style: "italic" as const,
+      kind: "synthesis_v1" as const,
+      content_hash: f.hash,
+      size_bytes: "3",
+      render_profile: "static_outline" as const,
+      alias_reason: null,
+      import_available: true,
+      unavailable_reason: null,
+    };
+  input.browserCatalog = {
+    ...catalog(),
+    families: [
+      {
+        family: "Example",
+        category: "google",
+        faces: [
+          {
+            weight: 700,
+            style: "italic",
+            catalog_id: "example-real-bolditalic",
+            unavailable_reason: null,
+          },
+        ],
+      },
+    ],
+  };
+  input.unifiedCatalog = {
+    schema_version: 3,
+    download_available: false,
+    unavailable_reason: null,
+    source_commit: "atlas",
+    classic_atlas_sha256: "a".repeat(64),
+    classic_family_count: 1,
+    fonts: [face],
+  };
+  input.readUnifiedSource = vi.fn(async () => ({
+    face,
+    details: { kind: "synthesis_v1", source: f.source },
+    license_url: f.source.source.license_url,
+    license_sha256: JSON.parse(f.source.source.proof_json).license_sha256,
+  }));
+  input.readSource = vi.fn(async (id) => ({
+    ...source(id),
+    id,
+    family: "Example",
+    weight: 700,
+    style: "italic" as const,
+  }));
+  render(<V4FontImport {...input} />);
+  await screen.findByText("Classic Canvas italic synthesis", { selector: "p" });
+  expect((screen.getByLabelText("Font style") as HTMLSelectElement).value).toBe(
+    "700:italic",
+  );
+  expect(
+    (screen.getByLabelText("Italic source") as HTMLSelectElement).value,
+  ).toBe("classic");
+  expect(input.readSource).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("Italic source"), {
+    target: { value: "real_italic" },
+  });
+  await screen.findByText("Complete original license notice");
+  expect(input.readSource).toHaveBeenCalledWith(
+    "example-real-bolditalic",
+    expect.any(AbortSignal),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Import font" }));
+  await waitFor(() =>
+    expect(input.importFont).toHaveBeenCalledExactlyOnceWith(
+      "example-real-bolditalic",
+      "Hello 你好",
+    ),
+  );
+  await waitFor(() => expect(input.close).toHaveBeenCalledOnce());
+  vi.mocked(input.importFont).mockClear();
+  // close is mocked, so explicitly return to the default path in this fixture.
+  fireEvent.change(screen.getByLabelText("Italic source"), {
+    target: { value: "classic" },
+  });
+  await screen.findByText("Classic Canvas italic synthesis", { selector: "p" });
+  fireEvent.click(screen.getByRole("button", { name: "Import font" }));
+  await waitFor(() =>
+    expect(input.importFont).toHaveBeenCalledExactlyOnceWith(
+      f.source.source.face.id,
+      "Hello 你好",
+      "synthesis",
+    ),
+  );
+});
+
+it("shows the derived base identity and color profile without claiming its bytes are untouched upstream files", async () => {
+  const f = derivedSynthesisFixture(),
+    input = props(),
+    face = {
+      id: f.source.source.face.id,
+      display_family: "Example",
+      family: f.source.source.face.family,
+      weight: 400,
+      style: "normal" as const,
+      requested_style: "italic" as const,
+      kind: "synthesis_v1" as const,
+      content_hash: f.hash,
+      size_bytes: "3",
+      render_profile: "colr_v1" as const,
+      alias_reason: null,
+      import_available: true,
+      unavailable_reason: null,
+    };
+  input.browserCatalog = {
+    ...catalog(),
+    families: [
+      {
+        family: "Example",
+        category: "google",
+        faces: [
+          {
+            weight: 400,
+            style: "italic",
+            catalog_id: null,
+            unavailable_reason: "no_pinned_static_source",
+          },
+        ],
+      },
+    ],
+  };
+  input.unifiedCatalog = {
+    schema_version: 3,
+    download_available: true,
+    unavailable_reason: null,
+    source_commit: "atlas",
+    classic_atlas_sha256: "a".repeat(64),
+    classic_family_count: 1,
+    fonts: [face],
+  };
+  input.readUnifiedSource = vi.fn(async () => ({
+    face,
+    details: { kind: "synthesis_v1", source: f.source },
+    license_url: f.source.source.license_url,
+    license_sha256: JSON.parse(f.source.source.proof_json).license_sha256,
+  }));
+  render(<V4FontImport {...input} />);
+  await screen.findByText("Base acquisition: Derived V2");
+  expect(
+    screen.getByText("Native rendering profile: COLR v1 color font"),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      `Base derivation identity: ${f.base.source.face.derivation_id}`,
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(`Upstream source hash: ${f.base.source.source_sha256}`),
+  ).toBeTruthy();
+  expect(screen.getByText(`Synthesis input hash: ${f.hash}`)).toBeTruthy();
+  expect(
+    screen.queryByText("Original font bytes and license are preserved."),
+  ).toBeNull();
 });
 
 it("searches all families and loads only the selected exact static face license", async () => {

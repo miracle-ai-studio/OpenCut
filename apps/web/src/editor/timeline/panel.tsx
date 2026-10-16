@@ -1,6 +1,7 @@
 import { useMediaPreview } from "../workspace/media-preview";
 import { MediaArt } from "../shared/media-art";
 import { t, useLocale } from "../shared/locale";
+import { useShortcutActions, useShortcutLabels } from "../shortcuts";
 import { TimelineCommands } from "./commands";
 import { DeleteTrack } from "./delete-track";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -77,6 +78,7 @@ type Box = {
 };
 export function TimelinePanel() {
   useLocale();
+  const shortcut = useShortcutLabels();
   const {
     controller,
     snapshot,
@@ -100,7 +102,8 @@ export function TimelinePanel() {
     trackId: string;
   } | null>(null);
   useEffect(() => setTrackDeletion(null), [view?.project.id, sequenceId]);
-  const viewport = useRef<HTMLDivElement>(null),
+  const root = useRef<HTMLElement>(null),
+    viewport = useRef<HTMLDivElement>(null),
     dragRef = useRef<Drag | null>(null);
   const restoredZoom = useRef(1),
     restoredScroll = useRef<number | null>(null);
@@ -131,6 +134,7 @@ export function TimelinePanel() {
       saveTimelinePreferences(view.project.id, sequence.id, { zoom: value });
   };
   const clipboard = useRef<CopiedClip[]>([]);
+  const [, clipboardChanged] = useState(0);
   const importAbort = useRef<AbortController | null>(null);
   const [importProgress, setImportProgress] = useState<string | null>(null);
   useEffect(
@@ -240,10 +244,12 @@ export function TimelinePanel() {
       .catch((error) => controller.report(error));
   };
   const copy = () => {
-    if (view && sequence && selectedClips.length)
+    if (view && sequence && selectedClips.length) {
       clipboard.current = selectedClips.map(({ track, clip }) =>
         copyClip(view, sequence.id, track.id, clip),
       );
+      clipboardChanged((value) => value + 1);
+    }
   };
   const paste = (duplicate = false) => {
     if (!view || !sequence) return;
@@ -363,74 +369,6 @@ export function TimelinePanel() {
       controller.report(error);
     }
   };
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if (
-        (event.target as HTMLElement).closest(
-          "input,textarea,select,[contenteditable=true],dialog,[role=dialog],[role=menu]",
-        )
-      )
-        return;
-      if (event.key === "Escape") {
-        setDrag(null);
-        dragRef.current = null;
-        boxRef.current = null;
-        setBox(null);
-        controller.select(null);
-      }
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        event.preventDefault();
-        if (sequence)
-          controller.seek(
-            atFrame(
-              Math.max(
-                0,
-                secondsForDisplay(playhead) +
-                  ((event.key === "ArrowLeft" ? -1 : 1) *
-                    sequence.fps.denominator) /
-                    sequence.fps.numerator,
-              ),
-              sequence.fps,
-            ),
-          );
-      }
-      if (historical || busy) return;
-      if (event.metaKey || event.ctrlKey) {
-        const key = event.key.toLowerCase();
-        if (["z", "c", "v", "d", "a"].includes(key)) event.preventDefault();
-        if (key === "z")
-          void (event.shiftKey ? controller.redo() : controller.undo()).catch(
-            (error) => controller.report(error),
-          );
-        if (key === "a" && sequence)
-          controller.selectMany(clipSelections(sequence));
-        if (key === "c") copy();
-        if (key === "v") paste();
-        if (key === "d") paste(true);
-      }
-      if (event.key === "Delete" || event.key === "Backspace") {
-        event.preventDefault();
-        remove();
-      }
-      if (event.key.toLowerCase() === "s" && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
-        split();
-      }
-      if (!event.metaKey && !event.ctrlKey && !event.altKey) {
-        const key = event.key.toLowerCase();
-        if (key === "q" || key === "w") {
-          event.preventDefault();
-          split(key === "q" ? "right" : "left");
-        }
-        if (key === "r") {
-          event.preventDefault();
-          controller.toggleRipple();
-        }
-      }
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  });
   const startDrag = (
     event: ReactPointerEvent,
     clip: Clip,
@@ -439,6 +377,8 @@ export function TimelinePanel() {
   ) => {
     event.stopPropagation();
     if (event.button !== 0 || !sequence || !view) return;
+    event.preventDefault();
+    root.current?.focus({ preventScroll: true });
     const item: ClipSelection = {
       kind: "clip",
       id: clip.id,
@@ -695,12 +635,152 @@ export function TimelinePanel() {
     boxRef.current = null;
     setBox(null);
   };
+  const editEnabled = !!sequence && !historical && !busy;
+  const selectionEnabled =
+    editEnabled &&
+    selectedClips.length > 0 &&
+    selectedClips.every((item) => !item.track.locked);
+  const editReason = historical
+    ? "Return to the current revision before editing."
+    : "Finish the current interaction first.";
+  const navigate = (delta: number | "start" | "end") => {
+    const state = controller.getSnapshot(),
+      current = activeSequence(
+        state.historical ?? state.snapshot,
+        state.sequenceId,
+      );
+    if (
+      !current ||
+      current.id !== sequence?.id ||
+      (state.historical ?? state.snapshot)?.revision !== view?.revision
+    )
+      return;
+    const limit = duration(
+      current,
+      view?.visual.find((graph) => graph.sequence_id === current.id)?.shapes,
+    );
+    const seconds =
+      delta === "start"
+        ? 0
+        : delta === "end"
+          ? limit
+          : secondsForDisplay(state.playhead) + delta;
+    controller.seek(
+      atFrame(Math.min(limit, Math.max(0, seconds)), current.fps),
+    );
+  };
+  useShortcutActions({
+    split: { run: () => split(), enabled: editEnabled, reason: editReason },
+    "split-left": {
+      run: () => split("right"),
+      enabled: editEnabled,
+      reason: editReason,
+    },
+    "split-right": {
+      run: () => split("left"),
+      enabled: editEnabled,
+      reason: editReason,
+    },
+    "delete-selected": {
+      run: remove,
+      enabled: selectionEnabled,
+      reason: "Select elements on unlocked tracks.",
+    },
+    "copy-selected": {
+      run: copy,
+      enabled: !!sequence && selectedClips.length > 0 && !busy,
+      reason: "Select elements on unlocked tracks.",
+    },
+    "paste-copied": {
+      run: () => paste(),
+      enabled:
+        editEnabled &&
+        clipboard.current.length > 0 &&
+        clipboard.current.every((item) => item.project === view?.project.id),
+      reason: "Copy selected elements",
+    },
+    "duplicate-selected": {
+      run: () => paste(true),
+      enabled: selectionEnabled,
+      reason: "Select elements on unlocked tracks.",
+    },
+    "select-all": {
+      run: () => {
+        if (sequence) controller.selectMany(clipSelections(sequence));
+      },
+      enabled: !!sequence && !busy,
+    },
+    "deselect-all": {
+      run: () => controller.select(null),
+      enabled: !!sequence && !busy,
+    },
+    "cancel-interaction": {
+      run: () => {
+        const active = !!dragRef.current || !!boxRef.current;
+        dragRef.current = null;
+        setDrag(null);
+        cancelBox();
+        if (!active) controller.select(null);
+      },
+      enabled: !!sequence,
+    },
+    "toggle-snapping": {
+      run: () => setSnap((value) => !value),
+      enabled: !!sequence,
+      checked: snap,
+    },
+    "toggle-ripple-editing": {
+      run: () => controller.toggleRipple(),
+      enabled: editEnabled,
+      reason: editReason,
+      checked: ripple,
+    },
+    "zoom-in": {
+      run: () => changeZoom(Math.min(8, zoom * 1.5)),
+      enabled: !!sequence && zoom < 8,
+    },
+    "zoom-out": {
+      run: () => changeZoom(Math.max(0.1, zoom / 1.5)),
+      enabled: !!sequence && zoom > 0.1,
+    },
+    "frame-step-forward": {
+      run: () => navigate(sequence!.fps.denominator / sequence!.fps.numerator),
+      enabled: !!sequence,
+    },
+    "frame-step-backward": {
+      run: () => navigate(-sequence!.fps.denominator / sequence!.fps.numerator),
+      enabled: !!sequence,
+    },
+    "seek-forward": { run: () => navigate(1), enabled: !!sequence },
+    "seek-backward": { run: () => navigate(-1), enabled: !!sequence },
+    "jump-forward": { run: () => navigate(5), enabled: !!sequence },
+    "jump-backward": { run: () => navigate(-5), enabled: !!sequence },
+    "goto-start": { run: () => navigate("start"), enabled: !!sequence },
+    "goto-end": { run: () => navigate("end"), enabled: !!sequence },
+    undo: {
+      run: () => controller.undo(),
+      enabled: editEnabled && controller.canUndo,
+      reason: editReason,
+    },
+    redo: {
+      run: () => controller.redo(),
+      enabled: editEnabled && controller.canRedo,
+      reason: editReason,
+    },
+  });
   return (
-    <section className="timeline panel" aria-label={t("Timeline")}>
+    <section
+      className="timeline panel"
+      aria-label={t("Timeline")}
+      ref={root}
+      tabIndex={0}
+      data-shortcut-scope="timeline"
+    >
       <div className="timeline-toolbar">
         <div className="toolbar">
           <Button
             aria-label={t("Undo")}
+            title={shortcut("undo")}
             disabled={busy || !!historical || !controller.canUndo}
             icon={<Undo2 size={15} />}
             onClick={() =>
@@ -709,6 +789,7 @@ export function TimelinePanel() {
           />
           <Button
             aria-label={t("Redo")}
+            title={shortcut("redo")}
             disabled={busy || !!historical || !controller.canRedo}
             icon={<Redo2 size={15} />}
             onClick={() =>
@@ -717,6 +798,7 @@ export function TimelinePanel() {
           />
           <Button
             aria-label={t("Duplicate")}
+            title={shortcut("duplicate-selected")}
             disabled={busy || !!historical || !selected}
             icon={<Copy size={15} />}
             onClick={() => paste(true)}
@@ -724,14 +806,18 @@ export function TimelinePanel() {
 
           <Button
             aria-label={t("Split clip")}
-            title={t("Split at playhead · S")}
+            title={[t("Split clip"), shortcut("split")]
+              .filter(Boolean)
+              .join(" · ")}
             disabled={!sequence || !!historical || busy}
             onClick={() => split()}
             icon={<Scissors size={15} />}
           />
           <Button
             aria-label={t("Split and remove left")}
-            title={t("Split and remove left · Q")}
+            title={[t("Split and remove left"), shortcut("split-left")]
+              .filter(Boolean)
+              .join(" · ")}
             disabled={!sequence || !!historical || busy}
             onClick={() => split("right")}
           >
@@ -739,7 +825,9 @@ export function TimelinePanel() {
           </Button>
           <Button
             aria-label={t("Split and remove right")}
-            title={t("Split and remove right · W")}
+            title={[t("Split and remove right"), shortcut("split-right")]
+              .filter(Boolean)
+              .join(" · ")}
             disabled={!sequence || !!historical || busy}
             onClick={() => split("left")}
           >
@@ -747,6 +835,7 @@ export function TimelinePanel() {
           </Button>
           <Button
             aria-label={t("Delete clip")}
+            title={shortcut("delete-selected")}
             disabled={!selected || !!historical || busy}
             onClick={remove}
             icon={<Trash2 size={15} />}
@@ -754,13 +843,16 @@ export function TimelinePanel() {
           <span className="divider" />
           <Button
             aria-label={t("Toggle snapping")}
+            title={shortcut("toggle-snapping")}
             aria-pressed={snap}
             onClick={() => setSnap(!snap)}
             icon={<Magnet size={15} />}
           />
           <Button
             aria-label={t("Ripple editing")}
-            title={t("Ripple editing · R")}
+            title={[t("Ripple editing"), shortcut("toggle-ripple-editing")]
+              .filter(Boolean)
+              .join(" · ")}
             aria-pressed={ripple}
             disabled={!!historical || busy}
             onClick={() => controller.toggleRipple()}
@@ -854,6 +946,7 @@ export function TimelinePanel() {
               (event.target as HTMLElement).closest(".timeline-clip")
             )
               return;
+            root.current?.focus({ preventScroll: true });
             const rect = event.currentTarget.getBoundingClientRect();
             const previous = selections.filter(
               (item): item is ClipSelection => item.kind === "clip",
@@ -1190,6 +1283,7 @@ export function TimelinePanel() {
                                 ? "toggle"
                                 : "replace",
                             );
+                            root.current?.focus({ preventScroll: true });
                           }
                         }}
                       >

@@ -124,9 +124,29 @@ fn persist(
     if next.kind == "render.project_caption_video.v4" && next.state == JobState::Succeeded {
         sqlite_project_v4_caption_video_jobs::require_completion(tx, &next)?;
     }
+    if next.kind == "render.project_graphic_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_graphic_video_jobs::require_completion(tx, &next)?;
+    }
+    if next.kind == "render.export_video.v2" && next.state == JobState::Succeeded {
+        export_video_v2::require_completion(tx, &next)?;
+    }
+    if next.kind == "render.project_scene_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_scene_video_jobs::require_completion(tx, &next)?;
+    }
+    if next.kind == "render.project_mask_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_mask_video_jobs::require_completion(tx, &next)?;
+    }
+    if next.kind == "render.project_blend_video.v4" && next.state == JobState::Succeeded {
+        sqlite_project_v4_blend_video_jobs::require_completion(tx, &next)?;
+    }
     if matches!(
         next.kind.as_str(),
-        "render.project_text_frame.v4" | "render.project_caption_frame.v4"
+        "render.project_text_frame.v4"
+            | "render.project_caption_frame.v4"
+            | "render.project_graphic_frame.v4"
+            | "render.project_mask_frame.v4"
+            | "render.project_scene_frame.v4"
+            | "render.project_blend_frame.v4"
     ) && next.state == JobState::Succeeded
     {
         sqlite_project_v4_text_frame_jobs::require_completion(tx, &next)?;

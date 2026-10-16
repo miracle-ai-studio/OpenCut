@@ -41,6 +41,8 @@ test("fixed plan validates private handles and visual quota instead of audio DTO
 test("execution identity includes original shaders and shared Node controls but serves only browser modules",async()=>{
   const registry=await moduleRegistry({});assert.match(registry.moduleSha256,/^[a-f0-9]{64}$/);assert.match(registry.shaderSha256,/^[a-f0-9]{64}$/);
   for(const shader of SHADERS)assert.match(registry.registry.get("/renderer/"+shader).toString(),/^export default /);
+  for(const file of ["blend-modes-v1.mjs","blend-plan-v1.mjs","blend-frame-v1.mjs"])
+    assert.ok(registry.registry.has("/renderer/src/"+file),"New blend execution module is served and identity-hashed");
   // Compute the protocol's canonical digest from independent on-disk input
   // sets, including hash-only Node controls. Omitting a control from production
   // leaves served modules unchanged and must still fail this identity check.

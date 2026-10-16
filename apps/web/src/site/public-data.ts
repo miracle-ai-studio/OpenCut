@@ -156,7 +156,9 @@ async function readPublicJson(
   }
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-const marble = "https://api.marblecms.com/cmd4iw9mm0006l804kwqv0k46";
+// The local HTTP adapter owns the same fixed public source, bounded transport
+// and metadata cache. No editor cookie or project input is forwarded upstream.
+const blog = "/app/public/v1/blog";
 export async function contributors(signal: AbortSignal) {
   return parseContributors(
     await readPublicJson(
@@ -168,7 +170,7 @@ export async function contributors(signal: AbortSignal) {
 export async function posts(page: number, signal: AbortSignal) {
   return parsePosts(
     await readPublicJson(
-      `${marble}/posts?page=${Number.isSafeInteger(page) && page > 0 ? page : 1}`,
+      `${blog}?page=${Number.isSafeInteger(page) && page > 0 ? page : 1}`,
       signal,
     ),
   );
@@ -176,7 +178,7 @@ export async function posts(page: number, signal: AbortSignal) {
 export async function post(slug: string, signal: AbortSignal) {
   if (!/^[a-zA-Z0-9_-]{1,200}$/.test(slug)) throw new Error("not-found");
   const value = object(
-    await readPublicJson(`${marble}/posts/${encodeURIComponent(slug)}`, signal),
+    await readPublicJson(`${blog}/${encodeURIComponent(slug)}`, signal),
   );
   const result = parsePost(value?.post);
   if (!result) throw new Error("not-found");

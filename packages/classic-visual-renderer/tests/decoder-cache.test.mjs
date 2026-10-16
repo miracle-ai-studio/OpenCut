@@ -1,3 +1,4 @@
+import { clearGraphicSourceCacheV1 } from "../src/graphic-source.mjs";
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 
@@ -29,6 +30,8 @@ class CanvasSink {
 mock.module("mediabunny", { namedExports: { Input, CanvasSink, BlobSource: class {}, ALL_FORMATS: [] } });
 mock.module("../src/gpu.mjs", { namedExports: {
   openGpuRealm: async () => ({}),
+    clearGpuFrameCaches: clearGraphicSourceCacheV1,
+    closeGpuRealm: clearGraphicSourceCacheV1,
   renderGpuFrame: async (_frame, sources, _admission, emit) => {
     checkSources(sources);
     await emit(0, new Uint8Array([42, 31, 19, 255])); return { peakGpuBytes: "4" };

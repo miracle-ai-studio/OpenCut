@@ -37,7 +37,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-async function setup() {
+async function setup(synthesis = false) {
   const commit = vi.fn(async () => {}),
     cancel = vi.fn(),
     shortcut = vi.fn();
@@ -75,6 +75,10 @@ async function setup() {
       },
     },
   } as CanvasTextPlan;
+  if (synthesis) {
+    plan.actualFont = structuredClone(plan.layer.font);
+    plan.layer.font.style = "italic";
+  }
   const sdk = {
     call: vi.fn(async () => ({ version: { content_hash: hash, size: 3 } })),
     downloadProjectV4Resource: vi.fn(async () => new Response(bytes)),
@@ -93,6 +97,27 @@ async function setup() {
   const input = await screen.findByRole("textbox");
   return { input, commit, cancel, shortcut, sdk };
 }
+it("loads an actual normal FontFace while requesting italic in the Canvas text input", async () => {
+  const descriptors: FontFaceDescriptors[] = [];
+  vi.stubGlobal(
+    "FontFace",
+    class {
+      constructor(
+        _family: string,
+        _bytes: ArrayBuffer,
+        descriptor: FontFaceDescriptors,
+      ) {
+        descriptors.push(descriptor);
+      }
+      async load() {
+        return this;
+      }
+    },
+  );
+  const f = await setup(true);
+  expect(descriptors[0].style).toBe("normal");
+  expect((f.input as HTMLTextAreaElement).style.fontStyle).toBe("italic");
+});
 it("defers blur until IME ends, retaining line breaks and final composition text", async () => {
   const f = await setup();
   fireEvent.compositionStart(f.input);

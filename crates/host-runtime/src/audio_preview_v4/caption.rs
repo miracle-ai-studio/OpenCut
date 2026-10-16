@@ -9,10 +9,6 @@ use opencut_editor_application::{
 };
 use opencut_native_services::classic_visual::VerifiedClassicTextResources;
 
-pub(super) struct CachedCaptionPicture {
-    pub session: AudioPreviewStreamV4,
-    pub prepared: Arc<PreparedCaptionPictureV3>,
-}
 pub(crate) fn caption_picture(
     host: &mut Automation,
     input: VisualPreviewCaptionFrameV3,
@@ -25,14 +21,17 @@ pub(crate) fn caption_picture(
             .machine
             .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
         let cached = state
-            .caption_picture
+            .picture
             .as_ref()
             .filter(|c| {
                 input.decoded.is_some()
                     && c.session == input.session
                     && input.time.as_ref() == Some(c.prepared.time())
             })
-            .map(|c| c.prepared.clone());
+            .and_then(|c| match &c.prepared {
+                PreparedPicture::Caption(prepared) => Some(prepared.clone()),
+                _ => None,
+            });
         let coverage = state
             .text_coverage
             .as_ref()
@@ -99,10 +98,9 @@ pub(crate) fn caption_picture(
         });
     }
     if input.decoded.is_none() {
-        state.text_picture = None;
-        state.caption_picture = Some(CachedCaptionPicture {
+        state.picture = Some(CachedPicture {
             session: input.session,
-            prepared,
+            prepared: PreparedPicture::Caption(prepared),
         });
     }
     Ok(result)

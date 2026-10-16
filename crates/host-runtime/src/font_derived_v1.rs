@@ -16,19 +16,23 @@ fn policy() -> FontFetchPolicyV1 {
         ..FontFetchPolicyV1::default()
     }
 }
-fn configured() -> Result<NativeConfiguredDerivedFontSourceV1, EditorError> {
+pub(super) fn configured() -> Result<NativeConfiguredDerivedFontSourceV1, EditorError> {
     let unavailable = || {
         EditorError::new(
             "FONT_DERIVATION_UNAVAILABLE",
             "A pinned variable-font derivation runtime is not configured on this host",
         )
     };
-    let python = std::env::var_os("OPENCUT_FONT_DERIVE_PYTHON")
-        .filter(|v| !v.is_empty())
-        .ok_or_else(unavailable)?;
-    let script = std::env::var_os("OPENCUT_FONT_DERIVE_SCRIPT")
-        .filter(|v| !v.is_empty())
-        .ok_or_else(unavailable)?;
+    let python = match std::env::var_os("OPENCUT_FONT_DERIVE_PYTHON") {
+        Some(path) if !path.is_empty() => std::path::PathBuf::from(path),
+        Some(_) => return Err(unavailable()),
+        None => crate::bundled_runtime::executable("python")?.ok_or_else(unavailable)?,
+    };
+    let script = match std::env::var_os("OPENCUT_FONT_DERIVE_SCRIPT") {
+        Some(path) if !path.is_empty() => std::path::PathBuf::from(path),
+        Some(_) => return Err(unavailable()),
+        None => crate::bundled_runtime::script("run_derived.py")?.ok_or_else(unavailable)?,
+    };
     let cache = std::env::var_os("OPENCUT_FONT_DERIVE_CACHE")
         .filter(|v| !v.is_empty())
         .map(Into::into);
@@ -94,6 +98,7 @@ pub(super) fn import(
     host: &mut Automation,
     request: &ImportDerivedFontV1,
 ) -> Result<opencut_contracts::TransactionResult, EditorError> {
+    application::validate_import_request_v1(request)?;
     let fetch_policy = policy();
     host.app
         .authorize_v4(V4Intent::DerivedFontImport(request))?;

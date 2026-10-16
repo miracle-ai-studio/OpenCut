@@ -1,5 +1,43 @@
 use super::*;
 
+#[test]
+fn frozen_frame_profiles_reject_explicit_synthesis_even_if_blank_or_unreferenced() {
+    use opencut_contracts::font_synthesis_v1::{
+        FONT_SYNTHESIS_BINDING_ID_PREFIX_V1, FONT_SYNTHESIS_PROVIDER_V1,
+    };
+    for state in 0..3 {
+        let mut g = graph();
+        g.fonts[0].weight = 700;
+        g.fonts[0].origin = ResourceOriginV4::Generated {
+            provider: FONT_SYNTHESIS_PROVIDER_V1.into(),
+            generation_id: format!("{FONT_SYNTHESIS_BINDING_ID_PREFIX_V1}{}", "a".repeat(64)),
+        };
+        if let SampledContentV4::Text { text } = &mut g.layers[0].content {
+            text.font_weight = FontWeightV4::Bold;
+            text.font_style = FontStyleV4::Italic;
+            if state == 1 {
+                text.content = "  \n".into();
+            }
+        }
+        if state == 2 {
+            g.layers.clear();
+        }
+        let errors = [
+            prepare_text_raster_v1(&g, "text").unwrap_err(),
+            prepare_text_frame_v2(&g).unwrap_err(),
+            prepare_text_frame_v3(&g).unwrap_err(),
+            prepare_graphic_frame_v1(&g).unwrap_err(),
+            prepare_blend_frame_v1(&g).unwrap_err(),
+            prepare_mask_frame_v1(&g).unwrap_err(),
+            prepare_visual_frame_v4(&g).unwrap_err(),
+        ];
+        for error in errors {
+            assert_eq!(error.code, "UNSUPPORTED_V4");
+            assert!(error.message.contains("Explicit font synthesis"));
+        }
+    }
+}
+
 fn t(ticks: i64, timebase: u32) -> Time {
     Time {
         ticks: ticks.to_string(),

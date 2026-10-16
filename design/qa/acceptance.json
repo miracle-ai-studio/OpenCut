@@ -1,12 +1,12 @@
 {
   "format": "opencut.acceptance-summary.v1",
-  "updated": "2026-10-13",
+  "updated": "2026-10-16",
   "whole_migration_complete": false,
   "scope": "Local Rust Server + Web Classic migration under the recorded user decisions",
   "feature_status_counts": {
-    "指定动线已验": 23,
+    "指定动线已验": 25,
     "部分迁移": 20,
-    "未迁移": 11,
+    "未迁移": 9,
     "已实现待等价验收": 2,
     "原版占位": 1
   },
@@ -109,11 +109,11 @@
     },
     {
       "id": "F25",
-      "status": "部分迁移"
+      "status": "指定动线已验"
     },
     {
       "id": "F26",
-      "status": "未迁移"
+      "status": "部分迁移"
     },
     {
       "id": "F27",
@@ -121,7 +121,7 @@
     },
     {
       "id": "F28",
-      "status": "未迁移"
+      "status": "指定动线已验"
     },
     {
       "id": "F29",
@@ -248,10 +248,8 @@
     "F20",
     "F23",
     "F24",
-    "F25",
     "F26",
     "F27",
-    "F28",
     "F29",
     "F30",
     "F31",
@@ -275,7 +273,7 @@
     "F54",
     "F55"
   ],
-  "remaining_groups": 33,
+  "remaining_groups": 31,
   "product_decisions": {
     "classic_cloud_account_login": "excluded_by_user",
     "online_fonts_stickers": "Classic source and permitted license scope",
@@ -285,10 +283,10 @@
   "evidence_retention": "Feature records preserve fixed candidate identities and scoped independent evidence. No fresh whole-workspace or whole-migration acceptance. Duplicate manifests, trial logs, timing experiments and retries were removed; original record identities are not current-tree hashes.",
   "identity_method": "historical_source_manifest_sha256 is SHA256 of the original recorded source-identity manifest encoded as sorted-key compact UTF-8 JSON; it identifies that retained historical source manifest, not an unperformed source scan. Binary hashes and relevant Web entrypoint hashes are original values. Current source_manifest_sha256 uses the same sorted-key compact UTF-8 JSON of SHA256 per listed source file; only the digest and reviewed file list are retained. Web/browser receipts identify their own actual entrypoints, not all final source paths.",
   "current_worktree_validation": {
-    "scope": "49 unique scoped records. F20 public derived-font import/proof/recovery is integrated,1182 new outputs passed native admission and actual Karla UI/native/offline PNG passed. F23 editable ASR/static ASS evidence remains scoped to its candidate. F10/F19/F21 are closed;33 groups remain. No whole-workspace, full S1 or full B3 acceptance.",
-    "latest_candidate": "f20_public_derived_font_import_and_offline_render",
+    "scope": "54 unique scoped records. D2b basic video/graphic rectangle+ellipse mask authoring/history/canvas, consumer preview, independent PNG/MP4, Classic direct import and current-revision package preservation passed. F30 stays partial and31 groups remain. Earlier authoring and D0/D1/D2a evidence retain their own candidates; no fresh full workspace/S1 acceptance.",
+    "latest_candidate": "d2b_classic_box_masks",
     "plan_coverage": {
-      "remaining_groups": 33,
+      "remaining_groups": 31,
       "routes": 13,
       "auxiliary_items": 3
     },
@@ -9421,11 +9419,1136 @@
           "Derivation Python/fontTools installation remains explicit host configuration; no bundled runtime or package6 font/history delivery claim. macOS memory watchdog is sampled, not a hard limit.",
           "No new full S1, ASS/language/IME, whole workspace or whole migration acceptance;33 groups remain."
         ]
+      },
+      {
+        "evidence_id": "d0a_graphic_authoring_and_independent_png",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "c6fb98a6374dc1ae974b19cfa982eaee3fcc72f42b6c6bb29a9e9c5c85e68872",
+          "web_js_css_tree_sha256": "70910098f07eec98f0fae2fb8f29b7be756c561aaa1b49519c12a8b24feb8ece"
+        },
+        "scope": "Four parametric shapes, editable fill/stroke/align/transform, reopen, whole-project Undo/Redo, Duplicate and undo; two native PNGs with changed polygon sides/star points/depth; complete original project restored. Reused original candidate, CAS, successful base job and persisted stages.",
+        "checks": {
+          "browser": "passed",
+          "width": 320,
+          "height": 180,
+          "base_oracle": {
+            "model": "independent-straight-alpha-bilinear-v1",
+            "width": 320,
+            "height": 180,
+            "iou": 0.99990814733168,
+            "mean_channel_error": 0.022864583333333334,
+            "blank_error": 1,
+            "inner_max_channel_error": 1,
+            "inner_pixels": 5870,
+            "boundary_mean_channel_error": 0.11401003807545863,
+            "boundary_pixels": 7704,
+            "regions": [
+              {
+                "kind": "rectangle",
+                "expected_pixels": 3234,
+                "mean_channel_error": 0.010791782086795937
+              },
+              {
+                "kind": "ellipse",
+                "expected_pixels": 2710,
+                "mean_channel_error": 0.14248614958448755
+              },
+              {
+                "kind": "polygon",
+                "expected_pixels": 3204,
+                "mean_channel_error": 0.023026315789473683
+              },
+              {
+                "kind": "star",
+                "expected_pixels": 1739,
+                "mean_channel_error": 0.1277123730378578
+              }
+            ]
+          },
+          "variant_oracle": {
+            "model": "independent-straight-alpha-bilinear-v1",
+            "width": 320,
+            "height": 180,
+            "iou": 0.9999027237354086,
+            "mean_channel_error": 0.027005208333333332,
+            "blank_error": 0,
+            "inner_max_channel_error": 1,
+            "inner_pixels": 5322,
+            "boundary_mean_channel_error": 0.12033012862724439,
+            "boundary_pixels": 7593,
+            "regions": [
+              {
+                "kind": "rectangle",
+                "expected_pixels": 3234,
+                "mean_channel_error": 0.010791782086795937
+              },
+              {
+                "kind": "ellipse",
+                "expected_pixels": 2710,
+                "mean_channel_error": 0.14248614958448755
+              },
+              {
+                "kind": "polygon",
+                "expected_pixels": 2069,
+                "mean_channel_error": 0.021410433979686058
+              },
+              {
+                "kind": "star",
+                "expected_pixels": 2267,
+                "mean_channel_error": 0.1843836565096953
+              }
+            ]
+          },
+          "oracle_tests": 12,
+          "thresholds_unchanged": true,
+          "classic_geometry_source_comparison": {
+            "cases": 2988,
+            "max_numeric_error": 0
+          },
+          "original_project_restored": true
+        },
+        "oracle_correction": "Independent CPU inverse-affine straight-RGBA bilinear sampling and UNORM rounding replaces Canvas premultiplied drawImage resampling. Hand-calculated interpolation, transforms, clipping, alpha/order and missing/shift/wrong-color negatives pass. The earlier IoU failure was not fixed by relaxing thresholds or changing product pixels.",
+        "limits": [
+          "Recorded PNG candidate only, no claim of continuous preview or MP4 by this record.",
+          "Full graphic animation, other blend/effects/masks and Classic/package restore remain separate scopes."
+        ]
+      },
+      {
+        "evidence_id": "d0b_graphic_shared_preview_and_mp4",
+        "status": "passed_scoped",
+        "candidate": {
+          "binary_sha256": "9efbddb83a4ad3cb5bf1d21975c1af460557c97a0c96deb37d1ab875df440d93",
+          "web_js_css_tree_sha256": "0d93d0717aa41fd9c5c4c2816adf2d297e0887da1fa19ed82cb702a2dc79a8af",
+          "source_head": "1b26184981ac107619764d5c6397f3b3fdd5a461",
+          "dirty_source": true,
+          "source_manifest_sha256": "daaf83b58b09008824e3f8a503cff6febccce5f281501d07218441dfd49fbd79",
+          "source_manifest_files": 2217,
+          "source_manifest_scope": "crates, apps/cli, apps/web/src, packages/classic-*, packages/sdk-ts, Cargo manifests/lock and package-lock; verifier/docs excluded",
+          "web_tree_method": "SHA256(JSON.stringify([relative JS/CSS path, file SHA256] pairs sorted by localeCompare))",
+          "runtime": {
+            "visual": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+              "gpu_backend": "webgpu",
+              "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "e7e492c5d6aca121c7751aa3c052929958581e89468d500f5d4c2437c88ece61",
+              "playwright_version": "1.63.0",
+              "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+              "texture_format": "bgra8unorm"
+            },
+            "audio": {
+              "module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+              "decoder_profiles": [
+                "web-audio-decode-at-target-rate"
+              ],
+              "pitch_profiles": [
+                "prepared-linear"
+              ],
+              "mastering_applied": false,
+              "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+              "soundtouch_version": "0.3.0"
+            },
+            "encoder": {
+              "audio_bitrate": 192000,
+              "audio_codec": "aac",
+              "crf": 18,
+              "ffmpeg_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
+              "ffprobe_sha256": "501ae4034055451cbd993166b43b7764dd69553ccebbcf55c2730b732b82c570",
+              "observed_audio_duration_seconds": 3,
+              "observed_video_duration_seconds": 3,
+              "observed_video_frames": "90",
+              "pixel_format": "yuv420p",
+              "video_codec": "h264"
+            }
+          }
+        },
+        "scope": "Same existing synthetic scene, fixed source revision and CAS/fonts: media, two-font text, caption, four graphics and sound; continuous preview with two seeks/pause, one persistent MP4 job and actual Tasks download, original complete project restored. Existing Classic geometry/GPU, sound pump, CFR/PCM/encoding and publication lifecycle reused.",
+        "checks": {
+          "architecture": {
+            "unit_tests": 14,
+            "modules": 22,
+            "temporary_exceptions": 0,
+            "contract_boundaries": "passed"
+          },
+          "contracts": {
+            "current_tools": 241,
+            "unchanged_complete_prior_tools": 238,
+            "frozen_wire_tools": 22,
+            "generated_from_tested_binary": "passed"
+          },
+          "affected_behavior": "Application graphic/video/preview, SQLite job lifecycle, host public authorization/idempotency and all-profile cache retirement, native dispatch, renderer hooks/protocol, Web graphic bindings/profile selection and capability races, SDK public job results passed. Filtered Rust suites overlap; no aggregate test total or fresh whole workspace claim.",
+          "final_web_audio_and_controls_tests": 51,
+          "sdk_tests": 40,
+          "web_runtime_boundary_files": 220,
+          "sdk_boundary_files": 223,
+          "builds": {
+            "rust_release": 1,
+            "successful_web_production": 2,
+            "second_web_reason": "Actual initial idle-seek capability race; deterministic regression failed before fix and passed after. One intermediate test-fixture type error fixed before successful final build."
+          },
+          "preview": {
+            "observed_frames": 11,
+            "generations": 3,
+            "max_lag_ms": 122.6666666666667,
+            "future_frames": 0,
+            "project_writes": 0,
+            "pixels": {
+              "times_seconds": [
+                0,
+                0.5,
+                1.5
+              ],
+              "global_rgb_mean_max": 0.29520833333333335,
+              "region_rgb_mean_max": 0.432421514312096,
+              "region_iou_min": 0.993573264781491,
+              "alpha_errors": 0,
+              "limits": {
+                "mean": 3,
+                "regionMean": 3,
+                "iou": 0.98
+              }
+            },
+            "source_pcm": {
+              "frames": 4096,
+              "rmse": 0,
+              "peak_error": 0,
+              "correlation": 1,
+              "rms": 0.08831585190797463,
+              "expected_rms": 0.08831585190797463
+            }
+          },
+          "mp4": {
+            "job_id": "job_81694e4a9201404885999dd044ddcece",
+            "sha256": "af640c9b523da6d48d662ed65970c0dfaae7c0cea5496f3b0b9115b22b084155",
+            "actual_ui_download": true,
+            "width": 320,
+            "height": 180,
+            "fps": 30,
+            "frames": 90,
+            "seconds": 3,
+            "video": "H264 CRF18/yuv420p",
+            "audio": "AAC 192kbps stereo/48000Hz",
+            "pixels": {
+              "times_seconds": [
+                0,
+                0.5,
+                1.5,
+                2.9
+              ],
+              "global_rgb_mean_max": 0.865619212962963,
+              "region_rgb_mean_max": 1.5006925207756232,
+              "region_iou_min": 0.9580712788259959,
+              "alpha_errors": 0,
+              "limits": {
+                "mean": 5,
+                "regionMean": 6,
+                "iou": 0.9
+              }
+            },
+            "decoded_audio_frames": 144384,
+            "source_pcm_windows": 6,
+            "source_pcm_rmse_max": 0.0013883081416753958,
+            "source_pcm_correlation_min": 0.9998769101353392,
+            "revision": "rev_2a5e9a2e57e0bbb14502db047192185532c1bdb1aa0b8950bc989204da0763e6",
+            "render_input_sha256": "1a3f4ed8488877c5773ed14d07b89e8d3d17e9137daf812e44ba2f7768144306"
+          },
+          "page_errors": 0,
+          "complete_original_project_restored": true,
+          "oracle_tests": 20
+        },
+        "independent_pixel_reference": {
+          "model": "independent-graphic-output-yuv420p-v1",
+          "reference_key": "ac91fa37e5935b4574f39e94398f9870670e500175599da0ca0c05b75c9af11c",
+          "source": "Original synthetic media and external fixed original font bytes plus authored fields; independent Canvas path/font layout and CPU inverse-affine straight-RGBA blend. No production plans, receipts or rendered PNG as expected.",
+          "observation": "Ideal RGBA and independent no-graphic base each converted to uncompressed YUV420P then RGBA; no H264 encoder generates final expected. Same original global5/region6/IoU0.9 limits.",
+          "diagnosis": "Uncompressed420 alone reproduced original .5/1.5 failure; .5 star false positives actual247 vs independent420 control240. YUV444/422/420 and independent full-sequence H264 controls isolated chroma subsampling from geometry/codec quantization.",
+          "negative_controls": "Missing all graphics, missing star, star shifted8px and wrong star color rejected at each of four sampled times under unchanged limits.",
+          "original_failure_retained": {
+            "time": 0.5,
+            "polygon_rgb_mean": 6.455390120036935,
+            "star_rgb_mean": 7.845452446906741,
+            "star_iou": 0.8650537634408603
+          },
+          "thresholds_relaxed": false,
+          "original_source_sha256": "f95b92238c43cafd28f88597260e644815504c3cfa3eafc240f743211b0216dd",
+          "fonts": [
+            {
+              "id": "09b9a839-b402-42c5-978a-66bd33240982",
+              "sha256": "d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251"
+            },
+            {
+              "id": "cdf38740-d798-4112-a2ae-2322ee9c164c",
+              "sha256": "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb"
+            }
+          ]
+        },
+        "checkpoint_reuse": "Final resumed verifier reused successful preview, original job/download and passed AAC windows; only independent observation projection and original-graph restore ran. Earlier raw-RGBA observations retained. Verifier-only corrections caused no product rebuild or re-encoding.",
+        "limits": [
+          "Only 320x180, three-second CFR30 mixed normal-composite fixture; no complete S1/performance/physical DAC claim.",
+          "Graphic parameter animation, blend/effects/masks, broader sources/formats and complete failure/cancellation windows remain separate requirements.",
+          "Classic graphic import and self-contained V4 current-revision package/font-proof restore are the next D1 slice; full history/branches remain separately required before full delivery.",
+          "Recorded browser, GPU, shader, decoder and encoder identities bound this execution; matching revision/FFmpeg hash alone is not exact reproducibility proof."
+        ]
+      },
+      {
+        "evidence_id": "d1_classic_graphic_and_v4_single_revision_package",
+        "status": "passed",
+        "candidate": {
+          "binary_sha256": "47b17ded7edb066d7d57d455d8bfffead40e334dd5ef5f92d6d217252968ee1d",
+          "web_js_css_tree_sha256": "d4e8f75d2c65b67a808f67c8307862e60c905e5b76b8aec8fdf2e4d2e04d27fb",
+          "source_head": "1b26184981ac107619764d5c6397f3b3fdd5a461",
+          "dirty_source": true,
+          "source_manifest_sha256": "3d40964a9028c9fdd718f3377ef301b0f43fb96a9c20335c96eb4d4875389531",
+          "source_manifest_files": 2229,
+          "source_manifest_scope": "crates, apps/cli, apps/web/src, packages/classic-*, packages/sdk-ts, Cargo manifests/lock and root package files; verifier/docs excluded",
+          "runtime": {
+            "visual": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+              "gpu_backend": "webgpu",
+              "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+              "host_sha256": "47b17ded7edb066d7d57d455d8bfffead40e334dd5ef5f92d6d217252968ee1d",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "e7e492c5d6aca121c7751aa3c052929958581e89468d500f5d4c2437c88ece61",
+              "playwright_version": "1.63.0",
+              "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+              "texture_format": "bgra8unorm"
+            },
+            "audio": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profiles": [
+                "web-audio-decode-at-target-rate"
+              ],
+              "host_sha256": "47b17ded7edb066d7d57d455d8bfffead40e334dd5ef5f92d6d217252968ee1d",
+              "mastering_applied": false,
+              "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+              "pitch_profiles": [
+                "prepared-linear"
+              ],
+              "playwright_version": "1.63.0",
+              "soundtouch_version": "0.3.0"
+            },
+            "encoder": {
+              "audio_bitrate": 192000,
+              "audio_codec": "aac",
+              "crf": 18,
+              "ffmpeg_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
+              "ffprobe_sha256": "501ae4034055451cbd993166b43b7764dd69553ccebbcf55c2730b732b82c570",
+              "observed_audio_duration_seconds": 3,
+              "observed_video_duration_seconds": 3,
+              "observed_video_frames": "90",
+              "pixel_format": "yuv420p",
+              "video_codec": "h264"
+            }
+          }
+        },
+        "scope": "Classic v31 four parameter shapes to V4; self-contained schema6 single fixed V4 revision with all media, fonts and immutable derived-font proofs; real empty-workspace restore, re-edit/history and independent restored output. No full-history or whole migration claim.",
+        "checks": {
+          "architecture": {
+            "tests": 14,
+            "modules": 22,
+            "temporary_exception_edges": 0,
+            "contract_boundaries": "passed"
+          },
+          "contracts": {
+            "old_complete_declarations_unchanged": 241,
+            "new_total": 244,
+            "added": [
+              "opencut_project_v4_package_export",
+              "opencut_project_v4_package_inspect",
+              "opencut_project_v4_package_import"
+            ],
+            "frozen_legacy_wire_unchanged": 22,
+            "same_explicit_binary_generation_and_check": "passed"
+          },
+          "rust_affected_tests": {
+            "classic_import_v4": 14,
+            "application_package_v4": 4,
+            "sqlite_package_v4": 5,
+            "native_package_v4": 6,
+            "host_public_package": 1,
+            "recovery_owner_policy": 1,
+            "domain_registry": 1,
+            "existing_font_proof": 3,
+            "real_cached_Karla_import_replay_history": 1
+          },
+          "web_tests": 40,
+          "web_package_tests_included": 29,
+          "sdk_tests": 40,
+          "independent_reference_tests": 7,
+          "boundaries": {
+            "web_files": 221,
+            "sdk_files": 224
+          },
+          "builds": {
+            "rust_release": 1,
+            "web_production": 1
+          },
+          "source_head_unchanged": true,
+          "page_errors": 0
+        },
+        "classic_import": {
+          "shapes": [
+            "rectangle",
+            "ellipse",
+            "polygon",
+            "star"
+          ],
+          "source_size": [
+            512,
+            512
+          ],
+          "raw_parameters_and_animation_clock_tests": "passed; numeric, RGBA component and discrete curves preserved; authored pre-first-key stroke alignment anchored at zero",
+          "actual_ui": [
+            "bundle analyze/import",
+            "edit",
+            "reload",
+            "undo",
+            "redo",
+            "undo",
+            "PNG task/download"
+          ],
+          "png_sha256": "68d009cfc798b0d5b0ba11ec486806d95c9aea0210e61e36453f1b4e2e9d52d0",
+          "independent_pixels": {
+            "model": "independent-straight-alpha-bilinear-v1",
+            "width": 512,
+            "height": 512,
+            "iou": 1,
+            "mean_channel_error": 0.007110595703125,
+            "blank_error": 1,
+            "inner_max_channel_error": 1,
+            "inner_pixels": 20637,
+            "boundary_mean_channel_error": 0.06809019904258,
+            "boundary_pixels": 10584,
+            "regions": [
+              {
+                "kind": "rectangle",
+                "expected_pixels": 5776,
+                "mean_channel_error": 0.00034626038781163435
+              },
+              {
+                "kind": "ellipse",
+                "expected_pixels": 5510,
+                "mean_channel_error": 0.3129039704524469
+              },
+              {
+                "kind": "polygon",
+                "expected_pixels": 5573,
+                "mean_channel_error": 0.011945983379501385
+              },
+              {
+                "kind": "star",
+                "expected_pixels": 3920,
+                "mean_channel_error": 0.006925207756232687
+              }
+            ]
+          }
+        },
+        "packages": {
+          "main": {
+            "schema": 6,
+            "project_schema": 4,
+            "media": 2,
+            "fonts": 6,
+            "derived_proofs": 0,
+            "manifest_sha256": "6d9c2b579e18fb505a74f08d06ba955505d410d6d2460d7de73ad30c4718b834"
+          },
+          "derived": {
+            "media": 2,
+            "fonts": 7,
+            "derived_proofs": 1,
+            "manifest_sha256": "7146d2d673e75b88370b4819ef8e2d41b2dddd87528758fd7b1d372d7bd30bc4"
+          },
+          "complete_graph_equal_except_project_id": true,
+          "original_internal_locator_preserved": "Public inspection intentionally projects legacy_locator to legacy. Comparison normalizes only the two strict synthetic opencut-media locators; all remaining fields and package document digests checked. Internal typed equality also covered in application/native/SQLite tests.",
+          "actual_resource_byte_checks": {
+            "main": 8,
+            "derived": 9
+          },
+          "derived_proof_restored_exactly": true,
+          "empty_library_before_restore": true,
+          "source_service_stopped_before_restore": true,
+          "public_font_downloads": false,
+          "font_regeneration": false,
+          "actual_ui_history": [
+            "edit",
+            "reload",
+            "undo",
+            "reload",
+            "redo",
+            "reload",
+            "undo",
+            "reload"
+          ],
+          "original_request_replay": "Both actual imports return the same receipt; host test replays after original directory removal.",
+          "faults": "Native missing/extra/tampered/symlink/inventory/canonical/size cases reject before CAS capture; SQLite proof/target conflicts and injected audit failure publish no partial project/proof/receipt; Web unknown response preserves request and connection changes fence late responses."
+        },
+        "restored_outputs": {
+          "png": {
+            "job_id": "job_202ee9b7d20241d6a9fa87c326caa0ff",
+            "sha256": "9e8dcac95fb5da878d12acf07862050464e27eb6148293e6a64789586ae7603f",
+            "pixels": {
+              "times_seconds": [
+                0.5
+              ],
+              "global_rgb_mean_max": 0.25436921296296294,
+              "region_rgb_mean_max": 0.2882040627885503,
+              "region_iou_min": 0.9981435643564357,
+              "alpha_errors": 0,
+              "limits": {
+                "mean": 3,
+                "regionMean": 3,
+                "iou": 0.98
+              }
+            }
+          },
+          "mp4": {
+            "job_id": "job_494ee43d13494491aafe1755929dbec3",
+            "sha256": "af640c9b523da6d48d662ed65970c0dfaae7c0cea5496f3b0b9115b22b084155",
+            "identity": {
+              "audio_frame_count": "144000",
+              "channels": 2,
+              "fps": {
+                "denominator": 1,
+                "numerator": 30
+              },
+              "frame_count": "90",
+              "height": 180,
+              "profile": "classic-v31-cfr-h264-aac-graphic-v1",
+              "project_id": "11cb77f1-9ccd-4130-9e12-8d3fbc015d61",
+              "revision": "rev_0132482ac82bb522a52198fc7704a4543cb87c7a6a00f0e6aecc42e5de43f681",
+              "sample_rate": 48000,
+              "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+              "timeline_duration": {
+                "ticks": "3",
+                "timebase": 1
+              },
+              "video_duration": {
+                "ticks": "90",
+                "timebase": 30
+              },
+              "width": 320
+            },
+            "render_input_sha256": "e8dab5ae62c4084181937ffca269d54ee7056c298115e14e1747a7bcca36814e",
+            "pixels": {
+              "times_seconds": [
+                0,
+                0.5,
+                1.5,
+                2.9
+              ],
+              "global_rgb_mean_max": 0.865619212962963,
+              "region_rgb_mean_max": 1.5006925207756232,
+              "region_iou_min": 0.9580712788259959,
+              "alpha_errors": 0,
+              "limits": {
+                "mean": 5,
+                "regionMean": 6,
+                "iou": 0.9
+              }
+            }
+          },
+          "actual_ui_downloads": true,
+          "pcm": {
+            "reference": "retained original synthetic 440Hz mono sample.wav independently duplicated to stereo",
+            "reference_sha256": "2edb8484ae14487899349d8d1c14561cc46cfed6ab6d844ab5f54e8931670721",
+            "decoded_frames": 144384,
+            "windows": 6,
+            "rmse_max": 0.0013883081416753954,
+            "correlation_min": 0.9998769101353373
+          }
+        },
+        "independent_reference": {
+          "reference_key": "ac91fa37e5935b4574f39e94398f9870670e500175599da0ca0c05b75c9af11c",
+          "reuse": "Existing D0 source media/font/layout/geometry expected RGBA and its uncompressed YUV420 observation, all content hashes checked. Earlier product PNG/MP4 is never used as expected; only restored PNG and MP4 newly rendered.",
+          "thresholds_relaxed": false
+        },
+        "limits": [
+          "Single revision only; ancestors, branches, complete history and plugin/grant restore remain D8 requirements. Existing project plugin/preset grants explicitly block D1 export.",
+          "Graphic curve data is preserved; this does not add animated graphic execution or close F26. Full ASS, fonts, system IME and other Classic mappings retain their prior limits.",
+          "Unknown-response UI retry has component fault tests and actual backend idempotent replay; reload recovery and full process-crash/cancellation/network fault matrices are not claimed.",
+          "Current macOS synthetic static graphics and three-second 320x180 CFR30 H264/AAC; no full S1/performance/cross-platform package/physical DAC acceptance. Package fully_reproducible remains false."
+        ]
+      },
+      {
+        "evidence_id": "d2_classic_blend_modes",
+        "status": "passed",
+        "candidate": {
+          "binary_sha256": "8bf0a5763ed9a219e5dc7820a87abcbf321a0cb0b06e366bd3afc10dfa646992",
+          "web_js_css_tree_sha256": "d728e173e7111f9ad8d9f1f903ed623d140d6f8558d442a9fd4040df67d35a5c",
+          "source_head": "1b26184981ac107619764d5c6397f3b3fdd5a461",
+          "dirty_source": true,
+          "source_manifest_sha256": "29a767a81389dac6434b97e3f41020ffd79f01618cd73ca5fb54e7127fe096ae",
+          "source_manifest_files": 2267,
+          "source_manifest_scope": "crates, apps/cli, apps/web/src, packages/classic-*, packages/sdk-ts, Cargo manifests/lock and root package files; verifier/docs excluded",
+          "runtime": {
+            "visual": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+              "gpu_backend": "webgpu",
+              "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+              "host_sha256": "8bf0a5763ed9a219e5dc7820a87abcbf321a0cb0b06e366bd3afc10dfa646992",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "29ef421e95522b2f5676099f1ea57f42642a4861c1b218eda7b9cfe332ee6d1a",
+              "playwright_version": "1.63.0",
+              "shader_sha256": "1826149abeed41cb62e609069391eff6df6a61439a9ae9766bc076b13b054a21",
+              "texture_format": "bgra8unorm"
+            },
+            "audio": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profiles": [
+                "web-audio-decode-at-target-rate"
+              ],
+              "host_sha256": "8bf0a5763ed9a219e5dc7820a87abcbf321a0cb0b06e366bd3afc10dfa646992",
+              "mastering_applied": false,
+              "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+              "pitch_profiles": [
+                "prepared-linear"
+              ],
+              "playwright_version": "1.63.0",
+              "soundtouch_version": "0.3.0"
+            },
+            "encoder": {
+              "audio_bitrate": 192000,
+              "audio_codec": "aac",
+              "crf": 18,
+              "ffmpeg_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
+              "ffprobe_sha256": "501ae4034055451cbd993166b43b7764dd69553ccebbcf55c2730b732b82c570",
+              "observed_audio_duration_seconds": 3,
+              "observed_video_duration_seconds": 3,
+              "observed_video_frames": "90",
+              "pixel_format": "yuv420p",
+              "video_codec": "h264"
+            }
+          }
+        },
+        "scope": "F28 scoped editor/history, six-case continuous consumer preview with seek/pause, independent PNG/MP4 and current-revision package mode preservation passed. Whole migration remains incomplete.",
+        "checks": {
+          "renderer_node": 109,
+          "independent_oracle": 34,
+          "affected_web_distinct_tests": 112,
+          "final_web_renderer_tests": 25,
+          "sdk": 40,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_exceptions": 0,
+          "architecture_and_contract_boundaries": "passed",
+          "web_boundary_files": 223,
+          "web_typecheck_and_build": "passed",
+          "generated_tools": 249,
+          "previous_full_tool_declarations_unchanged": 249,
+          "frozen_wire_tools_unchanged": 22,
+          "generation_binary_matches_candidate": true,
+          "rust_release_builds": 2,
+          "successful_web_builds": 6,
+          "build_note": "One additional Rust release for selective native proof reuse; two additional Web builds for per-frame font snapshots followed by the actual off-thread Worker fix. Verifier-only changes reused binaries. The same explicit Rust binary passed generated-contract and frozen-wire checks. Earlier authoring/Web/SDK checks retain their recorded scope; fresh renderer tests and browser/output acceptance cover the changed runtime.",
+          "affected_rust_prior_candidate": 20,
+          "fresh_rust_proof_reuse": 16
+        },
+        "implementation": [
+          "Uses unchanged Classic blend WGSL and its 17-mode mapping; additive wrapper delegates existing media/text/graphic binding and shared PNG/CFR video execution.",
+          "Removes duplicate final HTTP binding; the authorized graphic response supplies the final blend wrapper once, with ordering/abort/identity checks.",
+          "Realm-local sampled graphic source and GPU texture/target reuse preserves per-frame warm budgets and fresh bindings; mutable media/text still upload. Cancel, early validation failure, execution failure and close release caches.",
+          "Current-plan cached-font authorization runs concurrently per frame, with bounded resources, fresh permission/identity checks, rejection handling and cancellation.",
+          "Same-session native font proofs are reused only for exact element, complete font resource and original text; complete current-frame envelope/cancellation checks remain, and the ordered current proof set publishes only after final authority/time fences.",
+          "Only explicitly enabled Web realms hash current cached graphic/blend fonts once per frame in a realm-owned local Worker, with versioned full-identity messages transferring the private snapshot to and from the Worker while media is prepared. Native hosts keep their original path and worker-src none CSP. Existing 3N font admission covers retained bytes, snapshot and WebCrypto copy; opaque frame-bound proof checks preserve full font identity, per-text coverage hash, fresh authorization, cancellation and cleanup. Each realm has at most32 pending requests; errors, abort and close terminate/settle work before admission releases. No threshold or resource limit changed."
+        ],
+        "authoring": {
+          "candidate": {
+            "binary_sha256": "4d5a73290756810da9875374e87de60d10e948b35dd07d0e638c52cd704b5e1e",
+            "web_js_css_tree_sha256": "e3f8d87cab5d734dce6bc62aad1414a9dc9421935f16ab68c95b8fa97cbae991"
+          },
+          "project_id": "4b34c017-8d61-4c71-b9ea-6b62aff773b1",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "revision": "rev_34162ba495fdf557506aa90d1a152038eb6e1ddf1ae797f6dd8245447881cda4",
+          "mode_choices_verified": 17,
+          "changed_mode_saves": 16,
+          "reopen": true,
+          "undo_redo_full_graph_equal": true,
+          "reuse": "Final candidate re-inspected the same fixed graph; existing authoring/history requests were reused because rendering-only changes did not change those transactions."
+        },
+        "preview": {
+          "status": "passed",
+          "suite": "v4-blend",
+          "evidence_version": 3,
+          "width": 320,
+          "height": 180,
+          "duration_seconds": 3,
+          "presented_playback_frames": 23,
+          "presented_total_including_seek": 30,
+          "captured_cases": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "independent_comparisons": 102,
+          "max_channel_error": 1,
+          "channel_tolerance": 2,
+          "max_observed_presented_lag_ms": 122.6666666666667,
+          "accepted_warm_frame_total_ms_range": [
+            71.5,
+            100.39999997615814
+          ],
+          "seek": {
+            "previous_session_id": "8a55d33c-10ad-4938-b726-a3d991590b1c",
+            "new_session_id": "8a55d33c-10ad-4938-b726-a3d991590b1c",
+            "previous_generation": "1",
+            "new_generation": "2",
+            "target_seconds": 0.25
+          },
+          "pause_stable": true,
+          "pause_observation_ms": 301.30000001192093,
+          "clock_observation_overflows": 0,
+          "pageerrors": [],
+          "timing_scope": "Accepted frames only in a bounded synthetic 3-second fixture; not a full S1 or persistent frame-rate guarantee. Final acceptance had diagnostic timing instrumentation disabled. Playback and live seek/pause are separate resumable stages on the same fixed revision; paused clocks use the retired device token origin rather than double-counting its cursor against the new paused origin. Original125ms presentation margin/150ms authority and all independent pixel thresholds unchanged.",
+          "verifier": "apps/web/scripts/verify-v4-blend.mjs; version3 checks persisted independent playback plus same-session live seek and pause evidence, with actual consumer tokens bound to their original sample origins, success marker and image hashes before reuse."
+        },
+        "outputs": {
+          "suite": "v4-blend",
+          "status": "passed",
+          "png": {
+            "job_id": "job_589e53185a2042fa8b7abb37cef6ea79",
+            "sha256": "89499ada8080f54e6832df514a8ea60e5651aec3b2076109b35331502e8f0b91",
+            "size_bytes": "231377",
+            "render_input_sha256": "698cc22e6fdaeaeea9982fb78f3136fbe8a78a45143e365ec61cd95870e31ce7",
+            "independent_comparisons": 17,
+            "max_channel_error": 1
+          },
+          "mp4": {
+            "job_id": "job_7b77b8c43d5845c88c8344624a205c9d",
+            "sha256": "6bdd34445fad4e4d529cf2d74413e5921d6bb803b8d3706171f46852915d5645",
+            "size_bytes": "118176",
+            "render_input_sha256": "29cb2964a088bea1e74d5364a4897df1ac34b889626901f46b2e2927990a2cf8",
+            "independent_comparisons": 102,
+            "max_channel_error": 3,
+            "sample_times_seconds": [
+              0.25,
+              0.75,
+              1.25,
+              1.75,
+              2.25,
+              2.75
+            ],
+            "frames_rendered": "90",
+            "frame_receipts_sha256": "6bfa64e7aa08154c6c189c716162c88eb42009b622a5b2d45f1e41068692a1b5"
+          },
+          "candidate": {
+            "binary_sha256": "8bf0a5763ed9a219e5dc7820a87abcbf321a0cb0b06e366bd3afc10dfa646992",
+            "web_js_css_tree_sha256": "d728e173e7111f9ad8d9f1f903ed623d140d6f8558d442a9fd4040df67d35a5c"
+          }
+        },
+        "package": {
+          "manifest_sha256": "3960fd94bbbb7afe33652cb9e28398e02998bd8756042297aca59a9471240a98",
+          "asset_count": 2,
+          "font_count": 6,
+          "derived_font_count": 0,
+          "restored_project_id": "897a2bb4-7e4c-4489-8a2c-9418b1ba642c",
+          "restored_revision": "rev_3596a0b2330c61265f2b2e73a9628f128632d0d7c67389f317f65fddff926e68",
+          "all_modes_preserved": true,
+          "full_graph_equal_except_project_id": true,
+          "history_included": false,
+          "fully_reproducible": false,
+          "scope": "Reused D2 export/restore requests in the owned synthetic workspace; not another empty-workspace/package-runtime acceptance. D1 retains its separate empty-workspace proof.",
+          "candidate": {
+            "binary_sha256": "4d5a73290756810da9875374e87de60d10e948b35dd07d0e638c52cd704b5e1e",
+            "web_js_css_tree_sha256": "ceb886887e427cf1c390064ed5a85c820892c7de4c7b5a5c69aefc19a3483ae9"
+          }
+        },
+        "independent_reference": {
+          "module": "apps/web/scripts/blend-oracle.mjs",
+          "model": "independent-classic-blend-rgba-v1",
+          "modes": [
+            "normal",
+            "darken",
+            "multiply",
+            "color-burn",
+            "lighten",
+            "screen",
+            "plus-lighter",
+            "color-dodge",
+            "overlay",
+            "soft-light",
+            "hard-light",
+            "difference",
+            "exclusion",
+            "hue",
+            "saturation",
+            "color",
+            "luminosity"
+          ],
+          "cases": [
+            {
+              "back": [
+                51,
+                102,
+                204
+              ],
+              "front": [
+                204,
+                77,
+                26
+              ],
+              "opacity": 0.6
+            },
+            {
+              "back": [
+                51,
+                102,
+                204
+              ],
+              "front": [
+                204,
+                77,
+                26
+              ],
+              "opacity": 1
+            },
+            {
+              "back": [
+                0,
+                0,
+                0
+              ],
+              "front": [
+                255,
+                255,
+                255
+              ],
+              "opacity": 1
+            },
+            {
+              "back": [
+                255,
+                255,
+                255
+              ],
+              "front": [
+                0,
+                0,
+                0
+              ],
+              "opacity": 1
+            },
+            {
+              "back": [
+                51,
+                102,
+                204
+              ],
+              "front": [
+                204,
+                77,
+                26
+              ],
+              "opacity": 0
+            },
+            {
+              "back": [
+                193,
+                41,
+                100
+              ],
+              "front": [
+                28,
+                211,
+                160
+              ],
+              "opacity": 0.25
+            }
+          ],
+          "method": "Independent RGB and Lum/Sat equations, Canvas source quantization and alpha composition; fixed 5x5 interiors for all17 modes, opaque/partial/zero alpha and black/white/color boundaries. Expected values do not come from the production shader or rendered PNG.",
+          "png_channel_tolerance": 2,
+          "mp4_channel_tolerance": 6
+        },
+        "limits": [
+          "Synthetic macOS320x180 three-second CFR30 fixture only; no full S1, long/VFR, cross-platform, physical DAC or complete migration claim. Audio implementation unchanged; earlier independent PCM evidence retains its own candidate, no new D2 PCM quality claim.",
+          "Same-realm rendering remains serial. Monitored process budgets are not hard GPU/OS memory limits. Full package history/branches/plugin-grant restore and F26 animation remain open.",
+          "Original successful authoring/history/package requests and fixtures were retained with their candidate identities. After the shared renderer changed, only one fresh PNG and one fresh MP4 were created for the final runtime."
+        ]
+      },
+      {
+        "evidence_id": "d2b_classic_box_masks",
+        "status": "passed_scoped",
+        "candidate": {
+          "head": "1b26184981ac107619764d5c6397f3b3fdd5a461",
+          "binary_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+          "web_js_css_tree_sha256": "d92b5462e2f77f488aad7163be782f58ad300be01c774cda6e2c30871907d268",
+          "source_manifest": "/private/tmp/opencut-d2b-source-manifest-20261015.json",
+          "source_manifest_sha256": "773f5056755129af5c19ca93066584a565184e4906cf15b0270d8adc63effcfb",
+          "source_files": 2485,
+          "source_scope": "Current crates/apps/packages source, config, verifier and generated files plus Cargo manifests; runtime identities are independently captured below.",
+          "visual_runtime": {
+            "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+            "browser_version": "153.0.8010.12",
+            "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+            "gpu_backend": "webgpu",
+            "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+            "host_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+            "mediabunny_version": "1.41.0",
+            "module_sha256": "a762836ff8b18b4c03ce191385f4c1ca9ca00cbe40e7fb5620d8a6dd8d141279",
+            "playwright_version": "1.63.0",
+            "shader_sha256": "6996508b5e5b44959dfd79824e1c6d1dac1d031138b0b695628a664c6f1bb607",
+            "texture_format": "bgra8unorm"
+          },
+          "video_runtime": {
+            "audio": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profiles": [
+                "web-audio-decode-at-target-rate"
+              ],
+              "host_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+              "mastering_applied": false,
+              "mastering_profile": "classic-export-whole-scene-web-audio-v31",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "79d111049312364dd2e78118fd775be7c85cca556bc24b5f55818355e0d02f44",
+              "pitch_profiles": [
+                "prepared-linear"
+              ],
+              "playwright_version": "1.63.0",
+              "soundtouch_version": "0.3.0"
+            },
+            "encoder": {
+              "audio_bitrate": 192000,
+              "audio_codec": "aac",
+              "crf": 18,
+              "ffmpeg_sha256": "434a59ef057cf847f497b95dd394208b61f2f1254728344442d3d2ad71f926bb",
+              "ffprobe_sha256": "501ae4034055451cbd993166b43b7764dd69553ccebbcf55c2730b732b82c570",
+              "observed_audio_duration_seconds": 3,
+              "observed_video_duration_seconds": 3,
+              "observed_video_frames": "90",
+              "pixel_format": "yuv420p",
+              "video_codec": "h264"
+            },
+            "frame_receipts_sha256": "17446c26f2b60a3f3c38b51390e704c964d1d711963a29a41367fbb8b69fc189",
+            "frames_rendered": "90",
+            "rgba_bytes": "20736000",
+            "visual": {
+              "browser_sha256": "b5626938028f718a6cdb0c8eff9d0346b186d68b4e04b43df4f9f579c81ecf28",
+              "browser_version": "153.0.8010.12",
+              "decoder_profile": "mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",
+              "gpu_backend": "webgpu",
+              "gpu_device": "{\"vendor\":\"amd\",\"architecture\":\"rdna-1\",\"device\":\"\",\"description\":\"\"}",
+              "host_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+              "mediabunny_version": "1.41.0",
+              "module_sha256": "a762836ff8b18b4c03ce191385f4c1ca9ca00cbe40e7fb5620d8a6dd8d141279",
+              "playwright_version": "1.63.0",
+              "shader_sha256": "6996508b5e5b44959dfd79824e1c6d1dac1d031138b0b695628a664c6f1bb607",
+              "texture_format": "bgra8unorm"
+            }
+          }
+        },
+        "scope": "One enabled rectangle or ellipse on video/image/graphic, Classic pixel feather, no inversion/nonzero stroke. Real video and four graphics accepted; image pixels and the full transform/crop matrix remain unverified. F30 stays partial;31 groups remain.",
+        "checks": {
+          "composition_mask": 12,
+          "application_mask": 19,
+          "classic_import_v4": 20,
+          "sqlite_mask": 5,
+          "host_public_mask": 1,
+          "complete_domain_registry": 1,
+          "rust_note": "Classic import includes6 tests already counted in application_mask;52 distinct affected Rust tests.",
+          "renderer_node": 131,
+          "independent_oracle": 9,
+          "verifier_negative_controls": 14,
+          "affected_web_distinct": 125,
+          "sdk": 40,
+          "architecture_tests": 14,
+          "architecture_modules": 22,
+          "temporary_exceptions": 0,
+          "architecture_and_contract_boundaries": "passed",
+          "web_boundary_files": 228,
+          "web_typecheck_and_build": "passed",
+          "generated_tools": 255,
+          "previous_full_tool_declarations_unchanged": 249,
+          "frozen_wire_tools_unchanged": 22,
+          "generation_binary_matches_candidate": true,
+          "rust_release_builds": 2,
+          "successful_web_builds": 2,
+          "build_scope": "Second Rust build fixes domain registration caught by generation; second successful Web build fixes initial capability loading and canvas collapse. Verifier-only fixes reused binaries and original successful operations/jobs."
+        },
+        "implementation": [
+          "Preserves MaskV4 and old wire. Additive typed wrapper delegates existing blend/graphic/text/media, consumer preview, PNG and persistent CFR video; no new crate/dependency or policy exception.",
+          "Classic double-precision box geometry, rounded/clipped local Canvas and whole-frame JFA distance feather reuse four byte-identical Classic shaders. Logical quad excludes graphic stroke padding; inert scale and zero-width stroke facts remain preserved.",
+          "Complete ordered source facts, authorization, full-budget peaks, private handles, cancellation, lease and publication fences remain checked. Static mask GPU caches are charged warm and released on invalidation/failure/close.",
+          "Mask geometry is an edit-authorized read of the fixed head. UI writes the whole element via existing transaction/recovery/history; invalidated/busy/loading gestures discard their draft. Initial session capability and minimum usable canvas extent are wired."
+        ],
+        "authoring": {
+          "original_candidate": {
+            "binary_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+            "web_js_css_tree_sha256": "4b9cff6805a940842166470c4510200931629859433473fb1225adf5bf9d4882"
+          },
+          "current_candidate": {
+            "binary_sha256": "100cf80453f7b9dba4cc9cd18262b2aa95a632076fccb700618b71e1ed7dc1cc",
+            "web_js_css_tree_sha256": "d92b5462e2f77f488aad7163be782f58ad300be01c774cda6e2c30871907d268"
+          },
+          "project_id": "5f84a341-3a15-4b49-a1f3-ea93d3e5d8bd",
+          "sequence_id": "61d3fde3-3689-428c-ad73-04e87a43d257",
+          "revision": "rev_3a6b2a1a32254cd4a7306be7b9dbefe24648a4dffac87363de8fb16a09c8ddf4",
+          "real_ui_mask_saves": 5,
+          "targets": [
+            "video",
+            "graphic_rectangle_hard",
+            "graphic_ellipse_hard",
+            "graphic_rectangle_feather24",
+            "graphic_ellipse_feather24_multiply"
+          ],
+          "reopen": true,
+          "undo_redo_full_graph_equal": true,
+          "form_escape_no_write": true,
+          "canvas_move_escape_no_write": true,
+          "canvas_pointer_up_apply_count": 1,
+          "canvas_undo_full_graph_equal": true,
+          "source_head_preserved": true,
+          "reuse": "Original successful authoring/history requests retain their candidate. Final Web candidate reopens the same fixed graph, performs canvas gesture/history, preview and output; no duplicate fixture/media."
+        },
+        "preview": {
+          "status": "passed",
+          "suite": "v4-mask",
+          "width": 320,
+          "height": 180,
+          "duration_seconds": 3,
+          "presented_playback_frames": 28,
+          "presented_control_frames": 18,
+          "captured_slots": [
+            0,
+            1,
+            2
+          ],
+          "independent_comparisons": 204,
+          "max_channel_error": 1,
+          "channel_tolerance": 2,
+          "max_observed_presented_lag_ms": 117.33333333333334,
+          "seek": {
+            "previous": {
+              "session_id": "97bba025-9c0a-403d-bc84-ee8b127b5a5f",
+              "generation": "1"
+            },
+            "seek_generation": "2",
+            "target_seconds": 0.25
+          },
+          "pause_stable": true,
+          "pause_observation_ms": 300.30000001192093,
+          "clock_overflows": 0,
+          "pageerrors": [],
+          "scope": "Bounded synthetic CFR fixture; exact original device-token clocks, no future frame,150ms authority limit unchanged. No full S1/persistent frame-rate/physical audio claim."
+        },
+        "outputs": {
+          "png": {
+            "job_id": "job_a0b64bd4f50f436facb7dbb49dfbc2ac",
+            "sha256": "768b105ff60f640b245eb04760fb029e0e759e830d960e9bb6dc23d30dbc0353",
+            "size_bytes": "231377",
+            "render_input_sha256": "7a57cebd99c7ac66c254bc5e5b404840d6a6a5d252bdfa2df8fb647ffbaf8a49",
+            "independent_comparisons": 68,
+            "max_channel_error": 1,
+            "sample_times_seconds": [
+              null
+            ]
+          },
+          "mp4": {
+            "job_id": "job_461ca8b4373d4965a78057571177e371",
+            "sha256": "846c611df0017ed09f385c8a0d19a5718cd906a97352ca9592bb6bd4037cec65",
+            "size_bytes": "96578",
+            "render_input_sha256": "7352b197432e8c187f49f3eb401e309883e46528ce60df9ff506df4927b21a38",
+            "independent_comparisons": 204,
+            "max_channel_error": 5,
+            "sample_times_seconds": [
+              0.25,
+              1.5,
+              2.9
+            ],
+            "width": 320,
+            "height": 180,
+            "fps": "30/1",
+            "duration_seconds": 3,
+            "actual_encoded_and_decoded_frames": 90,
+            "audio_codec": "aac",
+            "audio_sample_rate": 48000,
+            "audio_channels": 2,
+            "frames_rendered": "90",
+            "frame_receipts_sha256": "17446c26f2b60a3f3c38b51390e704c964d1d711963a29a41367fbb8b69fc189"
+          }
+        },
+        "package": {
+          "exported": {
+            "asset_count": 2,
+            "derived_font_count": 0,
+            "font_count": 6,
+            "fully_reproducible": false,
+            "history_included": false,
+            "manifest_sha256": "036ee0a9a4d0edb00ef2dc17d070358eeca06a01705c22beae85fc0bb2bbd50b",
+            "package_path": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/d2b-mask-package-5f84a341-3a15-4b49-a1f3-ea93d3e5d8bd",
+            "self_contained_resources": true,
+            "source_revision": "rev_3a6b2a1a32254cd4a7306be7b9dbefe24648a4dffac87363de8fb16a09c8ddf4"
+          },
+          "restored": {
+            "asset_count": 2,
+            "derived_font_count": 0,
+            "font_count": 6,
+            "fully_reproducible": false,
+            "history_included": false,
+            "manifest_sha256": "036ee0a9a4d0edb00ef2dc17d070358eeca06a01705c22beae85fc0bb2bbd50b",
+            "revision": "rev_a00ae13606ed43a0ef8c1a735f482d4e6ea5989684f5e7fabe7e6141785dfbb2",
+            "self_contained_resources": true,
+            "source_project_id": "5f84a341-3a15-4b49-a1f3-ea93d3e5d8bd",
+            "source_revision": "rev_3a6b2a1a32254cd4a7306be7b9dbefe24648a4dffac87363de8fb16a09c8ddf4",
+            "target_project_id": "c9d540ba-3d37-4a76-be32-343e965e4c4d"
+          },
+          "all_masks_preserved": true
+        },
+        "classic_import": {
+          "status": "passed",
+          "checkpoint": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/classic-mask-v4-checkpoint.json",
+          "source_sha256": "041c7eea5440825b3613ee6064daf7f82ea24c1e697f82f36d2f4ce41eaaaa3d",
+          "imported": {
+            "asset_count": 0,
+            "font_count": 0,
+            "losses": [],
+            "revision": "rev_eb593a5158bba8be91e958b61448f249a922c4f2f93482ad44718862478171c7",
+            "schema_version": 4,
+            "source_content_id": "classic_041c7eea5440825b3613ee6064daf7f82ea24c1e697f82f36d2f4ce41eaaaa3d",
+            "target_project_id": "classic-recovered-v4-25e94ed11a2fc95341490d81dbf30e10",
+            "unresolved_fonts": []
+          },
+          "mask_count": 2
+        },
+        "independent_reference": {
+          "module": "apps/web/scripts/mask-oracle.mjs",
+          "model": "independent-area-bilinear-exact-edt-mask-v1",
+          "blend_model": "independent-classic-blend-rgba-v1",
+          "reference_key": "7683ec6b5a87b4361ad0c79bae69a55c5ebca60dc92dfc9e704ccfdcf0157f7b",
+          "method": "Independent analytic rectangle area/ellipse integration, inverse affine and bilinear sampling, then exact separable Euclidean distance transform; no product Canvas, shader/JFA, plan, receipt or rendered pixels supply expectations.68 predetermined cardinal/interior/exterior/shape-distinguishing probes per image; curved AA boundaries are not exempted by automatic masks.",
+          "png_preview_channel_tolerance": 2,
+          "mp4_channel_tolerance": 6
+        },
+        "evidence": {
+          "report": "/private/tmp/opencut-d2b-mask-20261015.json",
+          "checkpoint": "/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o/d2b-mask-checkpoint.json",
+          "verifier": "apps/web/scripts/verify-v4-mask.mjs"
+        },
+        "limits": [
+          "F30 remains partial: actual image mask pixels and complete transformed/cropped coordinate matrix are pending. Current V4 has no spatial crop representation; do not invent crop facts or claim closure. Rotated/nonuniform/flipped f64 binding has targeted composition coverage, not a complete pixel acceptance matrix.",
+          "Complex/path/text masks, multiple active masks, inversion, nonzero mask strokes and mask animation remain outside this versioned execution. UI refuses unsupported/animated targets; old profiles keep their rejection behavior.",
+          "Package test preserves all masks and2media/6fonts in the owned workspace, single current revision only, no history. Separate D1 empty-workspace proof retains its original candidate. No full restoration/physical PCM/whole migration claim."
+        ]
       }
     ]
   },
   "current_limits": [
-    "33 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and 13 routes/X01-X03 remain in the migration plan. F10, F19 and F21 are independently closed; F47 remains partially migrated.",
+    "31 Classic groups remain partial, unmigrated or awaiting equivalence; full feature matrix and13 routes/X01-X03 remain in the migration plan. F10/F19/F21/F25/F28 are closed. F26 static graphic fields/outputs passed and parameter animation remains open.",
     "Current S1 reuses existing shared player/DSP and Web7db7d00. Scoped scene/history/head/original credential retirement has5 actual cases at audio_preview_identity_retirement. Distinct440Hz target/880Hz left/660Hz right voices and gain/Escape now have independent pre/post-master interiors; linked high DC has one actual steady success at audio_preview_distinct_stereo_mastering, with an earlier unresolved post-master residual retained. No permanent high stability or new performance/RSS claim. Prior actual300s14/14 performance,39 PCM source/gap windows and terminal/document/rapid control evidence retain their original source/runtime identities. Exact phase/boundary/DAC, persistent unknown/full control/BFCache/kill/network/TTL, external head/grant recovery and long/VFR/non-unit-rate/cross-browser/full visual/export scopes remain incomplete.",
     "AAC evidence is one aligned LC fixture; non-integral edit offsets, arbitrary codecs, explicit streams, complex edit lists, realtime PTS/AAC and post-master physical signal matrices remain unverified/refused.",
     "Audio preparation remains bounded whole-resource. Default unit-rate prepared-linear private bridge avoids object marshalling while keeping authoritative source facts; this does not prove long-file/VFR/non-unit-rate/real-device performance or the full element/zoom/interaction matrix.",
@@ -9434,7 +10557,8 @@
     "Mac RSS is monitored-terminate, not hard kernel memory/VRAM quota. Strict Linux cgroup and complete multi-host/workspace storage/fault matrices remain unverified.",
     "No fresh whole Rust workspace/Desktop/formal signed cross-platform package/user database migration acceptance. Old packages and ASR receipts remain historical.",
     "Google browse/search/family preview covers1920 families.1836 original static plus1182 derived faces give3018/3326 applicable sources;1778 families have normal400,142 still lack it and308 applicable faces remain absent. All new outputs passed native metadata inspection; actual Karla public import, fixed proof, edit/reopen and download-disabled independent PNG passed. Full per-font runtime budgets, reserved-name handling, color/bitmap/large sources, additional weights and bundled runtime remain open. Sticker/license materialization and F18 remain pending; F24 active Classic Logos source is absent.",
-    "B1/B2/B3 evidence remain scoped. F19/F21 are closed. F23 defaults to editable TextV4 cues and preserves frozen Caption tools; SRT authoring/history/downloads, actual successful English synthetic ASR-to-Text and q2 static ASS style/placement import with independent pixels are verified by their recorded candidates. Full ASS automatic wrapping/outline/shadow/rich runs/animation/complex transforms remain unsupported. Chinese literal CER failed and human speech is unverified. Real OS IME, full font loading, unsupported Classic mappings and schema6 full-history/font restore remain open."
+    "B1/B2/B3 evidence remain scoped. F19/F21 are closed. F23 defaults to editable TextV4 cues and preserves frozen Caption tools; SRT authoring/history/downloads, actual successful English synthetic ASR-to-Text and q2 static ASS style/placement import with independent pixels are verified by their recorded candidates. Full ASS automatic wrapping/outline/shadow/rich runs/animation/complex transforms remain unsupported. Chinese literal CER failed and human speech is unverified. Real OS IME, full font loading, unsupported Classic mappings and schema6 ancestors/branches/full history remain open. D1 current-type single-revision media/font/proof restore is verified in its own candidate; it does not complete the remaining migration.",
+    "D2b basic masks have scoped video/graphic output and restoration evidence; image pixels, full transformed/cropped coordinates and complex/animated masks remain open. F30 is still partial; no background/new D2c slice started."
   ],
   "retained_delivery_packages": [
     {
@@ -9545,6 +10669,20 @@
       "status": "resolved_before_release",
       "cause": "A concurrently saved acknowledgement could lose its receipt when the following proof read failed.",
       "fix": "Retain the saved receipt before verification; record-null recovery rechecks fixed proof before unblocking. Focused Web regression passed."
+    },
+    {
+      "id": "D0-initial-seek-discards-capability",
+      "status": "resolved_for_recorded_initial_seek_race",
+      "cause": "Capability response was guarded by the playback epoch; initial idle seek invalidated it and left Play disabled.",
+      "fix": "Separate capability request epoch and current host/API generation; late success/failure updates only capability and preserves newer playback error. Deterministic old-code regression, final51 affected tests and actual mixed preview passed.",
+      "evidence_id": "d0b_graphic_shared_preview_and_mp4"
+    },
+    {
+      "id": "F28_DENSE_CONSUMER_PREVIEW",
+      "status": "resolved_for_recorded_dense_fixture",
+      "cause": "Subtitle entry/exit invalidated the whole native font-proof set (133.7/108.9ms plan spikes); large-font WebCrypto digest calls synchronously blocked the UI thread for18.3-21.8ms even though they returned a Promise.",
+      "fix": "Exact per-text native proof reuse reduced those observed planning stages to32.2/16.8ms, followed by a Web-only Worker transferring fresh private font snapshots; its local Chrome probe submitted5.86MB in0-0.1ms while hashing completed in18.9-20.2ms. Final noninstrumented playback captured all six independent cases; a separate live seek session on the same fixed fixture passed same-session generation change and pause with unchanged125/150ms gates.",
+      "evidence_id": "d2_classic_blend_modes"
     }
   ],
   "open_failures": [
@@ -9553,7 +10691,7 @@
       "evidence_id": "audio_preview_distinct_stereo_mastering",
       "status": "unresolved_scoped_post_master_residual",
       "reason": "First actual high DC post-master interior residual exceeded0.0001 while pre-master2/1 passed; original failed PCM/statistics absent. Same product later diagnostic observer success is scoped evidence, not a fix/cause proof.",
-      "next": "B0 capture/correlation capability is implemented and proved only by a controlled gap. Preserve original untraceable failure; re-enter diagnosis on a new naturally failing captured window or relevant product change, and close before full audio release. Proceed with independent B1 text work."
+      "next": "B0 capture/correlation capability is implemented and proved only by a controlled gap. Preserve original untraceable failure; re-enter diagnosis on a new naturally failing captured window or relevant product change, and close before full audio release, no later than D7 in the 2026-10-14 migration plan. Independent product work follows that plan; this scheduling edit adds no acceptance evidence."
     }
   ],
   "resource_constraints": [
@@ -9609,5 +10747,106 @@
     "verification_scripts": "Syntax plus bounded-receipt out-of-order/cap mocks, binary-reuse/default-build mocks and owned-success/keep/failure cleanup mocks passed; upload stop must return stopped. No real upload/browser run in this maintenance batch.",
     "documents": "Historical 2026-10-12 maintenance baseline: 57 feature statuses, 36 remaining IDs and 12 scoped records. Current counts are exclusively feature_status_counts, remaining_groups and current_worktree_validation above.",
     "execution": "No Cargo build, browser/media benchmark or new process report. One SDK Moon contract task; Web duplicate removed. SDK test cache includes generator/fixtures. Package schema capture reused;4 package unit tests and Moon YAML parsing passed, Moon execution not run. Agent ownership and affected-check rules recorded in AGENTS.md."
+  },
+  "active_implementation": {
+    "status": "in_progress_unverified",
+    "request": "Parallel implementation of remaining migration, followed by one integrated validation phase.",
+    "remaining_feature_ids": [
+      "F08",
+      "F16",
+      "F17",
+      "F18",
+      "F20",
+      "F23",
+      "F24",
+      "F26",
+      "F27",
+      "F29",
+      "F30",
+      "F31",
+      "F32",
+      "F33",
+      "F34",
+      "F37",
+      "F38",
+      "F39",
+      "F40",
+      "F41",
+      "F42",
+      "F43",
+      "F44",
+      "F46",
+      "F47",
+      "F50",
+      "F51",
+      "F52",
+      "F53",
+      "F54",
+      "F55"
+    ],
+    "lanes": {
+      "visual": [
+        "F24",
+        "F26",
+        "F30",
+        "F31",
+        "F32",
+        "F33",
+        "F34",
+        "F51"
+      ],
+      "timeline": [
+        "F27",
+        "F29",
+        "F37",
+        "F38",
+        "F39",
+        "F40",
+        "F41",
+        "F42",
+        "F43",
+        "F44",
+        "F46",
+        "F50"
+      ],
+      "export_media": [
+        "F08",
+        "F16",
+        "F17",
+        "F18",
+        "F52",
+        "F53"
+      ],
+      "interaction_text": [
+        "F20",
+        "F23",
+        "F47",
+        "F54",
+        "F55"
+      ]
+    },
+    "validation": "Deferred until implementation and integration are complete; existing evidence retains exact original source/candidate/scope. No new acceptance claim.",
+    "integrated_unverified": [
+      "Scene masks/effects/background across frame/preview/video and actual-alpha canvas selection",
+      "Versioned timeline/property/keyframe editing, canvas transforms, gain curves and shortcuts",
+      "Configurable H264/VP9 export, full pinned51-sound catalog, flags and local generated sound recipes",
+      "Classic ASS review/layout and versioned font discovery/import/derived proof integration",
+      "Schema7 whole V4 history packages and persistent audio-preview original-request recovery",
+      "Local browser session expiry/logout/active-stream retirement and public RSS/sitemap/metadata",
+      "Explicit bounded-error conversion of legacy32-sample keyframe curves and actual-content multi-element transform drafts with serialized native preparation",
+      "Explicit Chromium italic synthesis across approved400/700 normal sources from StaticV1/V3 and DerivedV1/V2; original11 identities preserved, exact proof/recovery/storage routing and Scene/Canvas V2 consumption",
+      "Trusted runtime-spec packaging, bounded per-file inventory, host discovery and relocated doctor checks; no qualified complete redistributable runtime spec acquired",
+      "Pinned Simple Icons3466-entry offline brand discovery with80 explicitly admitted SVG sources, original-request atomic import and history/package restoration",
+      "Non-main track deletion with complete associated-content planning; blog URL/history pagination, Classic heading anchors and original tool credits"
+    ],
+    "font_scope": "Classic text model expresses400/700 with authored normal/italic; its loader fetches only :wght@400;700 and Canvas synthesizes italic.4348 additional atlas weight/style declarations are enhancement scope. Historical3018/3326 verified-face coverage is unchanged until integrated validation. New source/derivation hashes are implementation data, not native or browser acceptance.",
+    "implementation_limits": [
+      "Font source/derivation and synthesis integration is unverified. Metadata snapshot3312/3326 actual faces excludes synthesis bindings. Approved normal400/700 bases support explicit synthesis; Pushster and generic Material Symbols still have source-identity gaps and are not silently aliased.",
+      "Brand inventory3466 includes80 admitted SVG sources and3386 metadata-only unavailable entries. Unknown/restricted icon licenses are not replaced by the collection license; no trademark authorization is asserted.",
+      "Legacy lookup curves require explicit reviewed bounded-error conversion before unsupported middle-segment cuts; the original sampler stays frozen.",
+      "Schema7 refuses mixed Legacy history/unknown journals and plugin dependencies rather than dropping them.",
+      "No qualified full redistributable Node/Chromium/Python runtime spec is available; external executable or bundled_unverified modes are not portable delivery proof.",
+      "Real system IME, human-labelled ASR, physical audio and broad browser/long-source matrix still require their stated evidence."
+    ]
   }
 }

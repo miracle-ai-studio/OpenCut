@@ -6,7 +6,9 @@ use crate::{
 };
 use opencut_contracts::EditorError;
 use opencut_editor_application::{
-    classic_text_frame_v2::*, classic_text_frame_v3::*, classic_visual::*,
+    classic_blend_frame_v1::*, classic_graphic_frame_v1::*, classic_mask_frame_v1::*,
+    classic_scene_frame_v1::*, classic_text_frame_v2::*, classic_text_frame_v3::*,
+    classic_visual::*,
 };
 use serde_json::{Value, json};
 use std::{collections::HashSet, process::ChildStdin, sync::atomic::Ordering, time::Instant};
@@ -27,6 +29,59 @@ impl VideoReceiptValidation<ClassicCaptionFrameReceiptV3> for ClassicCaptionFram
         receipt: &ClassicCaptionFrameReceiptV3,
     ) -> Result<(), EditorError> {
         self.validate_receipt(receipt)
+    }
+}
+impl VideoReceiptValidation<ClassicGraphicFrameReceiptV1> for ClassicGraphicFrameSessionV1<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicGraphicFrameReceiptV1,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
+impl VideoReceiptValidation<ClassicMaskFrameReceiptV1> for ClassicMaskFrameSessionV1<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicMaskFrameReceiptV1,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
+impl VideoReceiptValidation<ClassicSceneFrameReceiptV1> for ClassicSceneFrameSessionV1<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicSceneFrameReceiptV1,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
+impl VideoReceiptValidation<ClassicBlendFrameReceiptV1> for ClassicBlendFrameSessionV1<'_> {
+    fn validate_video_receipt(
+        &self,
+        receipt: &ClassicBlendFrameReceiptV1,
+    ) -> Result<(), EditorError> {
+        self.validate_receipt(receipt)
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VideoFrameMode {
+    TextV2,
+    CaptionV3,
+    GraphicV1,
+    BlendV1,
+    MaskV1,
+    SceneV1,
+}
+impl VideoFrameMode {
+    fn begin(self) -> &'static str {
+        match self {
+            Self::TextV2 => "beginTextVideoV1",
+            Self::CaptionV3 => "beginCaptionVideoV2",
+            Self::GraphicV1 => "beginGraphicVideoV1",
+            Self::MaskV1 => "beginMaskVideoV1",
+            Self::SceneV1 => "beginSceneVideoV1",
+            Self::BlendV1 => "beginBlendVideoV1",
+        }
     }
 }
 fn err(message: &str) -> EditorError {
@@ -60,7 +115,7 @@ pub struct ClassicVideoProcess {
     next: u64,
     count: u64,
     runtime: Option<ClassicVisualRuntimeReceipt>,
-    caption_mode: bool,
+    mode: VideoFrameMode,
 }
 impl ClassicVideoProcess {
     #[cfg(unix)]
@@ -69,7 +124,7 @@ impl ClassicVideoProcess {
         count: u64,
         checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
     ) -> Result<Self, EditorError> {
-        Self::start_mode(config, count, checkpoint, false)
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::TextV2)
     }
     #[cfg(unix)]
     pub fn start_caption(
@@ -77,14 +132,43 @@ impl ClassicVideoProcess {
         count: u64,
         checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
     ) -> Result<Self, EditorError> {
-        Self::start_mode(config, count, checkpoint, true)
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::CaptionV3)
+    }
+    #[cfg(unix)]
+    pub fn start_graphic(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::GraphicV1)
+    }
+    pub fn start_mask(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::MaskV1)
+    }
+    pub fn start_scene(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::SceneV1)
+    }
+    pub fn start_blend(
+        config: ClassicVisualProcessConfig,
+        count: u64,
+        checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    ) -> Result<Self, EditorError> {
+        Self::start_mode(config, count, checkpoint, VideoFrameMode::BlendV1)
     }
     #[cfg(unix)]
     fn start_mode(
         config: ClassicVisualProcessConfig,
         count: u64,
         checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
-        caption_mode: bool,
+        mode: VideoFrameMode,
     ) -> Result<Self, EditorError> {
         if count == 0
             || count > 1800
@@ -109,10 +193,10 @@ impl ClassicVideoProcess {
             next: 0,
             count,
             runtime: None,
-            caption_mode,
+            mode,
         };
         let policy = &this.config.policy;
-        let begin = json!({"type":if caption_mode {"beginCaptionVideoV2"} else {"beginTextVideoV1"},"frameCount":count,"runtime":{"chromiumExecutable":this.config.chromium},"admission":{
+        let begin = json!({"type":mode.begin(),"frameCount":count,"runtime":{"chromiumExecutable":this.config.chromium},"admission":{
             "maxFramePixels":policy.max_frame_pixels.to_string(),"maxDecodedPixels":policy.max_decoded_pixels.to_string(),"maxGpuBytes":policy.max_gpu_bytes.to_string(),"maxRgbaBytes":policy.max_rgba_bytes.to_string(),"maxEncodedBytes":policy.max_encoded_bytes,"maxOutputBytes":policy.max_output_bytes.to_string(),"maxRssBytes":policy.max_rss_bytes.to_string(),"deadlineMs":policy.deadline_ms,"quotaProfile":if this.config.strict_cgroup.is_some(){"strict-hard"}else{"monitored-terminate"},"cgroupDirectory":this.config.strict_cgroup}});
         this.send(begin)?;
         loop {
@@ -206,8 +290,8 @@ impl ClassicVideoProcess {
         fonts: &[ClassicTextFontHandleV2],
         sink: &mut dyn ClassicVisualRgbaSink,
     ) -> Result<ClassicTextFrameReceiptV2, EditorError> {
-        if self.caption_mode {
-            return Err(err("Text frame cannot enter caption video execution"));
+        if self.mode != VideoFrameMode::TextV2 {
+            return Err(err("Text frame differs from selected video execution"));
         }
         self.render_session(session, resources, handles, fonts, sink)
     }
@@ -220,8 +304,61 @@ impl ClassicVideoProcess {
         fonts: &[ClassicTextFontHandleV2],
         sink: &mut dyn ClassicVisualRgbaSink,
     ) -> Result<ClassicCaptionFrameReceiptV3, EditorError> {
-        if !self.caption_mode {
-            return Err(err("Caption frame cannot enter text video execution"));
+        if self.mode != VideoFrameMode::CaptionV3 {
+            return Err(err("Caption frame differs from selected video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    #[cfg(unix)]
+    pub fn render_graphic_frame(
+        &mut self,
+        session: &mut ClassicGraphicFrameSessionV1<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicGraphicFrameReceiptV1, EditorError> {
+        if self.mode != VideoFrameMode::GraphicV1 {
+            return Err(err("Graphic frame differs from selected video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    pub fn render_mask_frame(
+        &mut self,
+        session: &mut ClassicMaskFrameSessionV1<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicMaskFrameReceiptV1, EditorError> {
+        if self.mode != VideoFrameMode::MaskV1 {
+            return Err(err("Mask frame differs from selected video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    pub fn render_scene_frame(
+        &mut self,
+        session: &mut ClassicSceneFrameSessionV1<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicSceneFrameReceiptV1, EditorError> {
+        if self.mode != VideoFrameMode::SceneV1 {
+            return Err(err("Scene frame differs from selected video execution"));
+        }
+        self.render_session(session, resources, handles, fonts, sink)
+    }
+    pub fn render_blend_frame(
+        &mut self,
+        session: &mut ClassicBlendFrameSessionV1<'_>,
+        resources: &mut dyn ClassicTextFrameResources,
+        handles: &[ClassicVisualResourceHandle],
+        fonts: &[ClassicTextFontHandleV2],
+        sink: &mut dyn ClassicVisualRgbaSink,
+    ) -> Result<ClassicBlendFrameReceiptV1, EditorError> {
+        if self.mode != VideoFrameMode::BlendV1 {
+            return Err(err("Blend frame differs from selected video execution"));
         }
         self.render_session(session, resources, handles, fonts, sink)
     }
@@ -270,7 +407,7 @@ impl ClassicVideoProcess {
                     let request: S::Callback = serde_json::from_value(
                         json!({"op":message.get("op"),"args":message.get("args")}),
                     )
-                    .map_err(|_| err("Invalid V2 video callback"))?;
+                    .map_err(|_| err("Invalid versioned video callback"))?;
                     let value = session.callback(request, resources)?;
                     transport::reply(self.input.as_mut().unwrap(), &self.execution, &id, value)?;
                 }
@@ -294,9 +431,9 @@ impl ClassicVideoProcess {
                         message
                             .get("receipt")
                             .cloned()
-                            .ok_or_else(|| err("Missing V2 frame receipt"))?,
+                            .ok_or_else(|| err("Missing versioned frame receipt"))?,
                     )
-                    .map_err(|_| err("Invalid V2 frame receipt"))?;
+                    .map_err(|_| err("Invalid versioned frame receipt"))?;
                     session.validate_video_receipt(&receipt)?;
                     resources.checkpoint()?;
                     self.next += 1;
