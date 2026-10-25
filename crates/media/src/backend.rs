@@ -50,7 +50,7 @@ impl FfmpegBackend {
     /// the existing cancellable probe transport (5 s, 1 MiB/64 KiB pipe caps),
     /// rather than discover()'s legacy unbounded version probes. No user flags,
     /// source paths, network input or output file enter this command.
-    pub fn export_encoder_names_v2(
+    pub fn export_encoder_names(
         ffmpeg: &Path,
         cancel: &CancellationToken,
     ) -> MediaResult<std::collections::BTreeSet<String>> {
@@ -66,7 +66,7 @@ impl FfmpegBackend {
             Duration::from_secs(5),
             None,
         )?;
-        parse_export_encoder_names_v2(&bytes)
+        parse_export_encoder_names(&bytes)
     }
 
     pub(crate) fn audio_ffmpeg_command(&self) -> Command {
@@ -141,7 +141,7 @@ impl FfmpegBackend {
     }
 
     /// Host-side capability probe for the fixed filters used by schema 3.
-    pub fn missing_v3_filters(&self, needed: &[&str]) -> MediaResult<Vec<String>> {
+    pub fn missing_historical_visual_filters(&self, needed: &[&str]) -> MediaResult<Vec<String>> {
         if needed.iter().any(|name| {
             !matches!(
                 *name,
@@ -517,13 +517,13 @@ impl FfmpegBackend {
         validate_timeline_export(request)
     }
 
-    pub fn render_timeline_v3(
+    pub fn render_timeline_historical_visual(
         &self,
-        request: &TimelineExportRequestV3,
+        request: &HistoricalVisualTimelineExportRequest,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<ExportResult> {
-        self.validate_v3_handles(&request.base, &request.visual)?;
+        self.validate_historical_visual_handles(&request.base, &request.visual)?;
         self.render_timeline_inner(&request.base, Some(&request.visual), None, cancel, progress)
     }
 
@@ -543,13 +543,13 @@ impl FfmpegBackend {
         )
     }
 
-    pub fn render_timeline_range_v3(
+    pub fn render_timeline_range_historical_visual(
         &self,
-        request: &TimelineRangeRenderRequestV3,
+        request: &HistoricalVisualTimelineRangeRenderRequest,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<ExportResult> {
-        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        self.validate_historical_visual_handles(&request.timeline.base, &request.timeline.visual)?;
         validate_timeline_range(&TimelineRangeRenderRequest {
             timeline: request.timeline.base.clone(),
             sequence_start: request.sequence_start,
@@ -575,13 +575,13 @@ impl FfmpegBackend {
         self.start_timeline_stream_inner(request, None, cancel, limits)
     }
 
-    pub fn start_timeline_stream_v3(
+    pub fn start_timeline_stream_historical_visual(
         &self,
-        request: &TimelineRangeRenderRequestV3,
+        request: &HistoricalVisualTimelineRangeRenderRequest,
         cancel: CancellationToken,
         limits: crate::PreviewStreamLimits,
     ) -> MediaResult<crate::ContinuousPreviewProducer> {
-        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        self.validate_historical_visual_handles(&request.timeline.base, &request.timeline.visual)?;
         let base = TimelineRangeRenderRequest {
             timeline: request.timeline.base.clone(),
             sequence_start: request.sequence_start,
@@ -593,7 +593,7 @@ impl FfmpegBackend {
     fn start_timeline_stream_inner(
         &self,
         request: &TimelineRangeRenderRequest,
-        visual: Option<&CompiledVisualGraphV3>,
+        visual: Option<&HistoricalVisualCompiledVisualGraph>,
         cancel: CancellationToken,
         limits: crate::PreviewStreamLimits,
     ) -> MediaResult<crate::ContinuousPreviewProducer> {
@@ -773,7 +773,7 @@ impl FfmpegBackend {
     fn render_timeline_inner(
         &self,
         request: &TimelineExportRequest,
-        visual: Option<&CompiledVisualGraphV3>,
+        visual: Option<&HistoricalVisualCompiledVisualGraph>,
         range: Option<(MediaTime, MediaTime)>,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
@@ -1133,13 +1133,13 @@ impl FfmpegBackend {
         self.render_timeline_frame_inner(request, None, cancel, progress)
     }
 
-    pub fn render_timeline_frame_v3(
+    pub fn render_timeline_frame_historical_visual(
         &self,
-        request: &TimelineFrameRenderRequestV3,
+        request: &HistoricalVisualTimelineFrameRenderRequest,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<RenderedTimelineFrame> {
-        self.validate_v3_handles(&request.timeline.base, &request.timeline.visual)?;
+        self.validate_historical_visual_handles(&request.timeline.base, &request.timeline.visual)?;
         let base = TimelineFrameRenderRequest {
             timeline: request.timeline.base.clone(),
             sequence_time: request.sequence_time,
@@ -1150,7 +1150,7 @@ impl FfmpegBackend {
     fn render_timeline_frame_inner(
         &self,
         request: &TimelineFrameRenderRequest,
-        visual: Option<&CompiledVisualGraphV3>,
+        visual: Option<&HistoricalVisualCompiledVisualGraph>,
         cancel: &CancellationToken,
         progress: &mut dyn FnMut(ProgressUpdate),
     ) -> MediaResult<RenderedTimelineFrame> {
@@ -1392,13 +1392,13 @@ impl FfmpegBackend {
         Ok(())
     }
 
-    fn validate_v3_handles(
+    fn validate_historical_visual_handles(
         &self,
         timeline: &TimelineExportRequest,
-        visual: &CompiledVisualGraphV3,
+        visual: &HistoricalVisualCompiledVisualGraph,
     ) -> MediaResult<()> {
         for (index, source_start, source_duration) in
-            crate::composition_v3::transition_source_handles(timeline, visual)?
+            crate::historical_visual_composition::transition_source_handles(timeline, visual)?
         {
             let clip = &timeline.video_clips[index];
             let metadata = self.probe(&ProbeRequest {
@@ -1666,7 +1666,7 @@ impl FfmpegBackend {
     }
 }
 
-fn parse_export_encoder_names_v2(bytes: &[u8]) -> MediaResult<std::collections::BTreeSet<String>> {
+fn parse_export_encoder_names(bytes: &[u8]) -> MediaResult<std::collections::BTreeSet<String>> {
     let text = std::str::from_utf8(bytes).map_err(|_| MediaError::InvalidToolOutput {
         tool: "ffmpeg".into(),
         detail: "Encoder inventory is not UTF-8".into(),
@@ -1698,7 +1698,7 @@ mod export_encoder_inventory_tests {
     use super::*;
     #[test]
     fn recognizes_exact_typed_encoder_names_not_descriptions_or_related_codecs() {
-        let names = parse_export_encoder_names_v2(b" V....D libx264 H264\n V....D libvpx-vp9 VP9\n A..... aac AAC\n A..... libopus Opus\n V..... unrelated description contains libopus\n A..... libx264 wrong media type\n V..... libx265 HEVC\n").unwrap();
+        let names = parse_export_encoder_names(b" V....D libx264 H264\n V....D libvpx-vp9 VP9\n A..... aac AAC\n A..... libopus Opus\n V..... unrelated description contains libopus\n A..... libx264 wrong media type\n V..... libx265 HEVC\n").unwrap();
         assert_eq!(
             names,
             ["aac", "libopus", "libvpx-vp9", "libx264"]
@@ -1707,13 +1707,13 @@ mod export_encoder_inventory_tests {
                 .collect::<std::collections::BTreeSet<_>>()
         );
         assert!(
-            parse_export_encoder_names_v2(
+            parse_export_encoder_names(
                 b"libx264\n A..... libopus\n unknown libvpx-vp9 description"
             )
             .unwrap()
             .is_empty()
         );
-        assert!(parse_export_encoder_names_v2(&[0xff]).is_err());
+        assert!(parse_export_encoder_names(&[0xff]).is_err());
     }
     #[cfg(unix)]
     #[test]
@@ -1721,14 +1721,11 @@ mod export_encoder_inventory_tests {
         let cancel = CancellationToken::new();
         cancel.cancel();
         assert!(matches!(
-            FfmpegBackend::export_encoder_names_v2(
-                Path::new("/not-launched-export-probe"),
-                &cancel
-            ),
+            FfmpegBackend::export_encoder_names(Path::new("/not-launched-export-probe"), &cancel),
             Err(MediaError::Cancelled)
         ));
         assert!(matches!(
-            FfmpegBackend::export_encoder_names_v2(
+            FfmpegBackend::export_encoder_names(
                 Path::new("relative-tool"),
                 &CancellationToken::new()
             ),
@@ -2078,10 +2075,10 @@ fn build_timeline_filter_inner(
     r: &TimelineExportRequest,
     frame_time: Option<MediaTime>,
     range: Option<(MediaTime, MediaTime)>,
-    visual: Option<&CompiledVisualGraphV3>,
+    visual: Option<&HistoricalVisualCompiledVisualGraph>,
 ) -> MediaResult<String> {
     if let Some(visual) = visual {
-        return crate::composition_v3::build_filter(r, visual, frame_time, range);
+        return crate::historical_visual_composition::build_filter(r, visual, frame_time, range);
     }
     let mut chains = vec![format!("[0:v]format=yuv420p[base0]")];
     let mut base = "base0".to_string();

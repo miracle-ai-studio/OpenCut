@@ -83,6 +83,8 @@ struct State {
     pid: u32,
     database: PathBuf,
     executable: PathBuf,
+    #[serde(default)]
+    executable_sha256: Option<String>,
     endpoint: String,
     listen: SocketAddr,
     allow_origin: Vec<String>,
@@ -240,10 +242,13 @@ fn probe(directory: &Path, state: &State) -> Result<()> {
         .map_err(error)?;
     // A DB-backed, bounded read distinguishes a static capability response from usable storage.
     client
-        .call::<opencut_sdk::api::tools::EventsRead>(&opencut_sdk::api::EventsInput {
-            after_sequence: 0,
-            limit: 1,
-        })
+        .call::<opencut_sdk::api::tools::EventChanges>(
+            &opencut_sdk::api::event_stream::EventChangesInput {
+                scope: opencut_sdk::api::event_stream::EventScope::Projects { project_id: None },
+                cursor: None,
+                limit: 1,
+            },
+        )
         .map_err(error)?;
     Ok(())
 }
@@ -266,11 +271,51 @@ fn status(directory: &Path) -> Result<Value> {
     Ok(json!({
         "version":1,"state":if !live {"stopped"} else if stopping {"stopping"} else if ready {"running"} else {"unhealthy"},
         "ready":ready,"pid":state.pid,"instance":state.instance,
-        "endpoint":state.endpoint,"web_url":state.web_root.as_ref().map(|_|format!("{}/editor",state.endpoint)),"database":state.database,"executable":state.executable,
+        "endpoint":state.endpoint,"web_url":state.web_root.as_ref().map(|_|format!("{}/editor",state.endpoint)),"database":state.database,"executable":state.executable,"executable_sha256":state.executable_sha256,
         "started_at_unix_ms":state.started_at_unix_ms,"directory":directory,
         "token_file":directory.join("api-token"),"log_file":directory.join("server.log"),
         "diagnostic":health.err().map(|e|e.message),
     }))
+}
+
+/// Attach a local MCP transport without acquiring service lifecycle ownership.
+/// Validate before opening a workspace so a stale plugin cannot create or select
+/// another database. Separate copies of the same executable are accepted.
+pub(crate) fn require_ready(database: &Path, directory: &Path) -> Result<()> {
+    let state = status(directory)?;
+    if state["ready"] != true {
+        return Err(EditorError::new(
+            "SERVICE_NOT_READY",
+            "The independent OpenCut service is not ready. Start the selected service before connecting this plugin.",
+        ));
+    }
+    let service_database = state["database"]
+        .as_str()
+        .ok_or_else(|| error("Service database is missing"))?;
+    if fs::canonicalize(database).map_err(error)?
+        != fs::canonicalize(service_database).map_err(error)?
+    {
+        return Err(EditorError::new(
+            "SERVICE_TARGET_MISMATCH",
+            "The plugin workspace differs from the running service. Regenerate the connection for the intended workspace.",
+        ));
+    }
+    let own_digest = executable_digest(&std::env::current_exe().map_err(error)?)?;
+    if state["executable_sha256"].as_str() != Some(own_digest.as_str()) {
+        return Err(EditorError::new(
+            "SERVICE_CANDIDATE_MISMATCH",
+            "The plugin build does not match the service's recorded startup build. Start the independent service with this OpenCut build before connecting.",
+        ));
+    }
+    Ok(())
+}
+
+fn executable_digest(path: &Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    let mut file = File::open(path).map_err(error)?;
+    std::io::copy(&mut file, &mut hash).map_err(error)?;
+    Ok(format!("{:x}", hash.finalize()))
 }
 
 fn start(directory: &Path, database: &Path, options: &Options) -> Result<Value> {
@@ -404,13 +449,16 @@ pub async fn execute(database: &Path, path: Option<&Path>, command: &Command) ->
         private_directory(&directory)?;
         let lock = lock(&directory.join("runtime.lock"))?
             .ok_or_else(|| error("Service already running"))?;
+        let executable = std::env::current_exe().map_err(error)?;
+        let executable_sha256 = Some(executable_digest(&executable)?);
         let runtime = Runtime {
             state: State {
                 version: 1,
                 instance: instance.clone(),
                 pid: std::process::id(),
                 database: absolute(database)?,
-                executable: std::env::current_exe().map_err(error)?,
+                executable,
+                executable_sha256,
                 endpoint: format!("http://{}", options.listen),
                 listen: options.listen,
                 allow_origin: options.allow_origin.clone(),

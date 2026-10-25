@@ -17,7 +17,7 @@ const calls = [],
   errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("request", (r) => {
-  if (r.url().endsWith("/v1/tools/opencut_job_submit"))
+  if (r.url().endsWith("/api/tools/opencut_job_submit"))
     calls.push(r.postDataJSON());
 });
 try {

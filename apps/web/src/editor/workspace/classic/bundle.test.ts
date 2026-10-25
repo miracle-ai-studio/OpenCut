@@ -70,6 +70,10 @@ it("round trips original snapshot, timeline context and exact binary bytes witho
     new Uint8Array([0, 255, 13, 10, 42]),
   );
   expect(result.media[0].sha256).toBe(media[0].sha256);
+  const historical = await changeHeader(bundle, h => { h.format = "opencut.classic-recovery.v1"; });
+  const recovered = await readRecoveryBundle(historical, signal(), () => {});
+  expect(recovered.snapshot).toEqual(original);
+  expect(recovered.media[0].sha256).toBe(media[0].sha256);
 });
 it("rejects JSON-only input and missing media before any recovery", async () => {
   const { snapshot } = await fixture();
@@ -86,18 +90,18 @@ it("rejects JSON-only input and missing media before any recovery", async () => 
 });
 it.each([
   [
-    "future version",
+    "unknown format",
     (h: any) => {
       h.format = "opencut.classic-recovery.v2";
     },
-    "version",
+    "format",
   ],
   [
     "unknown header",
     (h: any) => {
       h.extra = true;
     },
-    "version",
+    "format",
   ],
   [
     "wrong identity",

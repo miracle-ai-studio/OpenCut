@@ -5,14 +5,15 @@ import maskSource from "/renderer/vendor/classic-v31/mask.wgsl";
 import jfaInitSource from "/renderer/vendor/classic-v31/jfa_init.wgsl";
 import jfaStepSource from "/renderer/vendor/classic-v31/jfa_step.wgsl";
 import blurSource from "/renderer/vendor/classic-v31/gaussian_blur.wgsl";
-import { sceneFrameSourcesV1, rasterizeSceneMaskV1, rasterizeSceneStrokeV1, releaseSceneSourcesV1 } from "./scene-source-v1.mjs";
-import { sceneEffectPassesV1 } from "./scene-effects-v1.mjs";
+import { sceneFrameSources, rasterizeSceneMask, rasterizeSceneStroke, releaseSceneSources } from "./scene-source.mjs";
+import { sceneEffectPasses } from "./scene-effects.mjs";
 import jfaDistanceSource from "/renderer/vendor/classic-v31/jfa_distance.wgsl";
 import { byteBudget, checkAbort, finite, integer, reject } from "./validation.mjs";
-import { blendModeIndexV1 } from "./blend-modes-v1.mjs";
-import { clearGraphicSourceCacheV1, isRetainedGraphicSourceV1 } from "./graphic-source.mjs";
+import { blendModeIndex } from "./blend-modes.mjs";
+import { clearGraphicSourceCache, isRetainedGraphicSource } from "./graphic-source.mjs";
 import { clearFontHashWorker, enableFontHashWorker } from "./font-hash.mjs";
-import { maskFrameSourcesV1, rasterizeMaskSourceV1, releaseMaskFrameSourcesV1 } from "./mask-source-v1.mjs";
+import { maskFrameSources, rasterizeMaskSource, releaseMaskFrameSources } from "./mask-source.mjs";
+import {captureGpuSurfaceFrame,validateGpuSurfaceFrame} from "./gpu-surface.mjs";
 
 const FORMAT = "bgra8unorm";
 const QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
@@ -30,7 +31,7 @@ export function clearGpuFrameCaches(realm) {
     for (const texture of cache.maskTargets?.textures ?? []) texture.destroy();
     frameCaches.delete(realm);
   }
-  clearGraphicSourceCacheV1(realm);
+  clearGraphicSourceCache(realm);
 }
 export function closeGpuRealm(realm) {
   if (!realm || realm.closed) return;
@@ -57,11 +58,12 @@ export async function openGpuRealm(options = {}) {
     return realm;
   } catch (error) { closeGpuRealm(realm); throw error; }
 }
-export async function renderGpuFrame(frame, sources, admission, emit, signal, realm, surface, hitQuery) {
+export async function renderGpuFrame(frame, sources, admission, emit, signal, realm, surface, hitQuery, captureSurface=false) {
+  const began=performance.now();let surfaceFrame=null;
   const owned = !realm;
-  if (signal?.aborted) { releaseSceneSourcesV1(frame); releaseMaskFrameSourcesV1(frame); clearGpuFrameCaches(realm); checkAbort(signal); }
+  if (signal?.aborted) { releaseSceneSources(frame); releaseMaskFrameSources(frame); clearGpuFrameCaches(realm); checkAbort(signal); }
   try { realm ??= await openGpuRealm(); }
-  catch (error) { releaseSceneSourcesV1(frame); releaseMaskFrameSourcesV1(frame); throw error; }
+  catch (error) { releaseSceneSources(frame); releaseMaskFrameSources(frame); throw error; }
   const { device } = realm;
   const allocated = [], buffers = [], releases = [];
   let readback,hitReadback; const canvases = [];
@@ -77,11 +79,11 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     if(hitQuery!==undefined){if(!surface||!hitQuery||Object.keys(hitQuery).sort().join()!=="x,y")reject("INVALID_VISUAL_PLAN","Hit observations require one explicit preview point");hitPoint={x:integer(hitQuery.x,"hit X",0,width-1),y:integer(hitQuery.y,"hit Y",0,height-1)};}
     // Old bound DTOs have no mode; only those use the normal default. Validate
     // every authored entry, including null quads, before GPU allocation.
-    const modeIndices = frame.layers.map(layer => blendModeIndexV1(layer.blendMode === undefined ? "normal" : layer.blendMode));
+    const modeIndices = frame.layers.map(layer => blendModeIndex(layer.blendMode === undefined ? "normal" : layer.blendMode));
     let cache = frameCaches.get(realm);
     if (!cache) { cache = { sources: new Map(), targets: null, masks: new Map(), maskTargets: null }; frameCaches.set(realm, cache); }
-    const sceneState = sceneFrameSourcesV1(frame);
-    const maskSources = sceneState ? new Map([...sceneState.masks.values()].flat().map(source => [source.key, source])) : maskFrameSourcesV1(frame);
+    const sceneState = sceneFrameSources(frame);
+    const maskSources = sceneState ? new Map([...sceneState.masks.values()].flat().map(source => [source.key, source])) : maskFrameSources(frame);
     const maskKeys = new Set([...maskSources.values()].map(source => source.key));
     for (const [key, texture] of cache.masks) if (!maskKeys.has(key)) { texture.destroy(); cache.masks.delete(key); }
     // Three scratch targets suffice for Classic's two independent JFA runs:
@@ -94,7 +96,7 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     }
     const active = new Set(frame.layers.filter(layer => layer.quad !== null).map(layer => sources.get(layer.elementId)));
     for (const [source, entry] of cache.sources) {
-      if (!active.has(source) || !isRetainedGraphicSourceV1(source) || source.width !== entry.width || source.height !== entry.height || source.canvas.width !== entry.width || source.canvas.height !== entry.height) {
+      if (!active.has(source) || !isRetainedGraphicSource(source) || source.width !== entry.width || source.height !== entry.height || source.canvas.width !== entry.width || source.canvas.height !== entry.height) {
         entry.texture.destroy(); cache.sources.delete(source);
       }
     }
@@ -167,7 +169,7 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       let result = cache.masks.get(source.key);
       if (result) return result;
       result = texture(width, height, true); cache.masks.set(source.key, result);
-      const canvas = source.sceneSource ? rasterizeSceneMaskV1(source, signal) : rasterizeMaskSourceV1(source, signal);
+      const canvas = source.sceneSource ? rasterizeSceneMask(source, signal) : rasterizeMaskSource(source, signal);
       try {
         // Classic deliberately uploads straight RGB. JFA init reads red,
         // whereas the zero-feather/apply-mask path samples alpha.
@@ -198,9 +200,13 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     const blendUniforms = new Map([[0, normal]]);
     let items = [];
     let effectTargets;
-    const effectPasses = effects => sceneEffectPassesV1(effects, width, height);
-    const applyEffects = (input, effects) => {
-      const passes = effectPasses(effects); if (!passes.length) return input;
+    const applyEffects = (input, effects, logicalQuad) => {
+      // Classic resolves visual effects against rounded transformed logical
+      // bounds. Rust supplies those f64 bounds without graphic stroke padding;
+      // text, background and adjustment effects retain full-canvas dimensions.
+      const effectWidth=logicalQuad?Math.round(Math.abs(logicalQuad.width)):width;
+      const effectHeight=logicalQuad?Math.round(Math.abs(logicalQuad.height)):height;
+      const passes = sceneEffectPasses(effects,effectWidth,effectHeight); if (!passes.length) return input;
       if (!realm.blurPipeline) realm.blurPipeline = realm.pipelines.pipeline(device.createShaderModule({ code: blurSource }));
       effectTargets ??= [texture(width,height), texture(width,height)];
       let current = input;
@@ -243,7 +249,7 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       if (!tex) {
         tex = cache.sources.get(source)?.texture;
         if (!tex) {
-          const retained = isRetainedGraphicSourceV1(source);
+          const retained = isRetainedGraphicSource(source);
           tex = texture(source.width, source.height, retained);
           if (retained) cache.sources.set(source, { texture: tex, width: source.width, height: source.height });
           device.queue.copyExternalImageToTexture({ source: source.canvas, flipY: false }, { texture: tex, colorSpace: "srgb", premultipliedAlpha: false }, [source.width, source.height]);
@@ -251,13 +257,13 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
         uploaded.set(source, tex);
       }
       const stack = frame.scene?.layers[index]?.stack;
-      items.push({ elementId:layer.elementId, texture: tex, quad, modeIndex: modeIndices[index], masks:sceneState?.masks.get(layer.elementId),effects:stack?.effects??[],maskSource:sceneState?null:maskSources.get(layer.elementId) });
+      items.push({ elementId:layer.elementId, texture: tex, quad, effectQuad:frame.scene?.layers[index]?.quad, modeIndex: modeIndices[index], masks:sceneState?.masks.get(layer.elementId),effects:stack?.effects??[],maskSource:sceneState?null:maskSources.get(layer.elementId) });
     }
     if (sceneState) {
       const byId = new Map(items.filter(item=>item.elementId).map(item=>[item.elementId,item]));
       items = [...items.filter(item=>!item.elementId),...frame.scene.steps.flatMap(step=>{
         if(step.kind==='effect')return [{sceneEffect:step.effects}];const item=byId.get(step.element_id);if(!item)return [];
-        const strokes=(item.masks??[]).filter(source=>source.mask.stroke.width_px>0).map(source=>{const canvas=rasterizeSceneStrokeV1(source,signal);canvases.push(canvas);const tex=texture(width,height);device.queue.copyExternalImageToTexture({source:canvas,flipY:false},{texture:tex,colorSpace:'srgb',premultipliedAlpha:false},[width,height]);return {texture:tex,quad:fullQuad,modeIndex:0,hitElementId:item.elementId};});
+        const strokes=(item.masks??[]).filter(source=>source.mask.stroke.width_px>0).map(source=>{const canvas=rasterizeSceneStroke(source,signal);canvases.push(canvas);const tex=texture(width,height);device.queue.copyExternalImageToTexture({source:canvas,flipY:false},{texture:tex,colorSpace:'srgb',premultipliedAlpha:false},[width,height]);return {texture:tex,quad:fullQuad,modeIndex:0,hitElementId:item.elementId};});
         return [item,...strokes];
       })];
     }
@@ -276,7 +282,7 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       pass.setPipeline(layerPipeline); pass.setVertexBuffer(0, vertices);
       pass.setBindGroup(0, group(layerPipeline, 0, item.texture)); pass.setBindGroup(1, uniforms(layerPipeline, 1, uniformBytes(item.quad, frame.identity)));
       pass.draw(6); pass.end();
-      let foreground = applyEffects(target,item.effects??[]);
+      let foreground = applyEffects(target,item.effects??[],item.effectQuad);
       for (const mask of masks) {
         const input = foreground;
         foreground = input === cache.maskTargets.textures[0] ? target : cache.maskTargets.textures[0];
@@ -291,7 +297,12 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
       mix.setBindGroup(0, group(blendPipeline, 0, scene)); mix.setBindGroup(1, group(blendPipeline, 1, foreground)); mix.setBindGroup(2, blendUniforms.get(item.modeIndex));
       mix.draw(6); mix.end(); [scene, nextScene] = [nextScene, scene];
     }
-    if (surface) {
+    if (surface||captureSurface) {
+      if(captureSurface){
+        if(owned||surface||hitQuery)reject("INVALID_VISUAL_PLAN","Texture output requires one owned preview realm");
+        releases.push(budget.reserve(width*height*8));
+        surfaceFrame=captureGpuSurfaceFrame(realm,encoder,scene,width,height);
+      }else{
       releases.push(budget.reserve(width * height * 4));
       const changed = realm.previewSurface !== surface || surface.width !== width || surface.height !== height;
       if (surface.width !== width) surface.width = width;
@@ -303,22 +314,35 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
         realm.previewSurface = surface;
       }
       encoder.copyTextureToTexture({ texture: scene }, { texture: context.getCurrentTexture() }, [width, height]);
+      }
       device.queue.submit([encoder.finish()]);
-      const validationFailure = await device.popErrorScope(); scopes--;
-      const memoryFailure = await device.popErrorScope(); scopes--;
+      const submitted=performance.now();
+      const validationResult = device.popErrorScope(); scopes--;
+      const memoryResult = device.popErrorScope(); scopes--;
+      if(captureSurface){
+        const validation=Promise.all([validationResult,memoryResult]).then(([failure,memory])=>{
+          if(failure||memory)reject("VISUAL_GPU_FAILED","GPU rejected preview presentation");checkAbort(signal);
+        });
+        validateGpuSurfaceFrame(surfaceFrame,validation);
+        const captured=surfaceFrame;surfaceFrame=null;
+        return {...realm.observation,peakGpuBytes:String(budget.peak),gpuEncodeMs:String(submitted-began),gpuValidationPending:"true",surfaceFrame:captured};
+      }
+      const [validationFailure, memoryFailure] = await Promise.all([validationResult, memoryResult]);
       if (validationFailure || memoryFailure) reject("VISUAL_GPU_FAILED", "GPU rejected preview presentation");
       checkAbort(signal);
       let hitTest;
       if(hitReadback){await hitReadback.mapAsync(GPUMapMode.READ);checkAbort(signal);const bytes=new Uint8Array(hitReadback.getMappedRange()),hits=[];for(let i=hitEntries.length-1;i>=0;i--)if(bytes[i*256+3]>0&&!hits.some(hit=>hit.elementId===hitEntries[i]))hits.push({elementId:hitEntries[i],alpha:bytes[i*256+3]});hitReadback.unmap();hitTest={identity:structuredClone(frame.identity),point:hitPoint,hits};}
-      return { ...realm.observation, peakGpuBytes: String(budget.peak), ...(hitTest?{hitTest}:{}) };
+      const captured=surfaceFrame;surfaceFrame=null;
+      return { ...realm.observation, peakGpuBytes: String(budget.peak),gpuEncodeMs:String(submitted-began),gpuValidateMs:String(performance.now()-submitted),...(captured?{surfaceFrame:captured}:{}), ...(hitTest?{hitTest}:{}) };
     }
     const rowBytes = width * 4, aligned = Math.ceil(rowBytes / 256) * 256;
     releases.push(budget.reserve(aligned * height));
     readback = device.createBuffer({ size: aligned * height, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }); buffers.push(readback);
     encoder.copyTextureToBuffer({ texture: scene }, { buffer: readback, bytesPerRow: aligned, rowsPerImage: height }, [width, height]);
     device.queue.submit([encoder.finish()]);
-    const validationFailure = await device.popErrorScope(); scopes--;
-    const memoryFailure = await device.popErrorScope(); scopes--;
+    const validationResult = device.popErrorScope(); scopes--;
+    const memoryResult = device.popErrorScope(); scopes--;
+    const [validationFailure, memoryFailure] = await Promise.all([validationResult, memoryResult]);
     if (validationFailure || memoryFailure) reject("VISUAL_GPU_FAILED", "GPU rejected the compiled frame execution");
     await readback.mapAsync(GPUMapMode.READ); checkAbort(signal);
     const bytes = new Uint32Array(readback.getMappedRange());
@@ -341,8 +365,9 @@ export async function renderGpuFrame(frame, sources, admission, emit, signal, re
     clearGpuFrameCaches(realm);
     throw error;
   } finally {
-    releaseMaskFrameSourcesV1(frame);
-    releaseSceneSourcesV1(frame);
+    surfaceFrame?.close();
+    releaseMaskFrameSources(frame);
+    releaseSceneSources(frame);
     if (readback?.mapState === "mapped") readback.unmap();
     if (hitReadback?.mapState === "mapped") hitReadback.unmap();
     for (const b of buffers) b.destroy(); for (const t of allocated) t.destroy();

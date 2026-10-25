@@ -1,8 +1,10 @@
 //! Scene/project structure uses the same revision, receipt and publication transaction as visual edits.
 use super::*;
-use opencut_contracts::{project_edit::ProjectEditRequest, project_v3_ops::VisualPlan};
+use opencut_contracts::{historical_visual_ops::VisualPlan, project_edit::ProjectEditRequest};
 use opencut_editor_application::project_edit;
-use sqlite_project_v3::{EditCommit, commit_edit, load_v3_snapshot, require_edit};
+use sqlite_historical_visual::{
+    EditCommit, commit_edit, load_historical_visual_snapshot, require_edit,
+};
 
 impl EditorApplication {
     pub fn plan_project_edit(&self, input: &ProjectEditRequest) -> Result<VisualPlan, EditorError> {
@@ -11,7 +13,7 @@ impl EditorApplication {
             .unchecked_transaction()
             .map_err(storage_error)?;
         require_edit(&tx, &self.connection.1, &input.project_id)?;
-        let snapshot = load_v3_snapshot(&tx, &input.project_id, None)?;
+        let snapshot = load_historical_visual_snapshot(&tx, &input.project_id, None)?;
         let plan = project_edit::plan(&snapshot, input)?;
         tx.commit().map_err(storage_error)?;
         Ok(plan)
@@ -39,7 +41,7 @@ impl EditorApplication {
         )? {
             return decode_json(&receipt, "project edit receipt");
         }
-        let current = load_v3_snapshot(&tx, &input.project_id, None)?;
+        let current = load_historical_visual_snapshot(&tx, &input.project_id, None)?;
         let plan = project_edit::plan(&current, input)?;
         let result = commit_edit(
             &tx,
@@ -65,17 +67,19 @@ mod tests {
     use super::*;
     use opencut_api_contracts::collaboration::{RedoRequest, UndoRequest};
     use opencut_contracts::{
+        historical_visual::HistoricalVisualSnapshot,
+        historical_visual_ops::{
+            ApplyHistoricalVisualProject, CreateProjectRequest, InspectProject,
+        },
         project_edit::ProjectEdit,
-        project_v3::ProjectSnapshotV3,
-        project_v3_ops::{ApplyV3Project, CreateV3Project, InspectV3Project},
     };
-    fn setup() -> (EditorApplication, ProjectSnapshotV3) {
+    fn setup() -> (EditorApplication, HistoricalVisualSnapshot) {
         let mut app = EditorApplication::open(":memory:").unwrap();
-        let snapshot=app.create_v3_project(&serde_json::from_value::<CreateV3Project>(json!({"project":{"id":"p","name":"Original","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":"create"})).unwrap()).unwrap();
+        let snapshot=app.create_historical_visual_project(&serde_json::from_value::<CreateProjectRequest>(json!({"project":{"id":"p","name":"Original","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":"create"})).unwrap()).unwrap();
         (app, snapshot)
     }
-    fn inspect(app: &EditorApplication) -> ProjectSnapshotV3 {
-        app.inspect_v3_project(&InspectV3Project {
+    fn inspect(app: &EditorApplication) -> HistoricalVisualSnapshot {
+        app.inspect_historical_visual_project(&InspectProject {
             project_id: "p".into(),
             revision: None,
         })
@@ -126,14 +130,14 @@ mod tests {
             Some("structure")
         );
         let list = app
-            .list_v3_projects(&opencut_contracts::project_v3_ops::ListV3Projects {
+            .project_library(&opencut_contracts::project_catalog::LibraryInput {
                 cursor: None,
                 limit: 10,
             })
             .unwrap();
         assert_eq!(list.items[0].name, "Renamed");
         let undo = app
-            .apply_v3_undo(&UndoRequest {
+            .apply_historical_visual_undo(&UndoRequest {
                 project_id: "p".into(),
                 expected_revision: committed.revision.clone(),
                 target_transaction_id: committed.transaction_id.clone(),
@@ -142,7 +146,7 @@ mod tests {
             .unwrap();
         assert_eq!(inspect(&app).project, initial.project);
         let redone = app
-            .apply_v3_redo(&RedoRequest {
+            .apply_historical_visual_redo(&RedoRequest {
                 project_id: "p".into(),
                 expected_revision: undo.transaction.revision,
                 undo_transaction_id: undo.transaction.transaction_id,
@@ -198,8 +202,8 @@ mod tests {
         let created = app
             .apply_project_edit(&request(&initial.revision, "create-scene", vec![create()]))
             .unwrap();
-        let visual:ApplyV3Project=serde_json::from_value(json!({"project_id":"p","expected_revision":created.revision,"idempotency_key":"shape","label":"shape","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"second","track":{"id":"graphics","name":"Shapes","kind":"graphic","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}},{"type":"shape.put","sequence_id":"second","shape":{"id":"shape","track_id":"graphics","timeline_range":{"start":{"ticks":"0","timebase":1},"duration":{"ticks":"2","timebase":1}},"primitive":{"kind":"rectangle","width_px":50.0,"height_px":50.0},"fill":{"red":255,"green":0,"blue":0,"alpha":255},"position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}}]})).unwrap();
-        app.apply_v3_project(&visual).unwrap();
+        let visual:ApplyHistoricalVisualProject=serde_json::from_value(json!({"project_id":"p","expected_revision":created.revision,"idempotency_key":"shape","label":"shape","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"second","track":{"id":"graphics","name":"Shapes","kind":"graphic","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}},{"type":"shape.put","sequence_id":"second","shape":{"id":"shape","track_id":"graphics","timeline_range":{"start":{"ticks":"0","timebase":1},"duration":{"ticks":"2","timebase":1}},"primitive":{"kind":"rectangle","width_px":50.0,"height_px":50.0},"fill":{"red":255,"green":0,"blue":0,"alpha":255},"position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}}]})).unwrap();
+        app.apply_historical_visual_project(&visual).unwrap();
         let before = inspect(&app);
         let removed = app
             .apply_project_edit(&request(
@@ -212,7 +216,7 @@ mod tests {
             .unwrap();
         assert!(removed.deleted_ids.contains(&"shape".into()));
         assert!(inspect(&app).project.visual.is_empty());
-        app.apply_v3_undo(&UndoRequest {
+        app.apply_historical_visual_undo(&UndoRequest {
             project_id: "p".into(),
             expected_revision: removed.revision,
             target_transaction_id: removed.transaction_id,

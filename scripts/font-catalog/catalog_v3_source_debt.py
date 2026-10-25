@@ -8,7 +8,7 @@ import generate as old
 import generate_catalog_v3 as output
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument("--tree",type=Path,required=True);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument("--tree",type=Path);args=parser.parse_args()
     root=old.OUT.parent;atlas=json.loads((old.ROOT/"tmp/opencut-classic/apps/web/public/fonts/font-atlas.json").read_text())["fonts"]
     browser=json.loads((old.OUT/"browser_catalog.json").read_text())
     covered={(family["family"],face["weight"],face["style"]) for family in browser["families"] for face in family["faces"] if face["catalog_id"]}
@@ -18,15 +18,16 @@ def main():
         for pin in pins:
             family=pin["face"]["family"] if version==1 else json.loads(pin["proof_json"])["source"]["source_family"]
             covered.add((family,pin["face"]["weight"],pin["face"]["style"]))
-    for filename in ["static_source_pins.json","color_source_pins.json","supplemental_source_pins.json"]:
+    for filename in ["static_source_pins.json","color_source_pins.json","supplemental_source_pins.json","distribution_source_pins.json"]:
         records=json.loads((output.OUT/filename).read_text());counts[filename]=len(records)
         covered.update((pin["display_family"],pin["source"]["weight"],pin["source"]["style"]) for pin in records)
-    tree=json.loads(args.tree.read_text());pending={}
+    tree=json.loads(args.tree.read_text()) if args.tree else {"sha":old.COMMIT};pending={}
     for filename in ["official_variable_inputs.json","supplemental_variable_inputs.json"]:
         for pin in json.loads((output.OUT/filename).read_text()):pending[pin["family"]]=filename
     rows=[]
     for family in sorted(set(atlas)-{f for f,w,s in covered if w==400 and s=="normal"}):
         normalized=re.sub("[^a-z0-9]","",family.lower())
+        if "tree" not in tree: raise ValueError("A remaining regular-family source needs the original full --tree input")
         paths=[e["path"] for e in tree["tree"] if len(e["path"].split("/"))>=3 and e["path"].split("/")[1]==normalized]
         if family in pending:category="fixed_variable_source_acquired_awaiting_derived_pin"
         elif family=="Material Symbols":category="ambiguous_generic_family_no_same_name_in_official_icons_source"

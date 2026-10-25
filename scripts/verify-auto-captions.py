@@ -69,9 +69,9 @@ def verify(binary, model, web, root, verify_browser=False):
         raise AssertionError('Local transcription timed out')
     def tick(n):return {'ticks':str(n),'timebase':48000}
     def span(a,n):return {'start':tick(a),'duration':tick(n)}
-    def inspect():return call('opencut_project_v3_inspect',{'project_id':'speech','revision':None})
+    def inspect():return call('opencut_project_inspect',{'project_id':'speech','revision':None})
     def download(job,filename):
-        item=job['artifacts'][0];url=state['endpoint']+'/v1/artifacts/'+urllib.parse.quote(item['artifact_id'],safe='')
+        item=job['artifacts'][0];url=state['endpoint']+'/api/artifacts/'+urllib.parse.quote(item['artifact_id'],safe='')
         data=urllib.request.urlopen(urllib.request.Request(url,headers={'Authorization':'Bearer '+(service/'api-token').read_text().strip()}),timeout=60).read()
         assert hashlib.sha256(data).hexdigest()==item['content_hash']
         destination=root/filename;destination.write_bytes(data);return destination
@@ -86,7 +86,7 @@ def verify(binary, model, web, root, verify_browser=False):
             'Accept':'application/json, text/event-stream','Content-Type':'application/json',
             'Authorization':'Bearer '+(service/'api-token').read_text().strip(),'Mcp-Session-Id':session,'Mcp-Protocol-Version':'2025-11-25'})
         response=conn.getresponse();assert response.status==202;response.read();conn.close()
-        created=call('opencut_project_v3_create',{'project':{'id':'speech','name':'Speech acceptance','sequence_id':'main','width':640,'height':360,'fps':{'numerator':25,'denominator':1}},'idempotency_key':'create'})
+        created=call('opencut_project_create',{'project':{'id':'speech','name':'Speech acceptance','sequence_id':'main','width':640,'height':360,'fps':{'numerator':25,'denominator':1}},'idempotency_key':'create'})
         spoken=root/'spoken.aiff';source=root/'spoken.wav'
         phrase='Welcome to the video editor. We cut the scene and add clear captions.'
         subprocess.run(['say','-v','Samantha','-r','150','-o',str(spoken),phrase],check=True,timeout=60)
@@ -94,9 +94,9 @@ def verify(binary, model, web, root, verify_browser=False):
         with wave.open(str(source),'rb') as wav:
             assert wav.getsampwidth()==2 and wav.getnchannels()==2 and wav.getframerate()==48000
             frames=wav.getnframes();raw=wav.readframes(frames)
-        upload=call('opencut_upload_stream_begin',{'project_id':'speech','idempotency_key':'upload','name':'speech.wav','size_bytes':str(source.stat().st_size)})
-        subprocess.run([str(frozen),'--json','--database',str(database),'upload','stream-put',upload['upload_id'],'--offset','0','--input',str(source)],check=True,capture_output=True,timeout=60)
-        imported=await_job(call('opencut_upload_stream_complete',{'upload_id':upload['upload_id'],'content_hash':hashlib.sha256(source.read_bytes()).hexdigest()}))
+        upload=call('opencut_upload_begin',{'project_id':'speech','idempotency_key':'upload','name':'speech.wav','size_bytes':str(source.stat().st_size)})
+        subprocess.run([str(frozen),'--json','--database',str(database),'upload','put',upload['upload_id'],'--offset','0','--input',str(source)],check=True,capture_output=True,timeout=60)
+        imported=await_job(call('opencut_upload_complete',{'upload_id':upload['upload_id'],'content_hash':hashlib.sha256(source.read_bytes()).hexdigest()}))
         asset=call('opencut_project_media_inspect',{'project_id':'speech','media_id':imported['extended_result']['data']['media_id']})['asset'];asset['id']='voice'
         duration=asset['duration'];frames=min(frames,int(duration['ticks'])*48000//duration['timebase'])//1920*1920
         raw=raw[:frames*4]
@@ -106,7 +106,7 @@ def verify(binary, model, web, root, verify_browser=False):
         for track_id,enabled,muted in [('dialogue',True,False),('muted',True,True),('disabled',False,False)]:
             operations.extend([base({'type':'track.create','sequence_id':'main','track':{'id':track_id,'name':track_id,'kind':'audio','enabled':enabled,'muted':muted,'locked':False,'clips':[],'params':{}}}),
                 base({'type':'clip.insert','sequence_id':'main','track_id':track_id,'clip':{'id':track_id+'-clip','asset_id':'voice','timeline_range':span(48000,frames),'source_range':span(0,frames),'params':{'volume':.5},'channels':[]}})])
-        call('opencut_edit_v3_apply',{'project_id':'speech','expected_revision':created['revision'],'idempotency_key':'mix','label':'Local speech scene','operations':operations})
+        call('opencut_edit_apply',{'project_id':'speech','expected_revision':created['revision'],'idempotency_key':'mix','label':'Local speech scene','operations':operations})
         before=inspect();source.unlink();spoken.unlink()
         checks.append('Agent imports and edits managed speech through MCP; source files are deleted before analysis, preview and export')
         request={'project_id':'speech','revision':before['revision'],'sequence_id':'main','language':'en','idempotency_key':'transcribe'}
@@ -134,21 +134,21 @@ def verify(binary, model, web, root, verify_browser=False):
         assert exported['cue_count']==len(cues) and 'captions' in exported['content'].lower()
         checks.append('One atomic generated-caption transaction supports same-key replay, conflict rejection and SRT export with bounded word chunks')
         undo={'project_id':'speech','expected_revision':after['revision'],'target_transaction_id':receipt['transaction']['transaction_id'],'idempotency_key':'undo'}
-        undone=call('opencut_edit_v3_undo_apply',undo)
+        undone=call('opencut_edit_undo_apply',undo)
         assert inspect()['project']==before['project']
-        call('opencut_edit_v3_redo_apply',{'project_id':'speech','expected_revision':undone['transaction']['revision'],
+        call('opencut_edit_redo_apply',{'project_id':'speech','expected_revision':undone['transaction']['revision'],
             'undo_transaction_id':undone['transaction']['transaction_id'],'idempotency_key':'redo'})
         final=inspect();assert final['project']==after['project']
         checks.append('Selective undo restores the exact original project; redo restores all generated captions')
         first=cues[0]['timeline_range']['start'];seconds=int(first['ticks'])/first['timebase']
         frame=int((seconds+.2)*25)
-        preview=await_job(call('opencut_job_v3_frame',{'project_id':'speech','revision':final['revision'],'sequence_id':'main','requested_time':{'ticks':str(frame),'timebase':25},'alignment':'exact','idempotency_key':'frame'}))
+        preview=await_job(call('opencut_job_frame',{'project_id':'speech','revision':final['revision'],'sequence_id':'main','requested_time':{'ticks':str(frame),'timebase':25},'alignment':'exact','idempotency_key':'frame'}))
         png=download(preview,'caption.png')
         pixels=subprocess.check_output(['ffmpeg','-v','error','-i',str(png),'-f','rawvideo','-pix_fmt','rgb24','-frames:v','1','-'],timeout=30)
         assert len(pixels)==640*360*3
         bright=sum(1 for i in range((360-100)*640*3,len(pixels),3) if min(pixels[i:i+3])>180)
         assert bright>100 and max(pixels[:640*3*50])==0,bright
-        render=await_job(call('opencut_job_v3_render',{'project_id':'speech','revision':final['revision'],'sequence_id':'main','container':'mp4','video_codec':'h264','idempotency_key':'render'}))
+        render=await_job(call('opencut_job_render',{'project_id':'speech','revision':final['revision'],'sequence_id':'main','container':'mp4','video_codec':'h264','idempotency_key':'render'}))
         movie=download(render,'captioned.mp4')
         metadata=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(movie)],timeout=30))
         assert len(metadata['streams'])==2 and abs(float(metadata['format']['duration'])-(frames/48000+1))<.05

@@ -1,18 +1,20 @@
 //! Transport-neutral contracts for durable native media jobs.
-pub mod export_video_v2;
-pub mod project_v3;
-pub mod project_v4_audio;
-pub mod project_v4_blend_frame;
-pub mod project_v4_blend_video;
-pub mod project_v4_caption_video;
-pub mod project_v4_frame;
-pub mod project_v4_graphic_video;
-pub mod project_v4_mask_frame;
-pub mod project_v4_mask_video;
-pub mod project_v4_scene_frame;
-pub mod project_v4_text_frame;
-pub mod project_v4_video;
-pub mod sequence_transcribe_v4;
+pub mod asset_analysis;
+pub mod export_video;
+pub mod historical_visual;
+pub mod media_frame;
+pub mod media_video;
+pub mod render_requests;
+pub mod scene_audio;
+pub mod scene_blend_frame;
+pub mod scene_blend_video;
+pub mod scene_caption_video;
+pub mod scene_frame;
+pub mod scene_graphic_video;
+pub mod scene_mask_frame;
+pub mod scene_mask_video;
+pub mod scene_text_frame;
+pub mod scene_transcription;
 
 use opencut_contracts::AssetLockManifest;
 use opencut_contracts::{EditorError, Time, TimeRange};
@@ -98,15 +100,7 @@ pub struct TranscribeJobResult {
 }
 
 /// Transcribe the audible mix of one fixed visual-project scene.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct SequenceTranscribeInput {
-    pub idempotency_key: String,
-    pub project_id: String,
-    pub revision: String,
-    pub sequence_id: String,
-    pub language: Option<String>,
-}
+pub use scene_transcription::SceneTranscriptionRequest;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -586,7 +580,7 @@ pub trait JobKind: sealed::Sealed {
     const NAME: &'static str;
 }
 macro_rules! job_kinds {
-    ($( $marker:ident: ($input:ty, $result:ty, $name:literal) ),* $(,)?) => {
+    ($( $marker:ident: ($input:ty, $result:ty, $name:literal ) ),* $(,)?) => {
         pub mod kinds {
             use super::*;
             $(pub struct $marker;
@@ -613,31 +607,33 @@ job_kinds! {
     ArtifactVerify: (VerifyRequest, VerificationReport, "artifact.verify"),
     MediaImport: (MediaImportInput, MediaImportJobResult, "media.import"),
     AnalysisTranscribe: (TranscribeJobInput, TranscribeJobResult, "analysis.transcribe"),
-    AnalysisSequenceTranscribe: (SequenceTranscribeInput, SequenceTranscribeResult, "analysis.sequence_transcribe"),
-    AnalysisSequenceTranscribeV4: (sequence_transcribe_v4::SubmitSequenceTranscribeV4, sequence_transcribe_v4::SequenceTranscribeResultV4, "analysis.sequence_transcribe.v4"),
+    AnalysisSequenceTranscribe: (SceneTranscriptionRequest, SequenceTranscribeResult, "analysis.sequence_transcribe"),
+    SceneTranscribe: (scene_transcription::SceneTranscriptionRequest, scene_transcription::SceneTranscriptionResult, "analysis.sequence_transcribe.v4"),
     AnalysisSilence: (SilenceJobInput, SilenceJobResult, "analysis.silence"),
     AnalysisShots: (ShotsJobInput, ShotsJobResult, "analysis.shots"),
     AnalysisWaveform: (WaveformJobInput, WaveformJobResult, "analysis.waveform"),
     AnalysisSpeakerTurns: (SpeakerTurnsJobInput, SpeakerTurnsJobResult, "analysis.speaker_turns"),
-    RenderProjectV3: (project_v3::SubmitV3Render, ProjectRenderJobResult, "render.project.v3"),
-    PreviewProjectFrameV3: (project_v3::SubmitV3Frame, CompositedProjectFrameJobResult, "preview.project_frame.v3"),
-    PreviewProjectRangeV3: (project_v3::SubmitV3Range, ProjectRangeJobResult, "preview.project_range.v3"),
-    RenderProjectAudioV4: (project_v4_audio::SubmitV4AudioWav, project_v4_audio::V4AudioWavResultV1, "render.project_audio.v4"),
-    RenderProjectAudioRangeV4: (project_v4_audio::SubmitV4AudioRangeWav, project_v4_audio::V4AudioRangeWavResultV1, "render.project_audio_range.v4"),
-    RenderProjectTextFrameV4: (project_v4_text_frame::SubmitV4TextFramePng, project_v4_text_frame::V4TextFramePngResultV2, "render.project_text_frame.v4"),
-    RenderProjectVideoV4: (project_v4_video::SubmitV4VideoMp4V1, project_v4_video::V4VideoMp4ResultV1, "render.project_video.v4"),
-    RenderProjectCaptionVideoV4: (project_v4_caption_video::SubmitV4CaptionVideoMp4V2, project_v4_caption_video::V4CaptionVideoMp4ResultV2, "render.project_caption_video.v4"),
-    RenderProjectGraphicVideoV4: (project_v4_graphic_video::SubmitV4GraphicVideoMp4V1, project_v4_graphic_video::V4GraphicVideoMp4ResultV1, "render.project_graphic_video.v4"),
-    RenderProjectMaskVideoV4: (project_v4_mask_video::SubmitV4MaskVideoMp4V1, project_v4_mask_video::V4MaskVideoMp4ResultV1, "render.project_mask_video.v4"),
-    RenderProjectBlendVideoV4: (project_v4_blend_video::SubmitV4BlendVideoMp4V1, project_v4_blend_video::V4BlendVideoMp4ResultV1, "render.project_blend_video.v4"),
-    RenderProjectGraphicFrameV4: (project_v4_graphic_frame::SubmitV4GraphicFramePng, project_v4_graphic_frame::V4GraphicFramePngResultV1, "render.project_graphic_frame.v4"),
-    RenderProjectSceneFrameV4: (project_v4_scene_frame::SubmitV4SceneFramePng, project_v4_scene_frame::V4SceneFramePngResultV1, "render.project_scene_frame.v4"),
-    RenderProjectSceneVideoV4: (project_v4_scene_video::SubmitV4SceneVideoMp4V1, project_v4_scene_video::V4SceneVideoMp4ResultV1, "render.project_scene_video.v4"),
-    ExportVideoV2: (export_video_v2::SubmitExportVideoV2, export_video_v2::ExportVideoResultV2, "render.export_video.v2"),
-    RenderProjectMaskFrameV4: (project_v4_mask_frame::SubmitV4MaskFramePng, project_v4_mask_frame::V4MaskFramePngResultV1, "render.project_mask_frame.v4"),
-    RenderProjectBlendFrameV4: (project_v4_blend_frame::SubmitV4BlendFramePng, project_v4_blend_frame::V4BlendFramePngResultV1, "render.project_blend_frame.v4"),
-    RenderProjectCaptionFrameV4: (project_v4_caption_frame::SubmitV4CaptionFramePng, project_v4_caption_frame::V4CaptionFramePngResultV3, "render.project_caption_frame.v4"),
-    RenderProjectFrameV4: (project_v4_frame::SubmitV4FramePng, project_v4_frame::V4FramePngResultV1, "render.project_frame.v4"),
+    RenderProjectV3: (historical_visual::HistoricalVisualSubmitRender, ProjectRenderJobResult, "render.project.v3"),
+    PreviewProjectFrameV3: (historical_visual::HistoricalVisualSubmitFrame, CompositedProjectFrameJobResult, "preview.project_frame.v3"),
+    PreviewProjectRangeV3: (historical_visual::HistoricalVisualSubmitRange, ProjectRangeJobResult, "preview.project_range.v3"),
+    RenderProjectAudioV4: (scene_audio::SubmitAudioWav, scene_audio::AudioWavResult, "render.project_audio.v4"),
+    RenderProjectAudioRangeV4: (scene_audio::SubmitAudioRangeWav, scene_audio::AudioRangeWavResult, "render.project_audio_range.v4"),
+    RenderProjectTextFrameV4: (scene_text_frame::FrameRenderInput, scene_text_frame::TextFramePngResult, "render.project_text_frame.v4"),
+    RenderProjectVideoV4: (media_video::FixedVideoInput, media_video::MediaVideoMp4Result, "render.project_video.v4"),
+    RenderProjectCaptionVideoV4: (scene_caption_video::FixedVideoInput, scene_caption_video::CaptionVideoMp4Result, "render.project_caption_video.v4"),
+    RenderProjectGraphicVideoV4: (scene_graphic_video::FixedVideoInput, scene_graphic_video::GraphicVideoMp4Result, "render.project_graphic_video.v4"),
+    RenderProjectMaskVideoV4: (scene_mask_video::FixedVideoInput, scene_mask_video::MaskVideoMp4Result, "render.project_mask_video.v4"),
+    RenderProjectBlendVideoV4: (scene_blend_video::FixedVideoInput, scene_blend_video::BlendVideoMp4Result, "render.project_blend_video.v4"),
+    RenderProjectGraphicFrameV4: (scene_graphic_frame::FrameRenderInput, scene_graphic_frame::GraphicFramePngResult, "render.project_graphic_frame.v4"),
+    RenderProjectSceneFrameV4: (scene_frame::FrameRenderInput, scene_frame::SceneFramePngResult, "render.project_scene_frame.v4"),
+    RenderProjectSceneVideoV4: (scene_video::FixedVideoInput, scene_video::SceneVideoMp4Result, "render.project_scene_video.v4"),
+    AssetAnalysis: (asset_analysis::SubmitAssetAnalysis, asset_analysis::AssetAnalysisResult, "analysis.asset.v4"),
+    ExportVideoRangeV1: (export_video::SubmitExportVideoRange, export_video::ExportVideoRangeResult, "render.export_video_range.v1"),
+    ExportVideoV2: (export_video::SubmitExportVideo, export_video::ExportVideoResult, "render.export_video.v2"),
+    RenderProjectMaskFrameV4: (scene_mask_frame::FrameRenderInput, scene_mask_frame::MaskFramePngResult, "render.project_mask_frame.v4"),
+    RenderProjectBlendFrameV4: (scene_blend_frame::FrameRenderInput, scene_blend_frame::BlendFramePngResult, "render.project_blend_frame.v4"),
+    RenderProjectCaptionFrameV4: (scene_caption_frame::FrameRenderInput, scene_caption_frame::CaptionFramePngResult, "render.project_caption_frame.v4"),
+    RenderProjectFrameV4: (media_frame::FrameRenderInput, media_frame::MediaFramePngResult, "render.project_frame.v4"),
 }
 
 fn descriptor<I: JsonSchema, O: JsonSchema>(name: &str) -> JobKindDescriptor {
@@ -850,14 +846,13 @@ mod tests {
         assert_eq!(time["type"], "string");
 
         let descriptors = job_kind_descriptors();
-        assert_eq!(descriptors.len(), 21);
+        assert_eq!(descriptors.len(), 37);
         let audio_range = descriptors
             .iter()
-            .find(|d| d.name == project_v4_audio::V4_AUDIO_RANGE_WAV_KIND)
+            .find(|d| d.name == scene_audio::AUDIO_RANGE_WAV_KIND)
             .unwrap();
         assert_eq!(
-            audio_range.input_schema["$defs"]["V4AudioSampleRangeV1"]["properties"]["start_sample"]
-                ["type"],
+            audio_range.input_schema["$defs"]["AudioSampleRange"]["properties"]["start_sample"]["type"],
             "string"
         );
         assert!(
@@ -868,7 +863,7 @@ mod tests {
         );
         let classic_frame = descriptors
             .iter()
-            .find(|d| d.name == project_v4_frame::V4_FRAME_PNG_KIND)
+            .find(|d| d.name == media_frame::MEDIA_FRAME_PNG_KIND)
             .unwrap();
         assert!(
             classic_frame
@@ -926,7 +921,7 @@ pub struct MediaImportJobResult {
     pub asset: opencut_contracts::Asset,
 }
 
-pub mod project_v4_caption_frame;
-pub mod project_v4_graphic_frame;
+pub mod scene_caption_frame;
+pub mod scene_graphic_frame;
 
-pub mod project_v4_scene_video;
+pub mod scene_video;

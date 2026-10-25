@@ -1,10 +1,10 @@
 export { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
 import { requestEnvelope, OpenCutApiError, OpenCutProtocolError, OpenCutTransportError, type Envelope } from "./transport.js";
 export * from "./contracts.generated.js";
-import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap, type AudioPreviewPcmV4, type AudioPreviewStreamV4 } from "./contracts.generated.js";
+import { toolNames, domainNames, domainActions, type ToolMap, type DomainMap, type JobResultMap, type AudioPreviewPcm, type AudioPreviewTransport } from "./contracts.generated.js";
 
-export type AudioPreviewPcmHeaderV4 = AudioPreviewPcmV4.AudioPreviewPcmHeaderV4;
-export type AudioPreviewStreamInputV4 = AudioPreviewStreamV4.AudioPreviewStreamV4;
+export type AudioPreviewPcmHeader = AudioPreviewPcm.AudioPreviewPcmHeader;
+export type AudioPreviewStreamInput = AudioPreviewTransport.AudioPreviewStream;
 export type ToolName = keyof ToolMap;
 export type ToolInput<N extends ToolName> = ToolMap[N]["input"];
 export type ToolOutput<N extends ToolName> = ToolMap[N]["output"];
@@ -14,38 +14,16 @@ export type DomainInput<D extends DomainName, A extends DomainAction<D>> =
   DomainMap[D][A] extends { input: infer I } ? I : never;
 export type DomainOutput<D extends DomainName, A extends DomainAction<D>> =
   DomainMap[D][A] extends { output: infer O } ? O : never;
-export type Job = ToolOutput<"opencut_job_get">;
-export type PublicJob = ToolOutput<"opencut_job_view">;
+export type Job = ToolOutput<"opencut_job_view">;
 export type HostCapabilities = Extract<ToolOutput<"opencut_resource_read">["payload"], {kind: "capabilities"}>["data"];
-export type ArtifactReference = PublicJob["artifacts"][number];
-export type PublicJobResult = NonNullable<PublicJob["result"]>;
-type LegacyPublicResultMap = { [R in PublicJobResult as R["kind"]]: R["data"] };
-export type PublicResultMap = LegacyPublicResultMap & Pick<JobResultMap,
-  "media.import" | "analysis.transcribe" | "analysis.silence" | "analysis.shots" | "analysis.waveform" | "analysis.speaker_turns" | "render.project_audio.v4" | "render.project_audio_range.v4" | "render.project_frame.v4" | "render.project_text_frame.v4" | "render.project_caption_frame.v4" | "render.project_graphic_frame.v4" | "render.project_scene_frame.v4" | "render.project_scene_video.v4" | "render.export_video.v2" | "render.project_mask_frame.v4" | "render.project_blend_frame.v4" | "render.project_mask_video.v4" | "render.project_blend_video.v4" | "render.project_graphic_video.v4" | "analysis.sequence_transcribe.v4" | "render.project_video.v4"> & {
-  "render.project.v3": LegacyPublicResultMap["render.project"];
-  "preview.project_frame.v3": LegacyPublicResultMap["preview.composited_frame"];
-  "preview.project_range.v3": LegacyPublicResultMap["preview.project_range"];
-};
-const extendedPublicKinds = new Set<string>([
-  "media.import", "analysis.transcribe", "analysis.silence", "analysis.shots", "analysis.waveform", "analysis.speaker_turns",
-  "render.project.v3", "preview.project_frame.v3", "preview.project_range.v3",
-  "render.project_scene_frame.v4", "render.project_scene_video.v4", "render.export_video.v2", "render.project_mask_frame.v4", "render.project_mask_video.v4", "render.project_audio.v4", "render.project_audio_range.v4", "render.project_frame.v4", "render.project_text_frame.v4", "render.project_caption_frame.v4", "render.project_graphic_frame.v4", "render.project_blend_frame.v4", "render.project_blend_video.v4", "render.project_graphic_video.v4", "analysis.sequence_transcribe.v4", "render.project_video.v4",
-]);
-export function publicJobResult<K extends keyof PublicResultMap>(job: PublicJob, kind: K): PublicResultMap[K] {
-  if (job.state === "succeeded" && job.kind === kind && !job.result_unavailable) {
-    if (job.result?.kind === kind && !job.extended_result) return job.result.data as PublicResultMap[K];
-    const result = job.extended_result;
-    if (extendedPublicKinds.has(kind) && !job.result && result?.kind === kind &&
-      result.schema_version === 1 && object(result.data)) return result.data as PublicResultMap[K];
+export type ArtifactReference = Job["artifacts"][number];
+export type JobResult = NonNullable<Job["result"]>;
+/** Narrow the sole validated,portable result union. */
+export function jobResult<K extends keyof JobResultMap>(job:Job,kind:K):JobResultMap[K] {
+  if(job.state==="succeeded" && job.kind===kind && !job.result_unavailable && job.result?.kind===kind && job.result.data!=null) {
+    return job.result.data as JobResultMap[K];
   }
   throw new TypeError(`Expected an available successful ${kind} result.`);
-}
-/** Narrow a successful job result by its registered kind; rejects a wrong kind or unfinished job. */
-export function jobResult<K extends keyof JobResultMap>(job: Job, kind: K): JobResultMap[K] {
-  if (job.state !== "succeeded" || job.kind !== kind || job.result === null || job.result === undefined) {
-    throw new TypeError(`Expected a successful ${kind} job.`);
-  }
-  return job.result as JobResultMap[K];
 }
 export class JobWaitTimeoutError extends Error {
   readonly name = "JobWaitTimeoutError";
@@ -53,7 +31,7 @@ export class JobWaitTimeoutError extends Error {
   constructor(readonly jobId: string) { super(`Stopped waiting for ${jobId}; the job has not been cancelled.`); }
 }
 
-export class JobCompletionError<J extends Job | PublicJob = Job> extends Error {
+export class JobCompletionError<J extends Job = Job> extends Error {
   readonly name = "JobCompletionError";
   readonly code: "JOB_FAILED" | "JOB_CANCELLED";
   constructor(readonly job: J) {
@@ -114,6 +92,35 @@ export class OpenCutClient {
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
+  /** Editor helpers keep shared generated contracts and one-shot retry semantics. */
+  projectSummary(input: ToolInput<"opencut_project_summary">, options: CallOptions = {}) { return this.call("opencut_project_summary", input, options); }
+  timelineQuery(input: ToolInput<"opencut_project_timeline_query">, options: CallOptions = {}) { return this.call("opencut_project_timeline_query", input, options); }
+  planAgentEdit(input: ToolInput<"opencut_edit_agent_plan">, options: CallOptions = {}) { return this.call("opencut_edit_agent_plan", input, options); }
+  planRecipe(input: ToolInput<"opencut_edit_recipe_plan">, options: CallOptions = {}) { return this.call("opencut_edit_recipe_plan", input, options); }
+  renderRevision(input: ToolInput<"opencut_render_submit">, options: CallOptions = {}) { return this.call("opencut_render_submit", input, options); }
+  searchContent(input: ToolInput<"opencut_media_content_search">, options: CallOptions = {}) { return this.call("opencut_media_content_search", input, options); }
+  sourceEvidence(input: ToolInput<"opencut_source_art_evidence">, options: CallOptions = {}) { return this.call("opencut_source_art_evidence", input, options); }
+  planOutputEvidence(input: ToolInput<"opencut_quality_evidence_plan">, options: CallOptions = {}) { return this.call("opencut_quality_evidence_plan", input, options); }
+  inspectOutputQuality(input: ToolInput<"opencut_quality_inspect">, options: CallOptions = {}) { return this.call("opencut_quality_inspect", input, options); }
+  createReadOnlyProject(input: ToolInput<"opencut_project_readonly_create">, options: CallOptions = {}) { return this.call("opencut_project_readonly_create", input, options); }
+  async inspectEditorProject(input:ToolInput<"opencut_project_inspect">,options:CallOptions={}) {
+    const view=await this.call("opencut_project_inspect",input,options);
+    if(view.kind!=="editor")throw new Error("Project is read-only;its source is preserved.");
+    return view.snapshot;
+  }
+  async inspectReadOnlyProject(input:ToolInput<"opencut_project_inspect">,options:CallOptions={}) {
+    const result=await this.call("opencut_project_inspect",input,options);
+    if(result.kind!=="preserved")throw new Error("Project is not a preserved-effects document.");
+    return result.view;
+  }
+  readOnlyProjectManifest(input: ToolInput<"opencut_project_readonly_manifest">, options: CallOptions = {}) { return this.call("opencut_project_readonly_manifest", input, options); }
+  catalogSoundRecipe(input: ToolInput<"opencut_catalog_resources_recipe">, options: CallOptions = {}) { return this.call("opencut_catalog_resources_recipe", input, options); }
+  chooseProjectPackageLocation(input: ToolInput<"opencut_project_package_choose_location">, options: CallOptions = {}) { return this.call("opencut_project_package_choose_location", input, options); }
+  exportProjectPackage(input: ToolInput<"opencut_project_package_export">, options: CallOptions = {}) { return this.call("opencut_project_package_export", input, options); }
+  inspectProjectPackage(input: ToolInput<"opencut_project_package_inspect">, options: CallOptions = {}) { return this.call("opencut_project_package_inspect", input, options); }
+  importProjectPackage(input: ToolInput<"opencut_project_package_import">, options: CallOptions = {}) { return this.call("opencut_project_package_import", input, options); }
+  planPreset(input: ToolInput<"opencut_plugin_preset_plan">, options: CallOptions = {}) { return this.call("opencut_plugin_preset_plan", input, options); }
+  planProjectPlugin(input: ToolInput<"opencut_project_plugin_plan">, options: CallOptions = {}) { return this.call("opencut_project_plugin_plan", input, options); }
   async call<N extends ToolName>(name: N, input: ToolInput<N>, options: CallOptions = {}): Promise<ToolOutput<N>> {
     return (await this.callEnvelope(name, input, options)).data;
   }
@@ -153,7 +160,7 @@ export class OpenCutClient {
       throw new TypeError(`Unknown OpenCut domain action: ${domain}.${action}`);
     }
     const body = JSON.stringify({ action, input });
-    return this.#request<DomainOutput<D, A>>(`/v1/tools/opencut_${domain}`, "POST", body, "application/json", options);
+    return this.#request<DomainOutput<D, A>>(`/api/tools/opencut_${domain}`, "POST", body, "application/json", options);
   }
 
   /** Typed additive discovery; the original v1 capabilities tool schema stays frozen. */
@@ -168,20 +175,11 @@ export class OpenCutClient {
     options.signal?.throwIfAborted();
     // Serialize once before awaiting. Caller mutations cannot change an in-flight write.
     const body = JSON.stringify(input);
-    return this.#request<ToolOutput<N>>(`/v1/tools/${name}`, "POST", body, "application/json", options);
+    return this.#request<ToolOutput<N>>(`/api/tools/${name}`, "POST", body, "application/json", options);
   }
 
   /** Send one raw chunk. On an unknown outcome, inspect the confirmed offset before retrying. */
-  uploadChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_inspect">> {
-    return this.#putUploadChunk("uploads", uploadId, offset, bytes, options);
-  }
-
-  /** Same durable chunk protocol; the complete digest may still be undeclared. */
-  uploadStreamChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_stream_inspect">> {
-    return this.#putUploadChunk("stream-uploads", uploadId, offset, bytes, options);
-  }
-
-  async #putUploadChunk<T>(route: "uploads" | "stream-uploads", uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions): Promise<T> {
+  async uploadChunk(uploadId: string, offset: string, bytes: Uint8Array, options: CallOptions = {}): Promise<ToolOutput<"opencut_upload_inspect">> {
     options.signal?.throwIfAborted();
     if (!/^upload_[a-f0-9]{32}$/.test(uploadId) || !/^(0|[1-9][0-9]{0,10})$/.test(offset) ||
       bytes.byteLength < 1 || bytes.byteLength > 4194304 ||
@@ -190,8 +188,8 @@ export class OpenCutClient {
     const hash = Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", body)),
       b => b.toString(16).padStart(2, "0")).join("");
     const query = new URLSearchParams({ size_bytes: String(body.byteLength), content_hash: hash });
-    return (await this.#request<T>(
-      `/v1/${route}/${uploadId}/chunks/${offset}?${query}`, "PUT", body, "application/octet-stream", options,
+    return (await this.#request<ToolOutput<"opencut_upload_inspect">>(
+      `/api/uploads/${uploadId}/chunks/${offset}?${query}`, "PUT", body, "application/octet-stream", options,
     )).data;
   }
 
@@ -203,54 +201,46 @@ export class OpenCutClient {
     });
   }
 
-  /** Explicit durable cancellation; terminal state may still require waiting. */
-  cancelJob(jobId: string, options: CallOptions = {}): Promise<Job> {
-    return this.call("opencut_job_cancel", { job_id: jobId }, options);
-  }
-
-  /** Preferred task submission returns the public projection, with no execution inputs. */
-  submitJob(input: ToolInput<"opencut_job_submit">, options: CallOptions = {}): Promise<PublicJob> {
+  /** Submission/cancellation return the same portable task view as observation. */
+  submitJob(input: ToolInput<"opencut_job_submit">, options: CallOptions = {}): Promise<Job> {
     return this.call("opencut_job_submit", input, options);
   }
-  cancelPublicJob(jobId: string, options: CallOptions = {}): Promise<PublicJob> {
-    return this.call("opencut_job_request_cancel", { job_id: jobId }, options);
+  cancelJob(jobId:string,options:CallOptions={}):Promise<Job> {
+    return this.call("opencut_job_request_cancel",{job_id:jobId},options);
   }
-  waitForPublicJob(jobId: string, options: WaitOptions = {}): Promise<PublicJob> {
-    return this.wait(jobId, signal => this.call("opencut_job_view", { job_id: jobId }, { signal }), options);
-  }
-  waitForJob(jobId: string, options: WaitOptions = {}): Promise<Job> {
-    return this.wait(jobId, signal => this.call("opencut_job_get", { job_id: jobId }, { signal }), options);
+  waitForJob(jobId:string,options:WaitOptions={}):Promise<Job> {
+    return this.wait(jobId,signal=>this.call("opencut_job_view",{job_id:jobId},{signal}),options);
   }
   artifactUrl(reference: ArtifactReference): string {
     const id = `artifact:${reference.job_id}:${reference.content_hash}`;
     if (reference.artifact_id !== id || !/^artifact:job_[a-f0-9]{32}:[a-f0-9]{64}$/.test(id)) throw new TypeError("Invalid artifact reference");
-    return `${this.baseUrl}/v1/artifacts/${encodeURIComponent(id)}`;
+    return `${this.baseUrl}/api/artifacts/${encodeURIComponent(id)}`;
   }
   projectMediaUrl(resource: ToolOutput<"opencut_project_media_inspect">): string {
     if (!resource.project_id || !/^media_[a-f0-9]{32}$/.test(resource.media_id) ||
       resource.asset.uri !== `opencut-media://${resource.media_id}`) {
       throw new TypeError("Invalid project media resource");
     }
-    return `${this.baseUrl}/v1/projects/${encodeURIComponent(resource.project_id)}/media/${resource.media_id}/content`;
+    return `${this.baseUrl}/api/projects/${encodeURIComponent(resource.project_id)}/media/${resource.media_id}/content`;
   }
   /** Return authorized, hash-verified project media as a streaming response. */
   downloadProjectMedia(resource: ToolOutput<"opencut_project_media_inspect">, options: CallOptions = {}): Promise<Response> {
     return this.#downloadBytes(this.projectMediaUrl(resource), "project media", options);
   }
   /** Recompute the scoped URL; a descriptor cannot select an external URL or global CAS path. */
-  projectV4ResourceUrl(resource: ToolOutput<"opencut_project_v4_resource_inspect">): string {
+  projectResourceUrl(resource: ToolOutput<"opencut_project_resource_inspect">): string {
     const ids = [resource.project_id, resource.revision, resource.resource_id];
     if (ids.some(id => !id.trim() || new TextEncoder().encode(id).length > 1024 || /[\u0000-\u001f\u007f-\u009f]/u.test(id)) ||
       !["asset", "font"].includes(resource.kind) ||
       !/^[a-f0-9]{64}$/.test(resource.version.content_hash) ||
-      resource.version.id !== `av_${resource.version.content_hash}`) throw new TypeError("Invalid V4 resource descriptor");
+      resource.version.id !== `av_${resource.version.content_hash}`) throw new TypeError("Invalid project resource descriptor");
     const query = (id: string) => encodeURIComponent(id).replace(/[!'()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-    const path = `/v1/project-v4-resources/content?project_id=${query(resource.project_id)}&revision=${query(resource.revision)}&kind=${resource.kind}&resource_id=${query(resource.resource_id)}`;
-    if (resource.content_path !== path) throw new TypeError("V4 resource path differs from its scoped identity");
+    const path = `/api/project-resources/content?project_id=${query(resource.project_id)}&revision=${query(resource.revision)}&kind=${resource.kind}&resource_id=${query(resource.resource_id)}`;
+    if (resource.content_path !== path) throw new TypeError("Project resource path differs from its scoped identity");
     return `${this.baseUrl}${path}`;
   }
-  downloadProjectV4Resource(resource: ToolOutput<"opencut_project_v4_resource_inspect">, options: CallOptions = {}): Promise<Response> {
-    return this.#downloadBytes(this.projectV4ResourceUrl(resource), "V4 resource", options);
+  downloadProjectResource(resource: ToolOutput<"opencut_project_resource_inspect">, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(this.projectResourceUrl(resource), "project resource", options);
   }
   /** Return a streaming response. The server verifies the published hash before serving bytes. */
   downloadArtifact(reference: ArtifactReference, options: CallOptions = {}): Promise<Response> {
@@ -259,19 +249,44 @@ export class OpenCutClient {
   /** Claim the current owner generation's continuous fMP4 stream. Cancel the response body to disconnect. */
   openPreviewStream(session: Pick<ToolOutput<"opencut_preview_create">, "session_id" | "generation" | "owner_id" | "lease_id">, options: CallOptions = {}): Promise<Response> {
     const { session_id, generation, owner_id, lease_id } = session;
-    return this.#downloadBytes(`${this.baseUrl}/v1/preview/stream`, "preview stream", options,
+    return this.#downloadBytes(`${this.baseUrl}/api/preview/stream`, "preview stream", options,
       JSON.stringify({ session_id, generation, owner_id, lease_id }));
   }
-  /** Open the bounded pre-master PCM stream for one fixed V4 audio generation.
+  /** Open the bounded pre-master PCM stream for one fixed audio generation.
    * Consumer reports return server-authored Time; queued frames are not playback. */
-  openV4AudioPreviewStream(session: Pick<ToolOutput<"opencut_audio_preview_v4_create">, "session_id" | "generation" | "overlay_epoch" | "owner_id" | "lease_id">, options: CallOptions = {}): Promise<Response> {
+  openAudioPreviewStream(session: Pick<ToolOutput<"opencut_audio_preview_create">, "session_id" | "generation" | "overlay_epoch" | "owner_id" | "lease_id">, options: CallOptions = {}): Promise<Response> {
     const { session_id, generation, overlay_epoch, owner_id, lease_id } = session;
-    return this.#downloadBytes(`${this.baseUrl}/v1/preview/v4/audio/stream`, "V4 audio preview stream", options,
+    return this.#downloadBytes(`${this.baseUrl}/api/preview/audio/stream`, "audio preview stream", options,
       JSON.stringify({ session_id, generation, overlay_epoch, owner_id, lease_id }));
   }
-  /** Download a locked font authorized by the current V4 preview owner and generation. */
-  downloadVisualPreviewFontV2(input: ToolInput<"opencut_visual_preview_v4_font_authorize">, options: CallOptions = {}): Promise<Response> {
-    return this.#downloadBytes(`${this.baseUrl}/v1/preview/v4/visual-font/stream`, "V4 visual preview font", options, JSON.stringify(input));
+  /** Download a locked font authorized by the current preview owner and generation. */
+  downloadVisualPreviewFont(input: ToolInput<"opencut_visual_preview_font_authorize">, options: CallOptions = {}): Promise<Response> {
+    return this.#downloadBytes(`${this.baseUrl}/api/preview/visual-font/stream`, "visual preview font", options, JSON.stringify(input));
+  }
+  /** Read one bounded interval; identity and authority remain on the host. */
+  async readVisualPreviewResource(input: ToolInput<"opencut_visual_preview_resource_read">, options: CallOptions = {}): Promise<{ offset: string; eof: boolean; bytes: Uint8Array }> {
+    if (!/^(0|[1-9][0-9]*)$/.test(input.offset) || !Number.isInteger(input.count) || input.count < 1 || input.count > 512 * 1024)
+      throw new TypeError("Invalid bounded visual resource range");
+    const response = await this.#downloadBytes(`${this.baseUrl}/api/preview/visual-resource/read`, "visual resource range", options, JSON.stringify(input));
+    const offset = response.headers.get("x-opencut-resource-offset"), eof = response.headers.get("x-opencut-resource-eof");
+    if (offset !== input.offset || (eof !== "true" && eof !== "false") || response.headers.get("content-type") !== "application/octet-stream") {
+      await response.body?.cancel();
+      throw new TypeError("Visual resource interval changed identity");
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new TypeError("Visual resource bytes unavailable");
+    const bytes = new Uint8Array(input.count); let length = 0;
+    try {
+      for (;;) {
+        options.signal?.throwIfAborted();
+        const item = await reader.read();
+        if (item.done) break;
+        if (item.value.length > input.count - length) throw new TypeError("Visual resource range exceeded its bound");
+        bytes.set(item.value, length); length += item.value.length;
+      }
+      if (length !== input.count) throw new TypeError("Visual resource range changed length");
+      return { offset, eof: eof === "true", bytes };
+    } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
   }
   async #downloadBytes(url: string, kind: string, options: CallOptions, body?: string): Promise<Response> {
     options.signal?.throwIfAborted();
@@ -293,14 +308,14 @@ export class OpenCutClient {
         if (!(cause instanceof SyntaxError)) throw new OpenCutTransportError(cause);
         throw new OpenCutProtocolError(`Invalid ${kind} error response.`, response.status);
       }
-      if (object(value) && value.api_version === "1" && typeof value.request_id === "string" && object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string" && Array.isArray(value.warnings) && value.warnings.every(w => typeof w === "string")) {
+      if (object(value) && typeof value.request_id === "string" && object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string" && Array.isArray(value.warnings) && value.warnings.every(w => typeof w === "string")) {
         throw new OpenCutApiError(value.error.code, value.error.message, value.error.details, response.status, value.request_id, value.warnings);
       }
       throw new OpenCutProtocolError(`Invalid ${kind} response.`, response.status);
     }
     return response;
   }
-  private async wait<J extends Job | PublicJob>(jobId: string, read: (signal: AbortSignal) => Promise<J>, options: WaitOptions): Promise<J> {
+  private async wait<J extends Job>(jobId: string, read: (signal: AbortSignal) => Promise<J>, options: WaitOptions): Promise<J> {
     const timeout = options.timeoutMs ?? 30_000;
     const interval = options.pollIntervalMs ?? 200;
     if (!Number.isFinite(timeout) || timeout < 0 || timeout > 2_147_483_647

@@ -1,0 +1,43 @@
+.editor-canvas-transform {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.editor-canvas-transform svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+.editor-canvas-transform [data-transform-handle] {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: move;
+  fill: #ffe1a4;
+  stroke: #805a15;
+}
+.editor-canvas-transform polygon[data-transform-handle] {
+  fill: none;
+  stroke: transparent;
+}
+.editor-canvas-transform [data-transform-handle="resize"] {
+  cursor: nwse-resize;
+}
+.editor-canvas-transform [data-transform-handle="rotate"] {
+  cursor: grab;
+}
+.editor-canvas-transform-status {
+  position: absolute;
+  bottom: 0.3rem;
+  left: 0.5rem;
+  max-width: 90%;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--panel);
+  color: var(--muted);
+}
+.editor-content-hit-surface {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+}

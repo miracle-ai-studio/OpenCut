@@ -1,7 +1,7 @@
 use opencut_sdk::{
     Client, Error, WaitOptions,
     api::{self, tools},
-    job_result, jobs, media,
+    job_kinds, job_result, media, project,
 };
 use serde_json::{Value, json};
 use std::{
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let bad_client = Client::new(base, "wrong-token")?;
     assert!(
-        matches!(bad_client.call::<tools::ProjectList>(&api::EmptyInput {}), Err(Error::Api(failure)) if failure.status == 403 && failure.error.code == "NOT_AUTHORIZED")
+        matches!(bad_client.call::<tools::ProjectList>(&project::project_catalog::LibraryInput {cursor:None,limit:1}), Err(Error::Api(failure)) if failure.status == 403 && failure.error.code == "NOT_AUTHORIZED")
     );
     checks.push("typed discovery and structured authentication failure");
     let create = serde_json::from_value(fixture["create"].clone())?;
@@ -69,17 +69,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut request = fixture["request"].clone();
     request["expected_revision"] = json!(created.revision);
     request["operations"] = fixture["operations"].clone();
-    let edit: api::EditInput =
-        serde_json::from_value(json!({"project_id": created.project.id, "request": request}))?;
+    request["project_id"] = json!(created.project_id);
+    let edit: project::project_public::ApplyProject = serde_json::from_value(request)?;
+    let initial =
+        client.call::<tools::ProjectInspect>(&project::project_inspection::InspectProject {
+            project_id: created.project_id.clone(),
+            revision: Some(created.revision.clone()),
+        })?;
+    assert!(matches!(
+        &initial,
+        project::project_inspection::ProjectInspection::Editor { .. }
+    ));
     client.call::<tools::EditPlan>(&edit)?;
     assert_eq!(
         cli(
             binary,
             database,
             "opencut_project_inspect",
-            json!({"project_id": created.project.id})
+            json!({"project_id": created.project_id})
         ),
-        json!(created)
+        json!(initial)
     );
     checks
         .push("shared conformance fixture, idempotent creation and read-only plan verified by CLI");
@@ -91,21 +100,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         binary,
         database,
         "opencut_project_inspect",
-        json!({"project_id": created.project.id}),
+        json!({"project_id": created.project_id}),
     );
-    assert_ne!(committed["revision"], json!(created.revision));
+    assert_ne!(committed["snapshot"]["revision"], json!(created.revision));
     let applied = proxy_client.call::<tools::EditApply>(&edit)?;
-    assert_eq!(json!(applied.revision), committed["revision"]);
+    assert_eq!(json!(applied.revision), committed["snapshot"]["revision"]);
     assert_eq!(client.call::<tools::EditApply>(&edit)?, applied);
     checks.push("real lost response after commit; identical replay returns original transaction");
     let mut stale = edit.clone();
-    stale.request.idempotency_key = "sdk-stale".into();
-    stale.request.operations = serde_json::from_value(fixture["conflicting_operations"].clone())?;
+    stale.idempotency_key = "sdk-stale".into();
+    stale.operations = serde_json::from_value(fixture["conflicting_operations"].clone())?;
     assert!(
         matches!(client.call::<tools::EditApply>(&stale), Err(Error::Api(failure)) if failure.error.code == fixture["expected_conflict"]["code"].as_str().unwrap() && failure.status == 409 && !failure.request_id.is_empty())
     );
     let mut reused = edit.clone();
-    reused.request.operations = stale.request.operations;
+    reused.operations = stale.operations;
     assert!(
         matches!(client.call::<tools::EditApply>(&reused), Err(Error::Api(failure)) if failure.error.code == "IDEMPOTENCY_KEY_REUSED")
     );
@@ -114,34 +123,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             binary,
             database,
             "opencut_project_inspect",
-            json!({"project_id": created.project.id})
+            json!({"project_id": created.project_id})
         ),
         committed
     );
     checks.push("revision and idempotency conflicts preserve current head");
-    let events = client.call::<tools::EventsRead>(&api::EventsInput {
-        after_sequence: 0,
+    let event_input = api::event_stream::EventChangesInput {
+        scope: api::event_stream::EventScope::Projects {
+            project_id: Some(created.project_id.clone()),
+        },
+        cursor: None,
         limit: 100,
-    })?;
+    };
+    let events = client.call::<tools::EventChanges>(&event_input)?;
     assert_eq!(
         json!(events),
         cli(
             binary,
             database,
-            "opencut_events_read",
-            json!({"after_sequence":0})
+            "opencut_event_changes",
+            json!(event_input)
         )
     );
     assert_eq!(
         events
+            .events
             .iter()
-            .filter(|e| e.revision == applied.revision)
+            .filter(|entry| matches!(&entry.event,
+        api::event_stream::EventData::Project(event) if event.revision == applied.revision))
             .count(),
         1
     );
     checks.push("event cursor and single commit agree with CLI");
     assert!(Path::new(wave).is_file());
-    let accepted = client.call::<tools::JobStart>(&jobs::JobStartInput::Probe {
+    let accepted = client.call::<tools::JobSubmit>(&api::job_submission::SubmitJob::Probe {
         idempotency_key: "rust-sdk-probe".into(),
         input: media::ProbeRequest {
             input: wave.clone(),
@@ -176,48 +191,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let completed = client.wait_for_job(&accepted.job_id, WaitOptions::default())?;
     assert!(!completed.cancel_requested);
-    let metadata = job_result::<jobs::kinds::MediaProbe>(&completed)?;
+    let metadata = job_result::<job_kinds::Probe>(&completed)?;
     assert!(
         metadata
             .streams
             .iter()
             .any(|s| s.codec_type == media::StreamKind::Audio)
     );
-    assert!(job_result::<jobs::kinds::RenderProject>(&completed).is_err());
+    assert!(job_result::<job_kinds::ProjectRender>(&completed).is_err());
     assert_eq!(
         json!(completed),
         cli(
             binary,
             database,
-            "opencut_job_get",
+            "opencut_job_view",
             json!({"job_id":accepted.job_id})
         )
     );
     checks.push("real worker result, local timeout and observation cancellation never cancel the durable task");
-    let public = client.wait_for_public_job(&accepted.job_id, WaitOptions::default())?;
     assert!(matches!(
-        public.result,
-        Some(api::job_views::JobResultView::Probe(_))
+        completed.result,
+        Some(api::job_results::JobResultView::Probe(_))
     ));
-    assert!(!serde_json::to_string(&public)?.contains(database));
-    assert_eq!(
-        client.cancel_public_job(cancelled_id)?.state,
-        api::JobState::Cancelled
-    );
-    assert!(matches!(
-        client.wait_for_public_job(cancelled_id, WaitOptions::default()),
-        Err(Error::PublicJobCancelled(_))
-    ));
-    checks
-        .push("public task wait and cancellation return typed views without internal task fields");
-    let failed = client.call::<tools::JobStart>(&jobs::JobStartInput::Probe {
+    assert!(!serde_json::to_string(&completed)?.contains(database));
+    let failed = client.call::<tools::JobSubmit>(&api::job_submission::SubmitJob::Probe {
         idempotency_key: "rust-sdk-missing".into(),
         input: media::ProbeRequest {
             input: format!("{database}.missing"),
         },
     })?;
     assert!(
-        matches!(client.wait_for_job(&failed.job_id, WaitOptions::default()), Err(Error::JobFailed(record)) if record.error.is_some())
+        matches!(client.wait_for_job(&failed.job_id, WaitOptions::default()), Err(Error::JobFailed(record)) if record.failure.is_some())
     );
     assert_eq!(
         client.cancel_job(cancelled_id)?.state,

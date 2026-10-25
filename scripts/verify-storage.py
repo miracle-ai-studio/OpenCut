@@ -73,7 +73,7 @@ def verify(binary,root,sdk):
     with socket.create_connection(('127.0.0.1',port),timeout=.2):break
    except OSError:assert time.monotonic()<deadline;time.sleep(.03)
   def request(data,credential=token):
-   c=http.client.HTTPConnection('127.0.0.1',port,timeout=15);c.request('POST','/v1/tools/opencut_storage_inspect',json.dumps(data),{'Content-Type':'application/json','Authorization':'Bearer '+credential.read_text().strip()});response=c.getresponse();out=json.loads(response.read());c.close();trace.append({'http':response.status,'response':out});return response.status,out
+   c=http.client.HTTPConnection('127.0.0.1',port,timeout=15);c.request('POST','/api/tools/opencut_storage_inspect',json.dumps(data),{'Content-Type':'application/json','Authorization':'Bearer '+credential.read_text().strip()});response=c.getresponse();out=json.loads(response.read());c.close();trace.append({'http':response.status,'response':out});return response.status,out
   code,r=request({'max_entries':2});assert code==200 and r['data']['stop_reason']=='entry_limit';code,r=request({},agent);assert code==403 and r['error']['code']=='NOT_AUTHORIZED'
   checks.append('CLI/HTTP owner inspection and scoped principal refusal share contract; denied inspection is correlated in existing audit')
   # Race an actual directory with a link to external sensitive bytes while the server scans.

@@ -12,12 +12,12 @@ pub use audio_pcm::{
 };
 mod backend;
 mod caption;
-mod composition_v3;
 mod dto;
 mod error;
+mod historical_visual_composition;
 pub mod packet_rate;
-pub use opencut_media_contracts::{CLASSIC_PACKET_RATE_METADATA_KEY_V1, ClassicPacketRateV1};
-pub use packet_rate::{ClassicPacketRateConfig, run_classic_packet_rate_v1};
+pub use opencut_media_contracts::{CLASSIC_PACKET_RATE_METADATA_KEY, ClassicPacketRate};
+pub use packet_rate::{ClassicPacketRateConfig, run_classic_packet_rate};
 mod preview_stream;
 mod process;
 mod speaker_turns;

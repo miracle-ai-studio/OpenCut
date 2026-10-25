@@ -18,7 +18,7 @@ function validateGraphic(plan) {
   else if(g.kind==='star') {finite(g.points,'star points');finite(g.depthPercent,'star depth');}
   else if(g.kind!=='ellipse') reject('INVALID_VISUAL_PLAN','Unsupported graphic geometry');
 }
-export function graphicPathV1(plan) {
+export function graphicPath(plan) {
   validateGraphic(plan);const width=plan.sourceWidth,height=plan.sourceHeight,stroke=plan.stroke;
   const inset=stroke.align==='center'?stroke.widthPx/2:0,g=plan.geometry;
   if (!g) reject('INVALID_VISUAL_PLAN','Missing graphic geometry');
@@ -58,7 +58,7 @@ function sourceBounds(plan) {
   integer(offset,'graphic outside padding',0,16384);
   return {width:integer(plan.sourceWidth+offset*2,'graphic raster width',1,16384),height:integer(plan.sourceHeight+offset*2,'graphic raster height',1,16384),originX:offset,originY:offset};
 }
-export function graphicSourceLayoutV1(plan, admission) {
+export function graphicSourceLayout(plan, admission) {
   validateGraphic(plan);
   const layout=sourceBounds(plan),pixels=BigInt(layout.width)*BigInt(layout.height);
   // Main source plus simultaneous outside-stroke scratch. GPU textures are
@@ -70,9 +70,9 @@ export function graphicSourceLayoutV1(plan, admission) {
 
 // Called only after the complete layout admission above. Canvas creation is
 // injected so the frame owner can track and release every admitted allocation.
-export function paintGraphicSourceV1(ctx, plan, createCanvas, signal, Path=globalThis.Path2D) {
+export function paintGraphicSource(ctx, plan, createCanvas, signal, Path=globalThis.Path2D) {
   checkAbort(signal);
-  const commands=graphicPathV1(plan),layout=sourceBounds(plan);
+  const commands=graphicPath(plan),layout=sourceBounds(plan);
   if(typeof Path!=='function') reject('CAPABILITY_UNAVAILABLE','Graphic Path2D unavailable');
   if(ctx.canvas.width!==layout.width || ctx.canvas.height!==layout.height) reject('INVALID_VISUAL_PLAN','Graphic canvas size differs from admission');
   const path=new Path();for(const [name,...args] of commands) path[name](...args);
@@ -94,12 +94,12 @@ export function paintGraphicSourceV1(ctx, plan, createCanvas, signal, Path=globa
     checkAbort(signal);return ctx.canvas;
   } finally {ctx.restore();}
 }
-export function rasterizeGraphicSourceV1(plan, admission, createCanvas, signal, Path=globalThis.Path2D) {
-  checkAbort(signal);const {peakRgbaBytes,...layout}=graphicSourceLayoutV1(plan,admission);
+export function rasterizeGraphicSource(plan, admission, createCanvas, signal, Path=globalThis.Path2D) {
+  checkAbort(signal);const {peakRgbaBytes,...layout}=graphicSourceLayout(plan,admission);
   const canvas=createCanvas(layout.width,layout.height);let complete=false;
   try {
     const ctx=canvas.getContext('2d');if(!ctx) reject('CAPABILITY_UNAVAILABLE','Graphic source canvas unavailable');
-    paintGraphicSourceV1(ctx,plan,createCanvas,signal,Path);complete=true;
+    paintGraphicSource(ctx,plan,createCanvas,signal,Path);complete=true;
     return {canvas,...layout};
   } finally {if(!complete){canvas.width=0;canvas.height=0;}}
 }
@@ -110,8 +110,12 @@ export function rasterizeGraphicSourceV1(plan, admission, createCanvas, signal, 
 // decoded video canvases may mutate and must never use that path.
 const retainedGraphicSources = new WeakSet();
 const graphicSourceCaches = new WeakMap();
-export const isRetainedGraphicSourceV1 = source => retainedGraphicSources.has(source);
-export function clearGraphicSourceCacheV1(realm) {
+export const isRetainedGraphicSource = source => retainedGraphicSources.has(source);
+export function retainedGraphicRgbaBytes(realm) {
+  const entries = realm && graphicSourceCaches.get(realm)?.entries;
+  return [...entries?.values() ?? []].reduce((bytes, { source }) => bytes + source.width * source.height * 16, 0);
+}
+export function clearGraphicSourceCache(realm) {
   const cache = realm && graphicSourceCaches.get(realm);
   if (!cache) return;
   for (const { source } of cache.entries.values()) {
@@ -123,14 +127,14 @@ export function clearGraphicSourceCacheV1(realm) {
 
 // Called before any frame source allocation. Admission includes every current
 // raster, hit or miss; obsolete entries are destroyed before that reservation.
-export function prepareGraphicSourcesV1(realm, plan, admission) {
+export function prepareGraphicSources(realm, plan, admission) {
   const limits = { maxPixels: admission.maxDecodedPixels, maxRasterBytes: admission.maxRgbaBytes };
-  const layouts = plan.graphics.map(layer => graphicSourceLayoutV1(layer.graphic, limits));
+  const layouts = plan.graphics.map(layer => graphicSourceLayout(layer.graphic, limits));
   const keys = new Map(plan.graphics.map(layer => [layer.elementId, JSON.stringify(layer.graphic)]));
   let cache;
   if (realm?.device && !realm.closed) {
     const scope = JSON.stringify([plan.identity.projectId, plan.identity.revision, plan.identity.sequenceId]);
-    if (graphicSourceCaches.get(realm)?.scope !== scope) clearGraphicSourceCacheV1(realm);
+    if (graphicSourceCaches.get(realm)?.scope !== scope) clearGraphicSourceCache(realm);
     if (!graphicSourceCaches.has(realm)) graphicSourceCaches.set(realm, { scope, entries: new Map() });
     cache = graphicSourceCaches.get(realm).entries;
     for (const [id, entry] of cache) {
@@ -143,11 +147,11 @@ export function prepareGraphicSourcesV1(realm, plan, admission) {
   }
   return { layouts, keys, cache };
 }
-export function resolveGraphicSourceV1(prepared, layer, admission, createCanvas, signal, Path) {
+export function resolveGraphicSource(prepared, layer, admission, createCanvas, signal, Path) {
   checkAbort(signal);
   const previous = prepared.cache?.get(layer.elementId);
   if (previous) return previous.source;
-  const source = rasterizeGraphicSourceV1(layer.graphic, admission, createCanvas, signal, Path);
+  const source = rasterizeGraphicSource(layer.graphic, admission, createCanvas, signal, Path);
   if (prepared.cache) {
     Object.freeze(source);
     retainedGraphicSources.add(source);

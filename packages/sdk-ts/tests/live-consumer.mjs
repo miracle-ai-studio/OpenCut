@@ -19,7 +19,7 @@ function cli(name, input) {
 let proxy;
 try {
   const capability = await client.callEnvelope("opencut_capabilities", {});
-  assert.equal(capability.api_version, "1"); assert.ok(capability.request_id);
+  assert.ok(capability.request_id);
   assert.ok(toolNames.includes("opencut_media_repair"));
   check("installed package calls authenticated discovery and retains response identity");
   const unauthorized = new OpenCutClient({ baseUrl, token: "incorrect" });
@@ -28,16 +28,19 @@ try {
 
   const created = await client.call("opencut_project_create", fixture.create);
   assert.deepEqual(await client.call("opencut_project_create", fixture.create), created);
-  assert.deepEqual(await client.callDomain("project", "inspect", { project_id: created.project.id }), created);
-  const domainEnvelope = await client.callDomainEnvelope("project", "inspect", { project_id: created.project.id });
+  const initial=await client.inspectEditorProject({project_id:created.project_id,revision:created.revision});
+  assert.equal(initial.revision,created.revision);
+  const view={kind:"editor",snapshot:initial};
+  assert.deepEqual(await client.callDomain("project", "inspect", { project_id: created.project_id }), view);
+  const domainEnvelope = await client.callDomainEnvelope("project", "inspect", { project_id: created.project_id });
   assert.ok(domainEnvelope.request_id);
-  assert.deepEqual(domainEnvelope.data, created);
-  check("installed SDK domain action and envelope match the legacy project read");
-  const edit = { project_id: created.project.id, request: {
+  assert.deepEqual(domainEnvelope.data, view);
+  check("installed SDK domain action and envelope match the canonical project view");
+  const edit = { project_id: created.project_id,
     ...fixture.request, expected_revision: created.revision, operations: fixture.operations,
-  } };
+  };
   await client.call("opencut_edit_plan", edit);
-  assert.deepEqual(cli("opencut_project_inspect", { project_id: created.project.id }), created);
+  assert.deepEqual(cli("opencut_project_inspect", { project_id: created.project_id }), view);
   check("shared fixture creates idempotently and planning is read-only by independent CLI readback");
 
   // Real HTTP forwarder: the authoritative host commits, then the response is lost.
@@ -58,7 +61,7 @@ try {
         writeCount++;
         if (dropWrite) { dropWrite = false; res.destroy(); return; }
       }
-      if (delayReads && tool === "opencut_job_get") await new Promise(resolve => setTimeout(resolve, 250));
+      if (delayReads && tool === "opencut_job_view") await new Promise(resolve => setTimeout(resolve, 250));
       res.writeHead(forwarded.status, { "Content-Type": "application/json" });
       res.end(text);
     } catch (error) { res.destroy(error); }
@@ -67,66 +70,66 @@ try {
   const throughProxy = new OpenCutClient({ baseUrl: `http://127.0.0.1:${proxy.address().port}`, token });
   await assert.rejects(throughProxy.call("opencut_edit_apply", edit), error => error instanceof OpenCutTransportError && error.outcome === "unknown");
   assert.equal(writeCount, 1);
-  const committed = cli("opencut_project_inspect", { project_id: created.project.id });
-  assert.notEqual(committed.revision, created.revision);
+  const committed = cli("opencut_project_inspect", { project_id: created.project_id });
+  assert.notEqual(committed.snapshot.revision, created.revision);
   const applied = await throughProxy.call("opencut_edit_apply", edit);
-  assert.equal(applied.revision, committed.revision);
+  assert.equal(applied.revision, committed.snapshot.revision);
   assert.deepEqual(await client.call("opencut_edit_apply", edit), applied);
   assert.equal(writeCount, 2);
   assert.deepEqual(traces.filter(t => t.tool === "opencut_edit_apply").map(t => t.input), [edit, edit]);
   check("commit followed by real connection loss has no automatic retry; exact manual replay returns original transaction");
 
-  const stale = { project_id: created.project.id, request: { ...edit.request,
+  const stale = { ...edit,
     idempotency_key: "sdk-stale", operations: fixture.conflicting_operations,
-  } };
+  };
   await assert.rejects(client.call("opencut_edit_apply", stale), error => {
     assert.ok(error instanceof OpenCutApiError);
     assert.equal(error.code, fixture.expected_conflict.code);
     assert.equal(error.status, fixture.expected_conflict.http_status);
     assert.ok(error.details); assert.ok(error.requestId); return true;
   });
-  assert.deepEqual(cli("opencut_project_inspect", { project_id: created.project.id }), committed);
-  const reused = structuredClone(edit); reused.request.operations = fixture.conflicting_operations;
+  assert.deepEqual(cli("opencut_project_inspect", { project_id: created.project_id }), committed);
+  const reused = structuredClone(edit); reused.operations = fixture.conflicting_operations;
   await assert.rejects(client.call("opencut_edit_apply", reused), error => error.code === "IDEMPOTENCY_KEY_REUSED");
   check("stale revision and reused key reject without revision refresh or unintended edits");
-  const events = await client.call("opencut_events_read", { after_sequence: 0 });
-  assert.deepEqual(events, cli("opencut_events_read", { after_sequence: 0 }));
+  const events = await client.call("opencut_event_changes", { after_sequence: 0 });
+  assert.deepEqual(events, cli("opencut_event_changes", { after_sequence: 0 }));
   assert.equal(events.filter(e => e.revision === applied.revision).length, 1);
-  const next = await client.call("opencut_events_read", { after_sequence: events.at(-1).sequence });
+  const next = await client.call("opencut_event_changes", { after_sequence: events.at(-1).sequence });
   assert.deepEqual(next, []);
   check("committed event cursor and CLI agree, duplicate submissions produce one commit");
 
   // A real WAV is generated by FFmpeg, then consumed by the real Worker through the SDK.
   const wave = `${database}.wav`;
   execFileSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-y", wave]);
-  const accepted = await client.call("opencut_job_start", { kind: "media.probe", idempotency_key: "sdk-probe", input: { input: wave } });
+  const accepted = await client.call("opencut_job_submit", { kind: "media.probe", idempotency_key: "sdk-probe", input: { input: wave } });
   delayReads = true;
   await assert.rejects(throughProxy.waitForJob(accepted.job_id, { timeoutMs: 20 }), JobWaitTimeoutError);
   const abort = new AbortController(), reason = new Error("consumer stopped observing");
   const timer = setTimeout(() => abort.abort(reason), 20);
   try { await assert.rejects(throughProxy.waitForJob(accepted.job_id, { signal: abort.signal }), error => error === reason); }
   finally { clearTimeout(timer); }
-  assert.ok(!traces.some(t => t.tool === "opencut_job_cancel"));
+  assert.ok(!traces.some(t => t.tool === "opencut_job_request_cancel"));
   const completed = await client.waitForJob(accepted.job_id, { timeoutMs: 15_000, pollIntervalMs: 50 });
   assert.equal(completed.state, "succeeded"); assert.equal(completed.cancel_requested, false);
   assert.ok(jobResult(completed, "media.probe").streams.some(s => s.codec_type === "audio"));
   assert.throws(() => jobResult(completed, "render.project"), TypeError);
-  assert.deepEqual(cli("opencut_job_get", { job_id: accepted.job_id }), completed);
+  assert.deepEqual(cli("opencut_job_view", { job_id: accepted.job_id }), completed);
   check("local wait timeout and caller abort do not cancel a real job; independent CLI confirms successful probe");
-  const publicJob = await client.waitForPublicJob(accepted.job_id, { timeoutMs: 15_000, pollIntervalMs: 50 });
+  const publicJob = await client.waitForJob(accepted.job_id, { timeoutMs: 15_000, pollIntervalMs: 50 });
   assert.equal(publicJob.state, "succeeded");
   assert.equal(publicJob.job_id, accepted.job_id);
   assert.equal(publicJob.kind, "media.probe");
   check("installed SDK waits through the public job projection on a real worker result");
 
-  const failed = await client.call("opencut_job_start", { kind: "media.probe", idempotency_key: "sdk-probe-fail", input: { input: `${database}.missing` } });
+  const failed = await client.call("opencut_job_submit", { kind: "media.probe", idempotency_key: "sdk-probe-fail", input: { input: `${database}.missing` } });
   await assert.rejects(client.waitForJob(failed.job_id, { timeoutMs: 15_000, pollIntervalMs: 50 }), error => error instanceof JobCompletionError && error.code === "JOB_FAILED" && error.job.error !== null);
   const cancelled = await client.cancelJob(cancelledId);
   assert.equal(cancelled.state, "cancelled");
   await assert.rejects(client.waitForJob(cancelledId), error => error instanceof JobCompletionError && error.code === "JOB_CANCELLED");
   check("failed and explicitly cancelled jobs retain terminal record and distinct error codes");
 
-  writeFileSync(reportPath, JSON.stringify({ status: "passed", checks, project_id: created.project.id, revision: applied.revision,
+  writeFileSync(reportPath, JSON.stringify({ status: "passed", checks, project_id: created.project_id, revision: applied.revision,
     transaction: applied, jobs: [accepted.job_id, failed.job_id, cancelledId], traces }, null, 2));
 } finally {
   if (proxy) { proxy.closeAllConnections(); await new Promise(resolve => proxy.close(resolve)); }

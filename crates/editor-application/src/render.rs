@@ -1,67 +1,114 @@
-//! Fixed-revision render preflight orchestration; execution is a capability port.
-use crate::access::{ProjectExecutionRead, SourceAccess};
+//! One fixed-revision preflight; actual stored content selects the existing executor.
+use crate::access::SourceAccess;
+use crate::media_video_jobs::AuthorizedVideoSnapshot;
 pub use opencut_api_contracts::render::{
     PreflightIssue, ProjectPreflightReport, RenderPreflightInput,
 };
-use opencut_contracts::{EditorError, ProjectSnapshot};
-use opencut_media_contracts::{Container, VideoCodec};
+use opencut_contracts::{
+    EditorError, ProjectSnapshot, historical_visual::HistoricalVisualSnapshot,
+};
+
+/// Historical readers stay internal to execution; callers never choose a generation.
+pub enum PreflightSource {
+    Historical(ProjectSnapshot),
+    HistoricalVisual(HistoricalVisualSnapshot),
+    Editor(AuthorizedVideoSnapshot),
+}
+impl PreflightSource {
+    fn scope(&self) -> (&str, &str) {
+        match self {
+            Self::Historical(s) => (&s.project.id, &s.revision),
+            Self::HistoricalVisual(s) => (&s.project.base.id, &s.revision),
+            Self::Editor(s) => (&s.snapshot.project.id, &s.snapshot.revision),
+        }
+    }
+    fn historical_base(&self) -> Option<ProjectSnapshot> {
+        match self {
+            Self::Historical(s) => Some(s.clone()),
+            Self::HistoricalVisual(s) => Some(ProjectSnapshot {
+                project: s.project.base.clone(),
+                revision: s.revision.clone(),
+            }),
+            Self::Editor(_) => None,
+        }
+    }
+    fn has_sequence(&self, sequence: &str) -> bool {
+        match self {
+            Self::Historical(s) => s.project.sequences.iter().any(|s| s.id == sequence),
+            Self::HistoricalVisual(s) => s.project.base.sequences.iter().any(|s| s.id == sequence),
+            Self::Editor(s) => s
+                .snapshot
+                .project
+                .sequences
+                .iter()
+                .any(|s| s.id == sequence),
+        }
+    }
+}
+pub struct AuthorizedPreflight {
+    pub source: PreflightSource,
+    pub sources: SourceAccess,
+}
+pub trait PreflightRead {
+    /// Read the actual fixed source, current run authority and host policy together.
+    fn read_preflight(
+        &self,
+        project: &str,
+        revision: &str,
+    ) -> Result<AuthorizedPreflight, EditorError>;
+}
 pub struct FixedPreflight {
-    pub snapshot: ProjectSnapshot,
-    pub sequence_id: String,
-    pub container: Container,
-    pub video_codec: VideoCodec,
+    pub source: PreflightSource,
+    pub input: RenderPreflightInput,
 }
 pub trait RenderPreflight {
     fn inspect(&self, request: FixedPreflight) -> Result<ProjectPreflightReport, EditorError>;
 }
+pub fn issue(input: &RenderPreflightInput, code: &str) -> ProjectPreflightReport {
+    ProjectPreflightReport {
+        revision: input.revision.clone(),
+        sequence_id: input.sequence_id.clone(),
+        ready: false,
+        issues: vec![PreflightIssue {
+            code: code.into(),
+            message: public_issue_message(code).into(),
+            asset_id: None,
+            clip_id: None,
+            cue_id: None,
+        }],
+    }
+}
 pub fn preflight(
-    projects: &impl ProjectExecutionRead,
+    projects: &impl PreflightRead,
     backend: &impl RenderPreflight,
     input: RenderPreflightInput,
 ) -> Result<ProjectPreflightReport, EditorError> {
-    let authorized = projects.execution_snapshot(&input.project_id, &input.revision)?;
-    if authorized.snapshot.project.id != input.project_id
-        || authorized.snapshot.revision != input.revision
-    {
+    let authorized = projects.read_preflight(&input.project_id, &input.revision)?;
+    if authorized.source.scope() != (&input.project_id[..], &input.revision[..]) {
         return Err(EditorError::new(
             "INTERNAL_ERROR",
             "Execution reader returned a different project or revision",
         ));
     }
-    let sources = authorized.sources;
-    if sources == SourceAccess::ProjectContent {
-        let required = match opencut_editor_core::dependencies::required_asset_ids(
-            &authorized.snapshot,
+    if !authorized.source.has_sequence(&input.sequence_id) {
+        return Ok(issue(&input, "SEQUENCE_NOT_FOUND"));
+    }
+    let restricted = authorized.sources == SourceAccess::ProjectContent;
+    if restricted && let Some(snapshot) = authorized.source.historical_base() {
+        let required = opencut_editor_core::dependencies::required_asset_ids(
+            &snapshot,
             &input.sequence_id,
             opencut_editor_core::dependencies::AssetScope::All,
-        ) {
-            Ok(ids) => ids,
-            Err(error) if error.code == "NOT_FOUND" => {
-                return Ok(ProjectPreflightReport {
-                    revision: input.revision,
-                    sequence_id: input.sequence_id,
-                    ready: false,
-                    issues: vec![PreflightIssue {
-                        code: "SEQUENCE_NOT_FOUND".into(),
-                        message: public_issue_message("SEQUENCE_NOT_FOUND").into(),
-                        asset_id: None,
-                        clip_id: None,
-                        cue_id: None,
-                    }],
-                });
-            }
-            Err(error) => return Err(error),
-        };
-        let issues: Vec<_> = authorized
-            .snapshot
+        )?;
+        let issues: Vec<_> = snapshot
             .project
             .assets
             .iter()
-            .filter(|asset| required.contains(&asset.id) && asset.version.is_none())
-            .map(|asset| PreflightIssue {
+            .filter(|a| required.contains(&a.id) && a.version.is_none())
+            .map(|a| PreflightIssue {
                 code: "ASSET_LOCK_REQUIRED".into(),
                 message: public_issue_message("ASSET_LOCK_REQUIRED").into(),
-                asset_id: Some(asset.id.clone()),
+                asset_id: Some(a.id.clone()),
                 clip_id: None,
                 cue_id: None,
             })
@@ -77,18 +124,10 @@ pub fn preflight(
     }
     let mut report = backend
         .inspect(FixedPreflight {
-            snapshot: authorized.snapshot,
-            sequence_id: input.sequence_id.clone(),
-            container: input.container,
-            video_codec: input.video_codec,
+            source: authorized.source,
+            input: input.clone(),
         })
-        .map_err(|error| {
-            if sources == SourceAccess::ProjectContent {
-                EditorError::new(&error.code, public_issue_message(&error.code))
-            } else {
-                error
-            }
-        })?;
+        .map_err(|error| EditorError::new(&error.code, public_issue_message(&error.code)))?;
     if report.revision != input.revision
         || report.sequence_id != input.sequence_id
         || report.ready != report.issues.is_empty()
@@ -98,10 +137,8 @@ pub fn preflight(
             "Preflight adapter returned an inconsistent fixed-revision report",
         ));
     }
-    if sources == SourceAccess::ProjectContent {
-        for issue in &mut report.issues {
-            issue.message = public_issue_message(&issue.code).into();
-        }
+    for issue in &mut report.issues {
+        issue.message = public_issue_message(&issue.code).into();
     }
     Ok(report)
 }
@@ -109,6 +146,9 @@ pub fn preflight(
 /// backend diagnostics that may contain filesystem locations or command lines.
 pub(crate) fn public_issue_message(code: &str) -> &'static str {
     match code {
+        "PROJECT_PROMOTION_REQUIRED" => {
+            "Promote this historical revision before submitting new renders"
+        }
         "SEQUENCE_NOT_FOUND" => "The requested sequence does not exist in this revision",
         "ASSET_LOCK_REQUIRED" => {
             "This sequence requires unversioned media; an owner must bind immutable content before scoped preflight"
@@ -138,20 +178,21 @@ pub(crate) fn public_issue_message(code: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::access::ExecutionSnapshot;
+
     use opencut_contracts::{CreateProject, FrameRate};
+    use opencut_media_contracts::{Container, VideoCodec};
     use std::cell::Cell;
     struct Reader {
         scope: SourceAccess,
         deny: bool,
         legacy: bool,
     }
-    impl ProjectExecutionRead for Reader {
-        fn execution_snapshot(
+    impl PreflightRead for Reader {
+        fn read_preflight(
             &self,
             id: &str,
             revision: &str,
-        ) -> Result<ExecutionSnapshot, EditorError> {
+        ) -> Result<AuthorizedPreflight, EditorError> {
             if self.deny {
                 return Err(crate::access::denied());
             }
@@ -170,11 +211,11 @@ mod tests {
                 project.assets.push(serde_json::from_value(serde_json::json!({"id":"a","name":"legacy","kind":"image","uri":"/private/never-read","duration":null,"metadata":{}})).unwrap());
                 project.sequences[0].tracks.push(serde_json::from_value(serde_json::json!({"id":"t","name":"t","kind":"graphic","enabled":true,"muted":false,"locked":false,"params":{},"clips":[{"id":"c","asset_id":"a","timeline_range":{"start":{"ticks":"0","timebase":10},"duration":{"ticks":"10","timebase":10}},"source_range":null,"params":{},"channels":[]}]})).unwrap());
             }
-            Ok(ExecutionSnapshot {
-                snapshot: ProjectSnapshot {
+            Ok(AuthorizedPreflight {
+                source: PreflightSource::Historical(ProjectSnapshot {
                     project,
                     revision: revision.into(),
-                },
+                }),
                 sources: self.scope,
             })
         }
@@ -193,8 +234,8 @@ mod tests {
                 );
             }
             Ok(ProjectPreflightReport {
-                revision: request.snapshot.revision,
-                sequence_id: request.sequence_id,
+                revision: request.input.revision,
+                sequence_id: request.input.sequence_id,
                 ready: false,
                 issues: vec![PreflightIssue {
                     code: "MEDIA_PROBE_FAILED".into(),
@@ -211,8 +252,8 @@ mod tests {
             project_id: "p".into(),
             revision: "r".into(),
             sequence_id: "main".into(),
-            container: Container::Mp4,
-            video_codec: VideoCodec::H264,
+            options: Default::default(),
+            range: None,
         }
     }
     #[test]
@@ -250,7 +291,7 @@ mod tests {
         assert_eq!(backend.calls.get(), 0);
     }
     #[test]
-    fn restricted_diagnostics_preserve_entity_ids_without_native_messages_or_details() {
+    fn public_diagnostics_preserve_entity_ids_without_native_messages_or_details() {
         let reader = Reader {
             scope: SourceAccess::ProjectContent,
             deny: false,
@@ -297,6 +338,6 @@ mod tests {
             input(),
         )
         .unwrap();
-        assert!(report.issues[0].message.contains("/private/"));
+        assert!(!report.issues[0].message.contains("/private/"));
     }
 }

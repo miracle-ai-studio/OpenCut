@@ -136,8 +136,10 @@ fn description_is_uri_independent_roundtrips_and_binds_to_non_file_handles() {
 
 #[test]
 fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_audio() {
-    use opencut_composition::project_v3::{VisualTargetKind, compile_v3};
-    use opencut_contracts::project_v3::{ProjectDocumentV3, ProjectSnapshotV3};
+    use opencut_composition::historical_visual::{VisualTargetKind, compile_historical_visual};
+    use opencut_contracts::historical_visual::{
+        HistoricalVisualDocument, HistoricalVisualSnapshot,
+    };
     let mut source = fixture();
     let mut image = source.project.sequences[0].tracks[0].clips[0].clone();
     image.id = "image-on-video".into();
@@ -147,9 +149,9 @@ fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_aud
     };
     image.params.insert("opacity".into(), json!(0.5));
     source.project.sequences[0].tracks[1].clips.push(image);
-    let visual = ProjectSnapshotV3 {
+    let visual = HistoricalVisualSnapshot {
         revision: source.revision.clone(),
-        project: ProjectDocumentV3 {
+        project: HistoricalVisualDocument {
             schema_version: 3,
             base: source.project.clone(),
             visual: vec![],
@@ -157,7 +159,7 @@ fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_aud
         },
     };
     for scope in [CompositionScope::Visual, CompositionScope::AudioVisual] {
-        let result = compile_v3(&visual, "main", scope).unwrap();
+        let result = compile_historical_visual(&visual, "main", scope).unwrap();
         assert_eq!(result.base.timeline.video_clips.len(), 1);
         assert_eq!(result.base.timeline.image_clips.len(), 2);
         assert_eq!(result.base.timeline.image_clips[0].z_index, 0);
@@ -184,7 +186,8 @@ fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_aud
         assert_eq!(target.kind, VisualTargetKind::ImageClip);
         assert_eq!(target.index, 1);
         assert_eq!(target.z_index, 1);
-        opencut_composition::coverage_v3::audit_visual_coverage(&visual, &result).unwrap();
+        opencut_composition::historical_visual_coverage::audit_visual_coverage(&visual, &result)
+            .unwrap();
         let receipt =
             opencut_composition::semantic_coverage::audit(&source, &result.base, &[]).unwrap();
         assert!(
@@ -209,7 +212,10 @@ fn mixed_image_and_video_clips_keep_track_layer_order_and_never_invent_image_aud
             .unwrap()
             .kind = VisualTargetKind::VideoClip;
         assert!(
-            opencut_composition::coverage_v3::audit_visual_coverage(&visual, &damaged).is_err()
+            opencut_composition::historical_visual_coverage::audit_visual_coverage(
+                &visual, &damaged
+            )
+            .is_err()
         );
     }
 }

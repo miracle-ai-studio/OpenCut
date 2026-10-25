@@ -16,7 +16,7 @@ def verify(binary,root,mcp_sdk_root=None):
     def raw(token,path,body=None):
         c=http.client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('POST' if body is not None else 'GET',path,json.dumps(body) if body is not None else None,{'Authorization':'Bearer '+token.read_text().strip(),'Content-Type':'application/json'});r=c.getresponse();data=r.read();status=r.status;c.close();return status,data
     def http_call(name,args,credential,error=None):
-        status,data=raw(credential,'/v1/tools/'+name,args);out=json.loads(data);trace.append({'http':name,'status':status,'response':out})
+        status,data=raw(credential,'/api/tools/'+name,args);out=json.loads(data);trace.append({'http':name,'status':status,'response':out})
         if error:assert status==403 and out['error']['code']==error,out
         else:assert status==200 and out['error'] is None,out
         return out.get('data')
@@ -93,7 +93,7 @@ def verify(binary,root,mcp_sdk_root=None):
         while job['state'] not in ['succeeded','failed','cancelled']:
             assert time.monotonic()<deadline;time.sleep(.05);job=http_call('opencut_job_view',{'job_id':job['job_id']},runner)
         assert job['state']=='succeeded',job
-        artifact=job['artifacts'][0];status,data=raw(runner,'/v1/artifacts/'+quote(artifact['artifact_id'],safe=''));assert status==200 and hashlib.sha256(data).hexdigest()==artifact['content_hash'];png=root/'preview.png';png.write_bytes(data)
+        artifact=job['artifacts'][0];status,data=raw(runner,'/api/artifacts/'+quote(artifact['artifact_id'],safe=''));assert status==200 and hashlib.sha256(data).hexdigest()==artifact['content_hash'];png=root/'preview.png';png.write_bytes(data)
         pixels=subprocess.check_output(['ffmpeg','-v','error','-i',str(png),'-f','rawvideo','-pix_fmt','rgb24','-'],timeout=30);assert len(pixels)==64*48*3 and sum(pixels[::3])/(64*48)>245 and sum(pixels[1::3])/(64*48)<5
         checks.append('The same scoped identity submits the preflighted historical revision, waits for real Worker output, downloads the content-bound PNG and verifies red pixels independently')
         policy('runner',1,['read']);call('opencut_render_preflight',request,runner,'NOT_AUTHORIZED');http_call('opencut_render_preflight',request,runner,'NOT_AUTHORIZED')

@@ -13,7 +13,10 @@ use fs2::FileExt;
 use opencut_api_contracts::plugin_publication::{
     Action as PluginAction, Object as PluginObject, ReconcileResult,
 };
-use opencut_contracts::{EditorError, Operation, ProjectSnapshot};
+use opencut_contracts::{
+    EditorError,
+    project_public::{ProjectEditOperation, PublicProjectSnapshot},
+};
 use opencut_editor_application::maintenance::{
     self, PublicationIntent, PublicationJournal, UntrackedPublication,
 };
@@ -25,13 +28,32 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
 wasmtime::component::bindgen!({ path: "wit", world: "planner" });
 
+mod pinned_editor {
+    wasmtime::component::bindgen!({ path: "wit", world: "planner-v4-v1" });
+}
+pub const PINNED_EDITOR_WORLD: &str = "opencut:planner/planner-v4-v1@1.0.0";
 pub const PLANNER_WORLD: &str = "opencut:planner/planner@1.0.0";
 pub const KNOWN_PERMISSIONS: &[&str] = &["project.snapshot.read", "edit.plan.propose"];
 
 pub use opencut_api_contracts::plugins::{
-    Contributions, PlanInvocation, PluginLimits, PluginManifest, PluginOperation, RuntimeManifest,
+    Contributions, PluginLimits, PluginManifest, PluginOperation, RuntimeManifest,
 };
-pub type InstalledPlugin = opencut_api_contracts::plugins::InstalledPlugin<PathBuf>;
+pub type InstalledWasmPlugin = opencut_editor_application::plugins::InstalledWasmPlugin<PathBuf>;
+
+// This is the exact already-published dependency ABI,not a public editor DTO.
+// Keep its input shape local to the pinned component boundary while the single
+// business contract exposes no development-generation field.
+#[derive(serde::Serialize)]
+struct PinnedEditorAbiSnapshot<'a> {
+    project: PinnedEditorAbiDocument<'a>,
+    revision: &'a str,
+}
+#[derive(serde::Serialize)]
+struct PinnedEditorAbiDocument<'a> {
+    schema_version: u32,
+    #[serde(flatten)]
+    document: &'a opencut_contracts::project_public::PublicProjectDocument,
+}
 
 struct RuntimeState {
     limits: StoreLimits,
@@ -87,7 +109,7 @@ impl PluginHost {
         &self,
         package_root: impl AsRef<Path>,
         granted_permissions: impl IntoIterator<Item = String>,
-    ) -> Result<InstalledPlugin, EditorError> {
+    ) -> Result<InstalledWasmPlugin, EditorError> {
         self.install_observed(package_root, granted_permissions, &UntrackedPublication)
     }
 
@@ -96,7 +118,7 @@ impl PluginHost {
         package_root: impl AsRef<Path>,
         granted_permissions: impl IntoIterator<Item = String>,
         journal: &dyn PublicationJournal<PluginObject>,
-    ) -> Result<InstalledPlugin, EditorError> {
+    ) -> Result<InstalledWasmPlugin, EditorError> {
         self.install_pinned_observed(package_root, granted_permissions, None, journal)
     }
 
@@ -107,7 +129,7 @@ impl PluginHost {
         granted_permissions: impl IntoIterator<Item = String>,
         expected_package_sha256: Option<&str>,
         journal: &dyn PublicationJournal<PluginObject>,
-    ) -> Result<InstalledPlugin, EditorError> {
+    ) -> Result<InstalledWasmPlugin, EditorError> {
         let package_root = package_root.as_ref().canonicalize().map_err(io_error)?;
         if !package_root.is_dir() {
             return Err(invalid("plugin package must be a directory"));
@@ -304,7 +326,7 @@ impl PluginHost {
         })
     }
 
-    pub fn list(&self) -> Result<Vec<InstalledPlugin>, EditorError> {
+    pub fn list(&self) -> Result<Vec<InstalledWasmPlugin>, EditorError> {
         let mut plugins = Vec::new();
         if !self.root.exists() {
             return Ok(plugins);
@@ -335,7 +357,7 @@ impl PluginHost {
         Ok(plugins)
     }
 
-    pub fn inspect(&self, id: &str, version: &str) -> Result<InstalledPlugin, EditorError> {
+    pub fn inspect(&self, id: &str, version: &str) -> Result<InstalledWasmPlugin, EditorError> {
         maintenance::validate_object(&PluginObject::PluginPackage {
             plugin_id: id.into(),
             version: version.into(),
@@ -445,90 +467,50 @@ impl PluginHost {
         Ok((manifest, package_sha256))
     }
 
-    pub fn invoke_plan(
-        &self,
-        id: &str,
-        version: &str,
-        operation_name: &str,
-        snapshot: &ProjectSnapshot,
-        parameters: &Value,
-    ) -> Result<PlanInvocation, EditorError> {
-        let operations =
-            self.invoke_operations(id, version, operation_name, snapshot, parameters)?;
-        opencut_editor_application::plugins::plan_operations(
-            id,
-            version,
-            operation_name,
-            snapshot,
-            operations,
-        )
-    }
-
-    pub fn invoke_operations(
-        &self,
-        id: &str,
-        version: &str,
-        operation_name: &str,
-        snapshot: &ProjectSnapshot,
-        parameters: &Value,
-    ) -> Result<Vec<Operation>, EditorError> {
-        self.invoke_checked(
-            &opencut_api_contracts::plugins::PlanInput {
-                id: id.into(),
-                version: version.into(),
-                operation_name: operation_name.into(),
-                project_id: snapshot.project.id.clone(),
-                revision: snapshot.revision.clone(),
-                parameters: parameters.clone(),
-            },
-            snapshot,
-            None,
-        )
-    }
-
-    pub fn invoke_checked(
+    /// One business operation. The exact installed dependency chooses only its
+    /// private function binding;no caller-selected generation or retry fallback.
+    pub fn invoke_project_operations(
         &self,
         input: &opencut_api_contracts::plugins::PlanInput,
-        snapshot: &ProjectSnapshot,
-        policy: Option<&project_scope::ProjectPolicy<'_>>,
-    ) -> Result<Vec<Operation>, EditorError> {
+        snapshot: &PublicProjectSnapshot,
+        policy: &project_scope::ProjectPolicy<'_>,
+    ) -> Result<Vec<ProjectEditOperation>, EditorError> {
+        serde_json::from_value(self.invoke_raw_checked(input, snapshot, policy)?)
+            .map_err(|_| invalid("Plugin must return ordinary public editor operations"))
+    }
+    fn invoke_raw_checked(
+        &self,
+        input: &opencut_api_contracts::plugins::PlanInput,
+        snapshot: &PublicProjectSnapshot,
+        policy: &project_scope::ProjectPolicy<'_>,
+    ) -> Result<Value, EditorError> {
+        use opencut_editor_application::project_plugins as app;
         let id = input.id.as_str();
         let version = input.version.as_str();
         let operation_name = input.operation_name.as_str();
         let parameters = &input.parameters;
-        if let Some(policy) = policy {
-            use opencut_editor_application::project_plugins as app;
-            if policy.grant.target.project_id != input.project_id
-                || snapshot.project.id != input.project_id
-                || snapshot.revision != input.revision
-                || !policy.grant.enabled
-                || !policy.grant.operations.contains(operation_name)
-            {
-                return Err(opencut_editor_application::access::denied());
-            }
-            if serde_json::to_vec(snapshot).map_err(json_error)?.len() > app::MAX_SNAPSHOT
-                || serde_json::to_vec(parameters).map_err(json_error)?.len() > app::MAX_PARAMETERS
-            {
-                return Err(invalid("Project plugin input exceeds host byte ceiling"));
-            }
+        if policy.grant.target.project_id != input.project_id
+            || snapshot.project.id != input.project_id
+            || snapshot.revision != input.revision
+            || !policy.grant.enabled
+            || !policy.grant.operations.contains(operation_name)
+        {
+            return Err(opencut_editor_application::access::denied());
         }
         maintenance::validate_object(&PluginObject::PluginPackage {
             plugin_id: id.into(),
             version: version.into(),
             package_sha256: "0".repeat(64),
         })?;
-        // Retain the grant snapshot throughout execution; concurrent installs/revocations
-        // take the exclusive version lock and become effective for the next invocation.
         let _execution_lock = self.read_lock(id, version)?;
-        if let Some(policy) = policy {
-            (policy.authorize)()?;
-        }
+        (policy.authorize)()?;
         let mut plugin = self.inspect(id, version)?;
-        if let Some(policy) = policy {
-            project_scope::limits(&mut plugin, policy)?;
-        }
-        // Packages installed by an older Host must satisfy today's callable
-        // ABI as well; listing historical metadata is not an execution grant.
+        let pinned_editor = match plugin.manifest.runtime.world.as_str() {
+            PLANNER_WORLD => false,
+            PINNED_EDITOR_WORLD => true,
+            _ => return Err(invalid("Installed plugin function ABI is unsupported")),
+        };
+        project_scope::limits(&mut plugin, policy)?;
         validate_manifest(
             &plugin.manifest,
             &plugin.install_path.canonicalize().map_err(io_error)?,
@@ -547,37 +529,40 @@ impl PluginHost {
                     format!("plugin operation {operation_name} was not found"),
                 )
             })?;
-        let component = if let Some(policy) = policy {
-            let input_schema =
-                project_scope::schema(&plugin.install_path.join(&operation.input_schema))?;
-            project_scope::schema(&plugin.install_path.join(&operation.output_schema))?;
-            jsonschema::validator_for(&input_schema)
-                .map_err(|_| invalid("Invalid schema"))?
-                .validate(parameters)
-                .map_err(|_| {
-                    EditorError::new("INVALID_ARGUMENT", "Plugin parameters do not match schema")
-                })?;
-            let bytes = project_scope::bounded_read(
-                &plugin.install_path.join(&plugin.manifest.runtime.entry),
-                opencut_editor_application::project_plugins::MAX_COMPONENT,
-            )?;
-            (policy.authorize)()?;
-            Component::new(&self.engine, bytes).map_err(runtime_error)?
+        // Only the pinned dependency that requires its old shape gets this
+        // private metadata field. Both ABIs receive the same complete public data.
+        let snapshot_json = if pinned_editor {
+            serde_json::to_string(&PinnedEditorAbiSnapshot {
+                project: PinnedEditorAbiDocument {
+                    schema_version: 4,
+                    document: &snapshot.project,
+                },
+                revision: &snapshot.revision,
+            })
         } else {
-            validate_json_schema(
-                &plugin.install_path.join(&operation.input_schema),
-                parameters,
-                "INVALID_ARGUMENT",
-            )?;
-            Component::from_file(
-                &self.engine,
-                plugin.install_path.join(&plugin.manifest.runtime.entry),
-            )
-            .map_err(runtime_error)?
-        };
-        if let Some(policy) = policy {
-            (policy.authorize)()?;
+            serde_json::to_string(snapshot)
         }
+        .map_err(json_error)?;
+        let parameters_json = serde_json::to_string(parameters).map_err(json_error)?;
+        if snapshot_json.len() > app::MAX_SNAPSHOT || parameters_json.len() > app::MAX_PARAMETERS {
+            return Err(invalid("Project plugin input exceeds host byte ceiling"));
+        }
+        let input_schema =
+            project_scope::schema(&plugin.install_path.join(&operation.input_schema))?;
+        project_scope::schema(&plugin.install_path.join(&operation.output_schema))?;
+        jsonschema::validator_for(&input_schema)
+            .map_err(|_| invalid("Invalid schema"))?
+            .validate(parameters)
+            .map_err(|_| {
+                EditorError::new("INVALID_ARGUMENT", "Plugin parameters do not match schema")
+            })?;
+        let bytes = project_scope::bounded_read(
+            &plugin.install_path.join(&plugin.manifest.runtime.entry),
+            app::MAX_COMPONENT,
+        )?;
+        (policy.authorize)()?;
+        let component = Component::new(&self.engine, bytes).map_err(runtime_error)?;
+        (policy.authorize)()?;
         let mut linker = Linker::new(&self.engine);
         // An empty WASI context satisfies language runtime imports without
         // granting filesystem, network, environment, arguments, or stdio.
@@ -610,10 +595,14 @@ impl PluginHost {
             }
         });
         let call = (|| {
-            let bindings = Planner::instantiate(&mut store, &component, &linker)?;
-            let snapshot_json = serde_json::to_string(snapshot)?;
-            let parameters_json = serde_json::to_string(parameters)?;
-            bindings.call_plan(&mut store, &snapshot_json, &parameters_json)
+            if pinned_editor {
+                let bindings =
+                    pinned_editor::PlannerV4V1::instantiate(&mut store, &component, &linker)?;
+                bindings.call_plan_v4_v1(&mut store, &snapshot_json, &parameters_json)
+            } else {
+                let bindings = Planner::instantiate(&mut store, &component, &linker)?;
+                bindings.call_plan(&mut store, &snapshot_json, &parameters_json)
+            }
         })();
         let _ = stop_tx.send(());
         let _ = interrupter.join();
@@ -631,9 +620,7 @@ impl PluginHost {
             &output_value,
             "INVALID_PLUGIN",
         )?;
-        let operations: Vec<Operation> = serde_json::from_value(output_value)
-            .map_err(|e| invalid(format!("plugin returned invalid operations: {e}")))?;
-        Ok(operations)
+        Ok(output_value)
     }
 }
 
@@ -651,7 +638,12 @@ fn validate_manifest(manifest: &PluginManifest, root: &Path) -> Result<(), Edito
     if !requirement.matches(&semver::Version::new(1, 0, 0)) {
         return Err(invalid("plugin_api does not support host API 1.0.0"));
     }
-    if manifest.runtime.kind != "wasm-component" || manifest.runtime.world != PLANNER_WORLD {
+    if manifest.runtime.kind != "wasm-component"
+        || !matches!(
+            manifest.runtime.world.as_str(),
+            PLANNER_WORLD | PINNED_EDITOR_WORLD
+        )
+    {
         return Err(invalid(
             "runtime must target the OpenCut planner component world",
         ));
@@ -739,7 +731,7 @@ fn valid_plugin_id(id: &str) -> bool {
         })
 }
 
-fn require_grant(plugin: &InstalledPlugin, permission: &str) -> Result<(), EditorError> {
+fn require_grant(plugin: &InstalledWasmPlugin, permission: &str) -> Result<(), EditorError> {
     if plugin.granted_permissions.contains(permission) {
         Ok(())
     } else {
@@ -1013,7 +1005,7 @@ fn read_dirs(path: &Path) -> Result<Vec<PathBuf>, EditorError> {
         .collect()
 }
 
-fn load_installed(path: &Path) -> Result<InstalledPlugin, EditorError> {
+fn load_installed(path: &Path) -> Result<InstalledWasmPlugin, EditorError> {
     reject_symlinks(path, path)?;
     let manifest = serde_json::from_slice(&fs::read(path.join("manifest.json")).map_err(io_error)?)
         .map_err(json_error)?;
@@ -1032,7 +1024,7 @@ fn load_installed(path: &Path) -> Result<InstalledPlugin, EditorError> {
             "installed plugin content does not match its package digest",
         ));
     }
-    Ok(InstalledPlugin {
+    Ok(InstalledWasmPlugin {
         manifest,
         package_sha256,
         install_path: path.to_path_buf(),
@@ -1178,8 +1170,8 @@ mod tests {
         directory
     }
 
-    fn snapshot() -> ProjectSnapshot {
-        let project = opencut_editor_core::create_project(&CreateProject {
+    fn snapshot() -> PublicProjectSnapshot {
+        let project = opencut_editor_application::scene::new_document(&CreateProject {
             id: "project-1".into(),
             name: "Project".into(),
             sequence_id: "sequence-1".into(),
@@ -1191,10 +1183,46 @@ mod tests {
             },
         })
         .unwrap();
-        ProjectSnapshot {
-            project,
-            revision: "rev-1".into(),
-        }
+        opencut_editor_application::scene::public::project(
+            &opencut_contracts::scene::EditorSnapshot {
+                project,
+                revision: "rev-1".into(),
+            },
+        )
+    }
+    fn invoke(
+        host: &PluginHost,
+        snapshot: &PublicProjectSnapshot,
+        parameters: Value,
+    ) -> Result<Vec<ProjectEditOperation>, EditorError> {
+        use opencut_api_contracts::project_plugins::{Grant, PluginTarget};
+        let plugin = host.inspect("org.example.planner", "1.0.0")?;
+        let grant = Grant {
+            target: PluginTarget {
+                project_id: snapshot.project.id.clone(),
+                id: plugin.manifest.id,
+                version: plugin.manifest.version,
+            },
+            package_sha256: plugin.package_sha256,
+            operations: ["org.example.planner.plan".into()].into(),
+            enabled: true,
+            revision: "1".into(),
+        };
+        host.invoke_project_operations(
+            &opencut_api_contracts::plugins::PlanInput {
+                id: grant.target.id.clone(),
+                version: grant.target.version.clone(),
+                operation_name: "org.example.planner.plan".into(),
+                project_id: snapshot.project.id.clone(),
+                revision: snapshot.revision.clone(),
+                parameters,
+            },
+            snapshot,
+            &project_scope::ProjectPolicy {
+                grant: &grant,
+                authorize: &|| Ok(()),
+            },
+        )
     }
 
     #[test]
@@ -1210,23 +1238,17 @@ mod tests {
             .unwrap();
         let original = snapshot();
 
-        let invocation = host
-            .invoke_plan(
-                &installed.manifest.id,
-                &installed.manifest.version,
-                "org.example.planner.plan",
-                &original,
-                &serde_json::json!({"track_id":"from-plugin"}),
-            )
-            .unwrap();
-
-        assert_eq!(invocation.operations.len(), 1);
-        assert_eq!(invocation.plan.base_revision, "rev-1");
-        assert_eq!(
-            invocation.plan.proposed_project.sequences[0].tracks[0].id,
-            "from-plugin"
+        let before = original.clone();
+        let operations = invoke(
+            &host,
+            &original,
+            serde_json::json!({"track_id":"from-plugin"}),
+        )
+        .unwrap();
+        assert!(
+            matches!(&operations[..],[ProjectEditOperation::TrackPut {track,..}] if track.id=="from-plugin"&&track.elements.is_empty())
         );
-        assert!(original.project.sequences[0].tracks.is_empty());
+        assert_eq!(original, before);
         assert_eq!(host.list().unwrap().len(), 1);
         assert_eq!(
             host.inspect("org.example.planner", "1.0.0")
@@ -1247,16 +1269,7 @@ mod tests {
         )
         .unwrap();
 
-        let error = host
-            .invoke_plan(
-                "org.example.planner",
-                "1.0.0",
-                "org.example.planner.plan",
-                &snapshot(),
-                &serde_json::json!({"loop":true}),
-            )
-            .err()
-            .unwrap();
+        let error = invoke(&host, &snapshot(), serde_json::json!({"loop":true})).unwrap_err();
 
         assert_eq!(error.code, "PLUGIN_RUNTIME");
     }
@@ -1303,16 +1316,9 @@ mod tests {
         host.install(package.path(), ["project.snapshot.read".into()])
             .unwrap();
         assert_eq!(
-            host.invoke_plan(
-                "org.example.planner",
-                "1.0.0",
-                "org.example.planner.plan",
-                &snapshot(),
-                &serde_json::json!({})
-            )
-            .err()
-            .unwrap()
-            .code,
+            invoke(&host, &snapshot(), serde_json::json!({}))
+                .unwrap_err()
+                .code,
             "PERMISSION_DENIED"
         );
     }

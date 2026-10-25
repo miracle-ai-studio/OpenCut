@@ -24,29 +24,16 @@ export async function verifyGuide(page, check) {
   await guide.getByRole("button", { name: "下一步", exact: true }).click();
   await guide.getByRole("button", { name: "下一步", exact: true }).click();
   await expect(
-    guide.getByRole("heading", { name: "与社区共同构建", exact: true }),
+    guide.getByRole("heading", { name: "与 Agent 共同剪辑", exact: true }),
   ).toBeVisible();
   await guide.getByLabel("引导语言", { exact: true }).selectOption("en");
   await guide.getByRole("button", { name: "Finish", exact: true }).click();
   await expect(guide).toHaveCount(0);
-  const notice = page.getByRole("complementary", {
-    name: "Original OpenCut update",
-    exact: true,
-  });
-  await expect(notice).toBeVisible();
-  await expect(
-    notice.getByRole("link", { name: "Read release notes" }),
-  ).toHaveAttribute("href", "/changelog/0.3.0");
-  await notice
-    .getByRole("button", { name: "Dismiss update", exact: true })
-    .click();
-  await expect(notice).toHaveCount(0);
   await page.reload();
   await expect(
     page.getByRole("region", { name: "Timeline", exact: true }),
   ).toBeVisible();
   await expect(guide).toHaveCount(0);
-  await expect(notice).toHaveCount(0);
   await page.getByRole("button", { name: "Editor guide", exact: true }).click();
   await expect(
     guide.getByRole("heading", { name: "Welcome to OpenCut", exact: true }),
@@ -54,7 +41,7 @@ export async function verifyGuide(page, check) {
   await page.keyboard.press("Escape");
   await expect(guide).toHaveCount(0);
   check(
-    "Classic three-step guide supports both languages, backward navigation, finish and replay/Escape; original release notification opens the published local record and does not repeat after reload",
+    "Editing and Agent collaboration guide supports both languages, backward navigation, finish and replay/Escape without website or release-notification exits",
   );
 }
 export async function verifyPanelLayouts(page, inspect, directory, check) {

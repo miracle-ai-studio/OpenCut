@@ -16,7 +16,7 @@ def verify(binary,root):
     def sql(statement,args=()):
         with sqlite3.connect(db) as c:return c.execute(statement,args).fetchall()
     def upload(data,error=None):
-        c=http.client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('POST','/v1/media/upload?name=audio.wav',data,{'Authorization':'Bearer '+token_file.read_text().strip(),'Content-Type':'application/octet-stream'});r=c.getresponse();out=json.loads(r.read());c.close();trace.append({'upload':hashlib.sha256(data).hexdigest(),'response':out,'status':r.status})
+        c=http.client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('POST','/api/media/upload?name=audio.wav',data,{'Authorization':'Bearer '+token_file.read_text().strip(),'Content-Type':'application/octet-stream'});r=c.getresponse();out=json.loads(r.read());c.close();trace.append({'upload':hashlib.sha256(data).hexdigest(),'response':out,'status':r.status})
         if error:assert r.status==500 and out['error']['code']==error,out
         else:assert r.status==200 and out['error'] is None,out
         return out

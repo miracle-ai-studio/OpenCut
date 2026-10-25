@@ -1,209 +1,51 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { EditorApi } from "./api";
 import { WorkspaceController } from "./controller";
-import { JobCompletionError, OpenCutApiError } from "../../lib/editor-sdk";
-import { projectRef, type Snapshot } from "../model/types";
-vi.mock("./project-covers", async (original) => ({
-  ...(await original<typeof import("./project-covers")>()),
-  thumbnail: vi.fn(async () => new Blob(["thumbnail"], { type: "image/png" })),
-}));
-const snapshot = (format: "base" | "visual" = "visual"): Snapshot => ({
-  format,
-  revision: "fixed",
-  visual: [],
-  curves: [],
-  project: {
-    id: "p",
-    name: "P",
-    schema_version: 2,
-    assets: [],
-    default_sequence_id: "main",
-    sequences: [
-      {
-        id: "other",
-        name: "Other",
-        width: 160,
-        height: 90,
-        fps: { numerator: 24, denominator: 1 },
-        tracks: [],
-        caption_cues: [],
-      },
-      {
-        id: "main",
-        name: "Main",
-        width: 160,
-        height: 90,
-        fps: { numerator: 24, denominator: 1 },
-        tracks: [
-          {
-            id: "v",
-            name: "V",
-            kind: "video",
-            enabled: true,
-            muted: false,
-            locked: false,
-            params: {},
-            clips: [
-              {
-                id: "c",
-                asset_id: "a",
-                timeline_range: {
-                  start: { ticks: "0", timebase: 1 },
-                  duration: { ticks: "1", timebase: 1 },
-                },
-                source_range: {
-                  start: { ticks: "0", timebase: 1 },
-                  duration: { ticks: "1", timebase: 1 },
-                },
-                params: {},
-                channels: [],
-              },
-            ],
-          },
-        ],
-        caption_cues: [],
-      },
-    ],
-  },
-});
-function fixture(format: "base" | "visual" = "visual") {
-  const api = new EditorApi("http://localhost:8788", "test"),
-    s = snapshot(format);
-  const inspect = vi.spyOn(api, "inspect").mockResolvedValue(s);
-  const submit = vi
-    .spyOn(api.sdk, "callWithAdmissionRetry")
-    .mockResolvedValue({ job_id: "j" } as never);
-  vi.spyOn(api.sdk, "waitForPublicJob").mockResolvedValue({
-    artifacts: [{ artifact_id: "artifact", mime_type: "image/png" }],
-  } as never);
-  vi.spyOn(api.sdk, "downloadArtifact").mockImplementation(
-    async () =>
-      new Response("full frame", { headers: { "Content-Type": "image/png" } }),
-  );
-  const cancel = vi
-    .spyOn(api.sdk, "cancelPublicJob")
-    .mockResolvedValue({} as never);
-  return { api, s, inspect, submit, cancel };
+import { OpenCutApiError } from "../../lib/editor-sdk";
+import type { ProjectRef } from "../model/types";
+import { initialSnapshot } from "./scene/fixture";
+import type { Snapshot as EditorSnapshot } from "./scene/types";
+import { sourceThumbnail } from "./source-thumbnail";
+vi.mock("./source-thumbnail", () => ({ sourceThumbnail: vi.fn(async () => new Blob(["thumbnail"], {type:"image/png"})) }));
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+type Snapshot = EditorSnapshot & { format: "editor" | "base" | "visual" };
+const projectRef = (snapshot: Snapshot): ProjectRef => ({id:snapshot.project.id,name:snapshot.project.name,revision:snapshot.revision,format:snapshot.format});
+function fixture(format: Snapshot["format"] = "editor") {
+  vi.stubGlobal("location", {origin:"http://localhost:8788"});
+  const api = new EditorApi("http://localhost:8788", "test"), base = initialSnapshot();
+  const s: Snapshot = {...base, format, revision:"fixed", project:{...base.project,id:"p",name:"P"}};
+  const inspect = vi.spyOn(api.sdk,"inspectEditorProject").mockResolvedValue(s);
+  const resource = vi.spyOn(api.scene,"resource").mockResolvedValue({project_id:"p",revision:"fixed",resource_id:"asset",version:s.project.assets[0].version} as never);
+  vi.spyOn(api.sdk,"projectResourceUrl").mockReturnValue("http://localhost:8788/resource");
+  const submit = vi.spyOn(api.sdk,"callWithAdmissionRetry");
+  const cancel = vi.spyOn(api.sdk,"cancelJob").mockResolvedValue({} as never);
+  return {api,s,inspect,resource,submit,cancel};
 }
-it("requests the exact native main-scene first frame for both formats and never writes content", async () => {
-  for (const format of ["base", "visual"] as const) {
-    const { api, s, inspect, submit } = fixture(format);
-    const signal = new AbortController().signal;
-    expect((await api.covers.request(projectRef(s), signal))!.type).toBe(
-      "image/png",
-    );
-    expect(inspect).toHaveBeenCalledWith(
-      expect.objectContaining(projectRef(s)),
-      "fixed",
-      expect.any(AbortSignal),
-    );
-    const [name, value] = submit.mock.calls[0];
-    expect(name).toBe(
-      format === "visual" ? "opencut_job_v3_frame" : "opencut_job_submit",
-    );
-    expect(
-      format === "visual" ? value : (value as { input: unknown }).input,
-    ).toMatchObject({
-      project_id: "p",
-      revision: "fixed",
-      sequence_id: "main",
-      requested_time: { ticks: "0", timebase: 1 },
-      alignment: "nearest",
-    });
-    expect(submit).toHaveBeenCalledTimes(1);
-  }
+it("loads fixed media for library artwork without submitting or cancelling render jobs", async () => {
+  const f=fixture(); const signal=new AbortController().signal;
+  expect((await f.api.covers.request(projectRef(f.s),signal))!.type).toBe("image/png");
+  expect(f.resource).toHaveBeenCalledWith("p","fixed","asset",expect.any(AbortSignal));
+  expect(sourceThumbnail).toHaveBeenCalledWith("http://localhost:8788/resource","image",expect.any(AbortSignal));
+  expect(f.submit).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled();
 });
-it("empty project uses a placeholder, mismatched fixed revision is refused before acceptance", async () => {
-  const { api, s, submit } = fixture();
-  s.project.sequences[1].tracks = [];
-  expect(
-    await api.covers.request(projectRef(s), new AbortController().signal),
-  ).toBeNull();
-  expect(submit).not.toHaveBeenCalled();
-  const mismatch = fixture();
-  mismatch.inspect.mockResolvedValue({ ...mismatch.s, revision: "wrong" });
-  await expect(
-    mismatch.api.covers.request(
-      projectRef(mismatch.s),
-      new AbortController().signal,
-    ),
-  ).rejects.toThrow("revision changed");
-  expect(mismatch.submit).not.toHaveBeenCalled();
+it("refuses mismatched project and resource versions before decoding media", async () => {
+  const f=fixture(); f.inspect.mockResolvedValue({...f.s,revision:"wrong"});
+  await expect(f.api.covers.request(projectRef(f.s),new AbortController().signal)).rejects.toThrow("revision changed");
+  f.inspect.mockResolvedValue(f.s); f.resource.mockResolvedValue({project_id:"p",revision:"fixed",resource_id:"asset",version:{...f.s.project.assets[0].version,content_hash:"wrong"}} as never);
+  await expect(f.api.covers.request(projectRef(f.s),new AbortController().signal)).rejects.toThrow("resource changed");
+  expect(f.submit).not.toHaveBeenCalled();
 });
-it("uses the captured last-active scene and falls back to main after that scene is deleted", async () => {
-  const { api, s, submit } = fixture();
-  s.project.sequences[0].tracks = structuredClone(
-    s.project.sequences[1].tracks,
-  );
-  await api.covers.request(
-    projectRef(s),
-    new AbortController().signal,
-    "other",
-  );
-  expect(submit.mock.calls[0][1]).toMatchObject({ sequence_id: "other" });
-  await api.covers.request(
-    projectRef(s),
-    new AbortController().signal,
-    "deleted",
-  );
-  expect(submit.mock.calls[1][1]).toMatchObject({ sequence_id: "main" });
+it("empty scenes and older project formats use placeholders; selected scenes fall back to the main scene", async () => {
+  const f=fixture(); const empty={...structuredClone(f.s.project.sequences[0]),id:"empty",tracks:[]}; f.s.project.sequences.push(empty);
+  expect(await f.api.covers.request(projectRef(f.s),new AbortController().signal,"empty")).toBeNull();
+  expect(await f.api.covers.request(projectRef(f.s),new AbortController().signal,"deleted")).toBeTruthy();
+  for (const format of ["base","visual"] as const) { const old=fixture(format); expect(await old.api.covers.request(projectRef(old.s),new AbortController().signal)).toBeNull(); expect(old.inspect).not.toHaveBeenCalled(); }
 });
-it("navigation during acceptance cancels the known native job and never downloads its result", async () => {
-  const { api, s, submit, cancel } = fixture();
-  let resolve!: (value: never) => void;
-  submit.mockImplementation(() => new Promise((r) => (resolve = r)));
-  const abort = new AbortController(),
-    result = api.covers.request(projectRef(s), abort.signal).catch((e) => e);
-  await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
-  abort.abort("navigation");
-  expect(await result).toBe("navigation");
-  resolve({ job_id: "accepted-after-navigation" } as never);
-  await vi.waitFor(() =>
-    expect(cancel).toHaveBeenCalledWith("accepted-after-navigation"),
-  );
-  expect(api.sdk.downloadArtifact).not.toHaveBeenCalled();
-});
-it("quiescing a cover waits for native cancellation terminal state rather than only its request", async () => {
-  const { api, s, cancel } = fixture();
-  cancel.mockResolvedValue({ state: "running" } as never);
-  let rejectTerminal!: (error: unknown) => void;
-  vi.mocked(api.sdk.waitForPublicJob)
-    .mockImplementationOnce(
-      (_id, options) =>
-        new Promise((_resolve, reject) =>
-          options!.signal!.addEventListener(
-            "abort",
-            () => reject(options!.signal!.reason),
-            { once: true },
-          ),
-        ),
-    )
-    .mockImplementationOnce(
-      () =>
-        new Promise((_resolve, reject) => {
-          rejectTerminal = reject;
-        }),
-    );
-  const result = api.covers
-    .request(projectRef(s), new AbortController().signal)
-    .catch((e) => e);
-  await vi.waitFor(() =>
-    expect(api.sdk.waitForPublicJob).toHaveBeenCalledTimes(1),
-  );
-  let done = false;
-  const quiet = api.covers.quiesce(["p"]).then(() => {
-    done = true;
-  });
-  await vi.waitFor(() =>
-    expect(api.sdk.waitForPublicJob).toHaveBeenCalledTimes(2),
-  );
-  expect(done).toBe(false);
-  rejectTerminal(
-    new JobCompletionError({ state: "cancelled", job_id: "j" } as never),
-  );
-  await quiet;
-  await result;
-  expect(api.sdk.downloadArtifact).not.toHaveBeenCalled();
+it("navigation aborts thumbnail decoding without creating background jobs", async () => {
+  const f=fixture(); vi.mocked(sourceThumbnail).mockImplementationOnce((_url,_kind,signal)=>new Promise((_resolve,reject)=>signal.addEventListener("abort",()=>reject(signal.reason),{once:true})));
+  const abort=new AbortController(); const result=f.api.covers.request(projectRef(f.s),abort.signal).catch(e=>e);
+  await vi.waitFor(()=>expect(f.resource).toHaveBeenCalled()); await Promise.resolve(); abort.abort("navigation");
+  expect(await result).toBe("navigation"); await f.api.covers.quiesce(["p"]); expect(f.submit).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled();
 });
 it("project deletion waits for owned-cover quiescence and does not cancel unrelated jobs", async () => {
   const { api, s, cancel } = fixture();

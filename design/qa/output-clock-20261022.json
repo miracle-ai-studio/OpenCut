@@ -1,0 +1,131 @@
+{
+  "evidence_id": "output_clock_20261022",
+  "date": "2026-10-22",
+  "status": "software_output_clock_scoped_verified_visual_realtime_and_physical_sync_open",
+  "whole_feature_complete": false,
+  "scope": "Stage 1 device-output mapping and lifecycle; no GStreamer; Rust project-time authority preserved",
+  "candidate": {
+    "native": {
+      "path": "/tmp/opencut-output-clock-20261022/runtime-integrated/opencut",
+      "sha256": "6b9c3b659f46e47eaede7fa26d001aa81f77bc52acd58c284f4cf7c975b841e6"
+    },
+    "manifest": "/tmp/opencut-output-clock-20261022/candidate.json",
+    "web_root": "/tmp/opencut-output-clock-20261022/web-dist",
+    "browser_entry": "/assets/index-Cz0DqmCb.js"
+  },
+  "checks": {
+    "rust_audio_machine": {
+      "command": "cargo test -p opencut-editor-application audio_preview --offline",
+      "passed": 12,
+      "result_source": "tool output in this execution"
+    },
+    "sqlite_recovery": {
+      "passed": 6
+    },
+    "web_affected": {
+      "passed": 109,
+      "files": 8
+    },
+    "architecture": {
+      "tests": 14,
+      "modules": 22,
+      "exceptions": 0
+    },
+    "canonical": {
+      "tools": 185,
+      "domains": 12
+    },
+    "generated_contracts": "current against same explicit binary",
+    "sdk_web_builds": "passed",
+    "logs": {
+      "build": "/tmp/opencut-output-clock-build.log",
+      "architecture_unit": "/tmp/opencut-output-clock-architecture-unit.log",
+      "architecture": "/tmp/opencut-output-clock-architecture.log",
+      "rust_contract_boundaries": "/tmp/opencut-output-clock-boundaries.log",
+      "canonical": "/tmp/opencut-output-clock-canonical.log",
+      "generated": "/tmp/opencut-output-clock-generated-check.log",
+      "sdk_build": "/tmp/opencut-output-clock-sdk-build.log",
+      "web_build": "/tmp/opencut-output-clock-web-build.log",
+      "web_tests": "/tmp/opencut-output-clock-final-web.json",
+      "web_typecheck": "/tmp/opencut-output-clock-final-typecheck.log",
+      "web_boundaries": "/tmp/opencut-output-clock-web-boundaries.log",
+      "legacy_receipts": "/tmp/opencut-output-clock-recovery-tests.log"
+    }
+  },
+  "browser": {
+    "method": "CUA UI actions and read-only DOM-backed observations in one owned tab; no hidden browser state",
+    "projects": [
+      "scene-preview-fc284e7a-6b31-436f-a444-2befa7059942",
+      "hainan-vlog-workbench-20261021"
+    ],
+    "cases": {
+      "eight_second_eof": {
+        "output_frames": "384000",
+        "sample_rate": 48000,
+        "position": "8.000000",
+        "native_identity": "same binary; before Web-only stop fix; DSP/output sampling unchanged"
+      },
+      "partial_quantum_tail": {
+        "start_sample": "383992",
+        "submitted_frames": "8",
+        "output_frames": "8",
+        "position": "8.000000",
+        "alerts": []
+      },
+      "hainan_pause": {
+        "position": "2.506667",
+        "alerts": []
+      },
+      "hainan_paused_seek": {
+        "position": "6.500000",
+        "produced_through_sample": "312000",
+        "alerts": []
+      },
+      "hainan_resume_then_pause": {
+        "position": "8.388000",
+        "alerts": []
+      },
+      "initial_preparation_pause": {
+        "position": "0.000000",
+        "picture_time": "0",
+        "phase": "ready",
+        "status": "paused",
+        "alerts": []
+      }
+    },
+    "observations": {
+      "hainan-output-before-close-fix.json": "/tmp/opencut-output-clock-20261022/hainan-output-before-close-fix.json",
+      "hainan-output-after-close-fix.json": "/tmp/opencut-output-clock-20261022/hainan-output-after-close-fix.json",
+      "hainan-seek-paused.json": "/tmp/opencut-output-clock-20261022/hainan-seek-paused.json",
+      "hainan-resume-after-seek.json": "/tmp/opencut-output-clock-20261022/hainan-resume-after-seek.json",
+      "seven-frame-tail.json": "/tmp/opencut-output-clock-20261022/seven-frame-tail.json",
+      "final-browser-view.json": "/tmp/opencut-output-clock-20261022/final-browser-view.json"
+    },
+    "screenshot": "/tmp/opencut-output-clock-20261022/hainan-output-clock.jpg",
+    "resolved_failure": "After worker device handoff, graceful close reread detached main-thread stale progress; fixed with owner-only final receipt and regression; original failure retained",
+    "unverified": [
+      "Physical speaker/display synchronization",
+      "Continuous 25fps and no-blackout on Hainan",
+      "Every-quantum no-underrun proof",
+      "Ten-minute real playback",
+      "Bluetooth/device-switch/cross-platform matrix",
+      "Full fault and edit-collaboration matrix"
+    ]
+  },
+  "data_preservation": {
+    "counts": {
+      "projects": 48,
+      "revisions": 949,
+      "editor_transactions": 901,
+      "jobs": 290
+    },
+    "counts_unchanged": true,
+    "all_revision_bytes_unchanged": true,
+    "baseline_revisions": 949,
+    "current_revisions": 949,
+    "hainan_head": "rev_012f1869d4e46e14934901f3dcbe88ab1a2c3542890ae789d2a70052ec3917c5"
+  },
+  "next_stage": "Stage 2 frame coverage and rAF presentation, native 540p quality and measured bounded preparation; stage 3 cache and stage 4 long-run/collaboration remain planned",
+  "new_dependencies": [],
+  "architecture_exceptions": []
+}

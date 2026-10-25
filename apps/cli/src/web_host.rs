@@ -24,8 +24,6 @@ pub fn validate_root(path: PathBuf) -> std::io::Result<PathBuf> {
     Ok(root)
 }
 
-mod metadata;
-mod public_content;
 mod session;
 pub use session::BrowserSession;
 pub(crate) use session::CookieGrant;
@@ -36,7 +34,6 @@ pub fn attach(
     listen: SocketAddr,
     session: Option<BrowserSession>,
 ) -> Router {
-    let content = public_content::PublicContent::new();
     let response_sessions = session.clone();
     let router = if let Some(root) = root {
         router
@@ -52,7 +49,7 @@ pub fn attach(
                     }
                 }),
             )
-            .fallback(move |request: Request| static_file(root.clone(), request, content.clone()))
+            .fallback(move |request: Request| static_file(root.clone(), request))
     } else {
         router.fallback(|| async { crate::http::error_response("NOT_FOUND", "Unknown API route") })
     };
@@ -80,31 +77,18 @@ pub fn attach(
     }))
 }
 
-async fn static_file(
-    root: PathBuf,
-    request: Request,
-    content: public_content::PublicContent,
-) -> Response {
+async fn static_file(root: PathBuf, request: Request) -> Response {
     // Static responses never read the request body; dropping it keeps the handler future Send.
     let request = request.map(|_| ());
     if !matches!(*request.method(), Method::GET | Method::HEAD) {
         return StatusCode::METHOD_NOT_ALLOWED.into_response();
     }
-    if let Some(response) = metadata::serve(&root, &request, &content).await {
-        return response;
-    }
     let path = request.uri().path();
     let relative = match path {
-        "/" | "/projects" | "/editor" | "/editor/" | "/brand" | "/roadmap" | "/sponsors"
-        | "/privacy" | "/terms" | "/contributors" | "/blog" | "/changelog" => "index.html",
+        "/" | "/projects" | "/editor" | "/editor/" => "index.html",
         path if editor_route(path) => "index.html",
         path if path.starts_with("/assets/") => &path[1..],
-        "/favicon.ico"
-        | "/manifest.json"
-        | "/robots.txt"
-        | "/open-graph/default.jpg"
-        | "/open-graph/roadmap.jpg"
-        | "/open-graph/changelog.jpg" => &path[1..],
+        "/favicon.ico" | "/manifest.json" | "/robots.txt" => &path[1..],
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     if relative.contains('%')

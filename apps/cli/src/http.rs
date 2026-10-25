@@ -3,7 +3,7 @@ use std::{
     net::SocketAddr,
     path::Path as FsPath,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -28,6 +28,7 @@ use serde_json::{Value, json};
 #[derive(Clone)]
 pub(super) struct Host {
     pub database: Arc<std::path::PathBuf>,
+    automation: Arc<AutomationConnections>,
     token: Arc<String>,
     browser_session: Option<crate::web_host::BrowserSession>,
     origins: Arc<Vec<String>>,
@@ -36,6 +37,61 @@ pub(super) struct Host {
     shutdown: Arc<AtomicBool>,
     pub identity: Identity,
     pub upload_slots: Arc<tokio::sync::Semaphore>,
+}
+
+/// Host-local idle connections. Dispatch runs outside the lock and resets the
+/// caller/source on every checkout; authorization remains an application read
+/// for every call. No prepared jobs, permissions or transactions are cached.
+#[derive(Default)]
+struct AutomationConnections(Mutex<Vec<Automation>>);
+impl AutomationConnections {
+    fn with<T>(
+        &self,
+        database: &FsPath,
+        identity: &Identity,
+        operation: impl FnOnce(&mut Automation) -> Result<T, EditorError>,
+    ) -> Result<T, EditorError> {
+        identity.check_lifetime()?;
+        let idle = self
+            .0
+            .lock()
+            .map_err(|_| EditorError::new("INTERNAL_ERROR", "Host connections are unavailable"))?
+            .pop();
+        let app = match idle {
+            Some(app) => app,
+            None => Automation::open(database)?,
+        };
+        identity.check_lifetime()?;
+        let mut app = app
+            .with_source(opencut_automation::CallSource::Http)
+            .with_caller(identity.caller.clone());
+        let response = operation(&mut app);
+        if let Ok(mut idle) = self.0.lock() {
+            if idle.len() < 8 {
+                idle.push(app);
+            }
+        }
+        response
+    }
+    fn call(
+        &self,
+        database: &FsPath,
+        identity: &Identity,
+        name: &str,
+        args: Value,
+    ) -> Result<Response, EditorError> {
+        self.with(database, identity, |app| Ok(app.call(name, args)))
+    }
+}
+
+impl Host {
+    pub(super) fn with_automation<T>(
+        &self,
+        operation: impl FnOnce(&mut Automation) -> Result<T, EditorError>,
+    ) -> Result<T, EditorError> {
+        self.automation
+            .with(self.database.as_ref(), &self.identity, operation)
+    }
 }
 
 pub struct Options {
@@ -100,6 +156,7 @@ pub async fn serve(
         .map(|_| crate::web_host::BrowserSession::new());
     let host = Host {
         database: Arc::new(database.to_path_buf()),
+        automation: Arc::new(AutomationConnections::default()),
         token: Arc::new(token),
         browser_session: browser_session.clone(),
         origins: Arc::new(origins),
@@ -113,76 +170,76 @@ pub async fn serve(
     };
     let router = Router::new()
         .route(
-            "/v1/capabilities",
+            "/api/capabilities",
             get(|| async { Json(opencut_automation::response(Ok(capabilities()))) }),
         )
         .route(
-            "/v1/operations",
+            "/api/operations",
             get(|| async { Json(opencut_automation::response(Ok(json!(tool_specs())))) }),
         )
-        .route("/v1/domains", get(domain_catalog))
-        .route("/v1/domains/{domain}", get(domain_contract))
-        .route("/v1/projects", get(projects).post(create_project))
-        .route("/v1/projects/{project}/snapshot", get(snapshot))
-        .route("/v1/projects/{project}/revisions", get(history))
-        .route("/v1/projects/{project}/revisions/{revision}", get(revision))
+        .route("/api/domains", get(domain_catalog))
+        .route("/api/domains/{domain}", get(domain_contract))
+        .route("/api/projects", get(projects).post(create_project))
+        .route("/api/projects/{project}/snapshot", get(snapshot))
+        .route("/api/projects/{project}/revisions", get(history))
         .route(
-            "/v1/projects/{project}/branches/main/restore",
+            "/api/projects/{project}/revisions/{revision}",
+            get(revision),
+        )
+        .route(
+            "/api/projects/{project}/branches/main/restore",
             post(restore),
         )
         .route(
-            "/v1/projects/{project}/branches/main/snapshot",
+            "/api/projects/{project}/branches/main/snapshot",
             get(snapshot),
         )
         .route(
-            "/v1/projects/{project}/branches/main/edit-plans",
+            "/api/projects/{project}/branches/main/edit-plans",
             post(plan),
         )
         .route(
-            "/v1/projects/{project}/branches/main/transactions",
+            "/api/projects/{project}/branches/main/transactions",
             post(apply),
         )
-        .route("/v1/tools/{name}", post(tool))
-        .route("/v1/preview/stream", post(crate::preview_http::stream))
+        .route("/api/tools/{name}", post(tool))
+        .route("/api/preview/stream", post(crate::preview_http::stream))
         .route(
-            "/v1/preview/v4/audio/stream",
+            "/api/preview/audio/stream",
             post(crate::audio_preview_http::stream),
         )
         .route(
-            "/v1/preview/v4/visual-font/stream",
+            "/api/preview/visual-font/stream",
             post(crate::media_http::read_visual_preview_font),
         )
-        .route("/v1/media/upload", post(crate::media_http::upload))
         .route(
-            "/v1/stream-uploads/{upload_id}/chunks/{offset}",
-            put(crate::upload_http::put_stream_chunk),
+            "/api/preview/visual-resource/read",
+            post(crate::media_http::read_visual_preview_resource),
         )
+        .route("/api/media/upload", post(crate::media_http::upload))
         .route(
-            "/v1/uploads/{upload_id}/chunks/{offset}",
+            "/api/uploads/{upload_id}/chunks/{offset}",
             put(crate::upload_http::put_chunk),
         )
-        .route("/v1/media/{hash}", get(crate::media_http::read))
+        .route("/api/media/{hash}", get(crate::media_http::read))
         .route(
-            "/v1/projects/{project}/media/{media_id}/content",
+            "/api/projects/{project}/media/{media_id}/content",
             get(crate::media_http::read_project),
         )
         .route(
-            "/v1/project-v4-resources/content",
-            get(crate::media_http::read_v4_resource),
+            "/api/project-resources/content",
+            get(crate::media_http::read_project_resource),
         )
-        .route("/v1/jobs", get(jobs).post(start_job))
-        .route("/v1/jobs/{job}", get(job))
-        .route("/v1/jobs/{job}/cancel", post(cancel_job))
-        .route("/v1/jobs/{job}/artifact", get(crate::media_http::artifact))
+        .route("/api/jobs", get(jobs).post(start_job))
+        .route("/api/jobs/{job}", get(job))
+        .route("/api/jobs/{job}/cancel", post(cancel_job))
+        .route("/api/jobs/{job}/artifact", get(crate::media_http::artifact))
         .route(
-            "/v1/artifacts/{artifact}",
+            "/api/artifacts/{artifact}",
             get(crate::media_http::artifact_reference),
         )
-        .route("/v1/render/preflight", post(render_preflight))
-        .route("/v1/events", get(events))
-        .route("/v1/job-events", get(job_events))
-        .route("/v1/job-events/stream", get(job_event_stream))
-        .route("/v1/changes/stream", post(changes_stream))
+        .route("/api/render/preflight", post(render_preflight))
+        .route("/api/changes/stream", post(changes_stream))
         .merge(mcp_router.with_state(()))
         .method_not_allowed_fallback(|| async {
             (
@@ -371,13 +428,11 @@ async fn authorize(
     if let Some(grant) = &browser_grant {
         request.extensions_mut().insert(grant.clone());
         let path = request.uri().path();
-        let upload = path == "/v1/media/upload"
-            || path.starts_with("/v1/uploads/")
-            || path.starts_with("/v1/stream-uploads/");
+        let upload = path == "/api/media/upload" || path.starts_with("/api/uploads/");
         // Ordinary JSON/MCP bodies keep the original 2 MiB admission. Raw
         // uploads retain streaming; chunks keep their existing 60s deadline,
         // and a whole legacy upload has an explicit 15-minute receive budget.
-        let limit = std::time::Duration::from_secs(if path == "/v1/media/upload" {
+        let limit = std::time::Duration::from_secs(if path == "/api/media/upload" {
             900
         } else if upload {
             opencut_automation::capabilities::UPLOAD_CHUNK_TIMEOUT_SECONDS
@@ -456,7 +511,7 @@ fn add_cors(headers: &mut HeaderMap, origin: Option<&HeaderValue>) {
         headers.insert("vary", HeaderValue::from_static("Origin"));
         headers.insert(
             "access-control-expose-headers",
-            HeaderValue::from_static("MCP-Session-Id, MCP-Protocol-Version, X-OpenCut-Request-Id, X-OpenCut-Audit-Warning"),
+            HeaderValue::from_static("MCP-Session-Id, MCP-Protocol-Version, X-OpenCut-Request-Id, X-OpenCut-Audit-Warning, X-OpenCut-Resource-Offset, X-OpenCut-Resource-Eof"),
         );
         headers.insert(
             "access-control-allow-methods",
@@ -473,13 +528,8 @@ fn add_cors(headers: &mut HeaderMap, origin: Option<&HeaderValue>) {
 
 async fn invoke(host: Host, name: String, args: Value) -> HttpResponse {
     match tokio::task::spawn_blocking(move || {
-        host.identity.check_lifetime()?;
-        Automation::open(host.database.as_ref()).and_then(|a| {
-            host.identity.check_lifetime()?;
-            Ok(a.with_source(opencut_automation::CallSource::Http)
-                .with_caller(host.identity.caller)
-                .call(&name, args))
-        })
+        host.automation
+            .call(host.database.as_ref(), &host.identity, &name, args)
     })
     .await
     {
@@ -502,24 +552,55 @@ fn body(body: Result<Json<Value>, JsonRejection>) -> Result<Value, Box<HttpRespo
     body.map(|Json(value)| value)
         .map_err(|error| Box::new(error_response("INVALID_ARGUMENT", &error.body_text())))
 }
-async fn projects(AuthorizedHost(host): AuthorizedHost) -> HttpResponse {
-    invoke(host, "opencut_project_list".into(), json!({})).await
+async fn projects(
+    AuthorizedHost(host): AuthorizedHost,
+    query: Result<
+        Query<opencut_contracts::project_catalog::LibraryInput>,
+        axum::extract::rejection::QueryRejection,
+    >,
+) -> HttpResponse {
+    let input = match query {
+        Ok(Query(input)) => input,
+        Err(error) => return error_response("INVALID_ARGUMENT", &error.to_string()),
+    };
+    match serde_json::to_value(input) {
+        Ok(input) => invoke(host, "opencut_project_list".into(), input).await,
+        Err(_) => error_response("INTERNAL_ERROR", "Cannot encode project directory request"),
+    }
 }
-async fn jobs(AuthorizedHost(host): AuthorizedHost) -> HttpResponse {
-    invoke(host, "opencut_job_list".into(), json!({})).await
+async fn jobs(
+    AuthorizedHost(host): AuthorizedHost,
+    query: Result<
+        Query<opencut_automation::job_views::JobQueryInput>,
+        axum::extract::rejection::QueryRejection,
+    >,
+) -> HttpResponse {
+    let input = match query {
+        Ok(Query(input)) => input,
+        Err(error) => return error_response("INVALID_ARGUMENT", &error.to_string()),
+    };
+    match serde_json::to_value(input) {
+        Ok(input) => invoke(host, "opencut_job_query".into(), input).await,
+        Err(_) => error_response("INTERNAL_ERROR", "Cannot encode task query"),
+    }
 }
 async fn job(AuthorizedHost(host): AuthorizedHost, Path(job): Path<String>) -> HttpResponse {
-    invoke(host, "opencut_job_get".into(), json!({"job_id":job})).await
+    invoke(host, "opencut_job_view".into(), json!({"job_id":job})).await
 }
 async fn cancel_job(AuthorizedHost(host): AuthorizedHost, Path(job): Path<String>) -> HttpResponse {
-    invoke(host, "opencut_job_cancel".into(), json!({"job_id":job})).await
+    invoke(
+        host,
+        "opencut_job_request_cancel".into(),
+        json!({"job_id":job}),
+    )
+    .await
 }
 async fn start_job(
     AuthorizedHost(host): AuthorizedHost,
     input: Result<Json<Value>, JsonRejection>,
 ) -> HttpResponse {
     match body(input) {
-        Ok(args) => invoke(host, "opencut_job_start".into(), args).await,
+        Ok(args) => invoke(host, "opencut_job_submit".into(), args).await,
         Err(e) => *e,
     }
 }
@@ -568,7 +649,7 @@ async fn revision(
 ) -> HttpResponse {
     invoke(
         host,
-        "opencut_revision_inspect".into(),
+        "opencut_project_inspect".into(),
         json!({"project_id":project,"revision":revision}),
     )
     .await
@@ -579,15 +660,11 @@ async fn restore(
     input: Result<Json<Value>, JsonRejection>,
 ) -> HttpResponse {
     match body(input) {
-        Ok(request) => {
-            invoke(
-                host,
-                "opencut_revision_restore".into(),
-                json!({"project_id":project,"request":request}),
-            )
-            .await
-        }
-        Err(e) => *e,
+        Ok(args) => match crate::scoped_project_input(&project, args) {
+            Ok(args) => invoke(host, "opencut_project_restore".into(), args).await,
+            Err(error) => into_http(opencut_automation::response(Err(error))),
+        },
+        Err(error) => *error,
     }
 }
 async fn create_project(
@@ -605,14 +682,10 @@ async fn plan(
     input: Result<Json<Value>, JsonRejection>,
 ) -> HttpResponse {
     match body(input) {
-        Ok(args) => {
-            invoke(
-                host,
-                "opencut_edit_plan".into(),
-                json!({"project_id":project,"request":args}),
-            )
-            .await
-        }
+        Ok(args) => match crate::scoped_project_input(&project, args) {
+            Ok(args) => invoke(host, "opencut_edit_plan".into(), args).await,
+            Err(error) => into_http(opencut_automation::response(Err(error))),
+        },
         Err(e) => *e,
     }
 }
@@ -622,14 +695,10 @@ async fn apply(
     input: Result<Json<Value>, JsonRejection>,
 ) -> HttpResponse {
     match body(input) {
-        Ok(args) => {
-            invoke(
-                host,
-                "opencut_edit_apply".into(),
-                json!({"project_id":project,"request":args}),
-            )
-            .await
-        }
+        Ok(args) => match crate::scoped_project_input(&project, args) {
+            Ok(args) => invoke(host, "opencut_edit_apply".into(), args).await,
+            Err(error) => into_http(opencut_automation::response(Err(error))),
+        },
         Err(e) => *e,
     }
 }
@@ -671,220 +740,6 @@ pub(super) fn error_response(code: &str, message: &str) -> HttpResponse {
     into_http(opencut_automation::response(Err(EditorError::new(
         code, message,
     ))))
-}
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct EventQuery {
-    after_sequence: Option<i64>,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct JobEventQuery {
-    after_sequence: Option<i64>,
-    limit: Option<usize>,
-    job_id: Option<String>,
-}
-
-async fn job_events(
-    AuthorizedHost(host): AuthorizedHost,
-    query: Result<Query<JobEventQuery>, axum::extract::rejection::QueryRejection>,
-) -> HttpResponse {
-    let query = match query {
-        Ok(Query(query)) => query,
-        Err(error) => return error_response("INVALID_ARGUMENT", &error.to_string()),
-    };
-    invoke(
-        host,
-        "opencut_job_events".into(),
-        json!({
-            "after_sequence": query.after_sequence.unwrap_or(0),
-            "limit": query.limit.unwrap_or(100),
-            "job_id": query.job_id,
-        }),
-    )
-    .await
-}
-
-async fn job_event_stream(
-    AuthorizedHost(host): AuthorizedHost,
-    query: Result<Query<JobEventQuery>, axum::extract::rejection::QueryRejection>,
-    headers: HeaderMap,
-) -> HttpResponse {
-    if !host.identity.caller.is_owner() {
-        return error_response(
-            "NOT_AUTHORIZED",
-            "Use the public changes stream for restricted task observation",
-        );
-    }
-    let query = match query {
-        Ok(Query(query)) => query,
-        Err(error) => return error_response("INVALID_ARGUMENT", &error.to_string()),
-    };
-    let header_cursor = match headers.get("last-event-id") {
-        Some(value) => match value
-            .to_str()
-            .ok()
-            .and_then(|value| value.parse::<i64>().ok())
-            .filter(|cursor| *cursor >= 0)
-        {
-            Some(cursor) => Some(cursor),
-            None => {
-                return error_response(
-                    "INVALID_ARGUMENT",
-                    "Last-Event-ID must be a nonnegative sequence number",
-                );
-            }
-        },
-        None => None,
-    };
-    let cursor = header_cursor.or(query.after_sequence).unwrap_or(0);
-    let limit = query.limit.unwrap_or(100);
-    if cursor < 0 || limit == 0 || limit > 500 {
-        return error_response(
-            "INVALID_ARGUMENT",
-            "after_sequence must be nonnegative; limit must be 1..500",
-        );
-    }
-    let state = (
-        host.database,
-        cursor,
-        limit,
-        query.job_id,
-        std::collections::VecDeque::<opencut_editor_application::JobEvent>::new(),
-        host.shutdown,
-    );
-    let stream = futures_util::stream::unfold(
-        state,
-        |(database, mut cursor, limit, job_id, mut pending, shutdown)| async move {
-            loop {
-                if shutdown.load(Ordering::SeqCst) {
-                    return None;
-                }
-                if let Some(event) = pending.pop_front() {
-                    cursor = event.sequence;
-                    let wire = Event::default()
-                        .id(cursor.to_string())
-                        .event(&event.event_type)
-                        .json_data(&event)
-                        .expect("serializable job event");
-                    return Some((
-                        Ok::<_, std::convert::Infallible>(wire),
-                        (database, cursor, limit, job_id, pending, shutdown),
-                    ));
-                }
-                let path = database.clone();
-                let filter = job_id.clone();
-                let page = tokio::task::spawn_blocking(move || {
-                    opencut_host_runtime::workspace::Workspace::open_managed(path.as_ref())?
-                        .job_events_after(cursor, limit, filter.as_deref())
-                })
-                .await;
-                match page {
-                    Ok(Ok(events)) => pending.extend(events),
-                    _ => {
-                        let wire = Event::default()
-                            .event("error")
-                            .data("{\"code\":\"JOB_EVENT_READ_FAILED\",\"retryable\":true}");
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                        return Some((
-                            Ok(wire),
-                            (database, cursor, limit, job_id, pending, shutdown),
-                        ));
-                    }
-                }
-                if pending.is_empty() {
-                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-                }
-            }
-        },
-    );
-    Sse::new(stream)
-        .keep_alive(KeepAlive::default())
-        .into_response()
-}
-
-async fn events(
-    AuthorizedHost(host): AuthorizedHost,
-    query: Result<Query<EventQuery>, axum::extract::rejection::QueryRejection>,
-    headers: HeaderMap,
-) -> HttpResponse {
-    let query = match query {
-        Ok(Query(query)) => query,
-        Err(error) => return error_response("INVALID_ARGUMENT", &error.to_string()),
-    };
-    let header_cursor = match headers.get("last-event-id") {
-        Some(value) => match value.to_str().ok().and_then(|v| v.parse::<i64>().ok()) {
-            Some(cursor) => Some(cursor),
-            None => {
-                return error_response(
-                    "INVALID_ARGUMENT",
-                    "Last-Event-ID must be a nonnegative sequence number",
-                );
-            }
-        },
-        None => None,
-    };
-    // Browser reconnection sends Last-Event-ID alongside the original URL.
-    let cursor = header_cursor.or(query.after_sequence).unwrap_or(0);
-    if cursor < 0 {
-        return error_response("INVALID_ARGUMENT", "Event cursor must be nonnegative");
-    }
-    let state = (
-        host.database,
-        host.identity.caller,
-        cursor,
-        std::collections::VecDeque::<opencut_editor_application::StoredEvent>::new(),
-        host.shutdown,
-    );
-    let stream = futures_util::stream::unfold(
-        state,
-        |(database, caller, mut cursor, mut pending, shutdown)| async move {
-            loop {
-                if shutdown.load(Ordering::SeqCst) {
-                    return None;
-                }
-                if let Some(event) = pending.pop_front() {
-                    cursor = event.sequence;
-                    let wire = Event::default()
-                        .id(cursor.to_string())
-                        .event("committed")
-                        .json_data(&event)
-                        .expect("serializable event");
-                    return Some((
-                        Ok::<_, std::convert::Infallible>(wire),
-                        (database, caller, cursor, pending, shutdown),
-                    ));
-                }
-                let path = database.clone();
-                let identity = caller.clone();
-                let page = tokio::task::spawn_blocking(move || {
-                    let mut app =
-                        opencut_host_runtime::workspace::Workspace::open_managed(path.as_ref())?;
-                    app.set_caller(identity);
-                    app.events_after(cursor, 100)
-                })
-                .await;
-                match page {
-                    Ok(Ok(events)) => pending.extend(events),
-                    _ => {
-                        let wire = Event::default()
-                            .event("error")
-                            .data("{\"code\":\"EVENT_READ_FAILED\",\"retryable\":true}");
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                        return Some((Ok(wire), (database, caller, cursor, pending, shutdown)));
-                    }
-                }
-                if pending.is_empty() {
-                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-                }
-            }
-        },
-    );
-    Sse::new(stream)
-        .keep_alive(KeepAlive::default())
-        .into_response()
 }
 
 /// Shared public project/job stream with the same opaque cursors and records as

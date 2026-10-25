@@ -59,7 +59,7 @@ def main():
     if not 1<=a.workers<=4:raise ValueError('at most four implementation data workers')
     if g.ROOT==a.cache or g.ROOT in a.cache.parents:raise ValueError('cache must remain outside checkout')
     tree=json.loads(a.tree.read_text());assert not tree.get('truncated');paths={e['path']:e for e in tree['tree']}
-    original=json.loads((g.ROOT/'crates/editor-application/src/font_derived_v1/catalog_source_report.json').read_text())
+    original=json.loads((g.ROOT/'crates/editor-application/src/font_derived/catalog_source_report.json').read_text())
     failures=[f for f in original['failures'] if f['reason']=='reserved font name requires reviewed renaming']
     if a.color_inputs:
         color=json.loads(a.color_inputs.read_text());entries=color if isinstance(color,list) else color['sources']
@@ -81,7 +81,7 @@ def main():
             try:pins.append(future.result())
             except Exception as e:rejected.append(dict(family=f['family'],source_path=f['source_path'],weight=f['weight'],style=f['style'],reason=str(e)))
             print(f"RFN implementation data {len(pins)+len(rejected)}/{len(failures)} generated={len(pins)} refused={len(rejected)}",flush=True)
-    target=g.ROOT/'crates/editor-application/src/font_derived_v2';target.mkdir(parents=True,exist_ok=True)
+    target=g.ROOT/'crates/editor-application/src/font_named';target.mkdir(parents=True,exist_ok=True)
     (target/'catalog_pins.json').write_text(json.dumps(sorted(pins,key=lambda p:p['face']['id']),ensure_ascii=False,indent=2)+'\n')
     (target/'approved_recipes.json').write_text(json.dumps([json.loads(p['proof_json'])['source'] for p in sorted(pins,key=lambda p:p['face']['id'])],ensure_ascii=False,indent=2)+'\n')
     (target/'catalog_source_report.json').write_text(json.dumps(dict(schema_version=2,source_commit=g.COMMIT,attempted=len(failures),generated=len(pins),source_families=len({json.loads(p['proof_json'])['source']['source_family'] for p in pins}),failures=sorted(rejected,key=lambda f:(f['family'],f['weight'],f['style'])),scope='implementation_recipe_and_output_hash_generation_only; native_and_pixel_acceptance_not_run'),ensure_ascii=False,indent=2)+'\n')

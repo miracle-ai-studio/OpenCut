@@ -98,7 +98,7 @@ try:
         assert service.poll() is None and time.monotonic() < deadline
         try:
             with urllib.request.urlopen(
-                urllib.request.Request(base + '/v1/capabilities',
+                urllib.request.Request(base + '/api/capabilities',
                                        headers={'Authorization': 'Bearer ' + token}),
                 timeout=1,
             ) as response:
@@ -128,7 +128,7 @@ try:
     # anonymous verified copy reserves disk space.
     fcntl.flock(gate_fd, fcntl.LOCK_SH)
     with ThreadPoolExecutor(max_workers=1) as pool:
-        downloading = pool.submit(http, '/v1/jobs/' + job['job_id'] + '/artifact')
+        downloading = pool.submit(http, '/api/jobs/' + job['job_id'] + '/artifact')
         try:
             deadline = time.monotonic() + 10
             while True:
@@ -140,21 +140,21 @@ try:
                     break
                 time.sleep(.005)
             assert not downloading.done(), 'Download completed before the exclusive-lock check'
-            busy = http('/v1/tools/opencut_artifact_gc_execute', execution)
+            busy = http('/api/tools/opencut_artifact_gc_execute', execution)
             assert busy['error'] is None and busy['data']['state'] == 'busy'
             assert busy['data']['durable'] is False and published.read_bytes() == original
             assert not downloading.done(), 'Download ended while collection reported busy'
         finally:
             fcntl.flock(gate_fd, fcntl.LOCK_UN)
         assert downloading.result(timeout=20) == original
-    removed = http('/v1/tools/opencut_artifact_gc_execute', execution)
+    removed = http('/api/tools/opencut_artifact_gc_execute', execution)
     assert removed['error'] is None and removed['data']['state'] == 'removed', removed
     assert not published.exists()
 
     replacement = file_path.with_name('replacement.tmp')
     replacement.write_bytes(b'X' * len(file_bytes))
     os.replace(replacement, file_path)
-    changed = http('/v1/tools/opencut_artifact_gc_execute', file_execution)
+    changed = http('/api/tools/opencut_artifact_gc_execute', file_execution)
     assert changed['error'] is None and changed['data']['state'] == 'changed', changed
     assert changed['data']['durable'] and file_path.read_bytes() == b'X' * len(file_bytes)
 
@@ -162,13 +162,13 @@ try:
     os.rename(directory_path.parent, moved)
     directory_path.parent.mkdir()
     os.rename(moved / directory_path.name, directory_path)
-    changed_directory = http('/v1/tools/opencut_artifact_gc_execute', directory_execution)
+    changed_directory = http('/api/tools/opencut_artifact_gc_execute', directory_execution)
     assert changed_directory['error'] is None and changed_directory['data']['state'] == 'changed', changed_directory
     assert changed_directory['data']['durable'] and directory_path.read_bytes() == directory_bytes
 
     hardlink = root / 'outside-hardlink.png'
     os.link(hardlink_path, hardlink)
-    changed_hardlink = http('/v1/tools/opencut_artifact_gc_execute', hardlink_execution)
+    changed_hardlink = http('/api/tools/opencut_artifact_gc_execute', hardlink_execution)
     assert changed_hardlink['error'] is None and changed_hardlink['data']['state'] == 'changed', changed_hardlink
     assert changed_hardlink['data']['durable']
     assert hardlink.read_bytes() == hardlink_bytes and hardlink_path.read_bytes() == hardlink_bytes

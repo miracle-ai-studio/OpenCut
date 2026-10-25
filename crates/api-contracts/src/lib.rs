@@ -1,88 +1,66 @@
-//! Version 1 wire contracts; no database, native paths, codecs, or plugin runtime.
-pub mod visual_blend_frame_v1;
-pub mod visual_mask_frame_v1;
-pub mod visual_preview_blend_v1;
-pub mod visual_preview_graphic_v1;
-pub mod visual_preview_mask_v1;
-pub mod visual_preview_scene_v1;
-pub mod visual_scene_frame_v1;
-pub mod visual_transform_draft_v1;
-pub mod visual_transform_draft_v2;
-pub use opencut_job_contracts::project_v4_blend_video;
-pub use opencut_job_contracts::project_v4_graphic_video;
-pub use opencut_job_contracts::project_v4_mask_video;
-pub use opencut_job_contracts::{export_video_v2, project_v4_scene_video};
+//! Shared portable contracts; no database, codecs or plugin runtime implementation.
 pub mod access;
+pub mod agent_evidence;
+pub mod agent_read;
+pub mod agent_render;
 pub mod analysis_evidence;
 pub mod analysis_query;
 pub mod artifact_gc;
 pub mod artifact_retention;
-pub mod audio_preview_recovery_v1;
-pub mod audio_preview_v4;
+pub mod audio_preview;
+pub mod audio_preview_recovery;
 pub mod audit;
+pub mod blend_frame_plan;
 pub mod branching;
 pub mod capabilities;
-pub mod classic_import;
-pub mod classic_import_v4;
-pub mod classic_import_v5;
+pub mod caption_frame_plan;
+pub mod classic_restore;
 pub mod collaboration;
 pub mod context;
 pub mod edit_control;
-pub mod edit_recovery_v1;
-pub mod edit_recovery_v2;
+pub mod edit_recovery;
 pub mod event_stream;
+pub mod graphic_frame_plan;
+pub mod historical_snapshot_package;
+pub mod historical_visual_collaboration;
+pub mod historical_visual_package;
 pub mod history_navigation;
+pub mod job_results;
+pub mod job_submission;
 pub mod job_views;
 pub mod maintenance;
+pub mod mask_frame_plan;
 pub mod media;
 pub mod media_library;
+pub mod plugin_packages;
 pub mod plugin_publication;
-pub mod plugin_v2;
 pub mod plugins;
+pub mod presets;
 pub mod preview;
-pub mod project_history_package_v1;
+pub mod project_archive;
+pub mod project_exchange;
 pub mod project_library;
 pub mod project_package;
-pub mod project_package_v3;
-pub mod project_package_v4;
-pub mod project_v3_collaboration;
-pub mod project_v3_jobs;
-pub mod project_v4_audio;
-pub mod project_v4_frame;
-pub mod project_v4_text_frame;
-pub mod project_v4_video;
-pub use opencut_job_contracts::project_v4_caption_video;
+pub mod quality;
 pub mod render;
-pub mod stream_uploads;
-pub mod visual_graphic_frame_v1;
-pub mod visual_preview_caption_v3;
-pub mod visual_preview_text_v2;
-pub mod visual_preview_v4;
-pub mod visual_text_frame_v2;
-pub mod visual_text_frame_v3;
-pub use opencut_contracts::source_art_v1;
-pub use opencut_contracts::source_art_waveform_display_v1;
+pub mod revision_actors;
+pub mod scene_frame_plan;
+pub mod text_frame_plan;
+pub mod visual_preview;
+pub mod visual_edit_draft;
+pub use opencut_contracts::source_art;
+pub use opencut_contracts::source_art_waveform_display;
 pub mod subtitle_exchange;
-pub mod subtitle_v4;
-pub mod text_canvas_v1;
-pub mod timeline_clipboard_v4;
-pub mod timeline_v4;
+pub mod subtitles;
+pub mod text_canvas;
+pub use opencut_contracts::timeline;
+pub mod timeline_clipboard;
 pub mod tools;
 use opencut_contracts::{CreateProject, EditorError, TransactionRequest};
-pub use opencut_job_contracts as jobs;
+use opencut_job_contracts as jobs;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct StoredEvent {
-    pub sequence: i64,
-    pub event_id: String,
-    pub project_id: String,
-    pub revision: String,
-    pub event_type: String,
-    pub payload: Value,
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -120,48 +98,7 @@ pub enum JobState {
     Cancelled,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct JobRecord {
-    pub job_id: String,
-    pub state: JobState,
-    pub attempt: u32,
-    pub kind: String,
-    pub input: Value,
-    pub result: Option<Value>,
-    pub error: Option<Value>,
-    pub lease_owner: Option<String>,
-    pub lease_until: Option<i64>,
-    pub cancel_requested: bool,
-    #[serde(default)]
-    pub progress: Option<JobProgress>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct JobProgress {
-    pub stage: String,
-    pub fraction: Option<f64>,
-    pub media_time: Option<opencut_contracts::Time>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-pub struct JobEvent {
-    pub sequence: i64,
-    pub event_id: String,
-    pub job_id: String,
-    pub event_type: String,
-    pub state: JobState,
-    pub attempt: u32,
-    pub payload: Value,
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ProjectCreateInput {
-    pub project: CreateProject,
-    pub idempotency_key: String,
-}
+pub use opencut_contracts::project_catalog::CreateProjectRequest;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -180,43 +117,9 @@ pub struct HistoryInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct RevisionInput {
-    pub project_id: String,
-    pub revision: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct RestoreInput {
-    pub project_id: String,
-    pub request: RestoreRevisionRequest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct EditInput {
     pub project_id: String,
     pub request: TransactionRequest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct EventsInput {
-    #[serde(default)]
-    pub after_sequence: i64,
-    #[serde(default = "default_limit")]
-    pub limit: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct JobEventsInput {
-    #[serde(default)]
-    pub after_sequence: i64,
-    #[serde(default = "default_limit")]
-    pub limit: usize,
-    #[serde(default)]
-    pub job_id: Option<String>,
 }
 
 fn default_limit() -> usize {
@@ -229,7 +132,6 @@ pub struct EmptyInput {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Response<T = Value> {
-    pub api_version: String,
     pub request_id: String,
     pub data: Option<T>,
     pub error: Option<EditorError>,
@@ -243,7 +145,6 @@ impl Response {
             Err(error) => (None, Some(error)),
         };
         Self {
-            api_version: "1".into(),
             request_id,
             data,
             error,
@@ -267,9 +168,8 @@ pub mod budget;
 
 pub mod database;
 
-pub mod plugin_v3;
 pub mod reproducibility;
 
 pub mod execution_receipt;
 
-pub mod edit_recovery_v3;
+pub use opencut_contracts::project_readonly;

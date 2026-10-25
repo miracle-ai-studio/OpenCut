@@ -118,6 +118,23 @@ impl ClassicAudioPreviewProducer {
         }
         Ok(())
     }
+    pub(super) fn validate_current_binding(&self, receipt: &Value) -> Result<(), EditorError> {
+        let prepared = self
+            .prepared
+            .as_ref()
+            .ok_or_else(|| error("AUDIO_PROTOCOL_ERROR", "Missing initial source identity"))?;
+        let binding = json!({"decoders":prepared["decoders"],"sourceFormats":self.bound_sources,
+            "preparation":prepared["preparation"],"window":self.active_window});
+        let bytes = serde_json::to_vec(&canonical_binding(&binding)?)
+            .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid current source binding"))?;
+        if receipt["sourceBindingSha256"] != format!("{:x}", Sha256::digest(bytes)) {
+            return Err(error(
+                "AUDIO_PROTOCOL_ERROR",
+                "PCM completion differs from the accepted source window",
+            ));
+        }
+        Ok(())
+    }
     pub(super) fn validate_sources(&self, receipt: &Value) -> Result<(), EditorError> {
         if self.bound_sources.as_ref() != Some(&receipt["sourceFormats"])
             || ids(&receipt["decoders"], "assetId")? != self.resource_ids
@@ -134,11 +151,33 @@ impl ClassicAudioPreviewProducer {
                 .admitted
                 .get(asset)
                 .ok_or_else(|| error("AUDIO_PROTOCOL_ERROR", "Preview decoder was not admitted"))?;
+            // Rolling primary probes have no fabricated complete-source
+            // extent. Prepared sources retain their observed native bound.
+            let allocation = &admitted["allocation"];
+            let known_extent = !allocation["preparation"].is_null();
+            let max_frames = if known_extent {
+                if allocation["preparation"]["mode"] == "windowed" {
+                    decimal(string(&allocation["preparation"], "maxNativeFrames")?)?
+                } else {
+                    number(&allocation["preparation"], "maxFrames")?
+                }
+            } else {
+                if allocation["stream"].is_null() {
+                    return Err(error(
+                        "AUDIO_PROTOCOL_ERROR",
+                        "Preview source has no admitted consumer",
+                    ));
+                }
+                number(&allocation["stream"], "workingFrames")?
+            };
             if decoder["primary"] != admitted["primary"]
                 || number(decoder, "sampleRate")? != number(&admitted["primary"], "sampleRate")?
                 || number(decoder, "channels")? != number(&admitted["primary"], "channels")?.min(2)
-                || decimal(string(decoder, "frameCount")?)?
-                    > number(&admitted["admission"], "maxFrames")?
+                || if !known_extent {
+                    !decoder["frameCount"].is_null()
+                } else {
+                    decimal(string(decoder, "frameCount")?)? > max_frames
+                }
             {
                 return Err(error(
                     "AUDIO_PROTOCOL_ERROR",

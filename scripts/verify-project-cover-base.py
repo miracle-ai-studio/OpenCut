@@ -25,13 +25,13 @@ def verify(binary,web,root,resume=False):
   created=call('opencut_project_create',{'project':{'id':'legacy-base-cover','name':'Legacy base cover','sequence_id':'main','width':160,'height':90,'fps':{'numerator':24,'denominator':1}},'idempotency_key':'base-create'})
   source=root/'lime.mp4'
   if not source.exists():subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=lime:s=160x90:r=24:d=2','-c:v','libx264','-pix_fmt','yuv420p',str(source)],check=True,timeout=30)
-  upload=call('opencut_upload_stream_begin',{'project_id':'legacy-base-cover','idempotency_key':'lime-upload','name':'lime.mp4','size_bytes':str(source.stat().st_size)})
+  upload=call('opencut_upload_begin',{'project_id':'legacy-base-cover','idempotency_key':'lime-upload','name':'lime.mp4','size_bytes':str(source.stat().st_size)})
   if upload['state']=='receiving':
    assert upload['next_offset']=='0',upload
-   transfer=subprocess.run([str(frozen),'--json','--database',str(db),'upload','stream-put',upload['upload_id'],'--offset','0','--input',str(source)],capture_output=True,text=True,timeout=60)
-   received=json.loads(transfer.stdout);trace.append({'transport':'cli stream-put','upload_id':upload['upload_id'],'reply':received})
+   transfer=subprocess.run([str(frozen),'--json','--database',str(db),'upload','put',upload['upload_id'],'--offset','0','--input',str(source)],capture_output=True,text=True,timeout=60)
+   received=json.loads(transfer.stdout);trace.append({'transport':'cli put','upload_id':upload['upload_id'],'reply':received})
    assert transfer.returncode==0 and received['error'] is None,received
-  job=call('opencut_upload_stream_complete',{'upload_id':upload['upload_id'],'content_hash':hashlib.sha256(source.read_bytes()).hexdigest()});job=call('opencut_job_view',{'job_id':job['job_id']});deadline=time.monotonic()+120
+  job=call('opencut_upload_complete',{'upload_id':upload['upload_id'],'content_hash':hashlib.sha256(source.read_bytes()).hexdigest()});job=call('opencut_job_view',{'job_id':job['job_id']});deadline=time.monotonic()+120
   while job['state'] in ['queued','running'] and time.monotonic()<deadline:time.sleep(.2);job=call('opencut_job_view',{'job_id':job['job_id']})
   assert job['state']=='succeeded',job
   asset=call('opencut_project_media_inspect',{'project_id':'legacy-base-cover','media_id':job['extended_result']['data']['media_id']})['asset'];span={'start':{'ticks':'0','timebase':1},'duration':asset['duration']}

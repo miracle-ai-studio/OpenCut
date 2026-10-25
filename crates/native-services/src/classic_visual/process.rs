@@ -1,9 +1,9 @@
 use super::session_adapter::VisualProcessSession;
 use crate::{browser_process::BrowserProcess, classic_audio::transport};
 use opencut_contracts::EditorError;
-use opencut_editor_application::classic_text_frame_v2::*;
+use opencut_editor_application::classic_text_frame::*;
 use opencut_editor_application::classic_visual::*;
-use opencut_editor_application::project_v4_frame_jobs::LocalVisualExecutionPolicyV1;
+use opencut_editor_application::media_frame_jobs::LocalVisualExecutionPolicy;
 use serde_json::{Value, json};
 use std::{
     path::PathBuf,
@@ -15,7 +15,7 @@ pub struct ClassicVisualProcessConfig {
     pub runner: PathBuf,
     pub chromium: PathBuf,
     pub deadline: Duration,
-    pub policy: LocalVisualExecutionPolicyV1,
+    pub policy: LocalVisualExecutionPolicy,
     pub strict_cgroup: Option<PathBuf>,
 }
 pub struct ClassicVisualProcess {
@@ -131,9 +131,7 @@ impl ClassicVisualProcess {
                 let Some(message) = process.receive().map_err(wire)? else {
                     continue;
                 };
-                if message.get("protocolVersion").and_then(Value::as_u64) != Some(1)
-                    || message.get("executionId").and_then(Value::as_str) != Some(&execution)
-                {
+                if message.get("executionId").and_then(Value::as_str) != Some(&execution) {
                     return Err(error("VISUAL_PROTOCOL_ERROR", "Execution envelope changed"));
                 }
                 match text(&message, "type")? {
@@ -244,7 +242,7 @@ impl ClassicVisualProcess {
                             .map_err(|_| {
                                 error("VISUAL_PROTOCOL_ERROR", "Invalid typed quota receipt")
                             })?;
-                        validate_quota(&quota, config)?;
+                        validate_quota(&quota, config, Some(config.deadline))?;
                         return session.finish(
                             receipt,
                             quota,
@@ -314,6 +312,7 @@ pub(crate) fn validate_identity(identity: &ClassicVisualEngineIdentity) -> Resul
 pub(crate) fn validate_quota(
     quota: &VisualQuotaReceipt,
     config: &ClassicVisualProcessConfig,
+    elapsed_budget: Option<Duration>,
 ) -> Result<(), EditorError> {
     let strict = config.strict_cgroup.is_some();
     if quota.profile
@@ -326,7 +325,7 @@ pub(crate) fn validate_quota(
         || decimal(&quota.observed_peak_rss_bytes)? > config.policy.max_rss_bytes
         || quota.hard_memory_enforced != strict
         || !(20..=250).contains(&quota.monitor_interval_ms)
-        || quota.elapsed_ms > config.policy.deadline_ms
+        || elapsed_budget.is_some_and(|budget| u128::from(quota.elapsed_ms) > budget.as_millis())
     {
         return Err(error(
             "VISUAL_PROTOCOL_ERROR",
@@ -358,21 +357,21 @@ impl ClassicVisualExecutor for ClassicVisualProcess {
     }
 }
 
-impl ClassicTextFrameExecutorV2 for ClassicVisualProcess {
+impl ClassicTextFrameExecutor for ClassicVisualProcess {
     fn execute_text_frame(
         &self,
-        session: &mut ClassicTextFrameSessionV2<'_>,
+        session: &mut ClassicTextFrameSession<'_>,
         resources: &mut dyn ClassicTextFrameResources,
         handles: &[ClassicVisualResourceHandle],
-        fonts: &[ClassicTextFontHandleV2],
+        fonts: &[ClassicTextFontHandle],
         sink: &mut dyn ClassicVisualRgbaSink,
-    ) -> Result<ClassicTextFrameExecutionV2, EditorError> {
+    ) -> Result<ClassicTextFrameExecution, EditorError> {
         #[cfg(unix)]
         {
             self.render_session(
                 session,
                 resources,
-                "beginTextFrameV2",
+                "beginTextFrame",
                 serde_json::to_value(handles)
                     .map_err(|_| error("INVALID_VISUAL_PLAN", "Invalid media handles"))?,
                 Some(

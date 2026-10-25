@@ -1,5 +1,5 @@
 use crate::browser_resources::VerifiedBrowserResources;
-use opencut_composition::project_v4::PreparedAudioV4;
+use opencut_composition::scene::PreparedAudio;
 use opencut_contracts::EditorError;
 use opencut_editor_application::classic_audio::{
     AudioResource, ClassicAudioResourceHandle, ClassicAudioResources,
@@ -11,11 +11,7 @@ pub struct VerifiedClassicAudioResources<F> {
     inner: VerifiedBrowserResources<F>,
 }
 impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicAudioResources<F> {
-    pub fn new(
-        root: &Path,
-        prepared: &PreparedAudioV4,
-        checkpoint: F,
-    ) -> Result<Self, EditorError> {
+    pub fn new(root: &Path, prepared: &PreparedAudio, checkpoint: F) -> Result<Self, EditorError> {
         Ok(Self {
             inner: VerifiedBrowserResources::new(
                 root,

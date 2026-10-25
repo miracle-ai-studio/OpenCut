@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useWorkspace } from "./context";
+import { useEditingWorkspace as useWorkspace } from "./context";
 import { Button, Modal } from "../shared/ui";
 import { useLocale } from "../shared/locale";
 
@@ -27,8 +27,6 @@ export function LocalSessionButton() {
           !abort.signal.aborted &&
           value &&
           typeof value === "object" &&
-          "schema_version" in value &&
-          value.schema_version === 1 &&
           "active" in value &&
           typeof value.active === "boolean"
         )
@@ -37,23 +35,29 @@ export function LocalSessionButton() {
       .catch(() => {});
     return () => abort.abort();
   }, [open]);
-  const local =
+  const local = controller.canStartLocalSession && (
     !api ||
     (!api.audioPreviewConnection.token &&
-      new URL(api.sdk.baseUrl).origin === location.origin);
+      new URL(api.sdk.baseUrl).origin === location.origin));
   if (!local) return null;
   const run = async (end: boolean) => {
     setPending(true);
     setError(null);
     try {
       if (end) await controller.logoutLocalSession();
-      else await controller.start();
+      else if (!await controller.start()) {
+        setError(t(
+          "The local session could not be started. Check the service, then retry connecting.",
+          "本机会话未能启动，请检查服务后重试连接。",
+        ));
+        return;
+      }
       setOpen(false);
     } catch {
       setError(
         t(
-          "The local session could not be ended. Retry ending it.",
-          "本机会话未能确认退出，请重试退出。",
+          end ? "The local session could not be ended. Retry ending it." : "The local session could not be started. Check the service, then retry connecting.",
+          end ? "本机会话未能确认退出，请重试退出。" : "本机会话未能启动，请检查服务后重试连接。",
         ),
       );
     } finally {

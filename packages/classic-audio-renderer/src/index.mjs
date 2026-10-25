@@ -63,7 +63,7 @@ async function executeClassicExport(plan, host, { signal, maxPcmBytes, maxEncode
   const resources = new Map(plan.resources.map(r => [r.assetId, r]));
   const order = plan.voices.map(v => v.elementId);
   if (resources.size !== plan.resources.length || new Set(order).size !== order.length || plan.voices.some(v => typeof v.elementId !== "string" || !v.elementId || !resources.has(v.assetId))) reject("INVALID_AUDIO_PLAN", "Resource and voice identities must be unique and bound");
-  const releases = [];
+  const releases = [], inputReleases = [];
   const decoded = new Map(), sources = new Map(), preparation = [], decoders = [];
   const context = host.createAudioContext(plan.identity.sampleRate);
   let failure;
@@ -75,17 +75,33 @@ async function executeClassicExport(plan, host, { signal, maxPcmBytes, maxEncode
       checkAbort(signal);
       if (!decoded.has(voice.assetId)) {
         const resource = resources.get(voice.assetId);
-        const releaseEncoded = budget.reserve(integer(resource.size * 3, "encoded working bytes", 1, maxEncodedBytes * 3));
+        // Small standalone Web Audio inputs preserve their existing codec
+        // semantics. Container video and larger audio use the same pinned
+        // demuxer with a verified disk range source, never a whole-file copy.
+        const rangeInput = resource.kind === "video" || resource.size > maxEncodedBytes;
+        const releaseEncoded = rangeInput ? () => {} : budget.reserve(integer(resource.size * 3, "encoded working bytes", 1, maxEncodedBytes * 3));
+        let bytes;
         try {
-          const bytes = await authorizedBytes(resource, host, signal, maxEncodedBytes);
+          bytes = rangeInput ? await host.resolveRangeSource(resource, budget, signal) : await authorizedBytes(resource, host, signal, maxEncodedBytes);
           const result = await decodeResource(resource, bytes, context, host, budget, signal);
-          decoded.set(voice.assetId, result.buffer); releases.push(result.release);
+          decoded.set(voice.assetId, { ...result, remaining: plan.voices.filter(v => v.assetId === voice.assetId).length, retainedForMixing: false });
+          inputReleases.push(result.release);
           decoders.push({ assetId: voice.assetId, profile: result.profile, sampleRate: result.buffer.sampleRate, frameCount: String(result.buffer.length), channels: result.buffer.numberOfChannels, primary: result.primary });
-        } finally { releaseEncoded(); }
+        } finally { if (rangeInput) await bytes?.close(); releaseEncoded(); }
       }
-      const prepared = await prepareVoice(voice, decoded.get(voice.assetId), context, host, budget, signal);
-      sources.set(voice.elementId, prepared.buffer); releases.push(prepared.release);
+      const owner = decoded.get(voice.assetId);
+      const prepared = await prepareVoice(voice, owner.buffer, context, host, budget, signal);
+      sources.set(voice.elementId, prepared.buffer); inputReleases.push(prepared.release);
       preparation.push({ elementId: voice.elementId, facts: prepared.facts });
+      owner.retainedForMixing ||= prepared.facts.mode === "unprepared-linear";
+      owner.remaining--;
+      if (!owner.remaining && !owner.retainedForMixing) {
+        // Every voice sharing this resource has finished its own Float32/DSP
+        // preparation. Keep only prepared outputs; the decoder cannot reopen.
+        const released = await cancellable(host.releaseDecodedSource(Object.freeze({ ...resources.get(voice.assetId) })), host, signal);
+        if (released?.released !== true) reject("INVALID_AUDIO_PLAN", "Decoded source release was not acknowledged");
+        owner.release(); owner.buffer = null; decoded.delete(voice.assetId);
+      }
     }
     const sourceFormats = plan.voices.map(v => ({ elementId: v.elementId, sampleRate: sources.get(v.elementId).sampleRate, frameCount: String(sources.get(v.elementId).length), channels: sources.get(v.elementId).numberOfChannels, prepared: preparation.find(p => p.elementId === v.elementId).facts.mode !== "unprepared-linear" }));
     for (let start = 0; start < frames;) {
@@ -99,6 +115,18 @@ async function executeClassicExport(plan, host, { signal, maxPcmBytes, maxEncode
       mixCompiledBlock(output, sources, order, block, start, count);
       start += count;
     }
+    // Whole-scene mastering needs the mixed output and its continuous state,
+    // not another copy of every decoded/prepared input. Retire remaining
+    // ordinary aliases only after Rust has admitted the complete block prefix.
+    sources.clear();
+    for (const [assetId, owner] of decoded) {
+      const released = await cancellable(host.releaseDecodedSource(Object.freeze({ ...resources.get(assetId) })), host, signal);
+      if (released?.released !== true) reject("INVALID_AUDIO_PLAN", "Mixed source release was not acknowledged");
+      owner.release(); owner.buffer = null;
+    }
+    decoded.clear();
+    for (const release of inputReleases) release();
+    inputReleases.length = 0;
     const mastered = await masterWholeScene(output, host, budget, signal);
     releases.push(mastered.release);
     let result = mastered.buffer;
@@ -113,6 +141,7 @@ async function executeClassicExport(plan, host, { signal, maxPcmBytes, maxEncode
   } catch (error) { failure = error; throw error; }
   finally {
     sources.clear(); decoded.clear();
+    for (const release of inputReleases) release();
     for (const release of releases) release();
     try {
       if (context.state !== "closed") await cancellable(context.close(), host, signal?.aborted ? undefined : signal);

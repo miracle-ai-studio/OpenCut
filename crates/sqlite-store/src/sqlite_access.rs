@@ -144,31 +144,37 @@ pub(super) fn verified_target(
         kind,
         "render.project_audio.v4" | "render.project_audio_range.v4"
     ) {
-        return sqlite_project_v4_audio_jobs::verified_target(connection, input);
+        return sqlite_scene_audio_jobs::verified_target(connection, input);
+    }
+    if kind == "analysis.asset.v4" {
+        return asset_analysis::verified_target(connection, input);
     }
     if kind == "analysis.sequence_transcribe.v4" {
-        return sqlite_sequence_transcribe_v4::verified_target(connection, input);
+        return sqlite_scene_transcription::verified_target(connection, input);
     }
     if kind == "render.project_video.v4" {
-        return sqlite_project_v4_video_jobs::verified_target(connection, input);
+        return sqlite_media_video_jobs::verified_target(connection, input);
     }
     if kind == "render.project_caption_video.v4" {
-        return sqlite_project_v4_caption_video_jobs::verified_target(connection, input);
+        return sqlite_scene_caption_video_jobs::verified_target(connection, input);
     }
     if kind == "render.project_graphic_video.v4" {
-        return sqlite_project_v4_graphic_video_jobs::verified_target(connection, input);
+        return sqlite_scene_graphic_video_jobs::verified_target(connection, input);
     }
-    if kind == "render.export_video.v2" {
-        return export_video_v2::verified_target(connection, input);
+    if matches!(
+        kind,
+        "render.export_video.v2" | "render.export_video_range.v1"
+    ) {
+        return export_video::verified_target(connection, input);
     }
     if kind == "render.project_scene_video.v4" {
-        return sqlite_project_v4_scene_video_jobs::verified_target(connection, input);
+        return sqlite_scene_video_jobs::verified_target(connection, input);
     }
     if kind == "render.project_mask_video.v4" {
-        return sqlite_project_v4_mask_video_jobs::verified_target(connection, input);
+        return sqlite_scene_mask_video_jobs::verified_target(connection, input);
     }
     if kind == "render.project_blend_video.v4" {
-        return sqlite_project_v4_blend_video_jobs::verified_target(connection, input);
+        return sqlite_scene_blend_video_jobs::verified_target(connection, input);
     }
     if matches!(
         kind,
@@ -179,10 +185,10 @@ pub(super) fn verified_target(
             | "render.project_scene_frame.v4"
             | "render.project_blend_frame.v4"
     ) {
-        return sqlite_project_v4_text_frame_jobs::verified_target(connection, input);
+        return sqlite_scene_text_frame_jobs::verified_target(connection, input);
     }
     if kind == "render.project_frame.v4" {
-        return sqlite_project_v4_frame_jobs::verified_target(connection, input);
+        return sqlite_media_frame_jobs::verified_target(connection, input);
     }
     if matches!(
         kind,
@@ -194,12 +200,12 @@ pub(super) fn verified_target(
         let Some(snapshot) = input.get("snapshot") else {
             return Ok(None);
         };
-        let Ok(snapshot) = serde_json::from_value::<opencut_contracts::project_v3::ProjectSnapshotV3>(
-            snapshot.clone(),
-        ) else {
+        let Ok(snapshot) = serde_json::from_value::<
+            opencut_contracts::historical_visual::HistoricalVisualSnapshot,
+        >(snapshot.clone()) else {
             return Ok(None);
         };
-        let stored = sqlite_project_v3::load_v3_snapshot(
+        let stored = sqlite_historical_visual::load_historical_visual_snapshot(
             connection,
             &snapshot.project.base.id,
             Some(&snapshot.revision),
@@ -252,10 +258,15 @@ pub(super) fn verified_target(
         return Ok(None);
     };
     let stored = if kind.starts_with("analysis.") {
-        match sqlite_project_document::decode_versioned_project(&stored)? {
-            sqlite_project_document::VersionedProjectDocument::Legacy(project) => project,
-            sqlite_project_document::VersionedProjectDocument::V3(project) => project.base,
-            sqlite_project_document::VersionedProjectDocument::V4(_) => {
+        match sqlite_project_document::decode_stored_project(&stored)? {
+            sqlite_project_document::ProjectStorageDocument::Legacy(project) => project,
+            sqlite_project_document::ProjectStorageDocument::HistoricalVisual(project) => {
+                project.base
+            }
+            sqlite_project_document::ProjectStorageDocument::ReadOnly(_) => {
+                return Err(opencut_editor_application::project_readonly::readonly_error());
+            }
+            sqlite_project_document::ProjectStorageDocument::Editable(_) => {
                 return Err(EditorError::new(
                     "UNSUPPORTED_PROJECT_VERSION",
                     "Schema 4 jobs require a schema 4 execution snapshot",
@@ -321,8 +332,10 @@ pub(super) fn require_submission(
             | "render.project_mask_video.v4"
             | "render.project_scene_video.v4"
             | "render.export_video.v2"
+            | "render.export_video_range.v1"
             | "render.project_blend_video.v4"
             | "analysis.sequence_transcribe.v4"
+            | "analysis.asset.v4"
     ) {
         let (project, _) = verified_target(connection, &request.kind, &request.input)?
             .ok_or_else(access::denied)?;

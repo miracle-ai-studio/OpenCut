@@ -52,7 +52,7 @@ function Probe({
   current = useShortcuts();
   return (
     <div className="editor-app">
-      <div className="v4-timeline-panel" tabIndex={0}>
+      <div className="editor-timeline-panel" tabIndex={0}>
         Timeline
       </div>
       <ShortcutsButton />
@@ -130,7 +130,7 @@ it("shows the actual registry and records conflicts and system reservations with
   )! as HTMLElement;
   fireEvent.click(
     within(row).getByRole("button", {
-      name: "Split elements at playhead: Change S",
+      name: "Split clips at playhead: Change S",
     }),
   );
   const recorder = screen.getByRole("textbox", { name: "Record a shortcut" });

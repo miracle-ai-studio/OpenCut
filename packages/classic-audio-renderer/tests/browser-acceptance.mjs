@@ -28,11 +28,14 @@ async function fixture(bytes, mode, gainAt, options, range) {
     abortRendering: options.abortRendering,
     resolveVerifiedBytes: async () => bytes,
     admitDecode: async () => ({ maxFrames: 100000, maxChannels: 1 }),
+    releaseDecodedSource: async () => ({ released: true }),
+    admitPcmAudioDecode: async () => ({ mode: "whole" }),
     createAudioContext: sampleRate => new AudioContext({ sampleRate }),
     createOfflineContext: (channels, frames, sampleRate) => new OfflineAudioContext(channels, frames, sampleRate),
     compilePitchPreparation: async input => {
       require(input.decodedSampleRate === 44100 && input.decodedFrameCount === "88200", "Actual WAV decoder format changed");
-      return { mode, decodedSampleRate: 44100, targetSampleRate: 44100, numChannels: 1, tempo: { numerator: "2", denominator: "1" }, sourceSliceStartSample: "0", requestedSourceFrames: "88200", actualSourceFrames: "88200", resampledFrames: "88200", outputFrames: "44100", prefixFrames: "88200", totalChannelFrames: "308700", decodedBytes: "352800", preparedBytes: "882000", totalBytes: "1234800" };
+      const preparedFrames = mode === "unprepared-linear" ? 0 : mode === "prepared-linear" ? 44100 : 220500;
+      return { mode, decodedSampleRate: 44100, targetSampleRate: 44100, numChannels: 1, tempo: { numerator: "2", denominator: "1" }, sourceSliceStartSample: "0", requestedSourceFrames: "88200", actualSourceFrames: "88200", resampledFrames: "88200", outputFrames: "44100", prefixFrames: "88200", totalChannelFrames: String(88200 + preparedFrames), decodedBytes: "352800", preparedBytes: String(preparedFrames * 4), totalBytes: String((88200 + preparedFrames) * 4) };
     },
     compileSourcePositions: async ({ localStartSample, frameCount }) => Array.from({ length: frameCount }, (_, i) => position((Number(localStartSample) + i) * 2)),
     compileBlock: async ({ startSample, frameCount, sourceFormats }) => {

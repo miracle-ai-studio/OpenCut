@@ -2,7 +2,7 @@ import { legacyId } from "../identity";
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV11ToV12({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

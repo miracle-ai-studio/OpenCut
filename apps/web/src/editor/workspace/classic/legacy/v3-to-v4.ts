@@ -18,7 +18,7 @@ const VALID_NUMERIC_FONT_WEIGHTS = new Set([
 	"900",
 ]);
 
-export function transformProjectV3ToV4({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;
@@ -28,7 +28,7 @@ export function transformProjectV3ToV4({
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV4Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v4" };
 	}
 
@@ -182,7 +182,7 @@ function normalizeFontWeight({ value }: { value: unknown }): unknown {
 
 export { getProjectId } from "./utils";
 
-function isV4Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	const versionValue = project.version;
 	return typeof versionValue === "number" && versionValue >= 4;
 }

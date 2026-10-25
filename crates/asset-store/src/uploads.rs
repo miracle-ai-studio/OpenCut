@@ -1,7 +1,7 @@
 //! Private resumable upload chunks. Confirmed offsets live in the application store.
 use fs2::FileExt;
 use opencut_contracts::{EditorError, LockedAsset};
-use opencut_editor_application::uploads::{self, ChunkDescriptor, UploadSession, UploadStore};
+use opencut_editor_application::uploads::{self, ChunkDescriptor, UploadStore, UploadView};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File, OpenOptions},
@@ -91,7 +91,7 @@ impl UploadChunks {
         store: &mut impl UploadStore,
         input: &ChunkDescriptor,
         bytes: &[u8],
-    ) -> Result<UploadSession, EditorError> {
+    ) -> Result<UploadView, EditorError> {
         uploads::validate_chunk(input)?;
         if bytes.len() as u64 != uploads::decimal(&input.size_bytes)?
             || format!("{:x}", Sha256::digest(bytes)) != input.content_hash
@@ -121,23 +121,18 @@ impl UploadChunks {
             return store.acknowledge_chunk(input);
         }
         directory(&folder)?;
-        // No cooperating writer is alive under this lock. Remove crash-left
-        // temporaries before allocating another, so retries cannot grow them forever.
-        for entry in fs::read_dir(&folder).map_err(io)? {
-            let entry = entry.map_err(io)?;
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            if name.starts_with('.') && name.ends_with(".tmp") {
-                fs::remove_file(entry.path()).map_err(io)?;
-            }
+        // The exclusive upload lock permits exactly one bounded staging slot.
+        // Reclaim its crash residue directly;never rescan all confirmed chunks
+        // for every append. Historical temporary files are removed by release.
+        let staging = folder.join(".upload-chunk.tmp");
+        match fs::remove_file(&staging) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(io(error)),
         }
         if super::verify_file(&target, &expected).is_err() {
             let _reservation = self.reserve("upload_chunk", bytes.len() as u64)?;
-            let temporary = Temporary(folder.join(format!(
-                ".{}-{}.tmp",
-                input.offset,
-                uuid::Uuid::new_v4().simple()
-            )));
+            let temporary = Temporary(staging);
             let mut options = OpenOptions::new();
             options.create_new(true).write(true);
             #[cfg(unix)]
@@ -177,6 +172,7 @@ impl UploadChunks {
         &self,
         input: &uploads::PreparedMediaImportInput,
         target: &Path,
+        read_chunks: &mut dyn FnMut(u64) -> Result<Vec<uploads::PreparedUploadChunk>, EditorError>,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<(), EditorError> {
         use std::io::Read;
@@ -202,37 +198,81 @@ impl UploadChunks {
         let mut destination = options.open(target).map_err(io)?;
         let mut temporary = Temporary(target.to_path_buf());
         let mut whole = Sha256::new();
-        for chunk in &input.chunks {
-            let source = self
-                .root
-                .join(&input.upload_id)
-                .join(format!("{}.chunk", chunk.offset));
-            let source = super::regular_file(&source).map_err(|_| integrity())?;
-            if source.metadata().map_err(io)?.len() != chunk.size_bytes {
+        let mut cursor = 0u64;
+        loop {
+            if cancelled() {
+                return Err(EditorError::new("JOB_CANCELLED", "Import was cancelled"));
+            }
+            let chunks = if input.chunks.is_empty() {
+                read_chunks(cursor)?
+            } else {
+                // Exact historical inline manifest only;current jobs page the store.
+                input
+                    .chunks
+                    .iter()
+                    .filter(|c| c.offset >= cursor)
+                    .take(uploads::IMPORT_CHUNK_PAGE_SIZE)
+                    .cloned()
+                    .collect()
+            };
+            if chunks.len() > uploads::IMPORT_CHUNK_PAGE_SIZE {
                 return Err(integrity());
             }
-            let mut source = source.take(chunk.size_bytes + 1);
-            let mut hash = Sha256::new();
-            let mut size = 0;
-            let mut buffer = [0u8; 65_536];
-            loop {
-                if cancelled() {
-                    return Err(EditorError::new("JOB_CANCELLED", "Import was cancelled"));
-                }
-                let count = source.read(&mut buffer).map_err(io)?;
-                if count == 0 {
-                    break;
-                }
-                size += count as u64;
-                if size > chunk.size_bytes {
+            if chunks.is_empty() {
+                if cursor != input.size_bytes {
                     return Err(integrity());
                 }
-                destination.write_all(&buffer[..count]).map_err(io)?;
-                hash.update(&buffer[..count]);
-                whole.update(&buffer[..count]);
+                break;
             }
-            if size != chunk.size_bytes || format!("{:x}", hash.finalize()) != chunk.content_hash {
-                return Err(integrity());
+            for chunk in chunks {
+                uploads::validate_chunk(&uploads::ChunkDescriptor {
+                    upload_id: input.upload_id.clone(),
+                    offset: chunk.offset.to_string(),
+                    size_bytes: chunk.size_bytes.to_string(),
+                    content_hash: chunk.content_hash.clone(),
+                })
+                .map_err(|_| integrity())?;
+                let end = chunk
+                    .offset
+                    .checked_add(chunk.size_bytes)
+                    .ok_or_else(integrity)?;
+                if chunk.offset != cursor || end > input.size_bytes {
+                    return Err(integrity());
+                }
+                let source = self
+                    .root
+                    .join(&input.upload_id)
+                    .join(format!("{}.chunk", chunk.offset));
+                let source = super::regular_file(&source).map_err(|_| integrity())?;
+                if source.metadata().map_err(io)?.len() != chunk.size_bytes {
+                    return Err(integrity());
+                }
+                let mut source = source.take(chunk.size_bytes + 1);
+                let mut hash = Sha256::new();
+                let mut size = 0;
+                let mut buffer = [0u8; 65_536];
+                loop {
+                    if cancelled() {
+                        return Err(EditorError::new("JOB_CANCELLED", "Import was cancelled"));
+                    }
+                    let count = source.read(&mut buffer).map_err(io)?;
+                    if count == 0 {
+                        break;
+                    }
+                    size += count as u64;
+                    if size > chunk.size_bytes {
+                        return Err(integrity());
+                    }
+                    destination.write_all(&buffer[..count]).map_err(io)?;
+                    hash.update(&buffer[..count]);
+                    whole.update(&buffer[..count]);
+                }
+                if size != chunk.size_bytes
+                    || format!("{:x}", hash.finalize()) != chunk.content_hash
+                {
+                    return Err(integrity());
+                }
+                cursor = end;
             }
         }
         if format!("{:x}", whole.finalize()) != input.content_hash {

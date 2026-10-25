@@ -2,8 +2,8 @@
 //! used by every transport. No I/O, private storage layout or rendering lives here.
 use opencut_contracts::{
     Clip, EditorError, Operation, Sequence, Time, TimeRange,
-    project_v3::{ProjectDocumentV3, ProjectSnapshotV3, TransitionNode},
-    project_v3_ops::{ApplyV3Project, VisualOperation},
+    historical_visual::{HistoricalVisualDocument, HistoricalVisualSnapshot, TransitionNode},
+    historical_visual_ops::{ApplyHistoricalVisualProject, VisualOperation},
     timeline_edit::{TimelineCommand, TimelineEditPlan, TimelineEditRequest},
 };
 use opencut_time::RationalTime as R;
@@ -46,8 +46,8 @@ fn selection(ids: &[String]) -> Result<BTreeSet<String>, EditorError> {
 
 struct Planner<'a> {
     sequence_id: &'a str,
-    working: ProjectDocumentV3,
-    transaction: ApplyV3Project,
+    working: HistoricalVisualDocument,
+    transaction: ApplyHistoricalVisualProject,
     transitions: Vec<TransitionNode>,
     lineage: BTreeMap<String, Vec<String>>,
     reserved: BTreeSet<String>,
@@ -55,9 +55,9 @@ struct Planner<'a> {
 }
 impl<'a> Planner<'a> {
     fn new(
-        snapshot: &ProjectSnapshotV3,
+        snapshot: &HistoricalVisualSnapshot,
         sequence_id: &'a str,
-        transaction: ApplyV3Project,
+        transaction: ApplyHistoricalVisualProject,
     ) -> Result<Self, EditorError> {
         if snapshot.project.base.id != transaction.project_id
             || snapshot.revision != transaction.expected_revision
@@ -67,7 +67,9 @@ impl<'a> Planner<'a> {
                 "Editorial plan requires the exact project revision",
             ));
         }
-        opencut_editor_core::project_v3::validate_project_v3(&snapshot.project)?;
+        opencut_editor_core::historical_visual::validate_project_historical_visual(
+            &snapshot.project,
+        )?;
         let sequence = snapshot
             .project
             .base
@@ -158,7 +160,8 @@ impl<'a> Planner<'a> {
     fn step(&mut self, operation: VisualOperation) -> Result<(), EditorError> {
         let mut request = self.transaction.clone();
         request.operations = vec![operation.clone()];
-        self.working = crate::project_v3::plan_apply(&self.working, &request)?.proposed_project;
+        self.working =
+            crate::historical_visual::plan_apply(&self.working, &request)?.proposed_project;
         self.transaction.operations.push(operation);
         if self.transaction.operations.len() > 128 {
             return Err(invalid(
@@ -548,7 +551,7 @@ impl<'a> Planner<'a> {
 }
 
 pub fn plan(
-    snapshot: &ProjectSnapshotV3,
+    snapshot: &HistoricalVisualSnapshot,
     input: &TimelineEditRequest,
 ) -> Result<TimelineEditPlan, EditorError> {
     if snapshot.project.base.id != input.project_id || snapshot.revision != input.expected_revision
@@ -558,7 +561,7 @@ pub fn plan(
             "Editorial plan requires the exact project revision",
         ));
     }
-    opencut_editor_core::project_v3::validate_project_v3(&snapshot.project)?;
+    opencut_editor_core::historical_visual::validate_project_historical_visual(&snapshot.project)?;
     let sequence = snapshot
         .project
         .base
@@ -582,7 +585,7 @@ pub fn plan(
     let mut planner = Planner::new(
         snapshot,
         &input.sequence_id,
-        ApplyV3Project {
+        ApplyHistoricalVisualProject {
             project_id: input.project_id.clone(),
             expected_revision: input.expected_revision.clone(),
             idempotency_key: input.idempotency_key.clone(),
@@ -924,7 +927,7 @@ pub fn plan(
         }
     }
     planner.restore_transitions()?;
-    let verified = crate::project_v3::plan_apply(&snapshot.project, &planner.transaction)?;
+    let verified = crate::historical_visual::plan_apply(&snapshot.project, &planner.transaction)?;
     Ok(TimelineEditPlan {
         transaction: planner.transaction,
         created_ids: verified.created_ids,

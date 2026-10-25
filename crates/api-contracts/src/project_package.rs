@@ -3,12 +3,7 @@ use opencut_contracts::ProjectDocument;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum PackageMode {
-    Linked,
-    SelfContained,
-}
+pub use crate::project_exchange::PackageMode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

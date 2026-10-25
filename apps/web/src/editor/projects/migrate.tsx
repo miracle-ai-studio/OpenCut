@@ -1,3 +1,4 @@
+import { Select } from "../shared/controls";
 import { useEffect, useRef, useState } from "react";
 import { Button, Field, Modal } from "../shared/ui";
 import { t, useLocale } from "../shared/locale";
@@ -9,32 +10,31 @@ import {
 } from "../workspace/classic/source";
 import type { ClassicSource } from "../workspace/classic/source";
 import { readRecoveryBundle } from "../workspace/classic/bundle";
-import { fileDigest } from "../workspace/classic/identity";
+import { fileDigest, legacyId } from "../workspace/classic/identity";
 import { classicExporterUrl } from "../workspace/classic/exporter.generated";
 import {
   cleanupRecovery,
   findRecovered,
-  prepareRecovery,
 } from "../workspace/classic/recovery";
 import type {
   PreparedRecovery,
   RecoveryProgress,
 } from "../workspace/classic/recovery";
 import {
-  prepareRecoveryV4,
-  findRecoveredV4,
-  reviewRecoveryV4,
-  publishRecoveryV4,
-  recoveryFontProjectsV4,
-  recoveryFontSnapshotV4,
-  mapRecoveryFontsV4,
-  recoveryFontMatchesV5,
-} from "../workspace/classic/recovery-v4";
+  prepareRestoration,
+  findRestoration,
+  reviewRestoration,
+  publishRestoration,
+  recoveryFontProjects,
+  recoveryFontSnapshot,
+  mapRecoveryFonts,
+  matchesRecoveryFont,
+} from "../workspace/classic/restore";
 import type {
-  RecoveryReviewV4,
-  FontMappingV4,
-  RecoveryFontCatalogV5,
-} from "../workspace/classic/recovery-v4";
+  RestorationReview,
+  RecoveryFontMapping,
+  RecoveryFontCatalog,
+} from "../workspace/classic/restore";
 export function MigrateClassic({
   onClose,
   onOpen,
@@ -54,21 +54,21 @@ export function MigrateClassic({
     [error, setError] = useState("");
   const [progress, setProgress] = useState<RecoveryProgress | null>(null),
     [prepared, setPrepared] = useState<PreparedRecovery | null>(null);
-  const [review, setReview] = useState<RecoveryReviewV4 | null>(null),
+  const [review, setReview] = useState<RestorationReview | null>(null),
     [accepted, setAccepted] = useState(false);
   const [completed, setCompleted] = useState<string | null>(null),
     [warning, setWarning] = useState<string | null>(null);
   const [exporter, setExporter] = useState("");
   const [fontProjects, setFontProjects] = useState<
-    Awaited<ReturnType<typeof recoveryFontProjectsV4>>
+    Awaited<ReturnType<typeof recoveryFontProjects>>
   >([]);
   const [fontSnapshot, setFontSnapshot] = useState<Awaited<
-    ReturnType<typeof recoveryFontSnapshotV4>
+    ReturnType<typeof recoveryFontSnapshot>
   > | null>(null);
-  const [fontCatalog, setFontCatalog] = useState<RecoveryFontCatalogV5>([]);
+  const [fontCatalog, setFontCatalog] = useState<RecoveryFontCatalog>([]);
   const [fontChoices, setFontChoices] = useState<Record<string, string>>({});
   const [fontRequests, setFontRequests] = useState<
-    RecoveryReviewV4["analysis"]["unresolved_fonts"]
+    RestorationReview["analysis"]["unresolved_fonts"]
   >([]);
   const [publishAttempted, setPublishAttempted] = useState(false);
   const [fontDirty, setFontDirty] = useState(false);
@@ -203,7 +203,7 @@ export function MigrateClassic({
             "Classic project changed during recovery. Retry to capture its current data.",
           );
       }
-      const item = await prepareRecoveryV4(
+      const item = await prepareRestoration(
         input.snapshot,
         input.media,
         signal,
@@ -212,14 +212,10 @@ export function MigrateClassic({
       if (epoch.current !== generation) return;
       setPrepared(item);
       // Existing legacy recovery IDs remain discoverable/openable, never overwritten.
-      const legacy = await prepareRecovery(
-        input.snapshot,
-        input.media,
-        signal,
-        (p) => update(generation, p),
-      );
+      const legacy={...item,targetId:legacyId("recovered",[
+        item.decoded.sourceDigest,item.media.map(m=>[m.id,m.sha256])])};
       const previous =
-        (await findRecoveredV4(api.sdk, item, signal)) ??
+        (await findRestoration(api.sdk, item, signal)) ??
         (await findRecovered(api.sdk, legacy, signal));
       if (previous) {
         setWarning(await cleanupRecovery(api.sdk, item));
@@ -230,16 +226,11 @@ export function MigrateClassic({
         }
         return;
       }
-      const capabilities = await api.sdk.hostCapabilities({ signal });
-      const protocol = capabilities.tools.includes("opencut_classic_analyze_v5")
-        && capabilities.tools.includes("opencut_classic_import_v5") ? 5 : 4;
-      const result = await reviewRecoveryV4(api.sdk, item, signal, (p) =>
-        update(generation, p), protocol,
-      );
+      const result=await reviewRestoration(api.sdk,item,signal,p=>update(generation,p));
       if (epoch.current !== generation) return;
       setReview(result);
       setFontRequests(result.analysis.unresolved_fonts);
-      const projects = await recoveryFontProjectsV4(api.sdk, signal);
+      const projects = await recoveryFontProjects(api.sdk, signal);
       if (epoch.current === generation) setFontProjects(projects);
     });
   const publish = () =>
@@ -253,7 +244,7 @@ export function MigrateClassic({
         return;
       update(generation, { phase: "publishing" });
       setPublishAttempted(true);
-      const id = await publishRecoveryV4(api.sdk, review, signal);
+      const id = await publishRestoration(api.sdk, review, signal);
       const cleanup = await cleanupRecovery(api.sdk, review.prepared);
       if (controller.getSnapshot().api === api)
         await controller.refreshProjects();
@@ -268,10 +259,10 @@ export function MigrateClassic({
     void run(async (signal, generation) => {
       if (!api) return;
       const snapshot = projectId
-        ? await recoveryFontSnapshotV4(api.sdk, projectId, signal)
+        ? await recoveryFontSnapshot(api.sdk, projectId, signal)
         : null;
-      const catalog = snapshot && review?.protocol === 5
-        ? (await api.sdk.call("opencut_font_catalog_v3", {}, { signal })).fonts
+      const catalog = snapshot
+        ? (await api.sdk.call("opencut_font_catalog", {}, { signal })).fonts
         : [];
       if (epoch.current === generation) {
         setFontSnapshot(snapshot);
@@ -283,7 +274,7 @@ export function MigrateClassic({
   const reviewFonts = () =>
     void run(async (signal, generation) => {
       if (!api || !review || publishAttempted) return;
-      const mappings: FontMappingV4[] = fontRequests.flatMap(
+      const mappings: RecoveryFontMapping[] = fontRequests.flatMap(
         (request, index) => {
           const font = fontSnapshot?.project.fonts.find(
             (font) => font.id === fontChoices[String(index)],
@@ -302,7 +293,7 @@ export function MigrateClassic({
             : [];
         },
       );
-      const result = await mapRecoveryFontsV4(
+      const result = await mapRecoveryFonts(
         api.sdk,
         review,
         mappings,
@@ -355,7 +346,7 @@ export function MigrateClassic({
       ) : (
         <>
           <Field label={t("Classic project on this site")}>
-            <select
+            <Select
               disabled={busy || publishAttempted}
               value={selected}
               onChange={(e) => {
@@ -375,7 +366,7 @@ export function MigrateClassic({
                   {source.error ? ` · ${t("Damaged")}` : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           {!sources.length && (
             <p>{t("No Classic projects were found on this origin.")}</p>
@@ -485,22 +476,22 @@ export function MigrateClassic({
             <section aria-label={t("Recovery font mappings")}>
               <p>
                 {t(
-                  "Choose fonts already imported into a V4 project. Fonts are read from its fixed revision; recovery does not download fonts.",
+                  "Choose fonts already imported into a project. Fonts are read from its fixed revision; recovery does not download fonts.",
                 )}
               </p>
               <Field label={t("Font source project")}>
-                <select
+                <Select
                   disabled={busy || publishAttempted}
                   value={fontSnapshot?.project.id ?? ""}
                   onChange={(e) => chooseFontProject(e.target.value)}
                 >
-                  <option value="">{t("Choose an existing V4 project")}</option>
+                  <option value="">{t("Choose an existing project")}</option>
                   {fontProjects.map((project) => (
                     <option key={project.project_id} value={project.project_id}>
                       {project.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               {fontSnapshot && (
                 <p>
@@ -517,7 +508,7 @@ export function MigrateClassic({
                     style: request.font_style,
                   })}
                 >
-                  <select
+                  <Select
                     disabled={busy || publishAttempted || !fontSnapshot}
                     value={fontChoices[String(index)] ?? ""}
                     onChange={(e) => {
@@ -532,17 +523,14 @@ export function MigrateClassic({
                     {fontSnapshot?.project.fonts
                       .filter(
                         (font) =>
-                          review.protocol === 5
-                            ? recoveryFontMatchesV5(font, request, fontCatalog)
-                            : font.family === request.family && font.weight ===
-                              (request.font_weight === "bold" ? 700 : 400) && font.style === request.font_style,
+                          matchesRecoveryFont(font, request, fontCatalog),
                       )
                       .map((font) => (
                         <option key={font.id} value={font.id}>
                           {font.family} · {font.weight} · {font.style}{font.style !== request.font_style ? ` → ${request.font_style}` : ""}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </Field>
               ))}
               <Button disabled={busy || publishAttempted} onClick={reviewFonts}>

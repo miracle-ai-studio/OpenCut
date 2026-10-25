@@ -1,6 +1,6 @@
 //! Typed private execution receipts; these never extend a frozen public job DTO.
 use super::*;
-use opencut_composition::project_v4::ClassicAudioPreparationFactsV4;
+use opencut_composition::scene::ClassicAudioPreparationFacts;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -12,7 +12,7 @@ pub struct ClassicAudioIdentity {
     pub sample_rate: u32,
     pub channels: u32,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ClassicAudioDecoderReceipt {
     pub asset_id: String,
@@ -23,11 +23,24 @@ pub struct ClassicAudioDecoderReceipt {
     #[serde(default)]
     pub primary: Option<ClassicAudioPrimarySelection>,
 }
+/// Private persisted provenance for negotiated standalone PCM decoding. Public
+/// algorithm families stay frozen; each receipt is bound to its fixed CAS source.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClassicAudioDecoderEvidence {
+    pub sources: Vec<ClassicAudioDecoderSource>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClassicAudioDecoderSource {
+    pub resource: AudioResource,
+    pub decoder: ClassicAudioDecoderReceipt,
+}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ClassicAudioPreparationReceipt {
     pub element_id: String,
-    pub facts: ClassicAudioPreparationFactsV4,
+    pub facts: ClassicAudioPreparationFacts,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -81,7 +94,7 @@ pub struct ClassicAudioPreviewDecoderReceipt {
     pub asset_id: String,
     pub primary: ClassicAudioPrimarySelection,
     pub sample_rate: u32,
-    pub frame_count: String,
+    pub frame_count: Option<String>,
     pub channels: u32,
 }
 #[derive(Debug, Deserialize)]
@@ -90,7 +103,7 @@ pub struct ClassicAudioPreviewReceipt {
     pub identity: ClassicAudioIdentity,
     pub engine_identity: String,
     pub decoders: Vec<ClassicAudioPreviewDecoderReceipt>,
-    pub source_formats: Vec<opencut_composition::project_v4::PreviewSourceFormatV4>,
+    pub source_formats: Vec<opencut_composition::scene::PreviewSourceFormat>,
     pub preparation: Vec<ClassicAudioPreparationReceipt>,
     pub peak_accounted_bytes: u64,
 }

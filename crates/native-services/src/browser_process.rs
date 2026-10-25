@@ -18,6 +18,10 @@ use std::{
 // late started packets, close/kill and actual exit; the watchdog uses the same
 // grace and cannot kill the supervisor at the old 5s launch midpoint.
 const FAILURE_CLEANUP_GRACE: Duration = Duration::from_secs(15);
+struct WatchdogState {
+    active: bool,
+    progress: Option<Arc<Mutex<Instant>>>,
+}
 pub(crate) struct BrowserProcess {
     pub(crate) guard: ProcessGuard,
     pub(crate) input: Option<ChildStdin>,
@@ -25,7 +29,7 @@ pub(crate) struct BrowserProcess {
     reader: Option<JoinHandle<()>>,
     diagnostics: Option<JoinHandle<()>>,
     watchdog: Option<JoinHandle<()>>,
-    watchdog_active: Arc<Mutex<bool>>,
+    watchdog_active: Arc<Mutex<WatchdogState>>,
 }
 impl BrowserProcess {
     #[cfg(unix)]
@@ -111,22 +115,31 @@ impl BrowserProcess {
         let pid = guard.child.id();
         let browser_pid = Arc::clone(&guard.browser_pid);
         let done = Arc::clone(&guard.done);
-        let watchdog_active = Arc::new(Mutex::new(true));
+        let watchdog_active = Arc::new(Mutex::new(WatchdogState {
+            active: true,
+            progress: None,
+        }));
         let active = Arc::clone(&watchdog_active);
         let watchdog = std::thread::spawn(move || {
             let start = Instant::now();
             while !done.load(Ordering::Acquire) {
-                if start.elapsed() >= deadline + FAILURE_CLEANUP_GRACE {
+                let state = active.lock().unwrap_or_else(|e| e.into_inner());
+                let elapsed = if let Some(progress) = &state.progress {
+                    progress.lock().unwrap_or_else(|e| e.into_inner()).elapsed()
+                } else {
+                    start.elapsed()
+                };
+                if elapsed >= deadline + FAILURE_CLEANUP_GRACE {
                     // Signal and deactivation share one lock. The worker must
                     // deactivate before reaping, so a reused PID is never
                     // signalled by this watchdog after finish begins.
-                    let active = active.lock().unwrap_or_else(|e| e.into_inner());
-                    if *active {
+                    if state.active {
                         kill_group(browser_pid.load(Ordering::Acquire));
                         kill_group(pid);
                     }
                     break;
                 }
+                drop(state);
                 std::thread::sleep(Duration::from_millis(25));
             }
         });
@@ -140,6 +153,15 @@ impl BrowserProcess {
             watchdog_active,
         })
     }
+    /// The owner advances this clock only for admitted native work. Sharing it
+    /// prevents an idle browser from expiring while source verification runs.
+    pub(crate) fn use_progress_timeout(&self, clock: Arc<Mutex<Instant>>) {
+        let mut state = self
+            .watchdog_active
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        state.progress = Some(clock);
+    }
     pub(crate) fn receive(&self) -> Result<Option<Value>, EditorError> {
         self.receive_timeout(Duration::from_millis(50))
     }
@@ -151,7 +173,7 @@ impl BrowserProcess {
             .watchdog_active
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        *active = false;
+        active.active = false;
         self.guard.done.store(true, Ordering::Release);
     }
     pub(crate) fn finish(mut self, successful: bool, execution: &str) -> Result<(), EditorError> {
@@ -295,8 +317,7 @@ fn register_cleanup_packet(
     node_pid: u32,
     browser_pid: &AtomicU32,
 ) -> Result<(), EditorError> {
-    if value.get("protocolVersion").and_then(Value::as_u64) != Some(1)
-        || value.get("executionId").and_then(Value::as_str) != Some(execution)
+    if value.get("executionId").and_then(Value::as_str) != Some(execution)
         || !matches!(
             value.get("type").and_then(Value::as_str),
             Some(
@@ -350,7 +371,7 @@ mod tests {
         // An empty live queue is normal between preview commands. Zero timeout
         // must not introduce the blocking receive's 50ms into each audio block.
         assert!(receive_packet(&receiver, Duration::ZERO).unwrap().is_none());
-        let packet = json!({"protocolVersion":1,"executionId":"fixed","type":"failed"});
+        let packet = json!({"executionId":"fixed","type":"failed"});
         sender.send(Ok(packet.clone())).unwrap();
         assert_eq!(
             receive_packet(&receiver, Duration::ZERO).unwrap(),
@@ -375,8 +396,7 @@ mod tests {
     #[test]
     fn late_source_art_bytes_keep_the_fixed_cleanup_envelope() {
         let pid = AtomicU32::new(12345);
-        let packet =
-            json!({"protocolVersion":1,"executionId":"fixed","type":"art_bytes","bytes_hex":"00"});
+        let packet = json!({"executionId":"fixed","type":"art_bytes","bytes_hex":"00"});
         register_cleanup_packet(&packet, "fixed", 12344, &pid).unwrap();
         assert!(register_cleanup_packet(&packet, "other", 12344, &pid).is_err());
         assert_eq!(pid.load(Ordering::Acquire), 12345);
@@ -384,16 +404,15 @@ mod tests {
     #[test]
     fn late_startup_pid_is_scoped_and_stable_during_cleanup() {
         let pid = AtomicU32::new(0);
-        let packet =
-            json!({"protocolVersion":1,"executionId":"fixed","type":"started","browserPid":12345});
+        let packet = json!({"executionId":"fixed","type":"started","browserPid":12345});
         register_cleanup_packet(&packet, "fixed", 12344, &pid).unwrap();
         assert_eq!(pid.load(Ordering::Acquire), 12345);
         register_cleanup_packet(&packet, "fixed", 12344, &pid).unwrap();
         for altered in [
-            json!({"protocolVersion":1,"executionId":"different","type":"started","browserPid":12345}),
-            json!({"protocolVersion":1,"executionId":"fixed","type":"started","browserPid":12344}),
-            json!({"protocolVersion":1,"executionId":"fixed","type":"started","browserPid":12346}),
-            json!({"protocolVersion":1,"executionId":"fixed","type":"started","browserPid":2147483648u64}),
+            json!({"executionId":"different","type":"started","browserPid":12345}),
+            json!({"executionId":"fixed","type":"started","browserPid":12344}),
+            json!({"executionId":"fixed","type":"started","browserPid":12346}),
+            json!({"executionId":"fixed","type":"started","browserPid":2147483648u64}),
         ] {
             assert!(register_cleanup_packet(&altered, "fixed", 12344, &pid).is_err());
             assert_eq!(pid.load(Ordering::Acquire), 12345);

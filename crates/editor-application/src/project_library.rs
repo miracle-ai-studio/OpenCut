@@ -3,7 +3,7 @@ use opencut_api_contracts::project_library::{
     CopyProject, DeleteOutcome, DeleteProjects, DeleteReceipt, DuplicateProjects,
 };
 use opencut_contracts::{
-    EditorError, ProjectDocument, Time, TimeRange, project_v3::ProjectDocumentV3,
+    EditorError, ProjectDocument, Time, TimeRange, historical_visual::HistoricalVisualDocument,
 };
 use opencut_time::RationalTime;
 use std::collections::HashSet;
@@ -104,17 +104,17 @@ pub fn copy_base(
     Ok(result)
 }
 pub fn copy_visual(
-    source: &ProjectDocumentV3,
+    source: &HistoricalVisualDocument,
     input: &CopyProject,
-) -> Result<ProjectDocumentV3, EditorError> {
+) -> Result<HistoricalVisualDocument, EditorError> {
     let mut result = source.clone();
     result.base = copy_base(&source.base, input)?;
-    opencut_editor_core::project_v3::validate_project_v3(&result)?;
+    opencut_editor_core::historical_visual::validate_project_historical_visual(&result)?;
     Ok(result)
 }
 pub fn duration(
     base: &ProjectDocument,
-    visual: Option<&ProjectDocumentV3>,
+    visual: Option<&HistoricalVisualDocument>,
 ) -> Result<Time, EditorError> {
     let main = base
         .sequences
@@ -155,4 +155,63 @@ pub fn base_revision(document: &ProjectDocument) -> Result<String, EditorError> 
         "rev",
         super::encode_json(document, "copied project")?.as_bytes(),
     ))
+}
+
+/// Authored sequence extent,including disabled content,not render admission.
+pub fn authored_duration(sequence: &opencut_contracts::scene::Scene) -> Result<Time, EditorError> {
+    let mut duration = RationalTime::new(0, 1)?;
+    for range in sequence
+        .tracks
+        .iter()
+        .flat_map(|t| t.elements.iter())
+        .map(|e| &e.timeline_range)
+        .chain(sequence.captions.iter().map(|c| &c.timeline_range))
+    {
+        let end = RationalTime::try_from(&range.start)?
+            .checked_add(RationalTime::try_from(&range.duration)?)?;
+        if end.cmp_exact(duration).is_gt() {
+            duration = end;
+        }
+    }
+    Ok(duration.into())
+}
+pub fn describe_current(
+    project: &opencut_contracts::scene::EditorDocument,
+    revision: String,
+    created_at: String,
+    modified_at: String,
+    format: opencut_api_contracts::project_library::ProjectFormat,
+) -> Result<opencut_api_contracts::project_library::LibraryProject, EditorError> {
+    use opencut_contracts::scene::SettingsProfile;
+    let scene = project
+        .sequences
+        .iter()
+        .find(|s| s.id == project.default_sequence_id)
+        .ok_or_else(|| EditorError::new("INVALID_PROJECT", "Main scene is missing"))?;
+    let (canvas, fps) = match &project.settings {
+        SettingsProfile::ClassicGlobal { settings } => (settings.canvas_size, settings.fps.clone()),
+        SettingsProfile::LegacyPerScene { formats } => {
+            let f = formats
+                .iter()
+                .find(|f| f.sequence_id == scene.id)
+                .ok_or_else(|| {
+                    EditorError::new("INVALID_PROJECT", "Main scene format is missing")
+                })?;
+            (f.canvas_size, f.fps.clone())
+        }
+    };
+    Ok(opencut_api_contracts::project_library::LibraryProject {
+        project_id: project.id.clone(),
+        name: project.name.clone(),
+        revision,
+        format,
+        created_at,
+        modified_at,
+        duration: authored_duration(scene)?,
+        width: canvas.width,
+        height: canvas.height,
+        fps,
+        scene_count: project.sequences.len(),
+        asset_count: project.assets.len(),
+    })
 }

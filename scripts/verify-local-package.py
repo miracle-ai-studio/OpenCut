@@ -4,7 +4,7 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import sqlite3
 import socket
@@ -32,14 +32,97 @@ SELECTABLE_CHECKS = {
 
 
 def unpack(archive, destination):
+    """Admit only the sealed runtime's declared internal links before extraction.
+
+    Host bundles contain framework/dependency links; portable Rust SDK archives
+    still have no links. No directory entry may traverse a link, and Python's
+    data filter remains the final extraction fence. Do not relax the producer's
+    link manifest or the relocated doctor's full byte/target verification.
+    """
+    destination = Path(destination)
+    if destination.is_symlink() or destination.exists() and any(destination.iterdir()):
+        raise ValueError('Extraction destination must be new or empty')
     with tarfile.open(archive) as tar:
-        names = set()
-        for member in tar.getmembers():
-            path = (destination / member.name).resolve()
-            assert path.is_relative_to(destination.resolve()) and member.name not in names
-            assert member.isfile() or member.isdir(), member.name
-            names.add(member.name)
-        tar.extractall(destination, filter='data')
+        members = tar.getmembers()
+        if len(members) > 100000 or sum(m.size for m in members) > 8 * 1024**3:
+            raise ValueError('Delivery archive exceeds extraction budget')
+
+        def relative(value):
+            if (not isinstance(value, str) or not value or len(value) > 2048
+                    or '\\' in value or any(ord(c) < 32 for c in value)
+                    or PurePosixPath(value).is_absolute()
+                    or any(p in ('', '.', '..') for p in value.split('/'))):
+                raise ValueError('Invalid delivery archive path')
+            return value
+
+        entries = {}
+        for member in members:
+            name = relative(member.name.rstrip('/') if member.isdir() else member.name)
+            if name in entries or not (member.isfile() or member.isdir() or member.issym()):
+                raise ValueError('Duplicate or unsupported archive entry: ' + name)
+            entries[name] = member
+        roots = {PurePosixPath(name).parts[0] for name in entries}
+        if len(roots) != 1:
+            raise ValueError('Delivery must contain one archive root')
+        root, = roots
+        allowed = {}
+        manifest = entries.get(root + '/manifest.json')
+        if manifest:
+            if not manifest.isfile() or not 0 < manifest.size <= 16 * 1024**2:
+                raise ValueError('Invalid delivery manifest')
+
+            def unique(pairs):
+                value = {}
+                for key, item in pairs:
+                    if key in value:
+                        raise ValueError('Duplicate delivery manifest key')
+                    value[key] = item
+                return value
+
+            with tar.extractfile(manifest) as stream:
+                value = json.loads(stream.read(), object_pairs_hook=unique)
+            if not isinstance(value, dict) or not isinstance(value.get('links', {}), dict):
+                raise ValueError('Invalid delivery link manifest')
+            for name, target in value.get('links', {}).items():
+                relative(name)
+                if not name.startswith('bin/libexec/'):
+                    raise ValueError('Only runtime links may be declared')
+                allowed[root + '/' + name] = target
+        links = {name: entry.linkname for name, entry in entries.items() if entry.issym()}
+        if links != allowed:
+            raise ValueError('Archive links differ from the sealed manifest')
+        directories = {str(parent) for name in entries for parent in PurePosixPath(name).parents}
+        for name in entries:
+            if any(str(parent) in links for parent in PurePosixPath(name).parents):
+                raise ValueError('Archive member traverses a link')
+        known = set(entries) | directories
+        for name, target in links.items():
+            if (not isinstance(target, str) or not target or '\\' in target
+                    or PurePosixPath(target).is_absolute() or any(ord(c) < 32 for c in target)):
+                raise ValueError('Invalid runtime link target')
+            # Resolve in the archive namespace, including links followed by ..;
+            # lexical normalization alone can miss an alias escaping its root.
+            todo, resolved, steps = list(PurePosixPath(name).parts), [], 0
+            while todo:
+                steps += 1
+                if steps > 128:
+                    raise ValueError('Runtime link cycle or excessive depth')
+                part = todo.pop(0)
+                if part in ('', '.'):
+                    continue
+                if part == '..':
+                    if len(resolved) <= 1:
+                        raise ValueError('Runtime link escapes archive root')
+                    resolved.pop()
+                else:
+                    resolved.append(part)
+                    key = '/'.join(resolved)
+                    if key in links:
+                        resolved.pop()
+                        todo = links[key].split('/') + todo
+            if not resolved or resolved[0] != root or '/'.join(resolved) not in known:
+                raise ValueError('Runtime link target is missing or outside delivery')
+        tar.extractall(destination, members=members, filter='data')
 
 
 def file_sha256(path):
@@ -139,25 +222,25 @@ def verify(archive, mcp_sdk_root=None, component=None):
         domains = json.loads(run([binary, '--json', 'system', 'domains']))['data']
         assert manifest['operation_count'] == len(schema) and manifest['domain_count'] == len(domains)
         paths = json.loads((bundle / 'contracts/openapi.generated.json').read_text())['paths']
-        expected_paths = {*(f"/v1/tools/{tool['name']}" for tool in schema),
-                          *(f"/v1/tools/opencut_{domain['domain']}" for domain in domains),
-                          '/v1/domains', '/v1/domains/{domain}',
-                          '/v1/uploads/{upload_id}/chunks/{offset}',
-                          '/v1/stream-uploads/{upload_id}/chunks/{offset}',
-                          '/v1/projects/{project}/media/{media_id}/content',
-                          '/v1/project-v4-resources/content',
-                          '/v1/preview/v4/audio/stream',
-                          '/v1/artifacts/{artifact}', '/v1/changes/stream',
-                          '/v1/preview/stream'}
+        expected_paths = {*(f"/api/tools/{tool['name']}" for tool in schema),
+                          *(f"/api/tools/opencut_{domain['domain']}" for domain in domains),
+                          '/api/domains', '/api/domains/{domain}',
+                          '/api/uploads/{upload_id}/chunks/{offset}',
+                          '/api/uploads/{upload_id}/chunks/{offset}',
+                          '/api/projects/{project}/media/{media_id}/content',
+                          '/api/project-resources/content',
+                          '/api/preview/audio/stream',
+                          '/api/artifacts/{artifact}', '/api/changes/stream',
+                          '/api/preview/stream'}
         assert set(paths) == expected_paths
-        assert paths['/v1/stream-uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_stream_chunk'
-        assert paths['/v1/project-v4-resources/content']['get']['operationId'] == 'opencut_project_v4_resource_content'
-        assert paths['/v1/preview/v4/audio/stream']['post']['operationId'] == 'opencut_audio_preview_v4_stream'
-        assert paths['/v1/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
-        assert paths['/v1/projects/{project}/media/{media_id}/content']['get']['operationId'] == 'opencut_project_media_content'
-        assert paths['/v1/artifacts/{artifact}']['get']['operationId'] == 'opencut_artifact_download'
-        assert paths['/v1/changes/stream']['post']['responses']['200']['content']['text/event-stream']['x-opencut-data-schema'] == {'$ref': '#/components/schemas/OpenCutEventStreamRecord'}
-        assert paths['/v1/preview/stream']['post']['operationId'] == 'opencut_preview_stream'
+        assert paths['/api/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
+        assert paths['/api/project-resources/content']['get']['operationId'] == 'opencut_project_resource_content'
+        assert paths['/api/preview/audio/stream']['post']['operationId'] == 'opencut_audio_preview_stream'
+        assert paths['/api/uploads/{upload_id}/chunks/{offset}']['put']['operationId'] == 'opencut_upload_chunk'
+        assert paths['/api/projects/{project}/media/{media_id}/content']['get']['operationId'] == 'opencut_project_media_content'
+        assert paths['/api/artifacts/{artifact}']['get']['operationId'] == 'opencut_artifact_download'
+        assert paths['/api/changes/stream']['post']['responses']['200']['content']['text/event-stream']['x-opencut-data-schema'] == {'$ref': '#/components/schemas/OpenCutEventStreamRecord'}
+        assert paths['/api/preview/stream']['post']['operationId'] == 'opencut_preview_stream'
         capabilities = json.loads(run([binary, '--json', 'system', 'capabilities']))['data']
         if 'streamable-http' in capabilities.get('mcp', {}).get('transports', []):
             http_report = json.loads(run(['python3', ROOT / 'scripts/verify-mcp-http.py', '--binary', binary,
@@ -191,7 +274,7 @@ def verify(archive, mcp_sdk_root=None, component=None):
         while True:
             assert host.poll() is None, 'Delivered host exited during startup'
             try:
-                urllib.request.urlopen(base+'/v1/capabilities', timeout=1)
+                urllib.request.urlopen(base+'/api/capabilities', timeout=1)
                 raise AssertionError('Delivered HTTP host accepted an unauthenticated request')
             except urllib.error.HTTPError as e:
                 assert e.code == 403
@@ -231,7 +314,7 @@ assert.equal(done.state,'succeeded');assert.equal(done.result.kind,'media.probe'
 assert.equal(done.result.data.streams[0].sample_rate,48000);
 const bytes=fs.readFileSync(probe);
 const contentHash=createHash('sha256').update(bytes).digest('hex');
-const upload=await c.call('opencut_upload_create',{project_id:initial.project.id,idempotency_key:'package-cross-sdk-upload',name:'tone.wav',size_bytes:String(bytes.length),content_hash:contentHash});
+const upload=await c.call('opencut_upload_begin',{project_id:initial.project.id,idempotency_key:'package-cross-sdk-upload',name:'tone.wav',size_bytes:String(bytes.length),content_hash:contentHash});
 const cut=Math.floor(bytes.length/2);
 const partial=await c.uploadChunk(upload.upload_id,'0',bytes.subarray(0,cut));
 assert.equal(partial.next_offset,String(cut));
@@ -331,7 +414,7 @@ fn main()->Result<(),Box<dyn std::error::Error>> {
  assert_eq!(continued.next_offset,bytes.len().to_string());
  let inspected=client.call::<tools::UploadInspect>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
  assert_eq!(inspected.next_offset,continued.next_offset);
- let sealed=client.call::<tools::UploadSeal>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
+ let sealed=client.call::<tools::UploadComplete>(&api::uploads::UploadInput{upload_id:upload_id.into()})?;
  assert_eq!(sealed.state,api::uploads::UploadState::Sealed);
  let import_job_id=sealed.job_id.expect("sealed upload must accept import job");
  let done=client.wait_for_public_job(&import_job_id,opencut_sdk::WaitOptions::default())?;
@@ -441,10 +524,10 @@ import {OpenCutClient} from '@opencut/sdk';
 const [base,token,source,report]=process.argv.slice(2);
 const c=new OpenCutClient({baseUrl:base,token:fs.readFileSync(token,'utf8').trim()});
 const bytes=fs.readFileSync(source), project_id='sdk-acceptance';
-const created=await c.call('opencut_upload_create',{project_id,idempotency_key:'cross-sdk-staging',name:'staging-tone.wav',size_bytes:String(bytes.length),content_hash:createHash('sha256').update(bytes).digest('hex')});
+const created=await c.call('opencut_upload_begin',{project_id,idempotency_key:'cross-sdk-staging',name:'staging-tone.wav',size_bytes:String(bytes.length),content_hash:createHash('sha256').update(bytes).digest('hex')});
 const chunk=await c.uploadChunk(created.upload_id,'0',bytes);
 assert.equal(chunk.next_offset,String(bytes.length));
-const sealed=await c.call('opencut_upload_seal',{upload_id:created.upload_id});
+const sealed=await c.call('opencut_upload_complete',{upload_id:created.upload_id,content_hash:created.content_hash});
 assert.equal(sealed.state,'sealed');
 const job=await c.waitForPublicJob(sealed.job_id,{timeoutMs:60000});
 assert.equal(job.state,'succeeded');
@@ -594,24 +677,19 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
         if component:
             component_sha256 = hashlib.sha256(component.read_bytes()).hexdigest()
             plugin_scripts = [
-                ('verify-plugin.py', 'real WASM planner validation, immutable plan and transactional apply'),
                 ('verify-plugin-publication.py', 'plugin package and grant publication, reconciliation and MCP access'),
-                ('verify-project-plugins.py', 'project-scoped WASM grants, concurrency and CLI/HTTP/MCP planning'),
                 ('verify-budget-writers.py', 'upload, media repair, plugin install and live download write admission'),
             ]
             for script_name, description in plugin_scripts:
                 script_args = ['python3', ROOT / 'scripts' / script_name, '--binary', binary,
                                '--component', component]
-                if script_name != 'verify-plugin.py':
-                    script_args += ['--artifacts-dir', evidence / script_name.removesuffix('.py')]
-                if mcp_sdk_root and script_name in ('verify-plugin-publication.py', 'verify-project-plugins.py'):
+                script_args += ['--artifacts-dir', evidence / script_name.removesuffix('.py')]
+                if mcp_sdk_root and script_name == 'verify-plugin-publication.py':
                     script_args += ['--mcp-sdk-root', mcp_sdk_root]
                 plugin = json.loads(run(script_args))
                 assert plugin['status'] == 'passed' and plugin['binary_sha256'] == manifest['binary_sha256']
                 if 'component_sha256' in plugin:
                     assert plugin['component_sha256'] == component_sha256
-                if script_name == 'verify-plugin.py':
-                    (evidence / 'verify-plugin.json').write_text(json.dumps(plugin, indent=2))
                 checks.append(f'delivered binary passes {description}')
         if 'http' in capabilities.get('access', {}).get('scoped_transports', []):
             network = json.loads(run(['python3', ROOT / 'scripts/verify-network-access.py',
@@ -658,7 +736,7 @@ fs.writeFileSync(report,JSON.stringify({code:failure.code,warnings:failure.warni
         report = {'status':'passed','archive':str(archive),'archive_sha256':expected,'binary_sha256':manifest['binary_sha256'],
                   'target':manifest['target'],'checks':checks,'evidence':str(evidence),'doctor':doctor,
                   'component_sha256':component_sha256,
-                  'scope':'local development package acceptance on current host; not full R0-R7 or cross-platform release'}
+                  'scope':'local package archive/lifecycle validation on current host;canonical WASM planning is separate retained-workspace evidence bound to the same candidate;not full product or cross-platform release'}
         runner.checkpoint('full local package acceptance completed', checks=len(checks))
         write_json(evidence / 'report.json', report)
         write_json(Path(str(archive)+'.acceptance.json'), report)

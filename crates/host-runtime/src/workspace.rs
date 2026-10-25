@@ -103,20 +103,20 @@ impl WorkspacePort for SqliteWorkspace {
     fn repair_cancel_job(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
         self.0.repair_cancel_job(job_id)
     }
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
         self.0.authorize_chunk(input)
     }
-    fn revalidate_v4_resource_read(
+    fn revalidate_project_resource_read(
         &self,
-        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
+        input: &opencut_contracts::project_resources::InspectResource,
     ) -> Result<(), EditorError> {
-        self.0.revalidate_v4_resource_read(input)
+        self.0.revalidate_project_resource_read(input)
     }
-    fn project_v4_resource(
+    fn project_resource(
         &self,
-        input: &opencut_contracts::project_v4_resources::InspectResourceV4,
-    ) -> Result<opencut_contracts::project_v4_resources::ResourceViewV4, EditorError> {
-        self.0.inspect_v4_resource(input)
+        input: &opencut_contracts::project_resources::InspectResource,
+    ) -> Result<opencut_contracts::project_resources::ResourceView, EditorError> {
+        self.0.inspect_project_resource(input)
     }
     fn project_media(
         &self,

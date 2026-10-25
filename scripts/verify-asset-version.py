@@ -110,9 +110,10 @@ def verify(binary: Path, report: Path | None = None) -> dict:
         assert plan["unresolved_asset_ids"] == ["source"]
         assert not (root / "asset-store").exists(), "planning must not create the CAS"
         bound = tool("opencut_edit_apply", {"project_id": "versioned", "request": bind_request})
-        bound_snapshot = tool("opencut_revision_inspect", {
+        bound_snapshot = tool("opencut_project_inspect", {
             "project_id": "versioned", "revision": bound["revision"]})
-        red_version = bound_snapshot["project"]["assets"][0]["version"]
+        assert bound_snapshot["kind"] == "historical"
+        red_version = bound_snapshot["snapshot"]["project"]["assets"][0]["version"]
         assert red_version["content_hash"] == red_hash
         assert red_version["id"] == f"av_{red_hash}"
         checks.append("asset.bind pins bytes in the committed revision while plan remains unresolved and read-only")
@@ -138,9 +139,10 @@ def verify(binary: Path, report: Path | None = None) -> dict:
                            "label": "Replace with blue", "operations": [
                                {"type": "asset.replace", "asset": replacement}]}
         replaced = tool("opencut_edit_apply", {"project_id": "versioned", "request": replace_request})
-        replaced_snapshot = tool("opencut_revision_inspect", {
+        replaced_snapshot = tool("opencut_project_inspect", {
             "project_id": "versioned", "revision": replaced["revision"]})
-        blue_version = replaced_snapshot["project"]["assets"][0]["version"]
+        assert replaced_snapshot["kind"] == "historical"
+        blue_version = replaced_snapshot["snapshot"]["project"]["assets"][0]["version"]
         assert blue_version["content_hash"] == blue_hash and blue_version != red_version
         source.unlink()
         assert cli("render", "preflight", "--input", "-", payload={
@@ -150,7 +152,7 @@ def verify(binary: Path, report: Path | None = None) -> dict:
         assert_color(render_job(bound["revision"], "red-after-replace"), 0)
         checks.append("asset.replace creates a new blue revision while the old revision still renders red")
 
-        restored = tool("opencut_revision_restore", {"project_id": "versioned", "request": {
+        restored = tool("opencut_project_restore", {"project_id": "versioned", "request": {
             "expected_revision": replaced["revision"], "target_revision": bound["revision"],
             "idempotency_key": "restore-red-version", "label": "Restore red revision"}})
         restored_snapshot = tool("opencut_project_inspect", {"project_id": "versioned"})

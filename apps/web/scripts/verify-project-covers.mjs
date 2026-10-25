@@ -13,7 +13,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     frames = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("request", (r) => {
-    if (r.url().endsWith("/v1/tools/opencut_job_v3_frame"))
+    if (r.url().endsWith("/api/tools/opencut_job_frame"))
       frames.push(r.postDataJSON());
   });
   let projectId;
@@ -21,7 +21,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     const reply = await page.evaluate(
       async ({ name, input }) =>
         (
-          await fetch(`/v1/tools/${name}`, {
+          await fetch(`/api/tools/${name}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(input),
@@ -34,7 +34,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     return reply.data;
   };
   const inspect = (id) =>
-    tool("opencut_project_v3_inspect", { project_id: id ?? projectId });
+    tool("opencut_project_inspect", { project_id: id ?? projectId });
   const card = (name) =>
     page.locator(".project-card-wrap").filter({
       has: page
@@ -196,7 +196,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     );
     const old = red.project.base.assets.find((a) => a.name === "cover-red.mp4"),
       blue = red.project.base.assets.find((a) => a.name === "cover-blue.mp4");
-    const changed = await tool("opencut_edit_v3_apply", {
+    const changed = await tool("opencut_edit_apply", {
       project_id: projectId,
       expected_revision: red.revision,
       idempotency_key: "f05-blue",
@@ -251,7 +251,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     const otherSequence = withScene.project.base.sequences.find(
       (s) => s.id === other,
     );
-    const otherRed = await tool("opencut_edit_v3_apply", {
+    const otherRed = await tool("opencut_edit_apply", {
       project_id: projectId,
       expected_revision: withScene.revision,
       idempotency_key: "f05-other-red",
@@ -302,7 +302,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
       .click();
     const copyName = `(1) ${name}`;
     results.copy = await pixels(copyName, "red", "project-cover-copy.png");
-    const projects = await tool("opencut_project_library", {
+    const projects = await tool("opencut_project_list", {
       cursor: null,
       limit: 100,
     });
@@ -334,7 +334,7 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
     check(
       "F05: copied project inherits the captured cover scene with its own native frame identity; red cover and managed media survive original deletion and reload",
     );
-    const route = "**/v1/tools/opencut_job_v3_frame";
+    const route = "**/api/tools/opencut_job_frame";
     await page.route(route, async (r) => {
       if (r.request().postDataJSON().project_id !== copy.project_id)
         return r.continue();
@@ -342,7 +342,6 @@ export async function verifyProjectCovers(browser, endpoint, directory, check) {
         status: 503,
         contentType: "application/json",
         body: JSON.stringify({
-          api_version: "1",
           request_id: "f05-controlled-failure",
           data: null,
           error: {

@@ -5,7 +5,7 @@ use crate::{
     job_views::{ArtifactReference, JobView},
     tools::ToolSpec,
 };
-use opencut_contracts::{FrameRate, OperationDescriptor, Sequence};
+use opencut_contracts::{FrameRate, Sequence};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -31,13 +31,14 @@ pub enum ResourcePayload {
     OperationSchema(OperationSchema),
     ProjectSummary(ProjectSummary),
     Timeline(RevisionTimeline),
-    TimelineV3(RevisionTimelineV3),
+    VisualTimeline(VisualTimeline),
+    ProjectContext(Box<ProjectContext>),
     Job(Box<JobView>),
     Artifact(ArtifactReference),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct OperationSchema {
-    pub descriptor: OperationDescriptor,
+    pub name: String,
     pub schema: Value,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -46,7 +47,7 @@ pub struct ProjectSummary {
     pub name: String,
     pub branch: String,
     pub revision: String,
-    pub schema_version: u32,
+
     pub default_sequence_id: String,
     pub sequences: Vec<SequenceSummary>,
     pub asset_count: usize,
@@ -70,11 +71,20 @@ pub struct RevisionTimeline {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct RevisionTimelineV3 {
+pub struct VisualTimeline {
     pub project_id: String,
     pub revision: String,
-    pub schema_version: u32,
+
     pub sequence: Sequence,
-    pub visual: opencut_contracts::project_v3::SequenceVisualV3,
-    pub keyframe_curves: Vec<opencut_contracts::project_v3::KeyframeCurveV1>,
+    pub visual: opencut_contracts::historical_visual::HistoricalVisualSequenceVisual,
+    pub keyframe_curves: Vec<opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve>,
+}
+
+/// Bounded context at one immutable revision; continuation uses the shared
+/// project summary/timeline query tools rather than selecting a protocol.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectContext {
+    pub summary: crate::agent_read::ProjectSummaryPage,
+    pub timeline: Option<crate::agent_read::TimelineQuery>,
 }

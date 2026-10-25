@@ -48,7 +48,7 @@ fn rejected_audio_completion_ends_the_same_attempt_without_a_published_result() 
             [&job.job_id],
         )
         .unwrap();
-    let mut store = SqliteJobStore(app);
+    let mut store = SqliteJobStore(app, database.to_path_buf(), Default::default());
     let final_job = store
         .complete(
             &job.job_id,

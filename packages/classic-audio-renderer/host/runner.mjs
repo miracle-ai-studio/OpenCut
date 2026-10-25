@@ -17,6 +17,12 @@ export function validateBegin(packet) {
   const begin = structuredClone(packet); begin.admission = validateAdmission(begin.admission);
   const plan = begin.plan;
   if (!plan || plan.identity?.profile !== "classic-export-v31-web-audio" || !Array.isArray(plan.resources) || !Array.isArray(plan.voices) || plan.resources.length > AUDIO_EXECUTION_LIMITS.resources || plan.voices.length > AUDIO_EXECUTION_LIMITS.voices || !Array.isArray(begin.resources)) reject("INVALID_HOST_PROTOCOL", "Invalid bounded fixed audio plan");
+  const source = plan.encodedSource;
+  if (!source || source.mode !== "verified-range" || Object.keys(source).length !== 2)
+    reject("INVALID_HOST_PROTOCOL", "Missing verified range source admission");
+  integer(source.cacheBytes, "range source cache", 65536, 8 * 1024 * 1024);
+  if ((source.cacheBytes * 3 + 6 * 65536) * Math.max(1, plan.resources.length) > begin.admission.maxEncodedBytes)
+    reject("INVALID_HOST_PROTOCOL", "Range caches exceed the resident encoded budget");
   const frames = natural(plan.frameCount, "scene frames");
   if (frames === 0n) reject("INVALID_HOST_PROTOCOL", "The fixed scene is empty");
   let outputFrames = frames;
@@ -31,7 +37,7 @@ export function validateBegin(packet) {
   const known = new Set();
   for (const resource of plan.resources) {
     if (typeof resource.assetId !== "string" || !resource.assetId || known.has(resource.assetId) || !/^[a-f0-9]{64}$/.test(resource.contentHash) || !["audio", "video"].includes(resource.kind)) reject("INVALID_HOST_PROTOCOL", "Invalid fixed CAS resource identity");
-    integer(resource.size, "encoded resource bytes", 1, begin.admission.maxEncodedBytes); known.add(resource.assetId);
+    integer(resource.size, "encoded resource bytes", 1, Number.MAX_SAFE_INTEGER); known.add(resource.assetId);
   }
   const handles = new Set();
   for (const resource of begin.resources) {

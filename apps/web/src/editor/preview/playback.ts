@@ -72,12 +72,7 @@ export class Playback {
       audio_enabled: true,
       idempotency_key: crypto.randomUUID(),
     };
-    const created = await this.sdk.call(
-      snapshot.format === "visual"
-        ? "opencut_preview_v3_create"
-        : "opencut_preview_create",
-      input,
-    );
+    const created = await this.sdk.call("opencut_preview_create", input);
     this.session = created;
     if (signal.aborted) {
       await this.stopSession();

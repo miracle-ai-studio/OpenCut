@@ -67,7 +67,7 @@ function validReceipt(value: unknown): value is FeedbackReceipt {
 export function readFeedbackHistory(): FeedbackReceipt[] {
   try {
     const value: unknown = JSON.parse(
-      localStorage.getItem("opencut.feedback.mock-history.v1") ?? "[]",
+      localStorage.getItem("opencut.feedback.mock-history") ?? localStorage.getItem("opencut.feedback.mock-history.v1") ?? "[]",
     );
     return Array.isArray(value)
       ? value.filter(validReceipt).slice(0, MAX_HISTORY)
@@ -79,7 +79,7 @@ export function readFeedbackHistory(): FeedbackReceipt[] {
 function historyForMutation(): FeedbackReceipt[] {
   try {
     const raw =
-      localStorage.getItem("opencut.feedback.mock-history.v1") ?? "[]";
+      localStorage.getItem("opencut.feedback.mock-history") ?? localStorage.getItem("opencut.feedback.mock-history.v1") ?? "[]";
     if (raw.length > MAX_HISTORY * (MAX_FEEDBACK_LENGTH + 512))
       throw new FeedbackError("unavailable");
     const value: unknown = JSON.parse(raw);
@@ -98,7 +98,7 @@ function historyForMutation(): FeedbackReceipt[] {
 export function readFeedbackDraft(): FeedbackDraft {
   try {
     const value: unknown = JSON.parse(
-      localStorage.getItem("opencut.feedback.draft.v1") ?? "null",
+      localStorage.getItem("opencut.feedback.draft") ?? localStorage.getItem("opencut.feedback.draft.v1") ?? "null",
     );
     if (validDraft(value)) return value;
   } catch {
@@ -109,7 +109,7 @@ export function readFeedbackDraft(): FeedbackDraft {
 export function saveFeedbackDraft(draft: FeedbackDraft) {
   if (!validDraft(draft)) throw new FeedbackError("invalid");
   try {
-    localStorage.setItem("opencut.feedback.draft.v1", JSON.stringify(draft));
+    localStorage.setItem("opencut.feedback.draft", JSON.stringify(draft));
   } catch {
     // Keep the in-memory draft usable when browser storage is unavailable.
   }
@@ -137,7 +137,7 @@ export const receiveMockFeedback: FeedbackReceiver = async (input, signal) => {
   try {
     // No project identifiers, environment details, files, tokens or logs are collected.
     localStorage.setItem(
-      "opencut.feedback.mock-history.v1",
+      "opencut.feedback.mock-history",
       JSON.stringify([receipt, ...entries].slice(0, MAX_HISTORY)),
     );
   } catch {
@@ -149,7 +149,7 @@ export function deleteFeedbackReceipt(id: string): FeedbackReceipt[] {
   const remaining = historyForMutation().filter((entry) => entry.id !== id);
   try {
     localStorage.setItem(
-      "opencut.feedback.mock-history.v1",
+      "opencut.feedback.mock-history",
       JSON.stringify(remaining),
     );
   } catch {
@@ -160,7 +160,7 @@ export function deleteFeedbackReceipt(id: string): FeedbackReceipt[] {
 export function clearFeedbackHistory() {
   try {
     // Explicit user reset may repair malformed history; submit never resets it.
-    localStorage.setItem("opencut.feedback.mock-history.v1", "[]");
+    localStorage.setItem("opencut.feedback.mock-history", "[]");
   } catch {
     throw new FeedbackError("unavailable");
   }

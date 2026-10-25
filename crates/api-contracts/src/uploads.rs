@@ -1,17 +1,24 @@
 //! Project-scoped upload control plane. Media bytes never enter these DTOs.
-/// Host policy ceiling, shared with native package IO and Rust clients.
-/// Requests still pass byte reservations and per-attempt disk admission.
-pub const MAX_UPLOAD_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+/// Exact file addressability shared with browser resources, not a media quota.
+/// Actual writes obey volume headroom and the configured storage policy.
+pub const MAX_SOURCE_BYTES: u64 = (1u64 << 53) - 1;
 pub const MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct CreateUpload {
+pub struct BeginUpload {
     pub project_id: String,
     pub idempotency_key: String,
     pub name: String,
     pub size_bytes: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_hash: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CompleteUpload {
+    pub upload_id: String,
     pub content_hash: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -32,7 +39,7 @@ pub struct UploadView {
     pub project_id: String,
     pub name: String,
     pub size_bytes: String,
-    pub content_hash: String,
+    pub content_hash: Option<String>,
     pub next_offset: String,
     pub state: UploadState,
     pub job_id: Option<String>,
@@ -91,9 +98,6 @@ pub struct UploadRetentionView {
 pub struct UploadQuotaView {
     pub project_id: String,
     pub project_reserved_bytes: String,
-    pub project_limit_bytes: String,
-    /// Configured limit, not another project's usage.
-    pub workspace_limit_bytes: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

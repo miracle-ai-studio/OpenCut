@@ -1,7 +1,7 @@
 import type { MigrationResult, ProjectRecord } from "./types";
 import { isRecord } from "./utils";
 
-interface V1Scene {
+interface Scene {
 	id: string;
 	name: string;
 	isMain: boolean;
@@ -11,17 +11,17 @@ interface V1Scene {
 	updatedAt: string;
 }
 
-export interface TransformV0ToV1Options {
+export interface TransformToOptions {
 	now?: Date;
  sceneId: string;
 }
 
-export function transformProjectV0ToV1({
+export function transformProjectTo({
 	project,
 	options,
 }: {
 	project: ProjectRecord;
-	options: TransformV0ToV1Options;
+	options: TransformToOptions;
 }): MigrationResult<ProjectRecord> {
 	const { now = new Date(0) } = options;
 
@@ -34,7 +34,7 @@ export function transformProjectV0ToV1({
 	const sceneCreatedAt = now.toISOString();
 	const sceneUpdatedAt = now.toISOString();
 
-	const mainScene: V1Scene = {
+	const mainScene: Scene = {
 		id: sceneId,
 		name: "Main scene",
 		isMain: true,

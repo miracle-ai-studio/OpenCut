@@ -6,6 +6,7 @@ import { AudioExecutionError, checkAbort, integer, natural, reject } from "../sr
 import { ORIGIN, moduleRegistry, moduleResponse, playwrightRuntime } from "./modules.mjs";
 import { executeAudioPage } from "./page.mjs";
 import { launchOwnedBrowser } from "./owned-browser.mjs";
+import { compiledFactsJson } from "./protocol.mjs";
 
 export class BrowserRealm {
   constructor(begin, broker, writer, monitor, signal, hooks = {}) { Object.assign(this, { begin, broker, writer, monitor, signal, hooks }); }
@@ -20,10 +21,10 @@ export class BrowserRealm {
     const browserSha256 = hash.digest("hex");
     if (runtime.chromiumSha256 !== undefined && runtime.chromiumSha256 !== browserSha256) reject("AUDIO_RUNTIME_IDENTITY_MISMATCH", "Chromium executable does not match the admitted hash");
     const [modules, { chromium }] = await Promise.all([(this.hooks.moduleRegistry ?? moduleRegistry)(runtime), (this.hooks.playwrightRuntime ?? playwrightRuntime)(runtime)]);
-    checkAbort(this.signal);
+    checkAbort(this.signal);this.fixedModules=modules;
     const options = {
       executablePath: executable, headless: true, chromiumSandbox: true, timeout: this.monitor.remainingTimeout(),
-      args: ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps", "--disable-crash-reporter", "--no-first-run", "--no-proxy-server", "--host-resolver-rules=MAP * ~NOTFOUND"],
+      args: ["--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps", "--disable-crash-reporter", "--no-first-run", "--no-proxy-server", "--host-resolver-rules=MAP * ~NOTFOUND"+(this.hooks.loopbackTransport?", EXCLUDE 127.0.0.1":"")],
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(DEBUG|PWDEBUG|NODE_OPTIONS|HTTPS?_PROXY|ALL_PROXY|https?_proxy|all_proxy)$/.test(name))),
     };
     this.starting = this.hooks.ownedLocal ? launchOwnedBrowser(chromium, options, this.signal) : chromium.launchServer(options);
@@ -55,15 +56,16 @@ export class BrowserRealm {
     const resources = new Map(this.begin.resources.map(resource => [resource.assetId, resource.handle]));
     const fixed = new Map(this.begin.plan.resources.map(resource => [resource.assetId, resource]));
     const voices = new Set(this.begin.plan.voices.map(voice => voice.elementId));
-    await this.page.exposeFunction("__opencutAudioCallback", (op, args) => {
+    await this.page.exposeFunction("__opencutAudioCallback", async (op, args) => {
       checkAbort(this.signal);
-      if (!["resolveVerifiedBytes", "readVerifiedBytes", "releaseVerifiedBytes", "admitDecode", "compilePitchPreparation", "compileSourcePositions", "compileBlock"].includes(op) || !args || typeof args !== "object") reject("INVALID_HOST_CALLBACK", "Unknown audio host callback");
-      if (op === "resolveVerifiedBytes" || op === "admitDecode") {
+      if (!["resolveVerifiedBytes", "openVerifiedRange", "readVerifiedBytes", "releaseVerifiedBytes", "releaseDecodedSource", "admitDecode", "admitContainerDecode", "admitPcmAudioDecode", "compilePitchPreparation", "compileSourcePositions", "compileBlock"].includes(op) || !args || typeof args !== "object") reject("INVALID_HOST_CALLBACK", "Unknown audio host callback");
+      if (op === "resolveVerifiedBytes" || op === "openVerifiedRange" || op === "releaseDecodedSource" || op === "admitDecode" || op === "admitContainerDecode" || op === "admitPcmAudioDecode") {
         const reference = fixed.get(args.resource?.assetId);
         if (!reference || ["contentHash", "size", "kind"].some(key => args.resource[key] !== reference[key])) reject("NOT_AUTHORIZED", "Resource does not belong to the fixed audio plan");
-        if (op === "admitDecode") {
+        if (op === "admitPcmAudioDecode" && reference.kind !== "audio") reject("INVALID_HOST_CALLBACK", "PCM window decoding requires a standalone audio resource");
+        if (op === "admitDecode" || op === "admitContainerDecode" || op === "admitPcmAudioDecode") {
           const primary = args.primary;
-          if (reference.kind === "audio") {
+          if (reference.kind === "audio" && op === "admitDecode") {
             if (primary !== null) reject("INVALID_HOST_CALLBACK", "Audio byte decoding does not select a container primary track");
           } else {
             if (!primary || typeof primary !== "object" || Array.isArray(primary)
@@ -74,14 +76,17 @@ export class BrowserRealm {
             integer(primary.channels, "primary audio channels", 1, 64);
           }
         }
-        args = op === "resolveVerifiedBytes" ? { resource: reference, handle: resources.get(reference.assetId) } : { resource: reference, primary: args.primary };
+        args = ["resolveVerifiedBytes", "openVerifiedRange"].includes(op) ? { resource: reference, handle: resources.get(reference.assetId) }
+          : op === "releaseDecodedSource" ? { resource: reference } : { resource: reference, primary: args.primary };
       }
       if (op === "compilePitchPreparation" || op === "compileSourcePositions") {
         if (!voices.has(args.elementId)) reject("NOT_AUTHORIZED", "Voice does not belong to the fixed audio plan");
       }
+      if (op === "compilePitchPreparation" && args.residentFrameCount !== null) natural(args.residentFrameCount, "resident PCM frames");
       if (op === "compileSourcePositions" || op === "compileBlock") integer(args.frameCount, "host compile frame count", 1, 4096);
       if (op === "readVerifiedBytes") { natural(args.offset, "byte offset"); integer(args.count, "byte chunk count", 1, 65536); }
-      return this.broker.request(op, args);
+      const value = await this.broker.request(op, args, { jsonText: op === "compileBlock" });
+      return op === "compileBlock" || op === "compileSourcePositions" ? compiledFactsJson(value) : value;
     });
     await this.page.exposeFunction("__opencutTerminateAudioRealm", () => this.stop());
     await this.page.exposeFunction("__opencutAudioPcm", async packet => {

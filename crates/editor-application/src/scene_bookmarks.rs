@@ -2,16 +2,16 @@
 //! aggregate atomically; these prepared values are in-process, not public DTOs.
 use opencut_contracts::{
     EditorError,
-    project_v3::ProjectSnapshotV3,
-    scene_bookmarks::{BookmarkOperationV1, SceneBookmarkV1},
+    historical_visual::HistoricalVisualSnapshot,
+    scene_bookmarks::{BookmarkOperation, SceneBookmark},
 };
 
 /// Supplied by the future annotated-project storage port, from one revision.
 /// Never combine a current bookmark collection with an older project snapshot.
 #[derive(Clone, Debug)]
 pub struct BookmarkPlanningSnapshot {
-    pub project: ProjectSnapshotV3,
-    pub bookmarks: Vec<SceneBookmarkV1>,
+    pub project: HistoricalVisualSnapshot,
+    pub bookmarks: Vec<SceneBookmark>,
 }
 
 #[derive(Clone, Debug)]
@@ -20,17 +20,17 @@ pub struct BookmarkEditIntent {
     pub expected_revision: String,
     pub idempotency_key: String,
     pub label: String,
-    pub operations: Vec<BookmarkOperationV1>,
+    pub operations: Vec<BookmarkOperation>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PreparedBookmarkEdit {
-    pub project: opencut_contracts::project_v3::ProjectDocumentV3,
+    pub project: opencut_contracts::historical_visual::HistoricalVisualDocument,
     pub base_revision: String,
     pub idempotency_key: String,
     pub label: String,
-    pub before: Vec<SceneBookmarkV1>,
-    pub proposed: Vec<SceneBookmarkV1>,
+    pub before: Vec<SceneBookmark>,
+    pub proposed: Vec<SceneBookmark>,
 }
 
 pub fn plan(
@@ -55,7 +55,9 @@ pub fn plan(
             "Bookmark edits require a key and label",
         ));
     }
-    opencut_editor_core::project_v3::validate_project_v3(&snapshot.project.project)?;
+    opencut_editor_core::historical_visual::validate_project_historical_visual(
+        &snapshot.project.project,
+    )?;
     let proposed = opencut_editor_core::scene_bookmarks::apply(
         &snapshot.project.project.base,
         &snapshot.bookmarks,
@@ -77,7 +79,7 @@ mod tests {
     use opencut_contracts::{CreateProject, FrameRate, Time};
 
     fn input() -> (BookmarkPlanningSnapshot, BookmarkEditIntent) {
-        let project = crate::project_v3::create(&CreateProject {
+        let project = crate::historical_visual::create(&CreateProject {
             id: "project".into(),
             name: "P".into(),
             sequence_id: "main".into(),
@@ -91,7 +93,7 @@ mod tests {
         .unwrap();
         (
             BookmarkPlanningSnapshot {
-                project: ProjectSnapshotV3 {
+                project: HistoricalVisualSnapshot {
                     project,
                     revision: "fixed".into(),
                 },
@@ -102,7 +104,7 @@ mod tests {
                 expected_revision: "fixed".into(),
                 idempotency_key: "stable-key".into(),
                 label: "Add bookmark".into(),
-                operations: vec![BookmarkOperationV1::Toggle {
+                operations: vec![BookmarkOperation::Toggle {
                     sequence_id: "main".into(),
                     time: Time {
                         ticks: "1".into(),

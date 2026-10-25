@@ -1,11 +1,11 @@
-//! Versioned verification view; legacy package booleans remain historical claims.
-use crate::project_package_v3::PackageToolLock;
+//! Verification view; legacy package booleans remain historical claims.
+use crate::historical_visual_package::PackageToolLock;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct InspectV1 {
+pub struct InspectPackageReproducibility {
     /// Owner-local canonical package directory. No import or installation occurs.
     pub package_path: String,
     pub expected_manifest_sha256: String,
@@ -21,7 +21,7 @@ pub enum VerificationStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ExecutionIdentityV1 {
+pub struct ExecutionIdentity {
     /// Hash of this running host executable, including its statically linked engine.
     /// This is an observation of the current host, not the package's original engine.
     pub process_binary_sha256: String,
@@ -31,8 +31,7 @@ pub struct ExecutionIdentityV1 {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ReportV1 {
-    pub schema_version: u32,
+pub struct PackageReproducibilityReport {
     pub manifest_sha256: String,
     pub source_revision: String,
     pub package_schema_version: u32,
@@ -45,6 +44,6 @@ pub struct ReportV1 {
     pub semantic_output_verified: VerificationStatus,
     pub bit_exact_verified: VerificationStatus,
     pub strictly_reproducible: bool,
-    pub current_execution: ExecutionIdentityV1,
+    pub current_execution: ExecutionIdentity,
     pub reasons: Vec<String>,
 }

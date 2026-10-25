@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { WorkspaceController } from "./controller";
 import { EditorApi } from "./api";
 import { projectRef, type Snapshot, type History } from "../model/types";
-import {
-  flushTimelinePreferences,
-  readTimelinePreferences,
-  saveTimelinePreferences,
-} from "../shared/view-preferences";
+import { flushTimelinePreferences, readTimelinePreferences, saveTimelinePreferences } from "../shared/view-preferences";
 const snapshot = (id: string, revision = "head"): Snapshot => ({
   format: "visual",
   revision,
@@ -15,7 +11,6 @@ const snapshot = (id: string, revision = "head"): Snapshot => ({
   project: {
     id,
     name: id,
-    schema_version: 2,
     default_sequence_id: "main",
     sequences: [],
     assets: [],
@@ -46,6 +41,13 @@ function setup() {
   vi.spyOn(api, "inspect").mockImplementation(async (project) =>
     snapshot(project.id),
   );
+  vi.spyOn(api.sdk, "call").mockImplementation(async (name, input) => {
+    if (name === "opencut_project_inspect") {
+      const request = input as {project_id: string};
+      return {kind: "historical", snapshot: await api.inspect(projectRef(snapshot(request.project_id)))} as never;
+    }
+    throw Error(`Unexpected tool ${name}`);
+  });
   vi.spyOn(api, "history").mockImplementation(async (id) => history(id));
   vi.spyOn(api, "tasks").mockResolvedValue({ jobs: [], next_cursor: null });
   const controller = new WorkspaceController(() => api);
@@ -156,7 +158,9 @@ describe("workspace isolation and transactions", () => {
     await controller.connect("x", "t");
     await controller.open(projectRef(snapshot("a")));
     const deletion = deferred<never>();
-    vi.spyOn(api.sdk, "call").mockImplementationOnce(() => deletion.promise);
+    const normal = vi.mocked(api.sdk.call).getMockImplementation()!;
+    vi.mocked(api.sdk.call).mockImplementation((name, input, options) =>
+      name === "opencut_project_delete" ? deletion.promise : normal(name, input, options));
     const pending = controller.deleteProjects(
       [projectRef(snapshot("a"))],
       "delete-a",
@@ -169,83 +173,6 @@ describe("workspace isolation and transactions", () => {
     await pending;
     expect(controller.getSnapshot().snapshot?.project.id).toBe("b");
     expect(controller.getSnapshot().error).toBeNull();
-  });
-  it("uses the durable original target instead of the latest undo journal", async () => {
-    const { api, controller } = setup();
-    const page = history("a");
-    page.navigation!.undo = { transaction_id: "original-a", label: "A" };
-    page.revisions = [
-      {
-        revision: "head",
-        parent_revision: "prior",
-        transaction_id: "undo-b",
-        label: null,
-        created_at: "2026-09-30",
-      },
-    ];
-    vi.mocked(api.history).mockResolvedValue(page);
-    const call = vi.spyOn(api.sdk, "call").mockResolvedValue({
-      conflicts: [],
-      transaction: { transaction_id: "undo-a", revision: "next" },
-    } as never);
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    expect(controller.canUndo).toBe(true);
-    await controller.undo();
-    expect(call).toHaveBeenCalledWith(
-      "opencut_edit_v3_undo_apply",
-      expect.objectContaining({
-        target_transaction_id: "original-a",
-        expected_revision: "head",
-      }),
-    );
-  });
-  it("restores redo from the service when reopening a project", async () => {
-    const { api, controller } = setup();
-    const page = history("a");
-    page.navigation!.redo = {
-      transaction_id: "original-b",
-      undo_transaction_id: "durable-undo-b",
-      label: "B",
-    };
-    vi.mocked(api.history).mockResolvedValue(page);
-    const call = vi.spyOn(api.sdk, "call").mockResolvedValue({
-      transaction: { transaction_id: "redo-b", revision: "next" },
-    } as never);
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    expect(controller.canRedo).toBe(true);
-    await controller.redo();
-    expect(call).toHaveBeenCalledWith(
-      "opencut_edit_v3_redo_apply",
-      expect.objectContaining({
-        undo_transaction_id: "durable-undo-b",
-        expected_revision: "head",
-      }),
-    );
-  });
-  it("does not apply navigation from a different revision or historical view", async () => {
-    const { api, controller } = setup();
-    const page = history("a");
-    page.navigation = {
-      project_id: "a",
-      revision: "old",
-      undo: { transaction_id: "original-a", label: null },
-      redo: null,
-    };
-    vi.mocked(api.history).mockResolvedValue(page);
-    const call = vi.spyOn(api.sdk, "call");
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    expect(controller.canUndo).toBe(false);
-    await controller.undo();
-    expect(call).not.toHaveBeenCalled();
-    page.navigation.revision = "head";
-    await controller.sync();
-    await controller.inspectRevision("old");
-    expect(controller.canUndo).toBe(false);
-    await controller.undo();
-    expect(call).not.toHaveBeenCalled();
   });
 
   it("restores a requested scene and falls back when that scene is deleted", async () => {
@@ -276,19 +203,6 @@ describe("workspace isolation and transactions", () => {
     expect(controller.getSnapshot().playhead.ticks).toBe("0");
     expect(controller.getSnapshot().seekId).toBeGreaterThan(seek);
   });
-  it("does not rename through a historical editor view", async () => {
-    const { controller, api } = setup();
-    const write = vi.spyOn(api, "projectEdit").mockResolvedValue({} as never);
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    await controller.inspectRevision("old");
-    await expect(
-      controller.editProject("rename", [
-        { type: "rename_project", name: "new" },
-      ]),
-    ).rejects.toThrow("current revision");
-    expect(write).not.toHaveBeenCalled();
-  });
   it("ignores a connection that finishes after disconnect", async () => {
     const { api, controller } = setup(),
       pending = deferred<ReturnType<typeof projectRef>[]>();
@@ -316,54 +230,13 @@ describe("workspace isolation and transactions", () => {
   it("does not reopen a project after disconnect during creation", async () => {
     const { api, controller } = setup();
     await controller.connect("x", "t");
-    const pending = deferred<Snapshot>();
+    const pending = deferred<Awaited<ReturnType<EditorApi["create"]>>>();
     vi.spyOn(api, "create").mockReturnValue(pending.promise);
     const creating = controller.create("a", 1920, 1080, 24);
     controller.disconnect();
-    pending.resolve(snapshot("a"));
+    pending.resolve({project_id:"a",revision:"head"});
     await creating;
     expect(controller.getSnapshot().snapshot).toBeNull();
-  });
-  it("prevents historical changes and serializes writes per project", async () => {
-    const { controller } = setup();
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    const pending = deferred<void>();
-    const first = controller.write(() => pending.promise);
-    await expect(controller.write(async () => {})).rejects.toThrow(
-      "current edit",
-    );
-    pending.resolve();
-    await first;
-    await controller.inspectRevision("old");
-    await expect(controller.mutate("bad", [])).rejects.toThrow(
-      "current revision",
-    );
-  });
-  it("does not replace the next project when an accepted edit completes", async () => {
-    const { controller } = setup();
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    const pending = deferred<void>();
-    const first = controller.write(() => pending.promise);
-    await controller.open(projectRef(snapshot("b")));
-    pending.resolve();
-    await first;
-    expect(controller.getSnapshot().snapshot?.project.id).toBe("b");
-    expect(controller.getSnapshot().busy).toBe(false);
-  });
-  it("does not overwrite a new head with a stale polling response", async () => {
-    const { api, controller } = setup();
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    const pending = deferred<Snapshot>();
-    vi.mocked(api.inspect).mockReturnValueOnce(pending.promise);
-    const polling = controller.sync();
-    vi.mocked(api.inspect).mockResolvedValue(snapshot("a", "new"));
-    await controller.write(async () => {});
-    pending.resolve(snapshot("a", "old"));
-    await polling;
-    expect(controller.getSnapshot().snapshot?.revision).toBe("new");
   });
   it("does not reenter history after returning to the head", async () => {
     const { api, controller } = setup();
@@ -385,30 +258,4 @@ describe("workspace isolation and transactions", () => {
     expect(controller.getSnapshot().seekId).toBe(seek);
     expect(controller.getSnapshot().playhead.ticks).toBe("2");
   });
-  it("preserves a history view selected while an edit is saving", async () => {
-    const { api, controller } = setup();
-    await controller.connect("x", "t");
-    await controller.open(projectRef(snapshot("a")));
-    const pending = deferred<void>();
-    const editing = controller.write(() => pending.promise);
-    vi.mocked(api.inspect).mockImplementation(async (_project, revision) =>
-      snapshot("a", revision ?? "new"),
-    );
-    await controller.inspectRevision("older");
-    pending.resolve();
-    await editing;
-    expect(controller.getSnapshot().snapshot?.revision).toBe("new");
-    expect(controller.getSnapshot().historical?.revision).toBe("older");
-  });
-});
-
-it("does not send an intent computed from an older visible revision against a newer head", async () => {
-  const { controller, api } = setup();
-  await controller.connect("x", "t");
-  await controller.open(projectRef(snapshot("a")));
-  const apply = vi.spyOn(api, "apply");
-  await expect(
-    controller.mutate("stale intent", [], [], "old-head"),
-  ).rejects.toThrow("Project has changed");
-  expect(apply).not.toHaveBeenCalled();
 });

@@ -1,13 +1,17 @@
+import { ErrorNotice } from "../shared/error-notice";
 import { transcriptionFailure } from "../shared/transcription";
 import { t, useLocale } from "../shared/locale";
-import { publicJobResult } from "../../lib/editor-sdk";
+
 import { Download, RefreshCw, X } from "lucide-react";
 import { useWorkspace } from "../workspace/context";
 import { Button, Empty, Panel } from "../shared/ui";
 import { saveResponse, extension } from "../shared/download";
 export function TasksPanel() {
   useLocale();
-  const { controller, api, jobs, snapshot, historical, busy } = useWorkspace();
+  const { controller, api, jobs } = useWorkspace();
+  // Derived playback segments belong to the player's single progress display.
+  // They are not user exports or individually actionable editing tasks.
+  const visibleJobs=jobs.filter(job=>job.purpose!=="playback_optimization");
   return (
     <Panel
       title={t("Tasks")}
@@ -20,20 +24,22 @@ export function TasksPanel() {
       }
     >
       <div className="scroll task-list">
-        {!jobs.length && (
+        {!visibleJobs.length && (
           <Empty title={t("All clear")}>
             {t("Imports, previews and exports appear here.")}
           </Empty>
         )}
-        {jobs.map((job) => (
+        {visibleJobs.map((job) => (
           <article className="task-card" key={job.job_id}>
             <div className="task-title">
               <strong>
-                {job.kind === "render.project_audio_range.v4"
-                  ? t("Audio range WAV export")
-                  : job.kind === "render.project_audio.v4"
-                    ? t("Audio WAV export")
-                  : (job.kind === "render.project_frame.v4" || job.kind === "render.project_text_frame.v4")
+                {job.purpose === "playback_optimization" ? t("Playback optimization") : job.kind === "render.audio"
+                  ? t("Audio WAV export")
+                  : job.kind === "render.video_range"
+                    ? t("Video range export")
+                    : job.kind === "render.audio_range"
+                      ? t("Audio range export")
+                  : ["render.frame", "render.media_frame", "render.text_frame", "render.caption_frame", "render.graphic_frame", "render.mask_frame", "render.blend_frame"].includes(job.kind)
                     ? t("Scene frame")
                     : job.kind.startsWith("render.")
                       ? t("Export")
@@ -43,78 +49,20 @@ export function TasksPanel() {
                           ? t("Import")
                           : job.kind === "analysis.sequence_transcribe"
                             ? t("Transcription")
-                            : job.kind.replaceAll(".", " ")}
+                            : t("Background task")}
               </strong>
               <span className={`state ${job.state}`}>{t(job.state)}</span>
             </div>
-            {job.target && (
-              <small>
-                {t("Saved revision")} · {job.target.revision}
-              </small>
-            )}
-            {job.progress && (
+
+            {job.progress && ["queued", "running"].includes(job.state) && (
               <>
                 <progress max="1" value={job.progress.fraction ?? undefined} />
-                <small>{t(job.progress.stage.replaceAll("_", " "))}</small>
+                <small>{t(job.progress.stage === "encoding" ? "Saving file…" : job.progress.stage === "verifying" ? "Checking file…" : "Processing…")}</small>
               </>
             )}
-            {job.failure && (
-              <p className="error">
-                {t(
-                  job.kind === "analysis.sequence_transcribe"
-                    ? transcriptionFailure(job.failure.code)
-                    : job.failure.message,
-                )}
-              </p>
-            )}
-            {job.result_unavailable && (
-              <p className="error">{job.result_unavailable.message}</p>
-            )}
+            {job.failure && <ErrorNotice error={job.kind === "analysis.sequence_transcribe" ? transcriptionFailure(job.failure.code) : job.failure.message} />}
+            {job.result_unavailable && <ErrorNotice error={job.result_unavailable.message} />}
             <div className="task-actions">
-              {job.kind === "media.import" &&
-                job.state === "succeeded" &&
-                !!snapshot &&
-                !historical && (
-                  <Button
-                    disabled={busy}
-                    onClick={async () => {
-                      if (!api || !snapshot) return;
-                      try {
-                        const result = publicJobResult(job, "media.import");
-                        if (
-                          snapshot.project.assets.some(
-                            (asset) => asset.id === result.asset.id,
-                          )
-                        ) {
-                          controller.notify(
-                            "This media is already in the library.",
-                          );
-                          return;
-                        }
-                        const media = await api.sdk.call(
-                          "opencut_project_media_inspect",
-                          {
-                            project_id: snapshot.project.id,
-                            media_id: result.media_id,
-                          },
-                        );
-                        if (
-                          controller.getSnapshot().snapshot?.project.id !==
-                          snapshot.project.id
-                        )
-                          return;
-                        await controller.mutate("Recover imported media", [
-                          { type: "asset.bind", asset: media.asset },
-                        ]);
-                        controller.notify("Media added to the library.");
-                      } catch (error) {
-                        controller.report(error);
-                      }
-                    }}
-                  >
-                    {t("Add to library")}
-                  </Button>
-                )}
               {["queued", "running"].includes(job.state) && (
                 <Button
                   disabled={job.cancel_requested}
@@ -122,7 +70,7 @@ export function TasksPanel() {
                   onClick={() => {
                     if (api)
                       void api.sdk
-                        .cancelPublicJob(job.job_id)
+                        .cancelJob(job.job_id)
                         .then(() => controller.sync())
                         .catch((error) => controller.report(error));
                   }}
@@ -130,7 +78,7 @@ export function TasksPanel() {
                   {job.cancel_requested ? t("Cancelling…") : t("Cancel")}
                 </Button>
               )}
-              {job.artifacts.map((artifact) => (
+              {(job.purpose === "playback_optimization" ? [] : job.artifacts).map((artifact) => (
                 <Button
                   key={artifact.artifact_id}
                   icon={<Download size={13} />}

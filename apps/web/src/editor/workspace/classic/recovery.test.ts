@@ -64,13 +64,20 @@ it.each(["metadata", "duration", "kind", "uri"])(
     };
     const before = structuredClone(stage),
       sdk = new OpenCutClient({ baseUrl: "http://localhost", token: "" });
-    const call = vi.spyOn(sdk, "call").mockImplementation(async (name) => {
+    const call = vi.spyOn(sdk, "call").mockImplementation(async (name, input) => {
       if (name === "opencut_project_create")
         return {
           revision: "initial",
-          project: { ...stage.project, assets: [] },
+          project_id: stage.project.id,
         } as never;
-      if (name === "opencut_project_inspect") return stage as never;
+      if (name === "opencut_project_inspect") return {kind: "editor", snapshot:
+        (input as {revision?:string}).revision === "initial"
+          ? {revision:"initial", project:{...stage.project, assets:[]}}
+          : stage} as never;
+      if (name === "opencut_project_media_query")
+        return {media:[{media_id:"native",asset:original}],next_cursor:null} as never;
+      if (name === "opencut_edit_plan")
+        return {...stage.project,assets:[{...original,id:asset.id}]} as never;
       if (name === "opencut_project_media_inspect")
         return { asset: original } as never;
       throw new Error(`Unexpected mutation: ${name}`);

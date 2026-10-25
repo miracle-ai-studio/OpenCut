@@ -96,3 +96,58 @@ impl OutputAdmission for TaskOutput {
         Ok(())
     }
 }
+
+/// Tracks actual child lifetime for an owning worker's captured RSS monitor.
+#[derive(Debug)]
+pub(super) struct TrackedTaskOutput {
+    pub inner: std::sync::Arc<TaskOutput>,
+    pub pids: std::sync::Arc<std::sync::Mutex<std::collections::BTreeSet<u32>>>,
+}
+struct TrackedProcess {
+    inner: Option<Box<dyn OutputProcess>>,
+    pid: u32,
+    pids: std::sync::Arc<std::sync::Mutex<std::collections::BTreeSet<u32>>>,
+}
+impl OutputProcess for TrackedProcess {
+    fn child(&mut self) -> &mut Child {
+        self.inner.as_mut().expect("owned process").child()
+    }
+    fn output_limit(&self) -> Option<u64> {
+        self.inner.as_ref().expect("owned process").output_limit()
+    }
+}
+impl Drop for TrackedProcess {
+    fn drop(&mut self) {
+        drop(self.inner.take());
+        if let Ok(mut pids) = self.pids.lock() {
+            pids.remove(&self.pid);
+        }
+    }
+}
+impl OutputAdmission for TrackedTaskOutput {
+    fn spawn(
+        &self,
+        command: Command,
+        output: Option<&Path>,
+    ) -> MediaResult<Box<dyn OutputProcess>> {
+        let mut inner = self.inner.spawn(command, output)?;
+        let pid = inner.child().id();
+        self.pids
+            .lock()
+            .map_err(|_| {
+                MediaError::InvalidRequest("Process observation registry unavailable".into())
+            })?
+            .insert(pid);
+        Ok(Box::new(TrackedProcess {
+            inner: Some(inner),
+            pid,
+            pids: self.pids.clone(),
+        }))
+    }
+    fn write(&self, path: &Path, bytes: &[u8]) -> MediaResult<()> {
+        self.inner.write(path, bytes)
+    }
+    fn reserve_private_copy(&self, path: &Path, bytes: u64) -> MediaResult<Box<dyn Send>> {
+        self.inner.reserve_private_copy(path, bytes)
+    }
+}

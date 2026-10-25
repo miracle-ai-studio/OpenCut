@@ -18,7 +18,7 @@ FILTERS = {
 }
 ENCODERS = {'libx264', 'aac', 'png'}
 CATALOG_FILES = {'bin/libexec/classic-visual-renderer/package.json',
-                 'bin/libexec/classic-visual-renderer/host/catalog-archive-v1.mjs'}
+                 'bin/libexec/classic-visual-renderer/host/catalog-archive.mjs'}
 
 
 def runtime_module():
@@ -36,7 +36,8 @@ def runtime_probe(args, timeout=20):
     try:
         stdout, stderr = child.communicate(timeout=timeout)
         if child.returncode != 0 or len(stdout) > 1024 * 1024 or len(stderr) > 1024 * 1024:
-            raise ValueError('Bounded runtime probe failed')
+            detail = stderr[-2048:].decode('utf-8', errors='replace').strip()
+            raise ValueError('Bounded runtime probe failed' + (': ' + detail if detail else ''))
         return stdout.decode('utf-8')
     finally:
         try:
@@ -88,13 +89,34 @@ def check_renderer_and_fonts(root, runtime, checks):
         probe = """import {pathToFileURL} from 'node:url';
 const root=process.argv[1], executablePath=process.argv[2];
 const load=p=>import(pathToFileURL(root+'/'+p).href);
-const visual=await load('classic-visual-renderer/src/index.mjs');
-const audio=await load('classic-audio-renderer/src/index.mjs');
-const art=await load('classic-source-art-renderer/src/art.mjs');
 const {chromium}=await load('classic-audio-renderer/node_modules/playwright-core/index.mjs');
-if(typeof visual.renderClassicSceneFrameV1!=='function'||typeof visual.renderClassicMaskFrameV1!=='function'||typeof audio.renderClassicExport!=='function'||typeof art.thumbnailSize!=='function')throw Error('missing runtime export');
+const {moduleResponse,ORIGIN}=await load('classic-audio-renderer/host/shared.mjs');
 const browser=await chromium.launch({executablePath,headless:true,timeout:12000,args:['--disable-background-networking','--disable-component-update','--no-first-run']});
-try{process.stdout.write(JSON.stringify({node:process.version,chromium:browser.version(),module_imports:true}));}finally{await browser.close();}
+try{
+  const identities={};
+  for(const [name,entry,exports] of [
+    ['classic-visual-renderer','src/index.mjs',['renderClassicSceneFrameV1','renderClassicMaskFrameV1']],
+    ['classic-audio-renderer','src/index.mjs',['renderClassicExport']],
+    ['classic-source-art-renderer','src/art.mjs',['thumbnailSize','executeSourceArt']],
+  ]){
+    const host=await load(name+'/host/modules.mjs');
+    const modules=await host.moduleRegistry({});
+    const context=await browser.newContext();
+    try{
+      await context.route('**/*',async route=>{
+        const reply=moduleResponse(modules,route.request().url(),route.request().method());
+        if(reply)await route.fulfill(reply);else await route.abort('blockedbyclient');
+      });
+      const page=await context.newPage();await page.goto(ORIGIN);
+      await page.evaluate(async({entry,exports})=>{
+        const module=await import('/renderer/'+entry);
+        if(exports.some(name=>typeof module[name]!=='function'))throw Error('missing runtime export');
+      },{entry,exports});
+      identities[name]=modules.moduleSha256;
+    }finally{await context.close();}
+  }
+  process.stdout.write(JSON.stringify({node:process.version,chromium:browser.version(),module_imports:true,module_identities:identities}));
+}finally{await browser.close();}
 """
         value = json.loads(runtime_probe([node, '--input-type=module', '-e', probe, libexec, chromium]))
         for name, path in [('node', node), ('chromium', chromium)]:
@@ -107,7 +129,7 @@ try{process.stdout.write(JSON.stringify({node:process.version,chromium:browser.v
         checks.append({'check': 'renderer_runtime_executes', 'passed': value.get('module_imports') is True,
                        'node_sha256': sha(node), 'chromium_sha256': sha(chromium), 'versions': value,
                        'bundled_executables_used': bundled,
-                       'scope': 'delivered module imports and explicit browser launch; no project render or pixel/PCM acceptance'})
+                       'scope': 'delivered host registries and browser module imports under their unchanged CSP/routes, plus explicit browser launch; no project render or pixel/PCM acceptance'})
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
         checks.append({'check': 'renderer_runtime_executes', 'passed': False, 'error': str(error)})
     try:
@@ -119,11 +141,14 @@ try{process.stdout.write(JSON.stringify({node:process.version,chromium:browser.v
             if not all(Path(provenance[k]).resolve().is_relative_to(prefix) for k in ('prefix', 'fonttools')):
                 raise ValueError('Bundled Python still depends on an external installation')
         identities = {}
-        for script, variable, lock in [('run_derived.py', 'OPENCUT_FONT_DERIVE_SCRIPT', 'derived-runtime-lock.json'),
-                                       ('run_derived_v2.py', 'OPENCUT_FONT_DERIVE_V2_SCRIPT', 'derived-v2-runtime-lock.json')]:
+        workers = [('run_derived.py', 'OPENCUT_FONT_DERIVE_SCRIPT', 'derived-runtime-lock.json'),
+                   ('run_derived_v2.py', 'OPENCUT_FONT_NAMED_SCRIPT', 'derived-v2-runtime-lock.json')]
+        if runtime and 'run_color_static_v1.py' in runtime['scripts']:
+            workers.append(('run_color_static_v1.py', 'OPENCUT_FONT_COLOR_STATIC_SCRIPT', 'color-static-runtime-lock.json'))
+        for script, variable, lock in workers:
             if variable in os.environ:
                 filename = Path(os.environ[variable])
-            elif script == 'run_derived_v2.py' and 'OPENCUT_FONT_DERIVE_SCRIPT' in os.environ:
+            elif script != 'run_derived.py' and 'OPENCUT_FONT_DERIVE_SCRIPT' in os.environ:
                 if not os.environ['OPENCUT_FONT_DERIVE_SCRIPT']:
                     raise ValueError('Configured font script is unavailable')
                 filename = Path(os.environ['OPENCUT_FONT_DERIVE_SCRIPT']).with_name(script)

@@ -143,7 +143,7 @@ const sceneStyles = new WeakMap();
 /** This is an explicit Scene request, never a replacement for native metadata.
  * Rust authenticates the compiled source/proof; JS links that fixed request to
  * the actual byte/face identity which the existing raster path verifies again. */
-export function validateSceneFontSynthesisV1(binding, font) {
+export function validateSceneFontSynthesis(binding, font) {
   validateFont(font);
   const actual = binding?.actual, requested = binding?.requested;
   if (!exactFields(binding, ["schema_version", "binding_id", "profile", "actual", "requested"]) || binding.schema_version !== 1 || binding.profile !== "classic_chromium_italic_v1" || !/^font-synthesis-v1_[a-f0-9]{64}$/.test(binding.binding_id) ||
@@ -159,12 +159,12 @@ export function validateSceneFontSynthesisV1(binding, font) {
 /** Private, frame-local capabilities. No plain binding object can be passed to
  * the normal raster entry point to change its style; only Scene creates these
  * after checking complete owner/font mappings. Tokens never contain font bytes. */
-export function createSceneTextStyleScopeV1(entries, signal) {
+export function createSceneTextStyleScope(entries, signal) {
   checkAbort(signal);
   const scope = { active: true }, records = new Map();
   for (const { key, font, binding } of entries) {
     if (typeof key !== "string" || !key || records.has(key)) reject("INVALID_VISUAL_PLAN", "Repeated Scene synthesis owner");
-    validateSceneFontSynthesisV1(binding, font);
+    validateSceneFontSynthesis(binding, font);
     const token = Object.freeze({});
     const record = { scope, signal, font: structuredClone(font), requested: structuredClone(binding.requested) };
     records.set(key, { token, record }); sceneStyles.set(token, record);
@@ -180,7 +180,7 @@ export function createSceneTextStyleScopeV1(entries, signal) {
     close() { scope.active = false; for (const { token } of records.values()) sceneStyles.delete(token); records.clear(); },
   };
 }
-export function sceneTextStyleV1(token, font, signal) {
+export function sceneTextStyle(token, font, signal) {
   checkAbort(signal);
   const record = token && sceneStyles.get(token);
   if (!record?.scope.active || record.signal !== signal || !sameJsonFacts(record.font, font)) reject("INVALID_VISUAL_PLAN", "Unknown, closed or changed Scene synthesis request");
@@ -189,12 +189,33 @@ export function sceneTextStyleV1(token, font, signal) {
 
 const hashBytes = async bytes => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), byte => byte.toString(16).padStart(2, "0")).join("");
 const frameFontChecks = new WeakMap();
+// FontFace owns an immutable copy of its constructor source. Only faces loaded
+// here from verified bytes may overlap rasterization with the next frame's
+// byte check; an arbitrary caller-supplied face is never a speculative source.
+const verifiedFaces = new WeakMap();
 const fontIdentity = font => JSON.stringify([font.fontId, font.contentHash, font.size, font.weight, font.style, font.faceIndex]);
+const immutablePreviewRealms = new WeakSet(), immutablePreviewFaces = new WeakMap();
+const faceDescriptors = ["family", "style", "weight", "stretch", "unicodeRange", "featureSettings", "variationSettings", "display", "ascentOverride", "descentOverride", "lineGapOverride", "sizeAdjust", "variant"];
+
+/** Browser preview alone may retain a face constructed from a verified private
+ * snapshot. Its parsed source cannot be replaced through FontFace's API. Raw
+ * byte users, including native hosts, keep the original per-frame hash path. */
+export function enableImmutablePreviewFonts(realm) {
+  if (!realm || realm.closed) reject("INVALID_VISUAL_PLAN", "Preview font realm is unavailable");
+  immutablePreviewRealms.add(realm);
+}
+function currentImmutableFace(face, font, realm) {
+  const owner = face && immutablePreviewFaces.get(face);
+  const fontSet = globalThis.fonts ?? globalThis.document?.fonts;
+  return !!owner && !realm?.closed && owner.realm === realm && owner.identity === fontIdentity(font)
+    && face.status === "loaded" && owner.descriptors.every((value, i) => face[faceDescriptors[i]] === value)
+    && typeof fontSet?.has === "function" && fontSet.has(face);
+}
 
 // Only the current graphic frame's already retained fonts use this path. The
 // caller reserves 3N before start: retained bytes + this private N-byte snapshot
 // + WebCrypto's N-byte input copy. Cold transfers retain their original path.
-export function createFrameFontChecks(signal, realm) {
+export function createFrameFontChecks(signal, realm, { deferLoadedFaces = false } = {}) {
   const scope = { active: true }, records = new Map();
   let started = false;
   return {
@@ -209,9 +230,18 @@ export function createFrameFontChecks(signal, realm) {
         if (!retained) continue;
         const bytes = retained.bytes;
         if (!(bytes instanceof Uint8Array) || BigInt(bytes.byteLength) !== natural(font.size, "font snapshot bytes") || bytes.byteLength === 0) reject("INVALID_VISUAL_PLAN", "Retained font bytes changed size");
-        const snapshot = new Uint8Array(bytes), token = Object.freeze({}), expectedHash = font.contentHash;
-        const record = { scope, identity, bytes, snapshot: null, signal, token };
+        const previewOwner = immutablePreviewRealms.has(realm);
+        const immutableFace = previewOwner && currentImmutableFace(retained.face, font, realm) ? retained.face : null;
+        const token = Object.freeze({}), expectedHash = font.contentHash;
+        const record = { scope, identity, font: structuredClone(font), bytes, snapshot: null, signal, token, deferLoadedFaces, realm, previewOwner, immutableFace, retained };
         records.set(identity, record); frameFontChecks.set(token, record);
+        if (immutableFace) {
+          // This frame consumes the parsed face, not the mutable cache bytes.
+          // Authority and text coverage are still checked for every frame.
+          record.pending = Promise.resolve({ ok: true });
+          continue;
+        }
+        const snapshot = new Uint8Array(bytes);
         // Consume errors here even when media fails before text is reached.
         record.pending = (async () => {
           try {
@@ -230,6 +260,15 @@ export function createFrameFontChecks(signal, realm) {
       if (record && record.bytes !== bytes) reject("INVALID_VISUAL_PLAN", "Retained font bytes changed reference");
       return record?.token;
     },
+    async verify() {
+      checkAbort(signal);
+      if (!scope.active) reject("INVALID_VISUAL_PLAN", "Frame font checks are closed");
+      const results = await Promise.all([...records.values()].map(record => record.pending));
+      checkAbort(signal);
+      if (!scope.active) reject("INVALID_VISUAL_PLAN", "Frame font checks are closed");
+      for (const result of results) if (!result.ok) throw result.error;
+      for (const record of records.values()) if (record.immutableFace) checkedFrameFontRecord(record.token, record.font, record.bytes, signal);
+    },
     async close() {
       scope.active = false;
       await Promise.all([...records.values()].map(record => record.pending));
@@ -244,6 +283,7 @@ export function createFrameFontChecks(signal, realm) {
 function checkedFrameFontRecord(token, font, bytes, signal) {
   const record = token && frameFontChecks.get(token);
   if (!record?.scope.active || record.identity !== fontIdentity(font) || record.bytes !== bytes || record.signal !== signal) reject("INVALID_VISUAL_PLAN", "Unknown or changed frame font check");
+  if (record.immutableFace && (record.retained.face !== record.immutableFace || !currentImmutableFace(record.immutableFace, font, record.realm))) reject("FONT_LOAD_FAILED", "Retained preview face changed after admission");
   return record;
 }
 async function frameFontSnapshot(token, font, bytes, signal) {
@@ -267,7 +307,7 @@ export async function rasterizePreparedClassicText(text, font, bytes, dimensions
 /** Scene-only style override; FontFace, hashing, coverage and layout receipt
  * retain the actual font identity. Classic Canvas performs synthesis itself. */
 export async function rasterizeSceneClassicText(text, font, bytes, dimensions, signal, retained, token) {
-  sceneTextStyleV1(token, font, signal);
+  sceneTextStyle(token, font, signal);
   return rasterizeText(text, font, bytes, dimensions, signal, retained, undefined, token);
 }
 
@@ -281,31 +321,53 @@ async function rasterizeText(text, font, bytes, dimensions, signal, retained, pr
   const pixels = BigInt(width) * BigInt(height);
   if (pixels > natural(dimensions.maxPixels, "text canvas pixel admission") || pixels * 16n > natural(dimensions.maxRasterBytes, "text canvas byte admission")) reject("VISUAL_BUDGET_EXCEEDED", "Text canvas exceeds its explicit admission");
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) reject("INVALID_VISUAL_PLAN", "Missing verified font bytes");
+  const family = `opencut_${font.contentHash}_${font.weight}_${font.style}`;
+  const record = dimensions.frameFontCheck === undefined ? null : checkedFrameFontRecord(dimensions.frameFontCheck, font, bytes, signal);
+  const previousFace = retained?.face;
+  const defer = record?.deferLoadedFaces && previousFace?.status === "loaded"
+    && verifiedFaces.get(previousFace) === fontIdentity(font)
+    && previousFace.family === family && previousFace.style === font.style
+    && previousFace.weight === String(font.weight);
   let fontBytes = bytes;
-  if (dimensions.frameFontCheck !== undefined) fontBytes = await frameFontSnapshot(dimensions.frameFontCheck, font, bytes, signal);
+  if (record) {
+    // A speculative raster uses the prior immutable FontFace, never unchecked
+    // source bytes. Its owning offscreen frame must verify() before completion.
+    if (!record.immutableFace && (!defer || record.previewOwner)) fontBytes = await frameFontSnapshot(dimensions.frameFontCheck, font, bytes, signal);
+  }
   else {
     const digest = await hashBytes(bytes); checkAbort(signal);
     if (digest !== font.contentHash) reject("ASSET_HASH_MISMATCH", "Font bytes changed after native validation");
   }
   if (await hashBytes(new TextEncoder().encode(text.content)) !== font.validatedTextHash) reject("INVALID_VISUAL_PLAN", "Glyph coverage belongs to different text content");
   checkAbort(signal);
-  if (sceneToken !== undefined) sceneTextStyleV1(sceneToken, font, signal);
+  if (sceneToken !== undefined) sceneTextStyle(sceneToken, font, signal);
   if (dimensions.frameFontCheck !== undefined) checkedFrameFontRecord(dimensions.frameFontCheck, font, bytes, signal);
   const fontSet = globalThis.fonts ?? globalThis.document?.fonts;
   if (!fontSet || typeof globalThis.FontFace !== "function") reject("CAPABILITY_UNAVAILABLE", "The admitted realm has no font loading support");
-  const family = `opencut_${font.contentHash}_${font.weight}_${font.style}`;
   let face, canvas, added = false, complete = false;
+  const sealPreviewFace = !!record?.previewOwner && !record.immutableFace;
   try {
     try {
-      face = retained?.face ?? new FontFace(family, fontBytes, { style: font.style, weight: String(font.weight) });
-      if (!retained?.face) await face.load();
+      face = record?.immutableFace ?? (sealPreviewFace ? null : retained?.face)
+        ?? new FontFace(family, fontBytes, { style: font.style, weight: String(font.weight) });
+      if (face !== previousFace) await face.load();
     }
     catch { checkAbort(signal); reject("FONT_LOAD_FAILED", "The browser rejected the verified static font bytes"); }
     checkAbort(signal);
-    if (sceneToken !== undefined) sceneTextStyleV1(sceneToken, font, signal);
+    if (sceneToken !== undefined) sceneTextStyle(sceneToken, font, signal);
     if (dimensions.frameFontCheck !== undefined) checkedFrameFontRecord(dimensions.frameFontCheck, font, bytes, signal);
     if (face.status !== "loaded") reject("FONT_LOAD_FAILED", "The browser did not load the verified static font face");
-    if (!retained?.face) {fontSet.add(face); added = true;if(retained)retained.face=face;}
+    if (face !== previousFace) {
+      fontSet.add(face); added = true;
+      if (retained) {
+        retained.face = face;
+        if (previousFace) fontSet.delete(previousFace);
+      }
+    }
+    if (sealPreviewFace && retained && record.snapshot === fontBytes) {
+      immutablePreviewFaces.set(face, { realm: record.realm, identity: fontIdentity(font), descriptors: faceDescriptors.map(key => face[key]) });
+      record.immutableFace = face;
+    }
     canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext("2d");
     if (!ctx) reject("CAPABILITY_UNAVAILABLE", "Text rasterization canvas is unavailable");
@@ -316,10 +378,11 @@ async function rasterizeText(text, font, bytes, dimensions, signal, retained, pr
       validateClassicText(text);
       font = { ...font, validatedTextHash: await hashBytes(new TextEncoder().encode(text.content)) };
     }
-    const drawingFont = sceneToken === undefined ? font : sceneTextStyleV1(sceneToken, font, signal);
+    const drawingFont = sceneToken === undefined ? font : sceneTextStyle(sceneToken, font, signal);
     const layout = measureClassicText(ctx, text, family, drawingFont);
     drawClassicText(ctx, text, layout, family, drawingFont);
     checkAbort(signal);
+    if (!previousFace || sealPreviewFace) verifiedFaces.set(face, fontIdentity(font));
     complete = true;
     return {
       canvas, width, height,

@@ -1,122 +1,123 @@
 import { chromium } from "@playwright/test";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { verifyTimelineSelection } from "./verify-timeline-selection.mjs";
-import { verifyMediaFps, verifyV4MediaFps } from "./verify-media-fps.mjs";
+import { verifySceneMediaFps } from "./verify-media-fps.mjs";
 import { verifyProjectCovers } from "./verify-project-covers.mjs";
 import { verifyFeedback } from "./verify-feedback.mjs";
-import { verifyV4Video } from "./verify-v4-video.mjs";
-import { verifyV4CanvasText } from "./verify-v4-canvas-text.mjs";
-import { verifyV4FontBrowser } from "./verify-v4-font-browser.mjs";
-import { verifyV4Captions } from "./verify-v4-captions.mjs";
-import { verifyV4Asr } from "./verify-v4-asr.mjs";
-import { verifyV4CaptionVideo } from "./verify-v4-caption-video.mjs";
-import { verifyV4TextTimeline } from "./verify-v4-text-timeline.mjs";
-import { verifyV4TextTransform } from "./verify-v4-text-transform.mjs";
-import { verifyV4TextStyle } from "./verify-v4-text-style.mjs";
-import { verifyClassicV4 } from "./verify-classic-v4.mjs";
-import { verifyClassicSubtitleStyle } from "./verify-classic-v4-subtitle-style.mjs";
-import { verifyV4EditableSubtitles } from "./verify-v4-editable-subtitles.mjs";
-import { verifyV4AsrEditable } from "./verify-v4-asr-editable.mjs";
-import { verifyV4DerivedFont } from "./verify-v4-derived-font.mjs";
-import { verifyV4AssImport } from "./verify-v4-ass-import.mjs";
-import { verifyV4Mask } from "./verify-v4-mask.mjs";
-import { verifyV4SceneStack } from "./verify-v4-scene-stack.mjs";
-import { verifyV4ParallelEditing } from "./verify-v4-parallel-editing.mjs";
-import { verifyV4Blend } from "./verify-v4-blend.mjs";
-import { verifyV4Graphic } from "./verify-v4-graphic.mjs";
-import { verifyV4Package } from "./verify-v4-package.mjs";
-import { verifyV4PackageOutput } from "./verify-v4-package-output.mjs";
-import { verifyClassicGraphicV4 } from "./verify-classic-graphic-v4.mjs";
-import { verifyV4GraphicOutput } from "./verify-v4-graphic-output.mjs";
-import { verifyV4BookmarkLifecycle } from "./verify-v4-bookmark-lifecycle.mjs";
-import { verifyV4Text } from "./verify-v4-text.mjs";
-import { verifyV4Editor } from "./verify-v4-editor.mjs";
+import { verifyVideo } from "./verify-video.mjs";
+import { verifyCanvasText } from "./verify-canvas-text.mjs";
+import { verifyFontBrowser } from "./verify-font-browser.mjs";
+import { verifyCaptions } from "./verify-captions.mjs";
+import { verifyAsr } from "./verify-asr.mjs";
+import { verifyCaptionVideo } from "./verify-caption-video.mjs";
+import { verifyTextTimeline } from "./verify-text-timeline.mjs";
+import { verifyTextTransform } from "./verify-text-transform.mjs";
+import { verifyTextStyle } from "./verify-text-style.mjs";
+import { verifyClassic } from "./verify-classic.mjs";
+import { verifyClassicSubtitleStyle } from "./verify-classic-subtitle-style.mjs";
+import { verifyEditableSubtitles } from "./verify-editable-subtitles.mjs";
+import { verifyAsrEditable } from "./verify-asr-editable.mjs";
+import { verifyDerivedFont } from "./verify-derived-font.mjs";
+import { verifyAssImport } from "./verify-ass-import.mjs";
+import { verifyMask } from "./verify-mask.mjs";
+import { verifySceneStack } from "./verify-scene-stack.mjs";
+import { verifyParallelEditing } from "./verify-parallel-editing.mjs";
+import { verifyBlend } from "./verify-blend.mjs";
+import { verifyGraphic } from "./verify-graphic.mjs";
+import { verifyProjectPackage } from "./verify-package-current.mjs";
+import { verifyPackageOutput } from "./verify-package-output.mjs";
+import { verifyClassicGraphic } from "./verify-classic-graphic.mjs";
+import { verifyGraphicOutput } from "./verify-graphic-output.mjs";
+import { verifyBookmarkLifecycle } from "./verify-bookmark-lifecycle.mjs";
+import { verifyText } from "./verify-text.mjs";
+import { verifyEditor } from "./verify-editor.mjs";
 import { verifyClassicAudio } from "./verify-classic-audio.mjs";
-import { verifyV4Performance } from "./verify-v4-timeline.mjs";
+import { verifyPerformance } from "./verify-timeline.mjs";
 import { verifySourceArt } from "./verify-source-art.mjs";
 import { verifyEditRecovery } from "./verify-edit-recovery.mjs";
-import { verifyV4FileImport } from "./verify-v4-file-import.mjs";
+import { verifyFileImport } from "./verify-file-import.mjs";
+import { verifyBasicFlow } from "./verify-basic-flow.mjs";
 
 import {
-  verifyV4ScenePreview,
-  verifyV4ScenePreviewBoundaries,
-} from "./verify-v4-scene-preview.mjs";
+  verifyScenePreview,
+  verifyScenePreviewBoundaries,
+} from "./verify-scene-preview.mjs";
 
-import { verifyV4ScenePreviewPerformance } from "./verify-v4-scene-preview-performance.mjs";
+import { verifyScenePreviewPerformance } from "./verify-scene-preview-performance.mjs";
 
-import { verifyV4ScenePreviewContinuity } from "./verify-v4-scene-preview-continuity.mjs";
-import { verifyV4ScenePreviewIdentity } from "./verify-v4-scene-preview-identity.mjs";
-import { verifyV4ScenePreviewGain } from "./verify-v4-scene-preview-gain.mjs";
-import { verifyV4ScenePreviewSeek } from "./verify-v4-scene-preview-seek.mjs";
-import { verifyV4ScenePreviewRetirement } from "./verify-v4-scene-preview-retirement.mjs";
-import { verifyV4ScenePreviewPcm } from "./verify-v4-scene-preview-pcm.mjs";
-import { verifyV4ScenePreviewAcoustics } from "./verify-v4-scene-preview-acoustics.mjs";
+import { verifyScenePreviewContinuity } from "./verify-scene-preview-continuity.mjs";
+import { verifyScenePreviewIdentity } from "./verify-scene-preview-identity.mjs";
+import { verifyScenePreviewGain } from "./verify-scene-preview-gain.mjs";
+import { verifyScenePreviewSeek } from "./verify-scene-preview-seek.mjs";
+import { verifyScenePreviewRetirement } from "./verify-scene-preview-retirement.mjs";
+import { verifyScenePreviewPcm } from "./verify-scene-preview-pcm.mjs";
+import { verifyScenePreviewAcoustics } from "./verify-scene-preview-acoustics.mjs";
 
 const suites = new Map([
-  ["scene-preview", verifyV4ScenePreview],
-  ["scene-preview-acoustics", verifyV4ScenePreviewAcoustics],
-  ["scene-preview-acoustics-hot", (...args) => verifyV4ScenePreviewAcoustics(...args, {hotOnly:true})],
-  ["scene-preview-acoustics-gap", (...args) => verifyV4ScenePreviewAcoustics(...args, {hotOnly:true,controlledGap:true})],
-  ["scene-preview-continuity", verifyV4ScenePreviewContinuity],
-  ["scene-preview-retirement", verifyV4ScenePreviewRetirement],
-  ["scene-preview-identity", verifyV4ScenePreviewIdentity],
-  ["scene-preview-revocation", (...args) => verifyV4ScenePreviewIdentity(...args, {revocationOnly: true})],
-  ["scene-preview-gain", verifyV4ScenePreviewGain],
-  ["scene-preview-gain-paused", (...args) => verifyV4ScenePreviewGain(...args, {pausedOnly: true})],
-  ["scene-preview-seek", verifyV4ScenePreviewSeek],
-  ["scene-preview-seek-pause", (...args) => verifyV4ScenePreviewSeek(...args, {pauseAfterSeek: true})],
-  ["scene-preview-pcm", verifyV4ScenePreviewPcm],
-  ["scene-preview-pcm-terminal", (...args) => verifyV4ScenePreviewPcm(...args, {terminalOnly: true})],
-  ["scene-preview-performance", verifyV4ScenePreviewPerformance],
-  ["scene-preview-hd", (...args) => verifyV4ScenePreview(...args, { width: 1280, height: 720 })],
-  ["scene-preview-boundaries", verifyV4ScenePreviewBoundaries],
-  ["timeline-selection", verifyTimelineSelection],
-  ["media-fps", verifyMediaFps],
-  ["v4-media-fps", verifyV4MediaFps],
+  ["basic-flow", verifyBasicFlow],
+  ["basic-snapshots", (...args) => verifyBasicFlow(...args, { snapshotsOnly: true })],
+  ["full", verifyEditor],
+  ["scene-preview", verifyScenePreview],
+  ["scene-preview-acoustics", verifyScenePreviewAcoustics],
+  ["scene-preview-acoustics-hot", (...args) => verifyScenePreviewAcoustics(...args, {hotOnly:true})],
+  ["scene-preview-acoustics-gap", (...args) => verifyScenePreviewAcoustics(...args, {hotOnly:true,controlledGap:true})],
+  ["scene-preview-continuity", verifyScenePreviewContinuity],
+  ["scene-preview-retirement", verifyScenePreviewRetirement],
+  ["scene-preview-identity", verifyScenePreviewIdentity],
+  ["scene-preview-revocation", (...args) => verifyScenePreviewIdentity(...args, {revocationOnly: true})],
+  ["scene-preview-gain", verifyScenePreviewGain],
+  ["scene-preview-gain-paused", (...args) => verifyScenePreviewGain(...args, {pausedOnly: true})],
+  ["scene-preview-seek", verifyScenePreviewSeek],
+  ["scene-preview-seek-pause", (...args) => verifyScenePreviewSeek(...args, {pauseAfterSeek: true})],
+  ["scene-preview-pcm", verifyScenePreviewPcm],
+  ["scene-preview-pcm-terminal", (...args) => verifyScenePreviewPcm(...args, {terminalOnly: true})],
+  ["scene-preview-performance", verifyScenePreviewPerformance],
+  ["scene-preview-hd", (...args) => verifyScenePreview(...args, { width: 1280, height: 720 })],
+  ["scene-preview-boundaries", verifyScenePreviewBoundaries],
+  ["media-fps", verifySceneMediaFps],
   ["project-covers", verifyProjectCovers],
   ["feedback", verifyFeedback],
-  ["v4-editor", verifyV4Editor],
-  ["v4-text", verifyV4Text],
-  ["v4-canvas-text", verifyV4CanvasText],
-  ["v4-canvas-text-blur", (...args) => verifyV4CanvasText(...args, { blurOnly: true })],
-  ["v4-bookmark-lifecycle", verifyV4BookmarkLifecycle],
-  ["v4-font-browser", verifyV4FontBrowser],
-  ["v4-font-browser-offline", (...args) => verifyV4FontBrowser(...args, { offlineOnly: true })],
-  ["v4-captions", verifyV4Captions],
-  ["v4-asr", verifyV4Asr],
-  ["v4-caption-video", verifyV4CaptionVideo],
-  ["v4-text-timeline", verifyV4TextTimeline],
-  ["v4-text-timeline-resume", (...args) => verifyV4TextTimeline(...args, { resumeFromCheckpoint: true })],
-  ["v4-text-transform", verifyV4TextTransform],
-  ["v4-text-style", verifyV4TextStyle],
-  ["classic-v4", verifyClassicV4],
-  ["classic-v4-subtitle-style", verifyClassicSubtitleStyle],
-  ["v4-editable-subtitles", verifyV4EditableSubtitles],
-  ["v4-asr-editable", verifyV4AsrEditable],
-  ["v4-ass-import", verifyV4AssImport],
-  ["v4-graphic", verifyV4Graphic],
-  ["v4-blend", verifyV4Blend],
-  ["v4-mask", verifyV4Mask],
-  ["v4-scene-stack", verifyV4SceneStack],
-  ["v4-parallel-editing", verifyV4ParallelEditing],
-  ["v4-blend-outputs", (...args) => verifyV4Blend(...args, { outputsOnly: true })],
-  ["v4-graphic-output", verifyV4GraphicOutput],
-  ["v4-package", verifyV4Package],
-  ["v4-package-output", verifyV4PackageOutput],
-  ["classic-graphic-v4", verifyClassicGraphicV4],
-  ["v4-derived-font", verifyV4DerivedFont],
-  ["v4-derived-font-offline", (...args) => verifyV4DerivedFont(...args, { offlineOnly: true })],
-  ["v4-video", verifyV4Video],
-  ["v4-text-layout", (...args) => verifyV4Text(...args, {layoutOnly:true})],
+  ["editor", verifyEditor],
+  ["text", verifyText],
+  ["canvas-text", verifyCanvasText],
+  ["canvas-text-blur", (...args) => verifyCanvasText(...args, { blurOnly: true })],
+  ["bookmark-lifecycle", verifyBookmarkLifecycle],
+  ["font-browser", verifyFontBrowser],
+  ["font-browser-offline", (...args) => verifyFontBrowser(...args, { offlineOnly: true })],
+  ["captions", verifyCaptions],
+  ["asr", verifyAsr],
+  ["caption-video", verifyCaptionVideo],
+  ["text-timeline", verifyTextTimeline],
+  ["text-timeline-resume", (...args) => verifyTextTimeline(...args, { resumeFromCheckpoint: true })],
+  ["text-transform", verifyTextTransform],
+  ["text-style", verifyTextStyle],
+  ["classic", verifyClassic],
+  ["classic-subtitle-style", verifyClassicSubtitleStyle],
+  ["editable-subtitles", verifyEditableSubtitles],
+  ["asr-editable", verifyAsrEditable],
+  ["ass-import", verifyAssImport],
+  ["graphic", verifyGraphic],
+  ["blend", verifyBlend],
+  ["mask", verifyMask],
+  ["scene-stack", verifySceneStack],
+  ["parallel-editing", verifyParallelEditing],
+  ["blend-outputs", (...args) => verifyBlend(...args, { outputsOnly: true })],
+  ["graphic-output", verifyGraphicOutput],
+  ["package", verifyProjectPackage],
+  ["package-output", verifyPackageOutput],
+  ["classic-graphic", verifyClassicGraphic],
+  ["derived-font", verifyDerivedFont],
+  ["derived-font-offline", (...args) => verifyDerivedFont(...args, { offlineOnly: true })],
+  ["video", verifyVideo],
+  ["text-layout", (...args) => verifyText(...args, {layoutOnly:true})],
   ["classic-audio", verifyClassicAudio],
-  ["v4-performance", verifyV4Performance],
+  ["performance", verifyPerformance],
   ["source-art", verifySourceArt],
   ["edit-recovery", verifyEditRecovery],
-  ["v4-file-import", verifyV4FileImport],
+  ["file-import", verifyFileImport],
   [
-    "v4-file-import-boundaries",
-    (...args) => verifyV4FileImport(...args, { boundaries: true }),
+    "file-import-boundaries",
+    (...args) => verifyFileImport(...args, { boundaries: true }),
   ],
 ]);
 const names = (process.env.OPENCUT_WEB_SUITE ?? "").split(",");

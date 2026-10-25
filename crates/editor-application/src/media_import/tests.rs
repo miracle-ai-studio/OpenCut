@@ -1,377 +1,581 @@
 use super::*;
-use opencut_contracts::{CreateProject, media_import::MediaBindingV1};
-use serde_json::json;
-fn asset(id: &str, kind: AssetKind, n: u32, d: u32) -> Asset {
-    let mut a:Asset=serde_json::from_value(json!({"id":id,"name":id,"kind":kind,"uri":format!("opencut-media://{id}"),"duration":{"ticks":"4","timebase":1},"metadata":{"frame_rate":{"numerator":n,"denominator":d}}})).unwrap();
-    if n == 0 {
-        a.metadata.clear();
-    }
-    a
+mod fixture;
+mod fps;
+mod pinned_boundary;
+mod workspace;
+use fixture::{Fixture, t, version};
+
+fn elements(plan: &MediaImportPlan) -> Vec<&TimelineElement> {
+    plan.transaction
+        .operations
+        .iter()
+        .filter_map(|op| match op {
+            ProjectEditOperation::ElementPut { element, .. } => Some(element.as_ref()),
+            _ => None,
+        })
+        .collect()
 }
-fn snapshot() -> ProjectSnapshotV3 {
-    let p = crate::project_v3::create(&CreateProject {
-        id: "p".into(),
-        name: "P".into(),
-        sequence_id: "s".into(),
-        width: 160,
-        height: 90,
-        fps: FrameRate {
-            numerator: 24,
-            denominator: 1,
-        },
-    })
-    .unwrap();
-    ProjectSnapshotV3 {
-        project: p,
-        revision: "rev".into(),
-    }
+fn settings(plan: &MediaImportPlan) -> &SettingsProfile {
+    plan.transaction
+        .operations
+        .iter()
+        .find_map(|op| match op {
+            ProjectEditOperation::SettingsSet { settings } => Some(settings),
+            _ => None,
+        })
+        .unwrap()
 }
-fn input() -> MediaImportRequestV1 {
-    MediaImportRequestV1 {
-        project_id: "p".into(),
-        expected_revision: "rev".into(),
-        sequence_id: "s".into(),
-        idempotency_key: "import".into(),
-        label: "Import".into(),
-        media: vec![MediaBindingV1 {
-            media_id: "video".into(),
-            replace_asset_id: None,
-        }],
-        operations: vec![],
-        ripple: false,
-    }
-}
+
 #[test]
-fn classic_rates_mixed_inputs_and_invalid_or_nonvideo_metadata() {
-    let current = FrameRate {
-        numerator: 24,
-        denominator: 1,
-    };
-    for (n, d, expected) in [
-        (25, 1, (25, 1)),
-        (2997, 100, (30000, 1001)),
-        (5994, 100, (60000, 1001)),
-        (48, 1, (48, 1)),
-        (120, 1, (120, 1)),
-        (314159, 10000, (314159, 10000)),
-    ] {
-        assert_eq!(
-            raised_fps(&current, &[asset("v", AssetKind::Video, n, d)]).unwrap(),
-            Some(FrameRate {
-                numerator: expected.0,
-                denominator: expected.1
-            })
-        );
-    }
-    let videos = vec![
-        asset("low", AssetKind::Video, 25, 1),
-        asset("high", AssetKind::Video, 60000, 1001),
-        asset("a", AssetKind::Audio, 120, 1),
-        asset("i", AssetKind::Image, 200, 1),
-    ];
+fn global_fps_native_canvas_and_exact_source_rounding_produce_safe_public_apply() {
+    let fixture = Fixture::new();
+    let mut input = fixture.request();
+    input
+        .placements
+        .push(fixture.video(fixture.source_timing()));
+    let before = fixture.snapshot.clone();
+    let result = plan(&fixture, &input).unwrap();
+    assert_eq!(fixture.snapshot, before);
+    assert_eq!(result.transaction.idempotency_key, input.idempotency_key);
     assert_eq!(
-        raised_fps(&current, &videos).unwrap(),
+        result.transaction.expected_revision,
+        input.expected_revision
+    );
+    assert_eq!(
+        result.decisions.raised_fps,
         Some(FrameRate {
-            numerator: 60000,
+            numerator: 30000,
             denominator: 1001
         })
     );
+    let SettingsProfile::ClassicGlobal { settings } = settings(&result) else {
+        panic!()
+    };
     assert_eq!(
-        raised_fps(
-            &FrameRate {
-                numerator: 60,
-                denominator: 1
-            },
-            &videos
-        )
-        .unwrap(),
-        None
+        settings.canvas_size,
+        CanvasSize {
+            width: 1920,
+            height: 1080
+        }
     );
-    for (kind, n, d) in [
-        (AssetKind::Video, 0, 1),
-        (AssetKind::Video, 60, 0),
-        (AssetKind::Video, 23, 1),
-        (AssetKind::Audio, 60, 1),
-        (AssetKind::Image, 60, 1),
-        (AssetKind::Video, 240005, 10000),
-    ] {
-        assert_eq!(
-            raised_fps(&current, &[asset("v", kind, n, d)]).unwrap(),
-            None
-        );
-    }
-    // Normalization cannot lower a custom setting through the tolerance edge.
+    assert_eq!(settings.original_canvas_size, Some(settings.canvas_size));
+    let element = elements(&result)[0];
+    assert_eq!(element.timeline_range.start, t(0, 1));
+    assert_eq!(element.timeline_range.duration, t(11429, 120000));
     assert_eq!(
-        raised_fps(
-            &FrameRate {
-                numerator: 24005,
-                denominator: 1000
-            },
-            &[asset("v", AssetKind::Video, 24009, 1000)]
-        )
-        .unwrap(),
-        None
+        result.decisions.placements[0]
+            .source_range
+            .as_ref()
+            .unwrap()
+            .duration,
+        t(17144, 120000)
+    );
+    assert!(result.decisions.placements[0].main_track_start_adjusted);
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(
+        !json.contains("/private/source")
+            && !json.contains("legacy_locator")
+            && !json.contains("\"uri\"")
+    );
+    let decoded: MediaImportPlan = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, result);
+    let differently_requested = MediaImportRequest {
+        ripple: true,
+        ..input
+    };
+    let second = plan(&fixture, &differently_requested).unwrap();
+    assert_eq!(second.transaction, result.transaction);
+    assert_ne!(
+        second.original_request_digest,
+        result.original_request_digest
     );
 }
+
 #[test]
-fn binding_and_fps_preserve_existing_exact_timing_and_other_scene() {
-    let mut s = snapshot();
-    let a = asset("old", AssetKind::Video, 24, 1);
-    s.project.base.assets.push(a);
-    s.project.base.sequences[0].tracks.push(serde_json::from_value(json!({"id":"v","name":"V","kind":"video","enabled":true,"muted":false,"locked":false,"clips":[{"id":"old-clip","asset_id":"old","timeline_range":{"start":{"ticks":"1001","timebase":30000},"duration":{"ticks":"1001","timebase":1000}},"source_range":{"start":{"ticks":"1001","timebase":24000},"duration":{"ticks":"1001","timebase":1000}},"params":{},"channels":[{"parameter":"opacity","keyframes":[{"id":"k","time":{"ticks":"1001","timebase":30000},"value":0.5,"interpolation":"linear"}]}]}]})).unwrap());
-    let mut other = s.project.base.sequences[0].clone();
-    other.id = "other".into();
-    other.tracks.clear();
-    s.project.base.sequences.push(other.clone());
-    let before = s.clone();
-    let mut observed = asset("video", AssetKind::Video, 60000, 1001);
-    let packet_key = opencut_media_contracts::CLASSIC_PACKET_RATE_METADATA_KEY_V1;
-    observed.metadata.insert(
-        packet_key.into(),
-        json!({
-            "schema_version":1, "packet_count":100, "average_packet_rate":30.006,
-        }),
-    );
-    let plan = plan(&s, &input(), std::slice::from_ref(&observed)).unwrap();
-    let next = crate::project_v3::plan_apply(&s.project, &plan.transaction)
+fn another_scene_raises_global_fps_without_changing_independent_scene_content() {
+    let mut fixture = Fixture::new();
+    let mut scene = fixture.snapshot.project.sequences[0].clone();
+    scene.id = "other".into();
+    scene.main_track_id = "other-main".into();
+    scene.tracks.truncate(1);
+    scene.tracks[0].id = "other-main".into();
+    fixture.snapshot.project.sequences.push(scene);
+    fixture
+        .media
+        .get_mut("available")
         .unwrap()
-        .proposed_project;
+        .metadata
+        .frame_rate = Some(FrameRate {
+        numerator: 60000,
+        denominator: 1001,
+    });
+    let mut input = fixture.request();
+    input.sequence_id = "other".into();
+    let result = plan(&fixture, &input).unwrap();
     assert_eq!(
-        next.base.sequences[0].fps,
+        result.decisions.settings_scope,
+        MediaSettingsScope::ClassicGlobal
+    );
+    let SettingsProfile::ClassicGlobal { settings } = settings(&result) else {
+        panic!()
+    };
+    assert_eq!(
+        settings.fps,
         FrameRate {
             numerator: 60000,
             denominator: 1001
         }
     );
     assert_eq!(
-        next.base.sequences[0].tracks,
-        s.project.base.sequences[0].tracks
+        settings.canvas_size,
+        CanvasSize {
+            width: 320,
+            height: 180
+        }
     );
-    assert_eq!(next.base.sequences[1], other);
-    assert!(observed.metadata.contains_key(packet_key));
+    assert!(result.decisions.canvas_change.is_none());
     assert!(
-        !next
-            .base
-            .assets
+        result
+            .transaction
+            .operations
             .iter()
-            .find(|a| a.id == "video")
-            .unwrap()
-            .metadata
-            .contains_key(packet_key)
-    );
-    assert_eq!(
-        next.base
-            .assets
-            .iter()
-            .find(|a| a.id == "video")
-            .unwrap()
-            .metadata
-            .get("frame_rate"),
-        observed.metadata.get("frame_rate")
-    );
-    assert_eq!(s, before);
-    assert_eq!(plan.transaction.operations.len(), 2);
-}
-#[test]
-fn fixed_scope_replacements_and_atomic_validation() {
-    let mut s = snapshot();
-    s.project
-        .base
-        .assets
-        .push(asset("old", AssetKind::Video, 24, 1));
-    let mut req = input();
-    req.media[0].replace_asset_id = Some("old".into());
-    let p = plan(&s, &req, &[asset("video", AssetKind::Video, 30, 1)]).unwrap();
-    assert!(
-        matches!(&p.transaction.operations[0],VisualOperation::Base{operation:Operation::ReplaceAsset{asset}} if asset.id=="old")
-    );
-    assert_eq!(
-        plan(&s, &req, &[asset("video", AssetKind::Audio, 60, 1)])
-            .unwrap_err()
-            .code,
-        "INVALID_ARGUMENT"
-    );
-    req.media.push(req.media[0].clone());
-    assert_eq!(validate(&req).unwrap_err().code, "INVALID_ARGUMENT");
-    req.media.pop();
-    req.expected_revision = "stale".into();
-    assert_eq!(
-        plan(&s, &req, &[asset("video", AssetKind::Video, 30, 1)])
-            .unwrap_err()
-            .code,
-        "REVISION_CONFLICT"
-    );
-    req.expected_revision = "rev".into();
-    assert_eq!(
-        plan(&s, &req, &[asset("wrong", AssetKind::Video, 30, 1)])
-            .unwrap_err()
-            .code,
-        "INVALID_ARGUMENT"
-    );
-    req.operations.push(VisualOperation::Base {
-        operation: Operation::BindAsset {
-            asset: asset("untrusted", AssetKind::Video, 120, 1),
-        },
-    });
-    assert_eq!(validate(&req).unwrap_err().code, "INVALID_ARGUMENT");
-    req.operations.clear();
-    req.media[0].replace_asset_id = None;
-    req.operations.push(serde_json::from_value(json!({"type":"base.apply","operation":{"type":"track.create","sequence_id":"other","track":{"id":"v","name":"V","kind":"video","enabled":true,"muted":false,"locked":false,"clips":[]}}})).unwrap());
-    assert_eq!(
-        plan(&s, &req, &[asset("video", AssetKind::Video, 30, 1)])
-            .unwrap_err()
-            .code,
-        "INVALID_ARGUMENT"
+            .all(|op| !matches!(op, ProjectEditOperation::SequencePut { .. }))
     );
 }
 
 #[test]
-fn published_rate_is_typed_video_metadata_without_relaxing_resource_identity() {
-    use crate::uploads::{PreparedMediaImportInput, PreparedUploadChunk, validate_import_result};
-    use opencut_job_contracts::MediaImportJobResult;
-    let hash = "a".repeat(64);
-    let input = PreparedMediaImportInput {
-        upload_id: format!("upload_{}", "b".repeat(32)),
-        project_id: "p".into(),
-        media_id: format!("media_{}", "c".repeat(32)),
-        name: "video.mp4".into(),
-        size_bytes: 1,
-        content_hash: hash.clone(),
-        chunks: vec![PreparedUploadChunk {
-            offset: 0,
-            size_bytes: 1,
-            content_hash: hash.clone(),
+fn explicit_audio_then_video_preserves_pinned_duration_and_does_not_reset_canvas() {
+    let fixture = Fixture::new();
+    let mut input = fixture.request();
+    let timing = MediaTiming::PinnedTimeline {
+        source_start: t(1, 1),
+        duration: t(1, 7),
+        rate: RationalRate {
+            numerator: 3,
+            denominator: 2,
+        },
+        maintain_pitch: true,
+    };
+    input.placements = vec![
+        MediaPlacement {
+            element_id: "sound".into(),
+            name: "Sound".into(),
+            track_id: "audio".into(),
+            asset_id: "asset".into(),
+            start: t(0, 1),
+            content: MediaPlacementContent::Audio {
+                timing: timing.clone(),
+            },
+        },
+        fixture.video(timing),
+    ];
+    let result = plan(&fixture, &input).unwrap();
+    assert!(result.decisions.canvas_change.is_none());
+    for element in elements(&result) {
+        assert_eq!(element.timeline_range.duration, t(1, 7));
+    }
+    assert_eq!(
+        result.decisions.placements[0]
+            .source_range
+            .as_ref()
+            .unwrap()
+            .duration,
+        t(25714, 120000)
+    );
+    assert!(elements(&result)[0].visual.is_none());
+}
+
+#[test]
+fn legacy_scope_and_exact_source_profile_are_preserved_without_classic_conversion() {
+    let mut fixture = Fixture::new();
+    let SettingsProfile::ClassicGlobal { settings } = fixture.snapshot.project.settings.clone()
+    else {
+        panic!()
+    };
+    fixture.snapshot.project.settings = SettingsProfile::LegacyPerScene {
+        formats: vec![LegacySequenceFormat {
+            sequence_id: "s".into(),
+            fps: settings.fps,
+            canvas_size: settings.canvas_size,
+            background: settings.background,
         }],
     };
-    let mut resource:MediaImportJobResult=serde_json::from_value(json!({"media_id":input.media_id,"project_id":"p","upload_id":input.upload_id,"job_id":"job","asset":{"id":input.media_id,"name":"video.mp4","kind":"video","uri":format!("opencut-media://{}",input.media_id),"duration":{"ticks":"4","timebase":1},"version":{"id":format!("av_{hash}"),"content_hash":hash,"size":1},"metadata":{"content_hash":hash,"size":1,"mime_type":"video/mp4","has_audio":false,"frame_rate":{"numerator":60000,"denominator":1001}}}})).unwrap();
-    validate_import_result(&input, "job", &resource).unwrap();
-    let mut with_audio = resource.clone();
-    with_audio
-        .asset
-        .metadata
-        .insert("has_audio".into(), json!(true));
-    with_audio.asset.metadata.insert(
-        "audio_metadata".into(),
-        json!({"sample_rate":48000,"channels":1,"channel_layout":"mono"}),
-    );
-    validate_import_result(&input, "job", &with_audio).unwrap();
-    for format in [
-        json!({"sample_rate":0,"channels":1,"channel_layout":null}),
-        json!({"sample_rate":48000,"channels":1,"channel_layout":null,"native_path":"private"}),
-    ] {
-        let mut bad = with_audio.clone();
-        bad.asset.metadata.insert("audio_metadata".into(), format);
-        assert_eq!(
-            validate_import_result(&input, "job", &bad)
-                .unwrap_err()
-                .code,
-            "INVALID_JOB_RESULT"
-        );
-    }
-    with_audio
-        .asset
-        .metadata
-        .insert("has_audio".into(), json!(false));
+    let mut input = fixture.request();
+    input
+        .placements
+        .push(fixture.video(fixture.source_timing()));
+    let result = plan(&fixture, &input).unwrap();
     assert_eq!(
-        validate_import_result(&input, "job", &with_audio)
-            .unwrap_err()
-            .code,
-        "INVALID_JOB_RESULT"
+        result.decisions.settings_scope,
+        MediaSettingsScope::LegacyPerScene {
+            sequence_id: "s".into()
+        }
     );
-    for rate in [
-        json!({"numerator":60,"denominator":0}),
-        json!({"numerator":0,"denominator":1}),
-        json!({"numerator":60,"denominator":1,"path":"private"}),
-        json!("59.94"),
-    ] {
-        let mut bad = resource.clone();
-        bad.asset.metadata.insert("frame_rate".into(), rate);
-        assert_eq!(
-            validate_import_result(&input, "job", &bad)
-                .unwrap_err()
-                .code,
-            "INVALID_JOB_RESULT"
-        );
-    }
-    let packet_key = opencut_media_contracts::CLASSIC_PACKET_RATE_METADATA_KEY_V1;
-    for rate in [Some(30.006), None] {
-        resource.asset.metadata.insert(
-            packet_key.into(),
-            json!({
-                "schema_version":1, "packet_count":100, "average_packet_rate":rate,
-            }),
-        );
-        validate_import_result(&input, "job", &resource).unwrap();
-    }
-    for observation in [
-        json!({"schema_version":2,"packet_count":100,"average_packet_rate":30.0}),
-        json!({"schema_version":1,"packet_count":0,"average_packet_rate":30.0}),
-        json!({"schema_version":1,"packet_count":100,"average_packet_rate":-1.0}),
-        json!({"schema_version":1,"packet_count":100,"average_packet_rate":30.0,"path":"private"}),
-    ] {
-        let mut bad = resource.clone();
-        bad.asset.metadata.insert(packet_key.into(), observation);
-        assert_eq!(
-            validate_import_result(&input, "job", &bad)
-                .unwrap_err()
-                .code,
-            "INVALID_JOB_RESULT"
-        );
-    }
-    resource.asset.kind = AssetKind::Image;
+    assert!(result.decisions.canvas_change.is_none());
+    assert_eq!(elements(&result)[0].timeline_range.duration, t(2, 21));
+    assert!(matches!(
+        elements(&result)[0].source_span,
+        ElementSourceSpan::LegacySourceRange { .. }
+    ));
     assert_eq!(
-        validate_import_result(&input, "job", &resource)
-            .unwrap_err()
-            .code,
-        "INVALID_JOB_RESULT"
+        elements(&result)[0].visual.as_ref().unwrap().profile,
+        VisualProfile::LegacyCompositionV3
     );
-    resource.asset.metadata.remove("frame_rate");
+    assert!(!result.decisions.placements[0].main_track_start_adjusted);
+}
+
+#[test]
+fn replacement_keeps_dependents_and_refuses_shorter_source_or_locked_owner() {
+    let mut fixture = Fixture::new();
+    let mut input = fixture.request();
+    input
+        .placements
+        .push(fixture.video(MediaTiming::SourceRange {
+            range: TimeRange {
+                start: t(8, 1),
+                duration: t(2, 1),
+            },
+            rate: RationalRate {
+                numerator: 1,
+                denominator: 1,
+            },
+            maintain_pitch: false,
+        }));
+    let initial = plan(&fixture, &input).unwrap();
+    let mut old = fixture.media["available"].clone();
+    old.id = "asset".into();
+    old.name = "Video".into();
+    fixture.snapshot.project.assets.push(old);
+    fixture.snapshot.project.sequences[0].tracks[0]
+        .elements
+        .push((*elements(&initial)[0]).clone());
+    let original = fixture.snapshot.project.sequences[0].tracks[0].elements[0].clone();
+    let mut replacement = fixture.request();
+    replacement.bindings[0].mode = MediaBindingMode::Replace;
+    fixture.media.get_mut("available").unwrap().version = version('2');
+    replacement.bindings[0].version = version('2');
+    let result = plan(&fixture, &replacement).unwrap();
+    assert_eq!(result.decisions.replaced_asset_ids, vec!["asset"]);
+    assert!(elements(&result).is_empty());
     assert_eq!(
-        validate_import_result(&input, "job", &resource)
-            .unwrap_err()
-            .code,
-        "INVALID_JOB_RESULT"
+        fixture.snapshot.project.sequences[0].tracks[0].elements[0],
+        original
     );
-    resource.asset.metadata.remove(packet_key);
-    validate_import_result(&input, "job", &resource).unwrap();
-    resource
-        .asset
-        .metadata
-        .insert("native_path".into(), json!("private"));
+    fixture.media.get_mut("available").unwrap().duration = Some(t(9, 1));
     assert_eq!(
-        validate_import_result(&input, "job", &resource)
-            .unwrap_err()
-            .code,
-        "INVALID_JOB_RESULT"
+        plan(&fixture, &replacement).unwrap_err().code,
+        "INVALID_PROJECT"
+    );
+    fixture.media.get_mut("available").unwrap().duration = Some(t(10, 1));
+    fixture.snapshot.project.sequences[0].tracks[0].locked = true;
+    assert_eq!(
+        plan(&fixture, &replacement).unwrap_err().code,
+        "CONSTRAINT_VIOLATION"
     );
 }
 
 #[test]
-fn raw_packet_normalization_preserves_classic_floats_and_rejects_unrepresentable_rates() {
-    for (raw, expected) in [
-        (30.006, (30, 1)),
-        (30000.0 / 1001.0, (30000, 1001)),
-        (24.01, (2401, 100)), // JS subtraction exceeds .01 at this floating boundary.
-        (31.4159, (314159, 10000)),
-        (31.0000005, (31000001, 1000000)),
-        (f64::from(u32::MAX), (u32::MAX, 1)),
-    ] {
+fn policy_fixed_revision_missing_observation_audio_knowledge_and_overlap_fail_closed() {
+    let mut fixture = Fixture::new();
+    let input = fixture.request();
+    fixture.deny = true;
+    assert_eq!(plan(&fixture, &input).unwrap_err().code, "NOT_AUTHORIZED");
+    assert_eq!(fixture.reads.get(), 0);
+    fixture.deny = false;
+    let mut stale = input.clone();
+    stale.expected_revision = "stale".into();
+    assert_eq!(
+        plan(&fixture, &stale).unwrap_err().code,
+        "REVISION_CONFLICT"
+    );
+    let mut absent = input.clone();
+    absent.bindings[0].media_id = "missing".into();
+    assert_eq!(plan(&fixture, &absent).unwrap_err().code, "NOT_FOUND");
+    let mut wrong = input.clone();
+    wrong.bindings[0].version = version('2');
+    assert_eq!(plan(&fixture, &wrong).unwrap_err().code, "NOT_AUTHORIZED");
+    let mut place = input.clone();
+    place
+        .placements
+        .push(fixture.video(fixture.source_timing()));
+    fixture.media.get_mut("available").unwrap().metadata.audio = AudioPresence::Unknown {};
+    assert_eq!(
+        plan(&fixture, &place).unwrap_err().code,
+        "MEDIA_METADATA_REQUIRED"
+    );
+    fixture.media.get_mut("available").unwrap().metadata.audio = AudioPresence::Absent {};
+    assert_eq!(plan(&fixture, &place).unwrap_err().code, "NO_AUDIO_TRACK");
+    if let MediaPlacementContent::Video {
+        source_audio_enabled,
+        ..
+    } = &mut place.placements[0].content
+    {
+        *source_audio_enabled = false;
+    }
+    fixture.media.get_mut("available").unwrap().duration = None;
+    assert_eq!(
+        plan(&fixture, &place).unwrap_err().code,
+        "MEDIA_METADATA_REQUIRED"
+    );
+    fixture.media.get_mut("available").unwrap().duration = Some(t(10, 1));
+    fixture
+        .media
+        .get_mut("available")
+        .unwrap()
+        .metadata
+        .frame_rate = None;
+    let result = plan(&fixture, &place).unwrap();
+    assert_eq!(result.decisions.video_asset_ids_without_fps, vec!["asset"]);
+    let mut second = place.placements[0].clone();
+    second.element_id = "overlap".into();
+    second.start = t(0, 1);
+    place.placements.push(second);
+    place.ripple = true;
+    assert_eq!(plan(&fixture, &place).unwrap_err().code, "INVALID_PROJECT");
+    fixture.snapshot.project.sequences[0].tracks[0].locked = true;
+    assert_eq!(
+        plan(&fixture, &input).unwrap().decisions.bound_asset_ids,
+        vec!["asset"]
+    );
+    assert_eq!(
+        plan(&fixture, &place).unwrap_err().code,
+        "CONSTRAINT_VIOLATION"
+    );
+}
+
+#[test]
+fn native_image_size_preserves_custom_mode_original_canvas_and_explicit_duration() {
+    let mut fixture = Fixture::new();
+    let SettingsProfile::ClassicGlobal {
+        settings: initial_settings,
+    } = &mut fixture.snapshot.project.settings
+    else {
+        panic!()
+    };
+    initial_settings.canvas_size_mode = CanvasSizeMode::Custom;
+    initial_settings.last_custom_canvas_size = Some(initial_settings.canvas_size);
+    initial_settings.original_canvas_size = Some(CanvasSize {
+        width: 640,
+        height: 360,
+    });
+    let asset = fixture.media.get_mut("available").unwrap();
+    asset.kind = AssetKind::Image;
+    asset.duration = None;
+    asset.metadata.frame_rate = None;
+    asset.metadata.audio = AudioPresence::Absent {};
+    let mut input = fixture.request();
+    input.placements.push(MediaPlacement {
+        element_id: "image".into(),
+        name: "Image".into(),
+        track_id: "main".into(),
+        asset_id: "asset".into(),
+        start: t(99, 1),
+        content: MediaPlacementContent::Image {
+            duration: t(123, 100),
+        },
+    });
+    let result = plan(&fixture, &input).unwrap();
+    let SettingsProfile::ClassicGlobal { settings } = settings(&result) else {
+        panic!()
+    };
+    assert_eq!(settings.canvas_size_mode, CanvasSizeMode::Custom);
+    assert_eq!(
+        settings.last_custom_canvas_size,
+        Some(CanvasSize {
+            width: 320,
+            height: 180
+        })
+    );
+    assert_eq!(
+        settings.original_canvas_size,
+        Some(CanvasSize {
+            width: 640,
+            height: 360
+        })
+    );
+    assert!(result.decisions.raised_fps.is_none());
+    assert_eq!(elements(&result)[0].timeline_range.duration, t(123, 100));
+    assert!(result.decisions.placements[0].source_range.is_none());
+}
+
+#[test]
+fn first_video_overwrites_global_fps_even_when_lower_and_without_dimensions() {
+    let mut fixture = Fixture::new();
+    let SettingsProfile::ClassicGlobal {
+        settings: initial_settings,
+    } = &mut fixture.snapshot.project.settings
+    else {
+        panic!()
+    };
+    initial_settings.fps = FrameRate {
+        numerator: 60,
+        denominator: 1,
+    };
+    let asset = fixture.media.get_mut("available").unwrap();
+    asset.metadata.frame_rate = Some(FrameRate {
+        numerator: 24,
+        denominator: 1,
+    });
+    asset.metadata.intrinsic_size = None;
+    let mut request = fixture.request();
+    request
+        .placements
+        .push(fixture.video(fixture.source_timing()));
+    let result = plan(&fixture, &request).unwrap();
+    assert_eq!(
+        result.decisions.previous_fps,
+        FrameRate {
+            numerator: 60,
+            denominator: 1
+        }
+    );
+    assert!(result.decisions.raised_fps.is_none());
+    assert_eq!(
+        result.decisions.first_visual_fps,
+        Some(FrameRate {
+            numerator: 24,
+            denominator: 1
+        })
+    );
+    let SettingsProfile::ClassicGlobal { settings } = settings(&result) else {
+        panic!()
+    };
+    assert_eq!(
+        settings.fps,
+        FrameRate {
+            numerator: 24,
+            denominator: 1
+        }
+    );
+    assert!(result.decisions.canvas_change.is_none());
+}
+
+#[test]
+fn first_placement_uses_binding_fps_then_later_placement_uses_first_video_fps() {
+    let mut fixture = Fixture::new();
+    fixture
+        .media
+        .get_mut("available")
+        .unwrap()
+        .metadata
+        .frame_rate = Some(FrameRate {
+        numerator: 24,
+        denominator: 1,
+    });
+    let mut fast = fixture.media["available"].clone();
+    fast.id = "fast-observation".into();
+    fast.version = version('2');
+    fast.metadata.frame_rate = Some(FrameRate {
+        numerator: 60,
+        denominator: 1,
+    });
+    fixture.media.insert("fast-media".into(), fast);
+    let main = fixture.snapshot.project.sequences[0].tracks[0].clone();
+    for id in ["first-overlay", "second-overlay"] {
+        let mut track = main.clone();
+        track.id = id.into();
+        fixture.snapshot.project.sequences[0].tracks.push(track);
+    }
+    let mut request = fixture.request();
+    request.bindings.push(MediaBinding {
+        media_id: "fast-media".into(),
+        version: version('2'),
+        asset_id: "fast-asset".into(),
+        name: "Fast".into(),
+        mode: MediaBindingMode::Bind,
+    });
+    let mut first = fixture.video(fixture.source_timing());
+    first.track_id = "first-overlay".into();
+    first.start = t(1, 16);
+    let mut second = first.clone();
+    second.element_id = "second-video".into();
+    second.track_id = "second-overlay".into();
+    second.asset_id = "fast-asset".into();
+    request.placements = vec![first, second];
+    let result = plan(&fixture, &request).unwrap();
+    assert_eq!(
+        result.decisions.raised_fps,
+        Some(FrameRate {
+            numerator: 60,
+            denominator: 1
+        })
+    );
+    assert_eq!(
+        result.decisions.first_visual_fps,
+        Some(FrameRate {
+            numerator: 24,
+            denominator: 1
+        })
+    );
+    // 1/16s: at60FPS round(3.75)=4 -> 1/15; after first video's
+    // override to24FPS round(1.5)=2 -> 1/12. No main-track zero masks this.
+    assert_eq!(
+        time(&elements(&result)[0].timeline_range.start)
+            .unwrap()
+            .cmp_exact(time(&t(1, 15)).unwrap()),
+        std::cmp::Ordering::Equal
+    );
+    assert_eq!(
+        time(&elements(&result)[1].timeline_range.start)
+            .unwrap()
+            .cmp_exact(time(&t(1, 12)).unwrap()),
+        std::cmp::Ordering::Equal
+    );
+    let SettingsProfile::ClassicGlobal { settings } = settings(&result) else {
+        panic!()
+    };
+    assert_eq!(
+        settings.fps,
+        FrameRate {
+            numerator: 24,
+            denominator: 1
+        }
+    );
+    let candidate = crate::scene::public::plan_public(&fixture, &result.transaction).unwrap();
+    assert_eq!(candidate.settings, self::settings(&result).clone());
+    for planned in elements(&result) {
         assert_eq!(
-            normalize_classic_packet_fps(raw).unwrap(),
-            FrameRate {
-                numerator: expected.0,
-                denominator: expected.1
-            }
+            candidate.sequences[0]
+                .tracks
+                .iter()
+                .flat_map(|t| &t.elements)
+                .find(|e| e.id == planned.id),
+            Some(planned)
         );
     }
-    for raw in [
-        f64::NAN,
-        f64::INFINITY,
-        0.0,
-        -1.0,
-        0.0000001,
-        f64::from(u32::MAX) + 1.0,
+}
+
+#[test]
+fn classic_binding_normalization_applies_after_raw_comparison_even_when_slightly_lower() {
+    for (raw, expected) in [
+        (30.005, None),
+        (30.0, None),
+        (30.006, Some(fps::fps(30, 1))),
     ] {
-        assert!(normalize_classic_packet_fps(raw).is_err());
+        let mut fixture = fps::fixture(true);
+        fps::set_fps(&mut fixture, fps::fps(30005, 1000));
+        fixture
+            .media
+            .get_mut("available")
+            .unwrap()
+            .metadata
+            .frame_rate = Some(fps::fps(30, 1));
+        fixture
+            .media_packets
+            .insert("available".into(), fps::packet(Some(raw)));
+        let mut input = fixture.request();
+        input.sequence_id = "other".into();
+        let result = plan(&fixture, &input).unwrap();
+        assert_eq!(result.decisions.raised_fps, expected);
+        assert!(result.decisions.first_visual_fps.is_none());
+        let candidate = crate::scene::public::plan_public(&fixture, &result.transaction).unwrap();
+        assert_eq!(candidate.sequences, fixture.snapshot.project.sequences);
+        let SettingsProfile::ClassicGlobal { settings } = &candidate.settings else {
+            panic!()
+        };
+        assert_eq!(settings.fps, expected.unwrap_or(fps::fps(30005, 1000)));
+        for scene in &candidate.sequences {
+            fps::assert_existing_clock(scene, &fixture.snapshot.project.assets[0]);
+        }
     }
 }

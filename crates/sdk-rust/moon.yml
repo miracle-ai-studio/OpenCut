@@ -13,6 +13,6 @@ tasks:
     options:
       cache: false
       runInCI: false
-  wire-compatibility:
-    command: 'python3 ../../scripts/check-wire-compatibility.py'
-    inputs: ['/scripts/check-wire-compatibility.py', '/packages/contract-fixtures/legacy-v1-tools.json', '/Cargo.toml', '/Cargo.lock', '/crates/**/*', '/apps/cli/**/*']
+  canonical-contract:
+    command: 'python3 ../../scripts/check-canonical-contract.py'
+    inputs: ['/scripts/check-canonical-contract.py', '/Cargo.toml', '/Cargo.lock', '/crates/**/*', '/apps/cli/**/*']

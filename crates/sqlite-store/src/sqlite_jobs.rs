@@ -19,6 +19,7 @@ impl JobLifecycleStore for SqliteConnection {
         worker: &str,
         lease_ms: i64,
         clock: &dyn JobClock,
+        preferred: &[String],
     ) -> Result<Option<JobRecord>, EditorError> {
         sqlite_access::owner(&self.1)?;
         let context = ExecutionContext::worker(Some(worker));
@@ -28,8 +29,8 @@ impl JobLifecycleStore for SqliteConnection {
         let observed_at = clock.now_ms()?;
         super::lifecycle::deadline(worker, observed_at, lease_ms)?;
         let job_id:Option<String>=tx.query_row(
-            "SELECT job_id FROM jobs WHERE state='queued' AND cancel_requested=0 ORDER BY created_at,job_id LIMIT 1",
-            [],|row|row.get(0)).optional().map_err(storage_error)?;
+            "SELECT job_id FROM jobs WHERE state='queued' AND cancel_requested=0 ORDER BY CASE WHEN job_id IN (SELECT value FROM json_each(?1)) THEN 0 ELSE 1 END,created_at,rowid LIMIT 1",
+            [serde_json::to_string(preferred).map_err(|_| EditorError::new("INTERNAL_ERROR","Cannot encode scheduling preference"))?],|row|row.get(0)).optional().map_err(storage_error)?;
         let Some(job_id) = job_id else {
             tx.commit().map_err(storage_error)?;
             return Ok(None);
@@ -109,35 +110,42 @@ fn persist(
     }
     let next = change.record;
     if next.kind == "analysis.sequence_transcribe.v4" && next.state == JobState::Succeeded {
-        sqlite_sequence_transcribe_v4::require_completion(tx, &next)?;
+        sqlite_scene_transcription::require_completion(tx, &next)?;
     }
     if matches!(
         next.kind.as_str(),
         "render.project_audio.v4" | "render.project_audio_range.v4"
     ) && next.state == JobState::Succeeded
     {
-        sqlite_project_v4_audio_jobs::require_completion(tx, &next)?;
+        sqlite_scene_audio_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_video_jobs::require_completion(tx, &next)?;
+        sqlite_media_video_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_caption_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_caption_video_jobs::require_completion(tx, &next)?;
+        sqlite_scene_caption_video_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_graphic_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_graphic_video_jobs::require_completion(tx, &next)?;
+        sqlite_scene_graphic_video_jobs::require_completion(tx, &next)?;
     }
-    if next.kind == "render.export_video.v2" && next.state == JobState::Succeeded {
-        export_video_v2::require_completion(tx, &next)?;
+    if matches!(
+        next.kind.as_str(),
+        "render.export_video.v2" | "render.export_video_range.v1"
+    ) && next.state == JobState::Succeeded
+    {
+        export_video::require_completion(tx, &next)?;
+    }
+    if next.kind == "analysis.asset.v4" && next.state == JobState::Succeeded {
+        asset_analysis::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_scene_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_scene_video_jobs::require_completion(tx, &next)?;
+        sqlite_scene_video_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_mask_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_mask_video_jobs::require_completion(tx, &next)?;
+        sqlite_scene_mask_video_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_blend_video.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_blend_video_jobs::require_completion(tx, &next)?;
+        sqlite_scene_blend_video_jobs::require_completion(tx, &next)?;
     }
     if matches!(
         next.kind.as_str(),
@@ -149,10 +157,10 @@ fn persist(
             | "render.project_blend_frame.v4"
     ) && next.state == JobState::Succeeded
     {
-        sqlite_project_v4_text_frame_jobs::require_completion(tx, &next)?;
+        sqlite_scene_text_frame_jobs::require_completion(tx, &next)?;
     }
     if next.kind == "render.project_frame.v4" && next.state == JobState::Succeeded {
-        sqlite_project_v4_frame_jobs::require_completion(tx, &next)?;
+        sqlite_media_frame_jobs::require_completion(tx, &next)?;
     }
     let result = next
         .result

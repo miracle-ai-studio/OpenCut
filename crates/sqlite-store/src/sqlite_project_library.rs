@@ -2,7 +2,7 @@
 use super::*;
 use opencut_api_contracts::project_library::*;
 use opencut_editor_application::project_library;
-use sqlite_project_document::VersionedProjectDocument;
+use sqlite_project_document::ProjectStorageDocument;
 
 pub(super) const MIGRATION: &str = "
 CREATE TABLE project_media_bindings(
@@ -26,11 +26,9 @@ UPDATE metadata SET value='26' WHERE key='schema_version' AND value='25';
 
 pub(super) fn require_live(c: &Connection, project: &str) -> Result<(), EditorError> {
     let deleted: bool = c
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM deleted_projects WHERE project_id=?1)",
-            [project],
-            |r| r.get(0),
-        )
+        .prepare_cached("SELECT EXISTS(SELECT 1 FROM deleted_projects WHERE project_id=?1)")
+        .map_err(storage_error)?
+        .query_row([project], |r| r.get(0))
         .map_err(storage_error)?;
     if deleted {
         return Err(EditorError::new("NOT_FOUND", "Project does not exist"));
@@ -74,8 +72,8 @@ impl EditorApplication {
             tx.commit().map_err(storage_error)?;
             raw
         };
-        match sqlite_project_document::decode_versioned_project(&raw)? {
-            VersionedProjectDocument::Legacy(document) => self.apply(
+        match sqlite_project_document::decode_stored_project(&raw)? {
+            ProjectStorageDocument::Legacy(document) => self.apply(
                 &input.project_id,
                 &TransactionRequest {
                     expected_revision: input.expected_revision.clone(),
@@ -86,18 +84,22 @@ impl EditorApplication {
                     )?,
                 },
             ),
-            VersionedProjectDocument::V3(document) => {
-                self.apply_v3_project(&opencut_contracts::project_v3_ops::ApplyV3Project {
-                    project_id: input.project_id.clone(),
-                    expected_revision: input.expected_revision.clone(),
-                    idempotency_key: input.idempotency_key.clone(),
-                    label: "Remove media".into(),
-                    operations: opencut_editor_application::media_library::visual_operations(
-                        &document, input,
-                    )?,
-                })
+            ProjectStorageDocument::HistoricalVisual(document) => self
+                .apply_historical_visual_project(
+                    &opencut_contracts::historical_visual_ops::ApplyHistoricalVisualProject {
+                        project_id: input.project_id.clone(),
+                        expected_revision: input.expected_revision.clone(),
+                        idempotency_key: input.idempotency_key.clone(),
+                        label: "Remove media".into(),
+                        operations: opencut_editor_application::media_library::visual_operations(
+                            &document, input,
+                        )?,
+                    },
+                ),
+            ProjectStorageDocument::ReadOnly(_) => {
+                return Err(opencut_editor_application::project_readonly::readonly_error());
             }
-            VersionedProjectDocument::V4(_) => Err(EditorError::new(
+            ProjectStorageDocument::Editable(_) => Err(EditorError::new(
                 "UNSUPPORTED_PROJECT_VERSION",
                 "Schema 4 media removal requires schema 4 aggregate operations",
             )),
@@ -226,7 +228,7 @@ impl EditorApplication {
             let (kind, identity, after): (String, Option<String>, String) =
                 serde_json::from_str(cursor)
                     .map_err(|_| EditorError::new("INVALID_CURSOR", "Invalid library cursor"))?;
-            if kind != "project-library" || identity != principal {
+            if kind != "project-directory" || identity != principal {
                 return Err(EditorError::new(
                     "INVALID_CURSOR",
                     "Library cursor belongs to another identity",
@@ -236,14 +238,12 @@ impl EditorApplication {
         } else {
             String::new()
         };
-        // Frozen library DTOs describe only V1/V2/V3. Filter V4 before LIMIT,
-        // so one newer project cannot fail the page or hide later legacy rows.
-        // The V4 library operation reads every schema under the same authority.
+        // One bounded authorized directory includes every stored content format.
         let mut statement = tx.prepare("SELECT p.project_id,p.head_revision,r.document_json,
             strftime('%Y-%m-%dT%H:%M:%SZ',(SELECT min(created_at) FROM revisions c WHERE c.project_id=p.project_id)),
             strftime('%Y-%m-%dT%H:%M:%SZ',r.created_at)
             FROM projects p JOIN revisions r ON r.project_id=p.project_id AND r.revision=p.head_revision
-            WHERE p.project_id>?1 AND COALESCE(json_extract(r.document_json,'$.schema_version'),1) != 4
+            WHERE p.project_id>?1
             AND NOT EXISTS(SELECT 1 FROM deleted_projects d WHERE d.project_id=p.project_id) AND (?2 IS NULL OR EXISTS(SELECT 1 FROM access_grants g WHERE g.project_id=p.project_id AND g.principal_id=?2 AND g.action_mask & 1 != 0))
             ORDER BY p.project_id LIMIT ?3").map_err(storage_error)?;
         let rows = statement
@@ -260,17 +260,43 @@ impl EditorApplication {
         let mut items = Vec::new();
         for row in rows {
             let (id, revision, raw, created_at, modified_at) = row.map_err(storage_error)?;
-            let document = sqlite_project_document::decode_versioned_project(&raw)?;
+            let document = sqlite_project_document::decode_stored_project(&raw)?;
             let (base, visual, format) = match &document {
-                VersionedProjectDocument::Legacy(base) => (base, None, ProjectFormat::Base),
-                VersionedProjectDocument::V3(visual) => {
+                ProjectStorageDocument::Legacy(base) => (base, None, ProjectFormat::Base),
+                ProjectStorageDocument::HistoricalVisual(visual) => {
                     (&visual.base, Some(visual), ProjectFormat::Visual)
                 }
-                VersionedProjectDocument::V4(_) => {
-                    return Err(EditorError::new(
-                        "STORAGE_ERROR",
-                        "Legacy library query returned a schema 4 project",
-                    ));
+                ProjectStorageDocument::ReadOnly(document) => {
+                    if document.id != id {
+                        return Err(EditorError::new(
+                            "STORAGE_ERROR",
+                            "Library project scope changed",
+                        ));
+                    }
+                    items.push(project_library::describe_current(
+                        &document.base,
+                        revision,
+                        created_at,
+                        modified_at,
+                        ProjectFormat::Readonly,
+                    )?);
+                    continue;
+                }
+                ProjectStorageDocument::Editable(document) => {
+                    if document.id != id {
+                        return Err(EditorError::new(
+                            "STORAGE_ERROR",
+                            "Library project scope changed",
+                        ));
+                    }
+                    items.push(project_library::describe_current(
+                        document,
+                        revision,
+                        created_at,
+                        modified_at,
+                        ProjectFormat::Editor,
+                    )?);
+                    continue;
                 }
             };
             if base.id != id {
@@ -305,7 +331,7 @@ impl EditorApplication {
             items.truncate(input.limit);
             Some(encode_json(
                 &(
-                    "project-library",
+                    "project-directory",
                     principal,
                     &items.last().expect("positive page").project_id,
                 ),
@@ -351,8 +377,8 @@ impl EditorApplication {
                 return Err(revision_conflict(&item.expected_revision, &head));
             }
             let payload = json!({"source_project_id":item.source_project_id,"source_revision":head,"project_id":item.target_project_id});
-            let revision = match sqlite_project_document::decode_versioned_project(&raw)? {
-                VersionedProjectDocument::Legacy(base) => {
+            let revision = match sqlite_project_document::decode_stored_project(&raw)? {
+                ProjectStorageDocument::Legacy(base) => {
                     let document = project_library::copy_base(&base, item)?;
                     let revision = project_library::base_revision(&document)?;
                     sqlite_new_project::publish_document(
@@ -365,9 +391,9 @@ impl EditorApplication {
                     )?;
                     revision
                 }
-                VersionedProjectDocument::V3(visual) => {
+                ProjectStorageDocument::HistoricalVisual(visual) => {
                     let document = project_library::copy_visual(&visual, item)?;
-                    let revision = sqlite_project_v3::revision_id(&document, None, None)?;
+                    let revision = sqlite_historical_visual::revision_id(&document, None, None)?;
                     sqlite_new_project::publish_document(
                         &tx,
                         &context,
@@ -378,7 +404,10 @@ impl EditorApplication {
                     )?;
                     revision
                 }
-                VersionedProjectDocument::V4(_) => {
+                ProjectStorageDocument::ReadOnly(_) => {
+                    return Err(opencut_editor_application::project_readonly::readonly_error());
+                }
+                ProjectStorageDocument::Editable(_) => {
                     return Err(EditorError::new(
                         "UNSUPPORTED_PROJECT_VERSION",
                         "Schema 4 copies require schema 4 project operations",
@@ -440,7 +469,7 @@ fn copy_grants(
                 grant.revision = "1".into();
                 encode_json(&grant, "copied planner grant")?
             } else {
-                let mut grant: opencut_api_contracts::plugin_v2::Grant =
+                let mut grant: opencut_api_contracts::presets::Grant =
                     decode_json(&raw, "copied preset grant")?;
                 grant.target.project_id = target.into();
                 grant.revision = "1".into();
@@ -455,13 +484,13 @@ fn copy_grants(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opencut_contracts::project_v3_ops::{CreateV3Project, InspectV3Project};
+    use opencut_contracts::historical_visual_ops::{CreateProjectRequest, InspectProject};
     use opencut_editor_application::{
         access::*,
         uploads::{ImportStore, ProjectMediaInput, ProjectMediaQuery},
     };
     fn create(app: &mut EditorApplication, id: &str) -> String {
-        app.create_v3_project(&serde_json::from_value::<CreateV3Project>(json!({"project":{"id":id,"name":id,"sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":id})).unwrap()).unwrap().revision
+        app.create_historical_visual_project(&serde_json::from_value::<CreateProjectRequest>(json!({"project":{"id":id,"name":id,"sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":id})).unwrap()).unwrap().revision
     }
     fn request(source: &str, revision: &str, target: &str) -> DuplicateProjects {
         DuplicateProjects {
@@ -477,8 +506,8 @@ mod tests {
     fn inspect(
         app: &EditorApplication,
         id: &str,
-    ) -> opencut_contracts::project_v3::ProjectSnapshotV3 {
-        app.inspect_v3_project(&InspectV3Project {
+    ) -> opencut_contracts::historical_visual::HistoricalVisualSnapshot {
+        app.inspect_historical_visual_project(&InspectProject {
             project_id: id.into(),
             revision: None,
         })
@@ -542,7 +571,7 @@ mod tests {
         );
         for revision in [None, Some(a.clone())] {
             assert_eq!(
-                app.inspect_v3_project(&InspectV3Project {
+                app.inspect_historical_visual_project(&InspectProject {
                     project_id: "a".into(),
                     revision
                 })
@@ -552,7 +581,7 @@ mod tests {
             );
         }
         assert!(
-            app.list_v3_projects(&opencut_contracts::project_v3_ops::ListV3Projects {
+            app.project_library(&opencut_contracts::project_catalog::LibraryInput {
                 cursor: None,
                 limit: 100
             })
@@ -575,7 +604,7 @@ mod tests {
                 .code,
             "NOT_FOUND"
         );
-        assert_eq!(app.create_v3_project(&serde_json::from_value::<CreateV3Project>(json!({"project":{"id":"a","name":"a","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":"a"})).unwrap()).unwrap_err().code,"NOT_FOUND");
+        assert_eq!(app.create_historical_visual_project(&serde_json::from_value::<CreateProjectRequest>(json!({"project":{"id":"a","name":"a","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":"a"})).unwrap()).unwrap_err().code,"NOT_FOUND");
         assert_eq!(
             app.create_job(JobRequest {
                 kind: "render.project.v3".into(),
@@ -625,13 +654,14 @@ mod tests {
             "PROJECT_BUSY"
         );
         app.cancel_job(&job.job_id).unwrap();
-        use opencut_editor_application::uploads::{StreamUploadStore, UploadRetentionStore};
+        use opencut_editor_application::uploads::{UploadRetentionStore, UploadStore};
         let upload = app
-            .begin_upload(&opencut_api_contracts::stream_uploads::BeginUpload {
+            .begin_upload(&opencut_api_contracts::uploads::BeginUpload {
                 project_id: "source".into(),
                 idempotency_key: "upload".into(),
                 name: "Fixture".into(),
                 size_bytes: "10".into(),
+                content_hash: None,
             })
             .unwrap();
         struct Cleanup(bool);
@@ -690,8 +720,8 @@ mod tests {
         let path = dir.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&path).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; UPDATE metadata SET value='25' WHERE key='schema_version'; CREATE TABLE deleted_projects(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&path).is_err());
         let conn = Connection::open(&path).unwrap();
@@ -753,7 +783,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
             "ALREADY_EXISTS"
         );
         assert!(
-            app.inspect_v3_project(&InspectV3Project {
+            app.inspect_historical_visual_project(&InspectProject {
                 project_id: "rolled-back".into(),
                 revision: None
             })
@@ -763,7 +793,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         let failed = request("source", &edited.revision, "audit-failure");
         assert!(app.duplicate_projects(&failed).is_err());
         assert!(
-            app.inspect_v3_project(&InspectV3Project {
+            app.inspect_historical_visual_project(&InspectProject {
                 project_id: "audit-failure".into(),
                 revision: None
             })
@@ -917,20 +947,20 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         );
     }
     #[test]
-    fn legacy_library_paginates_past_v4_without_losing_scope_or_later_rows() {
-        use opencut_contracts::project_v4_ops::{CreateV4Project, ListV4Projects};
+    fn one_directory_paginates_all_formats_without_losing_scope_or_later_rows() {
+        use opencut_contracts::{project_catalog::LibraryInput, scene_ops::CreateProjectRequest};
         let mut app = EditorApplication::open(":memory:").unwrap();
         for id in ["a", "d", "f"] {
             create(&mut app, id);
         }
         for id in ["b", "c", "e"] {
-            let request: CreateV4Project = serde_json::from_value(json!({
+            let request: CreateProjectRequest = serde_json::from_value(json!({
                 "project":{"id":id,"name":id,"sequence_id":"main",
                     "width":64,"height":48,"fps":{"numerator":25,"denominator":1}},
                 "idempotency_key":format!("v4-{id}")
             }))
             .unwrap();
-            app.create_v4_project(&request).unwrap();
+            app.create_scene_project(&request).unwrap();
         }
         let mut ids = Vec::new();
         let mut cursor = None;
@@ -945,9 +975,9 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
                 break;
             }
         }
-        assert_eq!(ids, ["a", "d", "f"]);
+        assert_eq!(ids, ["a", "b", "c", "d", "e", "f"]);
         assert_eq!(
-            app.list_v4_projects(&ListV4Projects {
+            app.project_library(&LibraryInput {
                 cursor: None,
                 limit: 100
             })
@@ -977,7 +1007,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
                 limit: 1,
             })
             .unwrap();
-        assert_eq!(first.items[0].project_id, "d");
+        assert_eq!(first.items[0].project_id, "b");
         let cursor = first.next_cursor.unwrap();
         let second = app
             .project_library(&LibraryInput {
@@ -985,10 +1015,10 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
                 limit: 1,
             })
             .unwrap();
-        assert_eq!(second.items[0].project_id, "f");
-        assert!(second.next_cursor.is_none());
+        assert_eq!(second.items[0].project_id, "d");
+        assert!(second.next_cursor.is_some());
         let modern = app
-            .list_v4_projects(&ListV4Projects {
+            .project_library(&LibraryInput {
                 cursor: None,
                 limit: 100,
             })
@@ -1017,7 +1047,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
     fn library_duration_uses_exact_main_scene_end_and_metadata() {
         let mut app = EditorApplication::open(":memory:").unwrap();
         let initial = create(&mut app, "source");
-        let applied=app.apply_v3_project(&serde_json::from_value(json!({"project_id":"source","expected_revision":initial,"label":"Shape","idempotency_key":"shape","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"main","track":{"id":"graphics","name":"Graphics","kind":"graphic","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}},{"type":"shape.put","sequence_id":"main","shape":{"id":"shape","track_id":"graphics","timeline_range":{"start":{"ticks":"1","timebase":3},"duration":{"ticks":"1","timebase":6}},"primitive":{"kind":"rectangle","width_px":20.0,"height_px":20.0},"fill":{"red":255,"green":255,"blue":255,"alpha":255},"position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}}]})).unwrap()).unwrap();
+        let applied=app.apply_historical_visual_project(&serde_json::from_value(json!({"project_id":"source","expected_revision":initial,"label":"Shape","idempotency_key":"shape","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"main","track":{"id":"graphics","name":"Graphics","kind":"graphic","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}},{"type":"shape.put","sequence_id":"main","shape":{"id":"shape","track_id":"graphics","timeline_range":{"start":{"ticks":"1","timebase":3},"duration":{"ticks":"1","timebase":6}},"primitive":{"kind":"rectangle","width_px":20.0,"height_px":20.0},"fill":{"red":255,"green":255,"blue":255,"alpha":255},"position_x":0.0,"position_y":0.0,"rotation_degrees":0.0,"opacity":1.0}}]})).unwrap()).unwrap();
         let page = app
             .project_library(&LibraryInput {
                 cursor: None,
@@ -1060,7 +1090,7 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
     #[test]
     fn legacy_project_copy_preserves_pinned_project_grants_without_credentials() {
         use opencut_editor_application::{
-            plugin_v2::PresetGrantStore, project_plugins::ProjectPluginStore,
+            presets::PresetGrantStore, project_plugins::ProjectPluginStore,
         };
         let mut app = EditorApplication::open(":memory:").unwrap();
         let source=app.create_project(serde_json::from_value(json!({"id":"source","name":"Legacy","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}})).unwrap(),"source").unwrap();
@@ -1111,8 +1141,8 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         let db = temp.path().join("workspace.sqlite");
         let mut app = EditorApplication::open(&db).unwrap();
         let revision = create(&mut app, "source");
-        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
+        app.connection.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; UPDATE metadata SET value='24' WHERE key='schema_version'; CREATE TABLE project_media_bindings(collision TEXT);").unwrap();
         drop(app);
         assert!(EditorApplication::open(&db).is_err());
         let conn = rusqlite::Connection::open(&db).unwrap();

@@ -74,19 +74,19 @@ async function measure(label, executable, webRoot, round) {
       const projectId = new URL(page.url()).pathname.split("/").at(-1);
       const validation = await page.evaluate(async ({ projectId, digest }) => {
         const call = async (name, input) => {
-          const r = await fetch(`/v1/tools/${name}`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(input) });
+          const r = await fetch(`/api/tools/${name}`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(input) });
           return { status: r.status, ...await r.json() };
         };
-        const created = await call("opencut_upload_stream_begin", { project_id:projectId, idempotency_key:crypto.randomUUID(), name:"invalid.wav", size_bytes:"3" });
+        const created = await call("opencut_upload_begin", { project_id:projectId, idempotency_key:crypto.randomUUID(), name:"invalid.wav", size_bytes:"3" });
         if (created.error) throw new Error(JSON.stringify(created));
         const id = created.data.upload_id;
         const bytes = new Uint8Array([1,2,3]);
         const chunkHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))].map(b=>b.toString(16).padStart(2,"0")).join("");
-        const sent = await fetch(`/v1/stream-uploads/${id}/chunks/0?size_bytes=3&content_hash=${chunkHash}`, {method:"PUT",body:bytes});
+        const sent = await fetch(`/api/uploads/${id}/chunks/0?size_bytes=3&content_hash=${chunkHash}`, {method:"PUT",body:bytes});
         if (!sent.ok) throw new Error(await sent.text());
-        const sealed = await call("opencut_upload_stream_complete", {upload_id:id,content_hash:digest});
-        const replay = await call("opencut_upload_stream_complete", {upload_id:id,content_hash:digest});
-        const conflict = await call("opencut_upload_stream_complete", {upload_id:id,content_hash:"f".repeat(64)});
+        const sealed = await call("opencut_upload_complete", {upload_id:id,content_hash:digest});
+        const replay = await call("opencut_upload_complete", {upload_id:id,content_hash:digest});
+        const conflict = await call("opencut_upload_complete", {upload_id:id,content_hash:"f".repeat(64)});
         let job;
         for(let i=0;i<200;i++) {
           const result = await call("opencut_job_view",{job_id:sealed.data.job_id});

@@ -1,5 +1,7 @@
 # 连续预览后端契约
 
+适用范围：本文保留 2026-09-24 连续编码流 Session 的历史设计与限定实现记录。2026-10-22 用户确定的 Web 后续路线为[连续预览与统一时钟实施方案](continuous-preview-plan.md)，复用现有声音／GPU 管线，暂不引入 GStreamer。下文的旧操作名、限额和“本轮”均按原记录阅读；当前公开契约以 Rust 唯一声明与生成结果为准，交付状态以[台账](headless-completion-ledger.md)为准，不据本文另建一套默认播放器。
+
 当前实现为进程内 Session，控制可通过 HTTP、Streamable HTTP MCP、CLI `--endpoint` 或嵌入宿主调用。媒体通过 `POST /v1/preview/stream` 返回原始 `video/mp4`；stdio MCP 与一次性本地 CLI 不创建无法消费的 Session。Web/Desktop 播放器不在本轮交付范围。
 
 执行路径：共享 Automation → 项目 read/run_jobs 授权 → 固定 snapshot 与 CAS 内容捕获／私有复制 → composition/project-render 共享编译 → 一个 generation 的持续 FFmpeg producer → 有界 HTTP 字节流。创建在文件准备后复查授权。Session 不进入持久 Job 队列，重启终结 Session。

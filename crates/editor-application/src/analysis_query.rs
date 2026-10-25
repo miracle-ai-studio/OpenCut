@@ -22,29 +22,35 @@ pub fn query(store: &impl JobRead, input: AnalysisQueryInput) -> Result<Analysis
             "Analysis must have succeeded before evidence can be queried",
         ));
     }
-    if view.kind != "analysis.transcribe" {
-        return Err(EditorError::new(
-            "UNSUPPORTED_ANALYSIS_QUERY",
-            "Text evidence queries require a transcription job",
-        ));
-    }
-    if view.result_unavailable.is_some() || view.result.is_some() {
+    if view.result_unavailable.is_some() {
         return Err(EditorError::new(
             "INVALID_STORED_RESULT",
             "Analysis result is unavailable",
         ));
     }
-    let result = view
-        .extended_result
-        .ok_or_else(|| invalid("Analysis result missing"))?;
-    if result.kind != view.kind || result.schema_version != 1 {
+    let Some(opencut_api_contracts::job_results::JobResultView::AssetAnalysis(result)) =
+        view.result
+    else {
         return Err(EditorError::new(
-            "UNSUPPORTED_RESULT_VERSION",
-            "Unsupported analysis result version",
+            "UNSUPPORTED_ANALYSIS_QUERY",
+            "Text evidence queries require asset transcription",
         ));
-    }
-    let transcript: TranscribeJobResult = serde_json::from_value(result.data)
-        .map_err(|_| EditorError::new("INVALID_STORED_RESULT", "Invalid transcription result"))?;
+    };
+    let opencut_job_contracts::asset_analysis::AssetAnalysisData::Transcribe(transcription) =
+        result.data
+    else {
+        return Err(EditorError::new(
+            "UNSUPPORTED_ANALYSIS_QUERY",
+            "Text evidence queries require asset transcription",
+        ));
+    };
+    let transcript = TranscribeJobResult {
+        project_id: result.project_id,
+        revision: result.revision,
+        asset_id: result.asset_id,
+        asset_version: result.asset_version,
+        transcription,
+    };
     page(input, transcript)
 }
 

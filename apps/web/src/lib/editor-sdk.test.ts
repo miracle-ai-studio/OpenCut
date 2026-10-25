@@ -10,7 +10,7 @@ it.each(["", "captured-credential"])(
     await createEditorClient({
       baseUrl: "http://localhost:1234/",
       token,
-    }).openV4AudioPreviewStream(
+    }).openAudioPreviewStream(
       {
         session_id: "fixed",
         generation: "2",
@@ -21,7 +21,7 @@ it.each(["", "captured-credential"])(
       { signal },
     );
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("http://localhost:1234/v1/preview/v4/audio/stream");
+    expect(url).toBe("http://localhost:1234/api/preview/audio/stream");
     expect(init.signal).toBe(signal);
     expect(init.redirect).toBe("error");
     expect(new Headers(init.headers).get("Authorization")).toBe(

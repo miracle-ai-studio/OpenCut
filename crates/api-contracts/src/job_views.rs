@@ -1,4 +1,4 @@
-//! Additive public task views. Legacy JobRecord remains available for v1 compatibility.
+//! Sole public task views;execution records and historical payload tags stay private.
 use crate::JobState;
 use opencut_contracts::{AssetLockManifest, Time, TimeRange};
 use opencut_job_contracts::{
@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobView {
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub purpose: Option<JobPurpose>,
     pub job_id: String,
     pub kind: String,
     pub target: Option<ProjectTaskTarget>,
@@ -20,21 +22,15 @@ pub struct JobView {
     pub cancel_requested: bool,
     pub progress: Option<ProgressView>,
     pub result: Option<JobResultView>,
-    /// New task kinds use the open registry envelope; legacy result variants stay frozen.
-    #[serde(default)]
-    pub extended_result: Option<ExtendedJobResult>,
     #[serde(default)]
     pub resource_target: Option<JobResourceTarget>,
     pub result_unavailable: Option<PublicJobFailure>,
     pub failure: Option<PublicJobFailure>,
     pub artifacts: Vec<ArtifactReference>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ExtendedJobResult {
-    pub kind: String,
-    pub schema_version: u32,
-    pub data: serde_json::Value,
-}
+#[derive(Debug,Clone,Serialize,Deserialize,JsonSchema)]
+#[serde(rename_all="snake_case")]
+pub enum JobPurpose { PlaybackOptimization }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobResourceTarget {
     pub project_id: String,
@@ -191,26 +187,7 @@ pub struct ProjectRangeView {
     pub asset_locking: AssetLockingMode,
     pub media: ExportView,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "kind", content = "data")]
-pub enum JobResultView {
-    #[serde(rename = "media.probe")]
-    Probe(MediaInfo),
-    #[serde(rename = "preview.frame")]
-    SourceFrame(SourceFrameView),
-    #[serde(rename = "preview.project_frame")]
-    ProjectFrame(ProjectFrameView),
-    #[serde(rename = "preview.composited_frame")]
-    CompositedFrame(CompositedFrameView),
-    #[serde(rename = "preview.project_range")]
-    ProjectRange(ProjectRangeView),
-    #[serde(rename = "render.export")]
-    Export(ExportView),
-    #[serde(rename = "render.project")]
-    ProjectRender(ProjectRenderView),
-    #[serde(rename = "artifact.verify")]
-    Verification(VerificationView),
-}
+pub use crate::job_results::JobResultView;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct JobQueryInput {

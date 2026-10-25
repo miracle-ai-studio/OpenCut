@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { peakBuckets, thumbnailSize, admitPixels } from "../src/art.mjs";
 import { imageDimensions } from "../src/image-header.mjs";
-import { validateAdmission } from "../host/runner.mjs";
+import { validateAdmission, validateBegin } from "../host/runner.mjs";
 test("all four channels contribute independent 128-sample maxima and a short tail",()=>{
  const channels=Array.from({length:4},()=>new Float32Array(257));
  channels[0][0]=.25;channels[1][127]=-.75;channels[2][128]=-1.25;channels[3][256]=.125;
@@ -25,5 +25,14 @@ test("image allocation requires a supported bounded header",()=>{
 test("source execution policy is hard bounded rather than inherited from an audio job",()=>{
  const policy={quotaProfile:"monitored-terminate",deadlineMs:60000,maxEncodedBytes:33554432,maxPcmBytes:268435456,maxRssBytes:"2147483648"};
  assert.equal(validateAdmission(policy).monitorIntervalMs,100);
+ const begin={executionId:"fixed",type:"begin",admission:policy,
+   plan:{resource:{assetId:"video",contentHash:"a".repeat(64),kind:"video",size:4*1024*1024*1024},
+     query:{kind:"thumbnail"},identity:{algorithm:"classic-thumbnail-1s-jpeg08-v1",decode_profile:"fixed-cas-streamed-concat-webaudio-canvas"},rangeCacheBytes:8*1024*1024,waveformWorkingBytes:121438208,maxWaveformBytes:40479400},resources:[{assetId:"video",handle:"verified"}]};
+ assert.equal(validateBegin(begin).plan.resource.size,4*1024*1024*1024);
+ const waveform={...begin,plan:{...begin.plan,query:{kind:"waveform",sampleRate:48000},identity:{...begin.plan.identity,algorithm:"source-peaks128-v1"}}};
+ assert.equal(validateBegin(waveform).plan.resource.size,4*1024*1024*1024);
+ assert.throws(()=>validateBegin({...waveform,plan:{...waveform.plan,waveformWorkingBytes:1}}));
+ assert.throws(()=>validateBegin({...begin,plan:{...begin.plan,resource:{...begin.plan.resource,kind:"image"}}}));
+ assert.throws(()=>validateBegin({...begin,plan:{...begin.plan,rangeCacheBytes:32*1024*1024}}));
  for(const [key,value] of [["deadlineMs",60001],["maxPcmBytes",268435457],["maxRssBytes","2147483649"]])assert.throws(()=>validateAdmission({...policy,[key]:value}));
 });

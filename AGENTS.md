@@ -8,7 +8,7 @@ implementation notes are not evidence that the current tree is fully delivered.
   adapters implement them. Construct concrete implementations in host assembly.
 - CLI, HTTP, MCP, SDK and UI share application semantics. Do not call a CLI shell
   command from an internal module as a substitute for an application port.
-- Use typed in-process contracts and versioned cross-process contracts. Keep
+- Use typed in-process and cross-process contracts. Keep
   public DTOs separate from internal prepared jobs and native resource paths.
 - Preserve fixed revisions, atomic commits, idempotency, lease/publication fences,
   cancellation and policy propagation when extracting modules.
@@ -16,9 +16,13 @@ implementation notes are not evidence that the current tree is fully delivered.
   or dependencies need an explicit boundary rationale; do not regenerate the
   allowlist merely to make a failure green. Remove resolved migration exceptions;
   explain any extension with evidence and an exit plan.
-- Existing wire schemas remain frozen. Prefer a new versioned operation when a
-  schema change is incompatible with the repository's compatibility gate. Generate
-  SDK/OpenAPI/tool types from the shared declaration, not hand-copied DTOs.
+- The user's 2026-10-18 final-delivery decision supersedes the earlier versioned
+  rollout policy: consolidate business APIs, DTOs, module names and execution
+  entrypoints into one implementation without development-generation suffixes.
+  Retire duplicate historical operations and fallback chains; do not just rename
+  colliding semantics or drop working features. Historical evidence and dependency
+  identities remain exact. Generate SDK/OpenAPI/tool types from the shared
+  declaration, not hand-copied DTOs.
 - Rendering features need source-to-IR-to-backend coverage and independent expected
   pixels/PCM. Preview equals export is necessary but not sufficient evidence.
 - Do not treat a project revision or FFmpeg hash alone as renderer identity or
@@ -34,8 +38,11 @@ python3 scripts/check-architecture.py
 python3 scripts/check-contract-boundaries.py
 ```
 
-For public protocol changes also run the generated-contract and wire-compatibility
-checks documented in `crates/sdk-rust/moon.yml`. Run affected behavior tests and
+For public contract changes run generated-contract and canonical-contract checks
+against the same explicit integrated binary. The historical legacy-wire freeze is
+superseded by the user-authorized single-contract consolidation; update its gate
+and consumers together, preserving old receipts as historical evidence.
+Run affected behavior tests and
 update the completion ledger with actual evidence. Do not label the whole project
 complete after a scoped check or a successful build.
 

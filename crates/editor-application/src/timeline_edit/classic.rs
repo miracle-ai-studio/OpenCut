@@ -3,7 +3,7 @@
 //! fixed-revision visual transaction. No transport, storage or renderer I/O.
 use super::*;
 use opencut_contracts::timeline_edit::{
-    ClassicCommandV1, ClassicEditPlanV1, ClassicEditRequestV1, ClassicSelectionV1, SplitRetainV1,
+    ClassicCommand, ClassicEditPlan, ClassicEditRequest, ClassicSelection, SplitRetain,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -27,7 +27,7 @@ struct Span {
 type Interval = (R, R);
 
 fn spans(
-    project: &ProjectDocumentV3,
+    project: &HistoricalVisualDocument,
     sequence_id: &str,
 ) -> Result<BTreeMap<Row, Vec<Span>>, EditorError> {
     let sequence = project
@@ -171,7 +171,7 @@ fn detach_transitions(planner: &mut Planner<'_>, affected: &BTreeSet<String>) {
     }
 }
 
-fn ripple(planner: &mut Planner<'_>, before: &ProjectDocumentV3) -> Result<(), EditorError> {
+fn ripple(planner: &mut Planner<'_>, before: &HistoricalVisualDocument) -> Result<(), EditorError> {
     let before_rows = spans(before, planner.sequence_id)?;
     let after_rows = spans(&planner.working, planner.sequence_id)?;
     let all_after = after_rows
@@ -287,13 +287,13 @@ fn operation_sequence(op: &VisualOperation) -> Option<&str> {
 }
 
 pub fn plan(
-    snapshot: &ProjectSnapshotV3,
-    input: &ClassicEditRequestV1,
-) -> Result<ClassicEditPlanV1, EditorError> {
+    snapshot: &HistoricalVisualSnapshot,
+    input: &ClassicEditRequest,
+) -> Result<ClassicEditPlan, EditorError> {
     let mut planner = Planner::new(
         snapshot,
         &input.sequence_id,
-        ApplyV3Project {
+        ApplyHistoricalVisualProject {
             project_id: input.project_id.clone(),
             expected_revision: input.expected_revision.clone(),
             idempotency_key: input.idempotency_key.clone(),
@@ -303,7 +303,7 @@ pub fn plan(
     )?;
     let mut selected = None;
     match &input.command {
-        ClassicCommandV1::Apply { operations } => {
+        ClassicCommand::Apply { operations } => {
             if operations
                 .iter()
                 .filter_map(operation_sequence)
@@ -315,7 +315,7 @@ pub fn plan(
             }
             planner.transaction.operations = operations.clone();
             planner.working =
-                crate::project_v3::plan_apply(&snapshot.project, &planner.transaction)?
+                crate::historical_visual::plan_apply(&snapshot.project, &planner.transaction)?
                     .proposed_project;
             for children in planner.lineage.values_mut() {
                 children.retain(|id| {
@@ -330,7 +330,7 @@ pub fn plan(
                 });
             }
         }
-        ClassicCommandV1::Split {
+        ClassicCommand::Split {
             clip_ids,
             caption_ids,
             shape_ids,
@@ -370,7 +370,7 @@ pub fn plan(
                     }));
                 planner.transitions = affected;
             }
-            let mut result = ClassicSelectionV1 {
+            let mut result = ClassicSelection {
                 clip_ids: vec![],
                 caption_ids: vec![],
                 shape_ids: vec![],
@@ -384,10 +384,10 @@ pub fn plan(
                     continue;
                 }
                 let right = planner.split(id, at)?;
-                if *retain == SplitRetainV1::Left {
+                if *retain == SplitRetain::Left {
                     planner.delete(&right)?;
                 } else {
-                    if *retain == SplitRetainV1::Right {
+                    if *retain == SplitRetain::Right {
                         planner.delete(id)?;
                     }
                     result.clip_ids.push(right);
@@ -410,7 +410,7 @@ pub fn plan(
                 }
                 let mut left = cue.clone();
                 left.timeline_range = range(start, at)?;
-                if *retain != SplitRetainV1::Right {
+                if *retain != SplitRetain::Right {
                     planner.base(Operation::UpdateCaption {
                         sequence_id: input.sequence_id.clone(),
                         cue: left,
@@ -421,7 +421,7 @@ pub fn plan(
                         cue_id: id.clone(),
                     })?;
                 }
-                if *retain != SplitRetainV1::Left {
+                if *retain != SplitRetain::Left {
                     let mut right = cue;
                     right.id = planner.fresh();
                     right.timeline_range = range(at, finish)?;
@@ -455,7 +455,7 @@ pub fn plan(
                     sequence_id: input.sequence_id.clone(),
                     shape: left,
                 })?;
-                if *retain != SplitRetainV1::Left {
+                if *retain != SplitRetain::Left {
                     let mut right = shape;
                     right.id = planner.fresh();
                     right.timeline_range = range(at, finish)?;
@@ -467,7 +467,7 @@ pub fn plan(
                     })?;
                     planner.copy_visuals(id, &right_id)?;
                 }
-                if *retain == SplitRetainV1::Right {
+                if *retain == SplitRetain::Right {
                     planner.remove_target_visuals(id)?;
                     planner.step(VisualOperation::ShapeDelete {
                         sequence_id: input.sequence_id.clone(),
@@ -493,7 +493,7 @@ pub fn plan(
             "No selected element crosses the split boundary",
         ));
     }
-    let verified = crate::project_v3::plan_apply(&snapshot.project, &planner.transaction)?;
+    let verified = crate::historical_visual::plan_apply(&snapshot.project, &planner.transaction)?;
     if verified.proposed_project == snapshot.project {
         return Err(EditorError::new(
             "NO_EFFECT",
@@ -503,8 +503,8 @@ pub fn plan(
     if input.ripple
         && matches!(
             input.command,
-            ClassicCommandV1::Split {
-                retain: SplitRetainV1::Right,
+            ClassicCommand::Split {
+                retain: SplitRetain::Right,
                 ..
             }
         )
@@ -519,7 +519,7 @@ pub fn plan(
             .and_then(|id| rows.values().flatten().find(|s| &s.id == id))
             .map(|s| s.start.into());
     }
-    Ok(ClassicEditPlanV1 {
+    Ok(ClassicEditPlan {
         plan: TimelineEditPlan {
             transaction: planner.transaction,
             created_ids: verified.created_ids,

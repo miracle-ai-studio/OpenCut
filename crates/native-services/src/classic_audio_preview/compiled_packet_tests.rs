@@ -1,40 +1,39 @@
 use super::*;
-use opencut_composition::project_v4::{
-    AudioParticipationV4, AudioReceiptV4, PreviewAudioIdentityV4,
-};
+use opencut_composition::scene::PreviewAudioVoiceBlock;
+use opencut_composition::scene::{AudioParticipation, AudioReceipt, PreviewAudioIdentity};
 use serde_json::{Value, json};
 
-fn block(voices: usize, frames: u32, metadata: usize) -> PreviewAudioBlockV4 {
-    PreviewAudioBlockV4 {
-        identity: PreviewAudioIdentityV4 {
+fn block(voices: usize, frames: u32, metadata: usize) -> PreviewAudioBlock {
+    PreviewAudioBlock {
+        identity: PreviewAudioIdentity {
             project_id: "project".into(),
             revision: "fixed".into(),
             sequence_id: "scene".into(),
-            profile: CLASSIC_REALTIME_AUDIO_PROFILE_V4,
+            profile: CLASSIC_REALTIME_AUDIO_PROFILE,
             sample_rate: 48_000,
             channels: 2,
         },
         start_sample: 123,
         frame_count: frames,
         receipts: (0..metadata)
-            .map(|i| AudioReceiptV4 {
+            .map(|i| AudioReceipt {
                 track_id: "audio".into(),
                 element_id: format!("e{i}"),
                 decision: if i < voices {
-                    AudioParticipationV4::Ready
+                    AudioParticipation::Ready
                 } else {
-                    AudioParticipationV4::OutsideBlock
+                    AudioParticipation::OutsideBlock
                 },
             })
             .collect(),
         voices: (0..voices)
-            .map(|i| PreviewAudioVoiceBlockV4 {
+            .map(|i| PreviewAudioVoiceBlock {
                 element_id: format!("e{i}"),
                 block_offset: 0,
                 frame_count: frames,
                 positions: (0..frames)
                     .map(|n| {
-                        Some(PreviewSourceSampleV4 {
+                        Some(PreviewSourceSample {
                             segment_id: 7,
                             lower: u64::from(n),
                             upper: u64::from(n) + 1,
@@ -57,19 +56,19 @@ fn mixed_gap_fraction_and_high_decimal_are_lossless() {
     original.start_sample = 9_007_199_254_740_993;
     original.voices[0].positions = vec![
         None,
-        Some(PreviewSourceSampleV4 {
+        Some(PreviewSourceSample {
             segment_id: u32::MAX,
             lower: 9_007_199_254_740_993,
             upper: 9_007_199_254_740_994,
             fraction: 0.25,
         }),
-        Some(PreviewSourceSampleV4 {
+        Some(PreviewSourceSample {
             segment_id: 1,
             lower: u64::MAX,
             upper: u64::MAX,
             fraction: -0.0,
         }),
-        Some(PreviewSourceSampleV4 {
+        Some(PreviewSourceSample {
             segment_id: 2,
             lower: 0,
             upper: 1,
@@ -78,8 +77,7 @@ fn mixed_gap_fraction_and_high_decimal_are_lossless() {
     ];
     original.voices[0].amplitudes = vec![-0.0, 0.100_000_000_000_000_02, 1.5, 0.0];
     let full = serde_json::to_value(&original).unwrap();
-    let packed = unpack(&pack_preview_block(original).unwrap());
-    assert_eq!(packed["schemaVersion"], 1);
+    let packed = unpack(&reference_pack_block(original).unwrap());
     assert_eq!(packed["block"]["startSample"], "9007199254740993");
     assert_eq!(
         packed["block"]["voices"][0]["positions"],
@@ -142,7 +140,7 @@ fn invalid_identity_nonfinite_gain_and_noncanonical_taps_are_rejected() {
         (0, 1, f64::INFINITY),
     ] {
         let mut value = original.clone();
-        value.voices[0].positions[0] = Some(PreviewSourceSampleV4 {
+        value.voices[0].positions[0] = Some(PreviewSourceSample {
             segment_id: 0,
             lower,
             upper,
@@ -185,13 +183,13 @@ fn invalid_identity_nonfinite_gain_and_noncanonical_taps_are_rejected() {
     invalids.push(value);
     for value in invalids {
         assert_eq!(
-            pack_preview_block(value).unwrap_err().code,
+            reference_pack_block(value).unwrap_err().code,
             "AUDIO_PROTOCOL_ERROR"
         );
     }
     let mut valid = original;
     valid.identity.sample_rate = 44_100;
-    assert!(pack_preview_block(valid).is_ok());
+    assert!(reference_pack_block(valid).is_ok());
 }
 
 #[test]
@@ -236,33 +234,33 @@ fn lengths_coverage_identity_and_work_budget_are_enforced() {
     invalids.push(value);
     for value in invalids {
         assert_eq!(
-            pack_preview_block(value).unwrap_err().code,
+            reference_pack_block(value).unwrap_err().code,
             "AUDIO_PROTOCOL_ERROR"
         );
     }
     assert_eq!(
-        pack_preview_block(block(33, 1, 33)).unwrap_err().code,
+        reference_pack_block(block(33, 1, 33)).unwrap_err().code,
         "AUDIO_BUDGET_EXCEEDED"
     );
     assert_eq!(
-        pack_preview_block(block(17, 4096, 100)).unwrap_err().code,
+        reference_pack_block(block(17, 4096, 100)).unwrap_err().code,
         "AUDIO_BUDGET_EXCEEDED"
     );
-    assert!(pack_preview_block(block(32, 2048, 100)).is_ok());
+    assert!(reference_pack_block(block(32, 2048, 100)).is_ok());
     let mut valid = block(1, 2, 1);
     valid.start_sample = u64::MAX - 2;
-    assert!(pack_preview_block(valid).is_ok());
+    assert!(reference_pack_block(valid).is_ok());
 }
 
 #[test]
 fn non_audio_receipts_do_not_inherit_the_participating_voice_cap() {
     let mut original = block(2, 3, 514);
     for receipt in original.receipts.iter_mut().skip(2) {
-        receipt.decision = AudioParticipationV4::NonAudio;
+        receipt.decision = AudioParticipation::NonAudio;
     }
     let identity = serde_json::to_value(&original.identity).unwrap();
     let receipts = serde_json::to_value(&original.receipts).unwrap();
-    let packed = unpack(&pack_preview_block(original).unwrap());
+    let packed = unpack(&reference_pack_block(original).unwrap());
     assert_eq!(packed["block"]["receipts"], receipts);
     assert_eq!(packed["block"]["identity"], identity);
     assert_eq!(packed["block"]["voices"][1]["elementId"], "e1");
@@ -278,7 +276,7 @@ fn five_dense_voices_with_hundred_receipts_fit_one_mebibyte() {
     let full_bytes = serde_json::to_vec(&original).unwrap().len();
     let identity = serde_json::to_value(&original.identity).unwrap();
     let receipts = serde_json::to_value(&original.receipts).unwrap();
-    let bytes = pack_preview_block(original).unwrap();
+    let bytes = reference_pack_block(original).unwrap();
     assert!(full_bytes > 1024 * 1024);
     assert!(bytes.len() < 1024 * 1024 - 256);
     assert!(bytes.len() * 2 < full_bytes);
@@ -292,8 +290,7 @@ fn five_dense_voices_with_hundred_receipts_fit_one_mebibyte() {
 }
 
 // Independent test expansion uses only the wire references, not packer helpers.
-fn expand_v2(packet: &Value) -> Value {
-    assert_eq!(packet["schemaVersion"], 2);
+fn expand_shared(packet: &Value) -> Value {
     let mut block = packet["block"].clone();
     for voice in block["voices"].as_array_mut().unwrap() {
         let position_ref = voice["positionRef"].as_u64().unwrap() as usize;
@@ -314,12 +311,12 @@ fn expand_v2(packet: &Value) -> Value {
 }
 
 #[test]
-fn v2_five_dense_voices_share_exact_facts_below_150_kilobytes() {
+fn packed_five_dense_voices_share_exact_facts_below_150_kilobytes() {
     let mut original = block(5, 4096, 100);
     original.start_sample = 9_007_199_254_740_993;
     for voice in &mut original.voices {
         voice.positions[0] = None;
-        voice.positions[1] = Some(PreviewSourceSampleV4 {
+        voice.positions[1] = Some(PreviewSourceSample {
             segment_id: u32::MAX,
             lower: u64::MAX,
             upper: u64::MAX,
@@ -327,29 +324,32 @@ fn v2_five_dense_voices_share_exact_facts_below_150_kilobytes() {
         });
         voice.amplitudes[0] = -0.0;
     }
-    let v1 = unpack(&pack_preview_block(original.clone()).unwrap());
-    let bytes = pack_preview_block_v2(original).unwrap();
+    let reference = unpack(&reference_pack_block(original.clone()).unwrap());
+    let bytes = pack_preview_block(original).unwrap();
     assert!(bytes.len() < 150_000);
-    let v2 = unpack(&bytes);
-    assert_eq!(v2["positionTables"].as_array().unwrap().len(), 1);
-    assert_eq!(v2["amplitudeTables"].as_array().unwrap().len(), 1);
-    assert_eq!(expand_v2(&v2), v1["block"]);
-    for voice in v2["block"]["voices"].as_array().unwrap() {
+    let packed = unpack(&bytes);
+    assert_eq!(packed["positionTables"].as_array().unwrap().len(), 1);
+    assert_eq!(packed["amplitudeTables"].as_array().unwrap().len(), 1);
+    assert_eq!(expand_shared(&packed), reference["block"]);
+    for voice in packed["block"]["voices"].as_array().unwrap() {
         assert_eq!(voice["positionRef"], 0);
         assert_eq!(voice["amplitudeRef"], 0);
     }
     assert_eq!(
-        v2["positionTables"][0][1][3].as_f64().unwrap().to_bits(),
+        packed["positionTables"][0][1][3]
+            .as_f64()
+            .unwrap()
+            .to_bits(),
         (-0.0f64).to_bits()
     );
     assert_eq!(
-        v2["amplitudeTables"][0][0].as_f64().unwrap().to_bits(),
+        packed["amplitudeTables"][0][0].as_f64().unwrap().to_bits(),
         (-0.0f64).to_bits()
     );
 }
 
 #[test]
-fn v2_preserves_every_fact_bit_and_length_with_first_use_table_order() {
+fn packed_preserves_every_fact_bit_and_length_with_first_use_table_order() {
     let mut original = block(10, 2, 10);
     for voice in &mut original.voices {
         voice.positions[0].as_mut().unwrap().fraction = 0.0;
@@ -370,10 +370,10 @@ fn v2_preserves_every_fact_bit_and_length_with_first_use_table_order() {
     original.voices[9].amplitudes[0] = 0.100_000_000_000_000_02;
     // Varying placement offset does not alter equal sample facts.
     original.voices[7].block_offset = 1;
-    let v1 = unpack(&pack_preview_block(original.clone()).unwrap());
-    let v2 = unpack(&pack_preview_block_v2(original).unwrap());
-    assert_eq!(expand_v2(&v2), v1["block"]);
-    let voices = v2["block"]["voices"].as_array().unwrap();
+    let reference = unpack(&reference_pack_block(original.clone()).unwrap());
+    let packed = unpack(&pack_preview_block(original).unwrap());
+    assert_eq!(expand_shared(&packed), reference["block"]);
+    let voices = packed["block"]["voices"].as_array().unwrap();
     let position_refs: Vec<_> = voices
         .iter()
         .map(|v| v["positionRef"].as_u64().unwrap())
@@ -384,40 +384,44 @@ fn v2_preserves_every_fact_bit_and_length_with_first_use_table_order() {
         .collect();
     assert_eq!(position_refs, vec![0, 1, 2, 3, 4, 5, 6, 7, 0, 0]);
     assert_eq!(amplitude_refs, vec![0, 0, 0, 0, 0, 0, 0, 1, 2, 3]);
-    assert_eq!(v2["positionTables"].as_array().unwrap().len(), 8);
-    assert_eq!(v2["amplitudeTables"].as_array().unwrap().len(), 4);
+    assert_eq!(packed["positionTables"].as_array().unwrap().len(), 8);
+    assert_eq!(packed["amplitudeTables"].as_array().unwrap().len(), 4);
     assert_eq!(
-        v2["positionTables"][0][0][3].as_f64().unwrap().to_bits(),
+        packed["positionTables"][0][0][3]
+            .as_f64()
+            .unwrap()
+            .to_bits(),
         0.0f64.to_bits()
     );
     assert_eq!(
-        v2["positionTables"][1][0][3].as_f64().unwrap().to_bits(),
+        packed["positionTables"][1][0][3]
+            .as_f64()
+            .unwrap()
+            .to_bits(),
         (-0.0f64).to_bits()
     );
     assert_eq!(
-        v2["amplitudeTables"][0][0].as_f64().unwrap().to_bits(),
+        packed["amplitudeTables"][0][0].as_f64().unwrap().to_bits(),
         0.0f64.to_bits()
     );
     assert_eq!(
-        v2["amplitudeTables"][2][0].as_f64().unwrap().to_bits(),
+        packed["amplitudeTables"][2][0].as_f64().unwrap().to_bits(),
         (-0.0f64).to_bits()
     );
 }
 
 #[test]
-fn v2_keeps_original_per_voice_admission_and_complete_non_audio_receipts() {
+fn packed_keeps_original_per_voice_admission_and_complete_non_audio_receipts() {
     assert_eq!(
-        pack_preview_block_v2(block(33, 1, 33)).unwrap_err().code,
+        pack_preview_block(block(33, 1, 33)).unwrap_err().code,
         "AUDIO_BUDGET_EXCEEDED"
     );
     // One deduplicated table still represents 17*4096 samples of voice work.
     assert_eq!(
-        pack_preview_block_v2(block(17, 4096, 100))
-            .unwrap_err()
-            .code,
+        pack_preview_block(block(17, 4096, 100)).unwrap_err().code,
         "AUDIO_BUDGET_EXCEEDED"
     );
-    let accepted = unpack(&pack_preview_block_v2(block(32, 2048, 100)).unwrap());
+    let accepted = unpack(&pack_preview_block(block(32, 2048, 100)).unwrap());
     assert_eq!(accepted["block"]["voices"].as_array().unwrap().len(), 32);
     assert_eq!(accepted["positionTables"].as_array().unwrap().len(), 1);
     let mut distinct = block(32, 1, 32);
@@ -425,23 +429,80 @@ fn v2_keeps_original_per_voice_admission_and_complete_non_audio_receipts() {
         voice.positions[0].as_mut().unwrap().fraction = index as f64 / 32.0;
         voice.amplitudes[0] = index as f64;
     }
-    let distinct = unpack(&pack_preview_block_v2(distinct).unwrap());
+    let distinct = unpack(&pack_preview_block(distinct).unwrap());
     assert_eq!(distinct["positionTables"].as_array().unwrap().len(), 32);
     assert_eq!(distinct["amplitudeTables"].as_array().unwrap().len(), 32);
     assert_eq!(distinct["block"]["voices"][31]["positionRef"], 31);
     assert_eq!(distinct["block"]["voices"][31]["amplitudeRef"], 31);
     let mut original = block(2, 3, 514);
     for receipt in original.receipts.iter_mut().skip(2) {
-        receipt.decision = AudioParticipationV4::NonAudio;
+        receipt.decision = AudioParticipation::NonAudio;
     }
-    let v1 = unpack(&pack_preview_block(original.clone()).unwrap());
-    let v2 = unpack(&pack_preview_block_v2(original).unwrap());
-    assert_eq!(expand_v2(&v2), v1["block"]);
-    assert_eq!(v2["block"]["receipts"].as_array().unwrap().len(), 514);
+    let reference = unpack(&reference_pack_block(original.clone()).unwrap());
+    let packed = unpack(&pack_preview_block(original).unwrap());
+    assert_eq!(expand_shared(&packed), reference["block"]);
+    assert_eq!(packed["block"]["receipts"].as_array().unwrap().len(), 514);
     let mut invalid = block(1, 1, 1);
     invalid.voices[0].amplitudes[0] = f64::NAN;
     assert_eq!(
-        pack_preview_block_v2(invalid).unwrap_err().code,
+        pack_preview_block(invalid).unwrap_err().code,
         "AUDIO_PROTOCOL_ERROR"
     );
+}
+
+// Independent dense reference encoder retained only for exact fact/bit oracles.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReferenceVoice<'a> {
+    element_id: &'a str,
+    block_offset: u32,
+    frame_count: u32,
+    positions: PackedPositions<'a>,
+    amplitudes: &'a [f64],
+}
+struct ReferenceVoices<'a>(&'a [PreviewAudioVoiceBlock]);
+impl Serialize for ReferenceVoices<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for voice in self.0 {
+            sequence.serialize_element(&ReferenceVoice {
+                element_id: &voice.element_id,
+                block_offset: voice.block_offset,
+                frame_count: voice.frame_count,
+                positions: PackedPositions(&voice.positions),
+                amplitudes: &voice.amplitudes,
+            })?;
+        }
+        sequence.end()
+    }
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReferenceBlock<'a> {
+    identity: &'a opencut_composition::scene::PreviewAudioIdentity,
+    start_sample: String,
+    frame_count: u32,
+    voices: ReferenceVoices<'a>,
+    receipts: &'a [opencut_composition::scene::AudioReceipt],
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReferencePacket<'a> {
+    block: ReferenceBlock<'a>,
+}
+
+fn reference_pack_block(block: PreviewAudioBlock) -> Result<Vec<u8>, EditorError> {
+    validate_preview_block(&block)?;
+    // Borrow dense data all the way into the serializer: no intermediate point
+    // maps, JSON values, sample vectors or clones are constructed.
+    serde_json::to_vec(&ReferencePacket {
+        block: ReferenceBlock {
+            identity: &block.identity,
+            start_sample: block.start_sample.to_string(),
+            frame_count: block.frame_count,
+            voices: ReferenceVoices(&block.voices),
+            receipts: &block.receipts,
+        },
+    })
+    .map_err(|_| invalid())
 }

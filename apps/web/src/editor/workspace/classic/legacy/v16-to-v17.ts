@@ -1,7 +1,7 @@
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV16ToV17({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

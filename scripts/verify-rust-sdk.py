@@ -82,7 +82,7 @@ try:
         while True:
             assert host.poll() is None,"Host exited before readiness"
             try:
-                urllib.request.urlopen(base+"/v1/capabilities",timeout=1)
+                urllib.request.urlopen(base+"/api/capabilities",timeout=1)
             except urllib.error.HTTPError as e:
                 assert e.code==403;break
             except urllib.error.URLError:

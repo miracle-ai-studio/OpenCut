@@ -1,0 +1,20 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {PUMP_CHANNEL} from './worker-protocol';
+const state=vi.hoisted(()=>({output:vi.fn(),observe:vi.fn(),abort:vi.fn(),silence:vi.fn()}));
+vi.mock('../../../../lib/editor-sdk',()=>({createEditorClient:()=>({})}));
+vi.mock('./pump',()=>({PreviewConsumptionPump:class{start(){}observe=state.observe;observeOutput=state.output;abort=state.abort;completed(){};}}));
+vi.mock('./device-port',()=>({PreviewDevicePort:class{silence=state.silence;}}));
+afterEach(()=>{vi.unstubAllGlobals();vi.clearAllMocks();vi.resetModules();});
+it('accepts one fixed-token output port, preserves PCM ownership, and resumes main observations only after retirement',async()=>{
+ const scope={onmessage:null as null|((e:{data:unknown})=>void),postMessage:vi.fn(),close:vi.fn()};vi.stubGlobal('self',scope);await import('./pump-worker');
+ const send=(data:object)=>scope.onmessage!({data:{channel:PUMP_CHANNEL,token:'device',...data}});
+ send({kind:'init',connection:{}});
+ const port={onmessage:null as null|((e:{data:unknown})=>void),start:vi.fn(),close:vi.fn()};send({kind:'output-clock',port});send({kind:'start',session:{},port:{}});
+ const observation={frames:'30',source:'device_timestamp',uncertainty_frames:null};
+ send({kind:'output',observation:{...observation,frames:'20'},stalled:false});
+ port.onmessage!({data:{kind:'output',token:'old',observation,stalled:false}});expect(state.output).not.toHaveBeenCalled();
+ port.onmessage!({data:{kind:'output',token:'device',observation,stalled:false}});expect(state.output).toHaveBeenCalledExactlyOnceWith(observation,false);expect(state.observe).not.toHaveBeenCalled();
+ port.onmessage!({data:{kind:'retired',token:'device'}});expect(port.close).toHaveBeenCalledOnce();
+ send({kind:'output',observation:{...observation,frames:'32'},stalled:false});expect(state.output).toHaveBeenLastCalledWith({...observation,frames:'32'},false);
+ send({kind:'output-clock',port});expect(state.abort).toHaveBeenCalled();expect(state.silence).toHaveBeenCalled();expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({kind:'error',message:'Device output clock already captured'}));
+});

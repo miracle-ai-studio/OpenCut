@@ -7,6 +7,25 @@ export interface AudioIdentity {
   sampleRate: number;
 }
 export interface CasResource { assetId: string; contentHash: string; size: number; kind: "audio" | "video" }
+export interface PcmAllocation { reserve(bytes: number): () => void }
+export interface VerifiedRangeSource {
+  readonly resource: Readonly<CasResource>;
+  readonly length: number;
+  readonly source: import("mediabunny").StreamSource;
+  readonly residentBytes: number;
+  readBytes(offset: number, count: number): Promise<Uint8Array>;
+  close(): Promise<void>;
+}
+export interface ContainerDecodeAllocation {
+  mode: "whole" | "windowed";
+  maxFrames: number;
+  maxChannels: number;
+  workingFrames: number;
+  sourceSampleRate: number;
+  targetSampleRate: number;
+  maxNativeFrames: string;
+  windows: { sourceStartFrame: string; sourceEndFrame: string; targetStartFrame: string }[];
+}
 export interface PrimaryAudioTrack { trackId: number; codec: string; sampleRate: number; channels: number }
 export interface ExactSourceSample { lower: string; fractionNumerator: string; fractionDenominator: string }
 export interface PitchFacts {
@@ -32,6 +51,7 @@ export interface ClassicAudioPlan {
   /** Rust output selection length; frameCount remains the whole scene. */
   outputFrameCount?: string;
   range?: { startSample: string; frameCount: string } | null;
+  encodedSource: { mode: "verified-range"; cacheBytes: number };
   resources: CasResource[];
   /** Stable sequence track order, then stored element order, produced by Rust. */
   voices: { elementId: string; assetId: string }[];
@@ -54,10 +74,18 @@ export interface ClassicAudioHost {
   /** Pinned actual browser build/platform/codec execution identity. */
   engineIdentity: string;
   resolveVerifiedBytes(resource: Readonly<CasResource>, signal?: AbortSignal): Promise<Uint8Array>;
+  resolveRangeSource(resource: Readonly<CasResource>, budget: PcmAllocation, signal?: AbortSignal): Promise<VerifiedRangeSource>;
   /** Must enforce hard decoder memory/time limits in the isolated host realm. */
   admitDecode(resource: CasResource, primary: PrimaryAudioTrack | null): Promise<{ maxFrames: number; maxChannels: number }>;
-  /** Calls classic_audio_preparation_facts_v4 with the original authored span. */
-  compilePitchPreparation(input: { elementId: string; decodedSampleRate: number; decodedFrameCount: string; decodedChannels: number }): Promise<PitchFacts>;
+  /** Retire decoder PCM after all consumers prepare,or after complete mixing.
+   * Preview retires only concat/preparation input;ordinary rolling input stays live. */
+  releaseDecodedSource(resource: Readonly<CasResource>): Promise<{ released: true }>;
+  /** Container decoding always uses Rust-planned logical and resident limits. */
+  admitContainerDecode(resource: CasResource, primary: PrimaryAudioTrack): Promise<ContainerDecodeAllocation>;
+  /** Codec choice for native-rate signed16 audio, never host generation detection. */
+  admitPcmAudioDecode(resource: CasResource, primary: PrimaryAudioTrack): Promise<{ mode: "whole" } | { mode: "windowed"; admission: ContainerDecodeAllocation }>;
+  /** Original authored span plus actual sparse residency; dense PCM uses null. */
+  compilePitchPreparation(input: { elementId: string; decodedSampleRate: number; decodedFrameCount: string; decodedChannels: number; residentFrameCount: string | null }): Promise<PitchFacts>;
   /** Original source mapping, at each exact local output sample; no gain. */
   compileSourcePositions(input: { elementId: string; localStartSample: string; frameCount: number; sourceSampleRate: number }): Promise<ExactSourceSample[]>;
   /** Calls compile_audio_block_v4; prepared sources read from zero at unit rate

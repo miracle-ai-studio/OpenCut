@@ -1,3 +1,4 @@
+import { friendlyCopy } from "../shared/friendly-copy";
 import { useLocale, t } from "../shared/locale";
 
 const zh: Record<string, string> = {
@@ -103,8 +104,8 @@ const zh: Record<string, string> = {
   "Each action supports up to four shortcuts.":
     "每项操作最多可配置四个快捷键。",
   "The shortcut configuration is too large.": "快捷键配置过大。",
-  "The shortcut configuration is invalid or has an unsupported version.":
-    "快捷键配置无效或版本不受支持。",
+  "The shortcut configuration is invalid.":
+    "快捷键配置无效。",
   "The shortcut configuration has unknown or missing actions.":
     "快捷键配置包含未知操作或缺少操作。",
   "The shortcut configuration contains an invalid key.":
@@ -137,7 +138,7 @@ export function useShortcutText() {
   const { language } = useLocale();
   return (message: string, values: Record<string, string | number> = {}) => {
     const translated =
-      language === "zh" ? (zh[message] ?? t(message)) : message;
+      friendlyCopy[message] ? t(message) : language === "zh" ? (zh[message] ?? t(message)) : t(message);
     return translated.replace(/\{(\w+)\}/g, (match, key) =>
       String(values[key] ?? match),
     );

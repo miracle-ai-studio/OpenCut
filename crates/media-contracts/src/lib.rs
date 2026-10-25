@@ -3,9 +3,9 @@
 
 pub mod analysis;
 pub mod packet_rate;
-pub use packet_rate::{CLASSIC_PACKET_RATE_METADATA_KEY_V1, ClassicPacketRateV1};
+pub use packet_rate::{CLASSIC_PACKET_RATE_METADATA_KEY, ClassicPacketRate};
 pub mod composition;
-pub mod composition_v3;
+pub mod historical_visual_composition;
 pub use analysis::*;
 pub mod speaker_turns;
 pub mod transcription;
@@ -443,3 +443,5 @@ impl<P> VerificationReport<P> {
             .expect("infallible location mapping")
     }
 }
+
+pub mod quality;

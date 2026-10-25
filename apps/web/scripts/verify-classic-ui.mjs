@@ -5,6 +5,7 @@ import path from "node:path";
 import http from "node:http";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { editorSnapshot } from "./project-inspection.mjs";
 const expect = baseExpect.configure({ timeout: 120000 });
 const directory = process.env.OPENCUT_WEB_WORKSPACE,
   endpoint = process.env.OPENCUT_WEB_URL;
@@ -108,12 +109,12 @@ page.setDefaultTimeout(120000);
 page.on("pageerror", (e) => report.consoleErrors.push(e.message));
 page.on("request", (request) => {
   const url = new URL(request.url());
-  if (url.pathname.startsWith("/v1/tools/"))
+  if (url.pathname.startsWith("/api/tools/"))
     report.calls.push({
       tool: url.pathname.split("/").at(-1),
       input: request.postDataJSON(),
     });
-  if (url.pathname.includes("/stream-uploads/") && request.method() === "PUT")
+  if (url.pathname.includes("/api/uploads/") && request.method() === "PUT")
     report.chunks.push({
       path: url.pathname,
       bytes: request.postDataBuffer()?.length,
@@ -304,8 +305,8 @@ async function verifyPixels(label) {
   });
   if (await guide.isVisible())
     await guide.getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByRole("button", { name: "Render frame", exact: true }).click();
-  const img = page.getByAltText("Rendered project frame");
+  await page.getByRole("button", { name: "Render scene frame", exact: true }).click();
+  const img = page.getByAltText("Rendered scene frame");
   await expect(img).toBeVisible({ timeout: 60000 });
   const bytes = await img.evaluate(async (i) => [
     ...new Uint8Array(await (await fetch(i.src)).arrayBuffer()),
@@ -333,14 +334,13 @@ async function verifyPixels(label) {
   report[label + "_rgb"] = rgb;
 }
 async function verifyAudio(project) {
-  const accepted = call("opencut_job_v3_render", {
+  const accepted = call("opencut_render_submit", { kind: "video", request: {
     project_id: project.project.id,
     revision: project.revision,
     sequence_id: "main",
-    container: "mp4",
-    video_codec: "h264",
-    idempotency_key: "verify-recovered-audio",
-  });
+    options: { format: "mp4", quality: "high", include_audio: true },
+    idempotency_key: "verify-recovered-complete-scene-audio",
+  } });
   const deadline = Date.now() + 120000;
   let job;
   do {
@@ -355,7 +355,7 @@ async function verifyAudio(project) {
   expect(job.state).toBe("succeeded");
   const artifact = job.artifacts.find((a) => a.mime_type === "video/mp4");
   const response = await page.request.get(
-    `${endpoint}/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}`,
+    `${endpoint}/api/artifacts/${encodeURIComponent(artifact.artifact_id)}`,
   );
   expect(response.ok()).toBe(true);
   const bytes = await response.body();
@@ -425,7 +425,7 @@ try {
     "Damaged Classic scene",
   );
   expect(
-    call("opencut_project_library", { cursor: null, limit: 100 }).items,
+    call("opencut_project_list", { cursor: null, limit: 100 }).items,
   ).toHaveLength(0);
   expect(await oldState(page, "old")).toEqual(before);
   await dialog().getByLabel("Classic project on this site").selectOption("old");
@@ -441,7 +441,7 @@ try {
     releaseHeld = resolve;
   });
   await page.route(
-    "**/v1/stream-uploads/*/chunks/4194304?*",
+    "**/api/uploads/*/chunks/4194304?*",
     async (route) => {
       pausedUpload = new URL(route.request().url()).pathname.split("/")[3];
       held();
@@ -458,13 +458,13 @@ try {
     .getByRole("button", { name: "Pause recovery", exact: true })
     .click();
   releaseHeld();
-  const upload = call("opencut_upload_stream_inspect", {
+  const upload = call("opencut_upload_inspect", {
     upload_id: pausedUpload,
   });
   expect(upload.next_offset).toBe("4194304");
   expect(upload.job_id).toBeNull();
   expect(
-    call("opencut_project_library", { cursor: null, limit: 100 }).items.filter(
+    call("opencut_project_list", { cursor: null, limit: 100 }).items.filter(
       (p) => !p.name.startsWith("Preparing Classic:"),
     ),
   ).toHaveLength(0);
@@ -477,7 +477,7 @@ try {
   await recovery();
   await dialog().getByLabel("Classic project on this site").selectOption("old");
   await prepare();
-  const resumed = call("opencut_upload_stream_inspect", {
+  const resumed = call("opencut_upload_inspect", {
     upload_id: pausedUpload,
   });
   expect(resumed.next_offset).toBe(
@@ -498,7 +498,7 @@ try {
   });
   // Admit the atomic commit but drop its acknowledgement.
   await page.route(
-    "**/v1/tools/opencut_classic_recovery_import_v1",
+    "**/api/tools/opencut_classic_import",
     async (route) => {
       const response = await route.fetch();
       const receipt = await response.json();
@@ -524,18 +524,17 @@ try {
     }),
   ).toBeVisible();
   const id = report.lostReceipt.target_project_id;
-  const library = call("opencut_project_library", {
+  const library = call("opencut_project_list", {
     cursor: null,
     limit: 100,
   }).items;
   expect(library).toHaveLength(1);
   expect(library[0].project_id).toBe(id);
-  const promoted = call("opencut_project_v3_inspect", {
+  const initial = await editorSnapshot(call("opencut_project_inspect", {
     project_id: id,
     revision: null,
-  });
-  const initial = { ...promoted, project: promoted.project.base };
-  expect(library[0].format).toBe("visual");
+  }));
+  expect(library[0].format).toBe("editor");
   expect(initial.project.assets).toHaveLength(3);
   for (const item of fixtures)
     expect(
@@ -554,10 +553,10 @@ try {
     .getByRole("button", { name: "Open recovered project", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Clip red.mp4", exact: true }),
+    page.getByRole("button", { name: "red.mp4 · video", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Clip tone.wav", exact: true }),
+    page.getByRole("button", { name: "tone.wav · audio", exact: true }),
   ).toBeVisible();
   await verifyPixels("local");
   await verifyAudio(initial);
@@ -577,11 +576,11 @@ try {
   await rename.getByLabel("Project name").fill("Recovered and edited");
   await rename.getByRole("button", { name: "Save", exact: true }).click();
   await expect(rename).not.toBeVisible();
-  const edited = call("opencut_project_v3_inspect", {
+  const edited = await editorSnapshot(call("opencut_project_inspect", {
     project_id: id,
     revision: null,
-  });
-  expect(edited.project.base.name).toBe("Recovered and edited");
+  }));
+  expect(edited.project.name).toBe("Recovered and edited");
   expect(edited.revision).not.toBe(initial.revision);
   check(
     "F06: recovery upgrades through the native fixed-revision promotion, and the real editor can rename the recovered project",
@@ -602,8 +601,7 @@ try {
     }),
   ).toBeVisible();
   expect(
-    call("opencut_project_v3_inspect", { project_id: id, revision: null })
-      .revision,
+    (await editorSnapshot(call("opencut_project_inspect", { project_id: id, revision: null }))).revision,
   ).toBe(edited.revision);
   await dialog()
     .getByRole("button", { name: "Close", exact: true })
@@ -688,7 +686,7 @@ try {
     .click();
   await verifyPixels("cross");
   expect(
-    call("opencut_project_library", { cursor: null, limit: 100 }).items,
+    call("opencut_project_list", { cursor: null, limit: 100 }).items,
   ).toHaveLength(2);
   expect(await oldState(old, "cross")).toEqual(oldBefore);
   check(

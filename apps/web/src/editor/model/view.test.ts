@@ -12,7 +12,6 @@ const fixture = (
   project: {
     id: "p",
     name: "P",
-    schema_version: 2,
     default_sequence_id: "main",
     assets: [],
     sequences: [

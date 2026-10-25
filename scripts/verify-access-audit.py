@@ -117,8 +117,8 @@ def verify(binary, root):
                 with socket.create_connection(('127.0.0.1',port),timeout=.2):break
             except OSError:assert time.monotonic()<deadline;time.sleep(.03)
         owner=owner_path.read_text().strip();scoped=secret_file.read_text().strip()
-        status,_,data=request(owner,'/v1/tools/opencut_access_audit_query',query);out=json.loads(data);assert status==200 and out['data']==tool()['data'];trace.append({'entry':'http','response':out})
-        status,_,data=request(scoped,'/v1/tools/opencut_access_audit_query',query,{'X-Actor':'local-owner'});assert status==403 and json.loads(data)['error']['code']=='NOT_AUTHORIZED'
+        status,_,data=request(owner,'/api/tools/opencut_access_audit_query',query);out=json.loads(data);assert status==200 and out['data']==tool()['data'];trace.append({'entry':'http','response':out})
+        status,_,data=request(scoped,'/api/tools/opencut_access_audit_query',query,{'X-Actor':'local-owner'});assert status==403 and json.loads(data)['error']['code']=='NOT_AUTHORIZED'
         for token,allowed in [(owner,True),(scoped,False)]:
             sid=init(token);_,result=rpc(token,sid,'tools/call',{'name':'opencut_access_audit_query','arguments':query});out=result['structuredContent'];trace.append({'entry':'mcp_http','response':out})
             if allowed:assert out['data']==tool()['data']

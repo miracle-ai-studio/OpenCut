@@ -1,9 +1,13 @@
 """Delivery must exclude local residue and reject undeclared package contents."""
 import importlib.util
+import io
 import json
 from pathlib import Path
+import sys
+import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("package_local", Path(__file__).resolve().parents[1] / "package-local.py")
 package = importlib.util.module_from_spec(spec)
@@ -11,12 +15,57 @@ spec.loader.exec_module(package)
 
 
 class PackageContentsTest(unittest.TestCase):
+    def test_acceptance_unpack_only_admits_declared_internal_runtime_links(self):
+        scripts = Path(__file__).resolve().parents[1]
+        with patch.object(sys, 'path', [str(scripts), *sys.path]):
+            spec = importlib.util.spec_from_file_location('verify_local_package', scripts / 'verify-local-package.py')
+            verifier = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(verifier)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def archive(name, links, manifest_links=None, extra=(), hard=False):
+                file = root / (name + '.tar')
+                with tarfile.open(file, 'w') as tar:
+                    files = {'bundle/manifest.json': json.dumps({'links': links if manifest_links is None else manifest_links}).encode(),
+                             'bundle/bin/libexec/real': b'fixed-runtime'}
+                    files.update(extra)
+                    for path, value in files.items():
+                        item = tarfile.TarInfo(path); item.size = len(value)
+                        tar.addfile(item, io.BytesIO(value))
+                    for path, target in links.items():
+                        item = tarfile.TarInfo('bundle/' + path)
+                        item.type = tarfile.LNKTYPE if hard else tarfile.SYMTYPE
+                        item.linkname = target; tar.addfile(item)
+                return file
+
+            good = archive('valid', {'bin/libexec/alias': 'real'})
+            verifier.unpack(good, root / 'accepted')
+            self.assertTrue((root / 'accepted/bundle/bin/libexec/alias').is_symlink())
+            self.assertEqual((root / 'accepted/bundle/bin/libexec/alias').read_bytes(), b'fixed-runtime')
+            cases = [
+                ('undeclared', {'bin/libexec/alias': 'real'}, {}, (), False),
+                ('absolute', {'bin/libexec/alias': '/private/tmp/outside'}, None, (), False),
+                ('escape', {'bin/libexec/alias': '../../../outside'}, None, (), False),
+                ('cycle', {'bin/libexec/a': 'b', 'bin/libexec/b': 'a'}, None, (), False),
+                ('hard', {'bin/libexec/alias': 'real'}, None, (), True),
+                ('write-through-link', {'bin/libexec/alias': '.'}, None, (('bundle/bin/libexec/alias/overwrite', b'bad'),), False),
+                # Normalizing '..' before resolving alias would incorrectly
+                # consider this nested target inside the archive root.
+                ('alias-escape', {'bin/libexec/up': '../..', 'bin/libexec/alias': 'up/../outside'}, None, (), False),
+            ]
+            for name, links, declared, extra, hard in cases:
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    verifier.unpack(archive(name, links, declared, extra, hard), root / name)
+                self.assertFalse((root / name).exists(), 'Reject before publishing any files')
+
     def test_catalog_delivery_is_exact_two_file_subset_with_identity_and_no_source_audio(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); source = root / 'packages'; visual = source / 'classic-visual-renderer'
             (visual / 'host').mkdir(parents=True)
             (visual / 'package.json').write_text(json.dumps({'name': '@opencut/classic-visual-renderer', 'version': '0.1.0', 'type': 'module'}))
-            (visual / 'host/catalog-archive-v1.mjs').write_text('// fixed fixture adapter')
+            (visual / 'host/catalog-archive.mjs').write_text('// fixed fixture adapter')
             (visual / 'host/browser.mjs').write_text('not bundled')
             (visual / 'user.ogg').write_text('not bundled')
             destination = root / 'bundle/bin/libexec'
@@ -29,7 +78,7 @@ class PackageContentsTest(unittest.TestCase):
             for name, expected in record['files'].items():
                 path = root / 'bundle' / name
                 self.assertEqual(expected, {'sha256': package.sha(path), 'size': path.stat().st_size})
-            helper = visual / 'host/catalog-archive-v1.mjs'
+            helper = visual / 'host/catalog-archive.mjs'
             helper.unlink(); helper.symlink_to(visual / 'host/browser.mjs')
             with self.assertRaisesRegex(ValueError, 'Symlink'):
                 package.copy_catalog_runtime(source, root / 'bad-link')
@@ -136,3 +185,22 @@ class PackageContentsTest(unittest.TestCase):
             (source / 'api-token').write_text('private')
             with self.assertRaisesRegex(ValueError, 'Unreviewed Web'):
                 package.copy_web_build(source, root / 'rejected')
+            (source / 'api-token').unlink()
+            atlas = Path('assets/classic-font-atlas')
+            original = root / 'apps/web/public' / atlas
+            original.mkdir(parents=True)
+            (source / atlas).mkdir(parents=True)
+            names = ['README.md', 'font-atlas.json'] + [f'font-chunk-{i}.avif' for i in range(15)]
+            for name in names:
+                (original / name).write_text('reviewed public fixture ' + name)
+                (source / atlas / name).write_bytes((original / name).read_bytes())
+            with patch.object(package, 'ROOT', root):
+                package.copy_web_build(source, root / 'with-atlas')
+                self.assertEqual({p.name for p in (root / 'with-atlas' / atlas).iterdir()}, set(names))
+                (source / atlas / 'project.json').write_text('private')
+                with self.assertRaisesRegex(ValueError, 'complete file set'):
+                    package.copy_web_build(source, root / 'private-atlas')
+                (source / atlas / 'project.json').unlink()
+                (source / atlas / 'font-atlas.json').write_text('changed')
+                with self.assertRaisesRegex(ValueError, 'bytes differ'):
+                    package.copy_web_build(source, root / 'changed-atlas')

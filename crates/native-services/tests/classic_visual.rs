@@ -1,13 +1,12 @@
 //! Actual isolated Chromium/WebGPU pixel checks. All PNG inputs are synthetic,
 //! tiny and owned by a TempDir; no user media or queue-publication claim.
 use opencut_asset_store::AssetStore;
-use opencut_composition::{CompositionScope, project_v4::*};
+use opencut_composition::{CompositionScope, scene::*};
 use opencut_contracts::{
-    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, project_v4::*,
+    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, scene::*,
 };
 use opencut_editor_application::{
-    classic_visual::*, project_v4::new_document,
-    project_v4_frame_jobs::LocalVisualExecutionPolicyV1,
+    classic_visual::*, media_frame_jobs::LocalVisualExecutionPolicy, scene::new_document,
 };
 use opencut_native_services::classic_visual::*;
 use std::{collections::BTreeMap, path::Path, time::Duration};
@@ -18,8 +17,8 @@ fn time(n: i32, d: u32) -> Time {
         timebase: d,
     }
 }
-fn policy() -> LocalVisualExecutionPolicyV1 {
-    LocalVisualExecutionPolicyV1 {
+fn policy() -> LocalVisualExecutionPolicy {
+    LocalVisualExecutionPolicy {
         max_frame_pixels: 16_777_216,
         max_decoded_pixels: 16_777_216,
         max_gpu_bytes: 512 * 1024 * 1024,
@@ -49,7 +48,7 @@ fn config() -> ClassicVisualProcessConfig {
         strict_cgroup: None,
     }
 }
-fn snapshot() -> ProjectSnapshotV4 {
+fn snapshot() -> EditorSnapshot {
     let mut project = new_document(&CreateProject {
         id: "project".into(),
         name: "Synthetic GPU".into(),
@@ -64,14 +63,14 @@ fn snapshot() -> ProjectSnapshotV4 {
     .unwrap();
     project.sequences[0].main_track_id = "main".into();
     project.sequences[0].tracks[0].id = "main".into();
-    ProjectSnapshotV4 {
+    EditorSnapshot {
         project,
         revision: "fixed-native-visual".into(),
     }
 }
 fn add_png(
     directory: &Path,
-    snapshot: &mut ProjectSnapshotV4,
+    snapshot: &mut EditorSnapshot,
     id: &str,
     width: u32,
     height: u32,
@@ -106,51 +105,51 @@ fn add_png(
         .unwrap()
         .pin_asset(&original)
         .unwrap();
-    snapshot.project.assets.push(AssetV4 {
+    snapshot.project.assets.push(ProjectAsset {
         id: id.into(),
         name: id.into(),
         kind: AssetKind::Image,
         version: pinned.version.unwrap(),
         duration: None,
-        origin: ResourceOriginV4::LegacyLocator {
+        origin: ResourceOrigin::LegacyLocator {
             uri: "unused-origin.png".into(),
         },
         // Deliberately wrong nominal size: only actual decode dimensions may
         // decide contain geometry; the CAS identity remains exact.
-        metadata: MediaMetadataV4 {
+        metadata: ProjectMediaMetadata {
             mime_type: Some("image/png".into()),
-            intrinsic_size: Some(CanvasSizeV4 {
+            intrinsic_size: Some(CanvasSize {
                 width: 1,
                 height: 1,
             }),
             frame_rate: None,
             rotation_degrees: None,
-            audio: AudioPresenceV4::Absent {},
+            audio: AudioPresence::Absent {},
         },
         license: None,
     });
 }
-fn element(id: &str, asset_id: &str, opacity: f64, scale_x: f64) -> TimelineElementV4 {
-    TimelineElementV4 {
+fn element(id: &str, asset_id: &str, opacity: f64, scale_x: f64) -> TimelineElement {
+    TimelineElement {
         id: id.into(),
         name: id.into(),
         timeline_range: TimeRange {
             start: time(0, 1),
             duration: time(1, 1),
         },
-        source_span: ElementSourceSpanV4::ClassicTrimmed {
+        source_span: ElementSourceSpan::ClassicTrimmed {
             trim_start: time(0, 1),
             trim_end: time(0, 1),
             source_duration: None,
         },
         enabled: true,
-        content: ElementContentV4::Image {
+        content: ElementContent::Image {
             asset_id: asset_id.into(),
         },
         channels: vec![],
-        visual: Some(VisualStyleV4 {
-            profile: VisualProfileV4::ClassicCanvasV31,
-            transform: TransformV4 {
+        visual: Some(VisualStyle {
+            profile: VisualProfile::ClassicCanvasV31,
+            transform: Transform {
                 position_x_px: 0.0,
                 position_y_px: 0.0,
                 scale_x,
@@ -158,7 +157,7 @@ fn element(id: &str, asset_id: &str, opacity: f64, scale_x: f64) -> TimelineElem
                 rotation_degrees: 0.0,
             },
             opacity,
-            blend_mode: BlendModeV4::Normal,
+            blend_mode: BlendMode::Normal,
             effects: vec![],
             masks: vec![],
         }),
@@ -175,9 +174,10 @@ impl ClassicVisualRgbaSink for Rgba {
         Ok(())
     }
 }
-fn render(root: &Path, snapshot: &ProjectSnapshotV4) -> (Rgba, ClassicVisualExecutionReceipt) {
-    let graph = compile_frame_v4(snapshot, "scene", &time(1, 7), CompositionScope::Visual).unwrap();
-    let prepared = prepare_visual_frame_v4(&graph).unwrap();
+fn render(root: &Path, snapshot: &EditorSnapshot) -> (Rgba, ClassicVisualExecutionReceipt) {
+    let graph =
+        compile_frame_scene(snapshot, "scene", &time(1, 7), CompositionScope::Visual).unwrap();
+    let prepared = prepare_visual_frame_scene(&graph).unwrap();
     let mut resources = VerifiedClassicVisualResources::new(root, &prepared, || Ok(())).unwrap();
     let handles = resources.handles();
     let mut session = ClassicVisualSession::new(&prepared, &policy()).unwrap();
@@ -256,7 +256,7 @@ fn actual_gpu_contain_layer_order_and_quarter_opacity_have_independent_rgb_oracl
         ["base", "overlay"]
     );
     assert!(
-        matches!(&receipt.receipt.bound.decoded[1], DecodedVisualSourceV4::ReadyImage { element_id, width: 32, height: 16 } if element_id == "overlay")
+        matches!(&receipt.receipt.bound.decoded[1], DecodedVisualSource::ReadyImage { element_id, width: 32, height: 16 } if element_id == "overlay")
     );
     let quad = receipt.receipt.bound.layers[1].quad.as_ref().unwrap();
     assert_eq!((quad.width, quad.height), (16.0, 8.0));
@@ -292,7 +292,7 @@ fn actual_gpu_negative_scale_flips_asymmetric_source_without_replacing_identity(
     assert_eq!(receipt.receipt.bound.layers[0].asset_id, "asymmetric");
     assert_eq!(
         receipt.runtime_identity.identity.decoder_profile,
-        opencut_editor_application::project_v4_frame_jobs::CLASSIC_VISUAL_DECODER_PROFILE_V4
+        opencut_editor_application::media_frame_jobs::CLASSIC_VISUAL_DECODER_PROFILE
     );
 }
 
@@ -358,16 +358,16 @@ fn actual_video_trim_requests_green_second_frame_and_records_observed_pts() {
         })
         .unwrap();
     let mut snapshot = snapshot();
-    snapshot.project.assets.push(AssetV4 {
+    snapshot.project.assets.push(ProjectAsset {
         id: "video".into(),
         name: "Two colors".into(),
         kind: AssetKind::Video,
         version: pinned.version.unwrap(),
         duration: Some(time(1, 1)),
-        origin: ResourceOriginV4::LegacyLocator {
+        origin: ResourceOrigin::LegacyLocator {
             uri: "unused-source.webm".into(),
         },
-        metadata: MediaMetadataV4 {
+        metadata: ProjectMediaMetadata {
             mime_type: Some("video/webm".into()),
             intrinsic_size: None,
             frame_rate: Some(FrameRate {
@@ -375,33 +375,33 @@ fn actual_video_trim_requests_green_second_frame_and_records_observed_pts() {
                 denominator: 1,
             }),
             rotation_degrees: None,
-            audio: AudioPresenceV4::Absent {},
+            audio: AudioPresence::Absent {},
         },
         license: None,
     });
     let mut clip = element("trimmed", "video", 1.0, 1.0);
     clip.timeline_range.duration = time(1, 2);
-    clip.source_span = ElementSourceSpanV4::ClassicTrimmed {
+    clip.source_span = ElementSourceSpan::ClassicTrimmed {
         trim_start: time(1, 2),
         trim_end: time(0, 1),
         source_duration: Some(time(1, 1)),
     };
-    clip.content = ElementContentV4::Video {
+    clip.content = ElementContent::Video {
         asset_id: "video".into(),
         video_stream: None,
         source_audio_enabled: false,
-        audio: AudioStyleV4 {
+        audio: AudioStyle {
             stream: None,
-            gain: GainV4::Decibels { value: 0.0 },
+            gain: Gain::Decibels { value: 0.0 },
             muted: false,
         },
-        retime: RetimeV4 {
-            rate: RationalRateV4 {
+        retime: Retime {
+            rate: RationalRate {
                 numerator: 1,
                 denominator: 1,
             },
             maintain_pitch: false,
-            mapping: RetimeMappingV4::ClassicRoundedTicks { timebase: 120000 },
+            mapping: RetimeMapping::ClassicRoundedTicks { timebase: 120000 },
         },
     };
     snapshot.project.sequences[0].tracks[0].elements.push(clip);
@@ -413,7 +413,7 @@ fn actual_video_trim_requests_green_second_frame_and_records_observed_pts() {
         actual[0] <= 3 && actual[1] >= 252 && actual[2] <= 3 && actual[3] == 255,
         "Expected green, observed {actual:?}"
     );
-    let DecodedVisualSourceV4::ReadyVideo {
+    let DecodedVisualSource::ReadyVideo {
         requested_time,
         actual_timestamp_seconds,
         frame_duration_seconds,
@@ -448,12 +448,12 @@ fn actual_gpu_clockwise_rotation_position_background_and_track_source_alpha_mult
             (false, false) => [255, 255, 0, 128],
         },
     );
-    let SettingsProfileV4::ClassicGlobal { settings } = &mut snapshot.project.settings else {
+    let SettingsProfile::ClassicGlobal { settings } = &mut snapshot.project.settings else {
         panic!("Synthetic fixture requires Classic global settings")
     };
-    settings.background = BackgroundV4::Color {
-        color: ColorV4 {
-            encoding: ColorEncodingV4::Srgb,
+    settings.background = Background::Color {
+        color: Color {
+            encoding: ColorEncoding::Srgb,
             red: 0.0,
             green: 0.0,
             blue: 1.0,
@@ -487,6 +487,6 @@ fn actual_gpu_clockwise_rotation_position_background_and_track_source_alpha_mult
     assert_eq!(quad.rotation_radians, std::f32::consts::FRAC_PI_2);
     assert_eq!(quad.opacity, 0.5);
     assert!(
-        matches!(&bound.decoded[0], DecodedVisualSourceV4::ReadyImage { element_id, width: 8, height: 4 } if element_id == "rotated")
+        matches!(&bound.decoded[0], DecodedVisualSource::ReadyImage { element_id, width: 8, height: 4 } if element_id == "rotated")
     );
 }

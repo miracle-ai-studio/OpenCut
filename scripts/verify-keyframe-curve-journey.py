@@ -47,7 +47,7 @@ def verify(binary: Path, artifacts: Path):
         str(source)], check=True, timeout=30,
     )
     source_sha256 = sha(source.read_bytes())
-    created = call("opencut_project_v3_create", {
+    created = call("opencut_project_create", {
         "project": {"id": "eased", "name": "Eased animation", "sequence_id": "main",
                     "width": 160, "height": 90, "fps": {"numerator": 10, "denominator": 1}},
         "idempotency_key": "create-eased",
@@ -72,13 +72,13 @@ def verify(binary: Path, artifacts: Path):
                     ]}}},
         ],
     }
-    call("opencut_edit_v3_plan", setup)
-    base = call("opencut_edit_v3_apply", setup)
-    assert call("opencut_edit_v3_apply", setup) == base
+    call("opencut_edit_plan", setup)
+    base = call("opencut_edit_apply", setup)
+    assert call("opencut_edit_apply", setup) == base
     base_revision = base["revision"]
 
     def frame_job(revision, key):
-        queued = call("opencut_job_v3_frame", {
+        queued = call("opencut_job_frame", {
             "idempotency_key": key, "project_id": "eased", "revision": revision,
             "sequence_id": "main", "requested_time": tick(5), "alignment": "exact",
         })
@@ -97,15 +97,15 @@ def verify(binary: Path, artifacts: Path):
             "idempotency_key": "ease-opacity", "label": "Ease opacity", "operations": [
                 {"type": "keyframe.curve_set", "sequence_id": "main", "curve": curve}
             ]}
-    call("opencut_edit_v3_plan", edit)
-    applied = call("opencut_edit_v3_apply", edit)
-    assert call("opencut_edit_v3_apply", edit) == applied
+    call("opencut_edit_plan", edit)
+    applied = call("opencut_edit_apply", edit)
+    assert call("opencut_edit_apply", edit) == applied
     revision = applied["revision"]
-    inspected = call("opencut_project_v3_inspect", {"project_id": "eased", "revision": revision})
+    inspected = call("opencut_project_inspect", {"project_id": "eased", "revision": revision})
     assert inspected["project"]["keyframe_curves"] == [curve]
     eased = frame_job(revision, "cubic-frame")
 
-    render = call("opencut_job_v3_render", {
+    render = call("opencut_job_render", {
         "idempotency_key": "cubic-render", "project_id": "eased", "revision": revision,
         "sequence_id": "main", "container": "mp4", "video_codec": "h264",
     })
@@ -143,7 +143,7 @@ def verify(binary: Path, artifacts: Path):
             for name, job in (("linear.png", baseline), ("cubic.png", eased), ("cubic.mp4", rendered)):
                 artifact = job["artifacts"][0]
                 request = urllib.request.Request(
-                    f"http://127.0.0.1:{port}/v1/jobs/{job['job_id']}/artifact",
+                    f"http://127.0.0.1:{port}/api/jobs/{job['job_id']}/artifact",
                     headers={"Authorization": "Bearer " + token},
                 )
                 with urllib.request.urlopen(request, timeout=30) as response:

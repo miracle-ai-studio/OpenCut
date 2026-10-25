@@ -106,7 +106,7 @@ def start():
     while time.monotonic() < deadline and process.poll() is None:
         try:
             token = (run / "token").read_text().strip()
-            return request("/v1/capabilities")
+            return request("/api/capabilities")
         except (FileNotFoundError, urllib.error.URLError, ConnectionError):
             time.sleep(0.05)
     raise RuntimeError(f"service failed to start; see {run / 'service.log'}")
@@ -135,7 +135,7 @@ def wait_for_job(job):
     while job["state"] not in ("succeeded", "failed", "cancelled"):
         assert time.monotonic() < deadline, job
         time.sleep(0.1)
-        job = request(f"/v1/jobs/{job['job_id']}")
+        job = request(f"/api/jobs/{job['job_id']}")
     assert job["state"] == "succeeded", job
     return job
 
@@ -143,7 +143,7 @@ def wait_for_job(job):
 def render_revision(revision, key, output_name):
     job = wait_for_job(
         request(
-            "/v1/jobs",
+            "/api/jobs",
             {
                 "kind": "render.project",
                 "idempotency_key": key,
@@ -158,7 +158,7 @@ def render_revision(revision, key, output_name):
         )
     )
     artifact = job["result"]["artifact"]
-    encoded = request(f"/v1/jobs/{job['job_id']}/artifact", raw=True)
+    encoded = request(f"/api/jobs/{job['job_id']}/artifact", raw=True)
     assert hashlib.sha256(encoded).hexdigest() == artifact["content_hash"]
     output = run / output_name
     output.write_bytes(encoded)
@@ -207,7 +207,7 @@ try:
     assert "render.project" in {kind["name"] for kind in capabilities["job_kinds"]}
 
     created = request(
-        "/v1/projects",
+        "/api/projects",
         {
             "project": {
                 "id": "audio-sync",
@@ -220,7 +220,7 @@ try:
             "idempotency_key": "audio-sync-project",
         },
     )
-    uploaded = request("/v1/media/upload?name=impulses.wav", source.read_bytes())
+    uploaded = request("/api/media/upload?name=impulses.wav", source.read_bytes())
     operations = [
         {"type": "asset.bind", "asset": uploaded["asset"]},
         {
@@ -258,7 +258,7 @@ try:
         },
     ]
     transaction = request(
-        "/v1/projects/audio-sync/branches/main/transactions",
+        "/api/projects/audio-sync/branches/main/transactions",
         {
             "expected_revision": created["revision"],
             "idempotency_key": "audio-sync-bind-and-place",
@@ -286,7 +286,7 @@ try:
     checks.append("44.1 kHz normal-speed impulses land within one 48 kHz sample of exact rational positions")
 
     retime = request(
-        "/v1/projects/audio-sync/branches/main/transactions",
+        "/api/projects/audio-sync/branches/main/transactions",
         {
             "expected_revision": transaction["revision"],
             "idempotency_key": "audio-sync-retime",
@@ -324,7 +324,7 @@ try:
     checks.append("Retimed impulses follow the exact 4/5 clip mapping within one 48 kHz output sample")
 
     split = request(
-        "/v1/projects/audio-sync/branches/main/transactions",
+        "/api/projects/audio-sync/branches/main/transactions",
         {
             "expected_revision": retime["revision"],
             "idempotency_key": "audio-sync-retimed-split",
@@ -359,7 +359,7 @@ try:
     checks.append("Splitting the retimed clip preserves both source-to-sequence pulse positions")
 
     unsupported_project = request(
-        "/v1/projects",
+        "/api/projects",
         {
             "project": {
                 "id": "unsupported-audio-rate",
@@ -373,7 +373,7 @@ try:
         },
     )
     unsupported_transaction = request(
-        "/v1/projects/unsupported-audio-rate/branches/main/transactions",
+        "/api/projects/unsupported-audio-rate/branches/main/transactions",
         {
             "expected_revision": unsupported_project["revision"],
             "idempotency_key": "unsupported-audio-rate-bind",
@@ -417,7 +417,7 @@ try:
         },
     )
     preflight = request(
-        "/v1/render/preflight",
+        "/api/render/preflight",
         {
             "project_id": "unsupported-audio-rate",
             "revision": unsupported_transaction["revision"],

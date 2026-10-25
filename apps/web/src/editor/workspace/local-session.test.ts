@@ -25,6 +25,74 @@ function setup(endpoint = location.origin, token = "") {
 }
 
 describe("local browser session lifecycle", () => {
+  it.each([[location.origin, "rejected-token"], ["http://other-service.example", ""]])(
+    "retains the original connection mode after failed authentication (%s)",
+    async (endpoint, token) => {
+      const { controller, api } = setup(endpoint, token);
+      vi.mocked(api.sdk.hostCapabilities).mockRejectedValueOnce(new Error("A valid bearer token is required"));
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+      expect(await controller.connect(endpoint, token)).toBe(false);
+      expect(controller.getSnapshot().api).toBeNull();
+      expect(controller.canStartLocalSession).toBe(false);
+      expect(await controller.start()).toBe(false);
+      expect(fetcher).not.toHaveBeenCalled();
+      controller.dispose();
+    },
+  );
+  it("does not let an old bootstrap replace a newly selected credential connection", async () => {
+    const { controller, api } = setup();
+    const bootstrap = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(bootstrap.promise));
+    const start = controller.start();
+    await Promise.resolve();
+    expect(await controller.connect("http://other-service.example", "credential")).toBe(true);
+    bootstrap.resolve(empty());
+    expect(await start).toBe(false);
+    expect(controller.getSnapshot().api).toBe(api);
+    expect(controller.canStartLocalSession).toBe(false);
+    controller.dispose();
+  });
+  it("returns a failed start when bootstrap or the authenticated connection fails", async () => {
+    const { controller, api } = setup();
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(null, {status: 503})).mockResolvedValue(empty());
+    vi.stubGlobal("fetch", fetcher);
+    expect(await controller.start()).toBe(false);
+    expect(controller.getSnapshot().error).toBe("OpenCut could not start. Please try again.");
+    vi.mocked(api.sdk.hostCapabilities).mockRejectedValueOnce(new Error("A valid bearer token is required"));
+    expect(await controller.start()).toBe(false);
+    expect(controller.canStartLocalSession).toBe(true);
+    expect(controller.getSnapshot().connection).toBe("disconnected");
+    controller.dispose();
+  });
+  it("retires a rejected cookie connection without replaying commands and reconnects only on request", async () => {
+    const { controller, api } = setup();
+    const fetcher = vi.fn().mockResolvedValue(empty());
+    vi.stubGlobal("fetch", fetcher);
+    await controller.connect(location.origin, "");
+    controller.report(new Error("A valid bearer token is required"));
+    expect(controller.getSnapshot().api).toBeNull();
+    expect(controller.getSnapshot().connection).toBe("disconnected");
+    expect(controller.getSnapshot().error).toBe("A valid bearer token is required");
+    expect(fetcher).not.toHaveBeenCalled();
+    await controller.start();
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith("/app/session", expect.objectContaining({ method: "POST", credentials: "same-origin" }));
+    expect(controller.getSnapshot().api).toBe(api);
+    controller.dispose();
+  });
+
+  it.each([[location.origin, "explicit-token"], ["http://other-service.example", ""]])("does not replace a rejected credential connection with an owner browser grant (%s)", async (endpoint, token) => {
+    const { controller, api } = setup(endpoint, token);
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await controller.connect(endpoint, token);
+    controller.report(new Error("A valid bearer token is required"));
+    expect(controller.getSnapshot().api).toBe(api);
+    expect(controller.canStartLocalSession).toBe(false);
+    expect(await controller.start()).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+    controller.dispose();
+  });
   it("sends logout after an in-flight bootstrap so its late cookie cannot revive the session", async () => {
     const { controller } = setup();
     const bootstrap = deferred<Response>();
@@ -33,7 +101,7 @@ describe("local browser session lifecycle", () => {
       .mockImplementationOnce(() => bootstrap.promise)
       .mockResolvedValue(empty());
     vi.stubGlobal("fetch", fetcher);
-    const connect = vi.spyOn(controller, "connect").mockResolvedValue();
+    const connect = vi.spyOn(controller, "connect").mockResolvedValue(true);
     const start = controller.start();
     await Promise.resolve();
     expect(fetcher).toHaveBeenCalledTimes(1);
@@ -83,7 +151,7 @@ describe("local browser session lifecycle", () => {
       .mockImplementationOnce(() => ending.promise)
       .mockResolvedValue(empty());
     vi.stubGlobal("fetch", fetcher);
-    const connect = vi.spyOn(controller, "connect").mockResolvedValue();
+    const connect = vi.spyOn(controller, "connect").mockResolvedValue(true);
     const first = controller.logoutLocalSession(),
       second = controller.logoutLocalSession();
     const restart = controller.start();

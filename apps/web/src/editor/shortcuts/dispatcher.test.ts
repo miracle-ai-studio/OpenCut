@@ -31,8 +31,8 @@ const release = (target: Element, value: string, code: string) =>
   );
 function setup() {
   document.body.innerHTML =
-    '<div class="editor-app"><div class="v4-timeline-panel" tabindex="0"><input><button>Native</button><div contenteditable="true"><span>Text</span></div></div><div class="canvas" tabindex="0"></div></div>';
-  const timeline = document.querySelector(".v4-timeline-panel")!;
+    '<div class="editor-app"><div class="editor-timeline-panel" tabindex="0"><input><button>Native</button><div contenteditable="true"><span>Text</span></div></div><div class="canvas" tabindex="0"></div></div>';
+  const timeline = document.querySelector(".editor-timeline-panel")!;
   const registry = new ShortcutRegistry(),
     bindings = defaultBindings(),
     errors = vi.fn();
@@ -110,6 +110,24 @@ it("lets inputs, controls, IME and native modals own their keys, and requires th
   expect(split).not.toHaveBeenCalled();
   key(f.timeline, "s", "KeyS");
   expect(split).toHaveBeenCalledTimes(1);
+});
+
+it("lets a focused scrollbar consume Home without seeking or splitting the timeline", () => {
+  const f = setup(), start = vi.fn(), split = vi.fn(), local = vi.fn();
+  f.registry.register(Symbol(), () => ({ "goto-start": { run: start }, split: { run: split } }));
+  const scrollbar = document.createElement("div");
+  scrollbar.setAttribute("role", "scrollbar"); scrollbar.tabIndex = 0;
+  f.timeline.append(scrollbar);
+  scrollbar.addEventListener("keydown", event => {
+    if (event.key === "Home") { event.preventDefault(); local(); }
+  });
+  scrollbar.focus();
+  expect(key(scrollbar, "Home", "Home").defaultPrevented).toBe(true);
+  release(scrollbar, "Home", "Home");
+  key(scrollbar, "s", "KeyS"); release(scrollbar, "s", "KeyS");
+  expect(local).toHaveBeenCalledOnce(); expect(start).not.toHaveBeenCalled(); expect(split).not.toHaveBeenCalled();
+  key(f.timeline, "Home", "Home");
+  expect(start).toHaveBeenCalledOnce();
 });
 
 it("bounds repeat navigation, drops in-flight repeats and clears held state after window blur", async () => {

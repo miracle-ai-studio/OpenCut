@@ -1,8 +1,8 @@
 //! Bounded NDJSON observation. Only explicit job commands can cancel durable work.
+use crate::connection::Connection;
 use clap::{Args, ValueEnum};
 use opencut_automation::event_stream::*;
 use opencut_contracts::EditorError;
-use std::path::PathBuf;
 use tokio::io::{AsyncWriteExt, Stdout};
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -17,7 +17,7 @@ pub struct Options {
     #[arg(long, value_enum, conflicts_with = "json")]
     pub format: Option<OutputFormat>,
     /// Resume strictly after the last fully processed event cursor.
-    #[arg(long, requires = "format")]
+    #[arg(long)]
     pub cursor: Option<String>,
     #[arg(long, requires = "format")]
     pub max_events: Option<usize>,
@@ -46,24 +46,14 @@ async fn fail(output: &mut Stdout, cursor: Option<String>, error: EditorError) -
         Err(error) => write_exit(error),
     }
 }
-pub async fn run(
-    database: PathBuf,
-    caller: opencut_automation::Caller,
-    scope: EventScope,
-    after: i64,
-    limit: usize,
-    options: Options,
-) -> i32 {
+pub async fn run(source: Connection, scope: EventScope, limit: usize, options: Options) -> i32 {
     let mut output = tokio::io::stdout();
     let mut cursor = options.cursor.clone();
-    if after != 0 || options.max_events == Some(0) {
+    if options.max_events == Some(0) {
         return fail(
             &mut output,
             cursor,
-            EditorError::new(
-                "INVALID_ARGUMENT",
-                "NDJSON requires --cursor instead of numeric --after; max-events must be positive",
-            ),
+            EditorError::new("INVALID_ARGUMENT", "max-events must be positive"),
         )
         .await;
     }
@@ -71,16 +61,22 @@ pub async fn run(
     let mut ready = false;
     let mut emitted = 0;
     loop {
-        let path = database.clone();
+        let source = source.clone();
         let input = EventChangesInput {
             scope: scope.clone(),
             cursor: cursor.clone(),
             limit,
         };
-        let identity = caller.clone();
         let trace = request_id.clone();
         let read = tokio::task::spawn_blocking(move || {
-            let mut app = opencut_host_runtime::workspace::Workspace::open_managed(path)?;
+            let Connection::Local {
+                database,
+                caller: identity,
+            } = &source
+            else {
+                return source.data("opencut_event_changes", serde_json::json!(input));
+            };
+            let mut app = opencut_host_runtime::workspace::Workspace::open_managed(database)?;
             app.set_caller(identity.clone());
             app.event_changes(input).map_err(|error| {
                 use opencut_automation::denials::*;
@@ -91,7 +87,7 @@ pub async fn run(
                     .record_denial(&Denial {
                         request_id: &trace,
                         source: opencut_automation::CallSource::Cli,
-                        caller: Some(&identity),
+                        caller: Some(identity),
                         operation: DeniedOperation::Stream,
                         reason: DenialReason::AuthorizationDenied,
                     })

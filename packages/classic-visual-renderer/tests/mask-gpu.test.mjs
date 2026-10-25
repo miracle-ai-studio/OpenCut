@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { maskFactV1 } from "./mask-fixture.mjs";
-import { prepareMaskFrameSourcesV1 } from "../src/mask-source-v1.mjs";
-import { prepareSceneSourcesV1 } from "../src/scene-source-v1.mjs";
+import { maskFact } from "./mask-fixture.mjs";
+import { prepareMaskFrameSources } from "../src/mask-source.mjs";
+import { prepareSceneSources } from "../src/scene-source.mjs";
 import { byteBudget } from "../src/validation.mjs";
 
 const location = new URL("../src/gpu.mjs", import.meta.url);
@@ -43,7 +43,7 @@ function gpuFixture() {
   return { realm: { device, observation: {} }, surface, hitCopies, allocations, uploads, passes, canvases, calls, createCanvas, Path };
 }
 function frame(feathers = [4]) {
-  const masks = feathers.map((value, i) => ({ elementId: String(i), mask: maskFactV1(i % 2 ? "ellipse" : "rectangle", value), quad: { ...quad } }));
+  const masks = feathers.map((value, i) => ({ elementId: String(i), mask: maskFact(i % 2 ? "ellipse" : "rectangle", value), quad: { ...quad } }));
   return { identity: structuredClone(identity), background: null, masks, layers: masks.map(entry => ({ elementId: entry.elementId, quad: { ...quad }, blendMode: "multiply" })) };
 }
 async function execute(gpu, fixed, options = {}) {
@@ -55,8 +55,8 @@ async function execute(gpu, fixed, options = {}) {
   const source = { width: 8, height: 4, canvas: {} }, sources = new Map(fixed.layers.map(layer => [layer.elementId, source]));
   const state = { budget: byteBudget(admission.maxRgbaBytes), releases: [], sources, retainedDecoded: 0 };
   try {
-    if (fixed.scene !== undefined) prepareSceneSourcesV1(fixed, state, admission, options.signal, gpu.createCanvas, gpu.Path);
-    if (fixed.masks !== undefined) prepareMaskFrameSourcesV1(fixed, state, admission, options.signal, gpu.createCanvas, gpu.Path);
+    if (fixed.scene !== undefined) prepareSceneSources(fixed, state, admission, options.signal, gpu.createCanvas, gpu.Path);
+    if (fixed.masks !== undefined) prepareMaskFrameSources(fixed, state, admission, options.signal, gpu.createCanvas, gpu.Path);
     return await renderGpuFrame(fixed, sources, admission, () => { throw Error("no readback"); }, options.signal, gpu.realm, gpu.surface,options.hitQuery);
   } finally { state.releases.forEach(release => release()); [globalThis.GPUBufferUsage, globalThis.GPUTextureUsage,globalThis.GPUMapMode] = saved; }
 }
@@ -126,13 +126,21 @@ test("upload failure or cancellation destroys warm masks and partial scratch but
 test("scene composes effects before intersecting multiple masks and an adjustment track before the next layer", async () => {
   const gpu=gpuFixture(),fixed=frame([4]);delete fixed.masks;
   fixed.identity.profile="classic-v31-gpu-scene-frame-v1";
-  const first=maskFactV1("rectangle",4),second=maskFactV1("ellipse",2);first.id="first";second.id="second";second.inverted=true;
+  const first=maskFact("rectangle",4),second=maskFact("ellipse",2);first.id="first";second.id="second";second.inverted=true;
   const blur={id:"blur",enabled:true,effect:{kind:"classic_blur",intensity:100}};
   fixed.scene={layers:[{stack:{elementId:"0",masks:[first,second],effects:[blur]},quad:{...quad}}],steps:[{kind:"layer",element_id:"0"},{kind:"effect",element_id:"adjustment",effects:[{...blur,id:"adjustment-blur"}]}],background:{kind:"color",color:{encoding:"srgb",red:0,green:0,blue:0,alpha:1}}};
+  // Object-local sigma uses rounded logical bounds, while convolution and the
+  // adjustment step still address the complete8x4 output texture.
+  Object.assign(fixed.layers[0].quad,{width:3.6,height:2.6,flipX:true});
+  Object.assign(fixed.scene.layers[0].quad,{width:3.6,height:2.6,flipX:true});
   await execute(gpu,fixed);
   const shaders=gpu.passes.map(shader).filter(Boolean),apply=gpu.passes.filter(p=>shader(p)==="mask.wgsl");
   assert.deepEqual(apply.map(p=>uniforms(p,2)[0]),[0,1]);
   assert.equal(shaders.filter(s=>s==="gaussian_blur.wgsl").length,4);
+  const blurPasses=gpu.passes.filter(p=>shader(p)==="gaussian_blur.wgsl");
+  assert.deepEqual(uniforms(blurPasses[0],1),[8,4,1,0,Math.fround(20*4/1920),1,0,0]);
+  assert.deepEqual(uniforms(blurPasses[1],1),[8,4,0,1,Math.fround(20*3/1080),1,0,0]);
+  assert.deepEqual(uniforms(blurPasses[2],1),[8,4,1,0,Math.fround(20*8/1920),1,0,0]);
   assert.ok(shaders.indexOf("gaussian_blur.wgsl")<shaders.indexOf("mask.wgsl"));
   assert.ok(shaders.lastIndexOf("gaussian_blur.wgsl")>shaders.lastIndexOf("blend.wgsl"));
   assert.equal(apply[1].groups[0].entries[0].resource,apply[0].descriptor.colorAttachments[0].view);

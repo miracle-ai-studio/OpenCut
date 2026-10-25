@@ -61,7 +61,7 @@ export async function cancellable(work, host, signal) {
   finally { signal.removeEventListener("abort", listener); }
 }
 export function requireHost(host) {
-  for (const name of ["resolveVerifiedBytes", "admitDecode", "compilePitchPreparation", "compileSourcePositions", "compileBlock", "createAudioContext", "createOfflineContext", "abortRendering"]) {
+  for (const name of ["resolveVerifiedBytes", "admitDecode", "releaseDecodedSource", "compilePitchPreparation", "compileSourcePositions", "compileBlock", "createAudioContext", "createOfflineContext", "abortRendering"]) {
     if (typeof host[name] !== "function") reject("MISSING_AUDIO_HOST_PORT", `Missing ${name} host port`);
   }
   if (typeof host.engineIdentity !== "string" || !host.engineIdentity.trim()) reject("MISSING_AUDIO_HOST_PORT", "An actual browser execution identity is required");

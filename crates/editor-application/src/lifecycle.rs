@@ -1,5 +1,5 @@
 //! Durable job transitions and atomic lifecycle ports. No storage or wall-clock I/O.
-use opencut_api_contracts::{JobProgress, JobRecord, JobState};
+use crate::{JobProgress, JobRecord, JobState};
 use opencut_contracts::EditorError;
 use serde_json::{Value, json};
 
@@ -65,6 +65,7 @@ pub trait JobLifecycleStore {
         worker: &str,
         lease_ms: i64,
         clock: &dyn JobClock,
+        preferred: &[String],
     ) -> Result<Option<JobRecord>, EditorError>;
     fn update_atomic(
         &mut self,
@@ -83,8 +84,15 @@ impl<'a, S: JobLifecycleStore, C: JobClock> JobService<'a, S, C> {
         Self { store, clock }
     }
     pub fn claim(&mut self, worker: &str, lease_ms: i64) -> Result<Option<JobRecord>, EditorError> {
+        self.claim_preferred(worker, lease_ms, &[])
+    }
+    /// Advisory order only: storage still owns the atomic eligibility/lease fence.
+    pub fn claim_preferred(&mut self, worker: &str, lease_ms: i64, preferred: &[String]) -> Result<Option<JobRecord>, EditorError> {
         validate_lease(worker, lease_ms)?;
-        self.store.claim_atomic(worker, lease_ms, &self.clock)
+        if preferred.len()>1024 || preferred.iter().any(|id|id.is_empty()||id.len()>128) {
+            return Err(EditorError::new("INVALID_ARGUMENT","Invalid preview scheduling preference"));
+        }
+        self.store.claim_atomic(worker, lease_ms, &self.clock, preferred)
     }
     pub fn cancel(&mut self, job_id: &str) -> Result<JobRecord, EditorError> {
         self.store
@@ -294,14 +302,19 @@ pub fn transition(
                                 | "render.project_text_frame.v4"
                                 | "render.project_caption_frame.v4"
                                 | "render.project_graphic_frame.v4"
+                                | "render.project_scene_frame.v4"
                                 | "render.project_mask_frame.v4"
                                 | "render.project_blend_frame.v4"
                                 | "render.project_video.v4"
                                 | "render.project_caption_video.v4"
                                 | "render.project_graphic_video.v4"
+                                | "render.project_scene_video.v4"
+                                | "render.export_video.v2"
+                                | "render.export_video_range.v1"
                                 | "render.project_mask_video.v4"
                                 | "render.project_blend_video.v4"
                                 | "analysis.sequence_transcribe.v4"
+                                | "analysis.asset.v4"
                         ) || current.kind == "media.import"
                             && matches!(update, WorkerUpdate::Complete(_))) =>
                 {
@@ -415,13 +428,18 @@ mod tests {
         for kind in [
             "render.project_caption_frame.v4",
             "render.project_graphic_frame.v4",
+            "render.project_scene_frame.v4",
             "render.project_mask_frame.v4",
             "render.project_blend_frame.v4",
             "render.project_caption_video.v4",
             "render.project_graphic_video.v4",
+            "render.project_scene_video.v4",
+            "render.export_video.v2",
+            "render.export_video_range.v1",
             "render.project_mask_video.v4",
             "render.project_blend_video.v4",
             "analysis.sequence_transcribe.v4",
+            "analysis.asset.v4",
         ] {
             let queued = JobRecord {
                 job_id: "job_subtitle".into(),

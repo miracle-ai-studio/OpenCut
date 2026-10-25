@@ -4,6 +4,7 @@ import { validateBegin, validateTextBegin } from "../host/protocol.mjs";
 import { browserHooks } from "../host/browser.mjs";
 import { executeVisualPage, executeTextVisualPage } from "../host/page.mjs";
 import { fontResource } from "../src/text-frame.mjs";
+import { encodeRgbaHex } from "../src/validation.mjs";
 
 const code = expected => error => error.code === expected;
 function begin() {
@@ -13,7 +14,7 @@ function begin() {
   const text = { content: "Title", fontSizePx: 2, lineHeightPx: 2.4, letterSpacingPx: 0, align: "center", decoration: "none", color: [1, 1, 1, 1],
     transform: { centerX: 4, centerY: 2, scaleX: 1, scaleY: 1, rotationRadians: 0 },
     background: { enabled: false, color: [0, 0, 0, 0], paddingXPx: 0, paddingYPx: 0, offsetXPx: 0, offsetYPx: 0, cornerRadiusPercent: 0 } };
-  return { protocolVersion: 1, type: "beginTextFrameV2", executionId: "text-frame",
+  return { type: "beginTextFrame", executionId: "text-frame",
     plan: { identity, media: { identity: { ...structuredClone(identity), profile: "classic-v31-gpu-normal-frame" }, resources: [image], layers: [{ elementId: "back", resource: image, decode: { kind: "image" } }] },
       texts: [{ elementId: "title", text, font, opacity: .5 }], order: ["back", "title"] },
     resources: [{ assetId: "image", handle: "private-media" }], fonts: [{ fontId: "font", handle: "private-font" }],
@@ -37,7 +38,7 @@ test("text frames select a new operation with the unchanged transport and preser
   assert.throws(() => validateBegin(packet), code("INVALID_HOST_PROTOCOL"));
   assert.throws(() => validateBegin({ ...packet, type: "begin" }), code("INVALID_HOST_PROTOCOL"));
   assert.throws(() => validateTextBegin(old), code("INVALID_HOST_PROTOCOL"));
-  assert.throws(() => validateTextBegin({ ...packet, protocolVersion: 2 }), code("INVALID_HOST_PROTOCOL"));
+  assert.throws(() => validateTextBegin({ ...packet, executionId: "" }), code("INVALID_HOST_PROTOCOL"));
 });
 
 test("V2 begin requires complete private font handles and validates the media partition with V1 rules", () => {
@@ -94,7 +95,7 @@ test("serialized page adapters select the exact renderer export and always destr
     await host.rgba(4, Uint8Array.of(0, 15, 128, 255));
     return { version };
   };
-  globalThis.__opencutVisualModule = { renderClassicFrame: render(1), renderClassicTextFrameV2: render(2), closeGpuRealm: realm => realm.device.destroy() };
+  globalThis.__opencutVisualModule = { encodeRgbaHex, renderClassicFrame: render(1), renderClassicTextFrame: render(2), closeGpuRealm: realm => realm.device.destroy() };
   globalThis.__opencutVisualGpu = { device: { destroy: () => destroyed++ } };
   globalThis.__opencutVisualRgba = async packet => packets.push(packet);
   try {
@@ -105,7 +106,7 @@ test("serialized page adapters select the exact renderer export and always destr
     assert.equal(calls[1].plan, p.plan);
     assert.equal(destroyed, 2);
     assert.deepEqual(packets, Array(2).fill({ offsetBytes: "4", bytesHex: "000f80ff" }));
-    globalThis.__opencutVisualModule.renderClassicTextFrameV2 = async () => { throw Object.assign(new Error("font rejected"), { code: "INVALID_FONT_RESOURCE" }); };
+    globalThis.__opencutVisualModule.renderClassicTextFrame = async () => { throw Object.assign(new Error("font rejected"), { code: "INVALID_FONT_RESOURCE" }); };
     assert.deepEqual(await executeTextVisualPage({ plan: p.plan, admission: p.admission }), { ok: false, error: { code: "INVALID_FONT_RESOURCE" } });
     assert.equal(destroyed, 3);
   } finally {

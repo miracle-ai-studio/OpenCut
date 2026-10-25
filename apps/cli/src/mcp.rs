@@ -233,7 +233,7 @@ impl ServerHandler for EditorMcp {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().enable_resources_subscribe().enable_prompts().build())
             .with_server_info(Implementation::new("opencut", env!("CARGO_PKG_VERSION")))
-            .with_instructions("Use the nine domain tools. Read opencut://schemas/domains for the action catalog and opencut://schemas/domains/{domain} for exact action schemas. Inspect capabilities and the project revision before editing. Plan edits before applying them. Reuse the same idempotency key for a retried write. Existing leaf tool names remain callable for compatibility.")
+            .with_instructions("Read opencut://schemas/domains for common actions and opencut://schemas/domains/{domain} for all actions and exact schemas in that domain. Domain tools and named operations use the same application contract and authorization. Inspect capabilities and the fixed project revision before editing. Plan edits before applying them. Retry writes with the original idempotency key and unchanged payload. Read task results and published artifacts before reporting output success.")
     }
 
     async fn list_tools(

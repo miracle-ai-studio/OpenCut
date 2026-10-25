@@ -1,8 +1,8 @@
 //! Selective three-way inversion over stable project entity IDs and properties.
 use opencut_contracts::{
     ProjectDocument,
-    project_v3::{ProjectDocumentV3, SequenceVisualV3},
-    project_v4::ProjectDocumentV4,
+    historical_visual::{HistoricalVisualDocument, HistoricalVisualSequenceVisual},
+    scene::EditorDocument,
 };
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -31,26 +31,26 @@ pub struct Merge {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MergeV3 {
-    pub project: Option<ProjectDocumentV3>,
+pub struct HistoricalVisualMerge {
+    pub project: Option<HistoricalVisualDocument>,
     pub changes: Vec<Change>,
     pub conflicts: Vec<Conflict>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MergeV4 {
-    pub project: Option<ProjectDocumentV4>,
+pub struct SceneMerge {
+    pub project: Option<EditorDocument>,
     pub changes: Vec<Change>,
     pub conflicts: Vec<Conflict>,
 }
 
 /// Same stable-identity merge engine, using the complete V4 aggregate and its
 /// own collection identities. No legacy projection participates in inversion.
-pub fn selective_merge_v4(
-    from: &ProjectDocumentV4,
-    to: &ProjectDocumentV4,
-    head: &ProjectDocumentV4,
-) -> MergeV4 {
+pub fn selective_merge_scene(
+    from: &EditorDocument,
+    to: &EditorDocument,
+    head: &EditorDocument,
+) -> SceneMerge {
     let (result, changes, mut conflicts) = merge_values(
         serde_json::to_value(from).expect("schema 4 project serializes"),
         serde_json::to_value(to).expect("schema 4 project serializes"),
@@ -65,7 +65,7 @@ pub fn selective_merge_v4(
             actual: None,
         });
     }
-    MergeV4 {
+    SceneMerge {
         project,
         changes,
         conflicts,
@@ -93,18 +93,20 @@ pub fn selective_merge(
     }
 }
 
-pub fn selective_merge_v3(
-    from: &ProjectDocumentV3,
-    to: &ProjectDocumentV3,
-    head: &ProjectDocumentV3,
-) -> MergeV3 {
+pub fn selective_merge_historical_visual(
+    from: &HistoricalVisualDocument,
+    to: &HistoricalVisualDocument,
+    head: &HistoricalVisualDocument,
+) -> HistoricalVisualMerge {
     let (result, changes, conflicts) = merge_values(
-        serde_json::to_value(normalize_v3(from)).expect("schema 3 project serializes"),
-        serde_json::to_value(normalize_v3(to)).expect("schema 3 project serializes"),
-        serde_json::to_value(normalize_v3(head)).expect("schema 3 project serializes"),
+        serde_json::to_value(normalize_historical_visual(from))
+            .expect("schema 3 project serializes"),
+        serde_json::to_value(normalize_historical_visual(to)).expect("schema 3 project serializes"),
+        serde_json::to_value(normalize_historical_visual(head))
+            .expect("schema 3 project serializes"),
         MergeProfile::Legacy,
     );
-    let mut project: Option<ProjectDocumentV3> =
+    let mut project: Option<HistoricalVisualDocument> =
         result.and_then(|value| serde_json::from_value(value).ok());
     if let Some(project) = &mut project {
         // Empty sequence entries are synthesized only for property-level merging.
@@ -117,7 +119,7 @@ pub fn selective_merge_v3(
             {
                 return true;
             }
-            let present = |document: &ProjectDocumentV3| {
+            let present = |document: &HistoricalVisualDocument| {
                 document
                     .visual
                     .iter()
@@ -133,14 +135,14 @@ pub fn selective_merge_v3(
             }
         });
     }
-    MergeV3 {
+    HistoricalVisualMerge {
         project,
         changes,
         conflicts,
     }
 }
 
-fn normalize_v3(document: &ProjectDocumentV3) -> ProjectDocumentV3 {
+fn normalize_historical_visual(document: &HistoricalVisualDocument) -> HistoricalVisualDocument {
     let mut result = document.clone();
     for sequence in &document.base.sequences {
         if !result
@@ -148,7 +150,7 @@ fn normalize_v3(document: &ProjectDocumentV3) -> ProjectDocumentV3 {
             .iter()
             .any(|visual| visual.sequence_id == sequence.id)
         {
-            result.visual.push(SequenceVisualV3 {
+            result.visual.push(HistoricalVisualSequenceVisual {
                 sequence_id: sequence.id.clone(),
                 shapes: Vec::new(),
                 effects: Vec::new(),

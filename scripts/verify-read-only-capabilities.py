@@ -39,9 +39,10 @@ def verify(binary):
     assert not any(p.is_dir() for p in root.iterdir())
     assert call("opencut_plugin_list", {}) == []
     plugin = {"id": "org.example.missing", "version": "1.0.0"}
-    call("opencut_plugin_inspect", plugin, "NOT_FOUND")
-    call("opencut_plugin_plan", {**plugin, "operation_name": "org.example.missing.plan",
-         "project_id": "readonly", "revision": project["revision"], "parameters": {}}, "NOT_FOUND")
+    call("opencut_plugin_inspect", {**plugin,"kind":"wasm"}, "NOT_FOUND")
+    call("opencut_project_plugin_plan", {"plugin": {**plugin, "operation_name": "org.example.missing.plan",
+         "project_id": "readonly", "revision": project["revision"], "parameters": {}},
+         "idempotency_key":"readonly-missing-plan","label":"Missing ungranted plugin"}, "NOT_AUTHORIZED")
     media = call("opencut_media_inspect", {"content_hash": "0" * 64})
     assert media == {"content_hash": "0" * 64, "metadata_hash": None, "asset": None}, media
     call("opencut_media_inspect", {"content_hash": "../escape"}, "INVALID_ARGUMENT")

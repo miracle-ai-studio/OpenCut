@@ -28,8 +28,8 @@ if (path.basename(process.argv[1]??"")==="preview-runner.mjs") {
   const request=CallbackBroker.prototype.request;
   CallbackBroker.prototype.request=async function(op,args){
     const row=timing.row(current),t=performance.now();
-    try{const value=await request.call(this,op,args);if(row&&op==="compilePreviewBlockPackedV2")row.compiled_bytes=typeof value==="string"?Buffer.byteLength(value):0;return value;}
-    finally{if(row&&op==="compilePreviewBlockPackedV2")row.broker_ms+=performance.now()-t;}
+    try{const value=await request.call(this,op,args);if(row&&op==="compilePreviewBlockPacked")row.compiled_bytes=typeof value==="string"?Buffer.byteLength(value):0;return value;}
+    finally{if(row&&op==="compilePreviewBlockPacked")row.broker_ms+=performance.now()-t;}
   };
   const start=BrowserRealm.prototype.start;
   BrowserRealm.prototype.start=async function(){

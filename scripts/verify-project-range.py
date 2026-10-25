@@ -129,7 +129,7 @@ def _verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "service exited while waiting"
                     assert time.monotonic() < deadline, job
                     time.sleep(.05)
-                    job = call(f'/v1/jobs/{job["job_id"]}')
+                    job = call(f'/api/jobs/{job["job_id"]}')
                 assert job["state"] == "succeeded", job
                 return job
 
@@ -139,7 +139,7 @@ def _verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "service exited during startup"
                     try:
                         token = token_file.read_text().strip()
-                        capabilities = call("/v1/capabilities")
+                        capabilities = call("/api/capabilities")
                         break
                     except (FileNotFoundError, urllib.error.URLError):
                         assert time.monotonic() < deadline, "startup timeout"
@@ -152,15 +152,15 @@ def _verify(binary, artifacts_dir=None):
                 assert "requested_range" in range_schema and "actual_sequence_range" in range_schema
                 assert "encoded_project_range" in range_schema
 
-                uploaded_video = call("/v1/media/upload?name=red.mp4", video.read_bytes())
-                uploaded_audio = call("/v1/media/upload?name=tone.m4a", audio.read_bytes())
-                created = call("/v1/projects", {
+                uploaded_video = call("/api/media/upload?name=red.mp4", video.read_bytes())
+                uploaded_audio = call("/api/media/upload?name=tone.m4a", audio.read_bytes())
+                created = call("/api/projects", {
                     "project": {"id": "range", "name": "Range preview", "sequence_id": "main",
                                 "width": 160, "height": 90,
                                 "fps": {"numerator": 10, "denominator": 1}},
                     "idempotency_key": "create-range",
                 })
-                transaction = call("/v1/projects/range/branches/main/transactions", {
+                transaction = call("/api/projects/range/branches/main/transactions", {
                     "expected_revision": created["revision"], "idempotency_key": "edit-range",
                     "label": "Four second audiovisual fixture", "operations": [
                         {"type": "asset.bind", "asset": uploaded_video["asset"]},
@@ -185,7 +185,7 @@ def _verify(binary, artifacts_dir=None):
                 })
                 # Transaction results are commit metadata. Read the immutable
                 # snapshot explicitly before building the fixed-revision job.
-                fixed = call("/v1/projects/range/branches/main/snapshot")
+                fixed = call("/api/projects/range/branches/main/snapshot")
                 assert fixed["revision"] == transaction["revision"]
                 revision = fixed["revision"]
                 body = {"kind": "preview.project_range", "idempotency_key": "range-1", "input": {
@@ -193,9 +193,9 @@ def _verify(binary, artifacts_dir=None):
                     "requested_range": {"start": at(10), "duration": at(20)},
                     "alignment": "exact",
                 }}
-                queued = call("/v1/jobs", body)
-                assert call("/v1/jobs", body)["job_id"] == queued["job_id"]
-                later = call("/v1/projects/range/branches/main/transactions", {
+                queued = call("/api/jobs", body)
+                assert call("/api/jobs", body)["job_id"] == queued["job_id"]
+                later = call("/api/projects/range/branches/main/transactions", {
                     "expected_revision": revision, "idempotency_key": "later-edit",
                     "label": "Remove clips after queue", "operations": [
                         {"type": "clip.delete", "sequence_id": "main", "track_id": "video", "clip_id": "red"},
@@ -215,7 +215,7 @@ def _verify(binary, artifacts_dir=None):
                 assert {item["asset_id"] for item in completed["input"]["asset_lock"]["assets"]} == {
                     uploaded_video["asset"]["id"], uploaded_audio["asset"]["id"]}
 
-                payload = request(f'/v1/jobs/{completed["job_id"]}/artifact', raw=True)
+                payload = request(f'/api/jobs/{completed["job_id"]}/artifact', raw=True)
                 artifact = result["artifact"]
                 assert artifact["mime_type"] == "video/mp4"
                 assert len(payload) == artifact["size"]
@@ -282,21 +282,21 @@ def _verify(binary, artifacts_dir=None):
                 Path(audio_asset["uri"].removeprefix("file://")).unlink()
                 audio_hash = audio_asset["version"]["content_hash"]
                 (root / "asset-store" / audio_hash[:2] / audio_hash).unlink()
-                assert call("/v1/jobs", body)["job_id"] == completed["job_id"]
+                assert call("/api/jobs", body)["job_id"] == completed["job_id"]
                 missing_audio = json.loads(json.dumps(body))
                 missing_audio["idempotency_key"] = "range-missing-audio"
-                rejected = request("/v1/jobs", missing_audio)
+                rejected = request("/api/jobs", missing_audio)
                 assert rejected["error"]["code"] == "ASSET_INTEGRITY_ERROR", rejected
 
-                cancel_video = call("/v1/media/upload?name=long-blue.mp4", long_video.read_bytes())
-                cancel_audio = call("/v1/media/upload?name=long-tone.m4a", long_audio.read_bytes())
-                cancel_project = call("/v1/projects", {
+                cancel_video = call("/api/media/upload?name=long-blue.mp4", long_video.read_bytes())
+                cancel_audio = call("/api/media/upload?name=long-tone.m4a", long_audio.read_bytes())
+                cancel_project = call("/api/projects", {
                     "project": {"id": "cancel-range", "name": "Range cancellation",
                                 "sequence_id": "main", "width": 1280, "height": 720,
                                 "fps": {"numerator": 30, "denominator": 1}},
                     "idempotency_key": "create-cancel-range",
                 })
-                cancel_edit = call("/v1/projects/cancel-range/branches/main/transactions", {
+                cancel_edit = call("/api/projects/cancel-range/branches/main/transactions", {
                     "expected_revision": cancel_project["revision"],
                     "idempotency_key": "edit-cancel-range", "label": "Long audiovisual range",
                     "operations": [
@@ -320,7 +320,7 @@ def _verify(binary, artifacts_dir=None):
                                   "params": {}, "channels": []}},
                     ],
                 })
-                active = call("/v1/jobs", {
+                active = call("/api/jobs", {
                     "kind": "preview.project_range", "idempotency_key": "cancel-active-range",
                     "input": {"project_id": "cancel-range", "revision": cancel_edit["revision"],
                               "sequence_id": "main",
@@ -332,7 +332,7 @@ def _verify(binary, artifacts_dir=None):
                 observed_ffmpeg = set()
                 deadline = time.monotonic() + 45
                 while time.monotonic() < deadline:
-                    active = call(f'/v1/jobs/{active["job_id"]}')
+                    active = call(f'/api/jobs/{active["job_id"]}')
                     current_ffmpeg = range_ffmpeg_pids(process.pid, active_root)
                     stable_ffmpeg = previous_ffmpeg & current_ffmpeg
                     previous_ffmpeg = current_ffmpeg
@@ -342,14 +342,14 @@ def _verify(binary, artifacts_dir=None):
                     assert active["state"] in ("queued", "running"), active
                     time.sleep(.05)
                 assert observed_ffmpeg, {"failure": "no stable range FFmpeg child", "job": active}
-                cancelled = call(f'/v1/jobs/{active["job_id"]}/cancel', {})
+                cancelled = call(f'/api/jobs/{active["job_id"]}/cancel', {})
                 deadline = time.monotonic() + 30
                 while cancelled["state"] not in ("cancelled", "failed", "succeeded"):
                     assert time.monotonic() < deadline, cancelled
                     time.sleep(.05)
-                    cancelled = call(f'/v1/jobs/{active["job_id"]}')
+                    cancelled = call(f'/api/jobs/{active["job_id"]}')
                 assert cancelled["state"] == "cancelled" and cancelled["result"] is None, cancelled
-                assert request(f'/v1/jobs/{active["job_id"]}/artifact')["error"] is not None
+                assert request(f'/api/jobs/{active["job_id"]}/artifact')["error"] is not None
                 assert not list(active_root.rglob("*.mp4")), active_root
                 assert not list(active_root.glob("attempt-*/inputs")), active_root
 

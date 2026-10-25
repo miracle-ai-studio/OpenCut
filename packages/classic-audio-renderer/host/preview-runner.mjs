@@ -19,6 +19,9 @@ export function validatePreviewBegin(packet) {
 export function validatePreviewNext(packet) {
   if (typeof packet.id !== "string" || !/^[1-9][0-9]{0,19}$/.test(packet.id) || packet.op !== "next") reject("INVALID_HOST_PROTOCOL", "Invalid preview command identity");
   natural(packet.generation, "preview generation"); natural(packet.overlayEpoch, "preview overlay epoch"); natural(packet.startSample, "preview start"); integer(packet.frameCount, "preview block", 1, 4096);
+  if (packet.sourceWindows !== undefined && (!Array.isArray(packet.sourceWindows) || packet.sourceWindows.length > 32 || packet.sourceWindows.some(w =>
+    !w || Object.keys(w).length !== 3 || typeof w.assetId !== "string" || !w.assetId || !Number.isFinite(w.startSeconds) || !Number.isFinite(w.endSeconds) || w.startSeconds < 0 || w.endSeconds <= w.startSeconds)))
+    reject("INVALID_HOST_PROTOCOL", "Invalid captured source windows");
   return structuredClone(packet);
 }
 
@@ -43,7 +46,8 @@ export async function runPreviewHost(input = process.stdin, output = process.std
   reader.on("packet", packet => {
     try {
       if (!begin) {
-        begin = validatePreviewBegin(packet); writer = new PacketWriter(output, begin.executionId); broker = new CallbackBroker(writer);
+        begin = validatePreviewBegin(packet);
+        writer = new PacketWriter(output, begin.executionId); broker = new CallbackBroker(writer);
         initialization = (async () => {
           monitor = new QuotaMonitor(begin.admission, error => void end(error)); await monitor.start(); checkAbort(controller.signal);
           prepTimer = setTimeout(() => void end(new AudioExecutionError("AUDIO_TIME_LIMIT", "Preview preparation deadline expired")), begin.preparationDeadlineMs);

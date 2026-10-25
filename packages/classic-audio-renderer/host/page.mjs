@@ -2,7 +2,21 @@
 export async function executeAudioPage({ plan, engineIdentity, maximumEncodedBytes }) {
   try {
   const controller = new AbortController();
-  const request = (op, args) => globalThis.__opencutAudioCallback(op, args);
+  const request = async (op, args) => {
+    const value = await globalThis.__opencutAudioCallback(op, args);
+    if (op !== "compileBlock" && op !== "compileSourcePositions") return value;
+    try {
+      if (typeof value !== "string") throw new Error();
+      const facts = JSON.parse(value);
+      if (op === "compileBlock") {
+        const { unpackExportBlock } = await import("/renderer/src/preview-packet.mjs");
+        return unpackExportBlock(facts);
+      }
+      return facts;
+    } catch {
+      const error = new Error("Invalid compiled audio facts JSON"); error.code = "AUDIO_PROTOCOL_ERROR"; throw error;
+    }
+  };
   const host = {
     engineIdentity,
     async resolveVerifiedBytes(resource) {
@@ -20,7 +34,16 @@ export async function executeAudioPage({ plan, engineIdentity, maximumEncodedByt
         return bytes;
       } finally { await request("releaseVerifiedBytes", { transferId: transfer.transferId }); }
     },
+    async resolveRangeSource(resource, budget, signal) {
+      const { openVerifiedRangeSource } = await import("@opencut/classic-audio-renderer/verified-range-source");
+      return openVerifiedRangeSource(resource, {
+        open: resource => request("openVerifiedRange", { resource }),
+        read: (transferId, offset, count) => request("readVerifiedBytes", { transferId, offset: String(offset), count }),
+        release: transferId => request("releaseVerifiedBytes", { transferId }),
+      }, budget, plan.encodedSource.cacheBytes, signal);
+    },
     admitDecode: (resource, primary) => request("admitDecode", { resource, primary }),
+    releaseDecodedSource: resource => request("releaseDecodedSource", { resource }),
     compilePitchPreparation: args => request("compilePitchPreparation", args),
     compileSourcePositions: args => request("compileSourcePositions", args),
     compileBlock: args => request("compileBlock", args),
@@ -28,6 +51,10 @@ export async function executeAudioPage({ plan, engineIdentity, maximumEncodedByt
     createOfflineContext: (channels, frames, sampleRate) => new OfflineAudioContext(channels, frames, sampleRate),
     abortRendering: () => globalThis.__opencutTerminateAudioRealm(),
   };
+  {
+    host.admitContainerDecode = (resource, primary) => request("admitContainerDecode", { resource, primary });
+  }
+  host.admitPcmAudioDecode = (resource, primary) => request("admitPcmAudioDecode", { resource, primary });
   const { renderClassicExport } = await import("/renderer/src/index.mjs");
   const result = await renderClassicExport(plan, host, { maxPcmBytes: globalThis.__opencutAudioAdmission.maxPcmBytes, maxEncodedBytes: maximumEncodedBytes, signal: controller.signal });
   if (result.buffer.numberOfChannels !== 2) throw new Error("Compiled stereo format changed");

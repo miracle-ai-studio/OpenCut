@@ -1,6 +1,6 @@
 //! Media identity and metadata policy, independent of files and codecs.
 pub use opencut_api_contracts::media::{InspectMediaInput, RepairMediaInput};
-use opencut_contracts::project_v4::AudioMetadataV4;
+use opencut_contracts::scene::AudioMetadata;
 use opencut_contracts::{Asset, AssetKind, CatalogEntry, EditorError, Time};
 use opencut_media_contracts::{MediaMetadata, StreamKind};
 use serde_json::json;
@@ -194,7 +194,7 @@ pub fn describe<P>(
     };
     let mut fields = BTreeMap::new();
     fields.insert("content_hash".into(), json!(hash));
-    fields.insert("media_url".into(), json!(format!("/v1/media/{hash}")));
+    fields.insert("media_url".into(), json!(format!("/api/media/{hash}")));
     fields.insert("mime_type".into(), json!(mime));
     fields.insert("size".into(), json!(size));
     if let Some(video) = video {
@@ -218,7 +218,7 @@ pub fn describe<P>(
     {
         fields.insert(
             "audio_metadata".into(),
-            json!(AudioMetadataV4 {
+            json!(AudioMetadata {
                 sample_rate,
                 channels,
                 channel_layout: audio.channel_layout.clone(),
@@ -311,10 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn primary_probe_audio_format_survives_description_and_v4_conversion() {
-        use opencut_contracts::project_v4::AudioPresenceV4;
+    fn primary_probe_audio_format_survives_description_and_scene_conversion() {
+        use opencut_contracts::scene::AudioPresence;
         use opencut_contracts::{AssetVersion, FrameRate, ProjectDocument, Sequence};
-        use opencut_editor_core::project_v4::legacy::{
+        use opencut_editor_core::scene::legacy::{
             LegacyConversionInputs, LegacyConversionResult, LegacyProjectInput,
             convert_legacy_project,
         };
@@ -331,7 +331,7 @@ mod tests {
         probe.streams.extend([primary, secondary]);
         let hash = "a".repeat(64);
         let observed = describe(&probe, "private", "AAC video", &hash, 123).unwrap();
-        let expected = AudioMetadataV4 {
+        let expected = AudioMetadata {
             sample_rate: 48_000,
             channels: 1,
             channel_layout: Some("mono".into()),
@@ -368,10 +368,10 @@ mod tests {
         ) else {
             panic!("native probe metadata must convert without losing audio format");
         };
-        opencut_editor_core::project_v4::validate_project_v4(&project).unwrap();
+        opencut_editor_core::scene::validate_project_scene(&project).unwrap();
         assert_eq!(
             project.assets[0].metadata.audio,
-            AudioPresenceV4::Present {
+            AudioPresence::Present {
                 metadata: Some(expected)
             }
         );

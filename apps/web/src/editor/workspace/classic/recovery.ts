@@ -1,4 +1,4 @@
-import { OpenCutApiError, publicJobResult } from "../../../lib/editor-sdk";
+import { OpenCutApiError, jobResult } from "../../../lib/editor-sdk";
 import type {
   OpenCutClient,
   ToolInput,
@@ -9,8 +9,8 @@ import type { ClassicSnapshot } from "./decode";
 import { fileDigest, legacyId } from "./identity";
 import type { RecoveryMedia } from "./bundle";
 import { isRecord } from "./legacy/utils";
-type Analysis = ToolOutput<"opencut_classic_recovery_analyze_v1">;
-type BaseSnapshot = ToolOutput<"opencut_project_inspect">;
+type StageSnapshot = Extract<ToolOutput<"opencut_project_inspect">,{kind:"editor"}>["snapshot"];
+import { queryProjectMedia } from "../scene/api";
 export type RecoveryProgress = {
   phase: "checking" | "uploading" | "preparing" | "review" | "publishing";
   name?: string;
@@ -26,12 +26,7 @@ export type PreparedRecovery = {
   stageId: string;
   name: string;
 };
-export type RecoveryReview = {
-  prepared: PreparedRecovery;
-  analysis: Analysis;
-  source: ToolInput<"opencut_classic_recovery_analyze_v1">;
-  revision: string;
-};
+type RecoverySource=ToolInput<"opencut_classic_analyze">;
 export async function prepareRecovery(
   snapshot: ClassicSnapshot,
   media: RecoveryMedia[],
@@ -80,74 +75,43 @@ export async function prepareRecovery(
 }
 const assetId = (prepared: PreparedRecovery, id: string) =>
   legacyId("media", [prepared.targetId, id]);
-async function guardStage(
-  sdk: OpenCutClient,
-  stage: BaseSnapshot,
-  initial: BaseSnapshot,
-  prepared: PreparedRecovery,
-  signal?: AbortSignal,
-) {
-  if (
-    JSON.stringify({ ...stage.project, assets: [] }) !==
-    JSON.stringify({ ...initial.project, assets: [] })
-  )
-    throw new Error(
-      "The recovery preparation project was edited. Its changes are preserved; recovery cannot overwrite it.",
-    );
-  for (const asset of stage.project.assets) {
-    const item = prepared.media.find(
-      (m) => assetId(prepared, m.id) === asset.id,
-    );
-    if (
-      !item ||
-      item.file.name !== asset.name ||
-      item.sha256 !== asset.version?.content_hash
-    )
-      throw new Error(
-        "The recovery preparation library changed. Its content is preserved.",
-      );
-    const match = /^opencut-media:\/\/(media_[a-f0-9]{32})$/.exec(asset.uri);
-    if (!match)
-      throw new Error(
-        "The recovery preparation library changed. Its content is preserved.",
-      );
-    const original = await sdk.call(
-      "opencut_project_media_inspect",
-      {
-        project_id: prepared.stageId,
-        media_id: match[1],
-      },
-      { signal },
-    );
-    if (
-      JSON.stringify(asset) !==
-      JSON.stringify({ ...original.asset, id: asset.id, name: item.file.name })
-    )
-      throw new Error(
-        "The recovery preparation library changed. Its content is preserved.",
-      );
+async function stageSnapshot(sdk:OpenCutClient,projectId:string,revision:string|null=null,signal?:AbortSignal){
+  return sdk.inspectEditorProject({project_id:projectId,revision},{signal});
+}
+async function guardStage(sdk:OpenCutClient,stage:StageSnapshot,initial:StageSnapshot,prepared:PreparedRecovery,signal?:AbortSignal){
+  if(JSON.stringify({...stage.project,assets:[]})!==JSON.stringify({...initial.project,assets:[]}))
+    throw new Error("The recovery preparation project was edited. Its changes are preserved; recovery cannot overwrite it.");
+  if(!stage.project.assets.length)return;
+  const available=await queryProjectMedia(sdk,prepared.stageId,signal);
+  const operations:ToolInput<"opencut_edit_plan">["operations"]=[];
+  for(const asset of stage.project.assets){
+    const item=prepared.media.find(m=>assetId(prepared,m.id)===asset.id);
+    const original=available.find(m=>m.asset.version?.content_hash===asset.version.content_hash
+      && m.asset.version.id===asset.version.id && m.asset.version.size===asset.version.size
+      && m.asset.name===item?.file.name);
+    if(!item || item.file.name!==asset.name || item.sha256!==asset.version.content_hash || !original)
+      throw new Error("The recovery preparation library changed. Its content is preserved.");
+    operations.push({type:"asset_bind",id:asset.id,name:asset.name,
+      source:{kind:"project_media",media_id:original.media_id,version:asset.version}});
+  }
+  // Reuse Rust's original authorized resource conversion,including packet FPS
+  // and provenance. The browser never constructs or guesses typed metadata.
+  for(let offset=0;offset<operations.length;offset+=128){
+    const expected=await sdk.call("opencut_edit_plan",{
+      project_id:prepared.stageId,expected_revision:stage.revision,
+      idempotency_key:legacyId("check-preparation",[stage.revision,offset]),
+      label:"Check prepared library",operations:operations.slice(offset,offset+128),
+    },{signal});
+    if(JSON.stringify(expected)!==JSON.stringify(stage.project))
+      throw new Error("The recovery preparation library changed. Its content is preserved.");
   }
 }
-async function stageInitial(
-  sdk: OpenCutClient,
-  prepared: PreparedRecovery,
-  signal?: AbortSignal,
-) {
-  return sdk.callWithAdmissionRetry(
-    "opencut_project_create",
-    {
-      project: {
-        id: prepared.stageId,
-        name: `Preparing Classic: ${prepared.name}`,
-        sequence_id: "main",
-        width: 320,
-        height: 180,
-        fps: { numerator: 24, denominator: 1 },
-      },
-      idempotency_key: `prepare-${prepared.targetId}`,
-    },
-    { signal },
-  );
+async function stageInitial(sdk:OpenCutClient,prepared:PreparedRecovery,signal?:AbortSignal){
+  const receipt=await sdk.callWithAdmissionRetry("opencut_project_create",{
+    project:{id:prepared.stageId,name:`Preparing Classic: ${prepared.name}`,sequence_id:"main",width:320,height:180,
+      fps:{numerator:24,denominator:1}},idempotency_key:`prepare-${prepared.targetId}`,
+  },{signal});
+  return stageSnapshot(sdk,prepared.stageId,receipt.revision,signal);
 }
 // Durable native sessions are the journal. Pausing cancels observation/transfers,
 // not accepted imports or the old source; the same key resolves confirmed offset.
@@ -161,9 +125,9 @@ async function upload(
   const capabilities = await sdk.hostCapabilities({ signal });
   if (
     !capabilities.uploads ||
-    BigInt(item.file.size) > BigInt(capabilities.uploads.max_upload_bytes)
+    BigInt(item.file.size) > BigInt(capabilities.uploads.max_source_bytes)
   )
-    throw new Error("Classic media exceeds this service's upload limit");
+    throw new Error("Classic media size is outside exact source addressability");
   const chunkSize = Math.min(
     Number(capabilities.uploads.max_chunk_bytes),
     4 * 1024 * 1024,
@@ -172,7 +136,7 @@ async function upload(
     throw new Error("Invalid upload chunk limit");
   for (let generation = 0; generation < 256; generation++) {
     let session = await sdk.callWithAdmissionRetry(
-      "opencut_upload_stream_begin",
+      "opencut_upload_begin",
       {
         project_id: prepared.stageId,
         idempotency_key: `${assetId(prepared, item.id)}-${generation}`,
@@ -183,7 +147,7 @@ async function upload(
     );
     // Read authoritative state even if a begin response was a stored projection.
     session = await sdk.call(
-      "opencut_upload_stream_inspect",
+      "opencut_upload_inspect",
       { upload_id: session.upload_id },
       { signal },
     );
@@ -216,7 +180,7 @@ async function upload(
           await item.file.slice(offset, offset + chunkSize).arrayBuffer(),
         );
         signal.throwIfAborted();
-        const reply = await sdk.uploadStreamChunk(
+        const reply = await sdk.uploadChunk(
           session.upload_id,
           String(offset),
           bytes,
@@ -234,19 +198,19 @@ async function upload(
         });
       }
       session = await sdk.callWithAdmissionRetry(
-        "opencut_upload_stream_complete",
+        "opencut_upload_complete",
         { upload_id: session.upload_id, content_hash: item.sha256 },
         { signal },
       );
     }
     if (!session.job_id) throw new Error("Recovery import has no accepted job");
     progress({ phase: "preparing", name: item.file.name });
-    const job = await sdk.waitForPublicJob(session.job_id, {
+    const job = await sdk.waitForJob(session.job_id, {
       signal,
       timeoutMs: 300000,
       pollIntervalMs: 300,
     });
-    const result = publicJobResult(job, "media.import");
+    const result = jobResult(job, "media.import");
     const media = await sdk.call(
       "opencut_project_media_inspect",
       { project_id: prepared.stageId, media_id: result.media_id },
@@ -266,55 +230,12 @@ async function upload(
     } catch {
       /* native discoverable retention remains */
     }
-    return {
-      ...media.asset,
-      id: assetId(prepared, item.id),
-      name: item.file.name,
-    };
+    return {id:assetId(prepared,item.id),name:item.file.name,
+      media_id:media.media_id,version:media.asset.version};
   }
   throw new Error(
     "Too many failed recovery attempts; original source and native upload records remain available",
   );
-}
-async function ensureCurrentFormat(
-  sdk: OpenCutClient,
-  prepared: PreparedRecovery,
-  signal?: AbortSignal,
-) {
-  let cursor: string | null = null;
-  do {
-    const page: ToolOutput<"opencut_project_library"> = await sdk.call(
-      "opencut_project_library",
-      { cursor, limit: 100 },
-      { signal },
-    );
-    const item = page.items.find(
-      (item) => item.project_id === prepared.targetId,
-    );
-    if (item) {
-      if (item.format === "visual") return;
-      const current = await sdk.call(
-        "opencut_project_inspect",
-        { project_id: prepared.targetId },
-        { signal },
-      );
-      await sdk.callWithAdmissionRetry(
-        "opencut_project_v3_promote",
-        {
-          project_id: prepared.targetId,
-          expected_revision: current.revision,
-          idempotency_key: legacyId("promote", [
-            prepared.targetId,
-            current.revision,
-          ]),
-        },
-        { beforeAttempt: () => signal?.throwIfAborted() },
-      );
-      return;
-    }
-    cursor = page.next_cursor ?? null;
-  } while (cursor);
-  throw new Error("Recovered project is no longer available");
 }
 export async function findRecovered(
   sdk: OpenCutClient,
@@ -347,11 +268,14 @@ export async function findRecovered(
   );
   if (!change || change.event.type !== "project") return null;
   const event = change.event.data;
-  const initial = await sdk.call(
-    "opencut_revision_inspect",
+  const inspected = await sdk.call(
+    "opencut_project_inspect",
     { project_id: prepared.targetId, revision: event.revision },
     { signal },
   );
+  if(inspected.kind!=="historical")
+    throw new Error("The historical recovery receipt refers to different project content.");
+  const initial=inspected.snapshot;
   const mappings = prepared.media.map((item) => {
     const asset = initial.project.assets.find(
       (asset) =>
@@ -370,7 +294,7 @@ export async function findRecovered(
     };
   });
   const report = await sdk.call(
-    "opencut_classic_recovery_analyze_v1",
+    "opencut_classic_analyze",
     {
       content: prepared.decoded.content,
       target_project_id: prepared.targetId,
@@ -381,12 +305,15 @@ export async function findRecovered(
   if (
     !isRecord(event.payload) ||
     event.payload.source_content_id !== report.source_content_id ||
-    JSON.stringify(report.proposed_project) !== JSON.stringify(initial.project)
+    initial.project.assets.length!==prepared.media.length
   )
     throw new Error(
       "The existing recovery receipt differs from this source; no project will be overwritten",
     );
-  await ensureCurrentFormat(sdk, prepared, signal);
+  // This only discovers and opens the immutable historical publication. The
+  // current parser's editable projection is not the original stored format.
+  // Its durable event/source identity and every original media hash must match;
+  // no publication, overwrite or claim of current-format parity happens here.
   return prepared.targetId;
 }
 export async function stageRecoveryMedia(
@@ -394,13 +321,9 @@ export async function stageRecoveryMedia(
   prepared: PreparedRecovery,
   signal: AbortSignal,
   progress: (p: RecoveryProgress) => void,
-): Promise<{ source: RecoveryReview["source"]; revision: string }> {
+): Promise<{ source: RecoverySource; revision: string }> {
   const initial = await stageInitial(sdk, prepared, signal);
-  let stage = await sdk.call(
-    "opencut_project_inspect",
-    { project_id: prepared.stageId },
-    { signal },
-  );
+  let stage = await stageSnapshot(sdk,prepared.stageId,null,signal);
   await guardStage(sdk, stage, initial, prepared, signal);
   for (const [index, item] of prepared.media.entries()) {
     signal.throwIfAborted();
@@ -416,11 +339,7 @@ export async function stageRecoveryMedia(
     const asset = await upload(sdk, prepared, item, signal, (p) =>
       progress({ ...p, index, count: prepared.media.length }),
     );
-    stage = await sdk.call(
-      "opencut_project_inspect",
-      { project_id: prepared.stageId },
-      { signal },
-    );
+    stage = await stageSnapshot(sdk,prepared.stageId,null,signal);
     await guardStage(sdk, stage, initial, prepared, signal);
     if (!stage.project.assets.some((a) => a.id === asset.id)) {
       signal.throwIfAborted();
@@ -428,28 +347,24 @@ export async function stageRecoveryMedia(
         "opencut_edit_apply",
         {
           project_id: prepared.stageId,
-          request: {
-            expected_revision: stage.revision,
-            idempotency_key: `bind-${asset.id}`,
-            label: "Recover Classic library file",
-            operations: [{ type: "asset.bind", asset }],
-          },
+          expected_revision: stage.revision,
+          idempotency_key: `bind-${asset.id}`,
+          label: "Recover Classic library file",
+          operations: [{type:"asset_bind",id:asset.id,name:asset.name,
+            source:{kind:"project_media",media_id:asset.media_id,version:asset.version}}],
         },
         { signal, beforeAttempt: () => signal.throwIfAborted() },
       );
-      stage = await sdk.call(
-        "opencut_project_inspect",
-        { project_id: prepared.stageId },
-        { signal },
-      );
+      stage = await stageSnapshot(sdk,prepared.stageId,null,signal);
       await guardStage(sdk, stage, initial, prepared, signal);
     }
   }
   signal.throwIfAborted();
   progress({ phase: "review" });
-  const source: RecoveryReview["source"] = {
+  const source: RecoverySource = {
     content: prepared.decoded.content,
     target_project_id: prepared.targetId,
+    font_mappings: [],
     media_mappings: prepared.media.map((item) => ({
       classic_media_id: item.id,
       source_project_id: prepared.stageId,
@@ -459,62 +374,14 @@ export async function stageRecoveryMedia(
   };
   return { source, revision: stage.revision };
 }
-export async function reviewRecovery(
-  sdk: OpenCutClient,
-  prepared: PreparedRecovery,
-  signal: AbortSignal,
-  progress: (p: RecoveryProgress) => void,
-): Promise<RecoveryReview> {
-  const { source, revision } = await stageRecoveryMedia(
-    sdk,
-    prepared,
-    signal,
-    progress,
-  );
-  const analysis = await sdk.call(
-    "opencut_classic_recovery_analyze_v1",
-    source,
-    { signal },
-  );
-  return { prepared, source, analysis, revision };
-}
-export async function publishRecovery(
-  sdk: OpenCutClient,
-  review: RecoveryReview,
-  signal: AbortSignal,
-) {
-  signal.throwIfAborted();
-  if (review.analysis.blockers.length || !review.analysis.proposed_project)
-    throw new Error(
-      "Classic source has unsupported content; original project is preserved",
-    );
-  // Once sent, observe the atomic acknowledgement even if the dialog closes.
-  // Reload recovers the native project event, never repeats an uncertain edit.
-  await sdk.callWithAdmissionRetry(
-    "opencut_classic_recovery_import_v1",
-    {
-      source: review.source,
-      expected_source_content_id: review.analysis.source_content_id,
-      accepted_loss_codes: [
-        ...new Set(review.analysis.losses.map((loss) => loss.code)),
-      ].sort(),
-      idempotency_key: `recover-${review.prepared.targetId}`,
-    },
-    { beforeAttempt: () => signal.throwIfAborted() },
-  );
-  await ensureCurrentFormat(sdk, review.prepared);
-  return review.prepared.targetId;
-}
 export async function cleanupRecovery(
   sdk: OpenCutClient,
   prepared: PreparedRecovery,
 ): Promise<string | null> {
   try {
-    let stage: BaseSnapshot;
+    let stage: StageSnapshot;
     try {
-      stage = await sdk.call("opencut_project_inspect", {
-        project_id: prepared.stageId,
-      });
+      stage = await stageSnapshot(sdk,prepared.stageId);
     } catch (error) {
       if (
         error instanceof OpenCutApiError &&

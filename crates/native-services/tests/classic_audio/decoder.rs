@@ -32,7 +32,7 @@ fn decoder_snapshot(
     path: &Path,
     kind: AssetKind,
     channels: u32,
-) -> (PathBuf, ProjectSnapshotV4) {
+) -> (PathBuf, EditorSnapshot) {
     // Reuse the legal aggregate fixture; replace its media with the authored
     // packet/sample oracle. All temporary originals and CAS files die together.
     let (root, mut snapshot) = fixture(directory, false, false);
@@ -59,8 +59,8 @@ fn decoder_snapshot(
     } else {
         "video/x-matroska".into()
     });
-    asset.metadata.audio = AudioPresenceV4::Present {
-        metadata: Some(AudioMetadataV4 {
+    asset.metadata.audio = AudioPresence::Present {
+        metadata: Some(AudioMetadata {
             sample_rate: 48_000,
             channels,
             channel_layout: None,
@@ -71,33 +71,33 @@ fn decoder_snapshot(
         start: time(0, 1),
         duration: time(1, 2),
     };
-    voice.source_span = ElementSourceSpanV4::ClassicTrimmed {
+    voice.source_span = ElementSourceSpan::ClassicTrimmed {
         trim_start: time(0, 1),
         trim_end: time(0, 1),
         source_duration: None,
     };
-    let ElementContentV4::Audio { audio, retime, .. } = &mut voice.content else {
+    let ElementContent::Audio { audio, retime, .. } = &mut voice.content else {
         panic!("Audio fixture changed");
     };
-    audio.gain = GainV4::Decibels { value: 0.0 };
+    audio.gain = Gain::Decibels { value: 0.0 };
     retime.maintain_pitch = false;
     (root, snapshot)
 }
 
-fn execute(snapshot: &ProjectSnapshotV4, root: &Path) -> (Pcm, ClassicAudioExecutionReceipt) {
+fn execute(snapshot: &EditorSnapshot, root: &Path) -> (Pcm, ClassicAudioExecutionReceipt) {
     execute_selection(snapshot, root, None)
 }
 
 fn execute_selection(
-    snapshot: &ProjectSnapshotV4,
+    snapshot: &EditorSnapshot,
     root: &Path,
     range: Option<ClassicAudioRange>,
 ) -> (Pcm, ClassicAudioExecutionReceipt) {
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 48_000,
             channels: 2,
         },
@@ -128,7 +128,7 @@ fn execute_selection(
     (pcm, receipt)
 }
 
-fn pulse_snapshot(directory: &Path) -> (PathBuf, ProjectSnapshotV4) {
+fn pulse_snapshot(directory: &Path) -> (PathBuf, EditorSnapshot) {
     let path = directory.join("pulse.wav");
     let mut left = vec![0.0; 16384];
     let mut right = left.clone();
@@ -141,7 +141,7 @@ fn pulse_snapshot(directory: &Path) -> (PathBuf, ProjectSnapshotV4) {
     let (root, mut snapshot) = decoder_snapshot(directory, &path, AssetKind::Audio, 2);
     let voice = &mut snapshot.project.sequences[0].tracks[1].elements[0];
     voice.timeline_range.start = time(17, 48_000);
-    voice.source_span = ElementSourceSpanV4::ClassicTrimmed {
+    voice.source_span = ElementSourceSpan::ClassicTrimmed {
         trim_start: time(1024, 48_000),
         trim_end: time(0, 1),
         source_duration: None,
@@ -162,15 +162,15 @@ fn rust_browser_known_pulse_trim_placement_and_actual_eof() {
         if high {
             voice.timeline_range.duration = time(1, 48_000);
         }
-        voice.source_span = ElementSourceSpanV4::ClassicTrimmed {
+        voice.source_span = ElementSourceSpan::ClassicTrimmed {
             trim_start: time(if high { 8192 } else { 1024 }, 48_000),
             trim_end: time(0, 1),
             source_duration: None,
         };
-        let ElementContentV4::Audio { audio, .. } = &mut voice.content else {
+        let ElementContent::Audio { audio, .. } = &mut voice.content else {
             unreachable!()
         };
-        audio.gain = GainV4::Decibels { value: db };
+        audio.gain = Gain::Decibels { value: db };
         audio.muted = muted;
         let (pcm, receipt) = execute(&snapshot, &root);
         if high {
@@ -508,7 +508,7 @@ fn rust_browser_aac_priming_preserves_independent_pulse_centers_and_actual_padde
         let placement = if trim == 0 { 0 } else { 17 };
         let voice = &mut snapshot.project.sequences[0].tracks[1].elements[0];
         voice.timeline_range.start = time(placement, 48000);
-        voice.source_span = ElementSourceSpanV4::ClassicTrimmed {
+        voice.source_span = ElementSourceSpan::ClassicTrimmed {
             trim_start: time(trim, 48000),
             trim_end: time(0, 1),
             source_duration: None,
@@ -570,7 +570,7 @@ fn dense_pulse(sample: u64) -> f32 {
         _ => 0.0,
     }
 }
-fn dense_snapshot(directory: &Path, tracks: usize, clips: usize) -> (PathBuf, ProjectSnapshotV4) {
+fn dense_snapshot(directory: &Path, tracks: usize, clips: usize) -> (PathBuf, EditorSnapshot) {
     let path = directory.join("dense-pulse.wav");
     float_wav(&path, &[(0..192_000).map(dense_pulse).collect()]);
     let (root, mut snapshot) = decoder_snapshot(directory, &path, AssetKind::Audio, 1);
@@ -598,7 +598,7 @@ fn dense_snapshot(directory: &Path, tracks: usize, clips: usize) -> (PathBuf, Pr
                     time(4, 1)
                 },
             };
-            element.source_span = ElementSourceSpanV4::ClassicTrimmed {
+            element.source_span = ElementSourceSpan::ClassicTrimmed {
                 trim_start: time(0, 1),
                 trim_end: if clips == 1 {
                     time(192_000 - 8192, 48_000)
@@ -724,10 +724,10 @@ fn rust_browser_dense_ordinary_shared_cas_preview() {
     use opencut_native_services::classic_audio_preview::*;
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = dense_snapshot(directory.path(), 5, 20);
-    let prepared = prepare_preview_audio_v4(
+    let prepared = prepare_preview_audio_scene(
         &snapshot,
         "s",
-        PcmFormatV4 {
+        PcmFormat {
             sample_rate: 48_000,
             channels: 2,
         },
@@ -824,7 +824,7 @@ fn rust_browser_dense_ordinary_shared_cas_preview() {
             let began = std::time::Instant::now();
             // Host production performs the idle authorization/error poll before
             // every next command. Include that path in whole-block throughput.
-            producer.checkpoint(&mut resources).unwrap();
+            producer.checkpoint(&mut session, &mut resources).unwrap();
             let block = producer
                 .next(&mut session, &mut resources, i + 1, 0, start, count)
                 .unwrap();
@@ -875,7 +875,7 @@ fn rust_browser_dense_ordinary_shared_cas_preview() {
         );
     }));
     // A failed oracle still closes the actual realm before TempDir/CAS release.
-    let stopped = producer.stop(&mut resources);
+    let stopped = producer.stop(&mut session, &mut resources);
     assert!(stopped.is_ok(), "Actual producer stop failed: {stopped:?}");
     let remaining = dense_processes();
     for old in observed_processes {
@@ -896,11 +896,11 @@ fn rust_browser_dense_ordinary_shared_cas_preview() {
 fn rust_browser_32_voices_use_contiguous_short_wav_blocks() {
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = dense_snapshot(directory.path(), 32, 1);
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         &snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 48_000,
             channels: 2,
         },
@@ -947,15 +947,15 @@ fn rust_browser_32_voices_use_contiguous_short_wav_blocks() {
 fn dense_33_overlapping_voices_reject_before_native_decode() {
     let directory = tempfile::tempdir().unwrap();
     let (_, snapshot) = dense_snapshot(directory.path(), 33, 1);
-    let format = PcmFormatV4 {
+    let format = PcmFormat {
         sample_rate: 48_000,
         channels: 2,
     };
-    let wav = prepare_audio_v4(&snapshot, "s", AudioExecutionProfileV4::ClassicV31, format)
+    let wav = prepare_audio_scene(&snapshot, "s", AudioExecutionProfile::ClassicV31, format)
         .err()
         .expect("Reject genuine concurrency");
     assert_eq!(wav.code, "UNSUPPORTED_V4");
-    let preview = prepare_preview_audio_v4(&snapshot, "s", format)
+    let preview = prepare_preview_audio_scene(&snapshot, "s", format)
         .err()
         .expect("Reject genuine concurrency");
     assert_eq!(preview.code, "UNSUPPORTED_V4");

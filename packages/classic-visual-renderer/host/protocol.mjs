@@ -1,14 +1,15 @@
-import { validateSceneFramePlanV1, sceneFontResourcesV1 } from "../src/scene-plan-v1.mjs";
-import { validateMaskFramePlanV1 } from "../src/mask-plan-v1.mjs";
-import { validateGraphicFramePlanV1 } from "../src/graphic-plan-v1.mjs";
-import { validateBlendFramePlanV1 } from "../src/blend-plan-v1.mjs";
+import { validateSceneFramePlan, sceneFontResources } from "../src/scene-plan.mjs";
+import { validateMaskFramePlan } from "../src/mask-plan.mjs";
+import { validateGraphicFramePlan } from "../src/graphic-plan.mjs";
+import { validateBlendFramePlan } from "../src/blend-plan.mjs";
 import { validateEnvelope } from "@opencut/classic-audio-renderer/internal-host-runtime";
 import { integer, natural, reject } from "../src/validation.mjs";
 import { validateTextFramePlan } from "../src/text-frame.mjs";
-import { validateCaptionFramePlanV3 } from "../src/caption-plan-v3.mjs";
-export function validateAdmission(value) {
+import { validateCaptionFramePlan } from "../src/caption-plan.mjs";
+export function validateAdmission(value, maximumDeadlineMs = 300000) {
   if(!value||!["monitored-terminate","strict-hard"].includes(value.quotaProfile))reject("INVALID_VISUAL_ADMISSION","Explicit quota profile is required");
-  integer(value.deadlineMs,"deadline",1,300000);integer(value.maxEncodedBytes,"encoded budget",1,32*1024*1024);
+  integer(maximumDeadlineMs,"deadline ceiling",1,2147483647);
+  integer(value.deadlineMs,"deadline",1,maximumDeadlineMs);integer(value.maxEncodedBytes,"encoded budget",1,32*1024*1024);
   for(const key of ["maxFramePixels","maxDecodedPixels","maxGpuBytes","maxRgbaBytes","maxOutputBytes","maxRssBytes"]){const n=natural(value[key],key);if(n===0n||n>8589934592n)reject("INVALID_VISUAL_ADMISSION","Admission is outside host bounds");}
   if(natural(value.maxRssBytes,"RSS")<1048576n)reject("INVALID_VISUAL_ADMISSION","RSS admission is too small");
   return {...structuredClone(value),monitorIntervalMs:integer(value.monitorIntervalMs??100,"monitor interval",20,250)};
@@ -21,7 +22,7 @@ export function validateBegin(packet) {
   integer(plan.identity.width,"width",1,16384);integer(plan.identity.height,"height",1,16384);
   const known=new Map();
   for(const resource of plan.resources) {
-    if(typeof resource.assetId!=="string"||!resource.assetId||known.has(resource.assetId)||!/^[a-f0-9]{64}$/.test(resource.contentHash)||!["video","image"].includes(resource.kind)||natural(resource.size,"encoded size")===0n||natural(resource.size,"encoded size")>BigInt(begin.admission.maxEncodedBytes))reject("INVALID_HOST_PROTOCOL","Invalid visual CAS identity");
+    if(typeof resource.assetId!=="string"||!resource.assetId||known.has(resource.assetId)||!/^[a-f0-9]{64}$/.test(resource.contentHash)||!["video","image"].includes(resource.kind)||natural(resource.size,"encoded size")===0n||natural(resource.size,"encoded size")>BigInt(Number.MAX_SAFE_INTEGER)||(resource.kind!=="video"&&natural(resource.size,"encoded size")>BigInt(begin.admission.maxEncodedBytes)))reject("INVALID_HOST_PROTOCOL","Invalid visual CAS identity");
     known.set(resource.assetId,resource);
   }
   const handles=new Set();for(const resource of begin.resources){if(!known.has(resource.assetId)||handles.has(resource.assetId)||typeof resource.handle!=="string"||!resource.handle||resource.handle.length>1024)reject("INVALID_HOST_PROTOCOL","Invalid private visual handles");handles.add(resource.assetId);}
@@ -34,11 +35,10 @@ export function validateBegin(packet) {
   return begin;
 }
 
-// A distinct operation under the unchanged transport envelope. V1 `begin`
-// keeps its media-only plan and validator; it cannot opt into text implicitly.
+// Typed frame content shares one transport envelope and resource authority.
 export function validateTextBegin(packet) {
   validateEnvelope(packet);
-  if(packet.type!=="beginTextFrameV2")reject("INVALID_HOST_PROTOCOL","V2 text frames require their versioned begin operation");
+  if(packet.type!=="beginTextFrame")reject("INVALID_HOST_PROTOCOL","Text frames require their typed begin operation");
   const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
   validateBegin({...begin,type:"begin",plan:begin.plan?.media});
   const fonts=validateTextFramePlan(begin.plan,begin.admission);
@@ -52,50 +52,50 @@ export function validateTextBegin(packet) {
   return begin;
 }
 
-// V3 is independently admitted; its private reads retain the exact V2 handles.
-export function validateCaptionBeginV3(packet) {
+// Captions reuse the admitted text and media handles.
+export function validateCaptionBegin(packet) {
   validateEnvelope(packet);
-  if (packet.type !== "beginCaptionFrameV3") reject("INVALID_HOST_PROTOCOL", "V3 captions require their versioned begin operation");
+  if (packet.type !== "beginCaptionFrame") reject("INVALID_HOST_PROTOCOL", "Captions require their typed begin operation");
   const begin = structuredClone(packet);
   begin.admission = validateAdmission(begin.admission);
-  validateTextBegin({ ...begin, type: "beginTextFrameV2", plan: begin.plan?.execution });
-  validateCaptionFramePlanV3(begin.plan, begin.admission);
+  validateTextBegin({ ...begin, type: "beginTextFrame", plan: begin.plan?.execution });
+  validateCaptionFramePlan(begin.plan, begin.admission);
   return begin;
 }
 
-export function validateGraphicBeginV1(packet) {
+export function validateGraphicBegin(packet) {
   validateEnvelope(packet);
-  if(packet.type!=="beginGraphicFrameV1")reject("INVALID_HOST_PROTOCOL","Graphics require their versioned begin operation");
+  if(packet.type!=="beginGraphicFrame")reject("INVALID_HOST_PROTOCOL","Graphics require their typed begin operation");
   const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
-  validateCaptionBeginV3({...begin,type:"beginCaptionFrameV3",plan:begin.plan?.execution});
-  validateGraphicFramePlanV1(begin.plan,begin.admission);return begin;
+  validateCaptionBegin({...begin,type:"beginCaptionFrame",plan:begin.plan?.execution});
+  validateGraphicFramePlan(begin.plan,begin.admission);return begin;
 }
 
-export function validateBlendBeginV1(packet) {
+export function validateBlendBegin(packet) {
   validateEnvelope(packet);
-  if(packet.type!=="beginBlendFrameV1")reject("INVALID_HOST_PROTOCOL","Blend frames require their versioned begin operation");
+  if(packet.type!=="beginBlendFrame")reject("INVALID_HOST_PROTOCOL","Blend frames require their typed begin operation");
   const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
-  validateGraphicBeginV1({...begin,type:"beginGraphicFrameV1",plan:begin.plan?.execution});
-  validateBlendFramePlanV1(begin.plan,begin.admission);return begin;
+  validateGraphicBegin({...begin,type:"beginGraphicFrame",plan:begin.plan?.execution});
+  validateBlendFramePlan(begin.plan,begin.admission);return begin;
 }
 
-export function validateMaskBeginV1(packet) {
+export function validateMaskBegin(packet) {
   validateEnvelope(packet);
-  if(packet.type!=="beginMaskFrameV1")reject("INVALID_HOST_PROTOCOL","Masks require their versioned begin operation");
+  if(packet.type!=="beginMaskFrame")reject("INVALID_HOST_PROTOCOL","Masks require their typed begin operation");
   const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
-  validateBlendBeginV1({...begin,type:"beginBlendFrameV1",plan:begin.plan?.execution});
-  validateMaskFramePlanV1(begin.plan,begin.admission);return begin;
+  validateBlendBegin({...begin,type:"beginBlendFrame",plan:begin.plan?.execution});
+  validateMaskFramePlan(begin.plan,begin.admission);return begin;
 }
 
-export function validateSceneBeginV1(packet) {
+export function validateSceneBegin(packet) {
   validateEnvelope(packet);
-  if(packet.type!=="beginSceneFrameV1")reject("INVALID_HOST_PROTOCOL","Scene stacks require their versioned begin operation");
+  if(packet.type!=="beginSceneFrame")reject("INVALID_HOST_PROTOCOL","Scene stacks require their typed begin operation");
   const begin=structuredClone(packet);begin.admission=validateAdmission(begin.admission);
-  validateSceneFramePlanV1(begin.plan,begin.admission);
-  const fonts=sceneFontResourcesV1(begin.plan),titleIds=new Set(begin.plan.execution.execution.execution.execution.texts.map(t=>t.font.fontId));
+  validateSceneFramePlan(begin.plan,begin.admission);
+  const fonts=sceneFontResources(begin.plan),titleIds=new Set(begin.plan.execution.execution.execution.execution.texts.map(t=>t.font.fontId));
   if(!Array.isArray(begin.fonts))reject('INVALID_HOST_PROTOCOL','Missing Scene font handles');
   const seen=new Set();for(const font of begin.fonts){if(!font||!fonts.has(font.fontId)||seen.has(font.fontId)||typeof font.handle!=='string'||!font.handle||font.handle.length>1024)reject('INVALID_HOST_PROTOCOL','Invalid complete Scene font handles');seen.add(font.fontId);}
   if(seen.size!==fonts.size)reject('INVALID_HOST_PROTOCOL','Missing Scene font handle');
-  validateBlendBeginV1({...begin,type:'beginBlendFrameV1',plan:begin.plan.execution,fonts:begin.fonts.filter(f=>titleIds.has(f.fontId))});
+  validateBlendBegin({...begin,type:'beginBlendFrame',plan:begin.plan.execution,fonts:begin.fonts.filter(f=>titleIds.has(f.fontId))});
   return begin;
 }

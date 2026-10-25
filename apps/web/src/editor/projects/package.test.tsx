@@ -1,3 +1,4 @@
+import { friendlyError } from "../shared/error-notice";
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -18,14 +19,14 @@ import type { ToolInput, ToolOutput } from "../../lib/editor-sdk";
 import {
   ExportProjectPackage,
   RestoreProjectPackage,
-} from "../workspace/v4/package";
+} from "../workspace/scene/package";
 
 const state = vi.hoisted(() => ({ workspace: {} as Record<string, unknown> }));
 vi.mock("../workspace/context", () => ({
   useWorkspace: () => state.workspace,
 }));
 vi.mock("../shared/locale", () => ({
-  useLocale: () => {},
+  useLocale: () => ({ language: "en" }),
   t: (key: string, values: Record<string, unknown> = {}) =>
     key.replace(/\{([^}]+)\}/g, (_, name) => String(values[name] ?? name)),
 }));
@@ -46,23 +47,22 @@ vi.mock("../shared/ui", () => ({
   ),
 }));
 
-type Inspection = ToolOutput<"opencut_project_v4_package_inspect">;
-type ImportRequest = ToolInput<"opencut_project_v4_package_import">;
-type ImportReceipt = ToolOutput<"opencut_project_v4_package_import">;
-type ExportRequest = ToolInput<"opencut_project_v4_package_export">;
-type ExportReceipt = ToolOutput<"opencut_project_v4_package_export">;
+type Inspection = ToolOutput<"opencut_project_package_inspect">;
+type ImportRequest = ToolInput<"opencut_project_package_import">;
+type ImportReceipt = ToolOutput<"opencut_project_package_import">;
+type ExportRequest = ToolInput<"opencut_project_package_export">;
+type ExportReceipt = ToolOutput<"opencut_project_package_export">;
 
 const reviewed: Inspection = {
   manifest_sha256: "a".repeat(64),
   source_project_id: "source-project",
   source_revision: "source-fixed-revision",
   project_name: "Portable project",
-  asset_count: 3,
-  font_count: 2,
-  derived_font_count: 1,
-  self_contained_resources: true,
-  history_included: false,
-  fully_reproducible: false,
+  asset_version_count: 3, font_version_count: 2, derived_font_count: 1,
+  scope:"saved_revision", mode:"self_contained", authoring_available:true,
+  revision_count:1, transaction_count:0, branch_count:0, merge_count:0,
+  plugin_bundle_count:0, external_font_families:[], fonts_missing:[],
+  tool_locks:[], tool_environment_matches:true, tool_lock_mismatches:[],
 };
 const source = {
   project_id: reviewed.source_project_id,
@@ -76,40 +76,43 @@ function receiptFor(request: ImportRequest): ImportReceipt {
   return {
     target_project_id: request.target_project_id,
     revision: "restored-fixed-revision",
-    manifest_sha256: reviewed.manifest_sha256,
-    source_project_id: reviewed.source_project_id,
-    source_revision: reviewed.source_revision,
-    asset_count: reviewed.asset_count,
-    font_count: reviewed.font_count,
-    derived_font_count: reviewed.derived_font_count,
-    self_contained_resources: true,
-    history_included: false,
-    fully_reproducible: false,
+    package: structuredClone(reviewed), plugin_restore_plan: [],
   };
 }
+
+let nextLocation: string | null | undefined;
+const packageCalls = (call: { mock: { calls: unknown[][] } }) => call.mock.calls.filter(([name]) => name !== "opencut_project_package_choose_location");
 
 function workspace(
   handlers: {
     inspect?: () => Promise<Inspection>;
     restore?: (request: ImportRequest) => Promise<ImportReceipt>;
     save?: (request: ExportRequest) => Promise<ExportReceipt>;
+    choose?: () => Promise<ToolOutput<"opencut_project_package_choose_location">>;
   } = {},
 ) {
+  nextLocation = undefined;
   const sdk = new OpenCutClient({ baseUrl: "http://localhost", token: "" });
   const call = vi.spyOn(sdk, "call").mockImplementation(async (name, input) => {
-    if (name === "opencut_project_v4_package_inspect")
+    if (name === "opencut_project_package_choose_location") {
+      if (handlers.choose) return await handlers.choose() as never;
+      const choice = nextLocation === undefined ? ((input as { purpose: string }).purpose === "save" ? destination : packagePath) : nextLocation;
+      nextLocation = undefined;
+      return { path: choice } as never;
+    }
+    if (name === "opencut_project_package_inspect")
       return (await (handlers.inspect?.() ??
         Promise.resolve(reviewed))) as never;
-    if (name === "opencut_project_v4_package_import") {
+    if (name === "opencut_project_package_import") {
       const request = input as ImportRequest;
       return (await (handlers.restore?.(request) ??
         Promise.resolve(receiptFor(request)))) as never;
     }
-    if (name === "opencut_project_v4_package_export" && handlers.save)
+    if (name === "opencut_project_package_export" && handlers.save)
       return (await handlers.save(input as ExportRequest)) as never;
     throw new Error(`Unexpected call ${name}`);
   });
-  const api = { sdk };
+  const api = { sdk, connectionIdentity: JSON.stringify(["http://localhost","local-owner",null,true]) };
   const controller = {
     getSnapshot: () => ({ api: state.workspace.api, projects: [] }),
     refreshProjects: vi.fn(async () => {}),
@@ -122,23 +125,24 @@ function workspace(
 function button(name: string) {
   return screen.getByRole<HTMLButtonElement>("button", { name });
 }
+async function chooseLocation(name: string, path: string | null) {
+  nextLocation = path;
+  await act(async () => fireEvent.click(button(name)));
+}
 async function reviewPackage(path = packagePath) {
-  fireEvent.change(screen.getByLabelText("Package folder"), {
-    target: { value: path },
-  });
+  await chooseLocation("Choose project package…", path);
   fireEvent.click(button("Check package"));
   await screen.findByRole("button", { name: "Restore as new project" });
 }
-function beginExport() {
-  fireEvent.change(screen.getByLabelText("New package folder"), {
-    target: { value: ` ${destination} ` },
-  });
+async function beginExport() {
+  await chooseLocation("Choose save location…", destination);
   fireEvent.click(button("Save package"));
 }
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 it.each([
@@ -164,9 +168,10 @@ it.each([
     restore.mockRejectedValueOnce(error);
     const h = workspace({ restore });
     render(<RestoreProjectPackage onClose={h.onClose} onOpen={h.onOpen} />);
-    await reviewPackage(` ${packagePath} `);
+    await reviewPackage(packagePath);
     fireEvent.click(button("Restore as new project"));
-    expect((await screen.findByRole("alert")).textContent).toBe(error.message);
+    expect((await screen.findByRole("alert")).textContent).toBe(friendlyError(error));
+    expect(screen.getByText(error.message)).toBeTruthy();
     const original = structuredClone(restore.mock.calls[0][0]);
     expect(original).toEqual({
       package_path: packagePath,
@@ -176,7 +181,7 @@ it.each([
     });
     expect(original.target_project_id).not.toBe(original.idempotency_key);
     expect(
-      (screen.getByLabelText("Package folder") as HTMLInputElement).disabled,
+      button("Choose another package…").disabled,
     ).toBe(true);
     expect(button("Retry restore").disabled).toBe(false);
     expect(h.controller.open).not.toHaveBeenCalled();
@@ -188,8 +193,8 @@ it.each([
     ]);
     expect(ids).toHaveBeenCalledTimes(2);
     expect(
-      h.call.mock.calls.filter(
-        ([name]) => name === "opencut_project_v4_package_inspect",
+      packageCalls(h.call).filter(
+        ([name]) => name === "opencut_project_package_inspect",
       ),
     ).toHaveLength(1);
     await waitFor(() =>
@@ -202,7 +207,7 @@ it.each([
       id: original.target_project_id,
       revision: "restored-fixed-revision",
       name: reviewed.project_name,
-      format: "v4",
+      format: "editor",
     });
     expect(h.onClose).toHaveBeenCalledTimes(1);
   },
@@ -227,9 +232,7 @@ it("clears the reviewed identity when the path changes and requires checking the
   expect(
     screen.getByRole("heading", { name: reviewed.project_name }),
   ).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Package folder"), {
-    target: { value: "/Projects/Second package" },
-  });
+  await chooseLocation("Choose another package…", "/Projects/Second package");
   expect(
     screen.queryByRole("heading", { name: reviewed.project_name }),
   ).toBeNull();
@@ -246,8 +249,8 @@ it("clears the reviewed identity when the path changes and requires checking the
     expected_manifest_sha256: second.manifest_sha256,
   });
   expect(
-    h.call.mock.calls
-      .filter(([name]) => name === "opencut_project_v4_package_inspect")
+    packageCalls(h.call)
+      .filter(([name]) => name === "opencut_project_package_inspect")
       .map(([, input]) => input),
   ).toEqual([
     { package_path: packagePath },
@@ -261,22 +264,26 @@ it.each([
   ["source project", { source_project_id: "wrong-source" }],
   ["source revision", { source_revision: "wrong-source-revision" }],
   ["restored revision", { revision: "" }],
-  ["media inventory", { asset_count: 4 }],
-  ["font inventory", { font_count: 3 }],
+  ["media inventory", { asset_version_count: 4 }],
+  ["font inventory", { font_version_count: 3 }],
   ["font source inventory", { derived_font_count: 0 }],
-  ["self-contained resources", { self_contained_resources: false }],
-  ["history claim", { history_included: true }],
-  ["reproducibility claim", { fully_reproducible: true }],
-] satisfies [string, Partial<ImportReceipt>][])(
+  ["self-contained resources", { mode: "linked" }],
+  ["history claim", { scope: "history" }],
+  ["plugin inventory", { plugin_bundle_count: 1 }],
+] satisfies [string, Partial<ImportReceipt> | Partial<Inspection>][])(
   "does not open or refresh a restored project when the receipt has mismatched %s",
   async (_, mismatch) => {
     const h = workspace({
-      restore: async (request) => ({ ...receiptFor(request), ...mismatch }),
+      restore: async (request) => {
+        const original=receiptFor(request);
+        return ("target_project_id" in mismatch || "revision" in mismatch) ? {...original,...mismatch} as ImportReceipt : {...original,package:{...original.package,...mismatch}} as ImportReceipt;
+      },
     });
     render(<RestoreProjectPackage onClose={h.onClose} onOpen={h.onOpen} />);
     await reviewPackage();
     fireEvent.click(button("Restore as new project"));
-    expect((await screen.findByRole("alert")).textContent).toMatch(
+    await screen.findByRole("alert");
+    expect(screen.getByText(/Technical details/).parentElement!.textContent).toMatch(
       /receipt does not match/,
     );
     expect(
@@ -308,7 +315,7 @@ it.each(["review", "retry", "open"] as const)(
       if (stage === "retry") await screen.findByRole("alert");
       else await screen.findByText("Project restored");
     }
-    const before = h.call.mock.calls.length;
+    const before = packageCalls(h.call).length;
     const replacementCall = vi.fn();
     state.workspace = {
       ...state.workspace,
@@ -331,7 +338,7 @@ it.each(["review", "retry", "open"] as const)(
     );
     expect(action.disabled).toBe(true);
     fireEvent.click(action);
-    expect(h.call).toHaveBeenCalledTimes(before);
+    expect(packageCalls(h.call)).toHaveLength(before);
     expect(replacementCall).not.toHaveBeenCalled();
     expect(h.controller.open).not.toHaveBeenCalled();
     expect(h.onOpen).not.toHaveBeenCalled();
@@ -395,8 +402,8 @@ it("does not navigate after a pending open finishes on a changed connection", as
 
 it.each([
   ["manifest identity", { manifest_sha256: "invalid-manifest" }],
-  ["missing resources", { self_contained_resources: false }],
-  ["unsupported history", { history_included: true }],
+  ["unknown storage mode", { mode: "invalid" }],
+  ["invalid saved revision graph", { transaction_count: 1 }],
 ])(
   "reports an invalid reviewed package with %s without submitting a restore",
   async (_, invalid) => {
@@ -404,18 +411,20 @@ it.each([
       receiptFor(request),
     );
     const h = workspace({
-      inspect: async () => ({ ...reviewed, ...invalid }),
+      // Deliberately malformed wire input exercises runtime validation.
+      inspect: async () => ({ ...reviewed, ...invalid }) as Inspection,
       restore,
     });
     render(<RestoreProjectPackage onClose={h.onClose} onOpen={h.onOpen} />);
-    await reviewPackage();
-    fireEvent.click(button("Restore as new project"));
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /cannot be restored as a complete saved revision/,
+    await chooseLocation("Choose project package…", packagePath);
+    fireEvent.click(button("Check package"));
+    await screen.findByRole("alert");
+    expect(screen.getByText(/Technical details/).parentElement!.textContent).toMatch(
+      /package inspection is incomplete/,
     );
     expect(restore).not.toHaveBeenCalled();
     expect(h.controller.refreshProjects).not.toHaveBeenCalled();
-    expect(button("Restore as new project").disabled).toBe(false);
+    expect(button("Check package").disabled).toBe(false);
   },
 );
 
@@ -428,18 +437,18 @@ it("keeps the fixed export source and checks the same destination after a lost r
   const view = render(
     <ExportProjectPackage source={source} onClose={h.onClose} />,
   );
-  beginExport();
+  await beginExport();
   await screen.findByRole("alert");
-  const original = h.call.mock.calls.find(
-    ([name]) => name === "opencut_project_v4_package_export",
+  const original = packageCalls(h.call).find(
+    ([name]) => name === "opencut_project_package_export",
   )?.[1];
   expect(original).toEqual({
     project_id: source.project_id,
     revision: source.revision,
-    destination,
+    destination, scope:"saved_revision", mode:"self_contained",
   });
   expect(
-    (screen.getByLabelText("New package folder") as HTMLInputElement).disabled,
+    screen.queryByRole("button", { name: "Change save location…" }) === null,
   ).toBe(true);
   expect(screen.queryByRole("button", { name: "Save package" })).toBeNull();
   view.rerender(
@@ -454,9 +463,9 @@ it("keeps the fixed export source and checks the same destination after a lost r
   );
   fireEvent.click(button("Check destination"));
   await screen.findByText("Project package saved and verified");
-  expect(h.call.mock.calls.map(([name, input]) => [name, input])).toEqual([
-    ["opencut_project_v4_package_export", original],
-    ["opencut_project_v4_package_inspect", { package_path: destination }],
+  expect(packageCalls(h.call).map(([name, input]) => [name, input])).toEqual([
+    ["opencut_project_package_export", original],
+    ["opencut_project_package_inspect", { package_path: destination }],
   ]);
   expect(screen.getByRole("status").textContent).toContain(destination);
   expect(h.controller.open).not.toHaveBeenCalled();
@@ -477,10 +486,11 @@ it.each([
       inspect: async () => ({ ...reviewed, ...mismatch }),
     });
     render(<ExportProjectPackage source={source} onClose={h.onClose} />);
-    beginExport();
+    await beginExport();
     await screen.findByRole("alert");
     fireEvent.click(button("Check destination"));
-    expect((await screen.findByRole("alert")).textContent).toMatch(
+    await screen.findByRole("alert");
+    expect(screen.getByText(/Technical details/).parentElement!.textContent).toMatch(
       /different project revision/,
     );
     expect(screen.queryByRole("status")).toBeNull();
@@ -500,13 +510,11 @@ it.each(["save", "check"] as const)(
       <ExportProjectPackage source={source} onClose={h.onClose} />,
     );
     if (stage === "check") {
-      beginExport();
+      await beginExport();
       await screen.findByRole("alert");
     } else
-      fireEvent.change(screen.getByLabelText("New package folder"), {
-        target: { value: destination },
-      });
-    const before = h.call.mock.calls.length;
+      await chooseLocation("Choose save location…", destination);
+    const before = packageCalls(h.call).length;
     const replacementCall = vi.fn();
     state.workspace = {
       ...state.workspace,
@@ -518,7 +526,7 @@ it.each(["save", "check"] as const)(
     );
     expect(action.disabled).toBe(true);
     fireEvent.click(action);
-    expect(h.call).toHaveBeenCalledTimes(before);
+    expect(packageCalls(h.call)).toHaveLength(before);
     expect(replacementCall).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).toBeNull();
   },
@@ -541,21 +549,74 @@ it.each(["save", "check"] as const)(
     const view = render(
       <ExportProjectPackage source={source} onClose={h.onClose} />,
     );
-    beginExport();
+    await beginExport();
     if (stage === "check") {
       await screen.findByRole("alert");
       fireEvent.click(button("Check destination"));
     }
     await waitFor(() =>
-      expect(h.call).toHaveBeenCalledTimes(stage === "check" ? 2 : 1),
+      expect(packageCalls(h.call)).toHaveLength(stage === "check" ? 2 : 1),
     );
     state.workspace = { ...state.workspace, api: { sdk: { call: vi.fn() } } };
     view.rerender(<ExportProjectPackage source={source} onClose={h.onClose} />);
     await act(async () => {
-      finish({ ...reviewed, package_path: destination });
+      finish({ ...reviewed, package_path: destination, package:reviewed });
     });
     expect(screen.queryByRole("status")).toBeNull();
     expect(h.onClose).not.toHaveBeenCalled();
     expect(button("Check destination").disabled).toBe(true);
   },
 );
+
+it.each(["PACKAGE_INVALID", "PACKAGE_IO_ERROR"])("offers an explicit new location after %s without silently resubmitting an uncertain copy", async code => {
+  const h=workspace({save:async()=>{throw new OpenCutApiError(code,"Package destination cannot be used",null,400,"r",[]);}});
+  render(<ExportProjectPackage source={source} onClose={h.onClose}/>); await beginExport();
+  await screen.findByRole("alert"); expect(screen.queryByRole("button", { name: "Change save location…" }) === null).toBe(true);
+  await chooseLocation("Save to another location", "/Projects/Another package");
+  expect(screen.queryByRole("button", { name: "Change save location…" }) === null).toBe(false);
+  expect(screen.getByText(`Previous save location: ${destination}`)).toBeTruthy();
+  expect(packageCalls(h.call).filter(([name])=>name==="opencut_project_package_export")).toHaveLength(1);
+});
+
+it("cancelling the location dialog writes nothing and preserves an already selected save location", async () => {
+  const h = workspace();
+  render(<ExportProjectPackage source={source} onClose={h.onClose} />);
+  expect(screen.queryByRole("textbox", { name: "Save location on this computer" })).toBeNull();
+  await chooseLocation("Choose save location…", null);
+  expect(button("Save package").disabled).toBe(true);
+  expect(packageCalls(h.call)).toHaveLength(0);
+  await chooseLocation("Choose save location…", destination);
+  await chooseLocation("Change save location…", null);
+  expect(screen.getByLabelText("Save location on this computer").textContent).toBe(destination);
+  expect(button("Save package").disabled).toBe(false);
+  expect(packageCalls(h.call)).toHaveLength(0);
+});
+
+it("does not use a late native selection after the authenticated connection changes", async () => {
+  let finish!: (value: ToolOutput<"opencut_project_package_choose_location">) => void;
+  const pending = new Promise<ToolOutput<"opencut_project_package_choose_location">>(resolve => { finish = resolve; });
+  const h = workspace({ choose: () => pending });
+  const view = render(<ExportProjectPackage source={source} onClose={h.onClose} />);
+  fireEvent.click(button("Choose save location…"));
+  expect(button("Choosing location…").disabled).toBe(true);
+  expect(button("Close").disabled).toBe(true);
+  state.workspace = { ...state.workspace, api: { sdk: { call: vi.fn() } } };
+  view.rerender(<ExportProjectPackage source={source} onClose={h.onClose} />);
+  await act(async () => finish({ path: destination }));
+  expect(screen.getByLabelText("Save location on this computer").textContent).toBe("No location selected");
+  expect(button("Save package").disabled).toBe(true);
+  expect(packageCalls(h.call)).toHaveLength(0);
+});
+
+it("cancelling a different location preserves the original uncertain save request", async () => {
+  const h = workspace({ save: async () => { throw new OpenCutTransportError("response lost"); } });
+  render(<ExportProjectPackage source={source} onClose={h.onClose} />);
+  await beginExport();
+  await screen.findByRole("alert");
+  const original = packageCalls(h.call)[0][1];
+  await chooseLocation("Save to another location", null);
+  expect(screen.getByLabelText("Save location on this computer").textContent).toBe(destination);
+  fireEvent.click(button("Retry save"));
+  await waitFor(() => expect(packageCalls(h.call)).toHaveLength(2));
+  expect(packageCalls(h.call)[1][1]).toEqual(original);
+});

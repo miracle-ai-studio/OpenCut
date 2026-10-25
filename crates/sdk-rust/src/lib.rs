@@ -1,10 +1,12 @@
 //! Typed HTTP client; editing and task state stay on the authoritative host.
 pub use opencut_api_contracts as api;
 pub use opencut_contracts as project;
-pub use opencut_job_contracts as jobs;
+use opencut_job_contracts as jobs;
 pub use opencut_media_contracts as media;
 
-use api::{JobRecord, JobState, tools::Tool};
+pub use api::job_results::{JobResultKind, kinds as job_kinds};
+use api::job_views::JobView;
+use api::{JobState, tools::Tool};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -37,10 +39,8 @@ pub enum Error {
         job_id: String,
     },
     ObservationCancelled,
-    JobFailed(Box<JobRecord>),
-    JobCancelled(Box<JobRecord>),
-    PublicJobFailed(Box<api::job_views::JobView>),
-    PublicJobCancelled(Box<api::job_views::JobView>),
+    JobFailed(Box<JobView>),
+    JobCancelled(Box<JobView>),
 }
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -61,10 +61,8 @@ impl fmt::Display for Error {
             Self::ObservationCancelled => {
                 write!(f, "Caller stopped observing; job was not cancelled")
             }
-            Self::JobFailed(job) => write!(f, "Job {} failed: {:?}", job.job_id, job.error),
+            Self::JobFailed(job) => write!(f, "Job {} failed: {:?}", job.job_id, job.failure),
             Self::JobCancelled(job) => write!(f, "Job {} was cancelled", job.job_id),
-            Self::PublicJobFailed(job) => write!(f, "Job {} failed: {:?}", job.job_id, job.failure),
-            Self::PublicJobCancelled(job) => write!(f, "Job {} was cancelled", job.job_id),
         }
     }
 }
@@ -165,6 +163,49 @@ impl Client {
     pub fn call_envelope<T: Tool>(&self, input: &T::Input) -> Result<Success<T::Output>, Error> {
         self.call_with_timeout::<T>(input, self.options.request_timeout)
     }
+    /// Full generated declaration through the dedicated discovery endpoint.
+    /// This is not a bounded project-context resource.
+    pub fn operation_schemas(&self) -> Result<Success<Vec<api::tools::ToolSpec>>, Error> {
+        self.discovery("/api/operations")
+    }
+    /// All action summaries, or the exact input/output schemas of one domain.
+    pub fn domain_catalog(
+        &self,
+        domain: Option<&str>,
+    ) -> Result<Success<Vec<api::domains::DomainDescriptor>>, Error> {
+        match domain {
+            None => self.discovery("/api/domains"),
+            Some(domain)
+                if api::tools::ToolDomain::ALL
+                    .iter()
+                    .any(|d| d.name() == domain) =>
+            {
+                self.discovery(&format!("/api/domains/{domain}"))
+            }
+            Some(_) => Err(Error::Configuration("Unknown operation domain".into())),
+        }
+    }
+    fn discovery<T: serde::de::DeserializeOwned>(&self, path: &str) -> Result<Success<T>, Error> {
+        let mut response = self
+            .agent
+            .get(format!("{}{path}", self.base_url))
+            .header("Authorization", &format!("Bearer {}", self.token))
+            .header("Accept", "application/json")
+            .call()
+            .map_err(|e| Error::Transport(Box::new(e)))?;
+        let status = response.status().as_u16();
+        let audit_warning = response
+            .headers()
+            .get("x-opencut-audit-warning")
+            .is_some_and(|v| v == "DENIAL_AUDIT_UNAVAILABLE");
+        let body = response
+            .body_mut()
+            .with_config()
+            .limit(self.options.max_response_bytes)
+            .read_to_vec()
+            .map_err(|e| Error::Transport(Box::new(e)))?;
+        with_audit_warning(decode_response(status, &body), audit_warning)
+    }
     /// Dynamic registered tools/domains for CLI dispatch. Typed callers should prefer `call`.
     pub fn call_registered(
         &self,
@@ -183,23 +224,6 @@ impl Client {
         offset: u64,
         bytes: &[u8],
     ) -> Result<api::uploads::UploadView, Error> {
-        self.put_upload_chunk("uploads", upload_id, offset, bytes)
-    }
-    pub fn upload_stream_chunk(
-        &self,
-        upload_id: &str,
-        offset: u64,
-        bytes: &[u8],
-    ) -> Result<api::stream_uploads::StreamUploadView, Error> {
-        self.put_upload_chunk("stream-uploads", upload_id, offset, bytes)
-    }
-    fn put_upload_chunk<T: serde::de::DeserializeOwned>(
-        &self,
-        route: &str,
-        upload_id: &str,
-        offset: u64,
-        bytes: &[u8],
-    ) -> Result<T, Error> {
         let valid_id = upload_id.strip_prefix("upload_").is_some_and(|v| {
             v.len() == 32
                 && v.bytes()
@@ -210,7 +234,7 @@ impl Client {
             || bytes.len() as u64 > api::uploads::MAX_CHUNK_BYTES
             || offset
                 .checked_add(bytes.len() as u64)
-                .is_none_or(|end| end > api::uploads::MAX_UPLOAD_BYTES)
+                .is_none_or(|end| end > api::uploads::MAX_SOURCE_BYTES)
         {
             return Err(Error::Configuration(
                 "Invalid upload identity or chunk range".into(),
@@ -220,7 +244,7 @@ impl Client {
         let mut response = self
             .agent
             .put(format!(
-                "{}/v1/{route}/{upload_id}/chunks/{offset}?size_bytes={}&content_hash={hash}",
+                "{}/api/uploads/{upload_id}/chunks/{offset}?size_bytes={}&content_hash={hash}",
                 self.base_url,
                 bytes.len()
             ))
@@ -240,7 +264,11 @@ impl Client {
             .limit(self.options.max_response_bytes)
             .read_to_vec()
             .map_err(|e| Error::Transport(Box::new(e)))?;
-        Ok(with_audit_warning(decode_response::<T>(status, &body), audit_warning)?.data)
+        Ok(with_audit_warning(
+            decode_response::<api::uploads::UploadView>(status, &body),
+            audit_warning,
+        )?
+        .data)
     }
     fn call_with_timeout<T: Tool>(
         &self,
@@ -258,7 +286,7 @@ impl Client {
         let bytes = serde_json::to_vec(input).map_err(Error::Serialization)?;
         let mut response = self
             .agent
-            .post(format!("{}/v1/tools/{}", self.base_url, name))
+            .post(format!("{}/api/tools/{}", self.base_url, name))
             .header("Authorization", &format!("Bearer {}", self.token))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
@@ -281,28 +309,14 @@ impl Client {
         with_audit_warning(decode_response(status, &body), audit_warning)
     }
 
-    /// Durable cancellation is always explicit; stopping wait_for_job does not call this.
-    pub fn cancel_job(&self, job_id: &str) -> Result<JobRecord, Error> {
-        self.call::<api::tools::JobCancel>(&jobs::JobInput {
-            job_id: job_id.into(),
-        })
-    }
-    /// Cancellation is checked between blocking HTTP calls (bounded by request_timeout)
-    /// and at most every 25 ms while sleeping. Timeout covers requests and polling.
-    pub fn wait_for_job(&self, job_id: &str, options: WaitOptions<'_>) -> Result<JobRecord, Error> {
-        self.wait_for::<api::tools::JobGet>(job_id, options)
-    }
-    pub fn wait_for_public_job(
-        &self,
-        job_id: &str,
-        options: WaitOptions<'_>,
-    ) -> Result<api::job_views::JobView, Error> {
-        self.wait_for::<api::tools::JobView>(job_id, options)
-    }
-    pub fn cancel_public_job(&self, job_id: &str) -> Result<api::job_views::JobView, Error> {
+    /// Stopping observation never implicitly cancels the durable task.
+    pub fn cancel_job(&self, job_id: &str) -> Result<JobView, Error> {
         self.call::<api::tools::JobRequestCancel>(&jobs::JobInput {
             job_id: job_id.into(),
         })
+    }
+    pub fn wait_for_job(&self, job_id: &str, options: WaitOptions<'_>) -> Result<JobView, Error> {
+        self.wait_for::<api::tools::JobView>(job_id, options)
     }
     pub fn artifact_url(
         &self,
@@ -321,7 +335,7 @@ impl Client {
         if !valid || reference.artifact_id != id {
             return Err(Error::Configuration("Invalid artifact reference".into()));
         }
-        Ok(format!("{}/v1/artifacts/{id}", self.base_url))
+        Ok(format!("{}/api/artifacts/{id}", self.base_url))
     }
     pub fn project_media_url(
         &self,
@@ -421,7 +435,7 @@ trait ObservedJob {
     fn failed(self) -> Error;
     fn cancelled(self) -> Error;
 }
-impl ObservedJob for JobRecord {
+impl ObservedJob for api::job_views::JobView {
     fn state(&self) -> JobState {
         self.state
     }
@@ -430,17 +444,6 @@ impl ObservedJob for JobRecord {
     }
     fn cancelled(self) -> Error {
         Error::JobCancelled(Box::new(self))
-    }
-}
-impl ObservedJob for api::job_views::JobView {
-    fn state(&self) -> JobState {
-        self.state
-    }
-    fn failed(self) -> Error {
-        Error::PublicJobFailed(Box::new(self))
-    }
-    fn cancelled(self) -> Error {
-        Error::PublicJobCancelled(Box::new(self))
     }
 }
 
@@ -489,11 +492,10 @@ fn with_audit_warning<T>(
     })
 }
 
-// Require the envelope fields even though legacy schema permits optional Option fields.
+// Require the envelope fields,including explicit data/error nulls.
 // Decode the outer shape independently of Output so API failures never become DTO failures.
 #[derive(Deserialize)]
 struct WireEnvelope {
-    api_version: String,
     request_id: String,
     data: serde_json::Value,
     error: serde_json::Value,
@@ -506,9 +508,6 @@ fn decode_response<T: serde::de::DeserializeOwned>(
     let invalid = |message: String| Error::Protocol { status, message };
     let envelope: WireEnvelope =
         serde_json::from_slice(body).map_err(|e| invalid(e.to_string()))?;
-    if envelope.api_version != "1" {
-        return Err(invalid("Unsupported API version".into()));
-    }
     if !envelope.error.is_null() {
         let error = serde_json::from_value(envelope.error).map_err(|e| invalid(e.to_string()))?;
         return Err(Error::Api(Box::new(ApiFailure {
@@ -529,102 +528,20 @@ fn decode_response<T: serde::de::DeserializeOwned>(
     })
 }
 
-/// Read a concrete result without confusing a historical success with current artifact availability.
-pub fn job_result<K: jobs::JobKind>(job: &JobRecord) -> Result<K::Result, Error> {
-    if job.state != JobState::Succeeded || job.kind != K::NAME {
-        return Err(Error::Protocol {
-            status: 200,
-            message: "Job is unfinished or has a different kind".into(),
-        });
-    }
-    serde_json::from_value(job.result.clone().unwrap_or(serde_json::Value::Null)).map_err(|e| {
-        Error::Protocol {
-            status: 200,
-            message: e.to_string(),
-        }
-    })
-}
-
-/// Public task results have portable projections distinct from raw worker records.
-pub trait PublicJobKind: jobs::JobKind {
-    type PublicResult: serde::de::DeserializeOwned;
-}
-macro_rules! public_job_kinds {
-    ($( $kind:ident => $result:ty ),* $(,)?) => {
-        $(impl PublicJobKind for jobs::kinds::$kind { type PublicResult = $result; })*
-    };
-}
-public_job_kinds! {
-    MediaProbe => api::job_views::MediaInfo,
-    PreviewFrame => api::job_views::SourceFrameView,
-    PreviewProjectFrame => api::job_views::ProjectFrameView,
-    PreviewCompositedFrame => api::job_views::CompositedFrameView,
-    PreviewProjectRange => api::job_views::ProjectRangeView,
-    RenderExport => api::job_views::ExportView,
-    RenderProject => api::job_views::ProjectRenderView,
-    ArtifactVerify => api::job_views::VerificationView,
-    MediaImport => jobs::MediaImportJobResult,
-    AnalysisTranscribe => jobs::TranscribeJobResult,
-    AnalysisSilence => jobs::SilenceJobResult,
-    AnalysisShots => jobs::ShotsJobResult,
-    AnalysisWaveform => jobs::WaveformJobResult,
-    AnalysisSpeakerTurns => jobs::SpeakerTurnsJobResult,
-    RenderProjectV3 => api::job_views::ProjectRenderView,
-    PreviewProjectFrameV3 => api::job_views::CompositedFrameView,
-    PreviewProjectRangeV3 => api::job_views::ProjectRangeView,
-}
-/// Decode the portable public result; never expects host-local output paths.
-pub fn public_job_result<K: PublicJobKind>(
-    job: &api::job_views::JobView,
-) -> Result<K::PublicResult, Error> {
+/// Extract the typed result from the same shared union used by HTTP/MCP/CLI.
+/// Native paths,stored generation selectors and duplicate extension channels
+/// are not part of the SDK.
+pub fn job_result<K: JobResultKind>(job: &JobView) -> Result<K::Result, Error> {
     let invalid = || Error::Protocol {
         status: 200,
-        message: "Expected an available successful public result of this kind".into(),
+        message: "Expected an available successful result of this kind".into(),
     };
     if job.state != JobState::Succeeded || job.kind != K::NAME || job.result_unavailable.is_some() {
         return Err(invalid());
     }
-    let data = match (&job.result, &job.extended_result) {
-        (Some(result), None) => {
-            let value = serde_json::to_value(result).map_err(|_| invalid())?;
-            if value.get("kind").and_then(serde_json::Value::as_str) != Some(K::NAME) {
-                return Err(invalid());
-            }
-            value.get("data").cloned().ok_or_else(invalid)?
-        }
-        (None, Some(result)) if result.kind == K::NAME && result.schema_version == 1 => {
-            result.data.clone()
-        }
-        _ => return Err(invalid()),
-    };
-    serde_json::from_value(data).map_err(|_| invalid())
-}
-
-/// Decode a version 1 extension result (for example MediaImport or AnalysisTranscribe)
-/// from the portable public job view. For schema 3 render projections use
-/// `public_job_result`, whose result type omits native paths and worker artifacts.
-pub fn extended_job_result<K: jobs::JobKind>(
-    job: &api::job_views::JobView,
-) -> Result<K::Result, Error> {
-    let invalid = || Error::Protocol {
-        status: 200,
-        message: "Expected an available successful version 1 extension result of this kind".into(),
-    };
-    if job.state != JobState::Succeeded
-        || job.kind != K::NAME
-        || job.result.is_some()
-        || job.result_unavailable.is_some()
-    {
-        return Err(invalid());
-    }
-    let result = job.extended_result.as_ref().ok_or_else(invalid)?;
-    if result.kind != K::NAME || result.schema_version != 1 {
-        return Err(invalid());
-    }
-    serde_json::from_value(result.data.clone()).map_err(|e| Error::Protocol {
-        status: 200,
-        message: e.to_string(),
-    })
+    K::result(job.result.as_ref().ok_or_else(invalid)?)
+        .cloned()
+        .ok_or_else(invalid)
 }
 
 #[cfg(test)]
@@ -646,7 +563,7 @@ mod project_media_url_tests {
         .unwrap();
         assert_eq!(
             client.project_media_url(&resource).unwrap(),
-            format!("http://localhost:8788/v1/projects/team%2Fproject/media/{id}/content")
+            format!("http://localhost:8788/api/projects/team%2Fproject/media/{id}/content")
         );
         resource.asset.uri = "/private/secret".into();
         assert!(matches!(
@@ -657,59 +574,52 @@ mod project_media_url_tests {
 }
 
 #[cfg(test)]
-mod transcription_consumer_tests {
+mod task_result_tests {
     use super::*;
     use serde_json::json;
-
     #[test]
-    fn typed_transcription_preserves_source_and_requires_supported_public_result() {
-        let data = json!({
-            "project_id":"p", "revision":"r", "asset_id":"a",
-            "asset_version":{"asset_id":"a", "content_hash":"a".repeat(64), "size":12},
-            "transcription":{"language":"zh", "provider":"whisper.cpp", "model":"tiny",
-                "segments":[{"start":{"ticks":"0","timebase":1000},
-                    "end":{"ticks":"1000","timebase":1000},"text":"你好","words":[]}]}
-        });
-        let mut view: api::job_views::JobView = serde_json::from_value(json!({
-            "job_id":"job_example", "kind":"analysis.transcribe", "state":"succeeded",
-            "target":null, "cancel_requested":false, "progress":null, "result":null,
-            "extended_result":{"kind":"analysis.transcribe","schema_version":1,"data":data},
-            "result_unavailable":null, "failure":null, "artifacts":[]
-        }))
-        .unwrap();
-        let result = extended_job_result::<jobs::kinds::AnalysisTranscribe>(&view).unwrap();
+    fn typed_transcription_preserves_source_and_requires_an_available_successful_result() {
+        let mut view: JobView = serde_json::from_value(json!({
+            "job_id":"job_example", "kind":"analysis.asset", "state":"succeeded",
+            "target":null, "cancel_requested":false, "progress":null,
+            "result":{"kind":"analysis.asset","data":{
+                "project_id":"p", "revision":"r", "asset_id":"a",
+                "asset_version":{"asset_id":"a", "content_hash":"a".repeat(64), "size":12},
+                "options":{"kind":"transcribe","language":"zh","word_timestamps":false},
+                "data":{"kind":"transcribe","result":{"language":"zh", "provider":"whisper.cpp", "model":"tiny",
+                    "segments":[{"start":{"ticks":"0","timebase":1000},
+                        "end":{"ticks":"1000","timebase":1000},"text":"你好","words":[]}]}}
+            }}, "result_unavailable":null, "failure":null, "artifacts":[]
+        })).unwrap();
+        let result = job_result::<job_kinds::AssetAnalysis>(&view).unwrap();
         assert_eq!(result.asset_id, "a");
-        assert_eq!(result.transcription.segments[0].text, "你好");
-        assert_eq!(result.transcription.segments[0].end.ticks, 1000);
-        view.extended_result.as_mut().unwrap().schema_version = 2;
-        assert!(extended_job_result::<jobs::kinds::AnalysisTranscribe>(&view).is_err());
-        view.extended_result.as_mut().unwrap().schema_version = 1;
+        let api::job_results::AssetAnalysisData::Transcribe(transcription) = result.data else {
+            panic!("Wrong analysis result")
+        };
+        assert_eq!(transcription.segments[0].text, "你好");
+        assert_eq!(transcription.segments[0].end.ticks, 1000);
+        view.kind = "media.import".into();
+        assert!(job_result::<job_kinds::AssetAnalysis>(&view).is_err());
+        view.kind = "analysis.asset".into();
         view.state = JobState::Cancelled;
-        assert!(extended_job_result::<jobs::kinds::AnalysisTranscribe>(&view).is_err());
+        assert!(job_result::<job_kinds::AssetAnalysis>(&view).is_err());
     }
-}
-
-#[cfg(test)]
-mod public_projection_tests {
-    use super::*;
-    use serde_json::json;
     #[test]
-    fn v3_frame_decodes_portable_projection_without_worker_artifact_fields() {
-        let mut view: api::job_views::JobView = serde_json::from_value(json!({
-            "job_id":"job_v3", "kind":"preview.project_frame.v3", "state":"succeeded",
-            "target":null,"cancel_requested":false,"progress":null,"result":null,
-            "extended_result":{"kind":"preview.project_frame.v3","schema_version":1,"data":{
+    fn frame_decodes_portable_projection_without_worker_artifact_fields() {
+        let mut view: JobView = serde_json::from_value(json!({
+            "job_id":"job_frame", "kind":"preview.composited_frame", "state":"succeeded",
+            "target":null,"cancel_requested":false,"progress":null,
+            "result":{"kind":"preview.composited_frame","data":{
                 "revision":"r","sequence_id":"main","requested_time":{"ticks":"0","timebase":1},
                 "actual_sequence_time":{"ticks":"0","timebase":1},"alignment":"exact",
                 "quality":"composited_project_frame","asset_lock":null,"asset_locking":"legacy_unlocked",
                 "width":64,"height":48,"text_layouts":[]
             }}, "result_unavailable":null,"failure":null,"artifacts":[]
         })).unwrap();
-        let frame: api::job_views::CompositedFrameView =
-            public_job_result::<jobs::kinds::PreviewProjectFrameV3>(&view).unwrap();
+        let frame = job_result::<job_kinds::CompositedFrame>(&view).unwrap();
         assert_eq!((frame.width, frame.height), (64, 48));
-        assert!(public_job_result::<jobs::kinds::RenderProjectV3>(&view).is_err());
-        view.extended_result.as_mut().unwrap().schema_version = 2;
-        assert!(public_job_result::<jobs::kinds::PreviewProjectFrameV3>(&view).is_err());
+        assert!(job_result::<job_kinds::ProjectRender>(&view).is_err());
+        view.result = None;
+        assert!(job_result::<job_kinds::CompositedFrame>(&view).is_err());
     }
 }

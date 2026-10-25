@@ -1,7 +1,7 @@
-//! Versioned private transport compression. Expansion preserves accepted array
+//! One private transport compression. Expansion preserves accepted array
 //! order and observations; existing application/pure bind remains authoritative.
 use super::{error, ids};
-use opencut_composition::project_v4::{PreviewAudioSegmentV4, PreviewSourceFormatV4};
+use opencut_composition::scene::{PreviewAudioSegment, PreviewSourceFormat};
 use opencut_contracts::EditorError;
 use opencut_editor_application::classic_audio::decimal;
 use serde_json::{Map, Value};
@@ -58,13 +58,7 @@ pub(super) fn expand_source_binding(
     binding: &Value,
     fixed_voices: &Value,
 ) -> Result<Value, EditorError> {
-    let fields = object(
-        binding,
-        &["schemaVersion", "ordinarySources", "sourceFormats"],
-    )?;
-    if fields["schemaVersion"].as_u64() != Some(1) {
-        return Err(invalid());
-    }
+    let fields = object(binding, &["ordinarySources", "sourceFormats"])?;
     let voices = bounded_array(fixed_voices, 256)?;
     let formats = bounded_array(&fields["sourceFormats"], 256)?;
     let sources = bounded_array(&fields["ordinarySources"], 32)?;
@@ -94,12 +88,12 @@ pub(super) fn expand_source_binding(
         let value = object(source, &["assetId", "segments"])?;
         let asset = identifier(&value["assetId"])?;
         let segments = bounded_array(&value["segments"], 65_536)?;
-        if segments.is_empty() || dictionary.contains_key(asset) {
+        if dictionary.contains_key(asset) {
             return Err(invalid());
         }
         // Existing typed segments enforce unknown-field rejection and canonical
         // decimal frame counts. Original JSON PTS and array order are retained.
-        let typed: Vec<PreviewAudioSegmentV4> =
+        let typed: Vec<PreviewAudioSegment> =
             serde_json::from_value(value["segments"].clone()).map_err(|_| invalid())?;
         let mut seen = BTreeSet::new();
         let mut frames = 0u64;
@@ -137,11 +131,11 @@ pub(super) fn expand_source_binding(
         header.remove("sourceRef");
         header.insert("segments".into(), Value::Array(vec![]));
         let header = Value::Object(header);
-        let typed: PreviewSourceFormatV4 =
+        let typed: PreviewSourceFormat =
             serde_json::from_value(header.clone()).map_err(|_| invalid())?;
         if typed.sample_rate == 0
             || typed.sample_rate > 384_000
-            || typed.frame_count == 0
+            || (typed.prepared && typed.frame_count == 0)
             || !(1..=2).contains(&typed.channels)
         {
             return Err(invalid());

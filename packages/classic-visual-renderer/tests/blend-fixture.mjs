@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 export const blendBytes = Uint8Array.of(1, 2, 3, 4);
-export function blendBeginV1(frameIndex = 0) {
+export function blendBegin(frameIndex = 0) {
   const fixed = {
     projectId: "p",
     revision: "r",
@@ -60,8 +60,7 @@ export function blendBeginV1(frameIndex = 0) {
     order: ["shape", "back"],
   };
   return {
-    protocolVersion: 1,
-    type: "beginBlendFrameV1",
+    type: "beginBlendFrame",
     executionId: "blend",
     frameIndex,
     plan: {

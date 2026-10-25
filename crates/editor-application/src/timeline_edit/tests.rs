@@ -7,8 +7,8 @@ pub(super) fn t(n: i64) -> Time {
         timebase: 1,
     }
 }
-pub(super) fn fixture() -> ProjectSnapshotV3 {
-    let mut project=crate::project_v3::create(&serde_json::from_value(json!({"id":"p","name":"Editorial","sequence_id":"s","width":160,"height":90,"fps":{"numerator":10,"denominator":1}})).unwrap()).unwrap();
+pub(super) fn fixture() -> HistoricalVisualSnapshot {
+    let mut project=crate::historical_visual::create(&serde_json::from_value(json!({"id":"p","name":"Editorial","sequence_id":"s","width":160,"height":90,"fps":{"numerator":10,"denominator":1}})).unwrap()).unwrap();
     project.base.assets = serde_json::from_value(json!([
         {"id":"video","name":"V","kind":"video","uri":"fixture.mp4","duration":t(100)},
         {"id":"sound","name":"A","kind":"audio","uri":"fixture.wav","duration":t(100)}
@@ -23,8 +23,8 @@ pub(super) fn fixture() -> ProjectSnapshotV3 {
     project.base.sequences[0].tracks[0].clips[1].channels=serde_json::from_value(json!([{"parameter":"opacity","keyframes":[{"id":"key0","time":t(0),"value":0.0,"interpolation":"linear"},{"id":"key3","time":t(3),"value":1.0,"interpolation":"linear"}]}])).unwrap();
     project.keyframe_curves=serde_json::from_value(json!([{"id":"ease","schema_version":1,"sequence_id":"s","clip_id":"b","parameter":"opacity","keyframe_id":"key0","curve":{"x1":0.25,"y1":0.1,"x2":0.25,"y2":1.0}}])).unwrap();
     project.visual=serde_json::from_value(json!([{"sequence_id":"s","shapes":[],"effects":[{"id":"blur","target_id":"b","effect":{"kind":"gaussian_blur","radius_px":2.0}}],"masks":[{"id":"mask","target_id":"b","shape":{"kind":"rectangle","x":0.1,"y":0.1,"width":0.8,"height":0.8},"inverted":false,"feather":0.05}],"transitions":[]}])).unwrap();
-    opencut_editor_core::project_v3::validate_project_v3(&project).unwrap();
-    ProjectSnapshotV3 {
+    opencut_editor_core::historical_visual::validate_project_historical_visual(&project).unwrap();
+    HistoricalVisualSnapshot {
         project,
         revision: "rev_fixture".into(),
     }
@@ -40,11 +40,11 @@ fn request(command: TimelineCommand) -> TimelineEditRequest {
     }
 }
 fn apply(
-    snapshot: &ProjectSnapshotV3,
+    snapshot: &HistoricalVisualSnapshot,
     command: TimelineCommand,
-) -> (ProjectDocumentV3, TimelineEditPlan) {
+) -> (HistoricalVisualDocument, TimelineEditPlan) {
     let plan = plan(snapshot, &request(command)).unwrap();
-    let next = crate::project_v3::plan_apply(&snapshot.project, &plan.transaction)
+    let next = crate::historical_visual::plan_apply(&snapshot.project, &plan.transaction)
         .unwrap()
         .proposed_project;
     (next, plan)
@@ -52,7 +52,7 @@ fn apply(
 fn seconds(value: &Time) -> f64 {
     value.ticks.parse::<f64>().unwrap() / f64::from(value.timebase)
 }
-fn intervals(project: &ProjectDocumentV3, track: usize) -> Vec<(f64, f64, f64, f64)> {
+fn intervals(project: &HistoricalVisualDocument, track: usize) -> Vec<(f64, f64, f64, f64)> {
     project.base.sequences[0].tracks[track]
         .clips
         .iter()

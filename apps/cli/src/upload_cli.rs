@@ -18,31 +18,38 @@ pub(super) enum Command {
         #[arg(long)]
         input: PathBuf,
     },
-    /// Confirm raw bytes in a streaming upload whose complete digest is not yet declared.
-    StreamPut {
-        upload_id: String,
-        #[arg(long)]
-        offset: String,
-        #[arg(long)]
-        input: PathBuf,
-    },
 }
 pub(super) fn execute(
     database: &Path,
     caller: Caller,
     command: &Command,
 ) -> Result<Response, EditorError> {
-    let (upload_id, offset, input, streaming) = match command {
+    let (chunk, bytes) = read_chunk(command)?;
+    let mut host = Automation::open(database)?
+        .with_source(CallSource::Cli)
+        .with_caller(caller);
+    Ok(host.put_upload_chunk(&chunk, &bytes))
+}
+
+pub(super) fn execute_remote(
+    client: &opencut_sdk::Client,
+    command: &Command,
+) -> Result<Response, EditorError> {
+    let (chunk, bytes) = read_chunk(command)?;
+    let result = client.upload_chunk(&chunk.upload_id, uploads::decimal(&chunk.offset)?, &bytes);
+    Ok(match result {
+        Ok(view) => opencut_automation::response(Ok(serde_json::json!(view))),
+        Err(error) => crate::connection::response::<serde_json::Value>(Err(error)),
+    })
+}
+
+fn read_chunk(command: &Command) -> Result<(uploads::ChunkDescriptor, Vec<u8>), EditorError> {
+    let (upload_id, offset, input) = match command {
         Command::Put {
             upload_id,
             offset,
             input,
-        } => (upload_id, offset, input, false),
-        Command::StreamPut {
-            upload_id,
-            offset,
-            input,
-        } => (upload_id, offset, input, true),
+        } => (upload_id, offset, input),
     };
     uploads::validate_id(upload_id)?;
     uploads::decimal(offset)?;
@@ -65,12 +72,5 @@ pub(super) fn execute(
         content_hash: format!("{:x}", Sha256::digest(&bytes)),
     };
     uploads::validate_chunk(&chunk)?;
-    let mut host = Automation::open(database)?
-        .with_source(CallSource::Cli)
-        .with_caller(caller);
-    Ok(if streaming {
-        host.put_stream_upload_chunk(&chunk, &bytes)
-    } else {
-        host.put_upload_chunk(&chunk, &bytes)
-    })
+    Ok((chunk, bytes))
 }

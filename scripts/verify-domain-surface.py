@@ -195,14 +195,14 @@ def verify(binary):
                 with urlopen(request, timeout=10) as response:
                     return json.load(response)
 
-            http_domains = http("/v1/domains")["data"]
+            http_domains = http("/api/domains")["data"]
             assert [domain["domain"] for domain in http_domains] == [
                 domain["domain"] for domain in catalog
             ]
-            edit_contract = http("/v1/domains/edit")["data"]
+            edit_contract = http("/api/domains/edit")["data"]
             assert {action["action"] for action in edit_contract[0]["actions"]} == {"plan", "apply"}
             assert edit_contract[0]["actions"][0]["input_schema"]
-            inspected = http("/v1/tools/opencut_project", {
+            inspected = http("/api/tools/opencut_project", {
                 "action": "inspect", "input": {"project_id": "a"},
             })
             assert inspected["data"]["revision"] == revision

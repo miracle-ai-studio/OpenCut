@@ -165,10 +165,8 @@ def verify(binary):
             assert call(broken7, 'opencut_project_inspect', {'project_id': 'history'}) == PROJECT['head']
             checks.append('Plugin publication DDL collision rolls back v6 migration with all original data intact; corrected retry succeeds')
         if target_version >= 9:
-            # Historical sessions retain their original 1 GiB sizes. Seed enough
-            # records to exceed the live quota, even when today's limit grows.
-            project_limit = int(call(current_database, 'opencut_capabilities', {})['uploads']['staging']['project_reservation_limit_bytes'])
-            retained_count = project_limit // 1073741824 + 2
+            # Retain66original1GiB sessions without reinstating a fixed upload quota.
+            retained_count = 66
             retained = fixture('retention-migration')
             seed(retained, 8, 'v2', probe)
             with sqlite3.connect(retained) as c:
@@ -183,14 +181,14 @@ def verify(binary):
                 c.execute('DROP TABLE upload_retention')
             quota=call(retained,'opencut_upload_quota',{'project_id':'history'})
             assert quota['project_reserved_bytes']==str(retained_count*1073741824)
-            assert int(quota['project_reserved_bytes'])>int(quota['project_limit_bytes'])
-            call(retained,'opencut_upload_create',{'project_id':'history','idempotency_key':'blocked','name':'new','size_bytes':'1','content_hash':'a'*64},'UPLOAD_QUOTA_EXCEEDED')
+            assert int(quota['project_reserved_bytes'])>64*1024**3
+            call(retained,'opencut_upload_begin',{'project_id':'history','idempotency_key':'blocked','name':'new','size_bytes':'1','content_hash':'a'*64})
             for i in range(3):
                 value=call(retained,'opencut_upload_release',{'upload_id':f'upload_{i:032x}'})
                 assert value['state']=='released' and value['reserved_bytes']=='0'
-            call(retained,'opencut_upload_create',{'project_id':'history','idempotency_key':'blocked','name':'new','size_bytes':'1','content_hash':'a'*64})
+            call(retained,'opencut_upload_begin',{'project_id':'history','idempotency_key':'blocked','name':'new','size_bytes':'1','content_hash':'a'*64})
             assert call(retained,'opencut_project_inspect',{'project_id':'history'})==PROJECT['head']
-            checks.append('Schema 8 retention collision rolls back; aborted sessions backfill conservatively above quota, release restores admission without rewriting history')
+            checks.append('Schema 8 retention collision rolls back; aborted sessions backfill exact reservations above the retired byte quotas;durable release preserves history')
         if target_version >= 10:
             scoped = fixture('v9-plugin-grant-rollback')
             seed(scoped, 9, 'v2', probe)

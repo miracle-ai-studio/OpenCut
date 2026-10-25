@@ -68,7 +68,7 @@ export async function verifyFeedback(browser, endpoint, _directory, check) {
       globalThis[Symbol.for("opencut.feedback.acceptance.original-set-item")] =
         original;
       Storage.prototype.setItem = function (key, value) {
-        if (key === "opencut.feedback.mock-history.v1")
+        if (key === "opencut.feedback.mock-history")
           throw new DOMException(
             "Synthetic quota failure",
             "QuotaExceededError",
@@ -107,7 +107,7 @@ export async function verifyFeedback(browser, endpoint, _directory, check) {
       dialog.getByText("Feedback received locally (mock)", { exact: true }),
     ).toBeVisible();
     const receipt = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("opencut.feedback.mock-history.v1")),
+      JSON.parse(localStorage.getItem("opencut.feedback.mock-history")),
     );
     expect(receipt).toHaveLength(1);
     expect(Object.keys(receipt[0]).sort()).toEqual([

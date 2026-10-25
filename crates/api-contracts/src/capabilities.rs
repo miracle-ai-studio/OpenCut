@@ -1,27 +1,24 @@
-use opencut_contracts::{OperationDescriptor, ParameterDescriptor};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Capabilities {
-    pub api_version: String,
     pub host: String,
-    pub project_schema_version: u32,
     pub features: Features,
     pub limits: Limits,
     pub job_execution: JobExecution,
     pub rendering: Rendering,
-    pub operations: Vec<OperationDescriptor>,
-    pub parameters: Vec<ParameterDescriptor>,
-    pub job_kinds: Vec<opencut_job_contracts::JobKindDescriptor>,
+    pub edit_operation_schema: Value,
+    pub job_results: Vec<crate::job_results::JobResultDescriptor>,
     pub tools: Vec<String>,
 }
 
-/// Extended host discovery. The v1 tool retains its frozen, extension-tolerant DTO.
+/// Host discovery uses the same declarations as every generated client.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HostCapabilities {
     #[serde(default)]
-    pub project_v3: Option<ProjectV3Capabilities>,
+    pub project: Option<ProjectCapabilities>,
     #[serde(default)]
     pub analysis_evidence_query_tool: Option<String>,
     #[serde(default)]
@@ -143,9 +140,9 @@ pub struct UploadCapabilities {
     pub chunk_path_template: String,
     pub chunk_query_fields: Vec<String>,
     pub requires_bearer: bool,
-    pub max_upload_bytes: String,
+    /// Exact resource addressability;not a disk or media quota.
+    pub max_source_bytes: String,
     pub max_chunk_bytes: String,
-    pub max_chunks: usize,
     pub max_receiving_per_project: usize,
     pub max_receiving_per_workspace: usize,
     pub max_inflight_chunks: usize,
@@ -153,13 +150,10 @@ pub struct UploadCapabilities {
     pub sequential: bool,
     pub accept_tool: String,
     pub result_field: String,
-    pub result_schema_version: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UploadStagingCapabilities {
-    pub project_reservation_limit_bytes: String,
-    pub workspace_reservation_limit_bytes: String,
     pub retention_tool: String,
     pub release_tool: String,
     pub quota_tool: String,
@@ -169,11 +163,8 @@ pub struct UploadStagingCapabilities {
     pub measures_filesystem_usage: bool,
 }
 
-/// Additive discovery for the explicit versioned project surface. The legacy
-/// project_schema_version remains 2 because legacy project tools keep that DTO.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProjectV3Capabilities {
-    pub schema_version: u32,
+pub struct ProjectCapabilities {
     pub create_tool: String,
     pub promote_tool: String,
     pub list_tool: String,
@@ -190,15 +181,15 @@ pub struct ProjectV3Capabilities {
     pub branch_tools: Vec<String>,
     pub package_export_tool: String,
     pub package_import_tool: String,
-    pub operations: Vec<String>,
-    pub shapes: Vec<String>,
-    pub effects: Vec<String>,
-    pub masks: Vec<String>,
-    pub transitions: Vec<String>,
-    pub base_operations_supported: bool,
     pub selective_undo_redo: bool,
     pub named_branches: bool,
     pub promotion_reversible_by_undo: bool,
-    pub job_kinds: Vec<String>,
-    pub analysis_uses_fixed_base_assets: bool,
+}
+
+/// Discovery and tool inputs derive from the same Rust operation declaration.
+pub fn edit_operation_schema() -> Value {
+    serde_json::to_value(schemars::schema_for!(
+        opencut_contracts::project_public::ProjectEditOperation
+    ))
+    .expect("Edit schema is serializable")
 }

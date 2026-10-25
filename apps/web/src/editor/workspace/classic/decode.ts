@@ -1,13 +1,13 @@
 import { transforms, v0 } from "./transforms";
 import { getProjectId, isRecord } from "./legacy/utils";
 import type { ProjectRecord } from "./legacy/types";
-import type { V1ToV2Context } from "./legacy/v1-to-v2";
+import type { ToContext } from "./legacy/v1-to-v2";
 import { digest, legacyId } from "./identity";
 export type ClassicSnapshot = {
   origin: string;
   sourceId: string;
   raw: ProjectRecord;
-  context: V1ToV2Context;
+  context: ToContext;
   media: ProjectRecord[];
 };
 export type DecodedClassic = {
@@ -20,7 +20,7 @@ export type DecodedClassic = {
 };
 // Classic's historic decoders filtered malformed/unknown tracks. Recovery must
 // reject a damaged source rather than quietly publish a smaller document.
-function elementIds(project: ProjectRecord, context?: V1ToV2Context): string[] {
+function elementIds(project: ProjectRecord, context?: ToContext): string[] {
   const ids: string[] = [];
   const scenes = Array.isArray(project.scenes) ? project.scenes : [];
   for (const scene of scenes) {

@@ -329,16 +329,17 @@ def verify(binary: Path) -> dict:
                 history=tool("opencut_project_history",{"project_id":"mcp-project","limit":1})["structuredContent"]["data"]
                 assert history["revisions"][0]["revision"]==applied["structuredContent"]["data"]["revision"]
                 assert history["next_cursor"]==snapshot["revision"]
-                historical=tool("opencut_revision_inspect",{"project_id":"mcp-project","revision":snapshot["revision"]})
-                assert historical["structuredContent"]["data"]==snapshot
+                historical=tool("opencut_project_inspect",{"project_id":"mcp-project","revision":snapshot["revision"]})
+                assert historical["structuredContent"]["data"]["kind"]=="historical"
+                assert historical["structuredContent"]["data"]["snapshot"]["revision"]==snapshot["revision"]
                 restoration={"project_id":"mcp-project","request":{"expected_revision":history["head_revision"],"target_revision":snapshot["revision"],"idempotency_key":"restore-initial","label":"Restore initial contents"}}
-                restored=tool("opencut_revision_restore",restoration)
+                restored=tool("opencut_project_restore",restoration)
                 assert not restored.get("isError"),restored
-                assert tool("opencut_revision_restore",restoration)["structuredContent"]["data"]==restored["structuredContent"]["data"]
+                assert tool("opencut_project_restore",restoration)["structuredContent"]["data"]==restored["structuredContent"]["data"]
                 after_restore=tool("opencut_project_inspect",{"project_id":"mcp-project"})["structuredContent"]["data"]
                 assert after_restore["project"]==snapshot["project"] and after_restore["revision"]!=snapshot["revision"]
                 restoration["request"]["label"]="Different request with same key"
-                rejected=tool("opencut_revision_restore",restoration)
+                rejected=tool("opencut_project_restore",restoration)
                 assert rejected["structuredContent"]["error"]["code"]=="IDEMPOTENCY_KEY_REUSED",rejected
                 queued = tool("opencut_job_start", {
                     "kind": "media.probe", "idempotency_key": "mcp-probe",

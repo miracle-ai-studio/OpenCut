@@ -20,13 +20,19 @@ fn project(app: &mut EditorApplication, id: &str) -> ProjectSnapshot {
     )
     .unwrap()
 }
-fn input(key: &str) -> CreateUpload {
-    CreateUpload {
+fn input(key: &str) -> BeginUpload {
+    BeginUpload {
         project_id: "a".into(),
         idempotency_key: key.into(),
         name: "../display-only.mov".into(),
         size_bytes: "6".into(),
-        content_hash: format!("{:x}", Sha256::digest(b"abcdef")),
+        content_hash: Some(format!("{:x}", Sha256::digest(b"abcdef"))),
+    }
+}
+fn completion(upload: &UploadView) -> CompleteUpload {
+    CompleteUpload {
+        upload_id: upload.upload_id.clone(),
+        content_hash: upload.content_hash.clone().unwrap(),
     }
 }
 fn chunk(id: &str, offset: &str, bytes: &[u8]) -> ChunkDescriptor {
@@ -89,17 +95,14 @@ fn upload_replay_is_exact_and_never_moves_the_project_head() {
     let mut app = EditorApplication::open(&path).unwrap();
     let snapshot = project(&mut app, "a");
     let bytes = UploadChunks::new(dir.path().join("uploads"));
-    let view = app.create_upload(&input("create")).unwrap();
+    let view = app.begin_upload(&input("create")).unwrap();
     let first = chunk(&view.upload_id, "0", b"abc");
     assert_eq!(
         bytes.put(&mut app, &first, b"abc").unwrap().next_offset,
         "3"
     );
     let before = counts(&app);
-    assert_eq!(
-        app.create_upload(&input("create")).unwrap().next_offset,
-        "3"
-    );
+    assert_eq!(app.begin_upload(&input("create")).unwrap().next_offset, "3");
     assert_eq!(
         bytes.put(&mut app, &first, b"abc").unwrap().next_offset,
         "3"
@@ -127,7 +130,7 @@ fn upload_replay_is_exact_and_never_moves_the_project_head() {
     );
     let mut changed = input("create");
     changed.name = "different".into();
-    code(app.create_upload(&changed), "IDEMPOTENCY_KEY_REUSED");
+    code(app.begin_upload(&changed), "IDEMPOTENCY_KEY_REUSED");
     assert_eq!(counts(&app), before);
     drop(app);
     let mut reopened = EditorApplication::open(&path).unwrap();
@@ -158,7 +161,7 @@ fn disk_failure_and_bad_bytes_never_acknowledge_a_chunk() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
-    let view = app.create_upload(&input("create")).unwrap();
+    let view = app.begin_upload(&input("create")).unwrap();
     let desc = chunk(&view.upload_id, "0", b"abc");
     let root = dir.path().join("private-host-path");
     std::fs::write(&root, b"not a directory").unwrap();
@@ -190,12 +193,12 @@ fn audit_failure_rolls_back_offset_but_durable_bytes_can_be_retried() {
     let bytes = UploadChunks::new(dir.path().join("uploads"));
     let before_create = counts(&app);
     app.connection.execute_batch("CREATE TRIGGER deny_upload BEFORE INSERT ON audit_records BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;").unwrap();
-    assert!(app.create_upload(&input("create")).is_err());
+    assert!(app.begin_upload(&input("create")).is_err());
     assert_eq!(counts(&app), before_create);
     app.connection
         .execute_batch("DROP TRIGGER deny_upload;")
         .unwrap();
-    let view = app.create_upload(&input("create")).unwrap();
+    let view = app.begin_upload(&input("create")).unwrap();
     let desc = chunk(&view.upload_id, "0", b"abc");
     let before = counts(&app);
     app.connection.execute_batch("CREATE TRIGGER deny_upload BEFORE INSERT ON audit_records BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;").unwrap();
@@ -229,10 +232,10 @@ fn upload_authorization_precedes_receipt_replay_and_uses_record_project() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
     project(&mut app, "b");
-    let own = app.create_upload(&input("create")).unwrap();
+    let own = app.begin_upload(&input("create")).unwrap();
     let mut foreign = input("create");
     foreign.project_id = "b".into();
-    let foreign = app.create_upload(&foreign).unwrap();
+    let foreign = app.begin_upload(&foreign).unwrap();
     app.set_principal_policy(policy(all(), "0")).unwrap();
     let credential = app.issue_credential("uploader").unwrap();
     let caller = app.authenticate(&credential.secret).unwrap();
@@ -267,7 +270,7 @@ fn upload_authorization_precedes_receipt_replay_and_uses_record_project() {
         app.set_caller(caller.clone());
         assert_eq!(app.inspect_upload(&own.upload_id).unwrap().next_offset, "3");
         let before = counts(&app);
-        code(app.create_upload(&input("create")), "NOT_AUTHORIZED");
+        code(app.begin_upload(&input("create")), "NOT_AUTHORIZED");
         code(bytes.put(&mut app, &desc, b"abc"), "NOT_AUTHORIZED");
         code(app.abort_upload(&own.upload_id), "NOT_AUTHORIZED");
         assert_eq!(counts(&app), before);
@@ -277,7 +280,7 @@ fn upload_authorization_precedes_receipt_replay_and_uses_record_project() {
     app.revoke_credential(&credential.credential_id).unwrap();
     app.set_caller(caller);
     code(app.inspect_upload(&own.upload_id), "NOT_AUTHORIZED");
-    code(app.create_upload(&input("create")), "NOT_AUTHORIZED");
+    code(app.begin_upload(&input("create")), "NOT_AUTHORIZED");
     code(bytes.put(&mut app, &desc, b"abc"), "NOT_AUTHORIZED");
 }
 
@@ -286,9 +289,9 @@ fn abort_is_atomic_and_idempotent_and_releases_receiving_quota() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
     let views = (0..8)
-        .map(|n| app.create_upload(&input(&n.to_string())).unwrap())
+        .map(|n| app.begin_upload(&input(&n.to_string())).unwrap())
         .collect::<Vec<_>>();
-    code(app.create_upload(&input("overflow")), "RESOURCE_TOO_LARGE");
+    code(app.begin_upload(&input("overflow")), "RESOURCE_TOO_LARGE");
     let before = counts(&app);
     app.connection.execute_batch("CREATE TRIGGER deny_abort BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT,'event unavailable'); END;").unwrap();
     assert!(app.abort_upload(&views[0].upload_id).is_err());
@@ -307,7 +310,7 @@ fn abort_is_atomic_and_idempotent_and_releases_receiving_quota() {
     let before = counts(&app);
     app.abort_upload(&views[0].upload_id).unwrap();
     assert_eq!(
-        app.create_upload(&input("0")).unwrap().state,
+        app.begin_upload(&input("0")).unwrap().state,
         UploadState::Aborted
     );
     assert_eq!(counts(&app), before);
@@ -315,7 +318,7 @@ fn abort_is_atomic_and_idempotent_and_releases_receiving_quota() {
         app.authorize_chunk(&chunk(&views[0].upload_id, "0", b"abc")),
         "UPLOAD_STATE_CONFLICT",
     );
-    assert!(app.create_upload(&input("overflow")).is_ok());
+    assert!(app.begin_upload(&input("overflow")).is_ok());
 }
 
 #[test]
@@ -329,8 +332,8 @@ fn upload_migration_rolls_back_all_tables_on_collision() {
     let conn = Connection::open(&path).unwrap();
     conn.execute_batch(sqlite_artifact_publication::DROP_FOR_TEST)
         .unwrap();
-    conn.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
+    conn.execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; UPDATE metadata SET value='7' WHERE key='schema_version'; CREATE TABLE upload_chunks(collision TEXT);").unwrap();
     assert!(EditorApplication::open(&path).is_err());
     assert_eq!(
         conn.query_row::<String, _, _>(
@@ -366,30 +369,63 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
 }
 
 #[test]
-fn chunk_count_quota_bounds_metadata_and_still_allows_exact_replay() {
+fn paged_manifest_crosses_the_old_chunk_ceiling_and_keeps_exact_replay() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
+    let confirmed = 4096i64;
     let mut request = input("create");
-    request.size_bytes = (MAX_UPLOAD_CHUNKS + 1).to_string();
-    let view = app.create_upload(&request).unwrap();
+    request.size_bytes = (confirmed + 1).to_string();
+    request.content_hash = Some(format!(
+        "{:x}",
+        Sha256::digest(vec![b'a'; (confirmed + 1) as usize])
+    ));
+    let view = app.begin_upload(&request).unwrap();
     let desc = chunk(&view.upload_id, "0", b"a");
-    // Seed a complete confirmed prefix, avoiding 4096 redundant durable disk writes.
+    // Reuse the metadata fixture;no thousands of redundant durable file writes.
     let tx = app.connection.transaction().unwrap();
-    for offset in 0..MAX_UPLOAD_CHUNKS {
-        tx.execute("INSERT INTO upload_chunks(upload_id,offset_bytes,size_bytes,content_hash,request_id) VALUES (?1,?2,1,?3,'seed')", params![view.upload_id,offset,desc.content_hash]).unwrap();
+    for offset in 0..confirmed {
+        tx.execute("INSERT INTO upload_chunks(upload_id,offset_bytes,size_bytes,content_hash,request_id) VALUES (?1,?2,1,?3,'seed')",params![view.upload_id,offset,desc.content_hash]).unwrap();
     }
     tx.execute(
         "UPDATE upload_sessions SET next_offset=?1 WHERE upload_id=?2",
-        params![MAX_UPLOAD_CHUNKS, view.upload_id],
+        params![confirmed, view.upload_id],
     )
     .unwrap();
     tx.commit().unwrap();
     assert!(app.authorize_chunk(&desc).is_ok());
-    let next = chunk(&view.upload_id, &MAX_UPLOAD_CHUNKS.to_string(), b"a");
-    let before = counts(&app);
-    code(app.authorize_chunk(&next), "RESOURCE_TOO_LARGE");
-    code(app.acknowledge_chunk(&next), "RESOURCE_TOO_LARGE");
-    assert_eq!(counts(&app), before);
+    let next = chunk(&view.upload_id, &confirmed.to_string(), b"a");
+    app.acknowledge_chunk(&next).unwrap();
+    let sealed = app.complete_upload(&completion(&view)).unwrap();
+    let job = app
+        .live_jobs()
+        .claim("manifest-reader", 60_000)
+        .unwrap()
+        .unwrap();
+    assert_eq!(sealed.job_id.as_deref(), Some(job.job_id.as_str()));
+    let input: PreparedMediaImportInput = serde_json::from_value(job.input).unwrap();
+    assert!(input.chunks.is_empty());
+    assert!(input.authority.is_some());
+    let mut cursor = 0u64;
+    loop {
+        let page = app
+            .sealed_import_chunks(&input, &job.job_id, "manifest-reader", job.attempt, cursor)
+            .unwrap();
+        assert!(page.len() <= IMPORT_CHUNK_PAGE_SIZE);
+        if page.is_empty() {
+            break;
+        }
+        for row in page {
+            assert_eq!(row.offset, cursor);
+            assert_eq!(row.size_bytes, 1);
+            assert_eq!(row.content_hash, desc.content_hash);
+            cursor += 1;
+        }
+    }
+    assert_eq!(cursor, (confirmed + 1) as u64);
+    code(
+        app.sealed_import_chunks(&input, &job.job_id, "other-worker", job.attempt, 0),
+        "JOB_LEASE_LOST",
+    );
 }
 
 #[test]
@@ -404,20 +440,20 @@ fn untrusted_upload_parameters_are_rejected_before_native_storage() {
         "-1",
         "+1",
         "1.0",
-        "17179869185",
+        "9007199254740992",
         "18446744073709551616",
     ] {
         let mut request = input(size);
         request.size_bytes = size.into();
-        code(app.create_upload(&request), "INVALID_ARGUMENT");
+        code(app.begin_upload(&request), "INVALID_ARGUMENT");
     }
     for hash in ["abc", &"A".repeat(64), &"g".repeat(64)] {
         let mut request = input("bad-hash");
-        request.content_hash = hash.into();
-        code(app.create_upload(&request), "INVALID_ARGUMENT");
+        request.content_hash = Some(hash.into());
+        code(app.begin_upload(&request), "INVALID_ARGUMENT");
     }
     assert_eq!(counts(&app), before);
-    let view = app.create_upload(&input("good")).unwrap();
+    let view = app.begin_upload(&input("good")).unwrap();
     let bytes = UploadChunks::new(dir.path().join("uploads"));
     for id in ["../../escape", "upload_../escape", "upload_0000"] {
         code(
@@ -436,10 +472,10 @@ fn untrusted_upload_parameters_are_rejected_before_native_storage() {
 
 fn sealed(app: &mut EditorApplication) -> (UploadView, JobRecord, MediaImportJobResult) {
     project(app, "a");
-    let upload = app.create_upload(&input("create")).unwrap();
+    let upload = app.begin_upload(&input("create")).unwrap();
     app.acknowledge_chunk(&chunk(&upload.upload_id, "0", b"abcdef"))
         .unwrap();
-    let upload = app.seal_upload(&upload.upload_id).unwrap();
+    let upload = app.complete_upload(&completion(&upload)).unwrap();
     let job = app.get_job(upload.job_id.as_deref().unwrap()).unwrap();
     let input: PreparedMediaImportInput = serde_json::from_value(job.input.clone()).unwrap();
     let result = MediaImportJobResult { media_id: input.media_id.clone(), project_id: input.project_id, upload_id: input.upload_id, job_id: job.job_id.clone(),
@@ -453,13 +489,16 @@ fn sealed(app: &mut EditorApplication) -> (UploadView, JobRecord, MediaImportJob
 fn sealing_and_accepting_the_scoped_import_are_one_idempotent_transaction() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     let snapshot = project(&mut app, "a");
-    let upload = app.create_upload(&input("create")).unwrap();
-    code(app.seal_upload(&upload.upload_id), "UPLOAD_INCOMPLETE");
+    let upload = app.begin_upload(&input("create")).unwrap();
+    code(
+        app.complete_upload(&completion(&upload)),
+        "UPLOAD_INCOMPLETE",
+    );
     app.acknowledge_chunk(&chunk(&upload.upload_id, "0", b"abcdef"))
         .unwrap();
     let before = counts(&app);
     app.connection.execute_batch("CREATE TRIGGER deny_import BEFORE INSERT ON job_events BEGIN SELECT RAISE(ABORT,'queue event unavailable'); END;").unwrap();
-    assert!(app.seal_upload(&upload.upload_id).is_err());
+    assert!(app.complete_upload(&completion(&upload)).is_err());
     assert_eq!(counts(&app), before);
     assert_eq!(
         app.inspect_upload(&upload.upload_id).unwrap().state,
@@ -472,9 +511,9 @@ fn sealing_and_accepting_the_scoped_import_are_one_idempotent_transaction() {
     let issued = app.issue_credential("uploader").unwrap();
     let caller = app.authenticate(&issued.secret).unwrap();
     app.set_caller(caller.clone());
-    let accepted = app.seal_upload(&upload.upload_id).unwrap();
+    let accepted = app.complete_upload(&completion(&upload)).unwrap();
     let before = counts(&app);
-    assert_eq!(app.seal_upload(&upload.upload_id).unwrap(), accepted);
+    assert_eq!(app.complete_upload(&completion(&upload)).unwrap(), accepted);
     assert_eq!(counts(&app), before);
     let view = app.job_view(accepted.job_id.as_deref().unwrap()).unwrap();
     assert_eq!(view.resource_target.unwrap().project_id, "a");
@@ -483,7 +522,7 @@ fn sealing_and_accepting_the_scoped_import_are_one_idempotent_transaction() {
     app.set_caller(Caller::LocalOwner);
     app.revoke_credential(&issued.credential_id).unwrap();
     app.set_caller(caller);
-    code(app.seal_upload(&upload.upload_id), "NOT_AUTHORIZED");
+    code(app.complete_upload(&completion(&upload)), "NOT_AUTHORIZED");
 }
 #[test]
 fn import_success_resource_events_and_audit_commit_or_roll_back_together() {
@@ -536,8 +575,13 @@ fn import_success_resource_events_and_audit_commit_or_roll_back_together() {
     );
     assert_eq!(counts(&app), before_cancel);
     let view = app.job_view(&job.job_id).unwrap();
-    assert!(view.result.is_none() && view.result_unavailable.is_none());
-    assert_eq!(view.extended_result.unwrap().data, json!(result));
+    assert!(view.result_unavailable.is_none());
+    let Some(opencut_api_contracts::job_results::JobResultView::MediaImport(imported)) =
+        view.result
+    else {
+        panic!("Expected typed media import result")
+    };
+    assert_eq!(json!(imported), json!(result));
     let links: (String,String) = app.connection.query_row("SELECT project_id,origin_request_id FROM audit_records WHERE job_id=?1 AND action='job.succeeded'", [&job.job_id], |r|Ok((r.get(0)?,r.get(1)?))).unwrap();
     assert_eq!(links.0, "a");
     assert!(!links.1.is_empty());
@@ -596,7 +640,7 @@ fn abort_cleanup_failure_is_committed_and_retry_removes_only_private_chunks() {
     let root = tempfile::tempdir().unwrap();
     let mut app = EditorApplication::open(root.path().join("workspace.sqlite")).unwrap();
     project(&mut app, "a");
-    let view = app.create_upload(&input("cleanup")).unwrap();
+    let view = app.begin_upload(&input("cleanup")).unwrap();
     let native = UploadChunks::new(root.path().join("uploads"));
     native
         .put(&mut app, &chunk(&view.upload_id, "0", b"abc"), b"abc")
@@ -630,36 +674,31 @@ fn abort_cleanup_failure_is_committed_and_retry_removes_only_private_chunks() {
 }
 
 #[test]
-fn reservations_survive_abort_until_durable_release_and_quota_is_atomic() {
+fn reservations_survive_abort_until_durable_release_without_fixed_byte_quotas() {
     let mut app = EditorApplication::open(":memory:").unwrap();
     project(&mut app, "a");
+    let size = 48u64 * 1024 * 1024 * 1024;
     let mut first = None;
-    for index in 0..(PROJECT_UPLOAD_RESERVATION_LIMIT / MAX_UPLOAD_BYTES) {
-        let request = CreateUpload {
-            size_bytes: MAX_UPLOAD_BYTES.to_string(),
-            ..input(&format!("quota-{index}"))
+    for index in 0..2 {
+        let request = BeginUpload {
+            size_bytes: size.to_string(),
+            ..input(&format!("reservation-{index}"))
         };
-        let view = app.create_upload(&request).unwrap();
-        app.abort_upload(&view.upload_id).unwrap(); // State alone cannot free bytes.
-        if index == 0 {
+        let view = app.begin_upload(&request).unwrap();
+        app.abort_upload(&view.upload_id).unwrap();
+        if first.is_none() {
             first = Some((view, request));
         }
     }
     assert_eq!(
         app.upload_quota("a").unwrap().project_reserved_bytes,
-        PROJECT_UPLOAD_RESERVATION_LIMIT.to_string()
+        (size * 2).to_string()
     );
-    let before = counts(&app);
-    code(
-        app.create_upload(&input("over-quota")),
-        "UPLOAD_QUOTA_EXCEEDED",
-    );
-    assert_eq!(counts(&app), before);
     let (first, request) = first.unwrap();
     assert_eq!(
-        app.create_upload(&request).unwrap().upload_id,
+        app.begin_upload(&request).unwrap().upload_id,
         first.upload_id
-    ); // Replay before capacity checks.
+    );
     let root = tempfile::tempdir().unwrap();
     let native = UploadChunks::new(root.path().join("uploads"));
     let released = release_upload(
@@ -685,7 +724,11 @@ fn reservations_survive_abort_until_durable_release_and_quota_is_atomic() {
         released
     );
     assert_eq!(counts(&app), before);
-    app.create_upload(&input("over-quota")).unwrap(); // Failed create didn't consume its key.
+    assert_eq!(
+        app.upload_quota("a").unwrap().project_reserved_bytes,
+        size.to_string()
+    );
+    app.begin_upload(&input("after-release")).unwrap();
 }
 
 #[test]
@@ -693,7 +736,7 @@ fn release_audit_failure_keeps_reservation_after_native_deletion_and_retries() {
     let root = tempfile::tempdir().unwrap();
     let mut app = EditorApplication::open(root.path().join("db")).unwrap();
     project(&mut app, "a");
-    let view = app.create_upload(&input("release-fault")).unwrap();
+    let view = app.begin_upload(&input("release-fault")).unwrap();
     let native = UploadChunks::new(root.path().join("uploads"));
     native
         .put(&mut app, &chunk(&view.upload_id, "0", b"abc"), b"abc")
@@ -788,35 +831,29 @@ fn active_import_cannot_release_and_terminal_release_preserves_published_media()
 }
 
 #[test]
-fn workspace_reservations_serialize_competing_projects_at_the_last_slot() {
+fn receiving_upload_slots_serialize_competing_writers_at_the_last_slot() {
     let root = tempfile::tempdir().unwrap();
     let db = root.path().join("db");
     let mut app = EditorApplication::open(&db).unwrap();
-    let slots = WORKSPACE_UPLOAD_RESERVATION_LIMIT / MAX_UPLOAD_BYTES;
-    for i in 0..slots + 1 {
-        let id = format!("p{i}");
-        project(&mut app, &id);
-        if i < slots - 1 {
-            app.create_upload(&CreateUpload {
-                project_id: id,
-                size_bytes: MAX_UPLOAD_BYTES.to_string(),
-                ..input(&format!("hold-{i}"))
-            })
-            .unwrap();
-        }
+    project(&mut app, "a");
+    for i in 0..7 {
+        app.begin_upload(&BeginUpload {
+            size_bytes: (48u64 << 30).to_string(),
+            ..input(&format!("hold-{i}"))
+        })
+        .unwrap();
     }
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
-    let threads: Vec<_> = (slots - 1..slots + 1)
+    let threads: Vec<_> = (0..2)
         .map(|i| {
             let db = db.clone();
             let barrier = barrier.clone();
             std::thread::spawn(move || {
                 let mut app = EditorApplication::open(db).unwrap();
                 barrier.wait();
-                app.create_upload(&CreateUpload {
-                    project_id: format!("p{i}"),
-                    size_bytes: MAX_UPLOAD_BYTES.to_string(),
-                    ..input("race")
+                app.begin_upload(&BeginUpload {
+                    size_bytes: (48u64 << 30).to_string(),
+                    ..input(&format!("race-{i}"))
                 })
             })
         })
@@ -825,17 +862,11 @@ fn workspace_reservations_serialize_competing_projects_at_the_last_slot() {
     assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
     assert_eq!(
         results.into_iter().find_map(Result::err).unwrap().code,
-        "UPLOAD_QUOTA_EXCEEDED"
+        "RESOURCE_TOO_LARGE"
     );
     assert_eq!(
-        app.connection
-            .query_row::<u64, _, _>(
-                "SELECT SUM(reserved_bytes) FROM upload_retention WHERE released=0",
-                [],
-                |r| r.get(0)
-            )
-            .unwrap(),
-        WORKSPACE_UPLOAD_RESERVATION_LIMIT
+        app.upload_quota("a").unwrap().project_reserved_bytes,
+        (8u64 * 48 << 30).to_string()
     );
 }
 
@@ -875,7 +906,7 @@ fn release_rechecks_after_lock_and_before_committing_a_freed_reservation() {
         let chunk_root = root.path().join("uploads");
         let mut app = EditorApplication::open(&db).unwrap();
         project(&mut app, "a");
-        let upload = app.create_upload(&input("revoke-release")).unwrap();
+        let upload = app.begin_upload(&input("revoke-release")).unwrap();
         UploadChunks::new(&chunk_root)
             .put(&mut app, &chunk(&upload.upload_id, "0", b"abc"), b"abc")
             .unwrap();
@@ -915,7 +946,7 @@ fn release_rechecks_after_lock_and_before_committing_a_freed_reservation() {
 }
 
 #[test]
-fn streaming_upload_fixes_hash_only_with_atomic_seal_and_preserves_legacy_projection() {
+fn upload_fixes_hash_only_with_atomic_completion_and_exposes_pending_sessions() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = EditorApplication::open(dir.path().join("workspace.sqlite")).unwrap();
     project(&mut app, "a");
@@ -924,48 +955,30 @@ fn streaming_upload_fixes_hash_only_with_atomic_seal_and_preserves_legacy_projec
         idempotency_key: "stream".into(),
         name: "sample.wav".into(),
         size_bytes: "6".into(),
+        content_hash: None,
     };
     let session = app.begin_upload(&begin).unwrap();
     assert_eq!(session.content_hash, None);
     assert_eq!(app.begin_upload(&begin).unwrap(), session);
-    assert_eq!(
-        app.inspect_upload(&session.upload_id).unwrap_err().code,
-        "UPLOAD_HASH_REQUIRED"
-    );
+    assert_eq!(app.inspect_upload(&session.upload_id).unwrap(), session);
     let chunks = UploadChunks::new(dir.path().join("chunks"));
     chunks
         .put(&mut app, &chunk(&session.upload_id, "0", b"abc"), b"abc")
         .unwrap();
     let finish = CompleteUpload {
         upload_id: session.upload_id.clone(),
-        content_hash: input("unused").content_hash,
+        content_hash: input("unused").content_hash.unwrap(),
     };
     assert_eq!(
         app.complete_upload(&finish).unwrap_err().code,
         "UPLOAD_INCOMPLETE"
     );
     assert_eq!(
-        app.inspect_stream_upload(&session.upload_id)
-            .unwrap()
-            .content_hash,
+        app.inspect_upload(&session.upload_id).unwrap().content_hash,
         None
     );
-    assert!(
-        query_uploads(
-            &app,
-            UploadQuery {
-                project_id: "a".into(),
-                cursor: None,
-                limit: 100,
-                retained_only: true
-            }
-        )
-        .unwrap()
-        .uploads
-        .is_empty()
-    );
     assert_eq!(
-        query_stream_uploads(
+        query_uploads(
             &app,
             UploadQuery {
                 project_id: "a".into(),
@@ -989,10 +1002,7 @@ fn streaming_upload_fixes_hash_only_with_atomic_seal_and_preserves_legacy_projec
         Some(finish.content_hash.as_str())
     );
     assert_eq!(app.complete_upload(&finish).unwrap(), sealed);
-    assert_eq!(
-        app.seal_upload(&session.upload_id).unwrap().job_id,
-        sealed.job_id
-    );
+    assert_eq!(app.complete_upload(&finish).unwrap().job_id, sealed.job_id);
     let conflicting = CompleteUpload {
         content_hash: "b".repeat(64),
         ..finish
@@ -1002,13 +1012,14 @@ fn streaming_upload_fixes_hash_only_with_atomic_seal_and_preserves_legacy_projec
         "UPLOAD_HASH_CONFLICT"
     );
     assert_eq!(
-        app.create_upload(&input("stream")).unwrap_err().code,
+        app.begin_upload(&input("stream")).unwrap_err().code,
         "IDEMPOTENCY_KEY_REUSED"
     );
     let record = app.get_job(sealed.job_id.as_deref().unwrap()).unwrap();
     let prepared: PreparedMediaImportInput = serde_json::from_value(record.input).unwrap();
     assert_eq!(prepared.content_hash, sealed.content_hash.unwrap());
-    assert_eq!(prepared.chunks.len(), 2);
+    assert!(prepared.chunks.is_empty());
+    assert!(prepared.authority.is_some());
 }
 
 #[test]
@@ -1022,6 +1033,7 @@ fn streaming_abort_cleans_chunks_and_releases_the_existing_quota() {
             idempotency_key: "abort-stream".into(),
             name: "sample.wav".into(),
             size_bytes: "6".into(),
+            content_hash: None,
         })
         .unwrap();
     let chunks = UploadChunks::new(dir.path().join("chunks"));
@@ -1059,6 +1071,7 @@ fn streaming_completion_rechecks_revoked_credentials_before_hash_or_job_mutation
             idempotency_key: "stream".into(),
             name: "a.wav".into(),
             size_bytes: "6".into(),
+            content_hash: None,
         })
         .unwrap();
     app.acknowledge_chunk(&chunk(&session.upload_id, "0", b"abcdef"))
@@ -1072,16 +1085,14 @@ fn streaming_completion_rechecks_revoked_credentials_before_hash_or_job_mutation
     code(
         app.complete_upload(&CompleteUpload {
             upload_id: session.upload_id.clone(),
-            content_hash: input("x").content_hash,
+            content_hash: input("x").content_hash.unwrap(),
         }),
         "NOT_AUTHORIZED",
     );
     assert_eq!(counts(&app), before);
     app.set_caller(Caller::LocalOwner);
     assert_eq!(
-        app.inspect_stream_upload(&session.upload_id)
-            .unwrap()
-            .content_hash,
+        app.inspect_upload(&session.upload_id).unwrap().content_hash,
         None
     );
 }
@@ -1092,10 +1103,10 @@ fn streaming_schema_migration_preserves_legacy_uploads_and_pending_hashes_surviv
     let db = dir.path().join("db");
     let mut app = EditorApplication::open(&db).unwrap();
     project(&mut app, "a");
-    let legacy = app.create_upload(&input("legacy")).unwrap();
+    let legacy = app.begin_upload(&input("legacy")).unwrap();
     app.connection
-        .execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings")
+        .execute_batch("DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings")
         .unwrap();
     app.connection
         .execute(
@@ -1112,18 +1123,12 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
             idempotency_key: "stream".into(),
             name: "s.wav".into(),
             size_bytes: "6".into(),
+            content_hash: None,
         })
         .unwrap();
     drop(app);
     let app = EditorApplication::open(&db).unwrap();
-    assert_eq!(
-        app.inspect_stream_upload(&stream.upload_id).unwrap(),
-        stream
-    );
-    code(
-        app.inspect_upload(&stream.upload_id),
-        "UPLOAD_HASH_REQUIRED",
-    );
+    assert_eq!(app.inspect_upload(&stream.upload_id).unwrap(), stream);
     assert_eq!(
         app.connection
             .query_row::<String, _, _>(

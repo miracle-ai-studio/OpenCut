@@ -75,7 +75,7 @@ def main():
         check('background worker completed real FFmpeg frame job after submitter exit')
         address = urlsplit(endpoint)
         connection = http.client.HTTPConnection(address.hostname, address.port, timeout=10)
-        connection.request('GET', f"/v1/jobs/{job['job_id']}/artifact",
+        connection.request('GET', f"/api/jobs/{job['job_id']}/artifact",
                            headers={'Authorization': 'Bearer ' + (directory / 'api-token').read_text().strip()})
         response = connection.getresponse()
         assert response.status == 200, response.status

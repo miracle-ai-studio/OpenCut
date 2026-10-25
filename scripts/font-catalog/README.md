@@ -76,7 +76,7 @@ cache; four independent derivation processes avoid Python's thread contention.
   --workers 16 --derive-workers 4
 ```
 
-The host exposes `opencut_font_derived_v1_catalog`, `source`, `import`, `proof`
+The host exposes `opencut_font_catalog`, `source`, `import`, `proof`
 and recovery `stage/read/ack` operations. Install the runtime recorded in
 `derived-runtime-lock.json` (Python 3.14.7 and the exact fontTools 4.61.1 wheel
 in `fonttools-lock.json`), then configure the host with absolute paths:

@@ -17,16 +17,13 @@ fn used(c: &Connection, project: Option<&str>) -> Result<u64, EditorError> {
 }
 pub(super) fn reserve(c: &Connection, input: &BeginUpload, id: &str) -> Result<(), EditorError> {
     let size = decimal(&input.size_bytes)?;
-    if used(c, Some(&input.project_id))?
+    if used(c, None)?
         .checked_add(size)
-        .is_none_or(|n| n > PROJECT_UPLOAD_RESERVATION_LIMIT)
-        || used(c, None)?
-            .checked_add(size)
-            .is_none_or(|n| n > WORKSPACE_UPLOAD_RESERVATION_LIMIT)
+        .is_none_or(|n| n > i64::MAX as u64)
     {
         return Err(EditorError::new(
-            "UPLOAD_QUOTA_EXCEEDED",
-            "Upload staging reservation limit reached; release eligible staging first",
+            "UPLOAD_RESERVATION_OVERFLOW",
+            "Upload reservation accounting exceeds its integer addressability",
         ));
     }
     c.execute(
@@ -36,7 +33,7 @@ pub(super) fn reserve(c: &Connection, input: &BeginUpload, id: &str) -> Result<(
     .map_err(storage_error)?;
     Ok(())
 }
-fn view(c: &Connection, upload: &UploadSession) -> Result<UploadRetentionView, EditorError> {
+fn view(c: &Connection, upload: &UploadView) -> Result<UploadRetentionView, EditorError> {
     let (size, released): (u64, bool) = c
         .query_row(
             "SELECT reserved_bytes,released FROM upload_retention WHERE upload_id=?1",
@@ -102,7 +99,7 @@ fn retained_upload(
     context: &opencut_editor_application::audit::ExecutionContext,
     id: &str,
     write: bool,
-) -> Result<UploadSession, EditorError> {
+) -> Result<UploadView, EditorError> {
     if context.caller().is_owner() {
         return sqlite_uploads::read(c, id)?
             .ok_or_else(|| EditorError::new("NOT_FOUND", "Upload was not found"));
@@ -184,7 +181,7 @@ impl UploadRetentionStore for EditorApplication {
                     EditorError::new("STORAGE_ERROR", "Upload disappeared in read snapshot")
                 })?;
                 let retention = view(&tx, &upload)?;
-                Ok(UploadSessionEntry { upload, retention })
+                Ok(UploadEntry { upload, retention })
             })
             .collect::<Result<_, EditorError>>()?;
         tx.commit().map_err(storage_error)?;
@@ -225,8 +222,6 @@ impl UploadRetentionStore for EditorApplication {
         let result = UploadQuotaView {
             project_id: project.into(),
             project_reserved_bytes: used(&tx, Some(project))?.to_string(),
-            project_limit_bytes: PROJECT_UPLOAD_RESERVATION_LIMIT.to_string(),
-            workspace_limit_bytes: WORKSPACE_UPLOAD_RESERVATION_LIMIT.to_string(),
         };
         tx.commit().map_err(storage_error)?;
         Ok(result)

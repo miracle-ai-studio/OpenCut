@@ -455,9 +455,7 @@ mod unix {
             if text.len() as u64 > MAX_LEDGER {
                 return Err(limit());
             }
-            let value: Ledger = serde_json::from_slice(&text).map_err(|_| failure())?;
-            value.validate()?;
-            Ok(value)
+            decode_ledger(&text)
         }
         fn save(&self, value: &Ledger) -> Result<(), EditorError> {
             self.save_with_margin(value, false)
@@ -614,7 +612,7 @@ mod unix {
         Ok(())
     }
     fn provision_repair(gate: &Gate, ledger: &mut Ledger) -> Result<(), EditorError> {
-        if ledger.version == 3 {
+        if ledger.repair.is_some() {
             return Ok(());
         }
         let (_, available) = observe(&gate.root)?;
@@ -632,7 +630,6 @@ mod unix {
         }
         fill_repair_file(gate)?;
         let _connection_lock = connection_lock_file(gate, true)?;
-        ledger.version = 3;
         if ledger.control_limit_bytes.is_none() {
             ledger.control_limit_bytes = Some(DEFAULT_CONTROL_LIMIT.to_string());
         }
@@ -810,9 +807,14 @@ mod unix {
     }
     #[derive(Clone, Serialize, Deserialize)]
     #[serde(deny_unknown_fields)]
+    struct PolicyBaseline {
+        policy: Policy,
+        media_output_limit_bytes: String,
+    }
+    #[derive(Clone, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
     struct Ledger {
-        version: u32,
-        #[serde(default = "default_media_output_limit")]
+        baseline: PolicyBaseline,
         media_output_limit_bytes: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         control_limit_bytes: Option<String>,
@@ -829,12 +831,88 @@ mod unix {
         changes: Vec<Receipt>,
     }
     fn default_media_output_limit() -> String {
+        // New workspaces use actual volume/policy admission, not a 1GiB file quota.
+        i64::MAX.to_string()
+    }
+    #[derive(Deserialize)]
+    struct LedgerHeader {
+        version: Option<u32>,
+    }
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct HistoricalLedger {
+        version: u32,
+        #[serde(default = "historical_media_output_limit")]
+        media_output_limit_bytes: String,
+        #[serde(default)]
+        control_limit_bytes: Option<String>,
+        policy: Policy,
+        held: BTreeMap<String, Entry>,
+        #[serde(default)]
+        control_database_name: Option<String>,
+        #[serde(default)]
+        control_held: BTreeMap<String, Entry>,
+        #[serde(default)]
+        repair: Option<RepairRecord>,
+        #[serde(default)]
+        repair_changes: Vec<RepairChange>,
+        changes: Vec<Receipt>,
+    }
+    fn historical_media_output_limit() -> String {
         (1_u64 << 30).to_string()
+    }
+    fn decode_ledger(bytes: &[u8]) -> Result<Ledger, EditorError> {
+        let header: LedgerHeader = serde_json::from_slice(bytes).map_err(|_| failure())?;
+        let ledger = if header.version.is_some() {
+            let old: HistoricalLedger = serde_json::from_slice(bytes).map_err(|_| failure())?;
+            if !matches!(old.version, 1..=3)
+                || (old.version == 1
+                    && (old.control_limit_bytes.is_some()
+                        || old.control_database_name.is_some()
+                        || !old.control_held.is_empty()))
+                || (old.version != 3 && (old.repair.is_some() || !old.repair_changes.is_empty()))
+                || (old.version >= 2
+                    && old
+                        .control_limit_bytes
+                        .as_deref()
+                        .and_then(|n| budget::decimal(n).ok())
+                        .is_none_or(|n| n == 0))
+                || (old.version == 3 && old.repair.is_none())
+            {
+                return Err(failure());
+            }
+            Ledger {
+                baseline: PolicyBaseline {
+                    policy: Policy {
+                        revision: 0,
+                        payload_limit_bytes: (64_u64 << 30).to_string(),
+                        minimum_available_bytes: (64_u64 << 20).to_string(),
+                    },
+                    media_output_limit_bytes: historical_media_output_limit(),
+                },
+                media_output_limit_bytes: old.media_output_limit_bytes,
+                control_limit_bytes: old.control_limit_bytes,
+                policy: old.policy,
+                held: old.held,
+                control_database_name: old.control_database_name,
+                control_held: old.control_held,
+                repair: old.repair,
+                repair_changes: old.repair_changes,
+                changes: old.changes,
+            }
+        } else {
+            serde_json::from_slice(bytes).map_err(|_| failure())?
+        };
+        ledger.validate()?;
+        Ok(ledger)
     }
     impl Default for Ledger {
         fn default() -> Self {
             Self {
-                version: 1,
+                baseline: PolicyBaseline {
+                    policy: Policy::default(),
+                    media_output_limit_bytes: default_media_output_limit(),
+                },
                 media_output_limit_bytes: default_media_output_limit(),
                 control_limit_bytes: None,
                 policy: Policy::default(),
@@ -849,34 +927,34 @@ mod unix {
     }
     impl Ledger {
         fn validate(&self) -> Result<(), EditorError> {
-            if !matches!(self.version, 1..=3)
+            if self.baseline.policy.revision != 0
                 || self.held.len() + self.control_held.len() > MAX_RESERVATIONS
                 || self.changes.len() > MAX_POLICY_CHANGES
                 || self.repair_changes.len() > MAX_POLICY_CHANGES
             {
                 return Err(failure());
             }
-            if self.version == 1
-                && (self.control_limit_bytes.is_some()
-                    || self.control_database_name.is_some()
-                    || !self.control_held.is_empty())
-            {
-                return Err(failure());
+            for bytes in [
+                &self.baseline.policy.payload_limit_bytes,
+                &self.baseline.policy.minimum_available_bytes,
+                &self.baseline.media_output_limit_bytes,
+            ] {
+                budget::decimal(bytes).map_err(|_| failure())?;
             }
-            if self.version != 3 && (self.repair.is_some() || !self.repair_changes.is_empty()) {
-                return Err(failure());
-            }
-            if self.version >= 2
-                && self
+            if budget::decimal(&self.baseline.media_output_limit_bytes).map_err(|_| failure())? == 0
+                || (self.repair.is_none() && !self.repair_changes.is_empty())
+                || (self.control_limit_bytes.is_none()
+                    && (self.control_database_name.is_some()
+                        || !self.control_held.is_empty()
+                        || self.repair.is_some()))
+                || self
                     .control_limit_bytes
                     .as_deref()
-                    .and_then(|s| budget::decimal(s).ok())
-                    .is_none_or(|n| n == 0)
+                    .is_some_and(|limit| !budget::decimal(limit).is_ok_and(|n| n > 0))
             {
                 return Err(failure());
             }
-            if self.version == 3 {
-                let repair = self.repair.as_ref().ok_or_else(failure)?;
+            if let Some(repair) = &self.repair {
                 if repair.target_bytes != REPAIR_BYTES.to_string()
                     || repair.revision as usize != self.repair_changes.len()
                     || matches!(repair.state, budget::RepairState::Degraded)
@@ -963,7 +1041,7 @@ mod unix {
                 }
             }
             let mut keys = HashSet::new();
-            let mut media_limit = default_media_output_limit();
+            let mut media_limit = self.baseline.media_output_limit_bytes.clone();
             let mut control_limit: Option<String> = None;
             for (index, receipt) in self.changes.iter().enumerate() {
                 if let Some(limit) = &receipt.input.media_output_limit_bytes {
@@ -972,7 +1050,7 @@ mod unix {
                 if receipt
                     .media_output_limit_bytes
                     .as_deref()
-                    .unwrap_or(&default_media_output_limit())
+                    .unwrap_or(&self.baseline.media_output_limit_bytes)
                     != media_limit
                 {
                     return Err(failure());
@@ -1015,7 +1093,7 @@ mod unix {
                 .changes
                 .last()
                 .map(|r| &r.policy)
-                .unwrap_or(&Policy::default())
+                .unwrap_or(&self.baseline.policy)
                 != &self.policy
             {
                 return Err(failure());
@@ -1056,6 +1134,8 @@ mod unix {
             "media_caption",
             "preview_caption",
             "whisper_model_snapshot",
+            "catalog_resource",
+            "catalog_generated_sound",
         ]
         .into_iter()
         .map(String::from)
@@ -1115,7 +1195,7 @@ mod unix {
         validate_database_name(database_name)?;
         let mut gate = Gate::open(budget, false).map_err(|error| trace("gate open", error))?;
         let mut ledger = gate.read().map_err(|error| trace("ledger read", error))?;
-        if !repair && (ledger.version < 3 || ledger.control_database_name.is_none()) {
+        if !repair && (ledger.repair.is_none() || ledger.control_database_name.is_none()) {
             drop(gate);
             let exclusive =
                 Gate::open(budget, true).map_err(|error| trace("exclusive gate open", error))?;
@@ -1264,7 +1344,7 @@ mod unix {
             .saturating_sub(reserved)
             .saturating_sub(control_reserved)
             .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?);
-        let control = if ledger.version >= 2 {
+        let control = if ledger.control_limit_bytes.is_some() {
             let observed = observe_control(&gate.root, &ledger)?;
             let control_limit = ledger.control_limit()?;
             let repair = if let Some(record) = &ledger.repair {
@@ -1397,7 +1477,6 @@ mod unix {
             .unwrap_or_else(|| ledger.media_output_limit_bytes.clone());
         if let Some(limit) = &input.control_limit_bytes {
             ledger.control_limit_bytes = Some(limit.clone());
-            ledger.version = ledger.version.max(2);
         }
         ledger.changes.push(Receipt {
             media_output_limit_bytes: Some(ledger.media_output_limit_bytes.clone()),
@@ -1420,7 +1499,7 @@ mod unix {
         budget::validate_repair(&input)?;
         let gate = Gate::open(budget, true)?;
         let mut ledger = gate.read()?;
-        if ledger.version < 3 {
+        if ledger.repair.is_none() {
             provision_repair(&gate, &mut ledger)?;
         }
         if let Some(old) = ledger
@@ -1746,7 +1825,6 @@ mod unix {
         }
         let id = uuid::Uuid::new_v4().to_string();
         let lock = lifetime(&gate, &id, true)?.ok_or_else(failure)?;
-        ledger.version = ledger.version.max(2);
         if ledger.control_limit_bytes.is_none() {
             ledger.control_limit_bytes = Some(DEFAULT_CONTROL_LIMIT.to_string());
         }

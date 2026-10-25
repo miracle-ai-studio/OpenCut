@@ -227,11 +227,31 @@ impl ReferenceStore for EditorApplication {
                         "Collection reference scan exceeded its budget before deletion in this call",
                     ));
                 }
-                let value: Value = decode_json(&document, "collection reference root")?;
+                let (value, extra) = if sql == "SELECT document_json FROM revisions" {
+                    sqlite_project_document::reference_document(&document)?
+                } else {
+                    (
+                        decode_json::<Value>(&document, "collection reference root")?,
+                        0,
+                    )
+                };
+                bytes = bytes.saturating_add(extra);
+                if document.len().saturating_add(extra) > MAX_REFERENCE_DOCUMENT_BYTES
+                    || bytes > MAX_REFERENCE_BYTES
+                    || start.elapsed() > Duration::from_millis(MAX_REFERENCE_MS)
+                {
+                    return Err(EditorError::new(
+                        "RESOURCE_TOO_LARGE",
+                        "Expanded preservation references exceed collection budget",
+                    ));
+                }
                 // Resolve only authoritative legacy source locations, never arbitrary
                 // user metadata keys. Pinned versions/manifests use their CAS hashes.
                 let assets = if sql == "SELECT document_json FROM revisions" {
-                    let assets = if value.get("schema_version").and_then(Value::as_u64) == Some(3) {
+                    let assets = if matches!(
+                        value.get("schema_version").and_then(Value::as_u64),
+                        Some(3 | 5)
+                    ) {
                         value.get("base").and_then(|base| base.get("assets"))
                     } else {
                         value.get("assets")
@@ -296,6 +316,12 @@ impl ReferenceStore for EditorApplication {
                     ));
                 }
             }
+        }
+        if start.elapsed() > Duration::from_millis(MAX_REFERENCE_MS) {
+            return Err(EditorError::new(
+                "RESOURCE_TOO_LARGE",
+                "Collection reference scan exceeded its time budget",
+            ));
         }
         Ok(References {
             objects: protected,

@@ -1,0 +1,21 @@
+.source-art-failure { display:flex;align-items:center;justify-content:center;gap:4px;min-width:0;width:100%;font-size:12px;line-height:1.35; }
+.source-art-failure small { min-width:0;overflow:hidden;text-overflow:ellipsis;font:inherit; }
+.source-art-failure button { position:relative;z-index:4;flex:none;min-width:28px;min-height:28px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font:inherit;cursor:pointer;pointer-events:auto; }
+.source-art-failure button:hover { border-color:var(--accent); }
+.source-art-failure button:focus-visible { outline:2px solid var(--accent);outline-offset:-2px; }
+.source-art-actions { display:flex;align-items:center;justify-content:center;gap:4px;flex:none; }
+.source-art-technical { position:relative;z-index:4;flex:none;pointer-events:auto; }
+.source-art-technical:focus-visible { outline:2px solid var(--accent);outline-offset:1px; }
+.v4-source-art .source-art-failure { display:grid;grid-template-rows:32px 28px;gap:4px;padding:2px 4px;box-sizing:border-box;max-height:72px; }
+.v4-source-art .source-art-failure small { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:32px;line-height:16px;text-align:center; }
+.v4-source-art .source-art-actions { min-width:0; }
+/* Keep the card's existing Add control reachable beside recovery actions. */
+.editor-media-card .v4-source-art .source-art-actions { padding-right:28px; }
+.editor-media-card .v4-source-art .source-art-failure button { padding-inline:1px; }
+.v4-timeline-art .source-art-failure { justify-content:flex-start;height:100%; }
+.v4-timeline-art .source-art-failure small { white-space:nowrap;order:1; }
+.v4-timeline-art .source-art-failure button { width:28px;height:28px;padding:0; }
+.v4-timeline-art .source-art-actions { order:0; }
+/* Error actions own this area; source preview keeps its existing callback in
+   that row instead of covering recovery with the normal picture overlay. */
+.workbench-resource-content .editor-media-card:has(.source-art-failure) .resource-preview-trigger { display:none; }

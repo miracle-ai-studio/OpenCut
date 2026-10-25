@@ -1,6 +1,9 @@
+import { isVerifiedRangeSource } from "./verified-range-source.mjs";
 import { checkAbort, decodedCount, integer, pcmBytes, reject, validateBuffer } from "./validation.mjs";
 import { cancellable } from "./runtime.mjs";
-import { guardIsoEditLists } from "./iso-edit-list.mjs";
+import { guardIsoEditLists, guardIsoEditListsSource } from "./iso-edit-list.mjs";
+import { validateWindowAdmission, decodeVideoWindows } from "./windowed-decoder.mjs";
+import { isWindowedPcmSource } from "./pcm-source.mjs";
 
 export function capturePrimaryAudioTrack(track) {
   const primary = Object.freeze({
@@ -48,15 +51,61 @@ async function decodeVideo(track, AudioBufferSink, primary, context, host, admis
   } finally { node?.disconnect(); }
 }
 
+function nativeSigned16Wave(bytes, targetRate) {
+  if (bytes.length < 12 || bytes[0] !== 82 || bytes[1] !== 73 || bytes[2] !== 70 || bytes[3] !== 70
+    || bytes[8] !== 87 || bytes[9] !== 65 || bytes[10] !== 86 || bytes[11] !== 69) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), limit = Math.min(bytes.length, 65536);
+  for (let offset = 12; offset + 8 <= limit;) {
+    const size = view.getUint32(offset + 4, true);
+    if (size > bytes.length - offset - 8) return false;
+    if (view.getUint32(offset, true) === 0x20746d66) { // fmt
+      if (size < 16 || offset + 24 > limit) return false;
+      const channels = view.getUint16(offset + 10, true), rate = view.getUint32(offset + 12, true);
+      return view.getUint16(offset + 8, true) === 1 && channels >= 1 && channels <= 2 && rate === targetRate
+        && view.getUint16(offset + 22, true) === 16 && view.getUint16(offset + 20, true) === channels * 2
+        && view.getUint32(offset + 16, true) === rate * channels * 2;
+    }
+    offset += 8 + size + (size & 1);
+  }
+  return false;
+}
+
 export async function decodeResource(resource, bytes, context, host, budget, signal) {
-  let input, track, AudioBufferSink, primary = null, releaseUpper;
+  let input, track, AudioBufferSink, primary = null, releaseUpper, pcmAdmission;
+  const rangeInput = isVerifiedRangeSource(bytes);
   try {
     checkAbort(signal);
-    if (resource.kind === "video") {
-      guardIsoEditLists(bytes);
+    // Native-rate signed16 RIFF PCM can reuse
+    // observed container chunks without changing Web Audio resampling/codec
+    // semantics for short sources or other standalone audio formats.
+    const pcmCandidate = !rangeInput && resource.kind === "audio"
+      && nativeSigned16Wave(bytes, context.sampleRate);
+    if (pcmCandidate) {
+      const media = await import("mediabunny");
+      input = new media.Input({ source: rangeInput ? bytes.source : new media.BlobSource(new Blob([bytes])), formats: media.ALL_FORMATS });
+      track = await cancellable(input.getPrimaryAudioTrack(), host, signal);
+      if (track) {
+        const observed = capturePrimaryAudioTrack(track);
+        if (observed.codec === "pcm-s16" && observed.sampleRate === context.sampleRate && observed.channels <= 2) {
+          const proposal = await cancellable(host.admitPcmAudioDecode(resource, observed), host, signal);
+          if (!proposal || !["whole", "windowed"].includes(proposal.mode)
+            || Object.keys(proposal).length !== (proposal.mode === "whole" ? 1 : 2)
+            || Object.keys(proposal).some(key => !["mode", "admission"].includes(key)))
+            reject("INVALID_AUDIO_PLAN", "Invalid PCM window negotiation");
+          if (proposal.mode === "windowed") {
+            pcmAdmission = proposal.admission; primary = observed; AudioBufferSink = media.AudioBufferSink;
+            validateWindowAdmission(pcmAdmission, primary, context.sampleRate);
+            if (pcmAdmission.mode !== "windowed") reject("INVALID_AUDIO_PLAN", "PCM negotiation changed its selected storage mode");
+          }
+        }
+      }
+      if (!pcmAdmission) { input.dispose(); input = undefined; track = undefined; }
+    }
+    if (resource.kind === "video" || rangeInput) {
+      if (rangeInput) await guardIsoEditListsSource(bytes); else guardIsoEditLists(bytes);
       const media = await import("mediabunny");
       checkAbort(signal);
-      input = new media.Input({ source: new media.BlobSource(new Blob([bytes])), formats: media.ALL_FORMATS });
+      input = new media.Input({ source: rangeInput ? bytes.source : new media.BlobSource(new Blob([bytes])), formats: media.ALL_FORMATS });
       track = await cancellable(input.getPrimaryAudioTrack(), host, signal);
       if (!track) reject("KNOWN_ABSENT_AUDIO", "The authorized video has no primary audio track");
       primary = capturePrimaryAudioTrack(track);
@@ -64,22 +113,27 @@ export async function decodeResource(resource, bytes, context, host, budget, sig
     }
     // Metadata inspection uses the same Input/track that will decode. The host
     // admits its real native channel layout before any PCM buffer/sink exists.
-    const admission = await cancellable(host.admitDecode(resource, primary), host, signal);
+    const container = pcmAdmission !== undefined || rangeInput || resource.kind === "video";
+    const admission = pcmAdmission ?? await cancellable(container ? host.admitContainerDecode(resource, primary) : host.admitDecode(resource, primary), host, signal);
+    if (container) validateWindowAdmission(admission, primary, context.sampleRate);
     integer(admission?.maxFrames, "decoder admission frames", 1);
     integer(admission?.maxChannels, "decoder admission channels", 1, 64);
     if (primary && primary.channels > admission.maxChannels) reject("AUDIO_BUDGET_EXCEEDED", "The selected primary channel layout exceeds decoder admission");
     // Browser codec allocation cannot be bounded by JavaScript alone. Host
     // admission must apply a memory/time quota to the isolated execution realm.
     // Reserve native chunks/copies plus output before invoking the codec.
-    releaseUpper = budget.reserve(pcmBytes(admission.maxFrames, admission.maxChannels) * 4);
+    releaseUpper = budget.reserve(pcmBytes(container ? admission.workingFrames : admission.maxFrames, admission.maxChannels) * 4);
     checkAbort(signal);
-    const buffer = resource.kind === "audio"
+    const buffer = resource.kind === "audio" && !pcmAdmission && !rangeInput
       ? await cancellable(context.decodeAudioData(bytes.slice().buffer), host, signal)
-      : await cancellable(decodeVideo(track, AudioBufferSink, primary, context, host, admission, signal), host, signal);
-    validateBuffer(buffer, admission);
+      : await cancellable(admission.mode === "windowed"
+        ? decodeVideoWindows(track, AudioBufferSink, primary, context, host, admission, signal)
+        : decodeVideo(track, AudioBufferSink, primary, context, host, admission, signal), host, signal);
+    if (!isWindowedPcmSource(buffer)) validateBuffer(buffer, admission);
     if (buffer.sampleRate !== context.sampleRate) reject("INVALID_DECODED_PCM", "The browser decoder did not produce the requested target sample rate");
     releaseUpper();
-    const release = budget.reserve(pcmBytes(buffer.length, buffer.numberOfChannels));
-    return { buffer, release, primary, profile: resource.kind === "audio" ? "web-audio-decode-at-target-rate" : "mediabunny-1.41.0-concatenate-offline-resample" };
-  } finally { releaseUpper?.(); input?.dispose(); }
+    const release = budget.reserve(isWindowedPcmSource(buffer) ? buffer.residentBytes : pcmBytes(buffer.length, buffer.numberOfChannels));
+    return { buffer, release, primary, profile: admission.mode === "windowed" ? "mediabunny-1.41.0-windowed-concatenate-offline-resample-v1"
+      : resource.kind === "audio" && !rangeInput ? "web-audio-decode-at-target-rate" : "mediabunny-1.41.0-concatenate-offline-resample" };
+  } finally { releaseUpper?.(); input?.dispose(); if (rangeInput) await bytes.close(); }
 }

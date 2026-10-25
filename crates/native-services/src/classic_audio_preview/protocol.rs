@@ -7,15 +7,9 @@ mod compiled_packet;
 mod shared_binding;
 
 pub(super) fn pack_preview_block(
-    block: opencut_composition::project_v4::PreviewAudioBlockV4,
+    block: opencut_composition::scene::PreviewAudioBlock,
 ) -> Result<Vec<u8>, EditorError> {
     compiled_packet::pack_preview_block(block)
-}
-
-pub(super) fn pack_preview_block_v2(
-    block: opencut_composition::project_v4::PreviewAudioBlockV4,
-) -> Result<Vec<u8>, EditorError> {
-    compiled_packet::pack_preview_block_v2(block)
 }
 
 pub(super) fn expand_source_binding(

@@ -1,10 +1,10 @@
-import type { ClassicAudioPlan, PitchFacts, ExactSourceSample, CompiledSampleBlock, SourceFormat, CasResource, PrimaryAudioTrack } from "../src/index.d.mts";
+import type { ClassicAudioPlan, ClassicAudioHost, PitchFacts, ExactSourceSample, CompiledSampleBlock, SourceFormat, CasResource, PrimaryAudioTrack } from "../src/index.d.mts";
 
-/** Private process NDJSON protocol v1; no existing public editor wire changes.
+/** Private process NDJSON transport; typed content and fixed execution identity.
  * All byte strings are lowercase hex. PCM is always stereo f32le-planar. */
 export interface HostAdmission {
   maxPcmBytes: number;
-  maxEncodedBytes: number; // <= 32 MiB per immutable resource
+  maxEncodedBytes: number; // Resident range-cache and transport budget; source length is independent.
   maxRssBytes: string;
   deadlineMs: number;
   quotaProfile: "monitored-terminate" | "strict-hard";
@@ -17,21 +17,36 @@ export interface RuntimeConfiguration {
   playwrightRoot?: string; // default exact installed same-package dependency
   mediabunnyRoot?: string; // default exact installed same-package dependency
 }
-interface Envelope { protocolVersion: 1; executionId: string }
+interface Envelope { executionId: string }
 export interface Begin extends Envelope { type: "begin"; plan: ClassicAudioPlan; admission: HostAdmission; resources: { assetId: string; handle: string }[]; runtime: RuntimeConfiguration }
 export interface Cancel extends Envelope { type: "cancel" }
 export interface Reply extends Envelope { type: "reply"; id: string; ok: boolean; value?: unknown; error?: { code: string; message: string } }
 /** Ordered parts of one UTF-8 JSON value, maximum 16 MiB after decoding. */
-export interface ReplyChunk extends Envelope { type: "reply_chunk"; id: string; sequence: number; bytesHex: string; final: boolean }
+export type ReplyChunk = Envelope & { type: "reply_chunk"; id: string; sequence: number; bytesHex: string; final: boolean } & (
+  { encoding?: "identity"; decodedBytes?: never } | { encoding: "zlib"; decodedBytes: number }
+);
 export type InputPacket = Begin | Cancel | Reply | ReplyChunk;
+/** Private lossless projection. Logical host/mixer DTOs remain unchanged. */
+export interface PackedExportBlock {
+  block: Omit<CompiledSampleBlock, "voices"> & { voices: {
+    elementId: string; blockOffset: number; frameCount: number;
+    positionRef: number; amplitudeRef: number;
+  }[] };
+  positionTables: [lower: string, numerator: string, denominator: string][][];
+  amplitudeTables: number[][];
+}
 export interface CallbackMap {
   resolveVerifiedBytes: { input: { handle: string; resource: CasResource }; output: { transferId: string; byteLength: string } };
+  openVerifiedRange: CallbackMap["resolveVerifiedBytes"];
   readVerifiedBytes: { input: { transferId: string; offset: string; count: number }; output: { offset: string; bytesHex: string; eof: boolean } };
   releaseVerifiedBytes: { input: { transferId: string }; output: { released: true } };
+  releaseDecodedSource: { input: { resource: CasResource }; output: Awaited<ReturnType<ClassicAudioHost["releaseDecodedSource"]>> };
   admitDecode: { input: { resource: CasResource; primary: PrimaryAudioTrack | null }; output: { maxFrames: number; maxChannels: number } };
-  compilePitchPreparation: { input: { elementId: string; decodedSampleRate: number; decodedFrameCount: string; decodedChannels: number }; output: PitchFacts };
+  admitContainerDecode: { input: { resource: CasResource; primary: PrimaryAudioTrack }; output: Awaited<ReturnType<ClassicAudioHost["admitContainerDecode"]>> };
+  admitPcmAudioDecode: { input: { resource: CasResource; primary: PrimaryAudioTrack }; output: Awaited<ReturnType<ClassicAudioHost["admitPcmAudioDecode"]>> };
+  compilePitchPreparation: { input: Parameters<ClassicAudioHost["compilePitchPreparation"]>[0]; output: PitchFacts };
   compileSourcePositions: { input: { elementId: string; localStartSample: string; frameCount: number; sourceSampleRate: number }; output: ExactSourceSample[] };
-  compileBlock: { input: { startSample: string; frameCount: number; sourceFormats: SourceFormat[] }; output: CompiledSampleBlock };
+  compileBlock: { input: { startSample: string; frameCount: number; sourceFormats: SourceFormat[] }; output: PackedExportBlock };
 }
 export interface Request extends Envelope { type: "request"; id: string; op: keyof CallbackMap; args: CallbackMap[keyof CallbackMap]["input"] }
 export interface Started extends Envelope { type: "started"; browserPid: number }

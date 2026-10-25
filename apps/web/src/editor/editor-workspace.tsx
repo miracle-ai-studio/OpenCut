@@ -1,73 +1,38 @@
+import { ErrorNotice, localSessionExpired } from "./shared/error-notice";
+import { HistoricalProject } from "./historical-project";
+import { PreservedProject } from "./projects/preserved";
 import { LocalSessionButton } from "./workspace/local-session";
 import { editorProjectId, editorProjectPath } from "../routes";
-import { EditorGuide } from "./shared/editor-guide";
-import {
-  readWorkspaceLayouts,
-  saveWorkspaceLayout,
-} from "./shared/view-preferences";
+
+
 import { t, useLocale } from "./shared/locale";
 import { useEffect, useRef, useState } from "react";
-import {
-  Group,
-  Panel as ResizablePanel,
-  Separator,
-} from "react-resizable-panels";
-import {
-  ArrowLeft,
-  ChevronDown,
-  Download,
-  FolderOpen,
-  History,
-  ListTodo,
-  Type,
-  Music2,
-  Smile,
-  Sparkles,
-  ArrowRightLeft,
-  Captions,
-  SlidersHorizontal,
-  Settings2,
-  CircleHelp,
-  X,
-} from "lucide-react";
-import { WorkspaceProvider, useWorkspace } from "./workspace/context";
+
+import { ArrowLeft, ChevronDown, Download, History as HistoryIcon, ListTodo, MoreHorizontal, X } from "lucide-react";
+import { WorkspaceProvider, useEditingWorkspace, useWorkspaceController } from "./workspace/context";
 import { Preferences } from "./shared/preferences";
-import { SceneSwitcher } from "./projects/scenes";
+
 import { RenameProject } from "./projects/rename";
 import { ProjectBrowser } from "./projects/browser";
-import { EditorShortcutsProvider, ShortcutsButton, V4WorkspaceShortcutActions } from "./shortcuts";
-import { FeedbackButton } from "./feedback/dialog";
-import { EffectsPanel } from "./effects/panel";
-import { CaptionsPanel } from "./assets/captions";
-import { SettingsPanel } from "./inspector/sequence-settings";
-import { AssetsPanel } from "./assets/panel";
-import { TitlesPanel } from "./assets/titles";
-import { PreviewPanel } from "./preview/panel";
-import { TimelinePanel } from "./timeline/panel";
-import { InspectorPanel } from "./inspector/panel";
+import { EditorShortcutsProvider, ShortcutsButton, WorkspaceShortcutActions } from "./shortcuts";
+
+
+
+
+
+
+
+
 import { TasksPanel } from "./tasks/panel";
-import { ExportDialog } from "./tasks/export-dialog";
-import { HistoryPanel } from "./history/panel";
+import { ExportRecords } from "./workspace/scene/export-records";
+import { isUserExport } from "./workspace/scene/export-record";
+
+
 import { Button, Modal } from "./shared/ui";
-import { ExportVideoV2Dialog } from "./workspace/v4/export_video_v2-dialog";
-import { AudioWavDialog } from "./workspace/v4/audio-wav-dialog";
-import { audioWavAvailability } from "./workspace/v4/audio-wav";
+import { ExportDialog } from "./workspace/scene/export-dialog";
 import symbol from "./shared/brand/symbol.svg";
 import "./editor.css";
-import { V4Product } from "./workspace/v4/product";
-const tabs = [
-  { id: "media", name: "Media", icon: FolderOpen },
-  { id: "sounds", name: "Sounds", icon: Music2 },
-  { id: "titles", name: "Text", icon: Type },
-  { id: "stickers", name: "Stickers", icon: Smile },
-  { id: "effects", name: "Effects", icon: Sparkles },
-  { id: "transitions", name: "Transitions", icon: ArrowRightLeft },
-  { id: "captions", name: "Captions", icon: Captions },
-  { id: "adjustment", name: "Adjustments", icon: SlidersHorizontal },
-  { id: "settings", name: "Settings", icon: Settings2 },
-  { id: "tasks", name: "Tasks", icon: ListTodo },
-  { id: "history", name: "History", icon: History },
-] as const;
+import { Product } from "./workspace/scene/product";
 export function EditorWorkspace() {
   useLocale();
   return (
@@ -77,44 +42,47 @@ export function EditorWorkspace() {
   );
 }
 function ShortcutWorkspace() {
-  const { controller } = useWorkspace();
+  const controller = useWorkspaceController();
   return <EditorShortcutsProvider onError={error => controller.report(error)}><Workspace /></EditorShortcutsProvider>;
 }
 function Workspace() {
   useLocale();
   const {
     controller,
+    connection,
     snapshot,
-    v4,
+    scene,
+    preserved,
     projects,
     historical,
     busy,
     message,
     error,
     jobs,
-  } = useWorkspace();
-  const [layouts] = useState(readWorkspaceLayouts);
-  const [guide, setGuide] = useState(false);
-  const [videoExporting, setVideoExporting] = useState(false);
-  const [audioExporting, setAudioExporting] = useState(false),
-    [v4Tasks, setV4Tasks] = useState(false);
-  const [exporting, setExporting] = useState(false),
-    [tab, setTab] = useState("media"),
-    [browsing, setBrowsing] = useState(true);
+  } = useEditingWorkspace();
+  const [exporting, setExporting] = useState(false), [exportRecords, setExportRecords] = useState(false), [historyRequest, setHistoryRequest] = useState(0);
+  const [sceneTasks, setTasks] = useState(false);
+  const [browsing, setBrowsing] = useState(() => editorProjectId(location.pathname) === null);
   const initialPath = useRef(location.pathname);
   useEffect(() => {
-    if (!projects.length || !initialPath.current.startsWith("/editor/")) return;
+    if (connection !== "connected") {
+      // A fresh local grant creates a new connection. Reopen the route's saved
+      // project after authentication; never replay the action that was denied.
+      initialPath.current = location.pathname;
+      return;
+    }
+    if (!initialPath.current.startsWith("/editor/")) return;
     const id = editorProjectId(initialPath.current);
     const project = projects.find((project) => project.id === id);
     initialPath.current = "";
+    setBrowsing(!project);
     if (project) {
-      setBrowsing(false);
       void controller.open(
         project,
         new URLSearchParams(location.search).get("scene"),
       );
     }
-  }, [projects, controller]);
+  }, [connection, projects, controller]);
   useEffect(() => {
     const pop = () => {
       const id = editorProjectId(location.pathname);
@@ -140,25 +108,26 @@ function Workspace() {
   };
   const showEditor = () => {
     const state = controller.getSnapshot();
-    const id = state.snapshot?.project.id ?? state.v4?.head.project.id;
+    const id = state.snapshot?.project.id ?? state.scene?.head.project.id ?? state.preserved?.project_id;
     if (id) {
       history.pushState(null, "", editorProjectPath(id));
       setBrowsing(false);
     }
   };
-  const active = !!snapshot && !browsing;
-  const activeV4 = !!v4 && !browsing;
-  const audioAvailability = v4 ? audioWavAvailability(v4) : null;
+  const activeHistorical = !!snapshot && !browsing;
+  const activeEditor = !!scene && !browsing;
+  const activePreserved = !!preserved && !browsing;
   useEffect(() => {
-    setAudioExporting(false);
-    setV4Tasks(false);
-  }, [activeV4, v4?.head.project.id]);
+    setExporting(false); setExportRecords(false); setHistoryRequest(0);
+    setTasks(false);
+  }, [activeEditor, scene?.head.project.id]);
   const activeJobs = jobs.filter(
-    (job) => job.state === "running" || job.state === "queued",
+    (job) => job.purpose !== "playback_optimization" && (job.state === "running" || job.state === "queued"),
   ).length;
+  const activeExports = jobs.filter(job => isUserExport(job) && ["queued","running"].includes(job.state)).length;
   return (
-    <div className="editor-app">
-      <V4WorkspaceShortcutActions active={activeV4} />
+    <div className={`editor-app ${activeEditor ? "editor-workbench-app" : ""}`}>
+      <WorkspaceShortcutActions active={activeEditor} />
       <header className="editor-header">
         <div className="header-start">
           <Button
@@ -167,7 +136,7 @@ function Workspace() {
             onClick={showProjects}
             icon={<img className="brand-symbol" src={symbol} alt="OpenCut" />}
           />
-          {active || activeV4 ? (
+          {activeHistorical || activeEditor || activePreserved ? (
             <>
               <Button
                 aria-label={t("Back to projects")}
@@ -183,12 +152,15 @@ function Workspace() {
                     format: snapshot.format,
                   }}
                 />
+              ) : activeEditor && scene ? (
+                <RenameProject project={{ id: scene.head.project.id, name: scene.head.project.name,
+                  revision: scene.head.revision, format: "editor" }} />
               ) : (
-                <strong>{v4?.head.project.name} · V4</strong>
+                <strong>{activePreserved ? `${preserved?.name} · ${t("Read-only")}` : scene?.head.project.name}</strong>
               )}
               <ChevronDown size={13} />
               <span className="save-status">
-                {historical || v4?.historical
+                {activePreserved ? t("Read-only") : historical || scene?.historical
                   ? t("Saved revision")
                   : busy
                     ? t("Saving…")
@@ -199,167 +171,45 @@ function Workspace() {
             <strong className="wordmark">{t("OpenCut")}</strong>
           )}
         </div>
-        <div className="toolbar">
-          <LocalSessionButton />
-          <FeedbackButton />
-          <ShortcutsButton />
-          {active && (
+        <div className="toolbar editor-header-actions">
+          <details className="workbench-header-menu"><summary aria-label={t("Workspace menu")} title={t("Workspace menu")}><MoreHorizontal size={19} /></summary><div className="workbench-popover">
+            <LocalSessionButton />
+            
+            <ShortcutsButton />
+            <Preferences />
+            {activeEditor && <Button onClick={event => {setTasks(true);const menu=event.currentTarget.closest("details");if(menu)menu.open=false;}} icon={<ListTodo size={15}/>}>{t("Tasks")}{activeJobs ? ` · ${activeJobs}` : ""}</Button>}
+          </div></details>
+          {activeHistorical && !activeEditor && (
             <Button
-              aria-label={t("Editor guide")}
-              title={t("Editor guide")}
-              icon={<CircleHelp size={17} />}
-              onClick={() => setGuide(true)}
-            />
-          )}
-          <Preferences />
-          {(active || activeV4) && (
-            <Button
-              onClick={() => (activeV4 ? setV4Tasks(true) : setTab("tasks"))}
+              onClick={() => setTasks(true)}
               icon={<ListTodo size={15} />}
             >
               {t("Tasks")}
               {activeJobs ? ` · ${activeJobs}` : ""}
             </Button>
           )}
-          {activeV4 && (
-            <Button
-              disabled={busy || (!!audioAvailability?.reason && !v4?.audioWav)}
-              title={
-                audioAvailability?.reason
-                  ? t(audioAvailability.reason)
-                  : undefined
-              }
-              onClick={() => setAudioExporting(true)}
-              icon={<Download size={15} />}
-            >
-              {t("Export audio WAV")}
-            </Button>
-          )}
-          {activeV4 && <Button disabled={busy} onClick={() => setVideoExporting(true)} icon={<Download size={15} />}>{t("Export video")}</Button>}
-          {active && (
-            <Button
-              className="primary"
-              icon={<Download size={15} />}
-              onClick={() => setExporting(true)}
-            >
-              {t("Export")}
-            </Button>
-          )}
+          {activeEditor && <>
+            <Button aria-controls="inspector-history" onClick={() => setHistoryRequest(n=>n+1)} icon={<HistoryIcon size={15}/>}>{t("History")}</Button>
+            <Button onClick={() => setExportRecords(true)} icon={<ListTodo size={15}/>}>{t("Export records")}{activeExports ? ` · ${activeExports}` : ""}</Button>
+            <Button className="primary workbench-export-button" disabled={busy} onClick={() => setExporting(true)} icon={<Download size={15}/>}>{t("Export")}</Button>
+          </>}
+
         </div>
       </header>
-      {activeV4 ? (
-        <V4Product />
-      ) : active ? (
-        <>
-          <EditorGuide forced={guide} onClose={() => setGuide(false)} />
-          <div className="workspace-layout">
-            <Group
-              orientation="vertical"
-              id="workspace"
-              defaultLayout={layouts.workspace}
-              onLayoutChanged={(layout, meta) => {
-                if (meta.isUserInteraction)
-                  saveWorkspaceLayout("workspace", layout);
-              }}
-              className="outer-panels"
-            >
-              <ResizablePanel id="stage" defaultSize="65%" minSize="35%">
-                <Group
-                  orientation="horizontal"
-                  id="stage-panels"
-                  defaultLayout={layouts.stage}
-                  onLayoutChanged={(layout, meta) => {
-                    if (meta.isUserInteraction)
-                      saveWorkspaceLayout("stage", layout);
-                  }}
-                  className="stage-panels"
-                >
-                  <ResizablePanel
-                    id="library"
-                    defaultSize="25%"
-                    minSize="240px"
-                    maxSize="40%"
-                  >
-                    <div className="library">
-                      <nav aria-label={t("Editor tools")} className="tool-rail">
-                        {tabs.map((item) => (
-                          <Button
-                            key={item.id}
-                            aria-label={t(item.name)}
-                            title={t(item.name)}
-                            aria-pressed={tab === item.id}
-                            onClick={() => setTab(item.id)}
-                            icon={<item.icon size={18} />}
-                          />
-                        ))}
-                      </nav>
-                      <div className="library-panel">
-                        {tabs.map((item) => (
-                          <div
-                            key={item.id}
-                            className="library-tab"
-                            hidden={tab !== item.id}
-                          >
-                            {item.id === "media" ? (
-                              <AssetsPanel active={tab === "media"} />
-                            ) : item.id === "titles" ? (
-                              <TitlesPanel />
-                            ) : item.id === "sounds" ? (
-                              <AssetsPanel
-                                audioOnly
-                                active={tab === "sounds"}
-                              />
-                            ) : item.id === "stickers" ? (
-                              <TitlesPanel mode="stickers" />
-                            ) : item.id === "effects" ||
-                              item.id === "transitions" ||
-                              item.id === "adjustment" ? (
-                              <EffectsPanel mode={item.id} />
-                            ) : item.id === "captions" ? (
-                              <CaptionsPanel />
-                            ) : item.id === "settings" ? (
-                              <SettingsPanel />
-                            ) : item.id === "tasks" ? (
-                              <TasksPanel />
-                            ) : (
-                              <HistoryPanel />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </ResizablePanel>
-                  <Separator className="resize-handle" />
-                  <ResizablePanel id="preview" defaultSize="50%" minSize="30%">
-                    <PreviewPanel />
-                  </ResizablePanel>
-                  <Separator className="resize-handle" />
-                  <ResizablePanel
-                    id="properties"
-                    defaultSize="25%"
-                    minSize="240px"
-                    maxSize="40%"
-                  >
-                    <InspectorPanel />
-                  </ResizablePanel>
-                </Group>
-              </ResizablePanel>
-              <Separator className="resize-handle horizontal" />
-              <ResizablePanel id="timeline" defaultSize="35%" minSize="180px">
-                <TimelinePanel />
-              </ResizablePanel>
-            </Group>
-          </div>
-          <footer className="editor-footer">
-            <SceneSwitcher />
-            <span>
-              {historical
-                ? t("Viewing history · Return to current in History")
-                : t("All changes are saved on this computer")}
-            </span>
-            <span>{t("Space · Play / pause　S · Split")}</span>
-          </footer>
-        </>
+      {activePreserved ? (
+        <PreservedProject />
+      ) : activeEditor ? (
+        <Product historyRequest={historyRequest}/>
+      ) : activeHistorical ? (
+        <HistoricalProject />
+      ) : !browsing ? (
+        <main>
+          <p role="status">{t(error ? "Could not open this project" : "Opening your workspace")}</p>
+          {error && <Button disabled={busy} onClick={() => {
+            const project = projects.find(item => item.id === editorProjectId(location.pathname));
+            if (project) void controller.open(project, new URLSearchParams(location.search).get("scene"));
+          }}>{t("Retry")}</Button>}
+        </main>
       ) : (
         <ProjectBrowser
           onConnect={() => void controller.start()}
@@ -371,7 +221,8 @@ function Workspace() {
           className={`notice ${error ? "error" : ""}`}
           role={error ? "alert" : "status"}
         >
-          <span>{t(error ?? message ?? "")}</span>
+          {error ? <ErrorNotice error={error} localSession={controller.canStartLocalSession} /> : <span>{t(message ?? "")}</span>}
+          {error && localSessionExpired(error) && controller.canStartLocalSession && <Button disabled={busy || connection === "connecting"} onClick={() => void controller.start()}>{t("Reconnect")}</Button>}
           <Button
             aria-label={t("Dismiss notification")}
             onClick={() => controller.clearMessage()}
@@ -379,21 +230,14 @@ function Workspace() {
           />
         </div>
       )}
-      {activeV4 && audioExporting && (
-        <AudioWavDialog
-          onClose={() => setAudioExporting(false)}
-          showTasks={() => setV4Tasks(true)}
-        />
-      )}
-      {activeV4 && videoExporting && <ExportVideoV2Dialog exporter={controller.v4.exporter} onClose={() => setVideoExporting(false)} showTasks={() => setV4Tasks(true)} />}
-      {activeV4 && v4Tasks && (
-        <Modal title={t("Tasks")} onClose={() => setV4Tasks(false)}>
+      {activeEditor && exporting && <ExportDialog onClose={()=>setExporting(false)} showRecords={()=>setExportRecords(true)}/>}
+      {activeEditor && exportRecords && <Modal title={t("Export records")} className="export-records-modal" onClose={()=>setExportRecords(false)}><ExportRecords onExport={()=>{setExportRecords(false);setExporting(true);}}/></Modal>}
+      {(activeEditor || activeHistorical) && sceneTasks && (
+        <Modal title={t("Tasks")} onClose={() => setTasks(false)}>
           <TasksPanel />
         </Modal>
       )}
-      {exporting && snapshot && (
-        <ExportDialog onClose={() => setExporting(false)} />
-      )}
+
     </div>
   );
 }

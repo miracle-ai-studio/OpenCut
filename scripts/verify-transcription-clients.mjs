@@ -23,7 +23,7 @@ assert.equal(prior.status, 'passed');
 const binaryHash = createHash('sha256').update(fs.readFileSync(binary)).digest('hex');
 const sdkBuild = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
   '../packages/sdk-ts/dist/index.js');
-const {OpenCutClient, publicJobResult} = await import(pathToFileURL(sdkBuild).href);
+const {OpenCutClient, jobResult} = await import(pathToFileURL(sdkBuild).href);
 const mcpClientDir = path.join(mcpRoot, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client');
 const {Client} = await import(pathToFileURL(path.join(mcpClientDir, 'index.js')).href);
 const {StdioClientTransport} = await import(pathToFileURL(path.join(mcpClientDir, 'stdio.js')).href);
@@ -99,10 +99,10 @@ async function mcp(mode, readOnly, base, request) {
     const resource = await client.readResource({uri: 'opencut://schemas/domains/media'}, {timeout: 10000});
     const descriptor = JSON.parse(resource.contents[0].text).payload.data;
     const actions = Array.isArray(descriptor) ? descriptor.flatMap(item => item.actions ?? []) : descriptor.actions;
-    const action = actions.find(item => item.action === 'analysis.transcribe');
+    const action = actions.find(item => item.action === "analysis.asset");
     assert(action?.input_schema && action?.output_schema, `${mode} media schema lacks analysis.transcribe`);
     const result = await client.callTool({name: 'opencut_media', arguments: {
-      action: 'analysis.transcribe', input: request}}, undefined, {timeout: 10000});
+      action: "analysis.asset", input: request}}, undefined, {timeout: 10000});
     assert(result.structuredContent, JSON.stringify(result));
     if (readOnly) {
       assert.equal(result.isError, true);
@@ -122,12 +122,12 @@ async function mcp(mode, readOnly, base, request) {
 try {
   assert(fs.existsSync(database) && fs.existsSync(runnerFile) && fs.existsSync(readerFile));
   const existing = cli('opencut_job_view', {job_id: prior.job_id});
-  assert.equal(existing.kind, 'analysis.transcribe');
+  assert.equal(existing.kind, "analysis.asset");
   assert.equal(existing.state, 'succeeded');
   const request = {idempotency_key: 'transcribe-fixed-speech',
     project_id: existing.target.project_id, revision: existing.target.revision,
     asset_id: 'speech', language: 'zh'};
-  const baseline = publicJobResult(existing, 'analysis.transcribe');
+  const baseline = jobResult(existing, "analysis.asset");
   const baselineHash = createHash('sha256').update(canonical(baseline)).digest('hex');
   assert.equal(baselineHash, prior.transcription_sha256);
   evidence.transcription_sha256 = baselineHash;
@@ -149,14 +149,14 @@ try {
   fs.closeSync(hostLog); hostLog = undefined;
   await waitForHost(listen);
   const sdk = new OpenCutClient({baseUrl: base, token: token(runnerFile)});
-  const replay = await sdk.callDomain('media', 'analysis.transcribe', request);
+  const replay = await sdk.callDomain('media', "analysis.asset", request);
   assert.equal(replay.job_id, prior.job_id);
   const publicView = await sdk.call('opencut_job_view', {job_id: prior.job_id});
-  assert.deepEqual(publicJobResult(publicView, 'analysis.transcribe'), baseline);
+  assert.deepEqual(jobResult(publicView, "analysis.asset"), baseline);
   evidence.sdk_replay_job_id = replay.job_id;
-  checks.push('Built TS SDK domain replay and publicJobResult preserve the accepted fixed transcript');
+  checks.push('Built TS SDK domain replay and jobResult preserve the accepted fixed transcript');
 
-  const missing = await sdk.callDomain('media', 'analysis.transcribe', {...request,
+  const missing = await sdk.callDomain('media', "analysis.asset", {...request,
     idempotency_key: `clients-no-model-${runKey}`});
   assert.notEqual(missing.job_id, prior.job_id);
   let failed;

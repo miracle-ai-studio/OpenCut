@@ -1,34 +1,14 @@
-import { OpenCutApiError } from "../../lib/editor-sdk";
+import { type ToolOutput, OpenCutApiError } from "../../lib/editor-sdk";
 import { EditorApi } from "./api";
-import { V4Session } from "./v4/session";
-import { clearSourceArt } from "./v4/source-art/service";
-import type { V4SessionState } from "./v4/types";
-import { uploadMedia } from "./upload";
-import { placeAssets } from "../model/edit-requests";
-import { activeSequence, projectRef } from "../model/types";
-import type {
-  History,
-  Job,
-  Operation,
-  ProjectRef,
-  ProjectEdit,
-  Selection,
-  Snapshot,
-  Time,
-  VisualOperation,
-} from "../model/types";
-import { zero, compareTime, addTime } from "../model/time";
+import { Session } from "./scene/session";
+import { clearSourceArt } from "./scene/source-art/service";
+import type { SessionState } from "./scene/types";
+import { normalizeHistorical, projectRef } from "../model/types";
+import type { History, Job, ProjectRef, Selection, Snapshot, Time } from "../model/types";
+import { zero } from "../model/time";
 import { restoredPlayhead } from "../model/view";
-import { HistoryViewStore, type HistoryView } from "../shared/view-preferences";
-import {
-  sameSelection,
-  validSelections,
-  type ElementSelection,
-} from "../model/selection";
-import {
-  readTimelinePreferences,
-  saveTimelinePreferences,
-} from "../shared/view-preferences";
+import { sameSelection, validSelections, type ElementSelection } from "../model/selection";
+import { readTimelinePreferences, saveTimelinePreferences } from "../shared/view-preferences";
 
 type Connection = "disconnected" | "connecting" | "connected";
 export type WorkspaceState = {
@@ -36,7 +16,8 @@ export type WorkspaceState = {
   api: EditorApi | null;
   projects: ProjectRef[];
   snapshot: Snapshot | null;
-  v4: V4SessionState | null;
+  scene: SessionState | null;
+  preserved?: Extract<ToolOutput<"opencut_project_inspect">,{kind:"preserved"}>["view"] | null;
   historical: Snapshot | null;
   sequenceId: string | null;
   selection: Selection;
@@ -55,7 +36,8 @@ const initial = (): WorkspaceState => ({
   api: null,
   projects: [],
   snapshot: null,
-  v4: null,
+  scene: null,
+  preserved: null,
   historical: null,
   sequenceId: null,
   selection: null,
@@ -71,25 +53,32 @@ const initial = (): WorkspaceState => ({
 });
 export class WorkspaceController {
   private state = initial();
+  private localConnection = true;
+  /** Retain the attempted connection mode even when authentication failed. */
+  get canStartLocalSession() { return this.localConnection; }
   private listeners = new Set<() => void>();
   private generation = 0;
   private viewGeneration = 0;
   private interactionGeneration = 0;
-  private historyViews = new HistoryViewStore();
   private writes = new Set<string>();
   private copies = new Set<EditorApi>();
-  private imports = new Set<string>();
   private syncing = false;
   private disposed = false;
-  readonly v4 = new V4Session({
+  readonly scene = new Session({
     api: () => this.state.api,
-    state: () => this.state.v4,
+    state: () => this.state.scene,
     generation: () => this.generation,
     viewGeneration: () => this.viewGeneration,
     changeView: () => ++this.viewGeneration,
-    publish: (v4) => this.set({ v4 }),
+    publish: (scene) => this.set({ scene }),
     refreshTasks: () => this.sync(),
-    acquire: (projectId) => {
+    acquire: (projectId, draftOwner) => this.acquire(projectId, draftOwner),
+    report: error => this.report(error),
+  });
+  private acquire(projectId: string, draftOwner?: string) {
+      if (this.state.scene?.head.project.id === projectId &&
+          this.state.scene.propertyDrafts?.some(owner => owner !== draftOwner))
+        throw new Error("Confirm or cancel the property draft before starting another edit.");
       const api = this.state.api;
       if (!api) throw new Error("OpenCut is not ready.");
       const key = `${api.sdk.baseUrl}/${projectId}`;
@@ -102,8 +91,7 @@ export class WorkspaceController {
         this.writes.delete(key);
         if (generation === this.generation) this.set({ busy: false });
       };
-    },
-  });
+  }
   constructor(
     private readonly createApi = (endpoint: string, token: string) =>
       new EditorApi(endpoint, token),
@@ -119,8 +107,13 @@ export class WorkspaceController {
     if (this.disposed) return;
     // One controller owns one versioned project session; legacy consumers never
     // receive a projected V4 aggregate or independently writable mirror.
-    if (patch.snapshot) patch.v4 = null;
-    if (patch.v4) {
+    if (patch.snapshot || patch.scene) patch.preserved = null;
+    if (patch.preserved) {
+      patch.snapshot = null; patch.scene = null; patch.historical = null; patch.history = null;
+      patch.selection = null; patch.selections = [];
+    }
+    if (patch.snapshot) patch.scene = null;
+    if (patch.scene) {
       patch.snapshot = null;
       patch.historical = null;
       patch.history = null;
@@ -129,6 +122,7 @@ export class WorkspaceController {
     }
     if ("selection" in patch && !("selections" in patch))
       patch.selections = patch.selection ? [patch.selection] : [];
+    const previousSelections = this.state.selections;
     const previousProject = this.state.snapshot?.project.id;
     const previousSequence = this.state.sequenceId;
     this.state = { ...this.state, ...patch };
@@ -146,11 +140,16 @@ export class WorkspaceController {
         seekId: this.state.seekId + 1,
       };
     }
-    const selections = validSelections(
+    const validatedSelections = validSelections(
       view,
       this.state.sequenceId,
       this.state.selections,
     );
+    // Scene playback does not change the legacy selection. Retain equal
+    // references so editing subscribers can ignore device-counter updates.
+    const selections = validatedSelections.length === previousSelections.length &&
+      validatedSelections.every((item, index) => sameSelection(item, previousSelections[index]))
+      ? previousSelections : validatedSelections;
     if (
       view &&
       this.state.sequenceId &&
@@ -185,6 +184,10 @@ export class WorkspaceController {
   }
   report(error: unknown) {
     if (error instanceof DOMException && error.name === "AbortError") return;
+    if (this.state.api && this.canStartLocalSession &&
+        /valid bearer token is required|local browser session expired or ended/i.test(error instanceof Error ? error.message : String(error))) {
+      this.disconnect();
+    }
     this.set({
       error: error instanceof Error ? error.message : String(error),
       message: null,
@@ -194,9 +197,11 @@ export class WorkspaceController {
     this.set({ error: null, message: null });
   }
   disconnect() {
-    this.v4.clipboard.invalidate();
-    this.v4.timelineEdit.invalidate();
-    this.v4.audioPreview.invalidate();
+    this.scene.frame.invalidate();
+    this.scene.clipboard.invalidate();
+    this.scene.timelineEdit.invalidate();
+    this.scene.audioPreview.invalidate();
+    this.scene.visualPreview.dispose();
     this.state.api?.covers.dispose();
     if (this.state.api) clearSourceArt(this.state.api);
     this.generation++;
@@ -256,34 +261,46 @@ export class WorkspaceController {
     }
   }
   async start() {
+    if (!this.canStartLocalSession) {
+      this.report(new Error("Reconnect to the original service with valid credentials."));
+      return false;
+    }
+    const generation = this.generation;
     try {
       if (this.localSessionLogout) await this.localSessionLogout;
+      if (generation !== this.generation || !this.canStartLocalSession) return false;
       const attempt = ++this.localSessionEpoch;
       const response = await this.requestLocalSession("POST");
       if (!response.ok)
         throw new Error("OpenCut could not start. Please try again.");
-      if (attempt !== this.localSessionEpoch) return;
-      await this.connect(location.origin, "");
+      if (attempt !== this.localSessionEpoch || generation !== this.generation || !this.canStartLocalSession) return false;
+      return await this.connect(location.origin, "");
     } catch (error) {
-      this.report(error);
+      if (generation === this.generation) this.report(error);
+      return false;
     }
   }
   async connect(endpoint: string, token: string) {
+    this.localConnection = false;
     this.disconnect();
     const generation = this.generation;
     this.set({ connection: "connecting" });
     try {
+      this.localConnection = !token && typeof location !== "undefined" &&
+        new URL(endpoint).origin === location.origin;
       const api = this.createApi(endpoint, token);
       await api.sdk.hostCapabilities();
       await api.authenticateConnection?.();
       const projects = await api.projects();
-      if (generation !== this.generation) return;
+      if (generation !== this.generation) return false;
       this.set({ connection: "connected", api, projects });
+      return true;
     } catch (error) {
       if (generation === this.generation) {
         this.set({ connection: "disconnected" });
         this.report(error);
       }
+      return false;
     }
   }
   async refreshProjects() {
@@ -293,17 +310,19 @@ export class WorkspaceController {
     const projects = await api.projects();
     if (generation === this.generation) this.set({ projects });
   }
-  async open(project: ProjectRef, sequenceId?: string | null) {
+  async open(project: Omit<ProjectRef, "format"> & Partial<Pick<ProjectRef, "format">>, sequenceId?: string | null) {
     const { api } = this.state;
     if (!api) return;
+    this.scene.frame.invalidate();
     clearSourceArt(api);
-    this.v4.clipboard.invalidate();
-    this.v4.timelineEdit.invalidate();
+    this.scene.clipboard.invalidate();
+    this.scene.timelineEdit.invalidate();
     const generation = ++this.generation;
     this.viewGeneration++;
     this.set({
       snapshot: null,
-      v4: null,
+      scene: null,
+      preserved: null,
       historical: null,
       history: null,
       selection: null,
@@ -313,20 +332,25 @@ export class WorkspaceController {
       error: null,
     });
     try {
-      if (project.format === "v4") {
-        await this.v4.open(project, sequenceId);
-        return;
+      const inspected=await api.sdk.call("opencut_project_inspect",{project_id:project.id,revision:null});
+      if(generation!==this.generation)return;
+      if(inspected.kind==="preserved"){
+        const preserved=inspected.view;
+        if(!preserved.read_only || preserved.project_id!==project.id)throw new Error("The service returned invalid preservation data.");
+        this.set({preserved,sequenceId:preserved.known_content.default_sequence_id});return;
       }
-      const [snapshot, history] = await Promise.all([
-        api.inspect(project),
-        api.history(project.id),
-      ]);
+      if(inspected.kind==="editor"){
+        await this.scene.open({...project,format:"editor"},sequenceId,inspected.snapshot);return;
+      }
+      const snapshot=normalizeHistorical(inspected.snapshot);
+      const history=await api.history(project.id,snapshot.revision);
       if (generation !== this.generation) return;
       const scene = snapshot.project.sequences.some((s) => s.id === sequenceId)
         ? sequenceId!
         : snapshot.project.default_sequence_id;
       this.set({
         snapshot,
+        historical:null,
         history,
         sequenceId: scene,
         playhead: restoredPlayhead(
@@ -342,28 +366,15 @@ export class WorkspaceController {
     }
   }
   async create(name: string, width: number, height: number, fps: number) {
-    const { api } = this.state;
-    const generation = this.generation;
-    if (!api) return;
-    const snapshot = await api.create(name, width, height, fps);
-    if (generation !== this.generation) return;
-    await this.refreshProjects();
-    if (generation === this.generation) await this.open(projectRef(snapshot));
-  }
-  async createV4(name: string, width: number, height: number, fps: number) {
-    const { api } = this.state,
-      generation = this.generation;
+    const {api}=this.state,generation=this.generation;
     if (!api) throw new Error("OpenCut is not ready.");
-    const snapshot = await api.v4.create(name, width, height, fps);
-    if (generation !== this.generation) return;
+    const receipt=await api.create(name,width,height,fps);
+    if(generation!==this.generation)return;
     await this.refreshProjects();
-    if (generation === this.generation)
-      await this.open({
-        id: snapshot.project.id,
-        name: snapshot.project.name,
-        revision: snapshot.revision,
-        format: "v4",
-      });
+    if(generation!==this.generation)return;
+    const project=this.state.projects.find((p)=>p.id===receipt.project_id);
+    if(!project)throw new Error("Created project is unavailable in this workspace.");
+    await this.open(project);
   }
   select(selection: Selection, mode: "replace" | "toggle" = "replace") {
     this.interactionGeneration++;
@@ -451,26 +462,32 @@ export class WorkspaceController {
     });
   }
   async sync() {
-    if (this.state.v4) {
-      const { api, v4 } = this.state;
+    if (this.state.scene) {
+      const { api, scene } = this.state;
       if (!api || this.syncing || this.copies.size) return;
       const generation = this.generation,
-        projectId = v4.head.project.id;
+        projectId = scene.head.project.id;
       this.syncing = true;
       try {
         // Task observations continue during an edit; head refresh still respects
         // the shared write fence. Only WorkspaceState owns task rows.
         const [head, jobs] = await Promise.allSettled([
-          this.writes.size ? Promise.resolve() : this.v4.refresh(),
+          this.writes.size ? Promise.resolve() : this.scene.refresh(true),
           api.tasks(projectId),
         ]);
         if (
           generation !== this.generation ||
           api !== this.state.api ||
-          this.state.v4?.head.project.id !== projectId
+          this.state.scene?.head.project.id !== projectId
         )
           return;
-        if (jobs.status === "fulfilled") this.set({ jobs: jobs.value.jobs });
+        if (jobs.status === "fulfilled") {
+          const next=jobs.value.jobs,previous=this.state.jobs;
+          // TaskFeed retains row objects until a native change arrives. An
+          // unchanged authorized poll must not rebuild the whole workbench.
+          if(next.length!==previous.length||next.some((job,index)=>job!==previous[index]))
+            this.set({jobs:next});
+        }
         if (head.status === "rejected") throw head.reason;
         if (jobs.status === "rejected") throw jobs.reason;
       } catch (error) {
@@ -507,24 +524,9 @@ export class WorkspaceController {
       this.syncing = false;
     }
   }
-  async editProject(label: string, operations: ProjectEdit[]) {
-    const { api, snapshot, historical } = this.state;
-    if (!api || !snapshot) throw new Error("Open a project first.");
-    if (historical)
-      throw new Error("Return to the current revision before editing.");
-    if (snapshot.format !== "visual")
-      throw new Error(
-        "Scene management requires a project created with this editor.",
-      );
-    const result = await this.write(() =>
-      api.projectEdit(snapshot, label, operations),
-    );
-    await this.refreshProjects();
-    return result;
-  }
   async duplicateProjects(projects: ProjectRef[], names: string[]) {
-    if (projects.some((project) => project.format === "v4"))
-      throw new Error("V4 copies must use the versioned copy operation.");
+    if (projects.some((project) => project.format === "editor" || project.format === "readonly"))
+      throw new Error("Copy this project from the editor.");
     const { api } = this.state;
     if (!api || this.copies.has(api))
       throw new Error("Wait for the current edit to finish.");
@@ -563,25 +565,53 @@ export class WorkspaceController {
     }
   }
   async renameProject(project: ProjectRef, name: string) {
-    const { api, snapshot } = this.state;
+    const { api, scene } = this.state;
     if (!api) throw new Error("OpenCut is not ready.");
-    if (snapshot?.project.id === project.id && !this.state.historical)
-      return this.editProject("Rename project", [
-        { type: "rename_project", name },
-      ]);
-    const key = `${api.sdk.baseUrl}/${project.id}`;
-    if (this.writes.has(key))
-      throw new Error("Wait for the current edit to finish.");
-    this.writes.add(key);
+    if (project.format !== "editor") throw new Error("Convert this historical project before editing.");
+    if (scene?.head.project.id === project.id && scene.historical)
+      throw new Error("Return to the current revision before editing.");
+    if (this.scene.recovery.blocked()) throw new Error("Resolve the original edit before renaming another project.");
+    const generation = this.generation, view = this.viewGeneration, release = this.acquire(project.id);
     try {
-      const current = await api.inspect(project);
-      await api.projectEdit(current, "Rename project", [
-        { type: "rename_project", name },
-      ]);
-      await this.refreshProjects();
-    } finally {
-      this.writes.delete(key);
-    }
+      const snapshot = await api.sdk.inspectEditorProject({ project_id: project.id, revision: project.revision });
+      const key = await this.metadataKey("rename", [project.id, project.revision, name]);
+      const request = api.scene.request(snapshot, "Rename project", [{ type: "rename", name }], key);
+      await api.sdk.call("opencut_edit_plan", request);
+      if (generation !== this.generation || view !== this.viewGeneration) throw new DOMException("The edit view changed", "AbortError");
+      await this.scene.recovery.restore(api, project.id);
+      const receipt = await this.scene.recovery.publicApply(api, request, null);
+      if (generation === this.generation) {
+        await this.refreshProjects();
+        if (this.state.scene?.head.project.id === project.id) await this.scene.refresh();
+      }
+      return receipt;
+    } finally { release(); }
+  }
+  private async metadataKey(action: string, value: unknown) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
+    return action + ":" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+  async promoteProject() {
+    const { api, snapshot, historical } = this.state;
+    if (!api || !snapshot) throw new Error("Open a historical project first.");
+    if (historical) throw new Error("Return to the current revision before converting.");
+    const generation = this.generation, view = this.viewGeneration, release = this.acquire(snapshot.project.id);
+    try {
+      const asset_versions = Object.fromEntries(snapshot.project.assets.filter(asset => asset.version).sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(asset => [asset.id, asset.version!]));
+      const key = await this.metadataKey("promote", [snapshot.project.id, snapshot.revision, asset_versions]);
+      const request = {project_id:snapshot.project.id,expected_revision:snapshot.revision,idempotency_key:key,asset_versions};
+      const receipt = await api.sdk.callWithAdmissionRetry("opencut_project_promote", request, {beforeAttempt:()=>{
+        if (generation !== this.generation || view !== this.viewGeneration) throw new DOMException("The conversion view changed", "AbortError");
+      }});
+      // Read the actual immutable publication,not only a success-shaped reply.
+      const converted = await api.sdk.inspectEditorProject({project_id:snapshot.project.id,revision:receipt.revision});
+      if (converted.project.id !== snapshot.project.id || converted.revision !== receipt.revision) throw new Error("Conversion publication identity changed.");
+      if (generation === this.generation && view === this.viewGeneration) {
+        await this.refreshProjects();
+        await this.open({id:converted.project.id,name:converted.project.name,revision:converted.revision,format:"editor"});
+      }
+      return receipt;
+    } finally { release(); }
   }
   async deleteProjects(
     projects: ProjectRef[],
@@ -593,7 +623,7 @@ export class WorkspaceController {
     const generation = projects.some(
       (p) =>
         p.id ===
-        (this.state.snapshot?.project.id ?? this.state.v4?.head.project.id),
+        (this.state.snapshot?.project.id ?? this.state.scene?.head.project.id ?? this.state.preserved?.project_id),
     )
       ? ++this.generation
       : this.generation;
@@ -636,15 +666,16 @@ export class WorkspaceController {
             (p) =>
               p.id ===
               (this.state.snapshot?.project.id ??
-                this.state.v4?.head.project.id),
+                this.state.scene?.head.project.id),
           )
         ) {
-          this.v4.clipboard.invalidate();
-          this.v4.timelineEdit.invalidate();
+          this.scene.clipboard.invalidate();
+          this.scene.timelineEdit.invalidate();
           this.viewGeneration++;
           this.set({
             snapshot: null,
-            v4: null,
+            scene: null,
+            preserved: null,
             historical: null,
             history: null,
             sequenceId: null,
@@ -660,530 +691,5 @@ export class WorkspaceController {
       resumeCovers();
       this.copies.delete(api);
     }
-  }
-  async mutate(
-    label: string,
-    operations: Operation[],
-    visual: VisualOperation[] = [],
-    expectedRevision?: string,
-    mediaImport?: Parameters<EditorApi["apply"]>[6],
-  ) {
-    const { api, snapshot, historical } = this.state;
-    if (!api || !snapshot) throw new Error("Open a project first.");
-    if (historical)
-      throw new Error("Return to the current revision before editing.");
-    if (expectedRevision && expectedRevision !== snapshot.revision)
-      throw new Error(
-        "Project has changed; refresh the snapshot and try again.",
-      );
-    return this.write(async () =>
-      api.apply(
-        snapshot,
-        label,
-        operations,
-        visual,
-        undefined,
-        this.state.ripple && this.state.sequenceId
-          ? this.state.sequenceId
-          : undefined,
-        mediaImport,
-      ),
-    );
-  }
-  toggleRipple() {
-    const { snapshot, sequenceId, ripple } = this.state;
-    if (!snapshot || !sequenceId) return;
-    saveTimelinePreferences(snapshot.project.id, sequenceId, {
-      ripple: !ripple,
-    });
-    this.set({ ripple: !ripple });
-  }
-  async split(retain: "both" | "left" | "right") {
-    const {
-      api,
-      snapshot,
-      historical,
-      sequenceId,
-      selections,
-      playhead,
-      ripple,
-    } = this.state;
-    const sequence = activeSequence(snapshot, sequenceId);
-    if (!api || !snapshot || !sequence || historical) return;
-    const chosen = selections.length
-      ? selections
-      : [
-          ...sequence.tracks.flatMap((track) =>
-            track.clips
-              .filter(
-                (clip) =>
-                  compareTime(clip.timeline_range.start, playhead) < 0 &&
-                  compareTime(
-                    addTime(
-                      clip.timeline_range.start,
-                      clip.timeline_range.duration,
-                    ),
-                    playhead,
-                  ) > 0,
-              )
-              .map((clip) => ({
-                kind: "clip" as const,
-                id: clip.id,
-                trackId: track.id,
-              })),
-          ),
-          ...(sequence.caption_cues ?? [])
-            .filter(
-              (cue) =>
-                compareTime(cue.timeline_range.start, playhead) < 0 &&
-                compareTime(
-                  addTime(
-                    cue.timeline_range.start,
-                    cue.timeline_range.duration,
-                  ),
-                  playhead,
-                ) > 0,
-            )
-            .map((cue) => ({ kind: "caption" as const, id: cue.id })),
-          ...(
-            snapshot.visual.find((graph) => graph.sequence_id === sequence.id)
-              ?.shapes ?? []
-          )
-            .filter(
-              (shape) =>
-                compareTime(shape.timeline_range.start, playhead) < 0 &&
-                compareTime(
-                  addTime(
-                    shape.timeline_range.start,
-                    shape.timeline_range.duration,
-                  ),
-                  playhead,
-                ) > 0,
-            )
-            .map((shape) => ({ kind: "shape" as const, id: shape.id })),
-        ];
-    if (!chosen.length) return;
-    const generation = this.generation,
-      viewGeneration = this.viewGeneration;
-    let selection: import("../../lib/editor-sdk").ToolOutput<"opencut_edit_classic_plan_v1">["selection"];
-    try {
-      await this.write(
-        async () => {
-          const result = await api.sdk.call("opencut_edit_classic_plan_v1", {
-            project_id: snapshot.project.id,
-            expected_revision: snapshot.revision,
-            sequence_id: sequence.id,
-            idempotency_key: crypto.randomUUID(),
-            label:
-              retain === "both"
-                ? "Split elements"
-                : retain === "right"
-                  ? "Split and remove left"
-                  : "Split and remove right",
-            ripple,
-            command: {
-              kind: "split",
-              at: playhead,
-              retain,
-              clip_ids: chosen
-                .filter((s) => s.kind === "clip")
-                .map((s) => s.id),
-              caption_ids: chosen
-                .filter((s) => s.kind === "caption")
-                .map((s) => s.id),
-              shape_ids: chosen
-                .filter((s) => s.kind === "shape")
-                .map((s) => s.id),
-            },
-          });
-          selection = result.selection;
-          if (
-            this.generation !== generation ||
-            this.viewGeneration !== viewGeneration ||
-            this.state.historical
-          )
-            throw new DOMException("The edit view changed", "AbortError");
-          return api.sdk.call("opencut_edit_v3_apply", result.plan.transaction);
-        },
-        undefined,
-        (head) =>
-          selection
-            ? {
-                sequenceId: sequence.id,
-                selections: [
-                  ...head.project.sequences
-                    .find((s) => s.id === sequence.id)!
-                    .tracks.flatMap((track) =>
-                      track.clips
-                        .filter((clip) => selection!.clip_ids.includes(clip.id))
-                        .map((clip) => ({
-                          kind: "clip" as const,
-                          id: clip.id,
-                          trackId: track.id,
-                        })),
-                    ),
-                  ...selection.caption_ids.map((id) => ({
-                    kind: "caption" as const,
-                    id,
-                  })),
-                  ...selection.shape_ids.map((id) => ({
-                    kind: "shape" as const,
-                    id,
-                  })),
-                ],
-                playhead: selection.playhead ?? playhead,
-              }
-            : null,
-      );
-    } catch (error) {
-      if (error instanceof OpenCutApiError && error.code === "NO_EFFECT") {
-        this.clearMessage();
-        return;
-      }
-      throw error;
-    }
-  }
-  async removeMedia(assetIds: string[]) {
-    const { api, snapshot, historical } = this.state;
-    if (!api || !snapshot || historical)
-      throw new Error("Return to the current revision before editing.");
-    return this.write(() =>
-      api.sdk.call("opencut_project_media_remove", {
-        project_id: snapshot.project.id,
-        expected_revision: snapshot.revision,
-        asset_ids: assetIds,
-        idempotency_key: crypto.randomUUID(),
-      }),
-    );
-  }
-  async importMedia(
-    files: File[],
-    onProgress: (value: string) => void,
-    signal: AbortSignal,
-    target?: { sequenceId: string; trackId?: string; at?: Time },
-    replacing?: { id: string; kind: string },
-  ) {
-    const { api, snapshot, historical } = this.state;
-    if (!api || !snapshot || historical)
-      throw new Error("Return to the current revision before importing.");
-    if (!files.length || files.length > 60 || (replacing && files.length !== 1))
-      throw new Error(
-        "Choose between 1 and 60 files; replacements require one file.",
-      );
-    const key = `${api.sdk.baseUrl}/${snapshot.project.id}`;
-    if (this.imports.has(key))
-      throw new Error("Wait for the current import to finish.");
-    const generation = this.generation,
-      viewGeneration = this.viewGeneration,
-      ripple = this.state.ripple;
-    const sequence = activeSequence(
-      snapshot,
-      target?.sequenceId ?? this.state.sequenceId,
-    );
-    if (!sequence) throw new Error("The import scene no longer exists.");
-    if (target?.trackId) {
-      const track = sequence?.tracks.find(
-        (track) => track.id === target.trackId,
-      );
-      if (!track || track.locked)
-        throw new Error("Choose an existing unlocked target track.");
-    }
-    this.imports.add(key);
-    try {
-      const media: import("../../lib/editor-sdk").ToolInput<"opencut_media_import_plan_v1">["media"] =
-        [];
-      const assets = [],
-        warnings: string[] = [];
-      for (const file of files) {
-        signal.throwIfAborted();
-        const imported = await uploadMedia(
-          api.sdk,
-          snapshot.project.id,
-          file,
-          onProgress,
-          signal,
-        );
-        signal.throwIfAborted();
-        if (
-          generation !== this.generation ||
-          viewGeneration !== this.viewGeneration
-        )
-          throw new DOMException("Import target changed", "AbortError");
-        if (replacing && imported.asset.kind !== replacing.kind)
-          throw new Error(
-            "Replacement media must have the same type as the original.",
-          );
-        media.push({
-          media_id: imported.asset.id,
-          replace_asset_id: replacing?.id ?? null,
-        });
-        assets.push(
-          replacing ? { ...imported.asset, id: replacing.id } : imported.asset,
-        );
-        if (imported.warning) warnings.push(imported.warning);
-      }
-      const operations: Operation[] = assets.map((asset) => ({
-        type: replacing ? "asset.replace" : "asset.bind",
-        asset,
-      }));
-      if (target && sequence)
-        operations.push(
-          ...placeAssets(assets, sequence, target.at, target.trackId),
-        );
-      signal.throwIfAborted();
-      await this.mutate(
-        replacing
-          ? "Replace media"
-          : target
-            ? "Import and insert media"
-            : "Import media",
-        operations,
-        [],
-        snapshot.revision,
-        {
-          sequenceId: sequence.id,
-          media,
-          ripple,
-          signal,
-          beforeApply: () => {
-            signal.throwIfAborted();
-            if (
-              generation !== this.generation ||
-              viewGeneration !== this.viewGeneration
-            )
-              throw new DOMException("Import target changed", "AbortError");
-            if (this.state.snapshot?.revision !== snapshot.revision)
-              throw new Error(
-                "Project has changed; refresh the snapshot and try again.",
-              );
-          },
-        },
-      );
-      if (warnings.length) this.notify(warnings.join("\n"));
-      return assets;
-    } catch (error) {
-      if (generation !== this.generation)
-        throw new DOMException("Import project changed", "AbortError");
-      throw error;
-    } finally {
-      this.imports.delete(key);
-    }
-  }
-  private captureView(): HistoryView {
-    return structuredClone({
-      sequenceId: this.state.sequenceId,
-      selections: this.state.selections,
-      playhead: this.state.playhead,
-    });
-  }
-  private historyHost(api: EditorApi) {
-    const url = new URL(api.sdk.baseUrl);
-    return url.origin + url.pathname;
-  }
-  async write<T>(
-    action: () => Promise<T>,
-    restore?: HistoryView | null,
-    viewAfter?: (head: Snapshot) => HistoryView | null,
-  ): Promise<T> {
-    const { api, snapshot } = this.state;
-    if (!api || !snapshot) throw new Error("Open a project first.");
-    const key = `${api.sdk.baseUrl}/${snapshot.project.id}`;
-    if (this.writes.has(key))
-      throw new Error("Wait for the current edit to finish.");
-    const generation = this.generation,
-      viewGeneration = this.viewGeneration,
-      interactionGeneration = this.interactionGeneration,
-      beforeView = this.captureView();
-    this.writes.add(key);
-    this.set({ busy: true, error: null });
-    try {
-      const result = await action();
-      if (generation === this.generation) {
-        const [head, history] = await Promise.all([
-          api.inspect(projectRef(snapshot)),
-          api.history(snapshot.project.id),
-        ]);
-        if (generation === this.generation) {
-          // Bind hints to the acknowledged transaction's exact head. A remote
-          // edit racing this refresh must never receive another edit's hints.
-          const transaction =
-            result && typeof result === "object" && "transaction" in result
-              ? (result.transaction as {
-                  transaction_id?: unknown;
-                  revision?: unknown;
-                })
-              : result &&
-                  typeof result === "object" &&
-                  "transaction_id" in result
-                ? (result as { transaction_id?: unknown; revision?: unknown })
-                : null;
-          const exact = transaction && transaction.revision === head.revision;
-          const sameView =
-            viewGeneration === this.viewGeneration &&
-            interactionGeneration === this.interactionGeneration &&
-            !this.state.historical;
-          const intendedView =
-            restore ?? (exact && sameView ? viewAfter?.(head) : null);
-          const restored =
-            intendedView && exact && sameView
-              ? {
-                  sequenceId: head.project.sequences.some(
-                    (s) => s.id === intendedView.sequenceId,
-                  )
-                    ? intendedView.sequenceId
-                    : head.project.default_sequence_id,
-                  selections: intendedView.selections,
-                  playhead: restoredPlayhead(
-                    head,
-                    intendedView.sequenceId ?? head.project.default_sequence_id,
-                    intendedView.playhead,
-                  ),
-                  seekId: this.state.seekId + 1,
-                }
-              : {};
-          this.set({
-            snapshot: head,
-            history,
-            projects: this.state.projects.map((project) =>
-              project.id === head.project.id
-                ? { ...project, ...projectRef(head) }
-                : project,
-            ),
-            historical:
-              viewGeneration === this.viewGeneration
-                ? null
-                : this.state.historical,
-            message: "Saved",
-            ...restored,
-          });
-          if (
-            restore === undefined &&
-            exact &&
-            sameView &&
-            typeof transaction.transaction_id === "string"
-          )
-            this.historyViews.save({
-              host: this.historyHost(api),
-              projectId: snapshot.project.id,
-              transactionId: transaction.transaction_id,
-              before: beforeView,
-              after: this.captureView(),
-            });
-          if (intendedView && exact && sameView)
-            this.savePlayhead(this.state.playhead);
-        }
-      }
-      return result;
-    } catch (error) {
-      if (generation === this.generation) {
-        this.report(error);
-        if (
-          error instanceof OpenCutApiError &&
-          error.code === "REVISION_CONFLICT"
-        ) {
-          const head = await api.inspect(projectRef(snapshot));
-          if (generation === this.generation) this.set({ snapshot: head });
-        }
-      }
-      throw error;
-    } finally {
-      this.writes.delete(key);
-      if (generation === this.generation) this.set({ busy: false });
-    }
-  }
-  private get navigation() {
-    const { snapshot, history, historical } = this.state;
-    const navigation = history?.navigation;
-    return !historical &&
-      navigation?.revision === snapshot?.revision &&
-      navigation?.project_id === snapshot?.project.id
-      ? navigation
-      : null;
-  }
-  get canUndo() {
-    return !!this.navigation?.undo;
-  }
-  get canRedo() {
-    return !!this.navigation?.redo;
-  }
-  async undo() {
-    const { api, snapshot, historical } = this.state;
-    const target = this.navigation?.undo?.transaction_id;
-    if (!api || !snapshot || !target || historical) return;
-    const request = {
-      project_id: snapshot.project.id,
-      expected_revision: snapshot.revision,
-      target_transaction_id: target,
-      idempotency_key: crypto.randomUUID(),
-    };
-    const saved = this.historyViews.read(
-      this.historyHost(api),
-      snapshot.project.id,
-      target,
-    );
-    await this.write(async () => {
-      const plan = await api.sdk.call(
-        snapshot.format === "visual"
-          ? "opencut_edit_v3_undo_plan"
-          : "opencut_edit_undo_plan",
-        request,
-      );
-      if (plan.conflicts.length)
-        throw new Error(
-          "This change conflicts with later edits and cannot be undone automatically.",
-        );
-      const result = await api.sdk.call(
-        snapshot.format === "visual"
-          ? "opencut_edit_v3_undo_apply"
-          : "opencut_edit_undo_apply",
-        request,
-      );
-      return result;
-    }, saved?.before ?? null);
-  }
-  async redo() {
-    const { api, snapshot, historical } = this.state,
-      target = this.navigation?.redo;
-    if (!api || !snapshot || historical || !target || !this.canRedo) return;
-    const saved = this.historyViews.read(
-      this.historyHost(api),
-      snapshot.project.id,
-      target.transaction_id,
-    );
-    await this.write(
-      () =>
-        api.sdk.call(
-          snapshot.format === "visual"
-            ? "opencut_edit_v3_redo_apply"
-            : "opencut_edit_redo_apply",
-          {
-            project_id: snapshot.project.id,
-            expected_revision: snapshot.revision,
-            undo_transaction_id: target.undo_transaction_id,
-            idempotency_key: crypto.randomUUID(),
-          },
-        ),
-      saved?.after ?? null,
-    );
-  }
-  async track(kind: "video" | "audio" | "graphic") {
-    const sequence = activeSequence(this.state.snapshot, this.state.sequenceId);
-    if (!sequence) return;
-    await this.mutate("Add track", [
-      {
-        type: "track.create",
-        sequence_id: sequence.id,
-        track: {
-          id: crypto.randomUUID(),
-          name: `${kind === "audio" ? "Audio" : kind === "graphic" ? "Graphics" : "Video"} ${sequence.tracks.length + 1}`,
-          kind,
-          enabled: true,
-          muted: false,
-          locked: false,
-          clips: [],
-          params: {},
-        },
-      },
-    ]);
   }
 }

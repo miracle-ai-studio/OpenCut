@@ -1,13 +1,16 @@
 use opencut_contracts::EditorError;
 use opencut_editor_application::classic_visual::ClassicVisualRgbaSink;
+use opencut_editor_application::media_video_jobs::{MAX_VIDEO_FRAMES, VideoExecutionLimit};
 use opencut_media::{OutputAdmission, OutputProcess};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeMap,
     fs::File,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{ChildStdin, Command, Stdio},
+    sync::mpsc,
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
@@ -16,6 +19,35 @@ fn err(message: &str) -> EditorError {
 }
 fn io(error: std::io::Error) -> EditorError {
     err(&error.to_string())
+}
+fn wait_input_writable(input: &ChildStdin) -> Result<(), EditorError> {
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        let mut descriptor = libc::pollfd {
+            fd: input.as_raw_fd(),
+            events: libc::POLLOUT,
+            revents: 0,
+        };
+        // The encoder owns this live stdin handle throughout the wait. Keep
+        // the original 10ms cancellation/deadline upper bound, but resume as
+        // soon as FFmpeg drains the pipe instead of sleeping a whole tick.
+        let ready = unsafe { libc::poll(&mut descriptor, 1, 10) };
+        if ready < 0 {
+            let error = std::io::Error::last_os_error();
+            if error.kind() != std::io::ErrorKind::Interrupted {
+                return Err(io(error));
+            }
+        } else if descriptor.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
+            return Err(err("Encoder input closed"));
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = input;
+        thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
 }
 fn media(error: opencut_media::MediaError) -> EditorError {
     match error {
@@ -64,21 +96,23 @@ fn checked_executable(path: &Path) -> Result<PathBuf, EditorError> {
 
 fn hash(
     path: &Path,
-    checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    checkpoint: &mut dyn FnMut(bool) -> Result<(), EditorError>,
 ) -> Result<String, EditorError> {
     let mut file = File::open(path).map_err(io)?;
     let mut digest = Sha256::new();
     let mut bytes = [0u8; 65536];
     loop {
-        checkpoint()?;
+        checkpoint(false)?;
         let n = file.read(&mut bytes).map_err(io)?;
         if n == 0 {
             break;
         }
         digest.update(&bytes[..n]);
+        checkpoint(true)?;
     }
     Ok(format!("{:x}", digest.finalize()))
 }
+#[derive(Clone)]
 pub struct ClassicVideoEncoderConfig {
     pub ffmpeg: PathBuf,
     pub ffprobe: PathBuf,
@@ -91,16 +125,17 @@ pub struct ClassicVideoEncoderConfig {
     pub frame_count: u64,
     pub max_output_bytes: u64,
     pub max_rss_bytes: u64,
-    pub deadline: Duration,
+    pub execution_limit: VideoExecutionLimit,
 }
 pub struct ClassicVideoEncoderObservation {
+    pub backend: opencut_editor_application::export_video::VideoEncoderBackend,
     pub ffmpeg_sha256: String,
     pub ffprobe_sha256: String,
     pub video_frames: u64,
     pub video_duration_seconds: f64,
     pub audio_duration_seconds: f64,
 }
-pub struct ClassicVideoEncoder<F: FnMut() -> Result<(), EditorError>> {
+pub struct ClassicVideoEncoder<F: FnMut(bool) -> Result<(), EditorError>> {
     process: Option<Box<dyn OutputProcess>>,
     input: Option<ChildStdin>,
     stderr: Option<JoinHandle<std::io::Result<Vec<u8>>>>,
@@ -108,13 +143,14 @@ pub struct ClassicVideoEncoder<F: FnMut() -> Result<(), EditorError>> {
     checkpoint: F,
     started: Instant,
     last_rss: Instant,
+    observed_output_bytes: u64,
     ffmpeg_hash: String,
     ffprobe_hash: String,
     next_frame: u64,
     offset: u64,
-    export_options: Option<opencut_contracts::export_video_v2::ExportVideoOptionsV2>,
+    export_options: Option<opencut_contracts::export_video::ExportVideoOptions>,
 }
-impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
+impl<F: FnMut(bool) -> Result<(), EditorError>> ClassicVideoEncoder<F> {
     #[cfg(unix)]
     pub fn start(
         config: ClassicVideoEncoderConfig,
@@ -124,9 +160,9 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         Self::start_internal(config, admission, checkpoint, None)
     }
     #[cfg(unix)]
-    pub fn start_v2(
+    pub fn start_export(
         config: ClassicVideoEncoderConfig,
-        options: opencut_contracts::export_video_v2::ExportVideoOptionsV2,
+        options: opencut_contracts::export_video::ExportVideoOptions,
         admission: &dyn OutputAdmission,
         checkpoint: F,
     ) -> Result<Self, EditorError> {
@@ -137,7 +173,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         config: ClassicVideoEncoderConfig,
         admission: &dyn OutputAdmission,
         mut checkpoint: F,
-        export_options: Option<opencut_contracts::export_video_v2::ExportVideoOptionsV2>,
+        export_options: Option<opencut_contracts::export_video::ExportVideoOptions>,
     ) -> Result<Self, EditorError> {
         if config.width == 0
             || config.height == 0
@@ -146,9 +182,10 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
             || config.fps_numerator == 0
             || config.fps_denominator == 0
             || config.frame_count == 0
-            || config.frame_count > 1800
+            || config.frame_count > MAX_VIDEO_FRAMES
             || config.max_output_bytes == 0
-            || config.deadline.is_zero()
+            || config.max_output_bytes > i64::MAX as u64
+            || config.execution_limit.milliseconds() == 0
         {
             return Err(err("Invalid basic CFR encoder admission"));
         }
@@ -156,7 +193,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         let ffprobe_hash = hash(&config.ffprobe, &mut checkpoint)?;
         let mut command = Command::new(&config.ffmpeg);
         if let Some(options) = &export_options {
-            crate::export_video_v2::append_arguments(&mut command, &config, options)?;
+            crate::export_video::append_arguments(&mut command, &config, options)?;
         } else {
             command
                 .args([
@@ -243,6 +280,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
             checkpoint,
             started,
             last_rss: started,
+            observed_output_bytes: 0,
             ffmpeg_hash,
             ffprobe_hash,
             next_frame: 0,
@@ -251,8 +289,11 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         })
     }
     fn check(&mut self) -> Result<(), EditorError> {
-        (self.checkpoint)()?;
-        if self.started.elapsed() >= self.config.deadline {
+        (self.checkpoint)(false)?;
+        if !self.config.execution_limit.renews_on_progress()
+            && self.started.elapsed()
+                >= Duration::from_millis(self.config.execution_limit.milliseconds())
+        {
             return Err(EditorError::new(
                 "VIDEO_TIME_LIMIT",
                 "Video encoding exceeded captured deadline",
@@ -264,6 +305,10 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
                     "VIDEO_BUDGET_EXCEEDED",
                     "MP4 exceeded captured output admission",
                 ));
+            }
+            if metadata.len() > self.observed_output_bytes {
+                self.observed_output_bytes = metadata.len();
+                self.completed_work()?;
             }
         }
         if self.last_rss.elapsed() >= Duration::from_millis(100) {
@@ -281,6 +326,10 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         }
         Ok(())
     }
+    fn completed_work(&mut self) -> Result<(), EditorError> {
+        (self.checkpoint)(true)?;
+        Ok(())
+    }
     pub fn finish_frame(&mut self) -> Result<(), EditorError> {
         self.check()?;
         if self.next_frame >= self.config.frame_count
@@ -290,6 +339,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         }
         self.next_frame += 1;
         self.offset = 0;
+        self.completed_work()?;
         Ok(())
     }
     #[cfg(unix)]
@@ -339,14 +389,18 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         }
         drop(self.process.take());
         self.check()?;
-        let remaining = self.config.deadline.saturating_sub(self.started.elapsed());
+        self.completed_work()?;
         let probe = probe(
             &self.config.ffprobe,
             &self.config.output,
             admission,
-            remaining,
+            self.config
+                .execution_limit
+                .remaining_after(self.started.elapsed()),
+            self.config.max_rss_bytes,
             &mut self.checkpoint,
         )?;
+        self.completed_work()?;
         self.check()?;
         if hash(&self.config.ffmpeg, &mut self.checkpoint)? != self.ffmpeg_hash
             || hash(&self.config.ffprobe, &mut self.checkpoint)? != self.ffprobe_hash
@@ -357,8 +411,16 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
             ));
         }
         if let Some(options) = &self.export_options {
-            let observed = crate::export_video_v2::verify_probe(&probe, &self.config, options)?;
+            let observed = crate::export_video::verify_probe(&probe, &self.config, options)?;
             return Ok(ClassicVideoEncoderObservation {
+                backend: match options.format {
+                    opencut_contracts::export_video::ExportFormat::Mp4 => {
+                        opencut_editor_application::export_video::VideoEncoderBackend::FfmpegLibx264
+                    }
+                    opencut_contracts::export_video::ExportFormat::Webm => {
+                        opencut_editor_application::export_video::VideoEncoderBackend::FfmpegLibvpxVp9
+                    }
+                },
                 ffmpeg_sha256: self.ffmpeg_hash.clone(),
                 ffprobe_sha256: self.ffprobe_hash.clone(),
                 video_frames: observed.frames,
@@ -407,6 +469,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
             ));
         }
         Ok(ClassicVideoEncoderObservation {
+            backend: opencut_editor_application::export_video::VideoEncoderBackend::FfmpegLibx264,
             ffmpeg_sha256: self.ffmpeg_hash.clone(),
             ffprobe_sha256: self.ffprobe_hash.clone(),
             video_frames: count,
@@ -415,7 +478,39 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVideoEncoder<F> {
         })
     }
 }
-impl<F: FnMut() -> Result<(), EditorError>> ClassicVisualRgbaSink for ClassicVideoEncoder<F> {
+/// Verify a complete browser-encoded canvas result in its owned output attempt.
+/// Codec/dimensions/CFR/frame count/duration/audio are checked by the same probe.
+pub fn verify_canvas_video(
+    config: &ClassicVideoEncoderConfig,
+    options: &opencut_contracts::export_video::ExportVideoOptions,
+    admission: &dyn OutputAdmission,
+    checkpoint: &mut dyn FnMut(bool) -> Result<(), EditorError>,
+) -> Result<ClassicVideoEncoderObservation, EditorError> {
+    if options.format != opencut_contracts::export_video::ExportFormat::Mp4 || options.include_audio
+    {
+        return Err(err("Canvas preview requires video-only AVC"));
+    }
+    let observed = probe(
+        &config.ffprobe,
+        &config.output,
+        admission,
+        config.execution_limit,
+        config.max_rss_bytes,
+        checkpoint,
+    )?;
+    let actual = crate::export_video::verify_probe(&observed, config, options)?;
+    let ffmpeg_sha256 = hash(&config.ffmpeg, &mut |completed| checkpoint(completed))?;
+    let ffprobe_sha256 = hash(&config.ffprobe, &mut |completed| checkpoint(completed))?;
+    Ok(ClassicVideoEncoderObservation {
+        backend: opencut_editor_application::export_video::VideoEncoderBackend::WebcodecsAvc,
+        ffmpeg_sha256,
+        ffprobe_sha256,
+        video_frames: actual.frames,
+        video_duration_seconds: actual.video_seconds,
+        audio_duration_seconds: 0.0,
+    })
+}
+impl<F: FnMut(bool) -> Result<(), EditorError>> ClassicVisualRgbaSink for ClassicVideoEncoder<F> {
     fn chunk(&mut self, offset: u64, bytes: &[u8]) -> Result<(), EditorError> {
         self.check()?;
         let frame_bytes = u64::from(self.config.width) * u64::from(self.config.height) * 4;
@@ -442,7 +537,11 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVisualRgbaSink for ClassicVid
                 Ok(0) => return Err(err("Encoder input closed")),
                 Ok(n) => remaining = &remaining[n..],
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(10))
+                    wait_input_writable(
+                        self.input
+                            .as_ref()
+                            .ok_or_else(|| err("Encoder input closed"))?,
+                    )?;
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
                 Err(e) => return Err(io(e)),
@@ -452,7 +551,7 @@ impl<F: FnMut() -> Result<(), EditorError>> ClassicVisualRgbaSink for ClassicVid
         Ok(())
     }
 }
-impl<F: FnMut() -> Result<(), EditorError>> Drop for ClassicVideoEncoder<F> {
+impl<F: FnMut(bool) -> Result<(), EditorError>> Drop for ClassicVideoEncoder<F> {
     fn drop(&mut self) {
         drop(self.input.take());
         drop(self.process.take());
@@ -483,32 +582,161 @@ fn nonblocking(input: &ChildStdin) -> Result<(), EditorError> {
     }
     Ok(())
 }
+// Compact ffprobe sections are one bounded line each. Decode every frame as
+// before;discard frame rows after counting them and retain only final metadata.
+// See https://ffmpeg.org/ffprobe.html#compact_002c-csv and -count_frames.
+fn read_probe_output(
+    reader: impl Read,
+    progress: mpsc::SyncSender<u64>,
+) -> Result<Value, EditorError> {
+    let mut reader = BufReader::new(reader);
+    let mut counts = BTreeMap::<u64, (String, u64)>::new();
+    let mut streams = BTreeMap::<u64, Value>::new();
+    let mut format = None;
+    let mut decoded = 0u64;
+    loop {
+        let mut line = Vec::new();
+        let length = reader
+            .by_ref()
+            .take(16_385)
+            .read_until(b'\n', &mut line)
+            .map_err(io)?;
+        if length == 0 {
+            break;
+        }
+        if length > 16_384 || line.last() != Some(&b'\n') {
+            return Err(err("Probe section exceeds bounded framing"));
+        }
+        let line = std::str::from_utf8(&line)
+            .map_err(|_| err("Invalid probe text"))?
+            .trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split('|');
+        let section = parts.next().ok_or_else(|| err("Missing probe section"))?;
+        let mut fields = BTreeMap::new();
+        for part in parts {
+            let Some((key, value)) = part.split_once('=') else {
+                continue;
+            };
+            // Only scalar codec/count/clock fields and the existing WebM
+            // duration tag are consumed. No arbitrary escaped metadata is used.
+            if !matches!(
+                key,
+                "index"
+                    | "stream_index"
+                    | "media_type"
+                    | "codec_type"
+                    | "codec_name"
+                    | "width"
+                    | "height"
+                    | "pix_fmt"
+                    | "r_frame_rate"
+                    | "avg_frame_rate"
+                    | "sample_rate"
+                    | "channels"
+                    | "nb_read_frames"
+                    | "duration"
+                    | "tag:DURATION"
+                    | "format_name"
+            ) {
+                continue;
+            }
+            if value.contains('\\') || fields.insert(key, value).is_some() {
+                return Err(err("Ambiguous probe field"));
+            }
+        }
+        let integer = |key: &str| {
+            fields
+                .get(key)
+                .and_then(|v| v.parse::<u64>().ok())
+                .ok_or_else(|| err("Invalid probe integer"))
+        };
+        if section == "frame" {
+            let index = integer("stream_index")?;
+            let kind = *fields
+                .get("media_type")
+                .ok_or_else(|| err("Missing decoded frame type"))?;
+            if !matches!(kind, "video" | "audio")
+                || (counts.len() >= 2 && !counts.contains_key(&index))
+            {
+                return Err(err("Unexpected decoded stream"));
+            }
+            let counter = counts.entry(index).or_insert_with(|| (kind.into(), 0));
+            if counter.0 != kind {
+                return Err(err("Decoded stream type changed"));
+            }
+            counter.1 = counter
+                .1
+                .checked_add(1)
+                .ok_or_else(|| err("Probe frame count overflow"))?;
+            decoded = decoded
+                .checked_add(1)
+                .ok_or_else(|| err("Probe progress overflow"))?;
+            // Bounded,coalescible observations. A full queue never blocks the
+            // reader or accumulates output;polling alone cannot send progress.
+            let _ = progress.try_send(decoded);
+        } else if section == "stream" || section == "format" {
+            let mut value = serde_json::Map::new();
+            for (key, field) in &fields {
+                if *key == "tag:DURATION" {
+                    value.insert("tags".into(), serde_json::json!({"DURATION":field}));
+                } else if matches!(*key, "index" | "width" | "height" | "channels") {
+                    value.insert((*key).into(), integer(key)?.into());
+                } else {
+                    value.insert((*key).into(), Value::String((*field).into()));
+                }
+            }
+            if section == "stream" {
+                let index = integer("index")?;
+                if streams.len() >= 2 || streams.insert(index, Value::Object(value)).is_some() {
+                    return Err(err("Unexpected probe stream inventory"));
+                }
+            } else if format.replace(Value::Object(value)).is_some() {
+                return Err(err("Repeated probe container"));
+            }
+        } else if section != "side_data" {
+            return Err(err("Unexpected probe section"));
+        }
+    }
+    if streams.is_empty() || streams.len() != counts.len() {
+        return Err(err("Decoded frame inventory is incomplete"));
+    }
+    for (index, stream) in &streams {
+        let (kind, count) = counts
+            .get(index)
+            .ok_or_else(|| err("Unobserved output stream"))?;
+        if stream["codec_type"].as_str() != Some(kind.as_str())
+            || stream["nb_read_frames"]
+                .as_str()
+                .and_then(|v| v.parse::<u64>().ok())
+                != Some(*count)
+        {
+            return Err(err("Probe decoded counts differ from observed frame rows"));
+        }
+    }
+    Ok(
+        serde_json::json!({"streams":streams.into_values().collect::<Vec<_>>(),"format":format.ok_or_else(|| err("Missing probe container"))?}),
+    )
+}
 #[cfg(unix)]
 fn probe(
     path: &Path,
     output: &Path,
     admission: &dyn OutputAdmission,
-    deadline: Duration,
-    checkpoint: &mut dyn FnMut() -> Result<(), EditorError>,
+    limit: VideoExecutionLimit,
+    max_rss_bytes: u64,
+    checkpoint: &mut dyn FnMut(bool) -> Result<(), EditorError>,
 ) -> Result<Value, EditorError> {
-    checkpoint()?;
+    checkpoint(false)?;
     let mut command = Command::new(path);
-    command
-        .args([
-            "-v",
-            "error",
-            "-protocol_whitelist",
-            "file,pipe",
-            "-count_frames",
-            "-show_streams",
-            "-show_format",
-            "-of",
-            "json",
-        ])
-        .arg(output)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    command.args([
+        "-v", "error", "-protocol_whitelist", "file,pipe", "-count_frames",
+        "-show_frames", "-show_streams", "-show_format", "-show_entries",
+        "frame=media_type,stream_index:stream=index,codec_type,codec_name,width,height,pix_fmt,r_frame_rate,avg_frame_rate,sample_rate,channels,nb_read_frames,duration:stream_tags=DURATION:format=format_name,duration",
+        "-of", "compact=p=1:nk=0",
+    ]).arg(output).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut process = admission.spawn(command, None).map_err(media)?;
     let stdout = process
         .child()
@@ -520,17 +748,72 @@ fn probe(
         .stderr
         .take()
         .ok_or_else(|| err("Missing probe diagnostics"))?;
-    let out = thread::spawn(move || bounded_read(stdout, 1048577));
+    let (sender, observations) = mpsc::sync_channel(4);
+    let mut out = Some(thread::spawn(move || read_probe_output(stdout, sender)));
+    let mut parsed = None;
     let errors = thread::spawn(move || bounded_read(stderr, 16384));
     let start = Instant::now();
+    let mut last_progress = start;
+    let mut last_rss = start;
+    let mut decoded = 0;
     let status = (|| {
         loop {
-            checkpoint()?;
-            if start.elapsed() >= deadline {
+            let mut advanced = false;
+            for _ in 0..4 {
+                let Ok(count) = observations.try_recv() else {
+                    break;
+                };
+                if count <= decoded {
+                    return Err(err("Repeated probe progress"));
+                }
+                decoded = count;
+                advanced = true;
+            }
+            if advanced {
+                let elapsed = if limit.renews_on_progress() {
+                    last_progress.elapsed()
+                } else {
+                    start.elapsed()
+                };
+                if elapsed >= Duration::from_millis(limit.milliseconds()) {
+                    return Err(EditorError::new(
+                        "VIDEO_TIME_LIMIT",
+                        "Probe progress arrived after expiration",
+                    ));
+                }
+                checkpoint(true)?;
+                if limit.renews_on_progress() {
+                    last_progress = Instant::now();
+                }
+            }
+            checkpoint(false)?;
+            let elapsed = if limit.renews_on_progress() {
+                last_progress.elapsed()
+            } else {
+                start.elapsed()
+            };
+            if elapsed >= Duration::from_millis(limit.milliseconds()) {
                 return Err(EditorError::new(
                     "VIDEO_TIME_LIMIT",
-                    "Video probe exceeded deadline",
+                    "Video probe exceeded captured lifetime",
                 ));
+            }
+            if out.as_ref().is_some_and(|reader| reader.is_finished()) {
+                parsed = Some(
+                    out.take()
+                        .unwrap()
+                        .join()
+                        .map_err(|_| err("Probe output reader failed"))??,
+                );
+            }
+            if last_rss.elapsed() >= Duration::from_millis(100) {
+                last_rss = Instant::now();
+                if resident_bytes(process.child().id())?.is_some_and(|rss| rss > max_rss_bytes) {
+                    return Err(EditorError::new(
+                        "VIDEO_BUDGET_EXCEEDED",
+                        "Video probe RSS exceeded captured admission",
+                    ));
+                }
             }
             if let Some(status) = process.child().try_wait().map_err(io)? {
                 return Ok(status);
@@ -539,18 +822,23 @@ fn probe(
         }
     })();
     drop(process);
-    let bytes = out
-        .join()
-        .map_err(|_| err("Probe output reader failed"))?
-        .map_err(io)?;
+    drop(observations);
+    let observed = if let Some(reader) = out {
+        reader
+            .join()
+            .map_err(|_| err("Probe output reader failed"))
+            .and_then(|result| result)
+    } else {
+        parsed.ok_or_else(|| err("Missing probe observation"))
+    };
     let _ = errors.join();
-    if !status?.success() || bytes.len() > 1048576 {
+    if !status?.success() {
         return Err(err("Bounded video probe failed"));
     }
-    serde_json::from_slice(&bytes).map_err(|_| err("Invalid observed video metadata"))
+    observed
 }
 #[cfg(target_os = "linux")]
-fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
+pub(crate) fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
     let content = match std::fs::read_to_string(format!("/proc/{pid}/statm")) {
         Ok(v) => v,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -568,7 +856,7 @@ fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
     Ok(Some(resident.saturating_mul(page as u64)))
 }
 #[cfg(target_os = "macos")]
-fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
+pub(crate) fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
     #[repr(C)]
     struct TaskInfo {
         values: [u64; 6],
@@ -606,7 +894,7 @@ fn resident_bytes(pid: u32) -> Result<Option<u64>, EditorError> {
     Ok(Some(info.values[1]))
 }
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn resident_bytes(_: u32) -> Result<Option<u64>, EditorError> {
+pub(crate) fn resident_bytes(_: u32) -> Result<Option<u64>, EditorError> {
     Err(EditorError::new(
         "CAPABILITY_UNAVAILABLE",
         "Video encoder RSS monitoring unavailable",
@@ -616,6 +904,55 @@ fn resident_bytes(_: u32) -> Result<Option<u64>, EditorError> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    #[test]
+    fn compact_probe_progress_preserves_decoded_counts_and_bounded_stream_facts() {
+        let rows = concat!(
+            "frame|media_type=video|stream_index=0|side_data|side_data_type=fixture\n",
+            "frame|stream_index=1|media_type=audio\n",
+            "frame|stream_index=0|media_type=video\n",
+            "stream|index=0|codec_type=video|codec_name=vp9|width=2|height=2|pix_fmt=yuv420p|r_frame_rate=30/1|nb_read_frames=2|tag:DURATION=00:00:00.066666667\n",
+            "stream|index=1|codec_type=audio|codec_name=opus|sample_rate=48000|channels=2|nb_read_frames=1|tag:DURATION=00:00:00.066666667\n",
+            "format|format_name=matroska,webm|duration=0.066667\n",
+        );
+        let (sender, receiver) = mpsc::sync_channel(4);
+        let observed = read_probe_output(rows.as_bytes(), sender).unwrap();
+        assert_eq!(receiver.into_iter().collect::<Vec<_>>(), [1, 2, 3]);
+        let config = ClassicVideoEncoderConfig {
+            ffmpeg: "ffmpeg".into(),
+            ffprobe: "ffprobe".into(),
+            output: "output.webm".into(),
+            audio: "private.wav".into(),
+            width: 2,
+            height: 2,
+            fps_numerator: 30,
+            fps_denominator: 1,
+            frame_count: 2,
+            max_output_bytes: 1 << 24,
+            max_rss_bytes: 1 << 26,
+            execution_limit: VideoExecutionLimit::Progress {
+                milliseconds: 300_000,
+            },
+        };
+        let options = opencut_contracts::export_video::ExportVideoOptions {
+            runtime_fingerprint: None,
+            resolution: opencut_contracts::export_video::RasterResolution::Source,
+            format: opencut_contracts::export_video::ExportFormat::Webm,
+            quality: opencut_contracts::export_video::ExportQuality::High,
+            include_audio: true,
+        };
+        let verified = crate::export_video::verify_probe(&observed, &config, &options).unwrap();
+        assert_eq!(verified.frames, 2);
+        assert!((verified.video_seconds - 2.0 / 30.0).abs() < 1e-8);
+        assert!((verified.audio_seconds.unwrap() - 2.0 / 30.0).abs() < 1e-8);
+        for invalid in [
+            rows.replace("nb_read_frames=2", "nb_read_frames=3"),
+            rows.replace("media_type=audio", "media_type=subtitle"),
+            format!("frame|ignored={}\n", "x".repeat(16_385)),
+        ] {
+            let (sender, _receiver) = mpsc::sync_channel(4);
+            assert!(read_probe_output(invalid.as_bytes(), sender).is_err());
+        }
+    }
     use std::process::Child;
     #[derive(Debug)]
     struct Admission;
@@ -708,10 +1045,10 @@ mod tests {
                 frame_count: 1,
                 max_output_bytes: 1048576,
                 max_rss_bytes: 67108864,
-                deadline: Duration::from_secs(5),
+                execution_limit: VideoExecutionLimit::Total { milliseconds: 5000 },
             },
             &Admission,
-            || {
+            |_| {
                 if cancel.is_cancelled() {
                     Err(EditorError::new(
                         "JOB_CANCELLED",

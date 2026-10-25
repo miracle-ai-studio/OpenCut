@@ -1,16 +1,25 @@
 import { AUDIO_EXECUTION_LIMITS, natural, integer, reject } from "./validation.mjs";
+import { pcmValue } from "./pcm-source.mjs";
 
 // Exact integer comparison precedes Number conversion. In particular a very
 // large source tick cannot wrap or round down into this bounded decoded buffer.
-export function sampleLinear(data, position) {
-  const lower = natural(position.lower, "source lower");
-  const numerator = natural(position.fractionNumerator, "source fraction numerator", 128);
-  const denominator = natural(position.fractionDenominator, "source fraction denominator", 128);
-  if (denominator === 0n || numerator >= denominator) reject("INVALID_AUDIO_PLAN", "Source fraction is not canonical");
+export function sampleLinear(data, position, cache) {
+  let facts = cache?.get(position);
+  if (!facts) {
+    const lower = natural(position.lower, "source lower");
+    const numerator = natural(position.fractionNumerator, "source fraction numerator", 128);
+    const denominator = natural(position.fractionDenominator, "source fraction denominator", 128);
+    if (denominator === 0n || numerator >= denominator) reject("INVALID_AUDIO_PLAN", "Source fraction is not canonical");
+    facts = { lower, fraction: Number(numerator) / Number(denominator) };
+    // Shared packet points are frozen own data properties. Foreign mutable
+    // points and getters retain the original validation on every sample.
+    if (cache && Object.isFrozen(position) && ["lower", "fractionNumerator", "fractionDenominator"].every(key =>
+      typeof Object.getOwnPropertyDescriptor(position, key)?.value === "string")) cache.set(position, facts);
+  }
+  const { lower, fraction } = facts;
   if (lower >= BigInt(data.length)) return 0;
   const index = Number(lower);
-  const fraction = Number(numerator) / Number(denominator);
-  return data[index] * (1 - fraction) + data[Math.min(data.length - 1, index + 1)] * fraction;
+  return pcmValue(data, index) * (1 - fraction) + pcmValue(data, Math.min(data.length - 1, index + 1)) * fraction;
 }
 
 // One Float32 write per stored voice, matching Classic's accumulation order.
@@ -27,6 +36,9 @@ export function mixCompiledBlock(output, sourceBuffers, voiceOrder, block, start
     work += integer(voice.frameCount, "voice frame count", 1, count - offset);
   }
   if (work > AUDIO_EXECUTION_LIMITS.voiceSamples) reject("AUDIO_BUDGET_EXCEEDED", "Compiled block exceeds the voice-sample budget");
+  // This cache lives for one admitted block, so shared immutable facts do not
+  // accumulate across a scene or suppress later-source bounds checks.
+  const positions = new WeakMap();
   let lastOrder = -1;
   for (const voice of block.voices) {
     const order = voiceOrder.indexOf(voice.elementId);
@@ -44,7 +56,7 @@ export function mixCompiledBlock(output, sourceBuffers, voiceOrder, block, start
         const gain = voice.amplitudes[i];
         if (!Number.isFinite(gain) || gain < 0) reject("INVALID_AUDIO_PLAN", "Physical gain must be a finite nonnegative amplitude");
         const index = start + offset + i;
-        const mixed = destination[index] + sampleLinear(data, voice.positions[i]) * gain;
+        const mixed = destination[index] + sampleLinear(data, voice.positions[i], positions) * gain;
         if (!Number.isFinite(mixed) || !Number.isFinite(Math.fround(mixed))) reject("INVALID_AUDIO_PLAN", "PCM accumulation overflowed");
         destination[index] = mixed;
       }

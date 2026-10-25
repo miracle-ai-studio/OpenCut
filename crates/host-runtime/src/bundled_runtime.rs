@@ -10,6 +10,7 @@ use std::{
     fs::{self, File},
     io::Read,
     path::{Component, Path, PathBuf},
+    sync::Arc,
 };
 
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
@@ -204,7 +205,7 @@ fn text(value: &str) -> bool {
     !value.is_empty() && value.len() <= 128 && !value.chars().any(char::is_control)
 }
 
-fn load(root: &Path) -> Result<Option<(PathBuf, Manifest)>, EditorError> {
+fn load_uncached(root: &Path) -> Result<Option<(PathBuf, Manifest)>, EditorError> {
     let manifest_path = root.join("runtime-bundle.json");
     match fs::symlink_metadata(&manifest_path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -231,8 +232,25 @@ fn load(root: &Path) -> Result<Option<(PathBuf, Manifest)>, EditorError> {
     } else {
         vec!["ffmpeg", "ffprobe", "chromium", "node", "python"]
     };
-    if manifest.format != "opencut.runtime-bundle.v1"
-        || manifest.schema_version != 1
+    let legacy = manifest.format == "opencut.runtime-bundle.v1" && manifest.schema_version == 1;
+    let current = manifest.format == "opencut.runtime-bundle.v2" && manifest.schema_version == 2;
+    let mut scripts = BTreeMap::from([
+        (
+            "run_derived.py".to_owned(),
+            "font-catalog/run_derived.py".to_owned(),
+        ),
+        (
+            "run_derived_v2.py".to_owned(),
+            "font-catalog/run_derived_v2.py".to_owned(),
+        ),
+    ]);
+    if current {
+        scripts.insert(
+            "run_color_static_v1.py".to_owned(),
+            "font-catalog/run_color_static_v1.py".to_owned(),
+        );
+    }
+    if !(legacy || current)
         || !text(&manifest.target)
         || (!complete && !manifest.components.is_empty())
         || manifest.delivery
@@ -246,17 +264,7 @@ fn load(root: &Path) -> Result<Option<(PathBuf, Manifest)>, EditorError> {
             .iter()
             .map(String::as_str)
             .ne(dependencies)
-        || manifest.scripts
-            != BTreeMap::from([
-                (
-                    "run_derived.py".to_owned(),
-                    "font-catalog/run_derived.py".to_owned(),
-                ),
-                (
-                    "run_derived_v2.py".to_owned(),
-                    "font-catalog/run_derived_v2.py".to_owned(),
-                ),
-            ])
+        || manifest.scripts != scripts
         || manifest.files.is_empty()
         || manifest.files.len() > MAX_FILES
     {
@@ -362,6 +370,146 @@ fn load(root: &Path) -> Result<Option<(PathBuf, Manifest)>, EditorError> {
     Ok(Some((root, manifest)))
 }
 
+// Integrity belongs to the installation, shared by the host's adapters. Each
+// lookup used to hash the complete installation again (including both lookups
+// for Node and Chromium in one configuration). Cache only a verified snapshot,
+// with a fresh filesystem identity fence on every use. Never cache absence or
+// an invalid installation, or fall back to PATH after a failed fence.
+#[cfg(unix)]
+mod verified_snapshot {
+    use super::*;
+    use std::os::unix::fs::MetadataExt;
+    use std::sync::{Mutex, OnceLock};
+
+    #[derive(PartialEq, Eq)]
+    struct Stamp {
+        device: u64,
+        inode: u64,
+        mode: u32,
+        length: u64,
+        modified: (i64, i64),
+        changed: (i64, i64),
+    }
+    fn stamp(path: &Path) -> Result<Stamp, EditorError> {
+        let metadata = fs::symlink_metadata(path).map_err(|_| invalid())?;
+        Ok(Stamp {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+            mode: metadata.mode(),
+            length: metadata.len(),
+            modified: (metadata.mtime(), metadata.mtime_nsec()),
+            changed: (metadata.ctime(), metadata.ctime_nsec()),
+        })
+    }
+    // Include every directory, even an empty one: its change time fences new,
+    // removed or renamed entries without rewalking the tree on a cache hit.
+    fn capture(root: &Path) -> Result<BTreeMap<PathBuf, Stamp>, EditorError> {
+        fn visit(
+            root: &Path,
+            path: &Path,
+            out: &mut BTreeMap<PathBuf, Stamp>,
+        ) -> Result<(), EditorError> {
+            if out.len() > MAX_FILES {
+                return Err(invalid());
+            }
+            if path != root {
+                relative(
+                    path.strip_prefix(root)
+                        .map_err(|_| invalid())?
+                        .to_str()
+                        .ok_or_else(invalid)?,
+                )?;
+            }
+            let metadata = fs::symlink_metadata(path).map_err(|_| invalid())?;
+            out.insert(path.to_owned(), stamp(path)?);
+            if metadata.is_dir() {
+                for child in fs::read_dir(path).map_err(|_| invalid())? {
+                    visit(root, &child.map_err(|_| invalid())?.path(), out)?;
+                }
+            }
+            Ok(())
+        }
+        let mut out = BTreeMap::new();
+        visit(root, root, &mut out)?;
+        Ok(out)
+    }
+    struct Verified {
+        root: PathBuf,
+        manifest: Arc<Manifest>,
+        stamps: BTreeMap<PathBuf, Stamp>,
+    }
+    impl Verified {
+        fn unchanged(&self) -> bool {
+            self.stamps
+                .iter()
+                .all(|(path, expected)| stamp(path).is_ok_and(|actual| actual == *expected))
+        }
+    }
+    // Host discovery normally uses one installation. Bound the retained roots
+    // as well as each inventory; a mutex makes concurrent first lookups share
+    // one full verification instead of launching competing whole-tree reads.
+    static CACHE: OnceLock<Mutex<BTreeMap<PathBuf, Verified>>> = OnceLock::new();
+    pub(super) fn load(root: &Path) -> Result<Option<(PathBuf, Arc<Manifest>)>, EditorError> {
+        let mut cache = CACHE
+            .get_or_init(|| Mutex::new(BTreeMap::new()))
+            .lock()
+            .map_err(|_| invalid())?;
+        if let Some(verified) = cache.get(root)
+            && verified.unchanged()
+        {
+            return Ok(Some((verified.root.clone(), verified.manifest.clone())));
+        }
+        cache.remove(root);
+        match fs::symlink_metadata(root.join("runtime-bundle.json")) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => (),
+            _ => return Err(invalid()),
+        }
+        if fs::symlink_metadata(root)
+            .map_err(|_| invalid())?
+            .file_type()
+            .is_symlink()
+        {
+            return Err(invalid());
+        }
+        let before = capture(root)?;
+        let Some((canonical, manifest)) = load_uncached(root)? else {
+            return Err(invalid());
+        };
+        if capture(root)? != before {
+            return Err(invalid());
+        }
+        let manifest = Arc::new(manifest);
+        if cache.len() == 4 {
+            let oldest_key = cache
+                .keys()
+                .next()
+                .cloned()
+                .expect("bounded nonempty cache");
+            cache.remove(&oldest_key);
+        }
+        cache.insert(
+            root.to_owned(),
+            Verified {
+                root: canonical.clone(),
+                manifest: manifest.clone(),
+                stamps: before,
+            },
+        );
+        Ok(Some((canonical, manifest)))
+    }
+}
+fn load(root: &Path) -> Result<Option<(PathBuf, Arc<Manifest>)>, EditorError> {
+    #[cfg(unix)]
+    {
+        verified_snapshot::load(root)
+    }
+    #[cfg(not(unix))]
+    {
+        load_uncached(root).map(|result| result.map(|(path, manifest)| (path, Arc::new(manifest))))
+    }
+}
+
 pub(super) fn executable(component: &str) -> Result<Option<PathBuf>, EditorError> {
     if !matches!(component, "node" | "chromium" | "python") {
         return Err(invalid());
@@ -370,7 +518,10 @@ pub(super) fn executable(component: &str) -> Result<Option<PathBuf>, EditorError
     resolve(&exe, component, false)
 }
 pub(super) fn script(name: &str) -> Result<Option<PathBuf>, EditorError> {
-    if !matches!(name, "run_derived.py" | "run_derived_v2.py") {
+    if !matches!(
+        name,
+        "run_derived.py" | "run_derived_v2.py" | "run_color_static_v1.py"
+    ) {
         return Err(invalid());
     }
     let exe = std::env::current_exe().map_err(|_| invalid())?;
@@ -440,6 +591,8 @@ mod tests {
             None
         );
         let exe = fixture(root.path());
+        // Prime a healthy snapshot before the inventory changes.
+        assert_eq!(resolve(&exe, "node", false).unwrap(), None);
         fs::write(root.path().join("bin/libexec/unregistered"), b"extra").unwrap();
         assert!(resolve(&exe, "node", false).is_err());
         fs::remove_file(root.path().join("bin/libexec/unregistered")).unwrap();
@@ -452,6 +605,7 @@ mod tests {
         use std::os::unix::{fs::PermissionsExt, fs::symlink};
         let root = tempfile::tempdir().unwrap();
         let exe = fixture(root.path());
+        assert_eq!(resolve(&exe, "node", false).unwrap(), None);
         let file = root.path().join("bin/libexec/font-catalog/run_derived.py");
         fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
         assert!(resolve(&exe, "node", false).is_err());
@@ -479,6 +633,35 @@ mod tests {
         assert!(resolve(&exe, "run_derived.py", true).unwrap().is_some());
         fs::remove_file(&alias).unwrap();
         symlink("run_derived_v2.py", &alias).unwrap();
+        assert!(resolve(&exe, "run_derived.py", true).is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn verified_snapshot_detects_same_size_rewrite_with_restored_mtime() {
+        use std::fs::FileTimes;
+        let root = tempfile::tempdir().unwrap();
+        let exe = fixture(root.path());
+        let directory = root.path().join("bin/libexec");
+        fs::create_dir(directory.join("empty")).unwrap();
+        let file = directory.join("font-catalog/run_derived.py");
+        assert!(resolve(&exe, "run_derived.py", true).unwrap().is_some());
+        let before = fs::metadata(&file).unwrap();
+        fs::write(&file, [b'x'; 13]).unwrap();
+        File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_times(FileTimes::new().set_modified(before.modified().unwrap()))
+            .unwrap();
+        assert_eq!(fs::metadata(&file).unwrap().len(), before.len());
+        assert_eq!(
+            fs::metadata(&file).unwrap().modified().unwrap(),
+            before.modified().unwrap()
+        );
+        assert!(resolve(&exe, "run_derived.py", true).is_err());
+        fs::write(&file, b"fixed fixture").unwrap();
+        assert!(resolve(&exe, "run_derived.py", true).unwrap().is_some());
+        fs::write(directory.join("empty/undeclared"), b"new entry").unwrap();
         assert!(resolve(&exe, "run_derived.py", true).is_err());
     }
 }

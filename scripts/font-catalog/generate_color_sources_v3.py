@@ -70,7 +70,7 @@ def main():
         raise ValueError("complete fixed source tree required")
     tree = {entry["path"]: entry for entry in document["tree"]}
     static = json.loads((g.OUT / "catalog_source_report.json").read_text())["failures"]
-    variable = json.loads((g.OUT.parent / "font_derived_v1/catalog_source_report.json").read_text())["failures"]
+    variable = json.loads((g.OUT.parent / "font_derived/catalog_source_report.json").read_text())["failures"]
     static = [row for row in static if row["reason"] == "native unsupported color or bitmap tables"]
     variable = [row for row in variable if row["reason"] == "native unsupported color or bitmap tables"]
     pins, inputs, excluded = [], [], []

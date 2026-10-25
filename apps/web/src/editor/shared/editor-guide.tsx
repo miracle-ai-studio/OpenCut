@@ -1,13 +1,12 @@
+import { Select } from "./controls";
 import { useEffect, useState } from "react";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { preferences, t, useLocale } from "./locale";
 import { Button, Modal } from "./ui";
 import {
   readWelcomePreferences,
   saveWelcomePreferences,
-  unseenUpstreamRelease,
 } from "./view-preferences";
-import { upstreamRelease } from "../../shared/upstream-release.generated";
 export function EditorGuide({
   forced,
   onClose,
@@ -19,21 +18,8 @@ export function EditorGuide({
     [completed, setCompleted] = useState(
       () => readWelcomePreferences().completed,
     ),
-    [step, setStep] = useState(0),
-    [notice, setNotice] = useState(false);
+    [step, setStep] = useState(0);
   const open = forced || !completed;
-  useEffect(() => {
-    if (
-      open ||
-      !unseenUpstreamRelease(
-        upstreamRelease.version,
-        readWelcomePreferences().lastSeenRelease,
-      )
-    )
-      return;
-    saveWelcomePreferences({ lastSeenRelease: upstreamRelease.version });
-    setNotice(true);
-  }, [open]);
   useEffect(() => {
     if (open) setStep(0);
   }, [open]);
@@ -45,7 +31,7 @@ export function EditorGuide({
   const titles = [
     "Welcome to OpenCut",
     "Editing on your computer",
-    "Made with the community",
+    language === "zh" ? "与 Agent 共同剪辑" : "Edit with an Agent",
   ];
   return (
     <>
@@ -53,7 +39,7 @@ export function EditorGuide({
         <Modal title={t(titles[step])} onClose={close} className="editor-guide">
           <div className="guide-progress" aria-label={t("Guide progress")}>
             <span>{step + 1} / 3</span>
-            <select
+            <Select
               aria-label={t("Guide language")}
               value={language}
               onChange={(event) =>
@@ -64,7 +50,7 @@ export function EditorGuide({
             >
               <option value="en">English</option>
               <option value="zh">中文</option>
-            </select>
+            </Select>
           </div>
           <div className="guide-body">
             {step === 0 ? (
@@ -88,35 +74,18 @@ export function EditorGuide({
                     "Use the timeline to arrange and trim clips. Select an item to edit its properties, then preview and export your film.",
                   )}
                 </p>
-                <p>
-                  {t("Discover the community’s plans for OpenCut.")}{" "}
-                  <a href="/roadmap" target="_blank" rel="noopener noreferrer">
-                    {t("Original roadmap")} ↗
-                  </a>
-                </p>
               </>
             ) : (
               <>
                 <p>
-                  {t("OpenCut grows through contributions from its community.")}
+                  {language === "zh"
+                    ? "Agent 与你使用同一工程和编辑操作。你可以继续在编辑器中查看和调整结果。"
+                    : "An Agent uses the same project and editing operations. You can review and adjust its work in the editor."}
                 </p>
                 <p>
-                  <a
-                    href="https://discord.com/invite/Mu3acKZvCp"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t("Join the community")} ↗
-                  </a>
-                </p>
-                <p>
-                  <a
-                    href="/changelog"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t("Read the original release notes")} ↗
-                  </a>
+                  {language === "zh"
+                    ? "在历史记录中审阅修改。工程已被其他操作者更新时，请先同步并检查新修订，再提交原来的计划。"
+                    : "Review changes in history. When another editor updates the project, sync and review the new revision before submitting an old plan."}
                 </p>
               </>
             )}
@@ -138,33 +107,6 @@ export function EditorGuide({
             </Button>
           </div>
         </Modal>
-      )}
-      {!open && notice && (
-        <aside
-          className="upstream-notice"
-          aria-label={t("Original OpenCut update")}
-        >
-          <div>
-            <strong>{t("Original OpenCut update")}</strong>
-            <Button
-              aria-label={t("Dismiss update")}
-              icon={<X size={14} />}
-              onClick={() => setNotice(false)}
-            />
-          </div>
-          <span className="muted">
-            {upstreamRelease.version} · {upstreamRelease.date}
-          </span>
-          <p>{upstreamRelease.title}</p>
-          <a
-            href={`/changelog/${upstreamRelease.version}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setNotice(false)}
-          >
-            {t("Read release notes")} →
-          </a>
-        </aside>
       )}
     </>
   );

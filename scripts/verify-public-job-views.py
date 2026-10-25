@@ -53,7 +53,7 @@ def http(path,body=None,raw=False,auth=True):
     value=json.loads(payload);trace.append({'path':path,'status':status,'response':value});return value
 
 def call(name,args):
-    response=http('/v1/tools/'+name,args);assert response['error'] is None,response;return response['data']
+    response=http('/api/tools/'+name,args);assert response['error'] is None,response;return response['data']
 def wait(job):
     seen={job['state']};deadline=time.monotonic()+60
     while job['state'] not in ['succeeded','failed','cancelled']:
@@ -89,7 +89,7 @@ try:
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
     base=f'http://127.0.0.1:{port}';start()
     created=call('opencut_project_create',{'project':{'id':'public-jobs','name':'Public Jobs','sequence_id':'main','width':160,'height':90,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'project'})
-    uploaded=http('/v1/media/upload?name=source.mp4',video.read_bytes());assert uploaded['error'] is None,uploaded
+    uploaded=http('/api/media/upload?name=source.mp4',video.read_bytes());assert uploaded['error'] is None,uploaded
     asset=uploaded['data']['asset']
     track={'id':'v','name':'Video','kind':'video','enabled':True,'muted':False,'locked':False,'clips':[]}
     clip={'id':'clip','asset_id':asset['id'],'timeline_range':span(0,10),'source_range':span(0,10),'params':{},'channels':[]}
@@ -121,7 +121,7 @@ try:
         assert cli('opencut_job_view',{'job_id':job['job_id']})==job
         for ref in job['artifacts']:
             assert ref['availability']=='unchecked' and str(int(ref['size_bytes']))==ref['size_bytes']
-            uri='/v1/artifacts/'+urllib.parse.quote(ref['artifact_id'],safe='')
+            uri='/api/artifacts/'+urllib.parse.quote(ref['artifact_id'],safe='')
             status,data=http(uri,raw=True);assert status==200 and hashlib.sha256(data).hexdigest()==ref['content_hash']
             target=run/f'{index}.media';target.write_bytes(data)
             decoded=command(['ffmpeg','-v','error','-i',target,'-frames:v','1','-vf','crop=2:2:0:0,scale=1:1','-pix_fmt','rgb24','-f','rawvideo','-'])
@@ -144,7 +144,7 @@ try:
         paginated=call('opencut_job_changes',{'job_id':outputs[0]['job_id'],'limit':1,'cursor':cursor})
     assert len({e['event_id'] for e in events})==len(events)
     assert {'queued','started','succeeded'}<={e['event_type'] for e in events},events
-    bad=http('/v1/tools/opencut_job_changes',{'cursor':cursor,'job_id':outputs[1]['job_id']});assert bad['error']['code']=='INVALID_CURSOR',bad
+    bad=http('/api/tools/opencut_job_changes',{'cursor':cursor,'job_id':outputs[1]['job_id']});assert bad['error']['code']=='INVALID_CURSOR',bad
     foreign=cli('opencut_job_changes',{'cursor':cursor},database=run/'foreign.sqlite',ok=False);assert foreign['error']['code']=='INVALID_CURSOR',foreign
     foreign=cli('opencut_job_query',{'cursor':first['next_cursor']},database=run/'foreign.sqlite',ok=False);assert foreign['error']['code']=='CURSOR_EXPIRED',foreign
     all_cursor=call('opencut_job_changes',{'limit':1})['next_cursor']
@@ -157,10 +157,10 @@ try:
     assert failed['state']=='failed' and failed['failure'];private_free(failed)
     raw=cli('opencut_job_get',{'job_id':failed['job_id']});assert str(run) in json.dumps(raw['error']),raw
     checks.append('actual FFmpeg failure preserves actionable public classification without exposing path-bearing diagnostic text')
-    output=outputs[6];ref=output['artifacts'][0];uri='/v1/artifacts/'+urllib.parse.quote(ref['artifact_id'],safe='')
+    output=outputs[6];ref=output['artifacts'][0];uri='/api/artifacts/'+urllib.parse.quote(ref['artifact_id'],safe='')
     status,_=http(uri,raw=True,auth=False);assert status==403
     forged=ref['artifact_id'][:-64]+('0'*64)
-    status,_=http('/v1/artifacts/'+urllib.parse.quote(forged,safe=''),raw=True);assert status==404
+    status,_=http('/api/artifacts/'+urllib.parse.quote(forged,safe=''),raw=True);assert status==404
     raw=cli('opencut_job_get',{'job_id':output['job_id']});path=Path(raw['result']['artifact']['path']);original=path.read_bytes()
     modified=bytearray(original);modified[len(modified)//2]^=1;path.write_bytes(modified)
     failure=http(uri);assert failure['error']['code']=='ARTIFACT_VERIFICATION_FAILED',failure

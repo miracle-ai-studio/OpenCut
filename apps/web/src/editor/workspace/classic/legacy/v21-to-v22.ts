@@ -64,7 +64,7 @@ interface MigratedAnimationChannel {
 	channels: Record<string, ProjectRecord>;
 }
 
-export function transformProjectV21ToV22({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

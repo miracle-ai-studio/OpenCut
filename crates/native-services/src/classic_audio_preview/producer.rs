@@ -22,6 +22,7 @@ pub struct ClassicAudioPreviewProducer {
     last_callback_id: u64,
     admitted: serde_json::Map<String, Value>,
     bound_sources: Option<Value>,
+    active_window: Option<PreviewBlockRequest>,
     resource_ids: Vec<String>,
     voice_ids: Vec<String>,
     fixed_voices: Value,
@@ -73,6 +74,7 @@ impl ClassicAudioPreviewProducer {
             last_callback_id: 0,
             admitted: serde_json::Map::new(),
             bound_sources: None,
+            active_window: None,
             resource_ids: ids(&plan["resources"], "assetId")?,
             voice_ids: ids(&plan["voices"], "elementId")?,
             fixed_voices: plan["voices"].clone(),
@@ -184,9 +186,19 @@ impl ClassicAudioPreviewProducer {
         })?;
         let id = self.next_id.to_string();
         let fixed = json!({"commandId":id,"generation":generation.to_string(),"overlayEpoch":overlay_epoch.to_string(),"startSample":start_sample.to_string()});
+        self.active_window = Some(PreviewBlockRequest {
+            start_sample: start_sample.to_string(),
+            frame_count,
+        });
         let result = (|| {
+            // These are the same authoritative application facts previously
+            // requested by a browser callback, captured inside this command's
+            // authorization and exact window before crossing the transport.
+            let windows = session.callback(AudioCallback::PreviewWindows(
+                self.active_window.clone().expect("Captured command window")
+            ), resources)?;
             self.send(json!({"type":"command","op":"next","id":id,"generation":generation.to_string(),
-                "overlayEpoch":overlay_epoch.to_string(),"startSample":start_sample.to_string(),"frameCount":frame_count}))?;
+                "overlayEpoch":overlay_epoch.to_string(),"startSample":start_sample.to_string(),"frameCount":frame_count,"sourceWindows":windows}))?;
             let mut channels: [Option<Vec<f32>>; 2] = [None, None];
             loop {
                 let Some(message) = self.receive(resources)? else {
@@ -230,14 +242,8 @@ impl ClassicAudioPreviewProducer {
                                 error("AUDIO_PROTOCOL_ERROR", "Missing preview block receipt")
                             })?;
                             self.validate_completion(receipt)?;
-                            if self.prepared.as_ref().is_none_or(|p| {
-                                p["sourceBindingSha256"] != receipt["sourceBindingSha256"]
-                            }) {
-                                return Err(error(
-                                    "AUDIO_PROTOCOL_ERROR",
-                                    "Preview sources changed across commands",
-                                ));
-                            }
+                            self.validate_current_binding(receipt)?;
+                            self.active_window = None;
                             return Ok(ClassicAudioPreviewPcmBlock {
                                 generation,
                                 overlay_epoch,
@@ -268,20 +274,22 @@ impl ClassicAudioPreviewProducer {
     /// independently of the shared process supervisor.
     pub fn checkpoint(
         &mut self,
+        session: &mut ClassicAudioSession<'_>,
         resources: &mut dyn ClassicAudioResources,
     ) -> Result<(), EditorError> {
-        // Check queued failure/identity facts without delaying a ready command.
-        let result = self
-            .receive_timeout(resources, Duration::ZERO)
-            .and_then(|message| {
-                if message.is_some() {
-                    return Err(error(
-                        "AUDIO_PROTOCOL_ERROR",
-                        "Unexpected packet from idle preview producer",
-                    ));
-                }
-                Ok(())
-            });
+        // The pinned decoder can prefetch verified bytes after delivering a
+        // block. Service that existing transfer through the same authorization
+        // and byte budgets, without granting an idle source/window compilation.
+        // Bound each poll so queued reads cannot starve the consumer or revoke.
+        let result = (|| {
+            for _ in 0..32 {
+                let Some(message) = self.receive_timeout(resources, Duration::ZERO)? else {
+                    break;
+                };
+                self.idle_read(message, session, resources)?;
+            }
+            Ok(())
+        })();
         if result.is_err() {
             self.terminate();
         }
@@ -309,7 +317,11 @@ impl ClassicAudioPreviewProducer {
         result
     }
 
-    pub fn stop(&mut self, resources: &mut dyn ClassicAudioResources) -> Result<(), EditorError> {
+    pub fn stop(
+        &mut self,
+        session: &mut ClassicAudioSession<'_>,
+        resources: &mut dyn ClassicAudioResources,
+    ) -> Result<(), EditorError> {
         if self.process.is_none() {
             return Ok(());
         }
@@ -327,10 +339,10 @@ impl ClassicAudioPreviewProducer {
                     continue;
                 };
                 if string(&message, "type")? != "stopped" {
-                    return Err(error(
-                        "AUDIO_PROTOCOL_ERROR",
-                        "Unexpected preview stop packet",
-                    ));
+                    // A read already issued before stop may precede the
+                    // acknowledgement on the ordered output pipe.
+                    self.idle_read(message, session, resources)?;
+                    continue;
                 }
                 if self.runtime.as_ref() != message.get("identity") {
                     return Err(error(
@@ -369,6 +381,22 @@ impl ClassicAudioPreviewProducer {
         result.and(cleanup)
     }
 
+    fn idle_read(
+        &mut self,
+        message: Value,
+        session: &mut ClassicAudioSession<'_>,
+        resources: &mut dyn ClassicAudioResources,
+    ) -> Result<(), EditorError> {
+        if string(&message, "type")? != "request" || string(&message, "op")? != "readVerifiedBytes"
+        {
+            return Err(error(
+                "AUDIO_PROTOCOL_ERROR",
+                "Unexpected packet from idle preview producer",
+            ));
+        }
+        self.callback(message, session, resources)
+    }
+
     fn send(&mut self, message: Value) -> Result<(), EditorError> {
         packet(
             self.input
@@ -396,9 +424,7 @@ impl ClassicAudioPreviewProducer {
             .expect("Checkpoint verified process")
             .receive_timeout(timeout)?;
         if let Some(message) = &message {
-            if number(message, "protocolVersion")? != 1
-                || string(message, "executionId")? != self.execution
-            {
+            if string(message, "executionId")? != self.execution {
                 return Err(error(
                     "AUDIO_PROTOCOL_ERROR",
                     "Preview execution identity changed",
@@ -430,28 +456,61 @@ impl ClassicAudioPreviewProducer {
         }
         let id = string(&message, "id")?.to_owned();
         let sequence = decimal(&id)?;
-        if sequence != self.last_callback_id + 1 || sequence > 100000 {
+        if sequence != self.last_callback_id + 1 || sequence > 9_007_199_254_740_991 {
             return Err(error(
                 "AUDIO_PROTOCOL_ERROR",
                 "Invalid preview callback identity",
             ));
         }
         self.last_callback_id = sequence;
-        let packed_version = match string(&message, "op")? {
-            "compilePreviewBlockPackedV1" => 1,
-            "compilePreviewBlockPackedV2" => 2,
-            _ => 0,
-        };
-        let packed_block = packed_version != 0;
-        // Compression belongs to this private transport adapter. Application
-        // receives and validates the unchanged, complete typed PCM facts.
-        if string(&message, "op")? == "bindPreviewSourcesSharedV1" {
-            let formats = expand_source_binding(&message["args"], &self.fixed_voices)?;
+        if string(&message, "op")? == "bindAndCompilePreviewBlockPacked" {
+            if message["args"].as_object().is_none_or(|args| args.len() != 2 || !args.contains_key("binding") || !args.contains_key("window")) {
+                return Err(error("AUDIO_PROTOCOL_ERROR", "Invalid combined source binding"));
+            }
+            let formats = expand_source_binding(&message["args"]["binding"], &self.fixed_voices)?;
+            let window = message["args"]["window"].clone();
+            let request: PreviewBlockRequest = serde_json::from_value(window.clone())
+                .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid combined preview window"))?;
+            if self.active_window.as_ref() != Some(&request) || ids(&formats, "elementId")? != self.voice_ids {
+                return Err(error("AUDIO_PROTOCOL_ERROR", "Combined binding changed captured command"));
+            }
+            let binding: AudioCallback = serde_json::from_value(json!({"op":"bindPreviewSources","args":{"sourceFormats":formats,"window":window}}))
+                .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid typed source binding"))?;
+            session.callback(binding, resources)?;
+            self.bound_sources = Some(formats);
+            message["op"] = json!("compilePreviewBlockPacked");
+            message["args"] = window;
+        }
+        let packed_block = string(&message, "op")? == "compilePreviewBlockPacked";
+        if string(&message, "op")? == "bindPreviewSourcesShared" {
+            if message["args"].as_object().is_none_or(|args| {
+                args.len() != 2 || !args.contains_key("binding") || !args.contains_key("window")
+            }) {
+                return Err(error(
+                    "AUDIO_PROTOCOL_ERROR",
+                    "Invalid source-window transport fields",
+                ));
+            }
+            let formats = expand_source_binding(&message["args"]["binding"], &self.fixed_voices)?;
+            let window = message["args"]["window"].clone();
             message["op"] = json!("bindPreviewSources");
-            message["args"] = json!({"sourceFormats": formats});
+            message["args"] = json!({"sourceFormats": formats, "window": window});
         }
         if packed_block {
             message["op"] = json!("compilePreviewBlock");
+        }
+        if matches!(
+            string(&message, "op")?,
+            "previewSourceWindows" | "compilePreviewBlock"
+        ) {
+            let request: PreviewBlockRequest = serde_json::from_value(message["args"].clone())
+                .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid preview source command"))?;
+            if self.active_window.as_ref() != Some(&request) {
+                return Err(error(
+                    "AUDIO_PROTOCOL_ERROR",
+                    "Source request differs from the captured consumer command",
+                ));
+            }
         }
         let callback: AudioCallback =
             serde_json::from_value(json!({"op":message.get("op"),"args":message.get("args")}))
@@ -464,20 +523,16 @@ impl ClassicAudioPreviewProducer {
                 ));
             };
             let block = session.compile_preview_block_typed(request, resources)?;
-            let bytes = if packed_version == 2 {
-                // V2 carries native JSON text through Node without parsing and
-                // re-stringifying sample facts (which normalizes negative zero).
-                let text = String::from_utf8(pack_preview_block_v2(block)?)
-                    .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid packed preview UTF-8"))?;
-                serde_json::to_vec(&text).map_err(|_| {
-                    error(
-                        "AUDIO_PROTOCOL_ERROR",
-                        "Could not encode packed preview text",
-                    )
-                })?
-            } else {
-                pack_preview_block(block)?
-            };
+            // Native JSON text preserves exact signed-zero sample facts through
+            // Node without a second parse/stringify of the dense packet.
+            let text = String::from_utf8(pack_preview_block(block)?)
+                .map_err(|_| error("AUDIO_PROTOCOL_ERROR", "Invalid packed preview UTF-8"))?;
+            let bytes = serde_json::to_vec(&text).map_err(|_| {
+                error(
+                    "AUDIO_PROTOCOL_ERROR",
+                    "Could not encode packed preview text",
+                )
+            })?;
             return reply_encoded(
                 self.input
                     .as_mut()
@@ -491,7 +546,7 @@ impl ClassicAudioPreviewProducer {
         // Capture only facts which the authoritative session has accepted.
         // Source/primary receipts must cover those exact bindings later.
         match string(&message, "op")? {
-            "admitDecode" => {
+            "admitPreviewDecode" => {
                 let asset = string(&message["args"]["resource"], "assetId")?;
                 if !self.resource_ids.iter().any(|known| known == asset)
                     || self
@@ -506,12 +561,19 @@ impl ClassicAudioPreviewProducer {
                 }
                 self.admitted.insert(
                     asset.into(),
-                    json!({"primary":message["args"]["primary"],"admission":value}),
+                    json!({"primary":message["args"]["primary"],"allocation":value}),
                 );
             }
             "bindPreviewSources" => {
                 let formats = &message["args"]["sourceFormats"];
-                if self.bound_sources.is_some() || ids(formats, "elementId")? != self.voice_ids {
+                let window: Option<PreviewBlockRequest> =
+                    serde_json::from_value(message["args"]["window"].clone()).map_err(|_| {
+                        error("AUDIO_PROTOCOL_ERROR", "Invalid bound preview command")
+                    })?;
+                if (window.is_none() && self.bound_sources.is_some())
+                    || (window.is_some() && window != self.active_window)
+                    || ids(formats, "elementId")? != self.voice_ids
+                {
                     return Err(error(
                         "AUDIO_PROTOCOL_ERROR",
                         "Preview source binding coverage changed",

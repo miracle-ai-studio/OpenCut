@@ -1,6 +1,5 @@
 /** Shared control-plane transport for SDK and editor adapters. No retries. */
 export interface Envelope<T> {
-  api_version: "1";
   request_id: string;
   data: T;
   error: null;
@@ -49,7 +48,7 @@ export async function requestEnvelope<T>(fetcher: typeof globalThis.fetch, baseU
   const url = new URL(baseUrl);
   if (!["http:","https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash)
     throw new TypeError("baseUrl must be an HTTP(S) URL without credentials, query or fragment.");
-  if (!path.startsWith("/v1/") || path.includes("\\")) throw new TypeError("Expected an OpenCut v1 resource path.");
+  if (!path.startsWith("/api/") || path.includes("\\")) throw new TypeError("Expected a local OpenCut resource path.");
   init.signal?.throwIfAborted();
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token}`);
@@ -67,7 +66,7 @@ export async function requestEnvelope<T>(fetcher: typeof globalThis.fetch, baseU
     if (cause instanceof OpenCutProtocolError) throw cause;
     throw new OpenCutTransportError(cause);
   }
-  if (!object(value) || value.api_version !== "1" || typeof value.request_id !== "string" ||
+  if (!object(value) || typeof value.request_id !== "string" ||
     !Array.isArray(value.warnings) || !value.warnings.every(w => typeof w === "string"))
     throw new OpenCutProtocolError("Invalid or incompatible OpenCut response envelope.", response.status);
   if (object(value.error) && typeof value.error.code === "string" && typeof value.error.message === "string")

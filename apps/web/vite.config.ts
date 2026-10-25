@@ -42,7 +42,15 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
-    proxy: { "/v1": proxy, "/app": proxy },
+    // Vite discovers imported renderer modules, but the worker URL is fetched
+    // separately. Allow that one source file without exposing the repository.
+    fs: {
+      allow: [
+        new URL(".", import.meta.url).pathname,
+        new URL("../../packages/classic-visual-renderer/src/font-hash-worker.mjs", import.meta.url).pathname,
+      ],
+    },
+    proxy: { "/api": proxy, "/app": proxy },
   },
   build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
 });

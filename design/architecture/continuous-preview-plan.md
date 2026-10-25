@@ -1,307 +1,305 @@
-# 连续预览实施计划
+# 连续预览与统一时钟实施方案
 
-状态（2026-09-24）：**非 UI 后端已实现并完成真实 HTTP 动线验收；浏览器／Desktop UI 暂缓**。当前执行契约以 [Session 契约](preview-session-contract.md) 为准，本文保留最初实施设计。
+状态：2026-10-23 已完成阶段 2 的 540p 实际执行及阶段 3 的基础合成缓存，本机海南 42 秒限定验收通过，见[缓存与呈现记录](../qa/preview-cache-20261023.md)。最终构建 1050／1050 帧绘制提交、断流 0，p99 落后 39.77 ms、最长换帧 52.17 ms。阶段 1 [输出时钟](../qa/output-clock-20261022.md)与早期[等待修复](../qa/picture-continuity-20261022.md)证据保留各自候选。缓存采用完整固定快照保守失效，首次海南预备 463 秒；跨修订逐段复用、源代理、专用 LRU、阶段 4 与物理同步仍开放，不能称为完整长期稳定方案。
 
-2026-09-21 前置进展：共享纯合成描述已实现并接入现有离线 full/direct/range 链路，见 [合成契约](composition-contract.md)。这是前置阶段的历史状态；后续连续 Session/producer/telemetry 已接入同一描述，实际结果见 [当前交付台账](headless-completion-ledger.md)。
+用户确定的方向：暂不引入 GStreamer，复用现有 Rust、Classic、Mediabunny、Web Audio 和 GPU 能力，按同一工程时间对齐声音、画面、字幕与播放头。本文件替代原先以持续编码流／MSE 为 Web 主路线的实施设计。旧编码流 Session 的实际实现及原始证据按其原身份保留，不构成另一条默认播放路线；历史说明见[Session 契约](preview-session-contract.md)。公开操作的保留、迁移或退役须先核对当前注册与消费者，不能依据历史文档直接删除。
 
-本文定义固定工程修订的连续音视频预览最小完整垂直切片。它不是现有
-`preview.project_frame`、`preview.composited_frame` 或
-`preview.project_range` Job 的循环调用，也不承诺低延迟、逐帧无损或跨平台逐字节一致。
-已有 Job 继续承担可恢复的离线证据与短区间产物；连续预览使用独立的临时 Session。
+长期目标是统一播放调度，配合实时 GPU 合成、可选代理和后台增量缓存。实现状态仍以[交付台账](headless-completion-ledger.md)和对应验收证据为准，不能用本文件的目标替代已经通过的事实。
 
-## 目标与边界
+## 1. 实施前基线与需要修复的缺口
 
-首个切片必须同时满足：
+以下为制定方案时的 2026-10-22 工作树和[交互／播放验收](../qa/interaction-playback-20261022.md)基线。当前实现与验证状态查本文开头及交付台账，不将这些基线缺口误写为仍未实现：
 
-- 固定 `project_id + revision + sequence_id`，素材内容由 CAS 清单锁定，工程 head
-  后续变化不改变正在播放的 Session。
-- 一个 generation 内只有一个持续的音视频 producer，不为每帧或每个短区间创建 Job。
-- 音频与视频来自同一复用工程求值结果和同一 mux 流，避免浏览器与 Rust 分别解释
-  clip 时间、关键帧和音量。
-- 播放、暂停、seek、断开和超时有明确取消与资源回收规则。
-- Web 和 Agent 观察同一 Session 状态，但区分“服务端已生成到哪里”和“浏览器实际呈现到哪里”。
-
-首版建议采用软件编码的 H.264/AAC fragmented MP4。一个 play 或 seek generation
-对应一个长期 FFmpeg 进程和一个有界流；客户端可通过 MSE 消费。该选择只定义首个
-后端方向。MSE 在本仓库支持的真实浏览器中的可用性、启动行为、seek 行为和内存上限
-尚未验证，因此能力在浏览器验收通过前必须保持未实现。
-
-## Session 契约
-
-以下是计划中的传输 DTO，名称与字段在实现前仍需进入共享 contracts 冻结流程。
-
-```text
-PreviewSessionRequest {
-  project_id: String,
-  revision: String,
-  sequence_id: String,
-  start_time: Time,
-  alignment: exact | nearest | floor | ceil,
-  viewport: { width: u32, height: u32 },
-  audio_enabled: bool,
-  quality: "encoded_stream"
-}
-
-PreviewSession {
-  session_id: String,
-  revision: String,
-  sequence_id: String,
-  generation: DecimalU64,
-  state: preparing | ready | producing | paused | ended | failed | stopped,
-  actual_start: Time,
-  duration: Time,
-  producer: ProducerStatus,
-  presentation: Option<PresentationObservation>,
-  owner: OwnerLease,
-  asset_locking: media_content_locked,
-  expires_at_ms: DecimalI64
-}
-
-OwnerLease {
-  owner_id: String,
-  lease_id: String,
-  lease_until_ms: DecimalI64
-}
-
-ProducerStatus {
-  generation: DecimalU64,
-  state: starting | encoding | draining | exited,
-  produced_through: Option<Time>,
-  buffered_bytes: DecimalU64,
-  server_observed_monotonic_ms: DecimalU64
-}
-
-PresentationTelemetryInput {
-  owner_id: String,
-  lease_id: String,
-  generation: DecimalU64,
-  sequence: DecimalU64,
-  presented_time: Time,
-  media_clock_time: Time,
-  playing: bool,
-  stalled: bool,
-  clock_anchor: {
-    sequence_time: Time,
-    media_clock_time: Time,
-    client_observed_at_ms: DecimalI64
-  },
-  client_observed_at_ms: DecimalI64
-}
-
-PresentationObservation {
-  telemetry: PresentationTelemetryInput,
-  server_received_monotonic_ms: DecimalU64,
-  staleness_ms: DecimalU64,
-  client_timestamp_status: unsynchronized | synchronized
-}
-```
-
-`DecimalU64`／`DecimalI64` 在线上 JSON 中是十进制字符串，不使用无界 JavaScript
-`number`。它适用于 generation、事件游标、telemetry sequence 和单调时钟采样。内部可以使用
-Rust 整数；任何选择 JSON safe integer 的适配器都必须显式限制在 `2^53-1`，溢出前拒绝，
-不能静默失精度。
-
-`alignment` 沿用工程帧的精确有理帧格点语义：`exact` 拒绝非格点，`floor`／`ceil` 分别向前／
-向后，`nearest` 等距时取较晚格点。请求时间和对齐结果都必须位于半开序列范围内。
-
-控制命令为 `play`、`pause`、`seek { sequence_time }`、`stop`、`heartbeat` 和
-`report_presentation`。除创建外，每个命令都携带 `session_id`、`generation`、
-`owner_id` 和 `lease_id`。旧 generation 或非 owner 的改变状态命令返回冲突，不能静默
-影响当前播放。
-
-Session 事件至少包含 `ready`、`producer_started`、`producer_progress`、`playing`、
-`paused`、`presentation`、`buffering`、`ended`、`failed`、`owner_changed` 和 `stopped`。
-事件带十进制字符串单调游标、revision、sequence、generation 与服务端时间。事件历史有界；断线重连
-超过保留窗口时返回明确的 cursor-expired 结果并要求读取当前 Session 快照。
-
-## Producer 状态与呈现事实
-
-服务端只知道编码器、输出管道和网络缓冲状态。`produced_through` 表示媒体已经生成到的
-sequence time，不表示用户已经看到或听到该时刻。它不得写入 `presented_time`，也不能被
-Agent 描述成真实 playhead。
-
-真实呈现位置的观测只能来自当前 owner 的 `PresentationTelemetryInput`。客户端从媒体播放时钟
-采样，只提交客户端事实和客户端时间戳；它不能填写 `server_received_monotonic_ms` 或
-`staleness_ms`。宿主接受输入前检查 owner lease、generation 和 sequence；迟到、乱序、旧
-generation 报告被丢弃。宿主在接收时记录自己的单调时钟，构造只读
-`PresentationObservation`，并只用服务端单调接收时刻计算 freshness。
-
-客户端和服务端时钟尚未完成显式 offset/uncertainty 同步时，`client_observed_at_ms` 标记为
-`unsynchronized`，不得直接与服务端 wall clock 或 monotonic clock 相减来计算 age。即使报告
-fresh，也只表示最近收到一份通过身份和顺序检查的客户端观测；它不能证明浏览器没有伪报、
-媒体确实出声或像素已被用户看到。超过服务端 freshness 门槛后，Session 的 presentation
-变为 stale，而不是根据 producer 状态外推。
-
-有音频时，首版以 `HTMLMediaElement.currentTime` 为客户端媒体主时钟；无音频时仍使用同一
-媒体管线时钟。`requestAnimationFrame` 只采样和绘制 UI，不累计播放时间。sequence time
-由 `actual_start + media clock` 映射，seek 或 resume 后使用新 generation 的 anchor 重新建立。
-
-Agent 可以读取 producer 状态、最新 presentation telemetry 及其 staleness，并可请求同一
-revision 的 frame/range 证据。没有新鲜 owner telemetry 时，Agent只能报告“服务端正在生成”
-或“最近一次客户端观测”，不能宣称用户正在观看某一帧。
-
-## 单 owner 与多客户端观察
-
-一个 Session 同时只有一个控制和 presentation owner。其他客户端可以订阅状态、事件和
-只读流元数据，但不能发送 play、pause、seek 或 presentation telemetry。
-
-owner 通过短 lease 保持所有权。切换 owner 必须由当前 owner 显式授权，或等待 lease 到期后
-执行可审计的 acquire；不能以最后写入者自动抢占。授权切换会：
-
-1. 终止当前 generation；
-2. 保存旧 owner 最后一个经过确认且未过期的 presentation position；
-3. 递增 generation 和 lease identity；
-4. 由新 owner 从该位置显式 resume。
-
-观察者读取的 telemetry 必须标识 owner。客户端本地预测位置不能覆盖共享 Session 快照。
-
-## 播放、暂停、seek 与背压
-
-`play` 从 Session 的确认位置启动新 generation。`seek` 分两阶段执行：先在不改变 Session
-的纯校验阶段验证 owner/lease、调用方提供的当前 generation、请求时间、序列半开范围和
-alignment；任何失败都返回错误并保持当前有效流不变。校验通过后，在同一个 Session 锁内
-重新检查 owner/lease 与 generation，随后才原子失效旧 generation、记录新 anchor 并分配新
-generation。锁外再启动新 producer；启动失败进入该新 generation 的 failed 状态，不能复活
-旧流。任何旧流字节、旧事件或旧 telemetry 都不得进入新 generation。
-
-首版 `pause` 不无限缓存，也不尝试让已阻塞 producer 长期存活。owner 先上报最后确认的
-presentation position；服务端接受该位置后取消当前 generation，关闭传输并保存 pause
-position。`resume` 从该位置创建新 generation。若 telemetry 缺失或过期，pause 返回其采用的
-最后可信位置和不确定性，不能用 `produced_through` 代替。
-
-每个 generation 设定输出字节、未确认媒体时长和写阻塞上限。达到任一上限时取消 producer，
-产生明确的 backpressure failure 或 paused 状态，不允许管道、MSE 队列或内存无限增长。
-
-## 资源生命周期
-
-Session create 在 SQLite 写事务外解析固定 snapshot 的必需素材并建立 CAS manifest；提交
-Session identity 时再次检查请求身份、固定 revision 的存在／归属和 owner；工程 head 前进不使显式指定的历史 revision 失效。Session registry 首版可以是宿主进程内
-状态，但必须显式声明服务重启会终止 Session，不能伪装成可恢复 Job。
-
-Session RAII owner 持有：
-
-- 固定 revision、素材锁引用和 generation 私有 inputs；
-- FFmpeg 进程组、stdout/stderr/progress 管道和流 transport；
-- 字幕与其他临时图层；
-- owner lease、观察者连接、事件缓冲和 TTL；
-- producer 的输出预算与取消 token。
-
-seek、pause、stop、owner 切换、lease/TTL 到期、最后连接断开、传输错误和 unwind 使用同一
-清理路径：先使 generation 失效并关闭下游，再向进程组发送终止信号，有界等待后强制结束，
-最后删除该 generation 的 inputs 和所有未发布临时文件。stop 幂等。新 generation 不复用旧
-generation 未重新验证的 pipe 或私有文件。
-
-## 共享求值层先行
-
-连续预览不能直接把工程模型永久绑定到 FFmpeg filtergraph，也不能移植 Classic 的 TS
-时间语义成为第二套实现。实现 Session 前先从 `crates/project-render/src/lib.rs` 抽出后端无关
-的已求值描述，建议边界为：
-
-```text
-EvaluatedComposition {
-  revision, sequence_id, duration, frame_rate,
-  visual_layers, audio_layers, captions
-}
-
-evaluate_frame(sequence_time) -> EvaluatedFrame
-evaluate_range(sequence_range) -> EvaluatedRange
-```
-
-准备步骤先统一当前 full/direct/range 的视觉与字幕编译 helper，减少已有三条执行路径的语义分叉。这个去重复步骤仍产出 media 的 Timeline DTO，不属于后端无关 IR 已完成；后续必须将求值数据与 FFmpeg 文件／编码配置拆开，再接入 Session。
-
-描述必须保留素材版本、source/timeline 时间映射、图层顺序、transform、opacity、关键帧采样、
-caption layout input、音频 gain/retime 与轨道 mute 语义。FFmpeg export、project range、direct
-frame 和未来 GPU/Web renderer 都消费同一结果。
-
-Classic `frame-descriptor.ts` 的 layer/item、texture identity、rendered texture content hash、
-transform、effect 和 mask 分层可以作为显示适配器参考；其中 `CanvasImageSource`、draw callback
-和浏览器对象不能进入 Rust 或网络 contract。Classic `audio-manager.ts` 的 session id 失效、
-lookahead、迟到 buffer 丢弃和 dispose 模式可以复用；其自行收集 clip、retime 和 gain 的逻辑
-必须改为消费 Rust evaluated audio schedule。Classic `playback-manager.ts` 的墙钟 RAF 不能与
-AudioContext 或 media element 同时成为主时钟。
-
-## Single-owner transport
-
-推荐传输分为控制面和媒体面：
-
-- 控制面：HTTP create/read/commands，加 SSE 或 WebSocket 事件。所有状态改变经过 owner lease。
-- 媒体面：generation-scoped、不可复用的授权 URL，传输 fMP4 init segment 和 media fragments。
-- presentation telemetry：控制连接上的有序客户端报告；它不是媒体 producer progress。
-
-媒体 URL 必须绑定 session、generation、短期 token 和 owner/observer 权限。旧 generation token
-立即失效。一个媒体 producer 只有一个负责背压的 transport owner；多个观察者不能各自直接
-拖慢同一 FFmpeg stdout。若允许多个观察者观看，必须通过有界广播缓冲或独立 relay，慢观察者
-被断开而不是阻塞 producer。首个切片可以只允许 owner 消费媒体，其他客户端仅观察状态。
-
-## 文件分工建议
-
-| 范围 | 责任 |
+| 已有实现或限定证据 | 缺口 |
 |---|---|
-| `crates/contracts` 或新的无后端共享 contracts crate | Session 控制、状态、事件和 telemetry DTO；不得依赖 FFmpeg/Web 类型 |
-| `crates/project-render` | 抽取 `EvaluatedComposition`、frame/range 求值和统一 visual/audio 语义 |
-| `crates/media` | 持续 fMP4 producer、结构化 FFmpeg 参数、进程取消、输出预算和流片段 |
-| `crates/editor-application` | 若需要，仅保存可审计的 Session 创建/终止摘要；不把高频 telemetry 写入工程事务/outbox |
-| 新的 preview-session application/runtime 模块 | registry、owner lease、generation、TTL、资源 RAII、事件游标和 transport 协调 |
-| `crates/automation` | typed create/read/control/observe 入口；Agent 输出明确区分 producer/presentation |
-| `apps/cli` | HTTP/SSE/WebSocket 路由、鉴权、shutdown 和连接清理 |
-| `apps/web` | MSE/media element、owner telemetry、stale UI、generation 隔离；不重新求值工程语义 |
+| Rust 固定修订、素材授权、精确时间与音频编译；Classic 解码、混音、效果与 GPU 适配 | 继续复用，不在浏览器重新解释片段、变速、音量、字幕或转场 |
+| AudioWorklet 按实际复制的内容样本累计 consumedFrames，静音填充不累计；8 × 4096 帧有界队列 | 计数代表交给音频处理图的内容，不等于当前设备实际出声位置 |
+| Worklet 已报告 renderFrame 与 quantumFrames | 输出适配器没有把它们与 getOutputTimestamp 建立对应；接收消息时读取 currentTime 不能代替原始处理时间 |
+| 画面按内容消费计数选择，带准备队列和提前量 | 125／150 ms 门槛比较的基准仍是提交进度；超时清空造成等待，缺少按屏幕刷新运行的完整呈现调度 |
+| 42 秒工程实播中，224 个播放观测未见声音缓冲，84 个有符合门槛的画面 | 只是采样证据，未通过持续 25 fps、物理音画同步或跨平台验收 |
+| 顺序解码迭代器、有界范围读取和 GPU 合成可复用 | 缺少完整预览质量、源代理和复杂片段缓存路径 |
+| 暂停续期、代次隔离、原子编辑、幂等与冲突处理 | 新时钟不得破坏这些规则，必须补齐输出尾部、断音、跳转和修订切换 |
 
-不要将 Session 生命周期塞入现有 durable Job worker。Job 的 attempt、重试和成功 artifact
-语义与交互 Session 的 owner、generation 和连接生命周期不同。
+基线 Web 主链路尚未建立本方案定义的输出时钟。阶段 1 已将提交进度与输出估计分开，后者驱动画面、字幕和播放头；声音不中断及浏览器输出估计本身仍不能证明物理音画同步完成。
 
-## 分阶段验收
+## 2. 最终架构与职责
 
-### A. 共享求值层
+~~~mermaid
+flowchart TD
+  Project[固定工程修订与素材] --> Rust[Rust 时间映射与合成计划]
+  Rust --> Audio[现有声音生产者与有界 PCM]
+  Rust --> Visual[现有解码与 GPU 执行器]
+  Rust --> Derived[原生派生任务与缓存管理]
+  Derived --> Visual
+  Audio --> Worklet[AudioWorklet 与声音处理链]
+  Worklet --> Device[音频输出设备]
+  Worklet --> Mapping[内容样本与音频处理时间映射]
+  Device -.浏览器提供输出时间估计.-> Mapping
+  Mapping --> Clock[唯一播放位置]
+  Clock --> Present[按屏幕刷新选择已准备画面]
+  Visual --> Present
+  Clock --> UI[播放头与时间显示]
+  Clock --> Observe[带新鲜度和不确定性的观测]
+~~~
 
-- 用现有真实 frame/range/export fixture 比较重构前后时间映射、split 边界、图层顺序、关键帧、
-  caption 和音频 gain。
-- 证明同一 snapshot/time 的 evaluated descriptor 稳定，且 FFmpeg adapter 不再自行解释工程操作。
-- 此阶段不公开连续预览 capability。
+职责边界：
 
-### B. Session authority，无媒体
+- domain／time／composition 保持纯；工程时间、源 PTS 映射、帧格、关键帧、变速、布局和效果顺序由 Rust 决定。
+- application 管固定计划、播放会话、状态转换、预算、缓存依赖和端口；host-runtime 装配原生执行器与授权资源。
+- 浏览器声音输出适配器记录设备事实并估计输出时间；画面适配器只执行 Rust 已确定的计划，选择已授权画面的覆盖区间，不成为工程求值权威。
+- 高频样本、队列和纹理不进入 React 工程状态。React 展示必要状态；暂停、跳转、选中和普通保存不能重建整个播放器。
+- CLI、HTTP、MCP、SDK 与 UI 消费同一应用语义。播放位置观测必须标识真实 owner；无声音设备的 Agent 只能观察，不能伪造已经出声。
+- 本方案不要求新 crate 或新增外部依赖。若实际隔离或依赖变化确有必要，先提出边界依据，按架构政策审查。
 
-- 覆盖 create、owner lease、显式 handoff、观察者只读、heartbeat、TTL 和幂等 stop。
-- 并发 seek 只保留最高 generation；旧命令、事件和 telemetry 被拒绝；非法 seek 不终止当前流。
-- 验证 producer status 与 presentation telemetry 独立，stale telemetry 不被外推。
+## 3. 唯一时钟：工程时间怎样对应实际输出
 
-### C. 单 owner 持续 A/V transport
+### 3.1 三种进度分别记录
 
-- 一个 generation 只启动一个 FFmpeg producer；验证 init/media fragments、非零 start、duration、
-  A/V 内容和输出预算。
-- 慢消费者达到上限后终止，不死锁、不无限内存；断开和 shutdown 无子进程或私有文件残留。
-- 固定 revision、CAS 缺失拒绝、不回退原 URI；工程后续编辑不改变 Session。
+| 进度 | 用途 | 禁止替代的事实 |
+|---|---|---|
+| 已生成位置 | 生产者进度、缓存与资源调度 | 不能当作播放头 |
+| 已提交内容样本位置 | 精确回收设备队列额度、结束输入、最终提交回执 | 不能当作已经被听到 |
+| 输出位置估计 | 画面、字幕呈现、播放头与用户暂停位置 | 不能宣称是物理设备的精确测量 |
 
-### D. 浏览器 owner
+保留 consumedFrames 的提交／额度语义；新增明确的输出观测，不通过给原计数硬减延迟来改变其含义。现有 authoritative_time 及消费者需要逐项审计并明确命名和语义，不能静默重定义字段，也不能保留两个互相竞争的播放头。
 
-- 在受支持的真实浏览器验证 MSE codec 支持、autoplay约束、启动、pause/resume、seek、ended、
-  tab 后台、网络中断和长播放内存。
-- telemetry 取自真实 media clock，包含 anchor、sequence 与 staleness；服务端 producer progress
-  不得改变 presented position。
-- pause 必须取消 generation并从确认位置 resume；旧 fragment 不得进入 SourceBuffer。
+### 3.2 时间映射
 
-当前自动化环境没有已确认可用的真实浏览器媒体工具链。Rust 单测、FFmpeg 流解析或 HTTP
-测试不能替代 MSE/SourceBuffer、实际音频输出和浏览器 media clock 验收。完成 C 之前不能声称
-transport 可用；完成 D 之前不能将 Web capability 标为 continuous playback。
+必须区分四种时间：
 
-### E. Agent 与 Web 一致观察
+1. 工程时间：Rust 的精确有理数时间。
+2. 源素材时间：实际解码 PTS，经 Rust 的裁切、变速、转场映射到工程。
+3. AudioContext 时间：Worklet 当前处理区间对应的音频时钟。
+4. 浏览器单调时间：用于关联输出估计与屏幕刷新；不与服务端时间直接相减。
 
-- Web 与 Agent读取同一 Session snapshot/event cursor；多观察者看到同一 owner/generation。
-- Agent在 telemetry 新鲜时可报告 observed presented time，并同时返回 staleness；过期时降级为
-  producer/session 状态。
-- 同 revision 的独立 frame/range 证据与 presentation anchor 在帧格点和音频容差内一致。
+每个连续声音区间记录：会话／代次、工程起始样本、样本数量、Worklet 对应的音频处理起点、采样率。优先使用 Worklet 原始 renderFrame，不能把消息抵达主线程的时刻当作处理起点。
 
-### F. 后续低延迟路径
+现有回执的 consumedFrames 是量子结束后的累计内容数，因此该量子的首个内容样本索引为 consumedFrames − copied，音频处理起点为 renderFrame／sampleRate；有效内容只覆盖 copied 个样本，量子剩余部分是缺数静音。不能把累计数当作量子起点，也不能把整个 quantumFrames 都计成工程内容。区间开始／耗尽／重启等边界必须完整传递，界面合并进度不影响这张映射。
 
-持久 decoder、WebCodecs/GPU compositor、texture cache 和 AudioContext schedule 属于后续优化。
-只有在真实环境测得并公开 startup latency、seek latency、帧丢失、A/V sync、CPU/GPU 与内存
-上限后，才能增加低延迟或 realtime capability。首个 encoded stream 切片不能提前使用这些名称。
+对某个内容样本，其预计出声时刻为：
 
-## 兼容与发布门槛
+~~~text
+输出单调时间 =
+  getOutputTimestamp().performanceTime
+  + 1000 × (
+      该样本在 AudioContext 中的时间
+      + 声音处理链自身延迟
+      - getOutputTimestamp().contextTime
+    )
+~~~
 
-- 现有八类 Job 的 JSON、幂等 hash、结果 quality 和 artifact 行为不得改变。
-- Session DTO 使用独立版本；新增字段遵守向前读取规则，owner/generation/lease 等安全字段不得
-  通过缺省值把旧请求解释成有效控制命令。
-- `Time`、帧格点、半开范围、素材版本和锁验证继续使用现有 Rust 权威实现。
-- capability 初始为 false 或不出现。只有 Session authority、资源清理、持续流和真实浏览器阶段
-  分别留下执行证据后，才公开准确的 transport、quality、owner 和平台支持字段。
-- 实现状态和测试证据写入现有 implementation status；本文保持设计文档，不以文件存在作为实现。
+显示调度反向查询这张映射，获得下一次预计显示时对应的工程位置。连续区间使用样本索引计算，不逐帧累加浮点秒数；暂停、跳转和断音会形成新的区间。
+
+声音处理链的延迟单独登记并验证。当前 DynamicsCompressor 有前瞻处理，不能遗漏，也不能把 attack 参数直接当作全部延迟。getOutputTimestamp 已包含输出位置映射，不能再无条件重复扣减 baseLatency／outputLatency。
+
+### 3.3 不确定性与异常
+
+- 输出时间戳为零、非有限、倒退、过期或设备切换时，作废该映射，进入重新校准；不得静默改用页面墙钟继续自称准确同步。
+- 不支持可靠输出时间映射的环境，可以使用设备延迟估计，但必须报告估计来源、误差范围与受限能力，单独验收。
+- 为屏幕呈现做的短期外推限制在有效连续声音区间和已知设备输出范围内；收到断音或状态变化立即失效。
+- 静音／关闭某条轨道不改变主时钟。完全没有声音内容的工程由同一 AudioContext 输出已声明的时间线静音样本，沿用同一映射，计入预算。
+- 工程中的合法静音会推进内容时间；缺数据时填补的静音不推进。这两个状态必须可区分。
+- 时钟区间历史和消息队列有界；保留范围要覆盖设备尚未播出的尾部。超过可支持的输出延迟或映射预算时，显式进入受限／暂停状态。
+- 服务端只用自己的单调接收时间计算报告新鲜度；客户端与服务端未校时，不能用二者时钟差推算实际显示或出声。
+
+## 4. 声音与画面的调度
+
+### 4.1 声音路径
+
+继续使用现有原生混音、PCM 传输与 AudioWorklet。先保留最多 8 个 4096 帧块、默认准备 6 块、较小宿主至少 2 块的现有协商，不以扩大队列替代时钟修复。
+
+Worklet 精确报告连续区间的开始、提交进度、首次耗尽、重新开始和尾部完成。状态变化不能被 30 Hz 界面合并丢掉；常规进度可合并，额度与最终回执仍精确处理。
+
+任何非 EOF 的部分量子缺数都要记录，包括 copied 大于零但小于量子长度的情况。重新蓄音期间也必须提供明确状态；不能因 primed=false 而失去断音区间边界。
+
+### 4.2 画面路径
+
+准备和显示分离：
+
+- 准备端提前解码、合成，按 Rust 帧格产生带工程覆盖区间的画面；保留实际源 PTS 证据。
+- 显示端按屏幕刷新，从队列选取覆盖预计输出位置的画面；未来画面等待，已经过时的中间帧丢弃。
+- 帧显示次数由源帧率与屏幕刷新共同决定。25 fps 在 60 Hz 屏幕重复显示部分帧是正常节奏，不能把重复显示全部记为掉帧。
+- 没有新画面时，可短暂保留最后正确画面并记作停帧。首轮设连续落后 100 ms 为进入降质／准备处理的产品边界，不能将旧画面长期标成同步成功。
+- 普通迟到不清成黑屏，也不打断正常声音；如果降低质量后仍持续不能提供画面，则在协调边界进入缓冲，明确显示“正在准备预览”。
+- 合法黑场仍是 Rust 计划产生的有效画面；不得与缺画面混淆。
+- 保留当前位图所有权和显示副本预算，替换、取消和失败均准确释放。
+
+现有 125／150 ms 比较要拆分为不同职责：授权／代次／修订有效性继续严格检查；显示迟到依据新的输出位置与画面区间判断；设备报告的新鲜度单独计量。不能通过全局调大旧门槛掩盖错误，也不能让正常设备输出延迟被误判为过期素材。
+
+### 4.3 提前准备与资源优先级
+
+声音补给、当前显示附近的画面、下一片段／转场预热、远处缓存依次安排。准备队列同时受媒体时长、画面数量、实际解码驻留和 CPU／GPU 字节约束，先复用当前已有上限并记录峰值。
+
+基于已测执行耗时和队列水位调整提前量，不逐次追着已经过期的位置重新合成。第一阶段保持当前原生准备时间窗口；若确需扩展，作为单独策略变化核算驻留并验证，不在前端绕过原生准入。
+
+请求与授权继续固定来源及身份。减少重复求值和逐帧串行往返，优先复用原生覆盖缓存与类型化私有批处理；后续区间计划也必须由 Rust 生成，并具备有界资源和有效期。浏览器不能据原始工程自行求值未来帧。
+
+## 5. 完整操作与状态转换
+
+下列是用户可观察的状态，不要求照抄为另一套公开枚举；实现时与现有状态机合并。
+
+| 操作／事件 | 处理规则 |
+|---|---|
+| 开始播放 | 固定修订与代次，准备首帧及声音水位；在统一 AudioContext 起点开始并建立映射，未出声前不提前推进播放头 |
+| 暂停 | 在明确声音样本边界停止继续提交；处理已在设备中的尾部，保存最终输出位置与对应画面；保留现有暂停续期 |
+| 恢复 | 从保存的工程位置重新准备和锚定；防止按已提交但尚未出声的位置恢复而漏音 |
+| 跳转 | Rust 先校验范围与对齐；成功后失效旧代次、旧 PCM、旧画面和旧异步结果；新位置音画就绪再开始 |
+| 连续拖动播放头 | 合并过时请求，只发布最后一次位置；拖动不制造大量声音会话，停止拖动后按原播放意图恢复 |
+| 音频耗尽 | 以最后连续内容样本冻结工程推进；设备尾部播完后保持对应画面，蓄音达到水位后建立新区间共同继续 |
+| 片尾 | 分开记录输入结束、最后样本提交和设备输出尾部完成；最终状态不能在声音仍未播完时提前进入 ended |
+| 切换输出设备／AudioContext 中断 | 暂停并重建输出映射与资源；保持工程位置与恢复意图，不能沿用旧设备延迟 |
+| 切换主题／布局／选中对象 | 只更新显示，不创建新声音会话、不重置时钟、不清掉有效画面 |
+| 关闭页面／会话到期／撤权 | 停止输出并取消旧代次；沿用原幂等、租约、权限和清理规则 |
+| 后台或隐藏页面 | 本轮默认协调暂停，返回时保持位置并由用户恢复；不让声音持续而画面因节流停住，后续若支持后台播放须单独验收 |
+| 只读观察／断线重连 | 区分最后观测、估计位置与生产进度；真实不确定请求沿用现有恢复协议，不自动重复创建声音 |
+
+暂停／停止不承诺取消已经进入操作系统的声音；记录可见响应延迟和设备残余尾部。安全撤权优先立即停止提交与断开本地节点，设备已有尾部作为物理边界单独说明。
+
+## 6. 编辑与新修订如何生效
+
+- 音量曲线拖动保留现有本地手势草稿与松手一次原子提交。试听仍用受原生校验的临时覆盖；松手提交失败恢复旧事实。
+- 选中对象、缩放、主题和浏览位置不改变工程修订，也不使播放缓存失效。
+- 真实编辑产生新修订。Rust 判定受影响的声音／画面时间范围；编辑不改变正在使用的固定修订本身。
+- 播放中与当前位置无关的修改，在下一安全边界切换到新修订；切换前新计划及必要资源须就绪。当前帧附近变化需要协调重锚定，不能混用旧声音与新画面。
+- 开始可采用整会话重锚定作为唯一明确实现；受影响范围热切换在后续阶段完成，不能保留静默回退链并称为无缝更新。
+- 人类与 Agent 编辑都走现有应用事务、expected_revision、幂等和冲突规则。只有实际冲突或未知提交结果才提示恢复，不给普通人工操作增加审阅步骤。
+- 所有延迟完成的取帧、音频、字体、GPU、缓存结果都检查修订、代次和临时覆盖身份，过时结果不得发布。
+
+## 7. 预览质量与代理素材
+
+质量是呈现执行参数，不修改工程画布或正式输出设置。
+
+- 用户入口为“自动／流畅／高清”，沿用统一组件、中英文本与明暗主题。“自动”优先保证同步，再在预算允许时提高质量。
+- 首轮以 1920×1080 工程的 960×540 连续播放为具体落地档，暂停后准备原分辨率画面；不得只缩小 CSS 播放器。
+- Rust 在同一逻辑画布下求值，执行器按质量转换输出分辨率；坐标、字幕大小、蒙版、模糊半径、阴影、采样与颜色处理都需明确缩放规则并独立验证。
+- 画布缩小主要减轻合成，未必减少原视频解码。原解码仍是瓶颈时，生成有固定来源证明的代理素材。
+- 代理保留原素材哈希、实际 PTS／时长／旋转／色彩／流选择与精确时间映射。VFR、非零 PTS 和音视频偏移不能按名义 fps 重建。
+- 代理只用于预览，不改变工程媒体身份；导出默认使用原源。代理缺失或生成失败时明确说明能力，不能自动使用时间映射不一致的副本。
+- 自动质量调整使用持续负载与恢复观察区间，避免每帧在清晰／模糊之间切换；质量切换自身不改变播放时钟。
+
+## 8. 后台渲染缓存
+
+当前基础实现：应用通过原 RenderSubmission.video 端口生成约两秒的原生 CFR 画面区间，Rust 提供精确帧映射和执行器绑定身份；既有 Job 发布／存储／取消围栏不变。预备完成后，缓存像素在 Worker 的 OffscreenCanvas 中按同一声音设备输出位置呈现。当前对完整固定快照失效，下面的逐段依赖复用与代理条目仍是后续目标。浏览器编码驻留 64 MiB、最多 300 段，未新增磁盘清理例外。
+
+### 8.1 三层复用
+
+1. 原素材的已验证范围读取与解码缓存：复用现有有界实现。
+2. 代理素材：降低难解码来源的成本，按来源和质量生成。
+3. 复杂片段的合成结果缓存：将多层效果提前算好，播放时通过现有解码／呈现路径消费。
+
+缓存画面与实时画面始终使用同一输出时钟和 Rust 工程时间；不增加第二个独立音频播放器，不把默认播放路线改为整片 MSE。
+
+### 8.2 有效性与切片
+
+- 缓存键包含实际内容依赖、绝对工程时间／动画起点、时间映射、字体、效果配置、尺寸、帧率、色彩、执行器身份及质量；不能仅用工程修订或 FFmpeg 哈希证明可复用。
+- 画面与声音依赖分别记录。只有音量改变时可复用已证明不依赖它的画面；字体改变只失效依赖该字体的画面。
+- 按精确时间区间分片，并扩展到转场和时域效果所需的历史／未来范围；不能在效果依赖中间任意切断。
+- 新修订复用旧结果前由 Rust 校验依赖证明，再绑定新会话／代次。旧授权、租约和临时资源路径不能随缓存复用。
+- 持久派生复用现有 Job 生命周期、取消、attempt 私有结果和原子发布；临时播放继续使用 Session，不能每帧创建 Job。
+- 用户操作与声音播放优先，后台任务低优先级、有并发和磁盘预算；取消／失败不发布半成品，进行中的旧任务不能覆盖新结果。
+- 提供用户可理解的缓存状态与空间管理，不自动删除用户原素材。缓存清理遵循用户既有批准范围。
+- 低质量预览缓存不作为默认正式导出来源。只有单独质量／身份验证允许时，才考虑可复用的正式质量中间结果。
+
+此层吸收复杂片段持续慢于实时的问题。扩大内存、放宽迟到门槛或无限排队均不能替代它。
+
+## 9. 契约、模块和旧路径收口
+
+| 位置 | 计划改动责任 |
+|---|---|
+| crates/api-contracts/src/audio_preview.rs 及现有工具声明 | 明确提交游标、输出观测、时钟区间／置信范围和质量；实际命名由唯一共享声明生成 |
+| crates/editor-application/src/audio_preview | 统一会话与状态语义，保持计数／代次／权限不变量，区分提交完成和输出结束 |
+| crates/editor-application/src/classic_visual 与 composition／time | 按原生工程时间产生帧覆盖区间、质量执行事实及受影响依赖 |
+| crates/host-runtime/src/audio_preview | 原生装配、计划复用、身份校验、观测接收、准备准入与旧帧绑定处理 |
+| crates/native-services、现有 job／store 适配器 | 现有解码／混音／GPU 复用，代理与缓存任务、受授权结果发布 |
+| apps/web/.../audio-preview | Worklet 原始时钟映射、输出估计、边界回执与有界传输 |
+| apps/web/.../visual-preview、frame-canvas | 按屏幕刷新取已准备画面、质量、位图所有权及生命周期 |
+| packages/classic-audio-renderer、classic-visual-renderer | 仅执行已确定的声音／画面事实，复用原有算法，维护独立像素／PCM 验证 |
+| SDK／CLI／HTTP／MCP／Web 消费者 | 使用同一生成类型与操作语义，区分实际 owner 观测与无设备观察 |
+
+先核对 DTO／导出、注册、应用动作、宿主分派、权限／错误和客户端的完整路径，再实施公共契约变化。不开平行编号 API，不手抄 DTO，不用内部 shell CLI 替代端口。
+
+历史编码 Session、直接帧和正式导出需核对真实消费者与能力归属。独立离线证据能力保留准确用途；重复的业务语义统一后退役，历史回执和产物身份不改写。不能将旧记录重命名成本轮验收。
+
+## 10. 故障、预算与产品反馈
+
+- 声音数据缺失、画面迟到、设备中断、授权失败、代次冲突、GPU 丢失和工程提交不确定分别处理。
+- 声音正常、偶尔画面迟到：追赶并记录掉帧；持续画面不足：降低质量或准备缓存；实际声音耗尽：协调缓冲。
+- 授权撤销、错误修订或旧代次不得作为普通丢帧吞掉；资源预算失败不得无限重试。
+- 有效声音与画面状态不因 HTTP 心跳、后台 Job 或 UI 重渲染重建。进度合并但不合并掉关键状态边界。
+- 播放器只显示必要的“正在准备预览／已暂停／预览中断”与可执行恢复入口；普通保存和正常选择不出现审阅／技术错误提示。
+- 完整记录解码、Rust 计划／绑定、传输、GPU 合成、显示、声音缓冲和输出延迟，定位瓶颈后只改对应层。
+
+## 11. 分阶段实施与退出条件
+
+每个阶段完成一个可审阅切片后再集成下一阶段。用户已批准执行；阶段 1 的代码、限定验收和剩余退出条件见本轮记录，后续阶段继续按以下目标推进。
+
+| 阶段 | 工作与可交付结果 | 退出条件 |
+|---|---|---|
+| 1. 统一输出时钟 | 三类进度分离，Worklet 连续区间与输出映射，画面／字幕／播放头共用；覆盖暂停、跳转、断音、尾部 | 精确映射和生命周期回归通过，短合成工程闪光＋短音独立同步通过；不宣称复杂工程已流畅 |
+| 2. 可用的实时预览 | 按屏幕刷新显示、修正旧新鲜度比较、540p 执行档、原生计划复用和有界提前准备 | 已有海南工程完成全程同步／掉帧／缓冲实测；失败范围明确，不用声音正常替代画面验收 |
+| 3. 复杂段可持续播放 | 先按测量决定是否需要源代理，再完成复杂片段缓存、局部失效与优先级 | 缓存前后内容与时间相符，复杂段预备后连续播放通过；修改后只发布有效新结果 |
+| 4. 编辑协作与长期稳定 | 新修订切换、Agent／人类编辑、设备变化、异常恢复、长播放与资源收尾 | 完成下述矩阵并绑定候选与运行环境，保留未覆盖设备／平台范围 |
+
+不按“每增加一个按钮发布一次候选”。一个集成负责人负责共享契约、生成文件、构建和有状态媒体验收；如后续获授权并行，文件所有权必须互斥。
+
+## 12. 验收标准与证据
+
+### 12.1 正确性
+
+- Rust 有理时间／帧格、44100／48000 Hz、非整数帧率、VFR、非零 PTS、裁切、变速、分割边界与转场。
+- 音频样本与处理时间区间精确对应；部分量子、合法静音、缺数据静音、设备尾部和重锚定覆盖。
+- 合成画面分别比较独立像素预期；音频分别比较独立 PCM。预览等于导出不能替代独立正确性证据。
+- 质量缩放单独验证文字、蒙版、模糊、透明、颜色及边缘；不要求有损编码与无损帧逐像素完全相同。
+- 暂停／跳转／编辑后不得混入旧代次、旧修订的声音、画面或缓存。
+
+### 12.2 首轮工程目标
+
+以下是拟定交付门槛，不是现有成绩。记录设备、刷新率、浏览器、二进制与执行器身份、质量、缓存冷热和预算；条件变化需重新限定范围。
+
+| 项目 | 目标 |
+|---|---|
+| 有线／内置输出的 25 fps 合成同步样例 | 稳态独立观测的绝对音画误差 p95 ≤ 40 ms、p99 ≤ 80 ms；超过 100 ms 的持续偏差必须解释且不能计为通过 |
+| 10 分钟长播放 | 开头与结尾的相对偏差变化 ≤ 20 ms；没有漏计断音而导致的时间漂移；绝对误差仍满足对应设备门槛 |
+| 海南 42 秒多层工程，自动质量且预备完成 | 无非预期声音耗尽、无旧代次内容、无因普通迟到而清黑；25 fps 源内容漏显示比例 ≤ 1%，无超过 100 ms 的非预期停帧 |
+| 暂停／恢复／跳转与片尾 | 声画恢复到同一工程位置，不跳过尚未输出的声音，不提前结束；分别报告热／冷准备和响应延迟 |
+| 资源 | 不超过捕获的 CPU／GPU／PCM／磁盘预算；循环播放及反复跳转后无持续增长、残余子进程和失效资源 |
+| 蓝牙／外接设备 | 单列输出估计误差与物理验证，不把浏览器 API 返回值当作已经通过；未达标环境明确受限 |
+
+启动和跳转延迟作为独立指标报告 p50／p95／最大值；先区分冷缓存、热缓存与需派生场景，阶段 2 的一次基线测量后确定体验门槛并固定，不能在失败后反复放宽。对声音已进入系统缓冲的延迟单独计量。
+
+画面丢失按源帧身份／覆盖区间与实际显示观测计算，不按 150 ms DOM 采样数量估算 FPS。同步误差按画面覆盖区间和对应音频输出计算，包含正常帧量化因素。
+
+### 12.3 真实验证矩阵
+
+- 复用已有合成工程、海南工程、素材和可用证据。只有缺少独立闪光／短音时才补一个必要的有界合成信号，不复制用户工程或上传用户媒体。
+- 覆盖首次播放、暂停超过租约周期、快速来回跳转、片段／转场边界、音量拖动、修改字幕、Undo／Redo、Agent 推进 head、主题与布局变化。
+- 覆盖音频耗尽、GPU 丢失、输出设备切换、浏览器隐藏、断线、撤权、服务重启和有响应丢失的控制请求。
+- 先做确定性样本映射／状态测试，再做真实浏览器逐事件记录；物理扬声器与屏幕同步使用可测量的外部录制／采集。系统回环可验证一部分链路，不能替代设备末端。
+- Canvas 的绘制提交与 requestAnimationFrame 是预计显示信息，不是硬件扫描输出证明；不能冒用只适用于 video 元素的回调来证明 Canvas 已实际呈现。
+- 长播放与反复操作记录浏览器、宿主、声音执行器的内存／GPU 驻留及释放。中英与明暗主题使用已有统一组件检查，计数不重复相加。
+
+### 12.4 构建与发布纪律
+
+- 仅文档修改做引用与内容一致性检查，不构建产品或重跑媒体。
+- 真正的边界变化运行 AGENTS.md 指定的架构与契约检查；公共契约由 Rust 生成。
+- 产品集成后构建一次，generated-contract 与 canonical-contract 使用同一显式二进制；受影响浏览器／媒体套件在一个已有受控工作区串行运行。
+- 检查按变化范围选取，未变化的历史证据保留原身份，不重复全量 ASR、导出或创建无必要夹具。
+- 当前完成度写交付台账和 acceptance.json；本计划保持前瞻。未达到同步、持续画面、声音连续性与资源四项门槛，不标为完整连续播放交付。
+
+## 13. 实施完成时用户应看到的结果
+
+- 播放头、字幕、声音与画面使用同一个工程位置；播放、暂停和跳转共同生效。
+- 普通片段即时预览，复杂片段自动准备；必要时降低预览画质，停止播放后恢复清晰画面。
+- 编辑不表现为整页刷新，音量手势继续即时跟随，正常操作可撤销且不额外审阅。
+- 新工程修订只使用对应计划和有效缓存；已准备内容尽量复用。
+- 没有画面、合法黑场、正在准备和真实错误可区分，用户不需要理解内部时钟或缓存术语。
+- 正式导出使用原素材、原工程时间与正式质量，预览优化不改写用户创作内容。
+
+## 14. 设计参考与适用边界
+
+- [Web Audio 输出时间映射](https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp)：输出时间是估计，初始可为零，需要处理可用性和映射误差。
+- [Web Audio DynamicsCompressor](https://www.w3.org/TR/webaudio/#DynamicsCompressorNode)：声音处理链自身的前瞻延迟需要纳入。
+- [Chromium VideoNG](https://developer.chrome.com/docs/chromium/videong)：音频时钟配合屏幕刷新选帧，减少无必要的 CPU／GPU 数据往返。
+- [Premiere 预览缓存](https://helpx.adobe.com/premiere/desktop/render-and-export/render-sequences-for-playback/use-preview-files-when-rendering.html)：复用已计算片段，编辑后保留不受影响的结果。
+
+这些资料提供设计依据，不证明本工程已经实现或达到相同表现。GStreamer 不在本次方案的依赖与实施范围内。

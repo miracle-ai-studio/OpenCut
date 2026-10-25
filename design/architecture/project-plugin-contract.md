@@ -1,38 +1,42 @@
-# 项目范围插件契约
+# 工程插件规划契约
 
-状态：2026-09-21 代码及本地真实动线已验；发行验证单独记录，不替代全量 R2/R6 放行。
+2026-10-19：唯一最终业务契约的静态集成，尚未统一生成、构建或运行验收。当前源码状态见[接线状态](static-migration-wiring.md)，已验证范围见[交付台账](headless-completion-ledger.md)；历史候选的结果不改标为当前树通过。
 
-## 权威与边界
+## 入口与权威
 
-全局安装、WASM 权限及发布审计仍由 Owner 管理。项目授权固定 project/id/version/package SHA-256 和贡献名，不能安装、升级或授予宿主路径/网络。升级数据库 v9→v10 创建空授权表，不推断已有插件的项目权限。原 22 工具契约不改。
+全局安装、依赖版本、WASM权限及发布审计仍由owner管理。安装不授予工程规划权。`opencut_project_plugin_grant/list/inspect/plan` 是唯一工程插件动线，CLI、HTTP `/api/tools/{name}`、MCP及生成SDK共用应用语义。原全局、基础和开发代际规划入口退出。
 
-四个增量工具共用 CLI `call`、HTTP `/v1/tools/{name}`、MCP stdio/HTTP 和生成的 SDK：
-
-| 工具 | 输入／结果 | 权限与副作用 |
+|入口|请求/结果|权限和副作用|
 |---|---|---|
-| project_plugin_grant | target、包哈希、operations、enabled、expected_revision、idempotency_key → Grant | Owner；原子更新授权、幂等回执、outbox 和审计；不改变工程 head |
-| project_plugin_list | project_id → Grant[] | 项目 read；返回该项目至多 64 个授权（包括停用），不枚举全局安装 |
-| project_plugin_inspect | target、operation_name → 内联输入/输出 JSON Schema、贡献版本、有效 limits、Grant | 项目 read＋启用授权＋准确包身份＋全局权限；不暴露安装目录或 schema 文件路径 |
-| project_plugin_plan | 原 PlanInput → Grant＋PlanInvocation | 项目 read/edit/run_jobs＋同上；固定修订，返回经核心验证的操作和计划，不提交 |
+|grant|target、精确包哈希、贡献名、授权CAS、幂等键 → Grant|owner更新原授权/回执/审计/outbox，不移动工程head|
+|list|project_id → Grant[]|工程Read，包含停用策略；不枚举全局安装|
+|inspect|target、贡献名 → 参数/贡献schema、有效限额、Grant|工程Read、启用的精确包授权和全局WASM权限；无安装目录|
+|plan|`PlanProjectPlugin` → `ProjectPluginPlan`|所有调用方均须Read/Edit/RunJobs和启用的精确包工程grant；返回提案，不提交|
 
-完整工具名均带 `opencut_`。列表表达策略而非当前可用性；inspect 检查实际包及全局权限。贡献名列表按集合规范化。授权版本为规范十进制字符串，首次 expected_revision="0"；与工程 revision 完全独立。单项目至多 64 个身份行（含 disabled），单授权至多 32 个贡献；停用保留审计和 CAS 历史，无删除接口。
+规划输入为 `{plugin:{id,version,operation_name,project_id,revision,parameters},idempotency_key,label,branch_name?}`。包version是不可变依赖身份，不是公开编辑协议选择。返回 `{grant,transaction,preview}`，不含开发代际计数；CLI `plugin plan`、SDK `planProjectPlugin` 和MCP插件域的 `project.plugin.plan` 调用同一入口。
 
-## 幂等和撤权
+`branch_name` 省略为main，显式值选择已有命名分支。应用层在WASM工作前使用普通编辑的固定head读取/校验，再投影完整公开工程；不把现有文字、图形、字幕、蒙版、效果或曲线投影成旧模型。历史工程先显式转换，再规划编辑。只读提案可在owner编辑持有期间计算；真正提交仍受持有、权限和head围栏。
 
-授权写入的幂等作用域为完整 target。当前 Owner 校验先于回执，回执匹配先于授权 CAS；相同请求返回历史回执，不代表当前策略，读取 list 获取现状。更改同键参数返回 IDEMPOTENCY_KEY_REUSED；CAS 失败不产生事件。授权、回执、outbox、审计同一短事务，任何写入失败全部回滚。
+## 固定依赖与执行
 
-规划首先读取授权和当前 principal policy revision；读取指定不可变工程修订，不长期持有 SQLite 事务。原生适配器在插件版本共享文件锁内重验项目授权，再检查实际包哈希、全局权限、ABI 和贡献。编译前及执行前再次重验；返回前重验 principal/credential/project 权限及授权 revision，即使权限被撤销后恢复也不交付旧 ticket 的计划。返回操作还经过项目素材绑定校验，不能借插件绑定任意宿主文件或其他项目素材。
+实际清单选择一次私有函数绑定。原两种已发布WIT函数身份保持精确，必要的旧依赖元数据字段只在要求它的私有边界注入；两种绑定都接收相同完整公开数据，返回同一种普通公开编辑操作。没有调用方版本选择、失败探测回退或旧业务JSON翻译层。返回已撤销开发协议的组件明确失败；安装/恢复旧依赖的原身份不改写。
 
-全局安装/权限更新使用同版本排他锁，等待当前调用结束，沿用旧 Host 语义；项目权限撤销无需等待原生锁。编辑提交仍以原 expected_revision、调用者当前权限及显式新幂等键执行；插件授权的撤销不会撤销调用者已有的直接 edit 权限。断开请求不是持久任务取消；此入口是有界同步 planner，不宣称实现 R6 的所有插件任务类型。
+默认示例和固定ABI夹具共用一个提案实现。示例的 `pinned-editor-abi` feature只生成精确依赖函数夹具；不是另一套业务实现。静态集成没有重编现有组件或改写包字节。
 
-## 资源与错误
+原版本共享锁、包哈希/全局权限/schema校验、受限component读取及空WASI、内存/fuel/epoch/输出上限保持。输入JSON只在选定绑定后序列化一次，按实际传入字节准入。原有效上限为64MiB线性内存、1000ms实例化/执行epoch、500万fuel、256KiB输出；参数256KiB、快照4MiB、schema256KiB、component16MiB，进程内最多4个并行工程插件检查/规划。这些是执行/元数据预算，不是素材文件长度上限。锁等待和原生编译不计入WASM epoch，输出限额也不等同于宿主RSS上限。
 
-有效 WASM 限额取 manifest 与 Host 上限较小值：64 MiB 线性内存、1000 ms 执行 epoch、500 万 fuel、256 KiB 返回输出。参数 256 KiB、序列化快照 4 MiB、单份 schema 256 KiB、component 16 MiB。schema 深度不超过 64，引用只允许文档内部 `#`；schema 文件不直接作为公共路径。每个进程至多四个并行项目插件检查/规划；不是跨进程配额。
+## 固定修订、撤权与提交
 
-epoch 约束 WASM 实例化/执行，不包含版本文件锁等待、包完整性读取、schema 编译及 component 编译。输出字节上限在 WASM 返回后检查，不能描述成原生进程内存峰值上限。WASI 无默认文件、网络、环境、参数和 stdio 权限；不声称 OS 进程沙箱或整个请求硬超时。全量插件隔离、取消与分析 Host ABI 留在 R6。
+原始工程grant和principal policy revision形成授权ticket。原生版本锁内、component编译前和执行前重验；应用层在返回后及完整编辑规划/资源处理后重验。原始ticket被撤销再恢复，也不能交付旧ticket结果。WASM不持有工程存储/写端口；数据库读取事务不跨执行保留。
 
-错误保留稳定 code，移除原生路径、内部 schema 值、WASM 栈和嵌套详细错误。项目授权不匹配/撤权返回 NOT_AUTHORIZED；全局权限缺失 PERMISSION_DENIED；包损坏 PLUGIN_INTEGRITY；参数错误 INVALID_ARGUMENT；错误操作 INVALID_PLUGIN；执行预算耗尽 PLUGIN_RUNTIME。未知服务端故障仍遵循统一错误映射，不自动重发写入。
+规划只接受1–32个普通公开操作，交同一完整编辑规划器检查固定head、锁轨、资源和结构。`transaction` 使用原请求的key/label/branch；调用方审阅后显式 `opencut_edit_apply`。实际提交独立校验当前直接编辑权，保持原幂等、CAS、原子日志及发布；工程插件授权撤销不撤销原本具有的直接编辑权。head移动后返回冲突，不自动替换revision重发。
 
-## 客户端动线
+公开错误保留code并过滤宿主路径、WASM栈和原生详细值。撤权/精确包不匹配为NOT_AUTHORIZED，全局权限缺失为PERMISSION_DENIED，包损坏为PLUGIN_INTEGRITY，参数不合法为INVALID_ARGUMENT，输出不符合唯一编辑契约为INVALID_PLUGIN，执行预算耗尽为PLUGIN_RUNTIME；实际领域计划错误保持原分类。
 
-Owner 安装真实包并读取 SHA → Owner 配置项目授权 → Agent list → inspect 获取 JSON Schema → 固定 revision 执行 plan → 展示/检查 operations 和 plan → 使用同一工程 revision 显式 edit_apply → 查询新的 snapshot/事件。遇到 revision 冲突重新读取并规划，不自动更新修订重发。Web/桌面实现仍暂缓，其接入必须沿此协议而不能直接访问插件目录或绕过应用服务。
+## 验证范围
+
+原真实组件/fuel/权限测试保留并改接完整公开输入；原基础模型的撤权单测由已有完整模型测试中的运行后撤权/拒绝交付覆盖，未另加重复单测。当前只检查源语法与注册，没有执行测试。
+
+`scripts/verify-wasm-planning.py` 复用同一显式候选、已有专用工程、包、授权及同候选服务，执行CLI、SDK经HTTP和MCP提案一致、显式提交/重放/冲突与完整内容恢复。成功故障证明在粗阶段内保存，且绑定实际SDK代码和可选最终连接包身份。不安装组件、复制工程、创建媒体Job或制作中间包。第二固定ABI、历史业务负载拒绝/有界执行、运行时故障、撤权及最终连接配置只有在其对应选项实际运行后才成立。
+
+包发布/预算脚本只核自己的发布、回滚、准入和权限元数据，不再重复WASM执行；最终归档验证引用已保留的同候选规划证据。完整效果执行、长源、平台矩阵和最终交付仍由当前计划及证据逐项证明。

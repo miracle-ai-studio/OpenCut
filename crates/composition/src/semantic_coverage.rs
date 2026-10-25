@@ -1,7 +1,9 @@
 //! Source-to-IR audit independent of the compiler's node construction.
 //! Checks all currently supported base media, caption and keyframe semantics.
 use crate::{Composition, CompositionError, CompositionScope, SourceRef};
-use opencut_contracts::{Clip, ProjectSnapshot, Time, TrackKind, project_v3::KeyframeCurveV1};
+use opencut_contracts::{
+    Clip, ProjectSnapshot, Time, TrackKind, historical_visual::HistoricalVisualKeyframeCurve,
+};
 use opencut_media_contracts::composition::{EvaluatedCurve, TimelineVisualCurves};
 use opencut_time::RationalTime;
 use serde::{Deserialize, Serialize};
@@ -69,7 +71,7 @@ fn curve(
     name: &str,
     multiplier: f64,
     seq: &str,
-    curves: &[KeyframeCurveV1],
+    curves: &[HistoricalVisualKeyframeCurve],
     actual: &EvaluatedCurve,
 ) -> Result<(), CompositionError> {
     let Some(channel) = clip.channels.iter().find(|c| c.parameter == name) else {
@@ -158,7 +160,7 @@ fn visual_curves(
     clip: &Clip,
     opacity: f64,
     sequence: &str,
-    curves: &[KeyframeCurveV1],
+    curves: &[HistoricalVisualKeyframeCurve],
     actual: &TimelineVisualCurves,
 ) -> Result<(), CompositionError> {
     for (name, value) in [
@@ -184,7 +186,7 @@ fn visual_curves(
 pub fn audit(
     snapshot: &ProjectSnapshot,
     compiled: &Composition,
-    curves: &[KeyframeCurveV1],
+    curves: &[HistoricalVisualKeyframeCurve],
 ) -> Result<SemanticCoverageReceipt, CompositionError> {
     check(
         snapshot.revision == compiled.revision,

@@ -25,12 +25,22 @@ pub struct AudioQuotaReceipt {
 pub enum AudioCallback {
     #[serde(rename = "resolveVerifiedBytes")]
     Resolve(ResolveBytes),
+    #[serde(rename = "openVerifiedRange")]
+    OpenRange(ResolveBytes),
     #[serde(rename = "readVerifiedBytes")]
     Read(ReadBytes),
     #[serde(rename = "releaseVerifiedBytes")]
     Release(ReleaseBytes),
+    #[serde(rename = "releaseDecodedSource")]
+    ReleaseDecoded(DecodedRelease),
     #[serde(rename = "admitDecode")]
     Admit(DecodeAdmission),
+    #[serde(rename = "admitContainerDecode")]
+    AdmitContainer(DecodeAdmission),
+    #[serde(rename = "admitPcmAudioDecode")]
+    AdmitPcmAudioWindowed(DecodeAdmission),
+    #[serde(rename = "admitPreviewDecode")]
+    AdmitPreviewDecode(DecodeAdmission),
     #[serde(rename = "compilePitchPreparation")]
     Pitch(PitchRequest),
     #[serde(rename = "compileSourcePositions")]
@@ -39,10 +49,20 @@ pub enum AudioCallback {
     Block(BlockRequest),
     #[serde(rename = "bindPreviewSources")]
     BindPreview(BindPreviewSources),
+    #[serde(rename = "previewSourceWindows")]
+    PreviewWindows(PreviewBlockRequest),
     #[serde(rename = "compilePreviewBlock")]
     PreviewBlock(PreviewBlockRequest),
     #[serde(rename = "observePreviewDecoded")]
     ObservePreviewDecoded(PreviewDecodedObservation),
+    #[serde(rename = "observeWindowedPreviewDecoded")]
+    ObserveWindowedPreview(WindowedPreviewObservation),
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowedPreviewObservation {
+    pub decoded: PreviewDecodedObservation,
+    pub resident_frame_count: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -55,9 +75,10 @@ pub struct PreviewDecodedObservation {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BindPreviewSources {
-    pub source_formats: Vec<opencut_composition::project_v4::PreviewSourceFormatV4>,
+    pub source_formats: Vec<opencut_composition::scene::PreviewSourceFormat>,
+    pub window: Option<PreviewBlockRequest>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreviewBlockRequest {
     pub start_sample: String,
@@ -83,10 +104,58 @@ pub struct ReleaseBytes {
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DecodedRelease {
+    pub resource: AudioResource,
+}
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DecodeAdmission {
     pub resource: AudioResource,
     #[serde(default)]
     pub primary: Option<ClassicAudioPrimarySelection>,
+}
+
+/// Residency for an ordinary primary track. No complete-source PCM length is
+/// known or admitted; every command supplies fresh bounded PTS observations.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RollingPreviewAdmission {
+    pub working_frames: u64,
+    pub max_channels: u32,
+    pub max_chunk_frames: u32,
+    pub source_sample_rate: u32,
+    pub target_sample_rate: u32,
+}
+
+/// One source may feed both ordinary PTS windows and prepared concat PCM.
+/// Allocation choices describe consumers,not protocol generations.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewDecodeAllocation {
+    pub stream: Option<RollingPreviewAdmission>,
+    pub preparation: Option<WindowDecodeAdmission>,
+}
+
+/// Private decoder admission. Logical source frames never authorize
+/// a full PCM allocation; working_frames retains the original four-copy bound.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowDecodeAdmission {
+    pub mode: &'static str,
+    pub max_frames: u64,
+    pub max_channels: u32,
+    pub working_frames: u64,
+    pub source_sample_rate: u32,
+    pub target_sample_rate: u32,
+    pub max_native_frames: String,
+    pub windows: Vec<DecodePcmWindow>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecodePcmWindow {
+    pub source_start_frame: String,
+    pub source_end_frame: String,
+    pub target_start_frame: String,
 }
 /// Observed by the pinned container decoder before PCM allocation. track_id is
 /// that decoder's track identity, never an FFmpeg stream ordinal.
@@ -105,6 +174,8 @@ pub struct PitchRequest {
     pub decoded_sample_rate: u32,
     pub decoded_frame_count: String,
     pub decoded_channels: u32,
+    /// Sparse decoded PCM reports its actual residency; dense PCM uses null.
+    pub resident_frame_count: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -3,7 +3,7 @@ mod png;
 mod process;
 mod resources;
 mod text_resources;
-pub use text_resources::VerifiedClassicTextResources;
+pub use text_resources::{VerifiedClassicTextResources, VideoResourceCache};
 mod session_adapter;
 pub use png::ClassicVisualPngSink;
 pub use process::{ClassicVisualProcess, ClassicVisualProcessConfig};

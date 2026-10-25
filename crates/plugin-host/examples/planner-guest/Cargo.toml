@@ -11,3 +11,6 @@ wit-bindgen = "0.46"
 serde_json = "1"
 
 [workspace]
+
+[features]
+pinned-editor-abi = []

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { downloadBlob } from "../shared/download";
+import { t } from "../shared/locale";
+import { useRef, useState } from "react";
 import { Button, Modal } from "../shared/ui";
 import { ACTIONS, actionDefinition, type ShortcutActionId } from "./catalog";
 import {
@@ -34,8 +36,8 @@ export function ShortcutSettingsDialog({ onClose }: { onClose(): void }) {
   } | null>(null);
   const [candidate, setCandidate] = useState<string | null>(null),
     [error, setError] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false),
-    [config, setConfig] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const importFile = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const describeError = (cause: unknown) => {
     const message = cause instanceof Error ? cause.message : String(cause);
@@ -321,55 +323,16 @@ export function ShortcutSettingsDialog({ onClose }: { onClose(): void }) {
         {!entries.length && <p>{st("No matching shortcuts.")}</p>}
         <details className="shortcut-transfer">
           <summary>{st("Import / export shortcut settings")}</summary>
-          <textarea
-            aria-label={st("Shortcut configuration JSON")}
-            rows={8}
-            value={config}
-            maxLength={48 * 1024}
-            spellCheck={false}
-            onChange={(event) => setConfig(event.target.value)}
-          />
-          <div className="toolbar">
-            <Button
-              onClick={() =>
-                run(() => {
-                  shortcuts.importConfig(config);
-                  setNotice("Configuration imported.");
-                })
-              }
-            >
-              {st("Import configuration")}
-            </Button>
-            <Button
-              onClick={() => {
-                setConfig(shortcuts.exportConfig());
-                setError(null);
-              }}
-            >
-              {st("Show current configuration")}
-            </Button>
-            <Button
-              onClick={() => {
-                const current = shortcuts.exportConfig();
-                setConfig(current);
-                if (!navigator.clipboard?.writeText) {
-                  setNotice(
-                    "Clipboard access is unavailable. Select and copy the configuration text.",
-                  );
-                  return;
-                }
-                void navigator.clipboard.writeText(current).then(
-                  () => setNotice("Configuration copied."),
-                  () =>
-                    setNotice(
-                      "Clipboard access is unavailable. Select and copy the configuration text.",
-                    ),
-                );
-              }}
-            >
-              {st("Copy configuration")}
-            </Button>
-          </div>
+          <input ref={importFile} type="file" accept=".json,application/json" hidden onChange={event => {
+            const file = event.target.files?.[0]; event.target.value = "";
+            if (!file) return;
+            void run(async () => {
+              if (file.size > 48 * 1024) throw Error(t("Choose a settings file smaller than 48 KB."));
+              shortcuts.importConfig(await file.text()); setNotice("Configuration imported.");
+            });
+          }}/>
+          <div className="toolbar"><Button onClick={() => importFile.current?.click()}>{t("Import settings file")}</Button>
+          <Button onClick={() => downloadBlob(new Blob([shortcuts.exportConfig()], {type:"application/json"}), "opencut-shortcuts.json")}>{t("Save settings file")}</Button></div>
         </details>
       </div>
     </Modal>

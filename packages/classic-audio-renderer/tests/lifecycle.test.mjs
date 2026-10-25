@@ -19,7 +19,7 @@ function fixture() {
   const contentHash = createHash("sha256").update(bytes).digest("hex");
   const identity = { projectId: "p", sequenceId: "s", revision: "r", profile: "classic-export-v31-web-audio", sampleRate: 44100 };
   const plan = { identity, frameCount: "1", resources: [{ assetId: "a", contentHash, size: 1, kind: "audio" }], voices: [{ elementId: "e", assetId: "a" }] };
-  const counters = { terminate: 0, decode: 0, close: 0 };
+  const counters = { terminate: 0, decode: 0, close: 0, release: 0 };
   const facts = { mode: "unprepared-linear", decodedSampleRate: 44100, targetSampleRate: 44100, numChannels: 1, outputFrames: "1", tempo: { numerator: "1", denominator: "1" } };
   const context = {
     sampleRate: 44100, state: "running", createBuffer: buffer,
@@ -29,6 +29,7 @@ function fixture() {
   const host = {
     engineIdentity: "pinned-engine", resolveVerifiedBytes: async () => bytes,
     admitDecode: async () => ({ maxFrames: 1, maxChannels: 1 }),
+    releaseDecodedSource: async resource => { assert.deepEqual(resource, plan.resources[0]); counters.release++; return { released: true }; },
     compilePitchPreparation: async () => facts,
     compileSourcePositions: async () => [position],
     compileBlock: async request => ({ identity, startSample: request.startSample, frameCount: 1, voices: [{ elementId: "e", blockOffset: 0, frameCount: 1, positions: [position], amplitudes: [1] }] }),
@@ -79,7 +80,7 @@ test("asynchronous host edits cannot mutate prepared facts or change the executi
     return [position];
   };
   const compile = f.host.compileBlock;
-  f.host.compileBlock = request => { assert.equal(request.sourceFormats[0].prepared, true); return compile(request); };
+  f.host.compileBlock = request => { assert.equal(request.sourceFormats[0].prepared, true); assert.equal(f.counters.release, 1); return compile(request); };
   const result = await renderClassicExport(f.plan, f.host, { maxPcmBytes: 1024 });
   assert.equal(result.buffer.getChannelData(0)[0], 0.25);
   assert.equal(result.receipt.preparation[0].facts.mode, "prepared-linear");
@@ -97,6 +98,7 @@ test("256 fixed voice descriptors share one decode and short compiled blocks cov
   f.plan.voices = Array.from({ length: 256 }, (_, i) => ({ elementId: `e${i}`, assetId: "a" }));
   const requests = [];
   f.host.compileBlock = async request => {
+    assert.equal(f.counters.release, 0, "Ordinary source stays resident until the complete mix");
     requests.push([request.startSample, request.frameCount]);
     assert.equal(request.sourceFormats.length, 256);
     const count = Math.min(2, request.frameCount);
@@ -110,6 +112,7 @@ test("256 fixed voice descriptors share one decode and short compiled blocks cov
   assert.deepEqual([...result.buffer.getChannelData(0)], [.25, .25, 0, 0, .25, .25, .25]);
   assert.deepEqual(result.buffer.getChannelData(1), result.buffer.getChannelData(0));
   assert.equal(f.counters.decode, 1);
+  assert.equal(f.counters.release, 1, "The completed mix retires its shared decoder exactly once");
   assert.equal(result.receipt.preparation.length, 256);
 });
 

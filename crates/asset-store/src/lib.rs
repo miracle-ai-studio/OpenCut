@@ -1,7 +1,7 @@
 //! Immutable, content-addressed media for project revisions and accepted jobs.
 //! Versions and job manifests identify bytes independently of provenance paths.
 pub mod catalog;
-pub mod font_import_v1;
+pub mod font_import;
 pub mod gate;
 pub mod uploads;
 use opencut_contracts::{Asset, AssetVersion, EditorError, ProjectSnapshot};
@@ -252,6 +252,18 @@ impl AssetStore {
         &self,
         version: &AssetVersion,
     ) -> Result<(File, u64), EditorError> {
+        let (file, size, _) = self.open_version_checked(version, &mut || Ok(()))?;
+        Ok((file, size))
+    }
+
+    /// Hash once through the opened descriptor, checking cancellation/authority
+    /// between bounded reads. A verified descriptor never grants access itself.
+    pub fn open_version_checked(
+        &self,
+        version: &AssetVersion,
+        checkpoint: &mut impl FnMut() -> Result<(), EditorError>,
+    ) -> Result<(File, u64, std::time::SystemTime), EditorError> {
+        checkpoint()?;
         if version.id != format!("av_{}", version.content_hash) {
             return Err(error(
                 "ASSET_VERSION_INVALID",
@@ -270,7 +282,31 @@ impl AssetStore {
             ));
         }
         let mut file = regular_file(&path)?;
-        let (hash, size) = copy_hash(&mut file, &mut std::io::sink(), &|| false)?;
+        let before = file.metadata().map_err(io_error)?;
+        if before.len() != version.size {
+            return Err(error(
+                "ASSET_INTEGRITY_ERROR",
+                "Project media length does not match the fixed version",
+            ));
+        }
+        // A changing file cannot turn verification into an endless read. This
+        // is the exact declared identity plus one sentinel byte,not a media cap.
+        let (hash, size) = {
+            let maximum = version
+                .size
+                .checked_add(1)
+                .ok_or_else(|| error("ASSET_VERSION_INVALID", "Asset length is not addressable"))?;
+            let mut bounded = (&mut file).take(maximum);
+            copy_hash_checked(&mut bounded, &mut std::io::sink(), checkpoint, None)?
+        };
+        let after = file.metadata().map_err(io_error)?;
+        if before.len() != after.len() || before.modified().ok() != after.modified().ok() {
+            return Err(error(
+                "ASSET_INTEGRITY_ERROR",
+                "Project media changed during verification",
+            ));
+        }
+        checkpoint()?;
         if hash != version.content_hash || size != version.size {
             return Err(error(
                 "ASSET_INTEGRITY_ERROR",
@@ -278,7 +314,7 @@ impl AssetStore {
             ));
         }
         file.seek(SeekFrom::Start(0)).map_err(io_error)?;
-        Ok((file, size))
+        Ok((file, size, after.modified().map_err(io_error)?))
     }
 
     /// Copy and verify immutable inputs into an attempt-private directory. Never
@@ -427,15 +463,33 @@ fn copy_hash_admitted(
     source: &mut File,
     destination: &mut impl Write,
     cancelled: &dyn Fn() -> bool,
+    reservation: Option<&mut opencut_storage_budget::Reservation>,
+) -> Result<(String, u64), EditorError> {
+    copy_hash_checked(
+        source,
+        destination,
+        &mut || {
+            if cancelled() {
+                Err(error("JOB_CANCELLED", "Input materialization cancelled"))
+            } else {
+                Ok(())
+            }
+        },
+        reservation,
+    )
+}
+
+fn copy_hash_checked(
+    source: &mut impl Read,
+    destination: &mut impl Write,
+    checkpoint: &mut impl FnMut() -> Result<(), EditorError>,
     mut reservation: Option<&mut opencut_storage_budget::Reservation>,
 ) -> Result<(String, u64), EditorError> {
     let mut digest = Sha256::new();
     let mut size = 0u64;
     let mut buffer = [0u8; 128 * 1024];
     loop {
-        if cancelled() {
-            return Err(error("JOB_CANCELLED", "Input materialization cancelled"));
-        }
+        checkpoint()?;
         let count = source.read(&mut buffer).map_err(io_error)?;
         if count == 0 {
             break;

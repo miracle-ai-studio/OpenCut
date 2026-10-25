@@ -110,7 +110,7 @@ while time.monotonic() < deadline:
     if token_path.exists():
         token = token_path.read_text().strip()
         try:
-            req = urllib.request.Request(base + '/v1/capabilities', headers={'Authorization': f'Bearer {token}'})
+            req = urllib.request.Request(base + '/api/capabilities', headers={'Authorization': f'Bearer {token}'})
             with urllib.request.urlopen(req, timeout=1):
                 break
         except (urllib.error.URLError, TimeoutError):
@@ -134,7 +134,7 @@ def request(path, body=None, content_type=None):
 try:
     for name, source, expected_kind, expected_mime, misleading_extension in fixture_specs:
         payload = source.read_bytes()
-        status, body, _ = request('/v1/media/upload?name=' + urllib.parse.quote(f'agent-input.{misleading_extension}'),
+        status, body, _ = request('/api/media/upload?name=' + urllib.parse.quote(f'agent-input.{misleading_extension}'),
                                   payload, 'application/octet-stream')
         envelope = json.loads(body)
         trace.append({'case': name, 'status': status, 'response': envelope})

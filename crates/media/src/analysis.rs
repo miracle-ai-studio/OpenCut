@@ -389,3 +389,5 @@ fn db_to_amplitude(value: String) -> MediaResult<f32> {
     }
     Ok((10f32.powf(db / 20.0)).clamp(0.0, 1.0))
 }
+
+mod quality;

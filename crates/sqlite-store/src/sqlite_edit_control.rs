@@ -217,7 +217,7 @@ mod tests {
             "EDIT_HELD_BY_OWNER"
         );
         assert_eq!(
-            app.create_branch(&opencut_api_contracts::branching::BranchCreateRequest {
+            app.create_historical_branch(&opencut_api_contracts::branching::BranchCreateRequest {
                 project_id: "p".into(),
                 branch_name: "agent".into(),
                 from_revision: initial.revision.clone(),

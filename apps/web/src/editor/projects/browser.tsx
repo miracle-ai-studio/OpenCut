@@ -1,4 +1,5 @@
-import { RestoreProjectPackage } from "../workspace/v4/package";
+import { Select } from "../shared/controls";
+import { RestoreProjectPackage } from "../workspace/scene/package";
 import { RenameProject } from "./rename";
 import { ProjectCover } from "./cover";
 import { MigrateClassic } from "./migrate";
@@ -91,7 +92,6 @@ export function ProjectBrowser({
       setCopying(false);
     }
   };
-  const [newVersion, setNewVersion] = useState<"visual" | "v4">("visual");
   const [creating, setCreating] = useState(false),
     [name, setName] = useState(t("Untitled project")),
     [format, setFormat] = useState("landscape"),
@@ -106,9 +106,7 @@ export function ProjectBrowser({
           : format === "square"
             ? [1080, 1080]
             : [1920, 1080];
-      if (newVersion === "v4")
-        await controller.createV4(name.trim(), size[0], size[1], fps);
-      else await controller.create(name.trim(), size[0], size[1], fps);
+      await controller.create(name.trim(), size[0], size[1], fps);
       setCreating(false);
       onOpen();
     } catch (error) {
@@ -144,20 +142,10 @@ export function ProjectBrowser({
             }
           />
           <Button
-            disabled={connection !== "connected"}
-            onClick={() => {
-              setNewVersion("v4");
-              setCreating(true);
-            }}
-          >
-            {t("New project with scene notes")}
-          </Button>
-          <Button
             className="primary"
             icon={<Plus size={16} />}
             disabled={connection !== "connected"}
             onClick={() => {
-              setNewVersion("visual");
               setCreating(true);
             }}
           >
@@ -176,7 +164,7 @@ export function ProjectBrowser({
           />
         </div>
         <div className="toolbar">
-          <select
+          <Select
             aria-label={t("Sort projects")}
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
@@ -185,7 +173,7 @@ export function ProjectBrowser({
             <option value="created">{t("Created")}</option>
             <option value="name">{t("Name")}</option>
             <option value="duration">{t("Duration")}</option>
-          </select>
+          </Select>
           <Button
             aria-label={t(ascending ? "Ascending" : "Descending")}
             onClick={() => setAscending((value) => !value)}
@@ -232,7 +220,7 @@ export function ProjectBrowser({
                 disabled={
                   copying ||
                   chosen.length > 64 ||
-                  chosen.some((p) => p.format === "v4")
+                  chosen.some((p) => p.format === "editor" || p.format === "readonly")
                 }
                 onClick={() => void duplicate(chosen)}
               >
@@ -335,7 +323,7 @@ export function ProjectBrowser({
                 />
                 <strong>
                   {project.name}
-                  {project.format === "v4" && <small> · V4</small>}
+                  {project.format === "readonly" && <small> · {t("Read-only")}</small>}
                 </strong>
                 <span className="project-metadata">
                   <span>
@@ -369,7 +357,7 @@ export function ProjectBrowser({
                   <RenameProject project={project} compact menu />
                   <Button
                     icon={<RefreshCw size={14} />}
-                    disabled={project.format === "v4"}
+                    disabled={project.format === "editor" || project.format === "readonly"}
                     onClick={(e) => {
                       e.currentTarget
                         .closest("details")
@@ -385,7 +373,7 @@ export function ProjectBrowser({
                   </Button>
                   <Button
                     icon={<Copy size={14} />}
-                    disabled={copying || project.format === "v4"}
+                    disabled={copying || project.format === "editor" || project.format === "readonly"}
                     onClick={(e) => {
                       e.currentTarget
                         .closest("details")
@@ -441,11 +429,7 @@ export function ProjectBrowser({
       )}
       {creating && (
         <Modal
-          title={
-            newVersion === "v4"
-              ? t("New project with scene notes")
-              : t("New project")
-          }
+          title={t("New project")}
           onClose={() => setCreating(false)}
         >
           <form
@@ -454,13 +438,6 @@ export function ProjectBrowser({
               void create();
             }}
           >
-            {newVersion === "v4" && (
-              <p>
-                {t(
-                  "Media import and placement, source media preview, scene notes, history and source audio separation/restoration are available. Other element editing, scene preview, playback and video export are not available yet.",
-                )}
-              </p>
-            )}
             <Field label={t("Project name")}>
               <input
                 required
@@ -471,7 +448,7 @@ export function ProjectBrowser({
               />
             </Field>
             <Field label={t("Canvas")}>
-              <select
+              <Select
                 value={format}
                 onChange={(event) => setFormat(event.target.value)}
               >
@@ -480,10 +457,10 @@ export function ProjectBrowser({
                 </option>
                 <option value="portrait">{t("Portrait · 1080 × 1920")}</option>
                 <option value="square">{t("Square · 1080 × 1080")}</option>
-              </select>
+              </Select>
             </Field>
             <Field label={t("Frame rate")}>
-              <select
+              <Select
                 value={fps}
                 onChange={(event) => setFps(Number(event.target.value))}
               >
@@ -492,7 +469,7 @@ export function ProjectBrowser({
                     {value} {t("fps")}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <div className="modal-footer">
               <Button onClick={() => setCreating(false)}>{t("Cancel")}</Button>

@@ -39,7 +39,7 @@ def verify(binary, root):
         response=conn.getresponse();data=response.read();status=response.status;hs=dict(response.getheaders());conn.close()
         return status,hs,data
     def http_call(h,name,value,headers=None):
-        status,_,data=request(h,'POST','/v1/tools/'+name,value,headers)
+        status,_,data=request(h,'POST','/api/tools/'+name,value,headers)
         out=json.loads(data);assert status==200 and out['error'] is None,out
         trace.append({'entry':'http','tool':name,'response':out});return out
     serial=0

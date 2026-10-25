@@ -28,7 +28,7 @@ def verify(binary,component,root,mcp_sdk_root=None):
         else:assert p.returncode==0 and out['error'] is None,(p.stderr,out)
         return out
     def http_call(name,args,error=None):
-        c=http.client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('POST','/v1/tools/'+name,json.dumps(args),{'Authorization':'Bearer '+token.read_text().strip(),'Content-Type':'application/json'});r=c.getresponse();out=json.loads(r.read());c.close();trace.append({'http':name,'response':out,'status':r.status})
+        c=http.client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('POST','/api/tools/'+name,json.dumps(args),{'Authorization':'Bearer '+token.read_text().strip(),'Content-Type':'application/json'});r=c.getresponse();out=json.loads(r.read());c.close();trace.append({'http':name,'response':out,'status':r.status})
         if error:assert out['error']['code']==error and r.status>=400,out
         else:assert r.status==200 and out['error'] is None,out
         return out
@@ -54,17 +54,16 @@ def verify(binary,component,root,mcp_sdk_root=None):
             except OSError:assert time.monotonic()<deadline;time.sleep(.03)
         trigger('prepared');before=count();cli('opencut_plugin_install',install,'STORAGE_ERROR');assert count()==before;assert cli('opencut_plugin_list',{})['data']==[];sql('DROP TRIGGER reject_publication')
         checks.append('Prepare persistence failure prevents package publication and rolls back both journal tables')
-        installed=http_call('opencut_plugin_install',install);path=Path(installed['data']['install_path']);assert digest(path)==identity==installed['data']['package_sha256']
+        installed=http_call('opencut_plugin_install',install);path=(root/'plugins'/installed['data']['manifest']['id']/installed['data']['manifest']['version']/installed['data']['package_sha256']);assert digest(path)==identity==installed['data']['package_sha256']
         events=request(installed);assert [e['phase'] for e in events]==['prepared','completed','prepared','completed'];assert all(e['actor']['source']=='http' and e['origin_request_id']==installed['request_id'] for e in events)
         assert events[-1]['intent']['after_hash']==hashlib.sha256((path/'.opencut-grants.json').read_bytes()).hexdigest()
         before=count();cli('opencut_plugin_install',install);assert count()==before
-        project=cli('opencut_project_create',{'project':{'id':'scope','name':'scope','sequence_id':'main','width':64,'height':48,'fps':{'numerator':10,'denominator':1}},'idempotency_key':'create'})['data']
-        plan={'id':manifest['id'],'version':manifest['version'],'operation_name':'org.example.publication.plan','project_id':'scope','revision':project['revision'],'parameters':{'track_id':'generated'}}
-        assert cli('opencut_plugin_plan',plan)['data']['operations'][0]['track']['id']=='generated'
+        assert set(cli('opencut_plugin_inspect',{'id':manifest['id'],'version':manifest['version'],'kind':'wasm'})['data']['granted_permissions'])==set(permissions)
         revoked=cli('opencut_plugin_install',{**install,'granted_permissions':[]});assert len(request(revoked))==2;assert digest(path)==identity
-        cli('opencut_plugin_plan',plan,'PERMISSION_DENIED');assert cli('opencut_project_inspect',{'project_id':'scope'})['data']==project
-        cli('opencut_plugin_install',install);assert cli('opencut_plugin_plan',plan)['data']['operations'][0]['track']['id']=='generated'
-        checks.append('HTTP install records package/grants under actual request identity; independent fingerprints, no-op retry, real WASM plan, grant revocation and restoration all agree')
+        assert cli('opencut_plugin_inspect',{'id':manifest['id'],'version':manifest['version'],'kind':'wasm'})['data']['granted_permissions']==[]
+        cli('opencut_plugin_install',install)
+        assert set(cli('opencut_plugin_inspect',{'id':manifest['id'],'version':manifest['version'],'kind':'wasm'})['data']['granted_permissions'])==set(permissions)
+        checks.append('HTTP publication identities,fingerprints,no-op retries and global permission metadata restoration agree;component execution is covered by the separate canonical WASM journey')
         trigger('prepared','plugin_grants');before=count();cli('opencut_plugin_install',{**install,'granted_permissions':[]},'STORAGE_ERROR');assert count()==before;assert set(json.loads((path/'.opencut-grants.json').read_text()))==set(permissions);sql('DROP TRIGGER reject_publication')
         trigger('completed','plugin_grants');unknown=cli('opencut_plugin_install',{**install,'granted_permissions':[]},'PUBLICATION_OUTCOME_UNKNOWN');assert json.loads((path/'.opencut-grants.json').read_text())==[]
         publication=unknown['error']['details']['publication_id'];assert unknown['error']['details']['next_operation']=='opencut_plugin_publication_reconcile';assert sql('SELECT pending FROM plugin_publications WHERE publication_id=?',(publication,))==[(1,)]
@@ -78,7 +77,7 @@ def verify(binary,component,root,mcp_sdk_root=None):
         checks.append('Externally changed grants reconcile as diverged without overwrite; corrupt installed bytes cannot be silently reused or replaced')
         manifest['version']='2.0.0';(package/'manifest.json').write_text(json.dumps(manifest));new_hash=digest(package);new_obj={**obj,'version':'2.0.0','package_sha256':new_hash}
         trigger('completed','plugin_package');unknown=http_call('opencut_plugin_install',install,'PUBLICATION_OUTCOME_UNKNOWN');sql('DROP TRIGGER reject_publication');publication=unknown['error']['details']['publication_id']
-        new_path=path.parent.parent/'2.0.0'/new_hash;assert digest(new_path)==new_hash and not (new_path/'.opencut-grants.json').exists();cli('opencut_plugin_inspect',{'id':manifest['id'],'version':'2.0.0'},'PLUGIN_INSTALL_INCOMPLETE');assert len(cli('opencut_plugin_list',{})['data'])==1
+        new_path=path.parent.parent/'2.0.0'/new_hash;assert digest(new_path)==new_hash and not (new_path/'.opencut-grants.json').exists();cli('opencut_plugin_inspect',{'kind':'wasm','id':manifest['id'],'version':'2.0.0'},'PLUGIN_INSTALL_INCOMPLETE');assert len(cli('opencut_plugin_list',{})['data'])==1
         assert reconcile(new_obj)['data']['resolved_publication_ids']==[publication];assert query({'kind':'publication','id':publication})['events'][-1]['phase']=='observed_applied';cli('opencut_plugin_install',install);assert len(cli('opencut_plugin_list',{})['data'])==2
         checks.append('Package completion failure leaves an explicit incomplete, non-discoverable installation; observed reconciliation plus install retry finishes grants without republishing bytes')
         assert cli('opencut_maintenance_query',{'target':{'kind':'workspace'}})['data']['events']==[]

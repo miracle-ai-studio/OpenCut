@@ -70,7 +70,7 @@ test("invalid complete registry fails before invoking the compiler or writing ar
   try {
     const r = registry(); r.domains[0].actions = [];
     const runner = join(directory, "schema-runner");
-    writeFileSync(runner, `#!/usr/bin/env node\nconst r=${JSON.stringify(r)};\nconst op=process.argv[3];\nconst data=op==='schema'?r.tools:op==='capabilities'?{job_kinds:r.jobs}:op==='domains'?r.domains:op==='events-schema'?r.eventSchema:r.audioStream;\nconsole.log(JSON.stringify({data}));\n`, {mode:0o700});
+    writeFileSync(runner, `#!/usr/bin/env node\nconst r=${JSON.stringify(r)};\nconst op=process.argv[3];\nconst data=op==='schema'?r.tools:op==='capabilities'?{job_results:r.jobs}:op==='domains'?r.domains:op==='events-schema'?r.eventSchema:r.audioStream;\nconsole.log(JSON.stringify({data}));\n`, {mode:0o700});
     let calls = 0;
     await assert.rejects(generateContracts(() => { calls++; throw new Error("must not compile"); },
       ["--binary", runner, "--skip-build"]), /does not cover/);

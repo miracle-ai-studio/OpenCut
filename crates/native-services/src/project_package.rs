@@ -17,7 +17,8 @@ use std::{
 
 pub(super) const MAX_DOCUMENT_BYTES: u64 = 16 * 1024 * 1024;
 pub(super) const MAX_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
-pub(super) const MAX_ASSET_BYTES: u64 = opencut_api_contracts::uploads::MAX_UPLOAD_BYTES;
+// Exact retained historical package reader bound; current archives use source addressability.
+pub(super) const MAX_ASSET_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 // Directory packages are streamed in 1 MiB blocks, not loaded into memory.
 // A short multi-clip 4K project already exceeds 4 GiB. Keep a bounded project
 // budget while retaining the independent per-asset and document limits.
@@ -190,6 +191,7 @@ pub(super) fn copy_verified(
     output.sync_all().map_err(io)
 }
 
+#[cfg(test)]
 pub(super) fn export_media(
     document: &mut ProjectDocument,
     mode: &PackageMode,
@@ -281,6 +283,7 @@ pub(super) fn export_media(
     Ok(inventory)
 }
 
+#[cfg(test)]
 pub fn export_package(
     input: &ExportPackage,
     source: &PackageExportSource,
@@ -379,6 +382,13 @@ pub fn read_package(
     input: &ImportPackage,
     asset_store_root: &Path,
 ) -> Result<PreparedImport, EditorError> {
+    read_package_mode(input, asset_store_root, true)
+}
+pub(crate) fn read_package_mode(
+    input: &ImportPackage,
+    asset_store_root: &Path,
+    capture: bool,
+) -> Result<PreparedImport, EditorError> {
     let root = Path::new(&input.package_path);
     if !root.is_absolute()
         || fs::canonicalize(root).map_err(io)? != root
@@ -419,12 +429,24 @@ pub fn read_package(
     if document.id != manifest.source_project_id {
         return Err(invalid("Project identity differs from manifest"));
     }
-    capture_media(root, &manifest, &document, asset_store_root)?;
-    Ok(PreparedImport {
+    let prepared = PreparedImport {
         manifest_sha256,
         manifest,
         document,
-    })
+    };
+    opencut_editor_application::project_package::prepare_import(
+        &prepared,
+        &input.target_project_id,
+    )?;
+    capture_media_mode(
+        root,
+        &prepared.manifest,
+        &prepared.document,
+        asset_store_root,
+        &[],
+        capture,
+    )?;
+    Ok(prepared)
 }
 
 pub(super) fn capture_media(
@@ -443,10 +465,27 @@ pub(super) fn capture_media_with_plugins(
     asset_store_root: &Path,
     plugin_bundle_paths: &[String],
 ) -> Result<(), EditorError> {
+    capture_media_mode(
+        root,
+        manifest,
+        document,
+        asset_store_root,
+        plugin_bundle_paths,
+        true,
+    )
+}
+pub(crate) fn capture_media_mode(
+    root: &Path,
+    manifest: &PackageManifest,
+    document: &ProjectDocument,
+    asset_store_root: &Path,
+    plugin_bundle_paths: &[String],
+    capture: bool,
+) -> Result<(), EditorError> {
     let mut permitted = BTreeSet::from(["manifest.json".to_string(), "project.json".to_string()]);
     let mut seen = BTreeSet::new();
     validate_media_sizes(manifest.assets.iter().map(|asset| asset.size))?;
-    let store = AssetStore::open_managed(asset_store_root)?;
+    let mut captures = Vec::with_capacity(manifest.assets.len());
     for asset in &manifest.assets {
         if !seen.insert(asset.asset_id.clone())
             || !valid_hash(&asset.content_hash)
@@ -488,12 +527,7 @@ pub(super) fn capture_media_with_plugins(
             uri: source.to_string_lossy().into_owned(),
             ..original.clone()
         };
-        let captured = store.pin_asset(&capture)?;
-        if captured.version.as_ref().is_none_or(|version| {
-            version.content_hash != asset.content_hash || version.size != asset.size
-        }) {
-            return Err(invalid("CAS capture differs from package inventory"));
-        }
+        captures.push((capture, &asset.content_hash, asset.size));
     }
     if !plugin_bundle_paths.is_empty() {
         permitted.insert("plugins".to_string());
@@ -523,6 +557,20 @@ pub(super) fn capture_media_with_plugins(
             return Err(invalid("Unexpected package entry"));
         }
     }
+    if capture {
+        let store = AssetStore::open_managed(asset_store_root)?;
+        for (asset, hash, size) in captures {
+            let captured = store.pin_asset(&asset)?;
+            if captured
+                .version
+                .as_ref()
+                .is_none_or(|v| &v.content_hash != hash || v.size != size)
+            {
+                return Err(invalid("CAS capture differs from package inventory"));
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -637,9 +685,10 @@ mod tests {
                 destination: linked_package.to_string_lossy().into(),
                 mode: PackageMode::Linked,
             },
-            &source
-                .package_export_source("source", &bound.revision)
-                .unwrap(),
+            &PackageExportSource {
+                snapshot: source.snapshot_at("source", &bound.revision).unwrap(),
+                plugin_grants: vec![],
+            },
             source.asset_store_root(),
         )
         .unwrap();
@@ -659,9 +708,10 @@ mod tests {
                 destination: package.to_string_lossy().into(),
                 mode: PackageMode::SelfContained,
             },
-            &source
-                .package_export_source("source", &bound.revision)
-                .unwrap(),
+            &PackageExportSource {
+                snapshot: source.snapshot_at("source", &bound.revision).unwrap(),
+                plugin_grants: vec![],
+            },
             source.asset_store_root(),
         )
         .unwrap();
@@ -678,8 +728,16 @@ mod tests {
             idempotency_key: "import-once".into(),
         };
         let prepared = read_package(&request, imported.asset_store_root()).unwrap();
-        let receipt = imported.package_import_commit(&request, &prepared).unwrap();
-        let replay = imported.package_import_commit(&request, &prepared).unwrap();
+        let canonical: opencut_api_contracts::project_exchange::ImportPackage =
+            serde_json::from_value(serde_json::to_value(&request).unwrap()).unwrap();
+        let prepared =
+            opencut_editor_application::project_exchange::PreparedImport::Media(prepared);
+        let receipt = imported
+            .project_package_commit(&canonical, &prepared)
+            .unwrap();
+        let replay = imported
+            .project_package_commit(&canonical, &prepared)
+            .unwrap();
         assert_eq!(receipt.revision, replay.revision);
         let reopened = imported.snapshot("restored").unwrap();
         assert_eq!(reopened.revision, receipt.revision);
@@ -712,7 +770,10 @@ mod tests {
         };
         assert_eq!(
             imported
-                .package_import_commit(&conflicting, &prepared)
+                .project_package_commit(
+                    &serde_json::from_value(serde_json::to_value(&conflicting).unwrap()).unwrap(),
+                    &prepared
+                )
                 .unwrap_err()
                 .code,
             "IDEMPOTENCY_KEY_REUSED"

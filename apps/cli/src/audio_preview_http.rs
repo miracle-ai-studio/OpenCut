@@ -8,7 +8,7 @@ use axum::{
 };
 use opencut_automation::CallSource;
 use opencut_host_runtime::Automation;
-use opencut_host_runtime::audio_preview_contracts::AudioPreviewStreamV4 as StreamInput;
+use opencut_host_runtime::audio_preview_contracts::AudioPreviewStream as StreamInput;
 use opencut_host_runtime::transport_io::StreamRead;
 use std::time::{Duration, Instant};
 
@@ -35,11 +35,11 @@ pub(super) async fn stream(
             .with_source(CallSource::Http)
             .with_caller(caller);
         identity.check_lifetime()?;
-        app.audio_preview_stream(input)
+        app.audio_preview_stream(input).map(|stream| (stream, app))
     })
     .await;
-    let mut stream = match opened {
-        Ok(Ok(stream)) => stream,
+    let (mut stream, mut app) = match opened {
+        Ok(Ok(opened)) => opened,
         Ok(Err(error)) => return crate::http::error_response(&error.code, &error.message),
         Err(_) => {
             return crate::http::error_response("INTERNAL_ERROR", "Preview stream could not start");
@@ -47,17 +47,19 @@ pub(super) async fn stream(
     };
     let (sender, receiver) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(2);
     tokio::task::spawn_blocking(move || {
+        // Own the connection for this response, not its authorization result.
+        // Every checkpoint still reads the current credential/session policy.
+        let mut authorize = || {
+            host.identity.check_lifetime()?;
+            app.authorize_audio_preview(&session)
+        };
         let mut checked = Instant::now();
         loop {
             if sender.is_closed() {
                 break;
             }
             if checked.elapsed() >= Duration::from_secs(1) {
-                let allowed = Automation::open(host.database.as_ref()).and_then(|a| {
-                    a.with_source(CallSource::Http)
-                        .with_caller(host.identity.caller.clone())
-                        .authorize_audio_preview(&session)
-                });
+                let allowed = authorize();
                 if allowed.is_err() {
                     break;
                 }
@@ -74,11 +76,7 @@ pub(super) async fn stream(
                     break;
                 }
             };
-            let allowed = Automation::open(host.database.as_ref()).and_then(|a| {
-                a.with_source(CallSource::Http)
-                    .with_caller(host.identity.caller.clone())
-                    .authorize_audio_preview(&session)
-            });
+            let allowed = authorize();
             if allowed.is_err() {
                 break;
             }
@@ -95,11 +93,7 @@ pub(super) async fn stream(
                         if wait.elapsed() > Duration::from_secs(1) {
                             return;
                         }
-                        let allowed = Automation::open(host.database.as_ref()).and_then(|a| {
-                            a.with_source(CallSource::Http)
-                                .with_caller(host.identity.caller.clone())
-                                .authorize_audio_preview(&session)
-                        });
+                        let allowed = authorize();
                         if allowed.is_err() {
                             return;
                         }
@@ -118,7 +112,7 @@ pub(super) async fn stream(
         [
             (
                 header::CONTENT_TYPE,
-                "application/vnd.opencut.audio-preview-v4",
+                "application/vnd.opencut.audio-preview",
             ),
             (header::CACHE_CONTROL, "no-store"),
         ],

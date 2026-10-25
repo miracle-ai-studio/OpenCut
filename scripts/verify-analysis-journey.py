@@ -65,7 +65,7 @@ def verify(binary, root):
         return status, json.loads(data)
 
     def tool(name, payload, credential=runner, error=None):
-        status, response = request_http('POST', '/v1/tools/' + name, credential, json.dumps(payload).encode())
+        status, response = request_http('POST', '/api/tools/' + name, credential, json.dumps(payload).encode())
         trace.append({'tool': name, 'status': status, 'response': response})
         if error: assert status >= 400 and response['error']['code'] == error, (status, response)
         else: assert status == 200 and response['error'] is None, (status, response)
@@ -83,14 +83,14 @@ def verify(binary, root):
 
     def upload(path, key):
         content = path.read_bytes()
-        item = tool('opencut_upload_create', {'project_id':'analysis', 'idempotency_key':key,
+        item = tool('opencut_upload_begin', {'project_id':'analysis', 'idempotency_key':key,
             'name':path.name, 'size_bytes':str(len(content)), 'content_hash':hashlib.sha256(content).hexdigest()})
         for offset in range(0, len(content), 4 * 1024 * 1024):
             chunk = content[offset:offset + 4 * 1024 * 1024]
             query = urlencode({'size_bytes':str(len(chunk)), 'content_hash':hashlib.sha256(chunk).hexdigest()})
-            status, response = request_http('PUT', f"/v1/uploads/{item['upload_id']}/chunks/{offset}?{query}", runner, chunk)
+            status, response = request_http('PUT', f"/api/uploads/{item['upload_id']}/chunks/{offset}?{query}", runner, chunk)
             assert status == 200 and response['error'] is None, response
-        accepted = tool('opencut_upload_seal', {'upload_id':item['upload_id']})
+        accepted = tool('opencut_upload_complete', {'upload_id':item['upload_id'], 'content_hash':item['content_hash']})
         return wait(accepted['job_id'])['extended_result']['data']['asset']
 
     def stop():

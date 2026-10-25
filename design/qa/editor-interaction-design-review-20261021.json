@@ -1,0 +1,168 @@
+{
+  "evidence_id": "editor_interaction_design_review_20261021",
+  "date": "2026-10-21",
+  "status": "transition_frame_fixed_continuous_playback_open",
+  "whole_migration_complete": false,
+  "candidate": {
+    "source_head": "abd2c969b4b48067a85f7020d84b04fbb48a2d38",
+    "dirty_source": true,
+    "web_src_sha256": "e3295fccac6f32a7e75088724d37ab8fa9c2975945f32d53ffa6bdd269b0c42e",
+    "hash_method": "apps/web/src ordered relative path NUL sha256 NUL decimal size LF records",
+    "native_sha256": "ef3c768b84c2b4ab1a4b0e2b5f92b15687eafdede98f8bf585866a3945eac001",
+    "native_rebuilt": true,
+    "contracts_changed": false,
+    "visual_renderer_src_sha256": "1d97113858d54c01e316fd29bbdece653da27dbfe325da790684de5d423e4f43",
+    "native_binary": "/tmp/opencut-ui-review-20261021/runtime-resources/opencut",
+    "source_manifest": "/Users/vincent/Desktop/海南Vlog/10_预览与转场修复_20261021/source-manifest.json",
+    "test_only_after_binary": "upload-length regression now tests MAX_SOURCE_BYTES+1 instead of obsolete hardcoded16GiB; production source unchanged"
+  },
+  "scope": {
+    "qa_project_id": "hainan-workbench-qa-20261021",
+    "scene_id": "hainan-main",
+    "existing_qa_workspace_reused": true,
+    "main_project_untouched": true,
+    "qa_content_fully_restored": true,
+    "user_media_in_repo": false,
+    "native_jianying_operated": false,
+    "comparison_reference": "https://www.capcut.com/resource/capcut-tutorial-for-beginners",
+    "viewport": "1280x720"
+  },
+  "implemented": [
+    "Timeline default height 44 percent; compact tracks by default; 136px track labels; ruler24px; marker lane22px only when populated.",
+    "Consistent dark control appearance,30px fields/search,12px input text,11px labels,custom checkbox/range and Chromium customizable-select popup.",
+    "Visual shape cards; localized shape search; opening text/graphic authoring switches inspector to Properties.",
+    "Local panel navigation is a React-only UI context; no new domain,port,dependency,DTO or runtime boundary."
+  ],
+  "validation": {
+    "artifacts_directory": "/Users/vincent/Desktop/海南Vlog/10_预览与转场修复_20261021",
+    "composition_tests_passed": 87,
+    "submission_error_tests_passed": 7,
+    "cli_host_tests": "21 passed; see cli-host-tests.log",
+    "preview_tests_passed": 36,
+    "decoder_tests_passed": 5,
+    "tsc_vite": "passed",
+    "architecture": "14 tests;22 modules;0 exceptions",
+    "contract_boundaries": "passed",
+    "canonical_and_generated_contract": "passed against final ef3c768b binary;183 tools,12 domains",
+    "web_boundary_files": 247,
+    "main_and_qa": {
+      "hainan-workbench-qa-20261021": {
+        "revision": "rev_7ca7cb542a85cd2a0dc59e7550ea9912e43166ba6efd550991a1b7f50dea8424",
+        "content_equal_baseline": true
+      },
+      "hainan-vlog-workbench-20261021": {
+        "revision": "rev_1c5f2d6db5632846516c3233956e04e719659ebfb97f780429dd1ad111f6eace"
+      }
+    },
+    "media_jobs": "5 independent oracle PNGs plus1 original historical regression PNG; no full42s reexport",
+    "whole_rust_workspace": "not rerun",
+    "physical_audio": "not accepted"
+  },
+  "observations": {
+    "baseline_static_frame": "passed at2s; current native frame job succeeded",
+    "transition_data": "0.5s crossfade persisted; undo and redo worked",
+    "transition_static_frame": "Fixed: original failed historical revision rev_382daca1d4d53c1cb34912a6c1e9490529e8b93480e989cb76b6661ddcdf7934 at6s now succeeds as job_bb2f593cebd7428f81f816d735258bf5; completed job visible in actual UI. No new project revision needed.",
+    "continuous_playback": "Still open on final foreground candidate: at20.82s player waited for synchronized frame. Recorded late frames: warm decode1.5ms but sample-to-complete192.6ms; ranged examples15/20/57 reads,0.98/1.31/3.74MB,270.5/393.6/1190.3 cumulative read ms. Totals480.6/501.6/896.6ms exceed unchanged150ms native and125ms presentation limits. Read duration sums can overlap and are not wall-clock totals.",
+    "cc0_audio": "click1 acquired and placed on new audio track at3s; then undone",
+    "srt": "two cues imported as editable text at1-2.5s and3-4.5s; UI export reported2 captions",
+    "shape_text_effect": "star,Chinese text,and blur effect layer persisted; composition pixel result not independently accepted for these edits",
+    "crossfade_oracle": {
+      "project": "crossfade-oracle-20261021",
+      "frames": 5,
+      "expected_rgb": [
+        0,
+        64,
+        128,
+        191,
+        255
+      ],
+      "max_error": 0,
+      "tolerance": 1,
+      "source_candidate_native_sha256": "5258dfbfc88ad8af539979b7f70572ae9d84d68045e988604dffd99c5b8dc841",
+      "scope": "Actual64x64 black/white video frame outputs; composition implementation unchanged in final candidate; original1920x1080 failed frame rerun against final binary. No full transition video acceptance."
+    }
+  },
+  "open_limits": [
+    "Continuous composed video playback is not accepted.",
+    "Crossfade frame rendering is accepted for independent5-frame oracle and original6s regression. Full transition video export is not newly accepted.",
+    "ASR model is not configured on this service.",
+    "Text templates,caption presets,music library,and broad effects/transition catalogs are missing or limited.",
+    "Color pickers,file chooser,and source audio/video controls still use native browser/OS surfaces; customizable-select fallback on unsupported engines remains.",
+    "Direct pointer drag,marquee,trim-handle and automation-point gestures were covered by existing component tests,not fresh physical pointer automation.",
+    "Masks,blend modes,all per-element animation parameters,ASS variants,all catalog entries,and full42-second export were not exhaustively rerun.",
+    "Native Jianying could not be operated in this browser-only tool session."
+  ],
+  "artifacts_directory": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021",
+  "screenshots": {
+    "media": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/workbench-media-after.jpg",
+    "shapes": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/workbench-shapes-after.jpg",
+    "marker": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/marker-lane.jpg",
+    "custom_select": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/custom-select-after.jpg",
+    "playback_failure": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/playback-current.jpg",
+    "transition_failure": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/transition-frame-failure.jpg"
+  },
+  "prior_ui_candidate": {
+    "source_head": "abd2c969b4b48067a85f7020d84b04fbb48a2d38",
+    "dirty_source": true,
+    "web_src_sha256": "10ca0a8a0792670a9662ae1619562f8dfc5266580fbd21d8cedddbdd1cbc18c6",
+    "hash_method": "apps/web/src ordered relative path NUL sha256 NUL decimal size LF records",
+    "native_sha256": "84ac53f1191fb0a66780809dc071e7d82ad4307f85514b285ffe9d591bd06bec",
+    "native_rebuilt": false,
+    "contracts_changed": false
+  },
+  "followup_implementation": [
+    "Lower validated crossfade weights into incoming layer opacity before generic media preparation; retain original scene graph and read handles.",
+    "Task submission errors distinguish unsupported renderer features and pre-acceptance failures without pointing at nonexistent diagnostics.",
+    "Host owns up to8 idle Automation connections; caller/source replaced on checkout and every operation retains live authorization. PCM stream owns its connection and still checks each chunk/backpressure checkpoint.",
+    "Local owner range requests avoid a redundant policy-only connection; delegated readers retain policy checks before and after reads. No permission result is cached.",
+    "Keep bounded decoder on stale-picture rejection; discard on authority failure. Empty text/graphic phases share one authorized native binding.",
+    "Video ranges have exact session/generation/overlay/owner/lease lifetime, separate from a frame startup deadline. Decoder skips missed intermediate canvases after0.5s; range prefetch retains existing2-worker/byte-budget bounds.",
+    "Record read/decode/bind/compose timings; continuous playback remains unaccepted."
+  ],
+  "followup_validation": {
+    "artifacts_directory": "/Users/vincent/Desktop/海南Vlog/10_预览与转场修复_20261021",
+    "composition_tests_passed": 87,
+    "submission_error_tests_passed": 7,
+    "cli_host_tests": "21 passed; see cli-host-tests.log",
+    "preview_tests_passed": 36,
+    "decoder_tests_passed": 5,
+    "tsc_vite": "passed",
+    "architecture": "14 tests;22 modules;0 exceptions",
+    "contract_boundaries": "passed",
+    "canonical_and_generated_contract": "passed against final ef3c768b binary;183 tools,12 domains",
+    "web_boundary_files": 247,
+    "main_and_qa": {
+      "hainan-workbench-qa-20261021": {
+        "revision": "rev_7ca7cb542a85cd2a0dc59e7550ea9912e43166ba6efd550991a1b7f50dea8424",
+        "content_equal_baseline": true
+      },
+      "hainan-vlog-workbench-20261021": {
+        "revision": "rev_1c5f2d6db5632846516c3233956e04e719659ebfb97f780429dd1ad111f6eace"
+      }
+    },
+    "media_jobs": "5 independent oracle PNGs plus1 original historical regression PNG; no full42s reexport",
+    "whole_rust_workspace": "not rerun",
+    "physical_audio": "not accepted"
+  },
+  "followup_artifacts_directory": "/Users/vincent/Desktop/海南Vlog/10_预览与转场修复_20261021",
+  "prior_ui_validation": {
+    "data_checks": 20,
+    "data_report": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/data-verification.json",
+    "interaction_tests": {
+      "files": 13,
+      "passed": 90,
+      "report": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/interaction-tests.log"
+    },
+    "graphic_tests": {
+      "passed": 10,
+      "report": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/final-graphic-tests.log"
+    },
+    "catalog_and_text_followup": "Three other test files passed in followup-tests.log; its only failed Chinese-label test was repaired and all10 graphic tests passed in final-graphic-tests.log.",
+    "tsc_vite_build": "passed",
+    "build_report": "/Users/vincent/Desktop/海南Vlog/09_交互与布局走查_20261021/final-web-build.log",
+    "web_boundary_files": 247,
+    "web_boundaries": "passed",
+    "diff_whitespace": "passed",
+    "rust_rebuild_or_full_workspace_tests": "not run; frontend-only changes"
+  }
+}

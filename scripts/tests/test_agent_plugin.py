@@ -25,11 +25,13 @@ class AgentPluginTests(unittest.TestCase):
             for client in ('codex', 'claude'):
                 plugin = output / client / 'plugins/opencut'
                 self.assertTrue((plugin / f'.{client}-plugin/plugin.json').is_file())
+                manifest = json.loads((plugin / f'.{client}-plugin/plugin.json').read_text())
+                self.assertEqual(manifest['version'], receipt['version'])
                 servers.append(json.loads((plugin / '.mcp.json').read_text())['mcpServers']['opencut'])
                 skills.append((plugin / 'skills/edit/SKILL.md').read_text())
             self.assertEqual(servers[0], servers[1])
             self.assertEqual(skills[0], skills[1])
-            self.assertEqual(servers[0]['args'], ['--database', str(database.resolve()), 'mcp', 'serve', '--with-worker'])
+            self.assertEqual(servers[0]['args'], ['--database', str(database.resolve()), 'mcp', 'serve', '--service-directory', str((Path.home() / '.opencut/server').resolve())])
             self.assertEqual(servers[0]['command'], str(binary.resolve()))
             for relative, digest in receipt['files'].items():
                 self.assertEqual(hashlib.sha256((output / relative).read_bytes()).hexdigest(), digest)
@@ -52,6 +54,27 @@ class AgentPluginTests(unittest.TestCase):
                     self.assertNotIn('SECRET FIXTURE', path.read_text())
                     if path.suffix in ('.json', '.toml'):
                         self.assertNotIn('--with-worker', path.read_text())
+
+    def test_explicit_portable_mode_and_service_binding_are_distinct(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary = root / 'opencut'; binary.touch(); binary.chmod(0o700)
+            service = (root / 'server with spaces').resolve()
+            report = PLUGIN.generate(binary, root / 'db', root / 'bound', service_directory=service)
+            self.assertFalse(service.exists())
+            self.assertEqual(report['service_directory'], str(service))
+            server = json.loads((root / 'bound/configs/mcp-server.json').read_text())
+            self.assertEqual(server['args'][-2:], ['--service-directory', str(service)])
+            portable = PLUGIN.generate(binary, root / 'db', root / 'portable', with_worker=True)
+            self.assertTrue(portable['managed_worker'])
+            self.assertIsNone(portable['service_directory'])
+            credential = root / 'credential'; credential.write_text('not copied')
+            with self.assertRaisesRegex(ValueError, 'local-owner'):
+                PLUGIN.generate(binary, root / 'db', root / 'invalid', credential, with_worker=True)
+            with self.assertRaisesRegex(ValueError, 'Choose'):
+                PLUGIN.generate(binary, root / 'db', root / 'invalid2', with_worker=True, service_directory=service)
+            self.assertFalse((root / 'invalid').exists())
+            self.assertFalse((root / 'invalid2').exists())
 
     def test_bad_binary_and_interpolated_paths_leave_no_package(self):
         with tempfile.TemporaryDirectory() as temporary:

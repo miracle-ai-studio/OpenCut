@@ -1,7 +1,7 @@
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV5ToV6({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;
@@ -11,7 +11,7 @@ export function transformProjectV5ToV6({
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV6Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v6" };
 	}
 
@@ -82,7 +82,7 @@ function migrateSceneBookmarks({ scene }: { scene: unknown }): unknown {
 	};
 }
 
-function isV6Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	const versionValue = project.version;
 	return typeof versionValue === "number" && versionValue >= 6;
 }

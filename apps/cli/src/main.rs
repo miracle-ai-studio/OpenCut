@@ -1,6 +1,7 @@
 mod access;
 mod audio_preview_http;
 mod blocking_owned;
+mod connection;
 mod denials;
 mod event_streams;
 mod http;
@@ -43,7 +44,7 @@ struct Cli {
     /// Use a restricted principal credential; default local invocation is OS-owner authority.
     #[arg(long, global = true)]
     credential_file: Option<PathBuf>,
-    /// Send call/domain requests to a long-lived HTTP host; --credential-file supplies its bearer token.
+    /// Send business commands to a long-lived HTTP host; --credential-file supplies its bearer token.
     #[arg(long, global = true)]
     endpoint: Option<String>,
     /// Emit a single JSON envelope. Progress and diagnostics never use stdout.
@@ -121,8 +122,6 @@ enum Command {
         command: EditCommand,
     },
     Events {
-        #[arg(long, default_value_t = 0)]
-        after: i64,
         #[arg(long, default_value_t = 100)]
         limit: usize,
         #[arg(long)]
@@ -153,7 +152,7 @@ enum Command {
 enum SystemCommand {
     Capabilities,
     Schema,
-    /// Compact action catalog; add --domain for one domain and --schemas for exact contracts.
+    /// Complete action catalog; add --domain for one domain and --schemas for exact contracts.
     Domains {
         #[arg(long)]
         domain: Option<String>,
@@ -162,7 +161,7 @@ enum SystemCommand {
     },
     /// JSON Schema for versioned CLI NDJSON records.
     EventsSchema,
-    /// Shared request and frame-header schemas for the V4 binary audio stream.
+    /// Shared request and frame-header schemas for the binary audio stream.
     AudioPreviewSchema,
 }
 
@@ -197,8 +196,6 @@ enum JobCommand {
         job_id: String,
     },
     Events {
-        #[arg(long, default_value_t = 0)]
-        after_sequence: i64,
         #[arg(long, default_value_t = 100)]
         limit: usize,
         #[arg(long)]
@@ -222,6 +219,8 @@ enum PluginCommand {
     Inspect {
         id: String,
         version: String,
+        #[arg(long,value_parser=["wasm","presets"])]
+        kind: String,
     },
     Install {
         #[arg(long)]
@@ -257,7 +256,12 @@ enum ProjectCommand {
         #[arg(long)]
         idempotency_key: String,
     },
-    List,
+    List {
+        #[arg(long)]
+        cursor: Option<String>,
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
+    },
     Inspect {
         project_id: String,
     },
@@ -285,6 +289,9 @@ enum McpCommand {
         /// Run a local durable Worker with this stdio host (owner only).
         #[arg(long)]
         with_worker: bool,
+        /// Bind this stdio connection to the same workspace and executable as an existing independent service.
+        #[arg(long, conflicts_with = "with_worker")]
+        service_directory: Option<PathBuf>,
         #[arg(long, default_value = "stdio", value_parser = ["stdio","streamable-http"])]
         transport: String,
         #[arg(long)]
@@ -339,7 +346,7 @@ async fn main() {
         }
     };
     if let Some(endpoint) = &cli.endpoint {
-        emit_response(remote_call(&cli, endpoint), cli.json);
+        emit_response(remote_call(&cli, endpoint).await, cli.json);
         return;
     }
     if let Command::Server { directory, command } = &cli.command {
@@ -368,6 +375,28 @@ async fn main() {
             cli.json,
         );
         return;
+    }
+    if let Command::Mcp {
+        command:
+            McpCommand::Serve {
+                service_directory: Some(directory),
+                transport,
+                ..
+            },
+    } = &cli.command
+    {
+        let ready = if transport == "stdio" {
+            server::require_ready(&cli.database, directory)
+        } else {
+            Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "--service-directory attaches stdio to an existing service; it cannot start an HTTP host",
+            ))
+        };
+        if let Err(error) = ready {
+            eprintln!("{}: {}", error.code, error.message);
+            std::process::exit(exit_code(&error));
+        }
     }
     let caller = match access::caller(&cli.database, cli.credential_file.as_deref()) {
         Ok(caller) => caller,
@@ -407,55 +436,17 @@ async fn main() {
         );
         std::process::exit(3);
     }
-    let stream = match &cli.command {
-        Command::Events {
-            after,
+    if let Some((scope, limit, options)) = stream_request(&cli.command) {
+        observe_events(
+            connection::Connection::Local {
+                database: cli.database.clone(),
+                caller: caller.clone(),
+            },
+            scope,
             limit,
-            project_id,
-            stream,
-        } if stream.format.is_some() => Some((
-            opencut_automation::event_stream::EventScope::Projects {
-                project_id: project_id.clone(),
-            },
-            *after,
-            *limit,
-            stream.clone(),
-        )),
-        Command::Job {
-            command:
-                JobCommand::Events {
-                    after_sequence,
-                    limit,
-                    job_id,
-                    stream,
-                },
-        } if stream.format.is_some() => Some((
-            opencut_automation::event_stream::EventScope::Jobs {
-                job_id: job_id.clone(),
-            },
-            *after_sequence,
-            *limit,
-            stream.clone(),
-        )),
-        _ => None,
-    };
-    if let Some((scope, after, limit, options)) = stream {
-        let timeout = options.timeout_seconds;
-        let deadline = async move {
-            if let Some(seconds) = timeout {
-                tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
-            } else {
-                std::future::pending::<()>().await;
-            }
-        };
-        let code = tokio::select! {
-            result=event_streams::run(cli.database.clone(),caller.clone(),scope,after,limit,options)=>result,
-            _=tokio::signal::ctrl_c()=>{eprintln!("Event observation interrupted; durable jobs were not cancelled");130},
-            _=deadline=>{eprintln!("Event observation timed out; resume from the last fully processed cursor");124},
-        };
-        // Exit also stops an output write blocked by an unread pipe. Do not wait
-        // for Tokio's stdout blocking task or synthesize a line into that pipe.
-        std::process::exit(code);
+            options,
+        )
+        .await;
     }
     if let Command::Worker {
         command: WorkerCommand::Run { once },
@@ -515,6 +506,7 @@ async fn main() {
         command:
             McpCommand::Serve {
                 with_worker,
+                service_directory: _,
                 transport,
                 listen,
                 token_file,
@@ -580,11 +572,13 @@ async fn main() {
     } = &cli.command
     {
         job_wait::run(
-            &cli.database,
+            connection::Connection::Local {
+                database: cli.database.clone(),
+                caller: caller.clone(),
+            },
             job_id,
             *timeout_seconds,
             *cancel_on_interrupt,
-            caller.clone(),
         )
         .await
     } else {
@@ -634,6 +628,65 @@ fn emit_response(response: Response, json: bool) {
     }
 }
 
+fn stream_request(
+    command: &Command,
+) -> Option<(
+    opencut_automation::event_stream::EventScope,
+    usize,
+    event_streams::Options,
+)> {
+    match command {
+        Command::Events {
+            limit,
+            project_id,
+            stream,
+        } if stream.format.is_some() => Some((
+            opencut_automation::event_stream::EventScope::Projects {
+                project_id: project_id.clone(),
+            },
+            *limit,
+            stream.clone(),
+        )),
+        Command::Job {
+            command:
+                JobCommand::Events {
+                    limit,
+                    job_id,
+                    stream,
+                },
+        } if stream.format.is_some() => Some((
+            opencut_automation::event_stream::EventScope::Jobs {
+                job_id: job_id.clone(),
+            },
+            *limit,
+            stream.clone(),
+        )),
+        _ => None,
+    }
+}
+
+async fn observe_events(
+    source: connection::Connection,
+    scope: opencut_automation::event_stream::EventScope,
+    limit: usize,
+    options: event_streams::Options,
+) {
+    let timeout = options.timeout_seconds;
+    let deadline = async move {
+        if let Some(seconds) = timeout {
+            tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
+        } else {
+            std::future::pending::<()>().await;
+        }
+    };
+    let code = tokio::select! {
+        result=event_streams::run(source,scope,limit,options)=>result,
+        _=tokio::signal::ctrl_c()=>{eprintln!("Event observation interrupted; durable jobs were not cancelled");130},
+        _=deadline=>{eprintln!("Event observation timed out; resume from the last fully processed cursor");124},
+    };
+    std::process::exit(code);
+}
+
 fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, EditorError> {
     if let Command::Upload { command } = &cli.command {
         return upload_cli::execute(&cli.database, caller, command);
@@ -671,76 +724,43 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
         }
         _ => {}
     }
-    let (name, arguments) = match &cli.command {
+    let (name, arguments) = command_request(&cli.command)?;
+    let mut automation = Automation::open(&cli.database)?
+        .with_source(opencut_automation::CallSource::Cli)
+        .with_caller(caller);
+    Ok(automation.call(&name, arguments))
+}
+
+fn command_request(command: &Command) -> Result<(String, Value), EditorError> {
+    let (name, arguments) = match command {
         Command::Render { command } => match command {
             RenderCommand::Preflight { input } => ("opencut_render_preflight", read_json(input)?),
         },
         Command::Plugin { command } => match command {
             PluginCommand::List => ("opencut_plugin_list", json!({})),
-            PluginCommand::Inspect { id, version } => {
-                ("opencut_plugin_inspect", json!({"id":id,"version":version}))
-            }
+            PluginCommand::Inspect { id, version, kind } => (
+                "opencut_plugin_inspect",
+                json!({"kind":kind,"id":id,"version":version}),
+            ),
             PluginCommand::Install { input } => ("opencut_plugin_install", read_json(input)?),
-            PluginCommand::Plan { input } => ("opencut_plugin_plan", read_json(input)?),
+            PluginCommand::Plan { input } => ("opencut_project_plugin_plan", read_json(input)?),
         },
         Command::Job { command } => match command {
-            JobCommand::Start { input } => (
-                if caller.is_owner() {
-                    "opencut_job_start"
-                } else {
-                    "opencut_job_submit"
-                },
-                read_json(input)?,
-            ),
-            JobCommand::Get { job_id } => (
-                if caller.is_owner() {
-                    "opencut_job_get"
-                } else {
-                    "opencut_job_view"
-                },
-                json!({"job_id":job_id}),
-            ),
+            JobCommand::Start { input } => ("opencut_job_submit", read_json(input)?),
+            JobCommand::Get { job_id } => ("opencut_job_view", json!({"job_id":job_id})),
             JobCommand::Wait { .. } => unreachable!("wait handled before ordinary dispatch"),
-            JobCommand::List => (
-                if caller.is_owner() {
-                    "opencut_job_list"
-                } else {
-                    "opencut_job_query"
-                },
-                json!({}),
-            ),
-            JobCommand::Cancel { job_id } => (
-                if caller.is_owner() {
-                    "opencut_job_cancel"
-                } else {
-                    "opencut_job_request_cancel"
-                },
-                json!({"job_id":job_id}),
-            ),
+            JobCommand::List => ("opencut_job_query", json!({})),
+            JobCommand::Cancel { job_id } => {
+                ("opencut_job_request_cancel", json!({"job_id":job_id}))
+            }
             JobCommand::Events {
-                after_sequence,
                 limit,
                 job_id,
-                ..
-            } => {
-                if caller.is_owner() {
-                    (
-                        "opencut_job_events",
-                        json!({"after_sequence":after_sequence,"limit":limit,"job_id":job_id}),
-                    )
-                } else {
-                    if *after_sequence != 0 {
-                        return Err(EditorError::new(
-                            "INVALID_ARGUMENT",
-                            "Restricted task observation uses opencut_job_changes cursors or --format ndjson",
-                        ));
-                    }
-                    (
-                        "opencut_job_changes",
-                        json!({"limit":limit,"job_id":job_id}),
-                    )
-                }
-            }
+                stream,
+            } => (
+                "opencut_job_changes",
+                json!({"cursor":stream.cursor,"limit":limit,"job_id":job_id}),
+            ),
         },
         Command::Project { command } => match command {
             ProjectCommand::History {
@@ -755,12 +775,12 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
                 project_id,
                 revision,
             } => (
-                "opencut_revision_inspect",
+                "opencut_project_inspect",
                 json!({"project_id":project_id,"revision":revision}),
             ),
             ProjectCommand::Restore { project_id, input } => (
-                "opencut_revision_restore",
-                json!({"project_id":project_id,"request":read_json(input)?}),
+                "opencut_project_restore",
+                scoped_project_input(&project_id, read_json(input)?)?,
             ),
             ProjectCommand::Create {
                 input,
@@ -769,7 +789,10 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
                 "opencut_project_create",
                 json!({"project":read_json(input)?, "idempotency_key":idempotency_key}),
             ),
-            ProjectCommand::List => ("opencut_project_list", json!({})),
+            ProjectCommand::List { cursor, limit } => (
+                "opencut_project_list",
+                json!({"cursor":cursor,"limit":limit}),
+            ),
             ProjectCommand::Inspect { project_id } => {
                 ("opencut_project_inspect", json!({"project_id":project_id}))
             }
@@ -777,30 +800,21 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
         Command::Edit { command } => match command {
             EditCommand::Plan { project, input } => (
                 "opencut_edit_plan",
-                json!({"project_id":project,"request":read_json(input)?}),
+                scoped_project_input(project, read_json(input)?)?,
             ),
             EditCommand::Apply { project, input } => (
                 "opencut_edit_apply",
-                json!({"project_id":project,"request":read_json(input)?}),
+                scoped_project_input(project, read_json(input)?)?,
             ),
         },
         Command::Events {
-            after,
             limit,
             project_id,
-            ..
-        } => {
-            if project_id.is_some() {
-                return Err(EditorError::new(
-                    "INVALID_ARGUMENT",
-                    "project-id filtering requires --format ndjson; use opencut_event_changes for paged JSON",
-                ));
-            }
-            (
-                "opencut_events_read",
-                json!({"after_sequence":after,"limit":limit}),
-            )
-        }
+            stream,
+        } => (
+            "opencut_event_changes",
+            json!({"scope":{"kind":"projects","project_id":project_id},"cursor":stream.cursor,"limit":limit}),
+        ),
         Command::Call { name, input } => (name.as_str(), read_json(input)?),
         Command::Domain {
             domain,
@@ -815,87 +829,115 @@ fn execute(cli: &Cli, caller: opencut_automation::Caller) -> Result<Response, Ed
                 ));
             }
             let arguments = json!({"action":action,"input":read_json(input)?});
-            let mut automation = Automation::open(&cli.database)?
-                .with_source(opencut_automation::CallSource::Cli)
-                .with_caller(caller);
-            return Ok(automation.call(&name, arguments));
+            return Ok((name, arguments));
         }
-        _ => unreachable!("non-editing entry points handled before database access"),
+        _ => {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "This command manages a local host; it cannot use --endpoint",
+            ));
+        }
     };
-    let mut automation = Automation::open(&cli.database)?
-        .with_source(opencut_automation::CallSource::Cli)
-        .with_caller(caller);
-    Ok(automation.call(name, arguments))
+    Ok((name.to_owned(), arguments))
 }
 
-fn remote_call(cli: &Cli, endpoint: &str) -> Response {
-    let prepared = (|| {
-        let (name, input) = match &cli.command {
-            Command::Call { name, input } => (name.clone(), read_json(input)?),
-            Command::Domain {
-                domain,
-                action,
-                input,
-            } => (
-                format!("opencut_{domain}"),
-                json!({"action":action,"input":read_json(input)?}),
-            ),
-            _ => {
-                return Err(EditorError::new(
-                    "INVALID_ARGUMENT",
-                    "--endpoint supports call and domain commands",
-                ));
-            }
-        };
-        let path = cli.credential_file.as_ref().ok_or_else(|| {
-            EditorError::new(
-                "INVALID_ARGUMENT",
-                "--endpoint requires --credential-file for the host bearer token",
-            )
-        })?;
-        if std::fs::metadata(path)
-            .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Could not read credential file"))?
-            .len()
-            > 16_384
-        {
-            return Err(EditorError::new(
-                "INVALID_ARGUMENT",
-                "Credential file is too large",
-            ));
-        }
-        let token = std::fs::read_to_string(path)
-            .map_err(|_| EditorError::new("INVALID_ARGUMENT", "Could not read credential file"))?;
-        if token.trim().is_empty() {
-            return Err(EditorError::new(
-                "INVALID_ARGUMENT",
-                "Credential file is empty",
-            ));
-        }
-        let client = opencut_sdk::Client::new(endpoint, token.trim())
-            .map_err(|e| EditorError::new("INVALID_ARGUMENT", e.to_string()))?;
-        Ok((client, name, input))
-    })();
-    let (client, name, input) = match prepared {
-        Ok(value) => value,
+async fn remote_call(cli: &Cli, endpoint: &str) -> Response {
+    let client = match connection::remote(endpoint, cli.credential_file.as_deref()) {
+        Ok(client) => client,
         Err(error) => return opencut_automation::response(Err(error)),
     };
-    match client.call_registered(&name, &input) {
-        Ok(result) => {
-            let mut response = Response::from_result_with_id(result.request_id, Ok(result.data));
-            response.warnings = result.warnings;
-            response
-        }
-        Err(opencut_sdk::Error::Api(failure)) => {
-            let mut response =
-                Response::from_result_with_id(failure.request_id, Err(failure.error));
-            response.warnings = failure.warnings;
-            response
-        }
-        Err(error) => opencut_automation::response(Err(EditorError::new(
-            "TRANSPORT_ERROR",
-            error.to_string(),
-        ))),
+    let source = connection::Connection::Remote(client.clone());
+    if let Some((scope, limit, options)) = stream_request(&cli.command) {
+        observe_events(source, scope, limit, options).await;
+        unreachable!("stream observation exits");
     }
+    if let Command::Job {
+        command:
+            JobCommand::Wait {
+                job_id,
+                timeout_seconds,
+                cancel_on_interrupt,
+            },
+    } = &cli.command
+    {
+        return match job_wait::run(source, job_id, *timeout_seconds, *cancel_on_interrupt).await {
+            Ok(response) => response,
+            Err(error) => opencut_automation::response(Err(error)),
+        };
+    }
+    if let Command::Upload { command } = &cli.command {
+        return upload_cli::execute_remote(&client, command)
+            .unwrap_or_else(|e| opencut_automation::response(Err(e)));
+    }
+    if let Command::System { command } = &cli.command {
+        return remote_system(&source, &client, command)
+            .unwrap_or_else(|e| opencut_automation::response(Err(e)));
+    }
+    match command_request(&cli.command) {
+        Ok((name, input)) => source.call(&name, input),
+        Err(error) => opencut_automation::response(Err(error)),
+    }
+}
+
+fn remote_system(
+    source: &connection::Connection,
+    client: &opencut_sdk::Client,
+    command: &SystemCommand,
+) -> Result<Response, EditorError> {
+    use opencut_automation::context::{ResourcePayload, ResourceView};
+    let resource = |uri: &str| -> Result<ResourcePayload, EditorError> {
+        let view: ResourceView = source.data("opencut_resource_read", json!({"uri":uri}))?;
+        Ok(view.payload)
+    };
+    let mismatch = || {
+        EditorError::new(
+            "INVALID_RESPONSE",
+            "Host returned a different discovery resource",
+        )
+    };
+    let data = match command {
+        SystemCommand::Capabilities => return Ok(source.call("opencut_capabilities", json!({}))),
+        SystemCommand::Schema => return Ok(connection::response(client.operation_schemas())),
+        SystemCommand::EventsSchema => match resource("opencut://schemas/event-stream")? {
+            ResourcePayload::EventSchema(schema) => schema,
+            _ => return Err(mismatch()),
+        },
+        SystemCommand::AudioPreviewSchema => {
+            return Err(EditorError::new(
+                "INVALID_ARGUMENT",
+                "Audio stream schema discovery is local; use the connected host render domain for preview operations",
+            ));
+        }
+        SystemCommand::Domains { domain, schemas } => {
+            let mut result = match client.domain_catalog(domain.as_deref()) {
+                Ok(result) => result,
+                Err(error) => return Ok(connection::response::<Value>(Err(error))),
+            };
+            if *schemas && domain.is_none() {
+                let mut complete = Vec::new();
+                for descriptor in &result.data {
+                    match client.domain_catalog(Some(&descriptor.domain)) {
+                        Ok(mut detail) => {
+                            complete.append(&mut detail.data);
+                            result.warnings.append(&mut detail.warnings);
+                        }
+                        Err(error) => return Ok(connection::response::<Value>(Err(error))),
+                    }
+                }
+                result.data = complete;
+            }
+            if !schemas {
+                for d in &mut result.data {
+                    for a in &mut d.actions {
+                        a.input_schema = None;
+                        a.output_schema = None;
+                    }
+                }
+            }
+            return Ok(connection::response(Ok(result)));
+        }
+    };
+    Ok(opencut_automation::response(Ok(data)))
 }
 
 fn read_json(path: &PathBuf) -> Result<Value, EditorError> {
@@ -915,4 +957,21 @@ fn read_json(path: &PathBuf) -> Result<Value, EditorError> {
         return Err(EditorError::new("INVALID_ARGUMENT", "Input exceeds 2 MiB"));
     }
     serde_json::from_slice(&bytes).map_err(|e| EditorError::new("INVALID_ARGUMENT", e.to_string()))
+}
+
+fn scoped_project_input(project: &str, mut input: Value) -> Result<Value, EditorError> {
+    let body = input.as_object_mut().ok_or_else(|| {
+        EditorError::new("INVALID_ARGUMENT", "Project input must be a JSON object")
+    })?;
+    if body
+        .get("project_id")
+        .is_some_and(|id| id.as_str() != Some(project))
+    {
+        return Err(EditorError::new(
+            "INVALID_ARGUMENT",
+            "Input project_id differs from the bound project",
+        ));
+    }
+    body.insert("project_id".into(), Value::String(project.to_owned()));
+    Ok(input)
 }

@@ -84,6 +84,7 @@ pub(super) fn file_hash(
     file: &mut File,
     expected: u64,
     cancel: &CancellationToken,
+    mut progress: impl FnMut() -> Result<(), EditorError>,
 ) -> Result<String, EditorError> {
     if file.metadata().map_err(io_error)?.len() != expected {
         return Err(error(
@@ -108,6 +109,7 @@ pub(super) fn file_hash(
         }
         observed += count as u64;
         digest.update(&buffer[..count]);
+        progress()?;
     }
     if file.metadata().map_err(io_error)?.len() != expected {
         return Err(error(

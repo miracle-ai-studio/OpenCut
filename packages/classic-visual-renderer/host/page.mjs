@@ -7,7 +7,7 @@ export async function observeVisualPage() {
 export async function executeVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
     const receipt=await globalThis.__opencutVisualModule.renderClassicFrame(plan,host,globalThis.__opencutVisualGpu);
@@ -21,76 +21,76 @@ export async function executeVisualPage({plan,admission}) {
 export async function executeTextVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const receipt=await globalThis.__opencutVisualModule.renderClassicTextFrameV2(plan,host,globalThis.__opencutVisualGpu);
+    const receipt=await globalThis.__opencutVisualModule.renderClassicTextFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}
 }
 
 // Separate serializable V3 entry; all byte reads and RGBA transport are shared.
-export async function executeCaptionVisualPageV3({plan,admission}) {
+export async function executeCaptionVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const {renderClassicCaptionFrameV3}=await import("/renderer/src/text-frame-v3.mjs");
-    const receipt=await renderClassicCaptionFrameV3(plan,host,globalThis.__opencutVisualGpu);
+    const {renderClassicCaptionFrame}=await import("/renderer/src/caption-frame.mjs");
+    const receipt=await renderClassicCaptionFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}
 }
 
-export async function executeGraphicVisualPageV1({plan,admission}) {
+export async function executeGraphicVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const {renderClassicGraphicFrameV1}=await import("/renderer/src/graphic-frame-v1.mjs");
-    const receipt=await renderClassicGraphicFrameV1(plan,host,globalThis.__opencutVisualGpu);
+    const {renderClassicGraphicFrame}=await import("/renderer/src/graphic-frame.mjs");
+    const receipt=await renderClassicGraphicFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}
 }
 
-export async function executeBlendVisualPageV1({plan,admission}) {
+export async function executeBlendVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const {renderClassicBlendFrameV1}=await import("/renderer/src/blend-frame-v1.mjs");
-    const receipt=await renderClassicBlendFrameV1(plan,host,globalThis.__opencutVisualGpu);
+    const {renderClassicBlendFrame}=await import("/renderer/src/blend-frame.mjs");
+    const receipt=await renderClassicBlendFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}
 }
 
-export async function executeMaskVisualPageV1({plan,admission}) {
+export async function executeMaskVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const {renderClassicMaskFrameV1}=await import("/renderer/src/mask-frame-v1.mjs");
-    const receipt=await renderClassicMaskFrameV1(plan,host,globalThis.__opencutVisualGpu);
+    const {renderClassicMaskFrame}=await import("/renderer/src/mask-frame.mjs");
+    const receipt=await renderClassicMaskFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}
 }
 
-export async function executeSceneVisualPageV1({plan,admission}) {
+export async function executeSceneVisualPage({plan,admission}) {
   try {
     const host={admission,callback:(op,args)=>globalThis.__opencutVisualCallback(op,args),rgba:async(offset,bytes)=>{
-      let hex="";for(const byte of bytes)hex+=byte.toString(16).padStart(2,"0");
+      const hex=globalThis.__opencutVisualModule.encodeRgbaHex(bytes);
       await globalThis.__opencutVisualRgba({offsetBytes:String(offset),bytesHex:hex});
     }};
-    const {renderClassicSceneFrameV1}=await import("/renderer/src/scene-frame-v1.mjs");
-    const receipt=await renderClassicSceneFrameV1(plan,host,globalThis.__opencutVisualGpu);
+    const {renderClassicSceneFrame}=await import("/renderer/src/scene-frame.mjs");
+    const receipt=await renderClassicSceneFrame(plan,host,globalThis.__opencutVisualGpu);
     return {ok:true,receipt};
   } catch(error) {return {ok:false,error:{code:error.code??"VISUAL_BROWSER_EXECUTION_FAILED"}};}
   finally {if(globalThis.__opencutVisualGpu)globalThis.__opencutVisualModule.closeGpuRealm(globalThis.__opencutVisualGpu);}

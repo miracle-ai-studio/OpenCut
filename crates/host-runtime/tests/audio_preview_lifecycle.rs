@@ -5,12 +5,12 @@
 
 use opencut_asset_store::{AssetStore, gate::Gate};
 use opencut_contracts::{
-    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, project_v4::*,
-    project_v4_ops::*,
+    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, scene::*,
+    scene_ops::*,
 };
 use opencut_editor_application::access::{PrincipalPolicy, ProjectAction, ProjectGrant};
 use opencut_host_runtime::{
-    Automation, CallSource, audio_preview_contracts::*, audio_preview_v4::AudioPreviewStream,
+    Automation, CallSource, audio_preview::AudioPreviewReader, audio_preview_contracts::*,
     transport_io::StreamRead,
 };
 use opencut_sqlite_store::EditorApplication;
@@ -154,8 +154,8 @@ struct Fixture {
     owner: EditorApplication,
     host: Automation,
     credential: String,
-    session: AudioPreviewSessionV4,
-    stream: Option<AudioPreviewStream>,
+    session: AudioPreviewSession,
+    stream: Option<AudioPreviewReader>,
     processes: Vec<Process>,
     created_at: Instant,
 }
@@ -167,7 +167,7 @@ impl Fixture {
         let database = directory.path().join("workspace.sqlite");
         let mut owner = EditorApplication::open(&database).unwrap();
         let initial = owner
-            .create_v4_project(&CreateV4Project {
+            .create_scene_project(&CreateProjectRequest {
                 project: CreateProject {
                     id: "lifecycle".into(),
                     name: "Synthetic lifecycle".into(),
@@ -197,22 +197,22 @@ impl Fixture {
                 metadata: BTreeMap::new(),
             })
             .unwrap();
-        let asset = AssetV4 {
+        let asset = ProjectAsset {
             id: "source".into(),
             name: "Synthetic Float WAV".into(),
             kind: AssetKind::Audio,
             version: pinned.version.unwrap(),
             duration: Some(time(4)),
-            origin: ResourceOriginV4::LegacyLocator {
+            origin: ResourceOrigin::LegacyLocator {
                 uri: "synthetic.wav".into(),
             },
-            metadata: MediaMetadataV4 {
+            metadata: ProjectMediaMetadata {
                 mime_type: Some("audio/wav".into()),
                 intrinsic_size: None,
                 frame_rate: None,
                 rotation_degrees: None,
-                audio: AudioPresenceV4::Present {
-                    metadata: Some(AudioMetadataV4 {
+                audio: AudioPresence::Present {
+                    metadata: Some(AudioMetadata {
                         sample_rate: 48_000,
                         channels: 1,
                         channel_layout: None,
@@ -221,17 +221,17 @@ impl Fixture {
             },
             license: None,
         };
-        let track = TrackV4 {
+        let track = SceneTrack {
             id: "sound".into(),
             name: "Sound".into(),
-            kind: TrackKindV4::Audio,
+            kind: SceneTrackKind::Audio,
             enabled: true,
             muted: false,
             locked: false,
             opacity: 1.0,
-            gain: GainV4::Decibels { value: 0.0 },
+            gain: Gain::Decibels { value: 0.0 },
             channels: vec![],
-            elements: vec![TimelineElementV4 {
+            elements: vec![TimelineElement {
                 id: "voice".into(),
                 name: "Voice".into(),
                 enabled: true,
@@ -239,25 +239,25 @@ impl Fixture {
                     start: time(0),
                     duration: time(4),
                 },
-                source_span: ElementSourceSpanV4::ClassicTrimmed {
+                source_span: ElementSourceSpan::ClassicTrimmed {
                     trim_start: time(0),
                     trim_end: time(0),
                     source_duration: Some(time(4)),
                 },
-                content: ElementContentV4::Audio {
+                content: ElementContent::Audio {
                     asset_id: "source".into(),
-                    audio: AudioStyleV4 {
+                    audio: AudioStyle {
                         stream: None,
-                        gain: GainV4::Decibels { value: 0.0 },
+                        gain: Gain::Decibels { value: 0.0 },
                         muted: false,
                     },
-                    retime: RetimeV4 {
-                        rate: RationalRateV4 {
+                    retime: Retime {
+                        rate: RationalRate {
                             numerator: 1,
                             denominator: 1,
                         },
                         maintain_pitch: false,
-                        mapping: RetimeMappingV4::ClassicRoundedTicks { timebase: 120_000 },
+                        mapping: RetimeMapping::ClassicRoundedTicks { timebase: 120_000 },
                     },
                 },
                 visual: None,
@@ -265,14 +265,14 @@ impl Fixture {
             }],
         };
         let fixed = owner
-            .apply_v4_project(&ApplyV4Project {
+            .apply_scene_project(&ApplySceneProject {
                 project_id: "lifecycle".into(),
                 expected_revision: initial.revision,
                 idempotency_key: "bind".into(),
                 label: "Bind synthetic CAS".into(),
                 operations: vec![
-                    ProjectOperationV4::AssetPut { asset },
-                    ProjectOperationV4::TrackPut {
+                    ProjectOperation::AssetPut { asset },
+                    ProjectOperation::TrackPut {
                         sequence_id: "scene".into(),
                         track,
                     },
@@ -299,7 +299,7 @@ impl Fixture {
             .with_caller(caller);
         drop(Gate::exclusive(&cas).unwrap());
         let created_at = Instant::now();
-        let session = serde_json::from_value(call(&mut host, "opencut_audio_preview_v4_create", json!({
+        let session = serde_json::from_value(call(&mut host, "opencut_audio_preview_create", json!({
             "project_id":"lifecycle", "revision":fixed.revision, "sequence_id":"scene", "sample_rate":48000,
             "start_time":{"ticks":"0","timebase":1}, "idempotency_key":"listen" })).unwrap()).unwrap();
         let mut fixture = Self {
@@ -314,7 +314,7 @@ impl Fixture {
             processes: vec![],
             created_at,
         };
-        fixture.control(AudioPreviewCommandV4::Play);
+        fixture.control(AudioPreviewCommand::Play);
         let input = fixture.stream_input();
         fixture.stream = Some(fixture.host.audio_preview_stream(input).unwrap());
         fixture.chunk(0);
@@ -326,8 +326,8 @@ impl Fixture {
         );
         fixture
     }
-    fn stream_input(&self) -> AudioPreviewStreamV4 {
-        AudioPreviewStreamV4 {
+    fn stream_input(&self) -> AudioPreviewStream {
+        AudioPreviewStream {
             session_id: self.session.session_id.clone(),
             generation: self.session.generation.clone(),
             overlay_epoch: self.session.overlay_epoch.clone(),
@@ -335,11 +335,11 @@ impl Fixture {
             lease_id: self.session.lease_id.clone(),
         }
     }
-    fn control(&mut self, command: AudioPreviewCommandV4) {
+    fn control(&mut self, command: AudioPreviewCommand) {
         self.session = serde_json::from_value(
             call(
                 &mut self.host,
-                "opencut_audio_preview_v4_control",
+                "opencut_audio_preview_control",
                 json!({
             "session_id":self.session.session_id, "generation":self.session.generation,
             "owner_id":self.session.owner_id, "lease_id":self.session.lease_id,
@@ -366,10 +366,10 @@ impl Fixture {
                 Err(error) => self.start_failure(error),
             }
         };
-        assert_eq!(&bytes[..4], b"OCA4");
+        assert_eq!(&bytes[..4], b"OCAP");
         let header_len = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
         let payload_len = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
-        let header: AudioPreviewPcmHeaderV4 =
+        let header: AudioPreviewPcmHeader =
             serde_json::from_slice(&bytes[12..12 + header_len]).unwrap();
         let pcm = &bytes[12 + header_len..];
         assert_eq!(pcm.len(), payload_len);
@@ -389,7 +389,7 @@ impl Fixture {
         let view = loop {
             let view = call(
                 &mut owner,
-                "opencut_audio_preview_v4_inspect",
+                "opencut_audio_preview_inspect",
                 json!({"session_id":self.session.session_id}),
             );
             if view
@@ -403,7 +403,7 @@ impl Fixture {
         };
         let events = call(
             &mut owner,
-            "opencut_audio_preview_v4_events",
+            "opencut_audio_preview_events",
             json!({"session_id":self.session.session_id,"cursor":null}),
         );
         panic!(
@@ -425,19 +425,19 @@ impl Fixture {
         assert_eq!(value.buffered_frames, "8192");
         assert_eq!(value.consumed_frames, "0");
     }
-    fn inspect(&self) -> AudioPreviewSessionV4 {
+    fn inspect(&self) -> AudioPreviewSession {
         let mut owner = Automation::open(&self.database).unwrap();
         serde_json::from_value(
             call(
                 &mut owner,
-                "opencut_audio_preview_v4_inspect",
+                "opencut_audio_preview_inspect",
                 json!({"session_id":self.session.session_id}),
             )
             .unwrap(),
         )
         .unwrap()
     }
-    fn assert_terminated(&mut self, expected: AudioPreviewStateV4) {
+    fn assert_terminated(&mut self, expected: AudioPreviewState) {
         let until = Instant::now() + WAIT;
         loop {
             let observed = processes();
@@ -483,7 +483,7 @@ impl Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         self.stream.take();
-        let _ = opencut_host_runtime::audio_preview_v4::shutdown(&self.database);
+        let _ = opencut_host_runtime::audio_preview::shutdown(&self.database);
         // Keep the TempDir alive until shutdown joins the actual native actor.
         let _ = self.directory.path();
     }
@@ -504,7 +504,7 @@ fn credential_revoke_idle_and_backpressure_reaps_actual_realm() {
             .owner
             .revoke_credential(&fixture.credential)
             .unwrap();
-        fixture.assert_terminated(AudioPreviewStateV4::Failed);
+        fixture.assert_terminated(AudioPreviewState::Failed);
     }
 }
 
@@ -534,7 +534,7 @@ fn read_or_run_grant_revoke_reaps_backpressured_realm() {
                 grants,
             })
             .unwrap();
-        fixture.assert_terminated(AudioPreviewStateV4::Failed);
+        fixture.assert_terminated(AudioPreviewState::Failed);
     }
 }
 
@@ -549,7 +549,7 @@ fn owner_lease_expires_after_real_thirty_seconds_and_releases_cas() {
         thread::sleep(Duration::from_millis(100));
     }
     let before_expiry = fixture.inspect();
-    assert_eq!(before_expiry.state, AudioPreviewStateV4::Playing);
+    assert_eq!(before_expiry.state, AudioPreviewState::Playing);
     assert_ne!(before_expiry.lease_remaining_ms, "0");
     assert_eq!(
         Gate::exclusive(&fixture.cas).unwrap_err().code,
@@ -567,7 +567,7 @@ fn owner_lease_expires_after_real_thirty_seconds_and_releases_cas() {
     while fixture.created_at.elapsed() < Duration::from_secs(30) {
         thread::sleep(Duration::from_millis(100));
     }
-    fixture.assert_terminated(AudioPreviewStateV4::Stopped);
+    fixture.assert_terminated(AudioPreviewState::Stopped);
     let expired = fixture.inspect();
     assert_eq!(expired.lease_remaining_ms, "0");
     assert_eq!(expired.failure_code.as_deref(), Some("PREVIEW_EXPIRED"));
@@ -579,8 +579,8 @@ fn explicit_stop_reaps_backpressured_source_realm_before_returning() {
     let _serial = serial();
     let mut fixture = Fixture::new();
     fixture.backpressure();
-    fixture.control(AudioPreviewCommandV4::Stop);
-    assert_eq!(fixture.session.state, AudioPreviewStateV4::Stopped);
+    fixture.control(AudioPreviewCommand::Stop);
+    assert_eq!(fixture.session.state, AudioPreviewState::Stopped);
     let observed = processes();
     assert!(
         !observed
@@ -589,7 +589,7 @@ fn explicit_stop_reaps_backpressured_source_realm_before_returning() {
         "Stop returned before the actual source process tree exited"
     );
     drop(Gate::exclusive(&fixture.cas).unwrap());
-    fixture.assert_terminated(AudioPreviewStateV4::Stopped);
+    fixture.assert_terminated(AudioPreviewState::Stopped);
 }
 
 #[test]
@@ -601,7 +601,7 @@ fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
     let request = json!({"session":old,"time":null,"decoded":null});
     let frame = call(
         &mut fixture.host,
-        "opencut_visual_preview_v4_frame",
+        "opencut_visual_preview_frame",
         request.clone(),
     )
     .unwrap();
@@ -618,7 +618,7 @@ fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
     let binding = json!({"session":old,"time":frame["plan"]["identity"]["time"],"decoded":[]});
     let cached = call(
         &mut fixture.host,
-        "opencut_visual_preview_v4_frame",
+        "opencut_visual_preview_frame",
         binding.clone(),
     )
     .unwrap();
@@ -626,43 +626,30 @@ fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
     assert!(cached["bound"].is_object());
     let future = json!({"session":old,"time":{"ticks":"1","timebase":1},"decoded":[]});
     assert_eq!(
-        call(&mut fixture.host, "opencut_visual_preview_v4_frame", future)
+        call(&mut fixture.host, "opencut_visual_preview_frame", future)
             .unwrap_err()
             .code,
         "PREVIEW_FRAME_STALE"
     );
-    fixture.control(AudioPreviewCommandV4::Pause);
+    fixture.control(AudioPreviewCommand::Pause);
     assert_eq!(
-        call(
-            &mut fixture.host,
-            "opencut_visual_preview_v4_frame",
-            request
-        )
-        .unwrap_err()
-        .code,
+        call(&mut fixture.host, "opencut_visual_preview_frame", request)
+            .unwrap_err()
+            .code,
         "PREVIEW_GENERATION_CONFLICT"
     );
     assert_eq!(
-        call(
-            &mut fixture.host,
-            "opencut_visual_preview_v4_frame",
-            binding
-        )
-        .unwrap_err()
-        .code,
+        call(&mut fixture.host, "opencut_visual_preview_frame", binding)
+            .unwrap_err()
+            .code,
         "PREVIEW_GENERATION_CONFLICT"
     );
     let planning = json!({"session":fixture.stream_input(),"time":null,"decoded":null});
-    let planned = call(
-        &mut fixture.host,
-        "opencut_visual_preview_v4_frame",
-        planning,
-    )
-    .unwrap();
+    let planned = call(&mut fixture.host, "opencut_visual_preview_frame", planning).unwrap();
     let current = json!({"session":fixture.stream_input(),"time":planned["plan"]["identity"]["time"],"decoded":[]});
     let paused = call(
         &mut fixture.host,
-        "opencut_visual_preview_v4_frame",
+        "opencut_visual_preview_frame",
         current.clone(),
     )
     .unwrap();
@@ -674,10 +661,10 @@ fn picture_planning_keeps_fixed_revision_generation_and_original_authority() {
     // A fresh owner host cannot substitute its stronger credential for the
     // original session grant, even when supplied the correct live lease token.
     let mut owner = Automation::open(&fixture.database).unwrap();
-    let denied = call(&mut owner, "opencut_visual_preview_v4_frame", current).unwrap_err();
+    let denied = call(&mut owner, "opencut_visual_preview_frame", current).unwrap_err();
     assert!(matches!(
         denied.code.as_str(),
         "NOT_AUTHORIZED" | "PREVIEW_STOPPED"
     ));
-    fixture.assert_terminated(AudioPreviewStateV4::Failed);
+    fixture.assert_terminated(AudioPreviewState::Failed);
 }

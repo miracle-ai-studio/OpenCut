@@ -18,7 +18,7 @@ const STANDARD_FRAME_RATES = [
 ] as const;
 const STANDARD_FRAME_RATE_TOLERANCE = 0.01;
 
-export function transformProjectV22ToV23({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

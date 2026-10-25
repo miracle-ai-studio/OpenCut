@@ -36,27 +36,21 @@ test("rejects a second browser project authority", () =>
     violations("editor/projects/store.ts", 'indexedDB.open("projects")').length,
     1,
   ));
-test("recovery locators have one bounded session adapter and no transaction storage exception", () => {
-  const file = "editor/workspace/v4/timeline-edit/recovery.ts";
-  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.edit-recovery.v1"); sessionStorage.setItem("opencut.edit-recovery.v1",payload);'), []);
-  for (const code of [
-    'sessionStorage.setItem("project",payload);',
-    'const store=sessionStorage; store.setItem("opencut.edit-recovery.v1",payload);',
-    'sessionStorage["setItem"]("opencut.edit-recovery.v1",payload);',
-    'localStorage.setItem("opencut.edit-recovery.v1",payload);',
-  ]) assert.equal(violations(file, code).length, 1, code);
-  assert.equal(violations("editor/workspace/controller.ts", 'sessionStorage.setItem("opencut.edit-recovery.v1",payload);').length, 1);
+test("the retired timeline locator adapter has no storage exception", () => {
+  const file = "editor/workspace/scene/timeline-edit/recovery.ts";
+  for (const code of ['sessionStorage.getItem("opencut.edit-recovery.v1");', 'sessionStorage.setItem("opencut.edit-recovery.v1",payload);', 'sessionStorage.setItem("opencut.edit-recovery",payload);'])
+    assert.equal(violations(file, code).length, 1, code);
 });
 test("current source obeys boundaries", () =>
   assert.deepEqual(inspect().errors, []));
 test("memory test fixtures are excluded from runtime scanning and cannot be runtime dependencies", () => {
-  assert.equal(violations("editor/workspace/controller.ts", 'import { setupV4 } from "./v4/fixture";').length, 1);
-  assert.equal(violations("editor/workspace/v4/session.ts", 'import { setup } from "./timeline-edit/timeline-fixture";').length, 1);
-  assert.deepEqual(violations("editor/workspace/v4/session.test.ts", 'import { setupV4 } from "./fixture";'), []);
+  assert.equal(violations("editor/workspace/controller.ts", 'import { setupV4 } from "./scene/fixture";').length, 1);
+  assert.equal(violations("editor/workspace/scene/session.ts", 'import { setup } from "./timeline-edit/timeline-fixture";').length, 1);
+  assert.deepEqual(violations("editor/workspace/scene/session.test.ts", 'import { setupV4 } from "./fixture";'), []);
 });
 test("caption control identities have one fixed tab-local adapter, not a general storage exception", () => {
-  const file = "editor/workspace/v4/captions/client-state.ts";
-  const key = "opencut.caption-client.v1";
+  const file = "editor/workspace/scene/captions/client-state.ts";
+  const key = "opencut.caption-client";
   assert.deepEqual(violations(file, `sessionStorage.getItem("${key}"); sessionStorage.setItem("${key}", envelope);`), []);
   for (const code of [
     'sessionStorage.setItem("project", payload);',
@@ -67,13 +61,16 @@ test("caption control identities have one fixed tab-local adapter, not a general
     'indexedDB.open("captions");',
   ]) assert.equal(violations(file, code).length, 1, code);
   for (const sibling of ["recovery", "submission", "workspace"])
-    assert.equal(violations(`editor/workspace/v4/captions/${sibling}.ts`, `sessionStorage.getItem("${key}");`).length, 1);
+    assert.equal(violations(`editor/workspace/scene/captions/${sibling}.ts`, `sessionStorage.getItem("${key}");`).length, 1);
+  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.caption-client.v1");'), []);
+  assert.ok(violations(file, 'sessionStorage.setItem("opencut.caption-client.v1", envelope);').length > 0);
 });
-test("V2 recovery permits only its reviewed locator key in its own adapter", () => {
-  const file = "editor/workspace/v4/edit-recovery-pointers.ts";
-  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.edit-recovery.v2"); sessionStorage.setItem("opencut.edit-recovery.v2",payload);'), []);
+test("edit recovery permits one current locator key and exact original reads", () => {
+  const file = "editor/workspace/scene/edit-recovery-pointers.ts";
+  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.edit-recovery"); sessionStorage.setItem("opencut.edit-recovery",payload); sessionStorage.getItem("opencut.edit-recovery.v2");'), []);
   for (const code of [
     'sessionStorage.setItem("opencut.edit-recovery.v1",payload);',
+    'sessionStorage.setItem("opencut.edit-recovery.v2",payload);',
     'localStorage.setItem("opencut.edit-recovery.v2",payload);',
     'const store=sessionStorage; store.setItem("opencut.edit-recovery.v2",payload);',
   ]) assert.equal(violations(file, code).length, 1);
@@ -81,11 +78,11 @@ test("V2 recovery permits only its reviewed locator key in its own adapter", () 
 });
 test("audio output shares only the pure mastering bridge, never the renderer host", () => {
   const path = "../../../../../../packages/classic-audio-renderer/src/mastering.mjs";
-  assert.deepEqual(violations("editor/workspace/v4/audio-preview-mastering.ts", `export {createClassicMasteringChain} from "${path}";`), []);
+  assert.deepEqual(violations("editor/workspace/scene/audio-preview-mastering.ts", `export {createClassicMasteringChain} from "${path}";`), []);
   for (const [file, name] of [
-    ["editor/workspace/v4/audio-preview.ts", path],
-    ["editor/workspace/v4/audio-preview-mastering.ts", "@opencut/classic-audio-renderer"],
-    ["editor/workspace/v4/audio-preview-mastering.ts", "../../../../../../packages/classic-audio-renderer/host/runner.mjs"],
+    ["editor/workspace/scene/audio-preview.ts", path],
+    ["editor/workspace/scene/audio-preview-mastering.ts", "@opencut/classic-audio-renderer"],
+    ["editor/workspace/scene/audio-preview-mastering.ts", "../../../../../../packages/classic-audio-renderer/host/runner.mjs"],
   ]) assert.equal(violations(file, `import x from "${name}";`).length, 1);
 });
 test("legacy browser input adapter is readonly and cannot acquire modern persistence authority", () => {
@@ -177,6 +174,8 @@ test("UI view preference storage cannot become project or credential storage", (
   );
   for (const code of [
     'localStorage.setItem("token", secret);',
+    'localStorage.setItem("opencut.history-views.v1", hints);',
+    'localStorage.setItem("opencut.cover-scenes.v1", hints);',
     "const storage=localStorage;",
     "localStorage.getItem(key);",
     'indexedDB.open("projects");',
@@ -220,12 +219,14 @@ test("feedback adapter may persist only its two bounded personal-data keys", () 
   assert.deepEqual(
     violations(
       file,
-      'localStorage.getItem("opencut.feedback.draft.v1"); localStorage.setItem("opencut.feedback.mock-history.v1", data);',
+      'localStorage.getItem("opencut.feedback.draft"); localStorage.setItem("opencut.feedback.mock-history", data); localStorage.getItem("opencut.feedback.mock-history.v1");',
     ),
     [],
   );
   for (const code of [
     'localStorage.setItem("project", data);',
+    'localStorage.setItem("opencut.feedback.mock-history.v1", data);',
+    'localStorage.setItem("opencut.feedback.draft.v1", data);',
     'localStorage.setItem("token", secret);',
     "localStorage.getItem(key);",
     "localStorage.clear();",
@@ -266,30 +267,32 @@ test("feedback adapter may persist only its two bounded personal-data keys", () 
 });
 test("visual preview imports only the bounded execution bridge", () => {
   const path="../../../../../../packages/classic-visual-renderer/src/index.mjs";
-  assert.deepEqual(violations("editor/workspace/v4/visual-preview-renderer.ts", `import {renderClassicFrame} from "${path}";`), []);
-  for(const [file,name] of [["editor/workspace/v4/session.ts",path],["editor/workspace/v4/visual-preview-renderer.ts","@opencut/classic-visual-renderer"],["editor/workspace/v4/visual-preview-renderer.ts","../../../../../../packages/classic-visual-renderer/host/runner.mjs"]])
+  assert.deepEqual(violations("editor/workspace/scene/visual-preview-renderer.ts", `import {renderClassicFrame} from "${path}";`), []);
+  for(const [file,name] of [["editor/workspace/scene/session.ts",path],["editor/workspace/scene/visual-preview-renderer.ts","@opencut/classic-visual-renderer"],["editor/workspace/scene/visual-preview-renderer.ts","../../../../../../packages/classic-visual-renderer/host/runner.mjs"]])
     assert.equal(violations(file, `import x from "${name}";`).length,1);
 });
 
 test("shortcut and curve preferences are pinned to exact adapters and literal keys", () => {
-  for (const [file,key] of [["editor/shortcuts/persistence.ts","opencut.shortcuts.v1"],["editor/workspace/v4/keyframes/presets.ts","opencut.curve-presets.v1"]]) {
-    assert.deepEqual(violations(file, `window.localStorage.getItem("${key}"); window.localStorage.setItem("${key}", value);`), []);
-    for (const code of [`localStorage.setItem("opencut.project", value);`, `localStorage.clear();`, `localStorage.removeItem("${key}");`, `const x = localStorage; x.setItem("${key}", value);`, `localStorage.setItem(key, value);`, `indexedDB.open("anything");`, `sessionStorage.setItem("${key}", value);`])
+  for (const [file,key,historical] of [["editor/shortcuts/persistence.ts","opencut.shortcuts","opencut.shortcuts.v1"],["editor/workspace/scene/keyframes/presets.ts","opencut.curve-presets","opencut.curve-presets.v1"]]) {
+    assert.deepEqual(violations(file, `window.localStorage.getItem("${key}"); window.localStorage.setItem("${key}", value); window.localStorage.getItem("${historical}");`), []);
+    for (const code of [`localStorage.setItem("${historical}", value);`, `localStorage.setItem("opencut.project", value);`, `localStorage.clear();`, `localStorage.removeItem("${key}");`, `const x = localStorage; x.setItem("${key}", value);`, `localStorage.setItem(key, value);`, `indexedDB.open("anything");`, `sessionStorage.setItem("${key}", value);`])
       assert.ok(violations(file, code).length > 0, code);
     assert.ok(violations("editor/other.ts", `localStorage.setItem("${key}", value);`).length > 0);
   }
 });
 
 test("configurable export persists only its bounded fixed identity/options envelope", () => {
-  const file="editor/workspace/v4/export_video_v2-recovery.ts", key="opencut.export-video-recovery.v2";
+  const file="editor/workspace/scene/video-export-recovery.ts", key="opencut.export-video-recovery";
   assert.deepEqual(violations(file, `sessionStorage.getItem("${key}"); sessionStorage.setItem("${key}",envelope);`), []);
   for(const code of [`sessionStorage.getItem(key);`, `const store=sessionStorage; store.getItem("${key}");`, `sessionStorage.clear();`, `sessionStorage.setItem("project",content);`, `localStorage.setItem("${key}",envelope);`]) assert.ok(violations(file,code).length>0,code);
-  assert.ok(violations("editor/workspace/v4/export_video_v2.ts",`sessionStorage.setItem("${key}",envelope);`).length>0);
+  assert.ok(violations("editor/workspace/scene/video-export.ts",`sessionStorage.setItem("${key}",envelope);`).length>0);
+  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.export-video-recovery.v2");'), []);
+  assert.ok(violations(file, 'sessionStorage.setItem("opencut.export-video-recovery.v2", envelope);').length > 0);
 });
 
 test("catalog recovery permits one literal session key only in its reviewed adapter", () => {
-  const file = "editor/workspace/v4/catalog_resources_v1-recovery.ts";
-  const key = "opencut.catalog-resources.v1";
+  const file = "editor/workspace/scene/catalog_resources-recovery.ts";
+  const key = "opencut.catalog-resources";
   assert.deepEqual(violations(file, `sessionStorage.getItem("${key}"); sessionStorage.setItem("${key}", envelope);`), []);
   for (const code of [
     "sessionStorage.getItem(key);",
@@ -306,24 +309,30 @@ test("catalog recovery permits one literal session key only in its reviewed adap
     'indexedDB.open("catalog-project-content");',
   ]) assert.ok(violations(file, code).length > 0, code);
   for (const sibling of [
-    "editor/workspace/v4/catalog_resources_v1.ts",
-    "editor/workspace/v4/catalog_resources_v1-panel.tsx",
-    "editor/workspace/v4/catalog_resources_v1/recovery.ts",
-    "editor/workspace/v4/export_video_v2-recovery.ts",
-    "editor/workspace/v4/session.ts",
+    "editor/workspace/scene/catalog_resources.ts",
+    "editor/workspace/scene/catalog_resources-panel.tsx",
+    "editor/workspace/scene/catalog_resources/recovery.ts",
+    "editor/workspace/scene/video-export-recovery.ts",
+    "editor/workspace/scene/session.ts",
   ]) assert.ok(violations(sibling, `sessionStorage.setItem("${key}", envelope);`).length > 0, sibling);
+  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.catalog-resources.v1");'), []);
+  assert.ok(violations(file, 'sessionStorage.setItem("opencut.catalog-resources.v1", envelope);').length > 0);
 });
 
-test("history import recovery permits its original bounded request adapter only",()=>{
-  const file="editor/workspace/v4/history-package-recovery.ts",key="opencut.history-package.v1";
+test("package recovery permits only its bounded current writes and historical reads",()=>{
+  const file="editor/workspace/scene/package-recovery.ts",key="opencut.package";
   assert.deepEqual(violations(file,`sessionStorage.getItem("${key}");sessionStorage.setItem("${key}",envelope);`),[]);
   for(const code of [`sessionStorage.getItem(dynamic);`,`sessionStorage.clear();`,`sessionStorage.removeItem("${key}");`,`const store=sessionStorage;store.setItem("${key}",envelope);`,`sessionStorage.setItem("opencut.project",project);`,`localStorage.setItem("${key}",envelope);`])assert.ok(violations(file,code).length>0,code);
-  assert.ok(violations("editor/workspace/v4/history-package.tsx",`sessionStorage.setItem("${key}",envelope);`).length>0);
+  assert.deepEqual(violations(file,'sessionStorage.getItem("opencut.history-package.v1");'),[]);
+  assert.ok(violations(file,'sessionStorage.setItem("opencut.history-package.v1",envelope);').length>0);
+  assert.ok(violations("editor/workspace/scene/package.tsx",`sessionStorage.setItem("${key}",envelope);`).length>0);
 });
 
 test("brand acquisition has one exact session recovery adapter and no shared storage escape",()=>{
-  const file="editor/workspace/v4/brand_resources_v1-recovery.ts",key="opencut.brand-resources.v1";
+  const file="editor/workspace/scene/brand_resources-recovery.ts",key="opencut.brand-resources";
   assert.deepEqual(violations(file,`sessionStorage.getItem("${key}");sessionStorage.setItem("${key}",envelope);`),[]);
   for(const code of [`sessionStorage.getItem(dynamic);`,`sessionStorage.setItem("opencut.brand-resources."+project,envelope);`,`const storage=sessionStorage;storage.setItem("${key}",envelope);`,`window.sessionStorage.setItem("${key}",envelope);`,`sessionStorage["setItem"]("${key}",envelope);`,`sessionStorage.removeItem("${key}");`,`sessionStorage.clear();`,`sessionStorage.setItem("opencut.catalog-resources.v1",envelope);`,`localStorage.setItem("${key}",envelope);`,`indexedDB.open("brands");`])assert.ok(violations(file,code).length>0,code);
-  for(const sibling of ["editor/workspace/v4/brand_resources_v1.ts","editor/workspace/v4/brand_resources_v1-panel.tsx","editor/workspace/v4/catalog_resources_v1-recovery.ts","editor/workspace/v4/session.ts"])assert.ok(violations(sibling,`sessionStorage.setItem("${key}",envelope);`).length>0,sibling);
+  for(const sibling of ["editor/workspace/scene/brand_resources.ts","editor/workspace/scene/brand_resources-panel.tsx","editor/workspace/scene/catalog_resources-recovery.ts","editor/workspace/scene/session.ts"])assert.ok(violations(sibling,`sessionStorage.setItem("${key}",envelope);`).length>0,sibling);
+  assert.deepEqual(violations(file, 'sessionStorage.getItem("opencut.brand-resources.v1");'), []);
+  assert.ok(violations(file, 'sessionStorage.setItem("opencut.brand-resources.v1", envelope);').length > 0);
 });

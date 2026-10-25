@@ -1,0 +1,50 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {gpuSurfacePresenter} from "../src/gpu-surface.mjs";
+test("GPU presentation copies the original admitted bitmap with the same orientation, color and opaque surface",t=>{
+ const old=globalThis.GPUTextureUsage;globalThis.GPUTextureUsage={COPY_DST:2,RENDER_ATTACHMENT:16};t.after(()=>{if(old)globalThis.GPUTextureUsage=old;else delete globalThis.GPUTextureUsage;});
+ const commands=[],configured=[],texture={},context={configure:v=>configured.push(v),getCurrentTexture:()=>texture,unconfigure:()=>commands.push("clear")};
+ const realm={device:{queue:{copyExternalImageToTexture:(...args)=>commands.push(args)}},observation:{textureFormat:"bgra8unorm"}},canvas={width:960,height:540,getContext:type=>{assert.equal(type,"webgpu");return context;}},bitmap={width:960,height:540};
+ const painter=gpuSurfacePresenter(realm,canvas);painter.draw(bitmap);
+ assert.deepEqual(configured,[{device:realm.device,format:"bgra8unorm",alphaMode:"opaque",usage:18}]);
+ assert.deepEqual(commands,[[{source:bitmap,flipY:false},{texture,colorSpace:"srgb",premultipliedAlpha:false},[960,540]]]);
+ assert.throws(()=>painter.draw({width:640,height:360}),{code:"VISUAL_GPU_FAILED"});assert.equal(commands.length,1);
+ realm.closed=true;assert.throws(()=>painter.draw(bitmap),{code:"VISUAL_GPU_FAILED"});assert.equal(commands.length,1);
+ painter.clear();painter.clear();assert.equal(commands.filter(c=>c==="clear").length,1);assert.equal(canvas.width,0);assert.equal(canvas.height,0);
+});
+test("GPU presentation refuses an unavailable context, closed realm and another texture format",t=>{
+ const realm={device:{},observation:{textureFormat:"bgra8unorm"}};
+ assert.throws(()=>gpuSurfacePresenter(realm,{getContext:()=>null}),{code:"CAPABILITY_UNAVAILABLE"});
+ assert.throws(()=>gpuSurfacePresenter({...realm,closed:true},{}),{code:"VISUAL_GPU_FAILED"});
+ assert.throws(()=>gpuSurfacePresenter({...realm,observation:{textureFormat:"rgba16float"}},{}),{code:"VISUAL_GPU_FAILED"});
+});
+test("owned GPU frames copy without bitmap readback and retire on their original realm",async t=>{
+ const {captureGpuSurfaceFrame,validateGpuSurfaceFrame}=await import("../src/gpu-surface.mjs");
+ const old=globalThis.GPUTextureUsage;globalThis.GPUTextureUsage={COPY_DST:2,COPY_SRC:1,RENDER_ATTACHMENT:16};t.after(()=>{if(old)globalThis.GPUTextureUsage=old;else delete globalThis.GPUTextureUsage;});
+ const copies=[],destroyed=[],submitted=[],output={},source={},stored={destroy:()=>destroyed.push(true)};
+ const encoder=()=>({copyTextureToTexture:(...a)=>copies.push(a),finish:()=>"commands"});
+ const realm={device:{createTexture:d=>{assert.deepEqual(d,{size:[2,2],format:"bgra8unorm",usage:3});return stored;},createCommandEncoder:encoder,queue:{submit:v=>submitted.push(v),copyExternalImageToTexture:()=>assert.fail("No bitmap upload")}},observation:{textureFormat:"bgra8unorm"}};
+ const context={configure(){},getCurrentTexture:()=>output,unconfigure(){}};
+ const frame=captureGpuSurfaceFrame(realm,encoder(),source,2,2);
+ const canvas={width:2,height:2,getContext:()=>context};
+ assert.throws(()=>gpuSurfacePresenter(realm,canvas).draw(frame),{code:"VISUAL_GPU_FAILED"});
+ validateGpuSurfaceFrame(frame,Promise.resolve());await frame.ready;gpuSurfacePresenter(realm,canvas).draw(frame);
+ assert.deepEqual(copies,[[{texture:source},{texture:stored},[2,2]],[{texture:stored},{texture:output},[2,2]]]);assert.deepEqual(submitted,[["commands"]]);
+ assert.throws(()=>gpuSurfacePresenter({...realm},canvas).draw(frame),{code:"VISUAL_GPU_FAILED"});
+ frame.close();frame.close();assert.equal(destroyed.length,1);
+ assert.throws(()=>gpuSurfacePresenter(realm,canvas).draw(frame),{code:"VISUAL_GPU_FAILED"});
+ assert.throws(()=>captureGpuSurfaceFrame(realm,{copyTextureToTexture(){throw Error("copy failed");}},source,2,2),/copy failed/);assert.equal(destroyed.length,2);
+});
+test("transferable bitmap publication waits for its own GPU copy proof and destroys a rejected result",async t=>{
+ const {captureGpuSurfaceFrame,validateGpuSurfaceFrame,gpuSurfaceBitmap}=await import('../src/gpu-surface.mjs');
+ const old=globalThis.GPUTextureUsage;globalThis.GPUTextureUsage={COPY_DST:2,COPY_SRC:1,RENDER_ATTACHMENT:16};t.after(()=>{if(old)globalThis.GPUTextureUsage=old;else delete globalThis.GPUTextureUsage;});
+ let resolve,deny=false,closed=0,configures=0,pops=0;
+ const gate=new Promise(yes=>{resolve=yes;}),encoder=()=>({copyTextureToTexture(){},finish(){return {};}});
+ const device={createTexture:()=>({destroy(){}}),createCommandEncoder:encoder,pushErrorScope(){},popErrorScope(){pops++;return pops===1?gate:Promise.resolve(deny?{message:'rejected'}:null);},queue:{submit(){}}};
+ const realm={device,observation:{textureFormat:'bgra8unorm'}},frame=captureGpuSurfaceFrame(realm,encoder(),{},2,2);validateGpuSurfaceFrame(frame,Promise.resolve());await frame.ready;
+ const canvas={width:2,height:2,getContext:()=>({configure(){configures++;},getCurrentTexture:()=>({}),unconfigure(){}}),transferToImageBitmap:()=>({width:2,height:2,close(){closed++;}})};
+ let published=false;const pending=gpuSurfaceBitmap(realm,frame,canvas).then(bitmap=>{published=true;return bitmap;});await Promise.resolve();assert.equal(published,false);
+ resolve(null);const bitmap=await pending;assert.equal(published,true);bitmap.close();
+ deny=true;await assert.rejects(gpuSurfaceBitmap(realm,frame,canvas),{code:'VISUAL_GPU_FAILED'});assert.equal(closed,2);assert.equal(configures,1);
+ frame.close();await assert.rejects(gpuSurfaceBitmap(realm,frame,canvas),{code:'VISUAL_GPU_FAILED'});
+});

@@ -99,14 +99,27 @@ test("primary format is captured immutably before admission; audio byte decoding
     { admitDecode: async (resource, observed) => { assert.equal(resource.assetId, "audio"); assert.equal(observed, null); admitted = true; return { maxFrames: 2, maxChannels: 1 }; } }, budget);
   assert.equal(result.primary, null);
   result.release(); assert.equal(budget.used, 0);
+  // Non-native-rate/float WAV must retain the original byte-decoder path,
+  // even when the new private capability is available.
+  for (const [format, rate, bits] of [[1,48000,16], [3,44100,32]]) {
+    const bytes = new Uint8Array(44), data = new DataView(bytes.buffer);
+    bytes.set(new TextEncoder().encode("RIFF"),0); bytes.set(new TextEncoder().encode("WAVEfmt "),8);
+    data.setUint32(16,16,true); data.setUint16(20,format,true); data.setUint16(22,1,true);
+    data.setUint32(24,rate,true); data.setUint32(28,rate*bits/8,true); data.setUint16(32,bits/8,true); data.setUint16(34,bits,true);
+    const decoded = await decodeResource({assetId:"audio",kind:"audio"}, bytes,
+      {sampleRate:44100,decodeAudioData:async()=>buffer([[.25,.5]])},
+      {admitPcmAudioDecode:async()=>assert.fail("Unqualified formats cannot select PCM windows"),
+        admitDecode:async(_resource, observed)=>{assert.equal(observed,null);return{maxFrames:2,maxChannels:1};}}, budget);
+    assert.equal(decoded.profile,"web-audio-decode-at-target-rate"); decoded.release();
+  }
 });
 
 test("Rust null/full and selected range plans retain their exact output count before browser launch", () => {
   const begin = {
-    protocolVersion: 1, executionId: "fixed-range", type: "begin", resources: [], runtime: {},
-    admission: { maxPcmBytes: 1048576, maxEncodedBytes: 1048576, maxRssBytes: "104857600", deadlineMs: 15000, quotaProfile: "monitored-terminate" },
+    executionId: "fixed-range", type: "begin", resources: [], runtime: {},
+    admission: { maxPcmBytes: 1048576, maxEncodedBytes: 33554432, maxRssBytes: "104857600", deadlineMs: 15000, quotaProfile: "monitored-terminate" },
     plan: { identity: { projectId: "p", revision: "r", sequenceId: "s", profile: "classic-export-v31-web-audio", sampleRate: 48000 },
-      frameCount: "24017", outputFrameCount: "24017", range: null, resources: [], voices: [] },
+      frameCount: "24017", outputFrameCount: "24017", range: null, encodedSource: { mode: "verified-range", cacheBytes: 65536 }, resources: [], voices: [] },
   };
   assert.equal(validateBegin(begin).plan.range, null);
   begin.plan.range = { startSample: "3000", frameCount: "120" }; begin.plan.outputFrameCount = "120";
@@ -180,9 +193,9 @@ test("WAV mixer bounds block unions separately from actual voice samples and rej
 
 test("fixed plan metadata admits 256 voices while CAS resource admission remains 32", () => {
   const resource = i => ({ assetId: `a${i}`, kind: "audio", contentHash: "a".repeat(64), size: 1 });
-  const begin = { protocolVersion: 1, executionId: "metadata", type: "begin", runtime: {},
-    admission: { maxPcmBytes: 1048576, maxEncodedBytes: 1048576, maxRssBytes: "104857600", deadlineMs: 15000, quotaProfile: "monitored-terminate" },
-    plan: { identity: { projectId: "p", revision: "r", sequenceId: "s", profile: "classic-export-v31-web-audio", sampleRate: 48000 }, frameCount: "300", resources: Array.from({ length: 32 }, (_, i) => resource(i)),
+  const begin = { executionId: "metadata", type: "begin", runtime: {},
+    admission: { maxPcmBytes: 1048576, maxEncodedBytes: 33554432, maxRssBytes: "104857600", deadlineMs: 15000, quotaProfile: "monitored-terminate" },
+    plan: { identity: { projectId: "p", revision: "r", sequenceId: "s", profile: "classic-export-v31-web-audio", sampleRate: 48000 }, frameCount: "300", encodedSource: { mode: "verified-range", cacheBytes: 65536 }, resources: Array.from({ length: 32 }, (_, i) => resource(i)),
       voices: Array.from({ length: 256 }, (_, i) => ({ elementId: `e${i}`, assetId: `a${i % 32}` })) },
     resources: Array.from({ length: 32 }, (_, i) => ({ assetId: `a${i}`, handle: `h${i}` })) };
   assert.equal(validateBegin(begin).plan.voices.length, 256);

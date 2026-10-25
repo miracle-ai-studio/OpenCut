@@ -13,7 +13,8 @@ it("round-trips clears and customized keys without project or history fields", (
   bindings["split-left"] = [];
   const json = serializeShortcutConfig(bindings);
   expect(parseShortcutConfig(json)).toEqual(bindings);
-  expect(Object.keys(JSON.parse(json))).toEqual(["schema_version", "bindings"]);
+  expect(Object.keys(JSON.parse(json))).toEqual(["bindings"]);
+  expect(parseShortcutConfig(JSON.stringify({ schema_version: 1, bindings }))).toEqual(bindings);
   const write = vi.fn();
   expect(readShortcutPreferences({ read: () => json, write })).toEqual({
     bindings,
@@ -24,7 +25,7 @@ it("round-trips clears and customized keys without project or history fields", (
 
 it.each([
   "syntax",
-  "version",
+  "historical-marker",
   "missing",
   "unknown",
   "conflict",
@@ -37,11 +38,10 @@ it.each([
   "refuses %s and falls back without overwriting saved preferences",
   (kind) => {
     const config: Record<string, unknown> = {
-      schema_version: 1,
       bindings: defaultBindings(),
     };
     const bindings = config.bindings as Record<string, unknown>;
-    if (kind === "version") config.schema_version = 8;
+    if (kind === "historical-marker") config.schema_version = 8;
     if (kind === "missing") delete bindings.split;
     if (kind === "unknown") {
       delete bindings.split;

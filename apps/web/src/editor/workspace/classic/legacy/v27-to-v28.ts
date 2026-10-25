@@ -2,7 +2,7 @@ import { roundMediaTime } from "../ticks";
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV27ToV28({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

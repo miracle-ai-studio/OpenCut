@@ -69,31 +69,31 @@ checkRefs(openapi);
 const schemas = JSON.parse(run(binary, ["system", "schema", "--json"])).data;
 const domains = JSON.parse(run(binary, ["system", "domains", "--json"])).data;
 const expectedPaths = [
-  ...schemas.map(t => `/v1/tools/${t.name}`),
-  ...domains.map(d => `/v1/tools/opencut_${d.domain}`),
-  "/v1/domains", "/v1/domains/{domain}",
-  "/v1/uploads/{upload_id}/chunks/{offset}",
-  "/v1/stream-uploads/{upload_id}/chunks/{offset}",
-  "/v1/projects/{project}/media/{media_id}/content",
-  "/v1/project-v4-resources/content",
-  "/v1/preview/v4/audio/stream",
-  "/v1/artifacts/{artifact}",
-  "/v1/changes/stream",
-  "/v1/preview/stream",
+  ...schemas.map(t => `/api/tools/${t.name}`),
+  ...domains.map(d => `/api/tools/opencut_${d.domain}`),
+  "/api/domains", "/api/domains/{domain}",
+  "/api/uploads/{upload_id}/chunks/{offset}",
+  "/api/uploads/{upload_id}/chunks/{offset}",
+  "/api/projects/{project}/media/{media_id}/content",
+  "/api/project-resources/content",
+  "/api/preview/audio/stream",
+  "/api/artifacts/{artifact}",
+  "/api/changes/stream",
+  "/api/preview/stream",
 ];
 assert.deepEqual(Object.keys(openapi.paths).sort(), expectedPaths.sort());
-assert.equal(openapi.paths["/v1/stream-uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_stream_chunk");
-assert.equal(openapi.paths["/v1/project-v4-resources/content"].get.operationId, "opencut_project_v4_resource_content");
-assert.equal(openapi.paths["/v1/preview/v4/audio/stream"].post.operationId, "opencut_audio_preview_v4_stream");
-assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");
-assert.equal(openapi.paths["/v1/uploads/{upload_id}/chunks/{offset}"].put.requestBody.content["application/octet-stream"].schema.format, "binary");
-assert.equal(openapi.paths["/v1/projects/{project}/media/{media_id}/content"].get.operationId, "opencut_project_media_content");
-assert.equal(openapi.paths["/v1/artifacts/{artifact}"].get.operationId, "opencut_artifact_download");
-assert.equal(openapi.paths["/v1/changes/stream"].post.operationId, "opencut_changes_stream");
-assert.deepEqual(openapi.paths["/v1/changes/stream"].post.responses["200"].content["text/event-stream"]["x-opencut-data-schema"],
+assert.equal(openapi.paths["/api/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");
+assert.equal(openapi.paths["/api/project-resources/content"].get.operationId, "opencut_project_resource_content");
+assert.equal(openapi.paths["/api/preview/audio/stream"].post.operationId, "opencut_audio_preview_stream");
+assert.equal(openapi.paths["/api/uploads/{upload_id}/chunks/{offset}"].put.operationId, "opencut_upload_chunk");
+assert.equal(openapi.paths["/api/uploads/{upload_id}/chunks/{offset}"].put.requestBody.content["application/octet-stream"].schema.format, "binary");
+assert.equal(openapi.paths["/api/projects/{project}/media/{media_id}/content"].get.operationId, "opencut_project_media_content");
+assert.equal(openapi.paths["/api/artifacts/{artifact}"].get.operationId, "opencut_artifact_download");
+assert.equal(openapi.paths["/api/changes/stream"].post.operationId, "opencut_changes_stream");
+assert.deepEqual(openapi.paths["/api/changes/stream"].post.responses["200"].content["text/event-stream"]["x-opencut-data-schema"],
   { $ref: "#/components/schemas/OpenCutEventStreamRecord" });
 for (const domain of domains) {
-  const path = openapi.paths[`/v1/tools/opencut_${domain.domain}`].post;
+  const path = openapi.paths[`/api/tools/opencut_${domain.domain}`].post;
   assert.deepEqual(path["x-opencut-action-operations"], Object.fromEntries(domain.actions.map(a => [a.action, a.operation])));
   assert.equal(path.requestBody.content["application/json"].schema.oneOf.length, domain.actions.length);
 }
@@ -115,7 +115,7 @@ try {
   const deadline = Date.now() + 15_000;
   for (;;) {
     if (host.exitCode !== null) throw new Error("Host exited during startup");
-    try { const response = await fetch(`${base}/v1/capabilities`); if (response.status === 403) break; }
+    try { const response = await fetch(`${base}/api/capabilities`); if (response.status === 403) break; }
     catch { /* wait for actual socket */ }
     if (Date.now() > deadline) throw new Error("Host startup timeout");
     await delay(50);

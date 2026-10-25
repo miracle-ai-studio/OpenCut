@@ -126,7 +126,7 @@ def _verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "service exited while waiting"
                     assert time.monotonic() < deadline, job
                     time.sleep(.02)
-                    job = call(f'/v1/jobs/{job["job_id"]}')
+                    job = call(f'/api/jobs/{job["job_id"]}')
                 observed_mp4.update(attempt_root.rglob("*.mp4"))
                 if reject_mp4:
                     assert not observed_mp4, sorted(map(str, observed_mp4))
@@ -134,7 +134,7 @@ def _verify(binary, artifacts_dir=None):
                 return job
 
             def download(job, name):
-                payload = request(f'/v1/jobs/{job["job_id"]}/artifact', raw=True)
+                payload = request(f'/api/jobs/{job["job_id"]}/artifact', raw=True)
                 descriptor = job["result"]["artifact"]
                 assert descriptor["mime_type"] == "image/png", descriptor
                 assert len(payload) == descriptor["size"]
@@ -151,7 +151,7 @@ def _verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "service exited during startup"
                     try:
                         token = token_file.read_text().strip()
-                        capabilities = call("/v1/capabilities")
+                        capabilities = call("/api/capabilities")
                         break
                     except (FileNotFoundError, urllib.error.URLError):
                         assert time.monotonic() < deadline, "startup timeout"
@@ -167,14 +167,14 @@ def _verify(binary, artifacts_dir=None):
                 assert "encoded_project_frame" in encoded_schema
                 assert "composited_project_frame" not in encoded_schema
 
-                upload = call("/v1/media/upload?name=red.mp4", source.read_bytes())
-                snapshot = call("/v1/projects", {
+                upload = call("/api/media/upload?name=red.mp4", source.read_bytes())
+                snapshot = call("/api/projects", {
                     "project": {"id": "direct", "name": "Direct frame", "sequence_id": "main",
                                 "width": 160, "height": 90,
                                 "fps": {"numerator": 10, "denominator": 1}},
                     "idempotency_key": "create",
                 })
-                edited = call("/v1/projects/direct/branches/main/transactions", {
+                edited = call("/api/projects/direct/branches/main/transactions", {
                     "expected_revision": snapshot["revision"], "idempotency_key": "edit",
                     "label": "Red visual", "operations": [
                         {"type": "asset.bind", "asset": upload["asset"]},
@@ -196,10 +196,10 @@ def _verify(binary, artifacts_dir=None):
                         "requested_time": at(5), "alignment": "exact",
                     }}
 
-                direct = call("/v1/jobs", body("preview.composited_frame", "direct-frame"))
-                assert call("/v1/jobs", body("preview.composited_frame", "direct-frame"))["job_id"] == direct["job_id"]
-                encoded = call("/v1/jobs", body("preview.project_frame", "encoded-frame"))
-                later = call("/v1/projects/direct/branches/main/transactions", {
+                direct = call("/api/jobs", body("preview.composited_frame", "direct-frame"))
+                assert call("/api/jobs", body("preview.composited_frame", "direct-frame"))["job_id"] == direct["job_id"]
+                encoded = call("/api/jobs", body("preview.project_frame", "encoded-frame"))
+                later = call("/api/projects/direct/branches/main/transactions", {
                     "expected_revision": revision, "idempotency_key": "delete", "label": "Later edit",
                     "operations": [{"type": "clip.delete", "sequence_id": "main",
                                     "track_id": "video", "clip_id": "red"}],
@@ -235,15 +235,15 @@ def _verify(binary, artifacts_dir=None):
                 # A direct visual frame must not depend on audio bytes. Use a
                 # separate revision so deliberately corrupting its audio CAS
                 # cannot affect the baseline checks above.
-                scoped_video = call("/v1/media/upload?name=scoped-red.mp4", source.read_bytes())
-                scoped_audio = call("/v1/media/upload?name=tone.m4a", audio_source.read_bytes())
-                scoped = call("/v1/projects", {
+                scoped_video = call("/api/media/upload?name=scoped-red.mp4", source.read_bytes())
+                scoped_audio = call("/api/media/upload?name=tone.m4a", audio_source.read_bytes())
+                scoped = call("/api/projects", {
                     "project": {"id": "dependency-scope", "name": "Visual dependency scope",
                                 "sequence_id": "main", "width": 160, "height": 90,
                                 "fps": {"numerator": 10, "denominator": 1}},
                     "idempotency_key": "create-scope",
                 })
-                scoped_edit = call("/v1/projects/dependency-scope/branches/main/transactions", {
+                scoped_edit = call("/api/projects/dependency-scope/branches/main/transactions", {
                     "expected_revision": scoped["revision"], "idempotency_key": "bind-scope",
                     "label": "Video with longer audio tail", "operations": [
                         {"type": "asset.bind", "asset": scoped_video["asset"]},
@@ -267,7 +267,7 @@ def _verify(binary, artifacts_dir=None):
                     ],
                 })
                 scoped_snapshot = call(
-                    f'/v1/projects/dependency-scope/revisions/{scoped_edit["revision"]}'
+                    f'/api/projects/dependency-scope/revisions/{scoped_edit["revision"]}'
                 )
                 assert scoped_snapshot["revision"] == scoped_edit["revision"]
                 assets = {asset["id"]: asset for asset in scoped_snapshot["project"]["assets"]}
@@ -288,7 +288,7 @@ def _verify(binary, artifacts_dir=None):
                     return {"kind": kind, "idempotency_key": key, "input": common}
 
                 scoped_visual = wait(call(
-                    "/v1/jobs", scoped_body("preview.composited_frame", "scope-visual", 5)
+                    "/api/jobs", scoped_body("preview.composited_frame", "scope-visual", 5)
                 ))
                 locked_ids = {
                     asset["asset_id"] for asset in scoped_visual["input"]["asset_lock"]["assets"]
@@ -298,25 +298,25 @@ def _verify(binary, artifacts_dir=None):
                 assert scoped_visual_pixels[0] > 180 and max(scoped_visual_pixels[1:3]) < 70
 
                 scoped_tail = wait(call(
-                    "/v1/jobs", scoped_body("preview.composited_frame", "scope-audio-tail", 30)
+                    "/api/jobs", scoped_body("preview.composited_frame", "scope-audio-tail", 30)
                 ))
                 assert rational(scoped_tail["result"]["actual_sequence_time"]) == 3
                 tail_pixels = decode_rgb(download(scoped_tail, "scoped-audio-tail.png"))
                 assert max(tail_pixels) < 8, "audio-only tail must render as black"
 
                 for kind in ("preview.project_frame", "render.project"):
-                    rejected = request("/v1/jobs", scoped_body(kind, f"missing-audio-{kind}", 5))
+                    rejected = request("/api/jobs", scoped_body(kind, f"missing-audio-{kind}", 5))
                     assert rejected["error"] is not None, rejected
                     assert rejected["error"]["code"] == "ASSET_INTEGRITY_ERROR", rejected
 
-                long_upload = call("/v1/media/upload?name=long-red.mp4", long_source.read_bytes())
-                cancel_project = call("/v1/projects", {
+                long_upload = call("/api/media/upload?name=long-red.mp4", long_source.read_bytes())
+                cancel_project = call("/api/projects", {
                     "project": {"id": "cancel-direct", "name": "Cancellation", "sequence_id": "main",
                                 "width": 1280, "height": 720,
                                 "fps": {"numerator": 30, "denominator": 1}},
                     "idempotency_key": "create-cancel",
                 })
-                cancel_edit = call("/v1/projects/cancel-direct/branches/main/transactions", {
+                cancel_edit = call("/api/projects/cancel-direct/branches/main/transactions", {
                     "expected_revision": cancel_project["revision"], "idempotency_key": "edit-cancel",
                     "label": "Long red visual", "operations": [
                         {"type": "asset.bind", "asset": long_upload["asset"]},
@@ -330,7 +330,7 @@ def _verify(binary, artifacts_dir=None):
                                   "params": {}, "channels": []}},
                     ],
                 })
-                active = call("/v1/jobs", {
+                active = call("/api/jobs", {
                     "kind": "preview.composited_frame", "idempotency_key": "cancel-active-direct",
                     "input": {"project_id": "cancel-direct", "revision": cancel_edit["revision"],
                               "sequence_id": "main", "requested_time": at(1500, 30),
@@ -340,7 +340,7 @@ def _verify(binary, artifacts_dir=None):
                 previous_ffmpeg = set()
                 observed_ffmpeg = set()
                 while time.monotonic() < deadline:
-                    active = call(f'/v1/jobs/{active["job_id"]}')
+                    active = call(f'/api/jobs/{active["job_id"]}')
                     current_ffmpeg = composited_ffmpeg_pids(process.pid)
                     stable_ffmpeg = previous_ffmpeg & current_ffmpeg
                     previous_ffmpeg = current_ffmpeg
@@ -352,11 +352,11 @@ def _verify(binary, artifacts_dir=None):
                 assert observed_ffmpeg, {
                     "failure": "no stable compositing FFmpeg child before cancellation", "job": active,
                 }
-                cancelled = call(f'/v1/jobs/{active["job_id"]}/cancel', {})
+                cancelled = call(f'/api/jobs/{active["job_id"]}/cancel', {})
                 if cancelled["state"] not in ("cancelled", "failed"):
                     cancelled = wait(cancelled, expected_state="cancelled")
                 assert cancelled["state"] == "cancelled" and cancelled["result"] is None, cancelled
-                assert request(f'/v1/jobs/{cancelled["job_id"]}/artifact')["error"] is not None
+                assert request(f'/api/jobs/{cancelled["job_id"]}/artifact')["error"] is not None
                 cancelled_root = root / "artifacts" / cancelled["job_id"]
                 assert not list(cancelled_root.glob("attempt-*/inputs")), cancelled_root
                 assert not list(cancelled_root.rglob("*.png")), cancelled_root

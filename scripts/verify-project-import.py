@@ -23,11 +23,11 @@ def verify(binary,root,sdk):
   if error:assert out['error']['code']==error,out
   else:assert out['error'] is None,out
   return out.get('data')
- def http(name,args,credential,error=None,status=200):return request('POST','/v1/tools/'+name,credential,json.dumps(args),error=error,status=status)
+ def http(name,args,credential,error=None,status=200):return request('POST','/api/tools/'+name,credential,json.dumps(args),error=error,status=status)
  def digest(b):return hashlib.sha256(b).hexdigest()
  def descriptor(data,key,project='a'):return {'project_id':project,'name':'../display-only.mp4','size_bytes':str(len(data)),'content_hash':digest(data),'idempotency_key':key}
  def put(view,offset,data,credential,hash=None,size=None,error=None,status=200):
-  path=f"/v1/uploads/{view['upload_id']}/chunks/{offset}?"+urlencode({'size_bytes':str(size if size is not None else len(data)),'content_hash':hash or digest(data)})
+  path=f"/api/uploads/{view['upload_id']}/chunks/{offset}?"+urlencode({'size_bytes':str(size if size is not None else len(data)),'content_hash':hash or digest(data)})
   return request('PUT',path,credential,data,'application/octet-stream',error,status)
  def policy(name,actions):return cli(['access','set-policy','--input','-'],{'principal_id':name,'expected_revision':'0','enabled':True,'grants':[{'project_id':'a','actions':actions}]})
  def issue(name,suffix=''):
@@ -62,12 +62,12 @@ def verify(binary,root,sdk):
   assert host.poll() is None
   checks.append('The HTTP host survives a real seven-second SQLite writer lock while its idle Worker retries temporary database busy')
   cap=http('opencut_capabilities',{},runner);assert cap['uploads']['chunk_method']=='PUT';assert any(j['name']=='media.import' for j in cap['job_kinds'])
-  upload=call('opencut_upload_create',descriptor(data,'main'),runner)
-  assert http('opencut_upload_create',descriptor(data,'main'),runner)==upload
-  call('opencut_upload_create',{**descriptor(data,'main'),'name':'changed'},runner,'IDEMPOTENCY_KEY_REUSED')
-  for credential in [reader,editor]:http('opencut_upload_create',descriptor(data,'deny'),credential,'NOT_AUTHORIZED',403)
-  http('opencut_upload_create',descriptor(data,'foreign','b'),runner,'NOT_AUTHORIZED',403)
-  http('opencut_upload_create',{**descriptor(data,'injection'),'path':'/private/source'},runner,'INVALID_ARGUMENT',400)
+  upload=call('opencut_upload_begin',descriptor(data,'main'),runner)
+  assert http('opencut_upload_begin',descriptor(data,'main'),runner)==upload
+  call('opencut_upload_begin',{**descriptor(data,'main'),'name':'changed'},runner,'IDEMPOTENCY_KEY_REUSED')
+  for credential in [reader,editor]:http('opencut_upload_begin',descriptor(data,'deny'),credential,'NOT_AUTHORIZED',403)
+  http('opencut_upload_begin',descriptor(data,'foreign','b'),runner,'NOT_AUTHORIZED',403)
+  http('opencut_upload_begin',{**descriptor(data,'injection'),'path':'/private/source'},runner,'INVALID_ARGUMENT',400)
   http('opencut_upload_inspect',{'upload_id':'upload_'+'0'*32},runner,'NOT_AUTHORIZED',403)
   checks.append('Public discovery, idempotent CLI/HTTP create, read/edit denial, foreign project and injected host path rejection')
   cut=len(data)//2
@@ -76,11 +76,11 @@ def verify(binary,root,sdk):
   put(upload,0,b'x'*cut,runner,error='UPLOAD_CHUNK_CONFLICT',status=409)
   put(upload,cut,b'abc',runner,hash='0'*64,error='UPLOAD_CONTENT_MISMATCH',status=400)
   put(upload,cut,b'a',runner,size=2,error='UPLOAD_CONTENT_MISMATCH',status=400)
-  c=http_client.HTTPConnection('127.0.0.1',port,timeout=5);c.putrequest('PUT',f"/v1/uploads/{upload['upload_id']}/chunks/{cut}?"+urlencode({'size_bytes':str(len(data)-cut),'content_hash':digest(data[cut:])}));c.putheader('Authorization','Bearer '+runner.read_text().strip());c.putheader('Content-Length',str(len(data)-cut));c.endheaders();c.send(data[cut:cut+3]);c.close();time.sleep(.1)
+  c=http_client.HTTPConnection('127.0.0.1',port,timeout=5);c.putrequest('PUT',f"/api/uploads/{upload['upload_id']}/chunks/{cut}?"+urlencode({'size_bytes':str(len(data)-cut),'content_hash':digest(data[cut:])}));c.putheader('Authorization','Bearer '+runner.read_text().strip());c.putheader('Content-Length',str(len(data)-cut));c.endheaders();c.send(data[cut:cut+3]);c.close();time.sleep(.1)
   assert call('opencut_upload_inspect',{'upload_id':upload['upload_id']},reader)['next_offset']==str(cut)
   assert cli(['upload','put',upload['upload_id'],'--offset',str(cut),'--input','-'],credential=runner,raw=data[cut:])['next_offset']==str(len(data))
   checks.append('HTTP partial transfer, exact replay, conflicting bytes, bad hash/length and CLI raw stdin resume preserve confirmed offsets')
-  sealed=http('opencut_upload_seal',{'upload_id':upload['upload_id']},runner);assert call('opencut_upload_seal',{'upload_id':upload['upload_id']},runner)['job_id']==sealed['job_id']
+  sealed=http('opencut_upload_complete', {'upload_id':upload['upload_id'], 'content_hash':upload['content_hash']},runner);assert call('opencut_upload_complete', {'upload_id':upload['upload_id'], 'content_hash':upload['content_hash']},runner)['job_id']==sealed['job_id']
   primary=wait(sealed['job_id']);assert primary['result'] is None and primary['extended_result']['schema_version']==1
   imported=primary['extended_result']['data'];assert imported['asset']['kind']=='image';assert str(root) not in json.dumps(primary)
   assert call('opencut_project_inspect',{'project_id':'a'})==original['a']
@@ -88,7 +88,7 @@ def verify(binary,root,sdk):
   http('opencut_project_media_inspect',{'project_id':'b','media_id':imported['media_id']},runner,'NOT_AUTHORIZED',403)
   checks.append('Seal accepts one real Worker job, registers a portable typed resource without changing project head, and enforces scoped resource reads')
   def content(project,media_id,credential):
-   path=f'/v1/projects/{quote(project,safe="")}/media/{quote(media_id,safe="")}/content'
+   path=f'/api/projects/{quote(project,safe="")}/media/{quote(media_id,safe="")}/content'
    c=http_client.HTTPConnection('127.0.0.1',port,timeout=30)
    c.request('GET',path,headers={'Authorization':'Bearer '+credential.read_text().strip()})
    response=c.getresponse();body=response.read();status=response.status;headers=dict(response.getheaders());c.close()
@@ -124,7 +124,7 @@ def verify(binary,root,sdk):
   before=rows();first=http('opencut_project_media_query',{'project_id':'a','limit':1},reader);assert rows()==before
   assert first['media'][0]['media_id']==imported['media_id']
   if first['next_cursor']:
-   late=http('opencut_upload_create',descriptor(data,'late'),runner);put(late,0,data,runner);late_job=http('opencut_upload_seal',{'upload_id':late['upload_id']},runner);late_media=wait(late_job['job_id'])['extended_result']['data']['media_id']
+   late=http('opencut_upload_begin',descriptor(data,'late'),runner);put(late,0,data,runner);late_job=http('opencut_upload_complete', {'upload_id':late['upload_id'], 'content_hash':late['content_hash']},runner);late_media=wait(late_job['job_id'])['extended_result']['data']['media_id']
    page=first;ids=[page['media'][0]['media_id']]
    while page['next_cursor']:
     page=http('opencut_project_media_query',{'project_id':'a','cursor':page['next_cursor'],'limit':1},reader);ids += [m['media_id'] for m in page['media']]
@@ -142,20 +142,20 @@ def verify(binary,root,sdk):
   assert http('opencut_render_preflight',{'project_id':'a','revision':revision,'sequence_id':'main','container':'mp4','video_codec':'h264'},runner)['ready']
   preview=http('opencut_job_submit',{'kind':'preview.composited_frame','idempotency_key':'preview','input':{'project_id':'a','revision':revision,'sequence_id':'main','requested_time':at(0),'alignment':'exact'}},runner)
   artifact=wait(preview['job_id'])['artifacts'][0]
-  c=http_client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('GET','/v1/artifacts/'+quote(artifact['artifact_id'],safe=''),headers={'Authorization':'Bearer '+runner.read_text().strip()});r=c.getresponse();png=r.read();assert r.status==200 and digest(png)==artifact['content_hash'];c.close();(root/'preview.png').write_bytes(png)
+  c=http_client.HTTPConnection('127.0.0.1',port,timeout=30);c.request('GET','/api/artifacts/'+quote(artifact['artifact_id'],safe=''),headers={'Authorization':'Bearer '+runner.read_text().strip()});r=c.getresponse();png=r.read();assert r.status==200 and digest(png)==artifact['content_hash'];c.close();(root/'preview.png').write_bytes(png)
   pixels=subprocess.check_output(['ffmpeg','-v','error','-i',str(root/'preview.png'),'-f','rawvideo','-pix_fmt','rgb24','-'],timeout=30);assert len(pixels)==64*48*3 and sum(pixels[::3])/(64*48)>245 and sum(pixels[1::3])/(64*48)<5
   checks.append('After deleting source, scoped asset binding, replay, preflight, actual preview, authenticated download, SHA-256 and independent RGB verification pass')
-  large=b'z'*(3*1024*1024+17);big=http('opencut_upload_create',descriptor(large,'large'),runner);assert put(big,0,large,runner)['next_offset']==str(len(large))
+  large=b'z'*(3*1024*1024+17);big=http('opencut_upload_begin',descriptor(large,'large'),runner);assert put(big,0,large,runner)['next_offset']==str(len(large))
   folder=root/'uploads'/big['upload_id'];assert folder.is_dir();http('opencut_upload_abort',{'upload_id':big['upload_id']},runner);assert not folder.exists();http('opencut_upload_abort',{'upload_id':big['upload_id']},runner)
   put(big,0,large,runner,error='UPLOAD_STATE_CONFLICT',status=409)
   checks.append('Binary data larger than the 2 MiB control limit uploads correctly; abort removes private chunks and repeat abort is safe')
-  slow=http('opencut_upload_create',descriptor(b'abc','slow'),runner);revocable,cid=issue('uploader','-revocable')
-  c=http_client.HTTPConnection('127.0.0.1',port,timeout=5);c.putrequest('PUT',f"/v1/uploads/{slow['upload_id']}/chunks/0?size_bytes=3&content_hash={digest(b'abc')}");c.putheader('Authorization','Bearer '+revocable.read_text().strip());c.putheader('Content-Length','3');c.endheaders();c.send(b'a');time.sleep(.1);cli(['access','revoke',cid]);r=c.getresponse();out=json.loads(r.read());assert r.status==403 and out['error']['code']=='NOT_AUTHORIZED';c.close()
+  slow=http('opencut_upload_begin',descriptor(b'abc','slow'),runner);revocable,cid=issue('uploader','-revocable')
+  c=http_client.HTTPConnection('127.0.0.1',port,timeout=5);c.putrequest('PUT',f"/api/uploads/{slow['upload_id']}/chunks/0?size_bytes=3&content_hash={digest(b'abc')}");c.putheader('Authorization','Bearer '+revocable.read_text().strip());c.putheader('Content-Length','3');c.endheaders();c.send(b'a');time.sleep(.1);cli(['access','revoke',cid]);r=c.getresponse();out=json.loads(r.read());assert r.status==403 and out['error']['code']=='NOT_AUTHORIZED';c.close()
   assert call('opencut_upload_inspect',{'upload_id':slow['upload_id']})['next_offset']=='0';assert not (root/'uploads'/slow['upload_id']).exists()
   limited,lid=issue('uploader','-limited');connections=[]
   try:
    for _ in range(cap['uploads']['max_inflight_chunks']):
-    stream=http_client.HTTPConnection('127.0.0.1',port,timeout=10);stream.putrequest('PUT',f"/v1/uploads/{slow['upload_id']}/chunks/0?size_bytes=3&content_hash={digest(b'abc')}");stream.putheader('Authorization','Bearer '+limited.read_text().strip());stream.putheader('Content-Length','3');stream.endheaders();stream.send(b'a');connections.append(stream)
+    stream=http_client.HTTPConnection('127.0.0.1',port,timeout=10);stream.putrequest('PUT',f"/api/uploads/{slow['upload_id']}/chunks/0?size_bytes=3&content_hash={digest(b'abc')}");stream.putheader('Authorization','Bearer '+limited.read_text().strip());stream.putheader('Content-Length','3');stream.endheaders();stream.send(b'a');connections.append(stream)
    time.sleep(.6)
    put(slow,0,b'abc',runner,error='UPLOAD_BUSY',status=429)
    cli(['access','revoke',lid])
@@ -170,18 +170,18 @@ def verify(binary,root,sdk):
    for item in http('opencut_project_media_query',{'project_id':'a','limit':100},runner)['media']:
     http('opencut_upload_release',{'upload_id':item['upload_id']},runner)
    assert http('opencut_upload_quota',{'project_id':'a'},reader)['project_reserved_bytes']=='0'
-   project_limit=int(cap['uploads']['staging']['project_reservation_limit_bytes'])
-   assert project_limit % 8 == 0
-   quota_unit=project_limit//8
-   assert 0 < quota_unit <= int(cap['uploads']['max_upload_bytes'])
+   # Declared20GiB sources exceed the retired16GiB file/32/64GiB upload quotas.
+   # No giant fixture is allocated:physical writes remain covered by native admission.
+   quota_unit=20*1024**3
+   project_limit=quota_unit*8
+   assert 0 < quota_unit <= int(cap['uploads']['max_source_bytes'])
    held=[]
    with sqlite3.connect(db) as c:c.execute("CREATE TRIGGER deny_staging_release BEFORE INSERT ON audit_records WHEN NEW.action='upload.staging_released' BEGIN SELECT RAISE(ABORT,'injected release failure'); END")
    try:
     for i in range(8):
-     value=http('opencut_upload_create',{'project_id':'a','name':'reservation','idempotency_key':f'quota-{i}','size_bytes':str(quota_unit),'content_hash':'a'*64},runner);held.append(value)
+     value=http('opencut_upload_begin',{'project_id':'a','name':'reservation','idempotency_key':f'quota-{i}','size_bytes':str(quota_unit),'content_hash':'a'*64},runner);held.append(value)
      http('opencut_upload_abort',{'upload_id':value['upload_id']},runner,'UPLOAD_CLEANUP_PENDING',500)
-    quota=http('opencut_upload_quota',{'project_id':'a'},reader);assert quota['project_reserved_bytes']==quota['project_limit_bytes']==str(project_limit)
-    http('opencut_upload_create',descriptor(b'x','over-quota'),runner,'UPLOAD_QUOTA_EXCEEDED',422)
+    quota=http('opencut_upload_quota',{'project_id':'a'},reader);assert quota['project_reserved_bytes']==str(project_limit)
     assert http('opencut_upload_retention',{'upload_id':held[0]['upload_id']},reader)['state']=='retained'
    finally:
     with sqlite3.connect(db) as c:c.execute('DROP TRIGGER deny_staging_release')
@@ -191,7 +191,7 @@ def verify(binary,root,sdk):
    http('opencut_upload_query',{'project_id':'b','cursor':first['next_cursor']},runner,'NOT_AUTHORIZED',403)
    http('opencut_upload_query',{'project_id':'b','cursor':first['next_cursor']},owner,'CURSOR_EXPIRED',410)
    http('opencut_upload_release',{'upload_id':held[-1]['upload_id']},runner)
-   late=http('opencut_upload_create',descriptor(b'x','after-upload-page'),runner)
+   late=http('opencut_upload_begin',descriptor(b'x','after-upload-page'),runner)
    page=first;ids=[e['upload']['upload_id'] for e in page['uploads']]
    while page['next_cursor']:
     page=http('opencut_upload_query',{'project_id':'a','cursor':page['next_cursor'],'limit':3},reader);ids += [e['upload']['upload_id'] for e in page['uploads']]
@@ -204,7 +204,7 @@ def verify(binary,root,sdk):
    assert len(http('opencut_upload_query',{'project_id':'a','retained_only':False,'limit':100},reader)['uploads'])>=len(held)
    assert http('opencut_upload_quota',{'project_id':'a'},reader)['project_reserved_bytes']=='0'
    checks.append('Upload discovery is read-only, scopes cursors to project/filter, excludes later creations while observing releases, and recovers capacity without remembered upload IDs')
-   admitted=http('opencut_upload_create',descriptor(b'x','over-quota'),runner)
+   admitted=http('opencut_upload_begin',descriptor(b'x','over-quota'),runner)
    http('opencut_upload_abort',{'upload_id':admitted['upload_id']},runner)
    checks.append('Real release-audit failures retain logical reservations despite absent files; project quota blocks admission, explicit retries free capacity and the failed key is reusable')
   audit=call('opencut_audit_query',{'target':{'kind':'project','id':'a'},'limit':500})

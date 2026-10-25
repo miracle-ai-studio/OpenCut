@@ -176,7 +176,7 @@ export const SHORTCUT_ACTIONS = [
     id: "toggle-bookmark",
     label: "Toggle bookmark at playhead",
     category: "Timeline",
-    keys: [],
+    keys: ["m"],
     scope: "timeline",
   },
   { id: "undo", label: "Undo", category: "History", keys: ["mod+z"] },

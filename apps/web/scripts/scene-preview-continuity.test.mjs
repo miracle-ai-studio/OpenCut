@@ -34,14 +34,14 @@ test("credit uses Worker entry, not later page arrival, and joins adjacent obser
   assert.equal(r.slowest_refills[0].supplied_start_sample,"8192");assert.deepEqual(r.slowest_refills[0].preceding_controls,[{kind:"heartbeat",began_ms:8,headers_ended_ms:11,ended_ms:11}]);
 });
 test("Worker control observation waits for the original response body, preserving its text",async()=>{
-  const {installScenePreviewPumpWitness}=await import("./verify-v4-scene-preview.mjs");
+  const {installScenePreviewPumpWitness}=await import("./verify-scene-preview.mjs");
   const original={fetch:globalThis.fetch,MessagePort:globalThis.MessagePort,addEventListener:globalThis.addEventListener};
   let controller;
   const response=new Response(new ReadableStream({start(c){controller=c;}}));
   globalThis.fetch=async()=>response;globalThis.MessagePort=class{postMessage(){}};globalThis.addEventListener=()=>{};
   try {
     installScenePreviewPumpWitness();
-    const value=await fetch("/v1/tools/opencut_audio_preview_v4_control",{body:JSON.stringify({command:{kind:"heartbeat"}})});
+    const value=await fetch("/api/tools/opencut_audio_preview_control",{body:JSON.stringify({command:{kind:"heartbeat"}})});
     assert.equal(value,response);assert.equal(globalThis.__scenePumpWitness.controls.length,0);
     const reading=value.text();assert.equal(globalThis.__scenePumpWitness.controls.length,0);
     controller.enqueue(new TextEncoder().encode('{"fixed":true}'));controller.close();
@@ -50,7 +50,7 @@ test("Worker control observation waits for the original response body, preservin
   } finally {Object.assign(globalThis,original);delete globalThis.__scenePumpWitness;}
 });
 test("Worker-to-page conversion includes response headers and body when time origins differ",async()=>{
-  const {trackScenePreviewPumps}=await import("./verify-v4-scene-preview.mjs");
+  const {trackScenePreviewPumps}=await import("./verify-scene-preview.mjs");
   let born,calls=0;
   const worker={url:()=>"http://localhost/pump-worker-synthetic.js",on(){},async evaluate(){if(++calls===1)return;return {token:"synthetic",startObserved:true,timeOrigin:6000,blocks:3,pcm:[],overflows:0,
     selectedPcm:[{id:"later",start_sample:42,frames:1,values:[.1,.1]}],pcmCapture:{completed:1},
@@ -78,12 +78,12 @@ test("refill detail keeps only greatest32 numeric samples and distinguishes prio
   assert.throws(()=>new PreviewCreditObservations().add([],[{kind:"heartbeat",began:2,ended:1}],[]),/Invalid control/);
 });
 test("armed stopped-report gate holds the real body once, preserving original text and unrelated controls",async()=>{
-  const {installScenePreviewPumpWitness}=await import("./verify-v4-scene-preview.mjs");
+  const {installScenePreviewPumpWitness}=await import("./verify-scene-preview.mjs");
   const original={fetch:globalThis.fetch,MessagePort:globalThis.MessagePort,addEventListener:globalThis.addEventListener};
   globalThis.fetch=async()=>new Response('{"fixed":true}');globalThis.MessagePort=class{postMessage(){}};globalThis.addEventListener=()=>{};
   try {
     installScenePreviewPumpWitness({controlGate:{kind:"report_consumed",stoppedReport:true}});
-    const read=async command=>(await fetch("/v1/tools/opencut_audio_preview_v4_control",{body:JSON.stringify({command})})).text();
+    const read=async command=>(await fetch("/api/tools/opencut_audio_preview_control",{body:JSON.stringify({command})})).text();
     const w=globalThis.__scenePumpWitness;w.controlGate.armed=true;
     assert.equal(await read({kind:"heartbeat"}),'{"fixed":true}');
     assert.equal(await read({kind:"report_consumed",playing:true}),'{"fixed":true}');

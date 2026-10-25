@@ -80,11 +80,11 @@ def verify(binary, root, component):
             checks.append('Delivered schema-13 host refuses the extended writer protocol without changing business history')
         start();wav=root/'tone.wav'
         with wave.open(str(wav),'wb') as w: w.setnchannels(1);w.setsampwidth(2);w.setframerate(8000);w.writeframes(b'\0\0'*800)
-        data=wav.read_bytes();configure(0,'upload-deny');raw('POST','/v1/media/upload?name=tone.wav',data,'STORAGE_BUDGET_EXCEEDED');settled();assert not list((root/'media').glob('.upload-*'))
+        data=wav.read_bytes();configure(0,'upload-deny');raw('POST','/api/media/upload?name=tone.wav',data,'STORAGE_BUDGET_EXCEEDED');settled();assert not list((root/'media').glob('.upload-*'))
         # Cross the batched disk-write boundary while leaving the HTTP body open.
         partial = data + b'\0' * ((8 << 20) - len(data))
-        configure(1<<30,'upload-room');s=slow('/v1/media/upload?name=partial.wav','POST',partial);state,active=live('media_upload',len(partial));recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==0 and recovery['reserved_bytes']==state['reserved_bytes'];s.close();settled();assert not list((root/'media').glob('.upload-*'))
-        uploaded=json.loads(raw('POST','/v1/media/upload?name=tone.wav',data))['data'];settled();content=hashlib.sha256(data).hexdigest();assert (root/'media'/content).read_bytes()==data
+        configure(1<<30,'upload-room');s=slow('/api/media/upload?name=partial.wav','POST',partial);state,active=live('media_upload',len(partial));recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==0 and recovery['reserved_bytes']==state['reserved_bytes'];s.close();settled();assert not list((root/'media').glob('.upload-*'))
+        uploaded=json.loads(raw('POST','/api/media/upload?name=tone.wav',data))['data'];settled();content=hashlib.sha256(data).hexdigest();assert (root/'media'/content).read_bytes()==data
         checks.append('Global HTTP upload rejects before bytes are written; live chunked upload survives recovery and disconnect cleans file and reservation; valid WAV publishes exact bytes')
         metadata=root/'media'/f'{content}.json';metadata.write_text('{}');entry=call('opencut_media_inspect',{'content_hash':content});request={'content_hash':content,'expected_metadata_hash':entry['metadata_hash']}
         before_publication=publications('maintenance');used=int(inspect()['observed_payload_bytes']);configure(used,'repair-copy-deny');call('opencut_media_repair',request,'STORAGE_BUDGET_EXCEEDED');assert metadata.read_text()=='{}';settled()
@@ -96,11 +96,11 @@ def verify(binary, root, component):
         permissions=['project.snapshot.read','edit.plan.propose'];manifest={'manifest_version':1,'id':'org.example.budget','version':'1.0.0','display_name':'Budget QA','plugin_api':'>=1.0.0, <2.0.0','runtime':{'kind':'wasm-component','entry':'planner.wasm','world':'opencut:planner/planner@1.0.0'},'targets':['native'],'permissions':permissions,'contributes':{'operations':[{'name':'org.example.budget.plan','version':1,'kind':'job','input_schema':'input.json','output_schema':'output.json'}]},'limits':{'memory_mib':32,'wall_time_ms':2000,'output_bytes':65536,'fuel':10000000}}
         (package/'manifest.json').write_text(json.dumps(manifest));install={'package_root':str(package),'granted_permissions':[]}
         configure(int(inspect()['observed_payload_bytes']),'plugin-deny');call('opencut_plugin_install',install,'STORAGE_BUDGET_EXCEEDED');assert call('opencut_plugin_list')==[];assert not list((root/'plugins').rglob('.install-staging'));settled()
-        configure(1<<30,'plugin-room');installed=call('opencut_plugin_install',install);grant=Path(installed['install_path'])/'.opencut-grants.json';assert json.loads(grant.read_text())==[]
+        configure(1<<30,'plugin-room');installed=call('opencut_plugin_install',install);grant=(root/'plugins'/installed['manifest']['id']/installed['manifest']['version']/installed['package_sha256'])/'.opencut-grants.json';assert json.loads(grant.read_text())==[]
         before_publication=publications('plugin');configure(int(inspect()['observed_payload_bytes']),'grant-deny');call('opencut_plugin_install',{**install,'granted_permissions':permissions},'STORAGE_BUDGET_EXCEEDED');assert json.loads(grant.read_text())==[];settled()
         assert publications('plugin')==before_publication
-        configure(1<<30,'grant-room');call('opencut_plugin_install',{**install,'granted_permissions':permissions});plan=call('opencut_plugin_plan',{'id':manifest['id'],'version':'1.0.0','operation_name':'org.example.budget.plan','project_id':'writers','revision':project['revision'],'parameters':{'track_id':'generated'}});assert plan['operations'][0]['track']['id']=='generated';settled()
-        checks.append('Real WASM package and grant writes enforce admission, failed staging cleans up, existing grants survive refusal, and restored capacity executes the plugin plan')
+        configure(1<<30,'grant-room');call('opencut_plugin_install',{**install,'granted_permissions':permissions});inspected=call('opencut_plugin_inspect',{'id':manifest['id'],'version':'1.0.0','kind':'wasm'});assert set(inspected['granted_permissions'])==set(permissions);settled()
+        checks.append('Real WASM package and grant writes enforce admission, failed staging cleans up, existing grants survive refusal, and restored capacity restores verified permission metadata;execution has separate canonical WASM coverage')
         # A real large PNG frame output reliably exceeds HTTP/socket buffers.
         pixels=os.urandom(3072*2048*3);source=root/'noise.png'
         subprocess.run(['ffmpeg','-v','error','-f','rawvideo','-pixel_format','rgb24','-video_size','3072x2048','-i','-','-frames:v','1','-threads','1',str(source)],input=pixels,capture_output=True,check=True,timeout=45)
@@ -111,7 +111,7 @@ def verify(binary, root, component):
             if job['state'] in ['succeeded','failed','cancelled']: break
             assert time.monotonic()<deadline;time.sleep(.1)
         assert job['state']=='succeeded',job
-        ref=job['artifacts'][0];size=int(ref['size_bytes']);assert size>10<<20;path=f'/v1/jobs/{job["job_id"]}/artifact';used=int(settled()['observed_payload_bytes'])
+        ref=job['artifacts'][0];size=int(ref['size_bytes']);assert size>10<<20;path=f'/api/jobs/{job["job_id"]}/artifact';used=int(settled()['observed_payload_bytes'])
         configure(used,'download-deny');raw('GET',path,error='STORAGE_BUDGET_EXCEEDED');settled()
         configure(used+size,'download-one');s=slow(path);state,active=live('artifact_download');assert int(active[0]['reserved_bytes'])==size;assert not list((root/'artifacts').glob('.download-*'));assert int(state['observed_payload_bytes'])==used
         recovery=call('opencut_storage_budget_recover');assert recovery['recovered_reservations']==0 and int(recovery['reserved_bytes'])==size

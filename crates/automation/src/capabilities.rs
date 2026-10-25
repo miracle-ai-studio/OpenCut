@@ -4,63 +4,34 @@ use serde_json::Value;
 pub fn document() -> HostCapabilities {
     HostCapabilities {
         analysis_evidence_query_tool: Some("opencut_analysis_evidence_query".into()),
-        project_v3: Some(ProjectV3Capabilities {
-            schema_version: 3,
-            create_tool: "opencut_project_v3_create".into(),
-            promote_tool: "opencut_project_v3_promote".into(),
-            list_tool: "opencut_project_v3_list".into(),
-            inspect_tool: "opencut_project_v3_inspect".into(),
-            plan_tool: "opencut_edit_v3_plan".into(),
-            apply_tool: "opencut_edit_v3_apply".into(),
-            preview_create_tool: "opencut_preview_v3_create".into(),
-            preset_plan_tool: "opencut_plugin_v2_preset_v3_plan".into(),
-            preflight_tool: "opencut_render_v3_preflight".into(),
-            undo_plan_tool: "opencut_edit_v3_undo_plan".into(),
-            undo_apply_tool: "opencut_edit_v3_undo_apply".into(),
-            redo_plan_tool: "opencut_edit_v3_redo_plan".into(),
-            redo_apply_tool: "opencut_edit_v3_redo_apply".into(),
+        project: Some(ProjectCapabilities {
+            create_tool: "opencut_project_create".into(),
+            promote_tool: "opencut_project_promote".into(),
+            list_tool: "opencut_project_list".into(),
+            inspect_tool: "opencut_project_inspect".into(),
+            plan_tool: "opencut_edit_plan".into(),
+            apply_tool: "opencut_edit_apply".into(),
+            preview_create_tool: "opencut_preview_create".into(),
+            preset_plan_tool: "opencut_plugin_preset_plan".into(),
+            preflight_tool: "opencut_render_preflight".into(),
+            undo_plan_tool: "opencut_edit_undo_plan".into(),
+            undo_apply_tool: "opencut_edit_undo_apply".into(),
+            redo_plan_tool: "opencut_edit_redo_plan".into(),
+            redo_apply_tool: "opencut_edit_redo_apply".into(),
             branch_tools: [
-                "opencut_edit_v3_branch_create",
-                "opencut_edit_v3_branch_list",
-                "opencut_edit_v3_branch_apply",
-                "opencut_edit_v3_branch_compare",
-                "opencut_edit_v3_branch_merge",
+                "opencut_edit_branch_create",
+                "opencut_edit_branch_list",
+                "opencut_edit_apply",
+                "opencut_edit_branch_compare",
+                "opencut_edit_branch_merge",
             ]
             .map(str::to_owned)
             .into(),
-            package_export_tool: "opencut_project_v3_package_export".into(),
-            package_import_tool: "opencut_project_v3_package_import".into(),
-            operations: [
-                "base.apply",
-                "shape.put",
-                "shape.delete",
-                "effect.put",
-                "effect.delete",
-                "mask.put",
-                "mask.delete",
-                "transition.put",
-                "transition.delete",
-                "keyframe.curve_set",
-                "keyframe.curve_delete",
-            ]
-            .map(str::to_owned)
-            .into(),
-            shapes: ["rectangle", "ellipse"].map(str::to_owned).into(),
-            effects: ["color_adjust", "gaussian_blur"].map(str::to_owned).into(),
-            masks: ["rectangle", "ellipse"].map(str::to_owned).into(),
-            transitions: vec!["crossfade".into()],
-            base_operations_supported: true,
+            package_export_tool: "opencut_project_package_export".into(),
+            package_import_tool: "opencut_project_package_import".into(),
             selective_undo_redo: true,
             named_branches: true,
             promotion_reversible_by_undo: false,
-            job_kinds: [
-                "render.project.v3",
-                "preview.project_frame.v3",
-                "preview.project_range.v3",
-            ]
-            .map(str::to_owned)
-            .into(),
-            analysis_uses_fixed_base_assets: true,
         }),
         preview: Some(opencut_api_contracts::preview::Capabilities {
             backend: "ffmpeg_continuous_fmp4".into(),
@@ -70,7 +41,7 @@ pub fn document() -> HostCapabilities {
                 "cli_endpoint".into(),
                 "embedded".into(),
             ],
-            stream_path: "/v1/preview/stream".into(),
+            stream_path: "/api/preview/stream".into(),
             restart_recoverable: false,
             browser_presentation_verified: false,
             max_sessions_per_process: 32,
@@ -160,12 +131,6 @@ pub fn document() -> HostCapabilities {
         }),
         uploads: Some(UploadCapabilities {
             staging: Some(UploadStagingCapabilities {
-                project_reservation_limit_bytes:
-                    opencut_editor_application::uploads::PROJECT_UPLOAD_RESERVATION_LIMIT
-                        .to_string(),
-                workspace_reservation_limit_bytes:
-                    opencut_editor_application::uploads::WORKSPACE_UPLOAD_RESERVATION_LIMIT
-                        .to_string(),
                 retention_tool: "opencut_upload_retention".into(),
                 release_tool: "opencut_upload_release".into(),
                 quota_tool: "opencut_upload_quota".into(),
@@ -175,20 +140,18 @@ pub fn document() -> HostCapabilities {
                 measures_filesystem_usage: false,
             }),
             chunk_method: "PUT".into(),
-            chunk_path_template: "/v1/uploads/{upload_id}/chunks/{offset}".into(),
+            chunk_path_template: "/api/uploads/{upload_id}/chunks/{offset}".into(),
             chunk_query_fields: vec!["size_bytes".into(), "content_hash".into()],
             requires_bearer: true,
-            max_upload_bytes: opencut_editor_application::uploads::MAX_UPLOAD_BYTES.to_string(),
+            max_source_bytes: opencut_editor_application::uploads::MAX_SOURCE_BYTES.to_string(),
             max_chunk_bytes: opencut_editor_application::uploads::MAX_CHUNK_BYTES.to_string(),
-            max_chunks: opencut_editor_application::uploads::MAX_UPLOAD_CHUNKS as usize,
             max_receiving_per_project: 8,
             max_receiving_per_workspace: 128,
             max_inflight_chunks: UPLOAD_INFLIGHT_LIMIT,
             chunk_timeout_seconds: UPLOAD_CHUNK_TIMEOUT_SECONDS,
             sequential: true,
-            accept_tool: "opencut_upload_seal".into(),
-            result_field: "extended_result".into(),
-            result_schema_version: 1,
+            accept_tool: "opencut_upload_complete".into(),
+            result_field: "result".into(),
         }),
         access: AccessCapabilities {
             scoped_transports: vec![
@@ -207,7 +170,7 @@ pub fn document() -> HostCapabilities {
                 opencut_api_contracts::access::ProjectAction::ReadAudit,
             ],
             mcp_session_binding: Some("credential_and_policy_revision".into()),
-            public_event_stream_path: Some("/v1/changes/stream".into()),
+            public_event_stream_path: Some("/api/changes/stream".into()),
             policy_management: Some("local_owner_cli".into()),
             scoped_preflight: true,
         },
@@ -223,9 +186,7 @@ pub fn document() -> HostCapabilities {
             max_resource_subscriptions: MCP_RESOURCE_SUBSCRIPTION_LIMIT,
         },
         api: Capabilities {
-            api_version: "1".into(),
             host: "native".into(),
-            project_schema_version: 2,
             features: Features {
                 persistent_projects: true,
                 atomic_transactions: true,
@@ -275,9 +236,8 @@ pub fn document() -> HostCapabilities {
                 preview_range_execution: "range_encode_may_decode_prefix".into(),
                 availability: "validated when the job executes".into(),
             },
-            operations: opencut_editor_core::operation_descriptors(),
-            parameters: opencut_editor_core::parameter_descriptors(),
-            job_kinds: opencut_job_contracts::job_kind_descriptors(),
+            edit_operation_schema: edit_operation_schema(),
+            job_results: opencut_api_contracts::job_results::descriptors(),
             tools: crate::tool_specs().into_iter().map(|t| t.name).collect(),
         },
     }

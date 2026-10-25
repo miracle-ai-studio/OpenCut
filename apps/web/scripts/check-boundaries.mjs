@@ -31,12 +31,12 @@ export function violations(file, code) {
     if (
       name.includes("classic-audio-renderer") &&
       !(
-        file === "editor/workspace/v4/audio-preview-mastering.ts" &&
+        file === "editor/workspace/scene/audio-preview-mastering.ts" &&
         name === "../../../../../../packages/classic-audio-renderer/src/mastering.mjs"
       )
     )
       errors.push(`${file}: renderer imports require the pure mastering bridge`);
-    if (name.includes("classic-visual-renderer") && !(file === "editor/workspace/v4/visual-preview-renderer.ts" && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs"))
+    if (name.includes("classic-visual-renderer") && !(file === "editor/workspace/scene/visual-preview-renderer.ts" && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs"))
       errors.push(`${file}: visual renderer imports require the bounded preview bridge`);
     if (!name.startsWith(".") && !/^(?:@|#)\//.test(name)) return;
     const target = path.posix.normalize(
@@ -125,10 +125,10 @@ export function violations(file, code) {
           "opencut.preview",
           // Finite transaction-scoped selection/scene/playhead hints only.
           // Runtime projection remains in the existing preference module.
-          "opencut.history-views.v1",
+          "opencut.history-views",
           // Bounded host/project/scene view identities, no content or image bytes.
-          "opencut.cover-scenes.v1",
-        ].includes(call.arguments[0].text)
+          "opencut.cover-scenes",
+        ].includes(call.arguments[0].text) && !(property.name.text === "getItem" && ["opencut.history-views.v1", "opencut.cover-scenes.v1"].includes(call.arguments[0].text))
       )
         invalidStorageCall = true;
     }
@@ -138,16 +138,19 @@ export function violations(file, code) {
   const allowedViews =
     viewPreferences && storageCalls > 0 && !invalidStorageCall;
   // Fixed, bounded UI preferences only. These adapters must not grow into
-  // project/media/credential stores; both exact file and literal key are pinned.
-  const uiPreferenceKey = file === "editor/shortcuts/persistence.ts" ? "opencut.shortcuts.v1"
-    : file === "editor/workspace/v4/keyframes/presets.ts" ? "opencut.curve-presets.v1" : null;
-  let uiPreferenceStorage = uiPreferenceKey !== null && !/\b(?:indexedDB|EditorCore|sessionStorage)\b/.test(code);
+  // project/media/credential stores. Each exact adapter writes one literal key;
+  // its one original preference key remains read-only for existing user data.
+  const uiPreferenceKeys = file === "editor/shortcuts/persistence.ts" ? ["opencut.shortcuts", "opencut.shortcuts.v1"]
+    : file === "editor/workspace/scene/keyframes/presets.ts" ? ["opencut.curve-presets", "opencut.curve-presets.v1"] : null;
+  let uiPreferenceStorage = uiPreferenceKeys !== null && !/\b(?:indexedDB|EditorCore|sessionStorage)\b/.test(code);
   function inspectUiPreferenceStorage(node) {
     if (ts.isIdentifier(node) && node.text === "localStorage") {
       const base = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node ? node.parent : node;
       const property = base.parent, call = property?.parent;
       if (!ts.isPropertyAccessExpression(property) || !["getItem", "setItem"].includes(property.name.text)
-          || !ts.isCallExpression(call) || !ts.isStringLiteralLike(call.arguments[0]) || call.arguments[0].text !== uiPreferenceKey)
+          || !ts.isCallExpression(call) || !ts.isStringLiteralLike(call.arguments[0])
+          || !(call.arguments[0].text === uiPreferenceKeys[0]
+            || (property.name.text === "getItem" && call.arguments[0].text === uiPreferenceKeys[1])))
         uiPreferenceStorage = false;
     }
     ts.forEachChild(node, inspectUiPreferenceStorage);
@@ -168,9 +171,9 @@ export function violations(file, code) {
         !ts.isCallExpression(call) ||
         !ts.isStringLiteralLike(call.arguments[0]) ||
         ![
-          "opencut.feedback.draft.v1",
-          "opencut.feedback.mock-history.v1",
-        ].includes(call.arguments[0].text)
+          "opencut.feedback.draft",
+          "opencut.feedback.mock-history",
+        ].includes(call.arguments[0].text) && !(property.name.text === "getItem" && ["opencut.feedback.draft.v1", "opencut.feedback.mock-history.v1"].includes(call.arguments[0].text))
       )
         feedbackStorage = false;
     }
@@ -182,15 +185,13 @@ export function violations(file, code) {
   // identity for explicit retry: fixed revision, job key and language only.
   // Its typed parser rejects other fields and bounds the shared envelope to
   // 32 entries / 16 KiB. Subtitle text and edit receipts remain in the host.
-  const recoveryStorageKey = file === "editor/workspace/v4/timeline-edit/recovery.ts"
-    ? "opencut.edit-recovery.v1"
-    : file === "editor/workspace/v4/edit-recovery-pointers.ts" ? "opencut.edit-recovery.v2"
-    : file === "editor/workspace/v4/captions/client-state.ts" ? "opencut.caption-client.v1"
-    : file === "editor/workspace/v4/export_video_v2-recovery.ts" ? "opencut.export-video-recovery.v2"
-    : file === "editor/workspace/v4/catalog_resources_v1-recovery.ts" ? "opencut.catalog-resources.v1"
-    : file === "editor/workspace/v4/brand_resources_v1-recovery.ts" ? "opencut.brand-resources.v1"
-    : file === "editor/workspace/v4/history-package-recovery.ts" ? "opencut.history-package.v1" : null;
-  let recoveryStorage = recoveryStorageKey !== null &&
+  const recoveryStorageKeys = file === "editor/workspace/scene/edit-recovery-pointers.ts" ? ["opencut.edit-recovery", "opencut.edit-recovery.v2"]
+    : file === "editor/workspace/scene/captions/client-state.ts" ? ["opencut.caption-client", "opencut.caption-client.v1"]
+    : file === "editor/workspace/scene/video-export-recovery.ts" ? ["opencut.export-video-recovery", "opencut.export-video-recovery.v2"]
+    : file === "editor/workspace/scene/catalog_resources-recovery.ts" ? ["opencut.catalog-resources", "opencut.catalog-resources.v1"]
+    : file === "editor/workspace/scene/brand_resources-recovery.ts" ? ["opencut.brand-resources", "opencut.brand-resources.v1"]
+    : file === "editor/workspace/scene/package-recovery.ts" ? ["opencut.package", "opencut.history-package.v1"] : null;
+  let recoveryStorage = recoveryStorageKeys !== null &&
     !/\b(?:localStorage|indexedDB|EditorCore)\b/.test(code);
   function inspectRecoveryStorage(node) {
     if (ts.isIdentifier(node) && node.text === "sessionStorage") {
@@ -199,7 +200,7 @@ export function violations(file, code) {
       if (!ts.isPropertyAccessExpression(property) ||
           !["getItem", "setItem"].includes(property.name.text) ||
           !ts.isCallExpression(call) || !ts.isStringLiteralLike(call.arguments[0]) ||
-          call.arguments[0].text !== recoveryStorageKey) recoveryStorage = false;
+          !(call.arguments[0].text === recoveryStorageKeys[0] || (property.name.text === "getItem" && call.arguments[0].text === recoveryStorageKeys[1]))) recoveryStorage = false;
     }
     ts.forEachChild(node, inspectRecoveryStorage);
   }

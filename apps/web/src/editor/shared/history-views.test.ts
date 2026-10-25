@@ -38,7 +38,7 @@ it("persists owned bounded views across stores, scopes by host/project/transacti
   expect(new HistoryViewStore().read(value.host, "p", "128")).toBeTruthy();
 });
 it("rejects corrupt/oversized hints and projects only view fields", () => {
-  const key = "opencut.history-views.v1",
+  const key = "opencut.history-views",
     value = entry();
   localStorage.setItem(
     key,

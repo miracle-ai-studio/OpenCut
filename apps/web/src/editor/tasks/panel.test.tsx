@@ -9,19 +9,23 @@ import {
 import { afterEach, expect, it, vi } from "vitest";
 import { WorkspaceProvider } from "../workspace/context";
 import { TasksPanel } from "./panel";
-import { setupAudioWav } from "../workspace/v4/audio-wav-fixture";
-import { png, setupFrame } from "../workspace/v4/frame-fixture";
+import { setupAudioWav } from "../workspace/scene/audio-wav-fixture";
+import { png, setupFrame } from "../workspace/scene/frame-fixture";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
-it("labels a V4 still frame distinctly and downloads its published PNG through the existing artifact port", async () => {
+it("distinguishes range jobs and completed frame downloads without showing an active stage", async () => {
   const f = await setupFrame();
   try {
-    await f.controller.v4.frame.start();
+    await f.controller.scene.frame.start();
     f.complete();
+    f.rows[0].progress = { stage: "verifying", fraction: 1, media_time: null };
+    for (const [job_id, kind] of [["range-video", "render.video_range"], ["range-audio", "render.audio_range"]]) {
+      f.rows.push({ ...structuredClone(f.rows[0]), job_id, kind, state: "queued", result: null, artifacts: [], progress: null });
+    }
     await f.controller.sync();
     const downloaded: number[][] = [];
     const picker = vi.fn().mockResolvedValue({
@@ -42,6 +46,9 @@ it("labels a V4 still frame distinctly and downloads its published PNG through t
       </WorkspaceProvider>,
     );
     expect(screen.getByText("Scene frame")).toBeTruthy();
+    expect(screen.getByText("Video range export")).toBeTruthy();
+    expect(screen.getByText("Audio range export")).toBeTruthy();
+    expect(screen.queryByText("verifying")).toBeNull();
     expect(screen.queryByText("Export")).toBeNull();
     expect(screen.queryByRole("button", { name: "Add to library" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
@@ -57,7 +64,7 @@ it("labels a V4 still frame distinctly and downloads its published PNG through t
 it("reuses durable cancellation and authenticated WAV downloads while hiding the legacy import recovery action in V4", async () => {
   const { controller, api, rows } = await setupAudioWav();
   try {
-    await controller.v4.audioWav.start(48000);
+    await controller.scene.audioWav.start(48000);
     const wav = rows[0];
     rows.push({
       ...structuredClone(wav),
@@ -72,7 +79,7 @@ it("reuses durable cancellation and authenticated WAV downloads while hiding the
     });
     await controller.sync();
     const cancel = vi
-      .spyOn(api.sdk, "cancelPublicJob")
+      .spyOn(api.sdk, "cancelJob")
       .mockImplementation(async () => {
         wav.cancel_requested = true;
         return structuredClone(wav);

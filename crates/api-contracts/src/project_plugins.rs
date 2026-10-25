@@ -44,9 +44,20 @@ pub struct OperationView {
     pub limits: crate::plugins::PluginLimits,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PlanView {
+#[serde(deny_unknown_fields)]
+pub struct PlanProjectPlugin {
+    pub plugin: crate::plugins::PlanInput,
+    pub idempotency_key: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch_name: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectPluginPlan {
     pub grant: Grant,
-    pub result: crate::plugins::PlanInvocation,
+    pub transaction: opencut_contracts::project_public::ApplyProject,
+    pub preview: opencut_contracts::project_public::PublicProjectDocument,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Capabilities {

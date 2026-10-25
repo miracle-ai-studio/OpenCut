@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SceneBookmarkV1 {
+pub struct SceneBookmark {
     pub id: String,
     pub sequence_id: String,
     pub time: Time,
@@ -18,7 +18,7 @@ pub struct SceneBookmarkV1 {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum BookmarkOperationV1 {
+pub enum BookmarkOperation {
     Toggle {
         sequence_id: String,
         time: Time,
@@ -26,7 +26,7 @@ pub enum BookmarkOperationV1 {
         bookmark_id: String,
     },
     Put {
-        bookmark: SceneBookmarkV1,
+        bookmark: SceneBookmark,
     },
     Move {
         sequence_id: String,

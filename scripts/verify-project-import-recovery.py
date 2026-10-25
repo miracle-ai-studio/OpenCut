@@ -22,12 +22,12 @@ def verify(binary, root):
         source = root / 'red.png'
         subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=red:s=64x48','-frames:v','1',str(source)],check=True,timeout=30)
         data = source.read_bytes()
-        upload = call('opencut_upload_create',{'project_id':'recovery','name':'image','size_bytes':str(len(data)),
+        upload = call('opencut_upload_begin',{'project_id':'recovery','name':'image','size_bytes':str(len(data)),
             'content_hash':hashlib.sha256(data).hexdigest(),'idempotency_key':'import'})
         p = subprocess.run([str(binary),'--database',str(db),'--json','upload','put',upload['upload_id'],
                             '--offset','0','--input',str(source)],capture_output=True,text=True,timeout=15)
         assert p.returncode == 0 and json.loads(p.stdout)['data']['next_offset'] == str(len(data))
-        sealed = call('opencut_upload_seal', {'upload_id':upload['upload_id']})
+        sealed = call('opencut_upload_complete', {'upload_id':upload['upload_id'], 'content_hash':upload['content_hash']})
         job_id = sealed['job_id']
         # Only the test PATH adds a pause, after real assembly and before probe execution.
         # Production has no environment-triggered fault hook or altered clock.
@@ -85,7 +85,7 @@ def verify(binary, root):
         assert result['asset']['metadata']['content_hash']==hashlib.sha256(data).hexdigest()
         assert call('opencut_project_media_inspect',{'project_id':'recovery','media_id':result['media_id']})==result
         assert call('opencut_project_inspect',{'project_id':'recovery'})==snapshot
-        assert call('opencut_upload_seal',{'upload_id':upload['upload_id']})['job_id']==job_id
+        assert call('opencut_upload_complete', {'upload_id':upload['upload_id'], 'content_hash':upload['content_hash']})['job_id']==job_id
         assert not assembled.exists()
         assert not list((root/'artifacts').rglob('upload.media'))
         with sqlite3.connect(db) as c:

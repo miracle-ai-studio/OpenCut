@@ -1,8 +1,6 @@
-use opencut_contracts::{EditPlan, Operation};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -58,34 +56,10 @@ fn default_fuel() -> u64 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "InstalledPlugin")]
-pub struct InstalledPlugin<P = String> {
-    pub manifest: PluginManifest,
-    pub package_sha256: String,
-    pub install_path: P,
-    pub granted_permissions: BTreeSet<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PlanInvocation {
-    pub operations: Vec<Operation>,
-    pub plan: EditPlan,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallInput {
     pub package_root: String,
     pub granted_permissions: Vec<String>,
-}
-
-/// Project-package install action pinned to the package bytes validated at import.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct InstallPinnedInput {
-    pub package_root: String,
-    pub granted_permissions: Vec<String>,
-    pub expected_package_sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

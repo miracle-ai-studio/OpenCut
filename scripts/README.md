@@ -5,13 +5,14 @@
 | 范围 | 入口 |
 |---|---|
 | Rust 模块与依赖边界 | `check-architecture.py`、`check-contract-boundaries.py` |
-| 已发布工具兼容性 | `check-wire-compatibility.py` |
+| 唯一最终契约 | `check-canonical-contract.py --binary <同一已构建CLI>`，不隐式重编 |
 | 门禁与打包负向测试 | `python3 -m unittest discover -s scripts/tests` |
 | 验收执行器故障测试 | `python3 -m unittest discover -s scripts -p test_acceptance_runner.py` |
 | 独立后台服务 | `verify-service.py --binary target/release/opencut`；CLI 启停/状态、脱离提交进程后的真实取帧、产物哈希与期望像素 |
 | 本地交付包 | `package-local.py`、`verify-local-package.py` |
 | 联动剪辑与托管 MCP Worker | `verify-editorial.py`；合成声画、三入口、权限、撤销重做及断线恢复 |
 | 真实本地自动字幕 | `verify-auto-captions.py --model <本机模型> --web-root <构建或包内web> --artifacts-dir <隔离目录> --verify-browser`；合成语音、原生ASR、固定修订字幕、撤销重做、字幕像素及独立PCM，然后完整网页生成/取消与视口验收 |
+| 统一工程包 | `verify-package-exchange.py --binary <同一CLI> --workspace <已有源工作区> --target-workspace <已有恢复工作区> --export-request <固定请求JSON> --target-project <目标ID> --import-key <原key> --report <报告>`；流式哈希和原独立图/证明检查，不生成媒体或运行渲染 |
 | 各能力实际验收 | `verify-*.py`；部分脚本调用配套的 `.mjs` 客户端 |
 | 项目事务／公开任务专项 | `verify-project-transactions.py --binary target/release/opencut`、`verify-public-job-views.py --binary target/release/opencut`；复用冻结候选，不触发 Cargo |
 
@@ -45,7 +46,24 @@
 
 - `distribution/agent-plugin.py`：生成独立 Codex / Claude Code 插件包，复用 `agent-config.py`；不安装、不打开数据库。
 - `distribution/agent-plugin/SKILL.md`：共享读取、计划/原子写入、预览、撤销与导出工作流。
-- `verify-agent-plugin.py`：合成素材、隔离数据库，分别从两个插件配置运行完整 MCP 动线并验证真实像素/MP4。
+- `verify-agent-plugin.py`：复用已拥有工作区、CAS和原成功渲染请求，串行从两份交付配置运行V4查询/原子编辑/历史及原Job重放；不新建素材或重复渲染。旧V3媒体动线由`verify-editorial.py`保留。
+- `verify-agent-long-gain-v4.py`：原五分钟源上的元素局部/轨道场景变化音量；从既有整源PCM独立计算增益参考，只执行必要的新音频区间。浏览器采样由`apps/web/scripts/verify-agent-long-preview.mjs`复用。
+- `verify-agent-v4-atomicity.py`：现有V4工程三操作的第二条失败、CLI/MCP同请求拒绝和完整工程/历史不变，带只读私有工作图正控；不新建媒体或Job。
+- `verify-agent-long-mono-v4.py`：唯一300秒48k单声道PCM格式源与原VFR视频组合，原请求重放、独立PCM/单声道复制、实际30帧H264/AAC及声画事件；复用已导入媒体和成功输出。
+- `verify-agent-worker-recovery-v4.py`：独占原验收队列，真实SIGKILL、子进程退出和自然租约恢复；`--retained-request`可复用原`render.v4.submit`音频/视频区间请求，服务须先停，禁止改库/时钟或超时重建任务。
 - `verify-agent-plugin-clients.py`：原生 Codex 目录发现和 Claude 严格校验，无持久安装或模型请求。
 
 用法及限制见 `design/architecture/local-agent-plugins.md`；实际验收范围统一记录在 `design/qa/acceptance.json`。
+
+`verify-wasm-planning.py` uses an explicit integrated CLI and one existing owned
+workspace/project. Requests reference already installed/granted components. It
+checks the sole project planner through CLI,typed SDK over HTTP and MCP,and
+applies/replays/restores one known rename. Optional scope covers the second fixed
+dependency ABI,historical-payload rejection/bounded execution,changed-runtime
+faults and grant revocation. Expensive proofs are retained inside coarse stages.
+Delivered configurations are read only from an existing final `--agent-bundle`;
+this verifier never creates packages,installs components,copies projects or runs
+media. See `--help` for required request,credential and service paths. This source
+is prepared for the integrated candidate and has not been executed.
+
+统一包 UI 使用 `--suite package --reuse-workspace <上述恢复工作区>`，设置 `OPENCUT_PACKAGE_CHECKPOINT` 指向源工作区的 `package-exchange-checkpoint.json`；只有准备好的同一候选可运行。`OPENCUT_PACKAGE_HISTORY_CYCLE=1` 将导入历史的撤销/重做合进一次动线。旧包/历史输出脚本保留其原候选事实，不作为当前包协议入口；当前静态阶段没有运行这些检查。说明见[工程包契约](../design/architecture/project-package-contract.md)。

@@ -1,7 +1,7 @@
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV8ToV9({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;
@@ -11,7 +11,7 @@ export function transformProjectV8ToV9({
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV9Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v9" };
 	}
 
@@ -94,6 +94,6 @@ function migrateTextElement({ element }: { element: unknown }): unknown {
 	};
 }
 
-function isV9Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	return typeof project.version === "number" && project.version >= 9;
 }

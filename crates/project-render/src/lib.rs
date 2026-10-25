@@ -17,9 +17,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, path::PathBuf};
 
-pub mod project_v3;
-pub mod project_v4;
-pub mod project_v4_audio;
+pub mod historical_visual;
+pub mod scene;
+pub mod scene_audio;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

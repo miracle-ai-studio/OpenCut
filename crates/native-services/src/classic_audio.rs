@@ -1,5 +1,6 @@
 //! Native assembly of the bounded Classic audio process adapter. This module
 //! consumes fixed prepared facts; it never invokes an OpenCut CLI internally.
+mod compiled_packet;
 pub(crate) mod lifecycle;
 mod process;
 mod resources;

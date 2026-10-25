@@ -1,16 +1,15 @@
-//! Versioned provenance for a published project-render attempt.
-use crate::reproducibility::ExecutionIdentityV1;
+//! Provenance for a published project-render attempt.
+use crate::reproducibility::ExecutionIdentity;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct InspectExecutionV1 {
+pub struct InspectExecution {
     pub job_id: String,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ExecutionReceiptV1 {
-    pub schema_version: u32,
+pub struct ExecutionReceipt {
     pub job_id: String,
     pub attempt: u32,
     pub kind: String,
@@ -18,7 +17,7 @@ pub struct ExecutionReceiptV1 {
     pub source_revision: String,
     pub sequence_id: String,
     pub composition_sha256: String,
-    pub execution: ExecutionIdentityV1,
+    pub execution: ExecutionIdentity,
     pub artifact_sha256: String,
     pub artifact_size: u64,
     pub covered_semantics: Vec<String>,

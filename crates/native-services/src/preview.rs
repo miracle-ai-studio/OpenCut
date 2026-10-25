@@ -20,25 +20,26 @@ use std::{
     time::{Duration, Instant},
 };
 
-use opencut_contracts::project_v3::ProjectSnapshotV3;
-use opencut_project_render::project_v3::{
-    ProjectRenderAdapterV3, ResolvedProjectRenderRequestV3, ResolvedProjectSnapshotV3,
+use opencut_contracts::historical_visual::HistoricalVisualSnapshot;
+use opencut_project_render::historical_visual::{
+    HistoricalVisualProjectRenderAdapter, HistoricalVisualResolvedProjectRenderRequest,
+    HistoricalVisualResolvedProjectSnapshot,
 };
 const MAX_SESSIONS: usize = 32;
 #[derive(Clone)]
 enum ResolvedPreview {
     V2(ResolvedProjectSnapshot),
-    V3(ResolvedProjectSnapshotV3),
+    V3(HistoricalVisualResolvedProjectSnapshot),
 }
-enum PreviewSource {
-    V2(ProjectSnapshot),
-    V3(ProjectSnapshotV3),
+pub enum PreviewSource {
+    Basic(ProjectSnapshot),
+    Visual(HistoricalVisualSnapshot),
 }
 impl PreviewSource {
     fn base(&self) -> ProjectSnapshot {
         match self {
-            Self::V2(snapshot) => snapshot.clone(),
-            Self::V3(snapshot) => ProjectSnapshot {
+            Self::Basic(snapshot) => snapshot.clone(),
+            Self::Visual(snapshot) => ProjectSnapshot {
                 project: snapshot.project.base.clone(),
                 revision: snapshot.revision.clone(),
             },
@@ -183,44 +184,6 @@ pub fn create(
     asset_root: &Path,
     principal: &str,
     input: &Create,
-    snapshot: ProjectSnapshot,
-    sources: SourceAccess,
-    reauthorize: impl FnOnce() -> Result<(), EditorError>,
-) -> Result<Session, EditorError> {
-    create_inner(
-        database,
-        asset_root,
-        principal,
-        input,
-        PreviewSource::V2(snapshot),
-        sources,
-        reauthorize,
-    )
-}
-pub fn create_v3(
-    database: &Path,
-    asset_root: &Path,
-    principal: &str,
-    input: &Create,
-    snapshot: ProjectSnapshotV3,
-    sources: SourceAccess,
-    reauthorize: impl FnOnce() -> Result<(), EditorError>,
-) -> Result<Session, EditorError> {
-    create_inner(
-        database,
-        asset_root,
-        principal,
-        input,
-        PreviewSource::V3(snapshot),
-        sources,
-        reauthorize,
-    )
-}
-fn create_inner(
-    database: &Path,
-    asset_root: &Path,
-    principal: &str,
-    input: &Create,
     source: PreviewSource,
     sources: SourceAccess,
     reauthorize: impl FnOnce() -> Result<(), EditorError>,
@@ -257,17 +220,19 @@ fn create_inner(
         }
     }
     let composition = match &source {
-        PreviewSource::V2(snapshot) => opencut_composition::compile(
+        PreviewSource::Basic(snapshot) => opencut_composition::compile(
             snapshot,
             &input.sequence_id,
             opencut_composition::CompositionScope::AudioVisual,
         ),
-        PreviewSource::V3(snapshot) => opencut_composition::project_v3::compile_v3(
-            snapshot,
-            &input.sequence_id,
-            opencut_composition::CompositionScope::AudioVisual,
-        )
-        .map(|v| v.base),
+        PreviewSource::Visual(snapshot) => {
+            opencut_composition::historical_visual::compile_historical_visual(
+                snapshot,
+                &input.sequence_id,
+                opencut_composition::CompositionScope::AudioVisual,
+            )
+            .map(|v| v.base)
+        }
     }
     .map_err(|e| err(e.code))?;
     let sequence = snapshot
@@ -294,11 +259,11 @@ fn create_inner(
     )?;
     let _preparing = Preparing::claim()?;
     let ids = match &source {
-        PreviewSource::V2(snapshot) => {
+        PreviewSource::Basic(snapshot) => {
             ProjectRenderAdapter::required_asset_ids(snapshot, &input.sequence_id)
         }
-        PreviewSource::V3(snapshot) => {
-            ProjectRenderAdapterV3::required_asset_ids(snapshot, &input.sequence_id)
+        PreviewSource::Visual(snapshot) => {
+            HistoricalVisualProjectRenderAdapter::required_asset_ids(snapshot, &input.sequence_id)
         }
     }
     .map_err(|e| err(e.code))?;
@@ -325,18 +290,20 @@ fn create_inner(
         &|| false,
     )?;
     let resolved = match source {
-        PreviewSource::V2(_) => ResolvedPreview::V2(
+        PreviewSource::Basic(_) => ResolvedPreview::V2(
             ProjectRenderAdapter::resolve_assets(fixed, &input.sequence_id, |asset| {
                 Ok(PathBuf::from(&asset.uri))
             })
             .map_err(|e| err(e.code))?,
         ),
-        PreviewSource::V3(mut snapshot) => {
+        PreviewSource::Visual(mut snapshot) => {
             snapshot.project.base = fixed.project;
             ResolvedPreview::V3(
-                ProjectRenderAdapterV3::resolve_assets(snapshot, &input.sequence_id, |asset| {
-                    Ok(PathBuf::from(&asset.uri))
-                })
+                HistoricalVisualProjectRenderAdapter::resolve_assets(
+                    snapshot,
+                    &input.sequence_id,
+                    |asset| Ok(PathBuf::from(&asset.uri)),
+                )
                 .map_err(|e| err(e.code))?,
             )
         }
@@ -396,7 +363,7 @@ pub fn target(database: &Path, id: &str) -> Result<(String, String), EditorError
     Ok((view.project_id, view.revision))
 }
 /// Internal discriminator for authorization against the correct document version.
-pub fn is_v3(database: &Path, id: &str) -> Result<bool, EditorError> {
+pub fn is_historical_visual(database: &Path, id: &str) -> Result<bool, EditorError> {
     let database = root(database)?;
     let registry = registry().lock().map_err(|_| err("INTERNAL_ERROR"))?;
     let entry = registry
@@ -552,24 +519,25 @@ pub fn control(database: &Path, principal: &str, input: &Control) -> Result<Sess
                 )
             }
             ResolvedPreview::V3(resolved) => {
-                let mut plan =
-                    ProjectRenderAdapterV3::plan_resolved(&ResolvedProjectRenderRequestV3 {
+                let mut plan = HistoricalVisualProjectRenderAdapter::plan_resolved(
+                    &HistoricalVisualResolvedProjectRenderRequest {
                         resolved: &resolved,
                         container: opencut_media::Container::Mp4,
                         video_codec: opencut_media::VideoCodec::H264,
                         output: directory.path().join("stream.mp4"),
                         overwrite: false,
-                    })
-                    .map_err(|e| err(e.code))?;
+                    },
+                )
+                .map_err(|e| err(e.code))?;
                 if !audio {
                     plan.media_request.base.audio_clips.clear();
                 }
-                let request = opencut_media::TimelineRangeRenderRequestV3 {
+                let request = opencut_media::HistoricalVisualTimelineRangeRenderRequest {
                     timeline: plan.media_request,
                     sequence_start,
                     sequence_duration,
                 };
-                backend.start_timeline_stream_v3(
+                backend.start_timeline_stream_historical_visual(
                     &request,
                     CancellationToken::new(),
                     PreviewStreamLimits::default(),

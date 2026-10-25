@@ -1,6 +1,6 @@
 //! Shared atomic first-revision publication for verified external imports.
 use super::*;
-use opencut_contracts::{ProjectDocument, project_v3::ProjectDocumentV3};
+use opencut_contracts::{ProjectDocument, historical_visual::HistoricalVisualDocument};
 use opencut_editor_application::audit::ExecutionContext;
 use rusqlite::Transaction;
 use serde::Serialize;
@@ -17,7 +17,7 @@ impl PublishedDocument for ProjectDocument {
         &self.name
     }
 }
-impl PublishedDocument for ProjectDocumentV3 {
+impl PublishedDocument for HistoricalVisualDocument {
     fn project_id(&self) -> &str {
         &self.base.id
     }
@@ -26,7 +26,7 @@ impl PublishedDocument for ProjectDocumentV3 {
     }
 }
 
-impl PublishedDocument for opencut_contracts::project_v4::ProjectDocumentV4 {
+impl PublishedDocument for opencut_contracts::scene::EditorDocument {
     fn project_id(&self) -> &str {
         &self.id
     }

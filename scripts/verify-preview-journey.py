@@ -68,7 +68,7 @@ def verify(binary, root, fixture_seconds):
         return connection, response
 
     def tool(name, payload, credential=runner, error=None, target_port=None):
-        connection, response = request('POST', '/v1/tools/' + name, credential,
+        connection, response = request('POST', '/api/tools/' + name, credential,
                                        json.dumps(payload).encode(), target_port=target_port)
         result = json.loads(response.read())
         status = response.status
@@ -82,7 +82,7 @@ def verify(binary, root, fixture_seconds):
 
     def stream(view, credential=runner):
         input_data = {field: view[field] for field in ('session_id', 'generation', 'owner_id', 'lease_id')}
-        connection, response = request('POST', '/v1/preview/stream', credential,
+        connection, response = request('POST', '/api/preview/stream', credential,
                                        json.dumps(input_data).encode(), timeout=45)
         if response.status != 200:
             result = json.loads(response.read())
@@ -149,7 +149,7 @@ def verify(binary, root, fixture_seconds):
 
     def upload(path, key):
         content = path.read_bytes()
-        item = tool('opencut_upload_create', {'project_id': 'preview', 'idempotency_key': key,
+        item = tool('opencut_upload_begin', {'project_id': 'preview', 'idempotency_key': key,
                     'name': path.name, 'size_bytes': str(len(content)),
                     'content_hash': hashlib.sha256(content).hexdigest()})
         for offset in range(0, len(content), 4 * 1024 * 1024):
@@ -157,11 +157,11 @@ def verify(binary, root, fixture_seconds):
             query = urlencode({'size_bytes': str(len(chunk)),
                                'content_hash': hashlib.sha256(chunk).hexdigest()})
             connection, response = request('PUT',
-                f"/v1/uploads/{item['upload_id']}/chunks/{offset}?{query}", runner, chunk)
+                f"/api/uploads/{item['upload_id']}/chunks/{offset}?{query}", runner, chunk)
             result = json.loads(response.read())
             connection.close()
             assert response.status == 200 and result['error'] is None, result
-        accepted = tool('opencut_upload_seal', {'upload_id': item['upload_id']})
+        accepted = tool('opencut_upload_complete', {'upload_id':item['upload_id'], 'content_hash':item['content_hash']})
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             view = tool('opencut_job_view', {'job_id': accepted['job_id']})

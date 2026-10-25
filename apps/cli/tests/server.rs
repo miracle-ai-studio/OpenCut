@@ -257,15 +257,6 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
         "/projects",
         "/editor/speech",
         "/editor/%E5%89%AA%E8%BE%91%20%2F%20100%25",
-        "/brand",
-        "/roadmap",
-        "/sponsors",
-        "/privacy",
-        "/terms",
-        "/contributors",
-        "/blog",
-        "/changelog",
-        "/changelog/0.3.0",
     ] {
         let response = request("GET", route, address, "");
         assert!(response.starts_with("HTTP/1.1 200"), "{route}: {response}");
@@ -282,7 +273,18 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
         "/editor/%ff",
         "/editor/%00",
         "/editor/%2e%2e",
+        "/blog",
         "/blog/",
+        "/rss.xml",
+        "/sitemap.xml",
+        "/app/public/blog",
+        "/contributors",
+        "/brand",
+        "/roadmap",
+        "/sponsors",
+        "/privacy",
+        "/terms",
+        "/changelog",
         "/blog/../private-token",
         "/blog/%2fprivate-token",
         "/blog/a/b",
@@ -298,14 +300,14 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     let head = request("HEAD", "/editor", address, "");
     assert!(head.starts_with("HTTP/1.1 200"));
     assert!(!head.contains("<title>"));
-    assert!(request("GET", "/v1/capabilities", address, "").starts_with("HTTP/1.1 403"));
+    assert!(request("GET", "/api/capabilities", address, "").starts_with("HTTP/1.1 403"));
     assert!(request("GET", "/editor", "attacker.example", "").starts_with("HTTP/1.1 403"));
     for path in [
         "/private-token",
         "/assets/../private-token",
         "/assets/%2e%2e/private-token",
         "/assets/escape.js",
-        "/v1/missing",
+        "/missing",
     ] {
         let response = request("GET", path, address, "");
         assert!(response.starts_with("HTTP/1.1 404"), "{path}: {response}");
@@ -339,7 +341,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     assert!(
         request(
             "GET",
-            "/v1/capabilities",
+            "/api/capabilities",
             address,
             &format!("Cookie: {cookie}\r\nSec-Fetch-Site: same-origin\r\n")
         )
@@ -348,7 +350,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     assert!(
         request(
             "GET",
-            "/v1/capabilities",
+            "/api/capabilities",
             address,
             &format!("Cookie: {cookie}\r\nSec-Fetch-Site: cross-site\r\n")
         )
@@ -388,7 +390,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     assert!(
         request(
             "GET",
-            "/v1/capabilities",
+            "/api/capabilities",
             address,
             &format!("Cookie: {cookie}\r\nSec-Fetch-Site: same-origin\r\n")
         )
@@ -399,7 +401,7 @@ fn static_web_host_preserves_api_authentication_and_rejects_path_and_host_escape
     let localhost = format!("localhost:{}", address.rsplit(':').next().unwrap());
     let same_origin = request(
         "GET",
-        "/v1/capabilities",
+        "/api/capabilities",
         &localhost,
         &format!(
             "Authorization: Bearer {}\r\nOrigin: http://{localhost}\r\n",
@@ -476,7 +478,7 @@ fn transcription_config_resolves_model_and_preserves_idempotent_service_configur
 }
 
 #[test]
-fn v4_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_access() {
+fn project_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_access() {
     use sha2::{Digest, Sha256};
     use std::io::{Read, Write};
     let service = Service::new();
@@ -499,11 +501,11 @@ fn v4_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_acc
         json!({"project_id":"p","request":{"expected_revision":created["revision"],"idempotency_key":"bind","label":"Fixture resource","operations":[{"type":"asset.bind","asset":{"id":"resource","name":"Resource","kind":"image","uri":"/private/not-a-byte-source","duration":null,"version":{"id":format!("av_{hash}"),"content_hash":hash,"size":bytes.len()},"metadata":{}}}]}}),
     );
     let promoted = call(
-        "opencut_project_v4_promote",
+        "opencut_project_promote",
         json!({"project_id":"p","expected_revision":bound["revision"],"idempotency_key":"promote","asset_versions":{}}),
     );
     let request = json!({"project_id":"p","revision":promoted["revision"],"kind":"asset","resource_id":"resource"});
-    let descriptor = call("opencut_project_v4_resource_inspect", request.clone());
+    let descriptor = call("opencut_project_resource_inspect", request.clone());
     assert!(!descriptor.to_string().contains("/private/"));
     let path = descriptor["content_path"].as_str().unwrap();
     let address = state["endpoint"]
@@ -561,7 +563,7 @@ fn v4_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_acc
     assert!(get(path, false, None).0.starts_with("http/1.1 403"));
     // Changing the head does not retarget a resource pinned to an old revision.
     call(
-        "opencut_edit_v4_apply",
+        "opencut_edit_apply",
         json!({"project_id":"p","expected_revision":promoted["revision"],"idempotency_key":"unbind","label":"Remove from head","operations":[{"type":"asset_delete","asset_id":"resource"}]}),
     );
     assert_eq!(get(path, true, None).1, bytes);
@@ -576,7 +578,7 @@ fn v4_resource_http_verifies_fixed_revision_bytes_and_ranges_without_locator_acc
     fs::remove_file(&object).unwrap();
     assert!(
         owner
-            .call_registered("opencut_project_v4_resource_inspect", &request)
+            .call_registered("opencut_project_resource_inspect", &request)
             .is_ok()
     );
     assert!(get(path, true, None).0.starts_with("http/1.1 500"));

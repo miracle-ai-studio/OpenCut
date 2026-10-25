@@ -1,4 +1,4 @@
-//! Versioned event stream records shared by transports. Cursors are opaque strings.
+//! Typed event stream records shared by transports. Cursors are opaque strings.
 use crate::job_views::JobChange;
 use opencut_contracts::EditorError;
 use schemars::JsonSchema;
@@ -48,8 +48,8 @@ pub struct ProjectEvent {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum StreamFormat {
-    #[serde(rename = "opencut.events.v1")]
-    V1,
+    #[serde(rename = "opencut.events")]
+    Events,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StreamRecord {
@@ -86,7 +86,7 @@ pub enum StreamEnd {
 impl StreamRecord {
     pub fn new(record: StreamRecordData) -> Self {
         Self {
-            format: StreamFormat::V1,
+            format: StreamFormat::Events,
             record,
         }
     }

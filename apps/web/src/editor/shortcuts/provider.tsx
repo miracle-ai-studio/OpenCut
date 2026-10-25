@@ -28,7 +28,7 @@ import {
   parseShortcutConfig,
   readShortcutPreferences,
   serializeShortcutConfig,
-  SHORTCUT_STORAGE_KEY,
+  shortcutStorageEventIsRelevant,
   type ShortcutStorage,
 } from "./persistence";
 import { attachShortcutDispatcher } from "./dispatcher";
@@ -97,7 +97,7 @@ export function EditorShortcutsProvider({
     const changed = (event: StorageEvent) => {
       if (
         storage !== browserShortcutStorage ||
-        (event.key !== null && event.key !== SHORTCUT_STORAGE_KEY)
+        !shortcutStorageEventIsRelevant(event.key)
       )
         return;
       setPreferences(readShortcutPreferences(storage));

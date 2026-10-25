@@ -2,6 +2,8 @@ import { checkAbort, pcmBytes, reject } from "./validation.mjs";
 import { cancellable } from "./runtime.mjs";
 
 export const CLASSIC_MASTERING = Object.freeze({ threshold: -1, knee: 0, ratio: 20, attack: 0.001, release: 0.12, headroom: 0.98 });
+// DynamicsCompressorNode's specified look-ahead; distinct from attack/release.
+export const CLASSIC_MASTERING_LOOKAHEAD_SECONDS = 0.006;
 export function peakOf(buffer, signal) {
   let peak = 0;
   for (let c = 0; c < buffer.numberOfChannels; c++) {

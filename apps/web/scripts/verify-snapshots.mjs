@@ -2,7 +2,7 @@ import { expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-export async function verifySnapshots(page, inspect, directory, check) {
+export async function verifySnapshots(page, inspect, directory, check, options = {}) {
   const before = (await inspect()).project;
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => {
@@ -45,10 +45,11 @@ export async function verifySnapshots(page, inspect, directory, check) {
       ),
     ).streams[0];
     expect(info.codec_name).toBe("png");
-    const sequence = before.base.sequences.find((s) => s.name === "Cutaways");
+    expect(before.settings.profile).toBe("classic_global");
+    const canvas = before.settings.settings.canvas_size;
     expect([info.width, info.height]).toEqual([
-      sequence.width,
-      sequence.height,
+      canvas.width,
+      canvas.height,
     ]);
     const bytes = execFileSync(
       "ffmpeg",
@@ -71,12 +72,12 @@ export async function verifySnapshots(page, inspect, directory, check) {
     const at = (x, y) => [
       ...bytes.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3),
     ];
-    expect(
-      at(Math.floor(info.width / 2), Math.floor(info.height / 2)).every(
-        (c) => c >= 248,
-      ),
-    ).toBe(true);
-    expect(at(4, 4).every((c) => c <= 6)).toBe(true);
+    const probes = options.probes ?? [
+      { x: Math.floor(info.width / 2), y: Math.floor(info.height / 2), rgb: [255, 255, 255], tolerance: 7 },
+      { x: 4, y: 4, rgb: [0, 0, 0], tolerance: 6 },
+    ];
+    for (const probe of probes)
+      expect(at(probe.x, probe.y).every((c, i) => Math.abs(c - probe.rgb[i]) <= probe.tolerance)).toBe(true);
     return bytes;
   }
   const expected = pixels(png);
@@ -84,7 +85,7 @@ export async function verifySnapshots(page, inspect, directory, check) {
     page.getByRole("button", { name: "Copy snapshot", exact: true }),
   ).toBeEnabled();
   await page
-    .locator(".preview-stage")
+    .locator(".editor-canvas")
     .click({ button: "right", position: { x: 20, y: 20 } });
   await expect(
     page.getByRole("menu", { name: "Preview actions" }),
@@ -107,7 +108,7 @@ export async function verifySnapshots(page, inspect, directory, check) {
   expect(pixels(copy).equals(expected)).toBe(true);
   expect((await inspect()).project).toEqual(before);
   await page
-    .locator(".preview-stage")
+    .locator(".editor-canvas")
     .click({ button: "right", position: { x: 20, y: 20 } });
   await page.keyboard.press("ArrowDown");
   await expect(
@@ -117,7 +118,7 @@ export async function verifySnapshots(page, inspect, directory, check) {
   await expect(page.getByRole("menu")).toHaveCount(0);
   let submits = 0;
   const request = (req) => {
-    if (req.method() === "POST" && req.url().includes("opencut_job_v3_frame"))
+    if (req.method() === "POST" && req.url().endsWith("/api/tools/opencut_render_submit") && req.postDataJSON()?.kind === "frame")
       submits++;
   };
   page.on("request", request);

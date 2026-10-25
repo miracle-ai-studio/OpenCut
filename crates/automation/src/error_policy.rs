@@ -9,16 +9,24 @@ pub struct ErrorPolicy {
 pub fn error_policy(code: &str) -> ErrorPolicy {
     let (http_status, exit_code) = match code {
         "DATABASE_CAPACITY_EXHAUSTED" => (507, 8),
-        "INVALID_ARGUMENT" | "TIME_OVERFLOW" | "INVALID_CURSOR" => (400, 2),
+        "INVALID_RESOURCE_RANGE" | "INVALID_ARGUMENT" | "TIME_OVERFLOW" | "INVALID_CURSOR" => {
+            (400, 2)
+        }
         "UPLOAD_CONTENT_MISMATCH" => (400, 2),
         "UPLOAD_BUSY"
         | "PREVIEW_DRAFT_BUSY"
+        | "PREVIEW_RESOURCE_BUSY"
+        | "PREVIEW_RESOURCE_LIMIT"
         | "STORAGE_SCAN_BUSY"
         | "STORAGE_BUSY"
         | "STORAGE_BUDGET_BUSY"
         | "DATABASE_BUSY" => (429, 7),
         "UPLOAD_TIMEOUT" | "SOURCE_ART_DEADLINE_EXCEEDED" | "SOURCE_ART_TIME_LIMIT" => (408, 124),
-        "INVALID_PLUGIN" | "INVALID_PRESET" | "INVALID_PROJECT" => (422, 2),
+        "INVALID_PLUGIN"
+        | "INVALID_PRESET"
+        | "INVALID_PROJECT"
+        | "UNSUPPORTED_PRESET_CONTENT"
+        | "FONT_BINDING_REQUIRED" => (422, 2),
         "NOT_AUTHORIZED" | "PERMISSION_DENIED" | "FONT_NETWORK_DENIED" => (403, 3),
         "FONT_SOURCE_TIMEOUT" | "RESOURCE_SOURCE_TIMEOUT" => (408, 124),
         "INVALID_FONT"
@@ -31,7 +39,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "FONT_SYNTHESIS_INVALID"
         | "FONT_FACE_UNAVAILABLE" => (422, 6),
         "FONT_SOURCE_UNAVAILABLE" | "RESOURCE_SOURCE_UNAVAILABLE" => (502, 7),
-        "NOT_FOUND" => (404, 4),
+        "NOT_FOUND" | "PREVIEW_CACHE_MISSING" => (404, 4),
         "CURSOR_EXPIRED" | "PREVIEW_EXPIRED" | "PREVIEW_RECOVERY_RETIRED" => (410, 4),
         "STORAGE_POLICY_CONFLICT"
         | "GC_PLAN_CONFLICT"
@@ -87,6 +95,7 @@ pub fn error_policy(code: &str) -> ErrorPolicy {
         | "UNSUPPORTED_OPERATION"
         | "UNSUPPORTED_WAVEFORM_DISPLAY_PROFILE"
         | "UNSUPPORTED_PROJECT_VERSION"
+        | "PROJECT_PROMOTION_REQUIRED"
         | "PREVIEW_LIMIT"
         | "PREVIEW_VIEWPORT_LIMIT"
         | "UNSUPPORTED_ANALYSIS_QUERY"
@@ -133,6 +142,10 @@ mod additive_migration_policy_tests {
             ("INVALID_SUBTITLE_CLASSIC_ASS_PLAN", 422, 6),
             ("RESOURCE_SOURCE_TIMEOUT", 408, 124),
             ("RESOURCE_SOURCE_UNAVAILABLE", 502, 7),
+            ("UNSUPPORTED_PRESET_CONTENT", 422, 2),
+            ("FONT_BINDING_REQUIRED", 422, 2),
+            ("PROJECT_PROMOTION_REQUIRED", 422, 6),
+            ("PREVIEW_CACHE_MISSING", 404, 4),
         ] {
             assert_eq!(
                 error_policy(code),
@@ -143,5 +156,6 @@ mod additive_migration_policy_tests {
             );
         }
         assert_eq!(error_policy("RESOURCE_SOURCE_INVALID").http_status, 500);
+        assert_eq!(error_policy("PREVIEW_CACHE_FAILED").http_status, 500);
     }
 }

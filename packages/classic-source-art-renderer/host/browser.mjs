@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { moduleRegistry, playwrightRuntime } from "./modules.mjs";
 import { executeSourceArtPage } from "./page.mjs";
-import { requireFact, algorithm, SourceArtError } from "../src/validation.mjs";
+import { requireFact, algorithm, decodeProfile, SourceArtError } from "../src/validation.mjs";
 const execute = promisify(execFile);
 export async function fileHash(filename) {
   const stat = await fs.stat(filename); requireFact(stat.size > 0 && stat.size <= 1024 * 1024 * 1024);
@@ -17,7 +17,7 @@ export async function resolveIdentity(chromium) {
   const modules = await moduleRegistry({});
   const { stdout } = await execute(chromium, ["--version"], { timeout: 10000, maxBuffer: 4096, encoding: "utf8" });
   const version = stdout.match(/\b(\d+(?:\.\d+){3})\b/)?.[1]; requireFact(version);
-  return { algorithm: algorithm("waveform"), browser_version: version, browser_sha256: await fileHash(chromium), node_sha256: await fileHash(process.execPath), module_sha256: modules.moduleSha256 };
+  return { algorithm: algorithm("waveform"), decode_profile: decodeProfile, browser_version: version, browser_sha256: await fileHash(chromium), node_sha256: await fileHash(process.execPath), module_sha256: modules.moduleSha256 };
 }
 const envelope = async work => { try { return { ok: true, value: await work() }; } catch (e) {
   return { ok: false, error: { code: typeof e?.code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(e.code) ? e.code : "SOURCE_ART_PROTOCOL_ERROR" } };
@@ -40,16 +40,16 @@ export const browserHooks = {
       return realm.broker.request(op, args);
     }));
     await realm.page.exposeFunction("__opencutSourceArtBytes", packet => envelope(async () => {
-      requireFact(!realm.signal.aborted && packet.kind === realm.begin.plan.query.kind && packet.offset === String(realm.outputBytes) && typeof packet.bytes_hex === "string" && /^(?:[0-9a-f]{2})+$/.test(packet.bytes_hex) && packet.bytes_hex.length <= 65536);
+      requireFact(!realm.signal.aborted && packet.kind === (realm.begin.plan.query.kind === "source_frame" ? "thumbnail" : realm.begin.plan.query.kind) && packet.offset === String(realm.outputBytes) && typeof packet.bytes_hex === "string" && /^(?:[0-9a-f]{2})+$/.test(packet.bytes_hex) && packet.bytes_hex.length <= 65536);
       const size = packet.bytes_hex.length / 2;
-      const limit = packet.kind === "waveform" ? Math.ceil(realm.begin.admission.maxPcmBytes / 128) + 4 : 1024 * 1024;
+      const limit = packet.kind === "waveform" ? realm.begin.plan.maxWaveformBytes : 1024 * 1024;
       requireFact(size <= limit - realm.outputBytes, "Source-art output exceeds byte budget");
       realm.outputBytes += size;
       await realm.writer.send({ type: "art_bytes", ...packet });
     }));
   },
   async observeRuntime(realm, modules) {
-    const identity = { algorithm: algorithm(realm.begin.plan.query.kind), browser_version: realm.identity.browserVersion,
+    const identity = { algorithm: algorithm(realm.begin.plan.query.kind), decode_profile: decodeProfile, browser_version: realm.identity.browserVersion,
       browser_sha256: realm.identity.browserSha256, node_sha256: await fileHash(process.execPath), module_sha256: modules.moduleSha256 };
     requireFact(Object.keys(identity).every(key => identity[key] === realm.begin.plan.identity[key]), "Source-art runtime identity changed");
     realm.sourceArtIdentity = identity;

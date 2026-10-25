@@ -1,37 +1,10 @@
-//! Compact, domain-oriented discovery over the versioned v1 operation registry.
+//! Compact, domain-oriented discovery over the single operation registry.
 //! The leaf operation remains the authorization, audit and compatibility unit.
-use crate::tools::{ToolSpec, tool_spec, tool_summaries};
+use crate::tools::{ToolDomain, ToolSpec, tool_spec, tool_summaries};
 use opencut_contracts::EditorError;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-const DOMAINS: &[(&str, &str)] = &[
-    (
-        "system",
-        "Discover host capabilities and supported operations.",
-    ),
-    (
-        "project",
-        "Create, inspect and restore versioned editing projects.",
-    ),
-    ("edit", "Validate and atomically commit timeline changes."),
-    ("media", "Transfer, inspect and repair project media."),
-    (
-        "task",
-        "Submit, observe and cancel durable media and render tasks.",
-    ),
-    (
-        "observe",
-        "Read resources, project events and mutation history.",
-    ),
-    ("plugin", "Install and invoke constrained editing plugins."),
-    ("access", "Inspect access and authorization audit records."),
-    (
-        "workspace",
-        "Owner-only database, storage and publication maintenance.",
-    ),
-];
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -61,104 +34,11 @@ pub struct DomainDescriptor {
 
 pub fn is_domain_tool(name: &str) -> bool {
     name.strip_prefix("opencut_")
-        .is_some_and(|name| DOMAINS.iter().any(|(domain, _)| *domain == name))
-}
-
-fn route(operation: &str) -> Option<(&'static str, String)> {
-    let suffix = operation.strip_prefix("opencut_")?;
-    let (domain, action) = if suffix == "capabilities" {
-        ("system", "capabilities".to_owned())
-    } else if suffix.starts_with("analysis_")
-        || suffix.starts_with("source_art_")
-        || suffix.starts_with("catalog_resources_v1_")
-    {
-        ("media", suffix.replace('_', "."))
-    } else if suffix.starts_with("export_video_v2_") {
-        ("task", suffix.replace('_', "."))
-    } else if suffix.starts_with("preview_")
-        || suffix.starts_with("audio_preview_v4_")
-        || suffix.starts_with("audio_preview_recovery_v1_")
-        || suffix.starts_with("visual_preview_v4_")
-    {
-        ("task", suffix.replace('_', "."))
-    } else if suffix.starts_with("subtitle_")
-        || suffix.starts_with("timeline_v4_")
-        || suffix.starts_with("text_v1_")
-        || suffix.starts_with("text_v2_")
-        || suffix.starts_with("track_v1_")
-        || suffix.starts_with("graphic_v1_")
-        || suffix.starts_with("mask_v1_")
-        || suffix.starts_with("keyframe_v1_")
-        || suffix.starts_with("keyframe_legacy_conversion_v1_")
-        || suffix.starts_with("element_properties_v1_")
-        || suffix.starts_with("element_transform_v2_")
-        || suffix.starts_with("scene_v1_")
-    {
-        ("edit", suffix.replace('_', "."))
-    } else if suffix.starts_with("classic_") {
-        ("project", suffix.replace('_', "."))
-    } else if suffix.starts_with("project_media_")
-        || suffix.starts_with("upload_")
-        || suffix.starts_with("media_")
-        || suffix.starts_with("brand_resources_v1_")
-        || suffix.starts_with("font_v1_")
-        || suffix.starts_with("font_v2_")
-        || suffix.starts_with("font_catalog_v3")
-        || suffix.starts_with("font_source_v3")
-        || suffix.starts_with("font_import_v3")
-        || suffix.starts_with("font_derived_v1_")
-        || suffix.starts_with("font_derived_v2_")
-        || suffix.starts_with("font_synthesis_v1_")
-        || suffix.starts_with("font_recovery_v1_")
-    {
-        ("media", suffix.replace('_', "."))
-    } else if suffix.starts_with("project_plugin_") || suffix.starts_with("plugin_") {
-        if suffix.starts_with("plugin_publication_") {
-            ("workspace", suffix.replace('_', "."))
-        } else if let Some(rest) = suffix.strip_prefix("plugin_") {
-            ("plugin", rest.replace('_', "."))
-        } else {
-            ("plugin", suffix.replace('_', "."))
-        }
-    } else if let Some(rest) = suffix.strip_prefix("project_") {
-        ("project", rest.replace('_', "."))
-    } else if suffix.starts_with("revision_") {
-        ("project", suffix.replace('_', "."))
-    } else if let Some(rest) = suffix.strip_prefix("edit_") {
-        ("edit", rest.replace('_', "."))
-    } else if let Some(rest) = suffix.strip_prefix("job_") {
-        ("task", rest.replace('_', "."))
-    } else if suffix == "render_v3_preflight" {
-        ("task", "render.v3.preflight".to_owned())
-    } else if suffix == "render_preflight" {
-        ("task", "render.preflight".to_owned())
-    } else if suffix.starts_with("event_")
-        || suffix.starts_with("events_")
-        || suffix.starts_with("audit_")
-        || suffix.starts_with("resource_")
-    {
-        ("observe", suffix.replace('_', "."))
-    } else if let Some(rest) = suffix.strip_prefix("access_") {
-        ("access", rest.replace('_', "."))
-    } else if suffix.starts_with("denial_") {
-        ("access", suffix.replace('_', "."))
-    } else if suffix.starts_with("database_")
-        || suffix.starts_with("storage_")
-        || suffix.starts_with("cas_gc_")
-        || suffix.starts_with("artifact_retention_")
-        || suffix.starts_with("artifact_references_")
-        || suffix.starts_with("artifact_gc_")
-        || suffix.starts_with("maintenance_")
-    {
-        ("workspace", suffix.replace('_', "."))
-    } else {
-        return None;
-    };
-    Some((domain, action))
+        .is_some_and(|name| ToolDomain::ALL.iter().any(|domain| domain.name() == name))
 }
 
 pub fn catalog(domain: Option<&str>, schemas: bool) -> Result<Vec<DomainDescriptor>, EditorError> {
-    if domain.is_some_and(|name| !DOMAINS.iter().any(|(known, _)| *known == name)) {
+    if domain.is_some_and(|name| !ToolDomain::ALL.iter().any(|known| known.name() == name)) {
         return Err(EditorError::new(
             "INVALID_ARGUMENT",
             "Unknown operation domain",
@@ -166,18 +46,18 @@ pub fn catalog(domain: Option<&str>, schemas: bool) -> Result<Vec<DomainDescript
     }
     let operations = tool_summaries();
     let mut result = Vec::new();
-    for (name, description) in DOMAINS {
-        if domain.is_some_and(|selected| selected != *name) {
+    for owner in ToolDomain::ALL {
+        let name = owner.name();
+        if domain.is_some_and(|selected| selected != name) {
             continue;
         }
         let actions = operations
             .iter()
             .filter_map(|tool| {
-                let (owner, action) = route(tool.name)?;
-                (owner == *name).then(|| {
+                (tool.domain == *owner).then(|| {
                     let full = schemas.then(|| tool_spec(tool.name).expect("registered operation"));
                     ActionDescriptor {
-                        action,
+                        action: tool.action.to_owned(),
                         operation: tool.name.to_owned(),
                         description: tool.description.to_owned(),
                         read_only: tool.read_only,
@@ -188,8 +68,8 @@ pub fn catalog(domain: Option<&str>, schemas: bool) -> Result<Vec<DomainDescript
             })
             .collect();
         result.push(DomainDescriptor {
-            domain: (*name).to_owned(),
-            description: (*description).to_owned(),
+            domain: name.to_owned(),
+            description: owner.description().to_owned(),
             actions,
         });
     }
@@ -200,16 +80,31 @@ pub fn tool_specs_compact() -> Vec<ToolSpec> {
     let catalog = catalog(None, false).expect("static domains are valid");
     catalog
         .into_iter()
+        .filter(|domain| domain.domain != "workspace" && !domain.actions.is_empty())
         .map(domain_tool_spec_from_descriptor)
         .collect()
 }
 
 fn domain_tool_spec_from_descriptor(domain: DomainDescriptor) -> ToolSpec {
     let actions: Vec<_> = domain.actions.iter().map(|a| a.action.clone()).collect();
+    let mut generator = schemars::SchemaGenerator::default();
+    let alternatives: Vec<_> = domain
+        .actions
+        .iter()
+        .map(|action| {
+            let input = crate::tools::tool_input_schema(&action.operation, &mut generator)
+                .expect("registered domain operation");
+            json!({
+                "description": action.description,
+                "properties": {"action": {"const": action.action}, "input": input},
+                "required": ["action", "input"]
+            })
+        })
+        .collect();
     ToolSpec {
         name: format!("opencut_{}", domain.domain),
         description: format!(
-            "{} Select an action in this domain. Read opencut://schemas/domains/{} for exact per-action input and output schemas. Legacy operation names remain callable for compatibility.",
+            "{} Select an action; its input is defined by the matching schema alternative. Read opencut://schemas/domains/{} for per-action output schemas. Every action resolves to the same registered and independently authorized operation.",
             domain.description, domain.domain
         ),
         read_only: domain.actions.iter().all(|action| action.read_only),
@@ -217,10 +112,12 @@ fn domain_tool_spec_from_descriptor(domain: DomainDescriptor) -> ToolSpec {
             "type": "object",
             "properties": {
                 "action": {"type": "string", "enum": actions},
-                "input": {"type": "object", "description": "Arguments for the selected action; consult its domain schema."}
+                "input": {"type": "object", "description": "Typed arguments for the selected action."}
             },
             "required": ["action", "input"],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "oneOf": alternatives,
+            "$defs": generator.take_definitions(true)
         }),
         output_schema: serde_json::to_value(schema_for!(crate::Response<Value>))
             .expect("response schema is JSON"),
@@ -248,9 +145,7 @@ pub fn resolve(name: &str, arguments: Value) -> Result<(String, Value), EditorEr
     }
     let domain = name.strip_prefix("opencut_").expect("checked domain name");
     for operation in tool_summaries() {
-        if route(operation.name)
-            .is_some_and(|(owner, action)| owner == domain && action == call.action)
-        {
+        if operation.domain.name() == domain && operation.action == call.action {
             return Ok((operation.name.to_owned(), call.input));
         }
     }
@@ -269,10 +164,7 @@ pub fn operation_name(name: &str, arguments: &Value) -> Option<String> {
     let action = arguments.get("action")?.as_str()?;
     tool_summaries()
         .iter()
-        .find(|tool| {
-            route(tool.name)
-                .is_some_and(|(owner, candidate)| owner == domain && candidate == action)
-        })
+        .find(|tool| tool.domain.name() == domain && tool.action == action)
         .map(|tool| tool.name.to_owned())
 }
 
@@ -282,12 +174,154 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn listed_domain_schemas_include_every_registered_action_and_resolve_all_references() {
+        fn references(value: &Value, root: &Value) {
+            if let Some(reference) = value.get("$ref").and_then(Value::as_str) {
+                assert!(reference.starts_with('#'));
+                assert!(
+                    root.pointer(&reference[1..]).is_some(),
+                    "unresolved {reference}"
+                );
+            }
+            match value {
+                Value::Object(object) => object.values().for_each(|v| references(v, root)),
+                Value::Array(array) => array.iter().for_each(|v| references(v, root)),
+                _ => {}
+            }
+        }
+        let listed = tool_specs_compact();
+        assert_eq!(listed.len(), 11);
+        for tool in listed {
+            let domain = tool.name.strip_prefix("opencut_").unwrap();
+            let expected = catalog(Some(domain), false).unwrap().pop().unwrap();
+            let actual = tool.input_schema["properties"]["action"]["enum"]
+                .as_array()
+                .unwrap();
+            assert_eq!(actual.len(), expected.actions.len());
+            for action in expected.actions {
+                assert!(
+                    actual.contains(&json!(action.action)),
+                    "missing {}",
+                    action.action
+                );
+            }
+            assert_eq!(
+                tool.input_schema,
+                domain_tool_spec(&tool.name).unwrap().input_schema
+            );
+            assert_eq!(
+                tool.input_schema["oneOf"].as_array().unwrap().len(),
+                actual.len()
+            );
+            references(&tool.input_schema, &tool.input_schema);
+        }
+    }
+
+    #[test]
     fn every_public_operation_has_one_unambiguous_domain_action() {
         let mut routes = HashSet::new();
         for tool in tool_summaries() {
-            let (domain, action) = route(tool.name).expect("public operation is classified");
-            assert!(routes.insert((domain, action)), "duplicate domain action");
+            assert!(ToolDomain::ALL.contains(&tool.domain));
+            assert!(!tool.action.is_empty());
+            assert!(
+                routes.insert((tool.domain, tool.action)),
+                "duplicate domain action"
+            );
+            let payload = json!({"probe": tool.name});
+            let call = json!({"action": tool.action, "input": payload});
+            assert_eq!(
+                resolve(&format!("opencut_{}", tool.domain.name()), call.clone()).unwrap(),
+                (tool.name.to_owned(), payload)
+            );
+            assert_eq!(
+                operation_name(&format!("opencut_{}", tool.domain.name()), &call).as_deref(),
+                Some(tool.name)
+            );
         }
         assert_eq!(routes.len(), tool_summaries().len());
     }
+
+    #[test]
+    fn domain_ownership_does_not_create_cross_domain_authorization_aliases() {
+        let input = json!({"kind": "frame", "request": {}});
+        assert_eq!(
+            resolve("opencut_render", json!({"action":"submit","input":input})).unwrap(),
+            ("opencut_render_submit".to_owned(), input.clone())
+        );
+        let wrong = json!({"action":"render.submit","input":input});
+        assert_eq!(
+            resolve("opencut_task", wrong.clone()).unwrap_err().code,
+            "INVALID_ARGUMENT"
+        );
+        assert_eq!(operation_name("opencut_task", &wrong), None);
+        assert_eq!(
+            resolve("opencut_analysis", json!({"action":"asset","input":{}}))
+                .unwrap()
+                .0,
+            "opencut_analysis_asset"
+        );
+        assert_eq!(
+            resolve(
+                "opencut_catalog",
+                json!({"action":"font.catalog","input":{}})
+            )
+            .unwrap()
+            .0,
+            "opencut_font_catalog"
+        );
+    }
+}
+
+/// Default Agent discovery is small;explicit domain expansion uses the sole registry.
+pub fn agent_catalog(
+    domain: Option<&str>,
+    schemas: bool,
+) -> Result<Vec<DomainDescriptor>, EditorError> {
+    // Initial context shows common editing actions. Selecting a domain expands
+    // all of its registered operations,without a development-generation list.
+    const CORE: &[&str] = &[
+        "opencut_font_catalog",
+        "opencut_catalog_resources_list",
+        "opencut_project_inspect",
+        "opencut_project_plugin_plan",
+        "opencut_plugin_preset_plan",
+        "opencut_capabilities",
+        "opencut_project_list",
+        "opencut_project_create",
+        "opencut_project_summary",
+        "opencut_project_timeline_query",
+        "opencut_edit_agent_plan",
+        "opencut_edit_recipe_plan",
+        "opencut_edit_branch_create",
+        "opencut_edit_branch_list",
+        "opencut_edit_branch_compare",
+        "opencut_edit_branch_merge",
+        "opencut_edit_apply",
+        "opencut_edit_undo_plan",
+        "opencut_edit_undo_apply",
+        "opencut_edit_redo_plan",
+        "opencut_edit_redo_apply",
+        "opencut_media_content_search",
+        "opencut_media_map_time",
+        "opencut_analysis_asset",
+        "opencut_source_art_evidence",
+        "opencut_render_capability",
+        "opencut_render_submit",
+        "opencut_job_view",
+        "opencut_job_request_cancel",
+        "opencut_artifact_get",
+        "opencut_resource_read",
+        "opencut_quality_inspect",
+        "opencut_quality_evidence_plan",
+        "opencut_access_inspect",
+    ];
+    let mut catalog = catalog(domain, schemas)?;
+    for group in &mut catalog {
+        if domain.is_none() {
+            group
+                .actions
+                .retain(|action| CORE.contains(&action.operation.as_str()));
+        }
+    }
+    Ok(catalog)
 }

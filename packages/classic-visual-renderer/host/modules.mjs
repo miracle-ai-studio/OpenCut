@@ -9,6 +9,7 @@ export async function moduleRegistry(runtime) {
   const identityFiles=[];
   for(const file of await fs.readdir(path.join(SHARED_ROOT,"host")))if(file.endsWith(".mjs"))identityFiles.push({root:SHARED_ROOT,prefix:"/shared-host/",relative:"host/"+file});
   identityFiles.push({root:SHARED_ROOT,prefix:"/shared-host/",relative:"src/validation.mjs"});
+  identityFiles.push({root:SHARED_ROOT,prefix:"/shared-renderer/",relative:"src/verified-range-source.mjs",served:true});
   const modules=await sharedRegistry(runtime,{packageRoot:PACKAGE_ROOT,vendorFiles:SHADERS,identityFiles,staticImages:true});
   const shaderDigest=createHash("sha256");
   // Hash actual captured source, not a second read that can race the registry.

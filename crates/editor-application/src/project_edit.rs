@@ -1,9 +1,9 @@
 //! Pure scene structure planning; persistence, authorization and journaling use the shared commit.
 use opencut_contracts::{
     EditorError, Sequence, Track, TrackKind,
+    historical_visual::HistoricalVisualSnapshot,
+    historical_visual_ops::VisualPlan,
     project_edit::{ProjectEdit, ProjectEditRequest},
-    project_v3::ProjectSnapshotV3,
-    project_v3_ops::VisualPlan,
 };
 use std::collections::BTreeSet;
 
@@ -17,10 +17,10 @@ fn name(value: &str) -> Result<String, EditorError> {
     Ok(value.trim().into())
 }
 pub fn plan(
-    snapshot: &ProjectSnapshotV3,
+    snapshot: &HistoricalVisualSnapshot,
     input: &ProjectEditRequest,
 ) -> Result<VisualPlan, EditorError> {
-    opencut_editor_core::project_v3::validate_project_v3(&snapshot.project)?;
+    opencut_editor_core::historical_visual::validate_project_historical_visual(&snapshot.project)?;
     if snapshot.project.base.id != input.project_id || snapshot.revision != input.expected_revision
     {
         return Err(EditorError::new(
@@ -142,7 +142,7 @@ pub fn plan(
                 });
             }
         }
-        opencut_editor_core::project_v3::validate_project_v3(&proposed)?;
+        opencut_editor_core::historical_visual::validate_project_historical_visual(&proposed)?;
     }
     if proposed == snapshot.project {
         return Err(EditorError::new(

@@ -1,8 +1,8 @@
 //! Trusted visual runtime configuration, separate from all public frame inputs.
 use crate::browser_runtime::{absolute, dependency, executable, metadata, package_file};
 use opencut_contracts::EditorError;
-use opencut_job_contracts::project_v4_frame::V4FramePngCapabilityV1;
-use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
+use opencut_job_contracts::media_frame::MediaFramePngCapability;
+use opencut_job_execution::media_frame::LocalVisualExecutionPolicy;
 use opencut_native_services::classic_visual::ClassicVisualProcessConfig;
 use std::{
     env,
@@ -110,9 +110,9 @@ fn paths() -> Result<(PathBuf, PathBuf, PathBuf), EditorError> {
     Ok((node, chromium, runner))
 }
 pub(crate) fn configured(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
-    opencut_editor_application::project_v4_frame_jobs::validate_policy(policy)?;
+    opencut_editor_application::media_frame_jobs::validate_policy(policy)?;
     let (node, chromium, runner) = paths()?;
     Ok(ClassicVisualProcessConfig {
         node,
@@ -123,25 +123,24 @@ pub(crate) fn configured(
         strict_cgroup: None,
     })
 }
-pub(crate) fn capability() -> V4FramePngCapabilityV1 {
+pub(crate) fn capability() -> MediaFramePngCapability {
     let result = paths();
-    V4FramePngCapabilityV1 {
+    MediaFramePngCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_frame_png".into(),
+        submit_tool: "opencut_job_frame_png".into(),
         unavailable_reason: result.err().map(|error| error.message),
     }
 }
 
 /// The V2 capability requires its additional source modules. V1 configuration
 /// remains valid for older installed runtimes that lack text rendering.
-pub(crate) fn text_capability()
--> opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
+pub(crate) fn text_capability() -> opencut_job_contracts::scene_text_frame::TextFramePngCapability {
     let result = paths().and_then(|(_, _, runner)| check_text_modules(&runner));
-    opencut_job_contracts::project_v4_text_frame::V4TextFramePngCapabilityV2 {
+    opencut_job_contracts::scene_text_frame::TextFramePngCapability {
         schema_version: 2,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_text_frame_png".into(),
+        submit_tool: "opencut_job_text_frame_png".into(),
         unavailable_reason: result.err().map(|error| error.message),
     }
 }
@@ -156,7 +155,7 @@ fn check_text_modules(runner: &Path) -> Result<(), EditorError> {
     Ok(())
 }
 pub(crate) fn configured_text(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_text_modules(&config.runner)?;
@@ -165,11 +164,11 @@ pub(crate) fn configured_text(
 
 /// Configurable export can omit audio. Its visual preflight still requires the
 /// persistent video entrypoints, rather than advertising from PNG support alone.
-pub(crate) fn check_export_video_runtime_v2() -> Result<(), EditorError> {
+pub(crate) fn check_export_video_runtime() -> Result<(), EditorError> {
     let (_, _, runner) = paths()?;
-    check_export_video_modules_v2(&runner)
+    check_export_video_modules(&runner)
 }
-fn check_export_video_modules_v2(runner: &Path) -> Result<(), EditorError> {
+fn check_export_video_modules(runner: &Path) -> Result<(), EditorError> {
     check_scene_modules(runner)?;
     let package = runner
         .parent()
@@ -182,8 +181,7 @@ fn check_export_video_modules_v2(runner: &Path) -> Result<(), EditorError> {
 }
 
 /// Whole-scene video requires both renderer runtimes and the local encoding tools.
-pub(crate) fn video_capability() -> opencut_job_contracts::project_v4_video::V4VideoMp4CapabilityV1
-{
+pub(crate) fn video_capability() -> opencut_job_contracts::media_video::MediaVideoMp4Capability {
     let result = (|| -> Result<(), EditorError> {
         let (_, _, runner) = paths()?;
         check_text_modules(&runner)?;
@@ -212,16 +210,16 @@ pub(crate) fn video_capability() -> opencut_job_contracts::project_v4_video::V4V
         }
         Ok(())
     })();
-    opencut_job_contracts::project_v4_video::V4VideoMp4CapabilityV1 {
+    opencut_job_contracts::media_video::MediaVideoMp4Capability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_video_mp4".into(),
+        submit_tool: "opencut_job_video_mp4".into(),
         unavailable_reason: result.err().map(|error| error.message),
     }
 }
 
 pub(crate) fn caption_video_capability()
--> opencut_job_contracts::project_v4_caption_video::V4CaptionVideoMp4CapabilityV2 {
+-> opencut_job_contracts::scene_caption_video::CaptionVideoMp4Capability {
     let video = video_capability();
     let caption_error = paths()
         .and_then(|(_, _, runner)| check_caption_modules(&runner))
@@ -229,16 +227,16 @@ pub(crate) fn caption_video_capability()
     let unavailable_reason = video
         .unavailable_reason
         .or_else(|| caption_error.map(|error| error.message));
-    opencut_job_contracts::project_v4_caption_video::V4CaptionVideoMp4CapabilityV2 {
+    opencut_job_contracts::scene_caption_video::CaptionVideoMp4Capability {
         schema_version: 2,
         available: video.available && unavailable_reason.is_none(),
-        submit_tool: "opencut_job_v4_caption_video_mp4".into(),
+        submit_tool: "opencut_job_caption_video_mp4".into(),
         unavailable_reason,
     }
 }
 
 pub(crate) fn graphic_video_capability()
--> opencut_job_contracts::project_v4_graphic_video::V4GraphicVideoMp4CapabilityV1 {
+-> opencut_job_contracts::scene_graphic_video::GraphicVideoMp4Capability {
     let video = video_capability();
     let graphic_error = paths()
         .and_then(|(_, _, runner)| check_graphic_modules(&runner))
@@ -246,15 +244,15 @@ pub(crate) fn graphic_video_capability()
     let unavailable_reason = video
         .unavailable_reason
         .or_else(|| graphic_error.map(|error| error.message));
-    opencut_job_contracts::project_v4_graphic_video::V4GraphicVideoMp4CapabilityV1 {
+    opencut_job_contracts::scene_graphic_video::GraphicVideoMp4Capability {
         schema_version: 1,
         available: video.available && unavailable_reason.is_none(),
-        submit_tool: "opencut_job_v4_graphic_video_mp4".into(),
+        submit_tool: "opencut_job_graphic_video_mp4".into(),
         unavailable_reason,
     }
 }
-pub(crate) fn scene_video_capability()
--> opencut_job_contracts::project_v4_scene_video::V4SceneVideoMp4CapabilityV1 {
+pub(crate) fn scene_video_capability() -> opencut_job_contracts::scene_video::SceneVideoMp4Capability
+{
     let video = video_capability();
     let scene_error = paths()
         .and_then(|(_, _, runner)| check_scene_modules(&runner))
@@ -262,15 +260,15 @@ pub(crate) fn scene_video_capability()
     let unavailable_reason = video
         .unavailable_reason
         .or_else(|| scene_error.map(|error| error.message));
-    opencut_job_contracts::project_v4_scene_video::V4SceneVideoMp4CapabilityV1 {
+    opencut_job_contracts::scene_video::SceneVideoMp4Capability {
         schema_version: 1,
         available: video.available && unavailable_reason.is_none(),
-        submit_tool: "opencut_job_v4_scene_video_mp4".into(),
+        submit_tool: "opencut_job_scene_video_mp4".into(),
         unavailable_reason,
     }
 }
 pub(crate) fn mask_video_capability()
--> opencut_job_contracts::project_v4_mask_video::V4MaskVideoMp4CapabilityV1 {
+-> opencut_job_contracts::scene_mask_video::MaskVideoMp4Capability {
     let video = video_capability();
     let mask_error = paths()
         .and_then(|(_, _, runner)| check_mask_modules(&runner))
@@ -278,15 +276,15 @@ pub(crate) fn mask_video_capability()
     let unavailable_reason = video
         .unavailable_reason
         .or_else(|| mask_error.map(|error| error.message));
-    opencut_job_contracts::project_v4_mask_video::V4MaskVideoMp4CapabilityV1 {
+    opencut_job_contracts::scene_mask_video::MaskVideoMp4Capability {
         schema_version: 1,
         available: video.available && unavailable_reason.is_none(),
-        submit_tool: "opencut_job_v4_mask_video_mp4".into(),
+        submit_tool: "opencut_job_mask_video_mp4".into(),
         unavailable_reason,
     }
 }
 pub(crate) fn blend_video_capability()
--> opencut_job_contracts::project_v4_blend_video::V4BlendVideoMp4CapabilityV1 {
+-> opencut_job_contracts::scene_blend_video::BlendVideoMp4Capability {
     let video = video_capability();
     let blend_error = paths()
         .and_then(|(_, _, runner)| check_blend_modules(&runner))
@@ -294,10 +292,10 @@ pub(crate) fn blend_video_capability()
     let unavailable_reason = video
         .unavailable_reason
         .or_else(|| blend_error.map(|error| error.message));
-    opencut_job_contracts::project_v4_blend_video::V4BlendVideoMp4CapabilityV1 {
+    opencut_job_contracts::scene_blend_video::BlendVideoMp4Capability {
         schema_version: 1,
         available: video.available && unavailable_reason.is_none(),
-        submit_tool: "opencut_job_v4_blend_video_mp4".into(),
+        submit_tool: "opencut_job_blend_video_mp4".into(),
         unavailable_reason,
     }
 }
@@ -309,28 +307,28 @@ fn check_caption_modules(runner: &Path) -> Result<(), EditorError> {
         .and_then(Path::parent)
         .ok_or_else(unavailable)?;
     for name in [
-        "src/text-frame-v3.mjs",
-        "src/caption-plan-v3.mjs",
-        "src/caption-hooks-v3.mjs",
+        "src/caption-frame.mjs",
+        "src/caption-plan.mjs",
+        "src/caption-hooks.mjs",
     ] {
         package_file(package, name).map_err(|_| unavailable())?;
     }
     Ok(())
 }
 pub(crate) fn configured_caption(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_caption_modules(&config.runner)?;
     Ok(config)
 }
 pub(crate) fn caption_capability()
--> opencut_job_contracts::project_v4_caption_frame::V4CaptionFrameCapabilityV3 {
+-> opencut_job_contracts::scene_caption_frame::CaptionFrameCapability {
     let result = paths().and_then(|(_, _, runner)| check_caption_modules(&runner));
-    opencut_job_contracts::project_v4_caption_frame::V4CaptionFrameCapabilityV3 {
+    opencut_job_contracts::scene_caption_frame::CaptionFrameCapability {
         schema_version: 3,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_caption_frame_png".into(),
+        submit_tool: "opencut_job_caption_frame_png".into(),
         unavailable_reason: result.err().map(|e| e.message),
     }
 }
@@ -342,80 +340,77 @@ fn check_graphic_modules(runner: &Path) -> Result<(), EditorError> {
         .and_then(Path::parent)
         .ok_or_else(unavailable)?;
     for name in [
-        "src/graphic-frame-v1.mjs",
+        "src/graphic-frame.mjs",
         "src/graphic-source.mjs",
-        "src/graphic-plan-v1.mjs",
-        "src/caption-hooks-v3.mjs",
+        "src/graphic-plan.mjs",
+        "src/caption-hooks.mjs",
     ] {
         package_file(package, name).map_err(|_| unavailable())?;
     }
     Ok(())
 }
 pub(crate) fn configured_graphic(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_graphic_modules(&config.runner)?;
     Ok(config)
 }
 pub(crate) fn configured_scene(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_scene_modules(&config.runner)?;
     Ok(config)
 }
 pub(crate) fn configured_mask(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_mask_modules(&config.runner)?;
     Ok(config)
 }
 pub(crate) fn configured_blend(
-    policy: &LocalVisualExecutionPolicyV1,
+    policy: &LocalVisualExecutionPolicy,
 ) -> Result<ClassicVisualProcessConfig, EditorError> {
     let config = configured(policy)?;
     check_blend_modules(&config.runner)?;
     Ok(config)
 }
 pub(crate) fn graphic_capability()
--> opencut_job_contracts::project_v4_graphic_frame::V4GraphicFrameCapabilityV1 {
+-> opencut_job_contracts::scene_graphic_frame::GraphicFrameCapability {
     let result = paths().and_then(|(_, _, runner)| check_graphic_modules(&runner));
-    opencut_job_contracts::project_v4_graphic_frame::V4GraphicFrameCapabilityV1 {
+    opencut_job_contracts::scene_graphic_frame::GraphicFrameCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_graphic_frame_png".into(),
+        submit_tool: "opencut_job_graphic_frame_png".into(),
         unavailable_reason: result.err().map(|e| e.message),
     }
 }
-pub(crate) fn scene_capability()
--> opencut_job_contracts::project_v4_scene_frame::V4SceneFrameCapabilityV1 {
+pub(crate) fn scene_capability() -> opencut_job_contracts::scene_frame::SceneFrameCapability {
     let result = paths().and_then(|(_, _, runner)| check_scene_modules(&runner));
-    opencut_job_contracts::project_v4_scene_frame::V4SceneFrameCapabilityV1 {
+    opencut_job_contracts::scene_frame::SceneFrameCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_scene_frame_png".into(),
+        submit_tool: "opencut_job_scene_frame_png".into(),
         unavailable_reason: result.err().map(|e| e.message),
     }
 }
-pub(crate) fn mask_capability()
--> opencut_job_contracts::project_v4_mask_frame::V4MaskFrameCapabilityV1 {
+pub(crate) fn mask_capability() -> opencut_job_contracts::scene_mask_frame::MaskFrameCapability {
     let result = paths().and_then(|(_, _, runner)| check_mask_modules(&runner));
-    opencut_job_contracts::project_v4_mask_frame::V4MaskFrameCapabilityV1 {
+    opencut_job_contracts::scene_mask_frame::MaskFrameCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_mask_frame_png".into(),
+        submit_tool: "opencut_job_mask_frame_png".into(),
         unavailable_reason: result.err().map(|e| e.message),
     }
 }
-pub(crate) fn blend_capability()
--> opencut_job_contracts::project_v4_blend_frame::V4BlendFrameCapabilityV1 {
+pub(crate) fn blend_capability() -> opencut_job_contracts::scene_blend_frame::BlendFrameCapability {
     let result = paths().and_then(|(_, _, runner)| check_blend_modules(&runner));
-    opencut_job_contracts::project_v4_blend_frame::V4BlendFrameCapabilityV1 {
+    opencut_job_contracts::scene_blend_frame::BlendFrameCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_blend_frame_png".into(),
+        submit_tool: "opencut_job_blend_frame_png".into(),
         unavailable_reason: result.err().map(|e| e.message),
     }
 }
@@ -427,11 +422,11 @@ fn check_scene_modules(runner: &Path) -> Result<(), EditorError> {
         .and_then(Path::parent)
         .ok_or_else(unavailable)?;
     for name in [
-        "src/scene-frame-v1.mjs",
-        "src/scene-plan-v1.mjs",
-        "src/scene-source-v1.mjs",
-        "src/scene-effects-v1.mjs",
-        "src/scene-text-v1.mjs",
+        "src/scene-frame.mjs",
+        "src/scene-plan.mjs",
+        "src/scene-source.mjs",
+        "src/scene-effects.mjs",
+        "src/scene-text.mjs",
         "vendor/classic-v31/gaussian_blur.wgsl",
     ] {
         package_file(package, name).map_err(|_| unavailable())?;
@@ -445,9 +440,9 @@ fn check_mask_modules(runner: &Path) -> Result<(), EditorError> {
         .and_then(Path::parent)
         .ok_or_else(unavailable)?;
     for name in [
-        "src/mask-frame-v1.mjs",
-        "src/mask-plan-v1.mjs",
-        "src/mask-source-v1.mjs",
+        "src/mask-frame.mjs",
+        "src/mask-plan.mjs",
+        "src/mask-source.mjs",
         "vendor/classic-v31/mask.wgsl",
         "vendor/classic-v31/jfa_init.wgsl",
         "vendor/classic-v31/jfa_step.wgsl",
@@ -464,9 +459,9 @@ fn check_blend_modules(runner: &Path) -> Result<(), EditorError> {
         .and_then(Path::parent)
         .ok_or_else(unavailable)?;
     for name in [
-        "src/blend-frame-v1.mjs",
-        "src/blend-plan-v1.mjs",
-        "src/blend-modes-v1.mjs",
+        "src/blend-frame.mjs",
+        "src/blend-plan.mjs",
+        "src/blend-modes.mjs",
     ] {
         package_file(package, name).map_err(|_| unavailable())?;
     }
@@ -483,27 +478,27 @@ mod export_runtime_tests {
         for name in [
             "src/text-frame.mjs",
             "src/text-layout.mjs",
-            "src/text-frame-v3.mjs",
-            "src/caption-plan-v3.mjs",
-            "src/caption-hooks-v3.mjs",
-            "src/graphic-frame-v1.mjs",
+            "src/caption-frame.mjs",
+            "src/caption-plan.mjs",
+            "src/caption-hooks.mjs",
+            "src/graphic-frame.mjs",
             "src/graphic-source.mjs",
-            "src/graphic-plan-v1.mjs",
-            "src/blend-frame-v1.mjs",
-            "src/blend-plan-v1.mjs",
-            "src/blend-modes-v1.mjs",
-            "src/mask-frame-v1.mjs",
-            "src/mask-plan-v1.mjs",
-            "src/mask-source-v1.mjs",
+            "src/graphic-plan.mjs",
+            "src/blend-frame.mjs",
+            "src/blend-plan.mjs",
+            "src/blend-modes.mjs",
+            "src/mask-frame.mjs",
+            "src/mask-plan.mjs",
+            "src/mask-source.mjs",
             "vendor/classic-v31/mask.wgsl",
             "vendor/classic-v31/jfa_init.wgsl",
             "vendor/classic-v31/jfa_step.wgsl",
             "vendor/classic-v31/jfa_distance.wgsl",
-            "src/scene-frame-v1.mjs",
-            "src/scene-plan-v1.mjs",
-            "src/scene-source-v1.mjs",
-            "src/scene-effects-v1.mjs",
-            "src/scene-text-v1.mjs",
+            "src/scene-frame.mjs",
+            "src/scene-plan.mjs",
+            "src/scene-source.mjs",
+            "src/scene-effects.mjs",
+            "src/scene-text.mjs",
             "vendor/classic-v31/gaussian_blur.wgsl",
             "host/runner.mjs",
         ] {
@@ -513,12 +508,12 @@ mod export_runtime_tests {
         }
         let runner = root.join("host/runner.mjs");
         check_scene_modules(&runner).unwrap();
-        assert!(check_export_video_modules_v2(&runner).is_err());
+        assert!(check_export_video_modules(&runner).is_err());
         std::fs::write(root.join("host/video-runner.mjs"), "fixture").unwrap();
-        assert!(check_export_video_modules_v2(&runner).is_err());
+        assert!(check_export_video_modules(&runner).is_err());
         std::fs::write(root.join("host/video-browser.mjs"), "fixture").unwrap();
-        check_export_video_modules_v2(&runner).unwrap();
-        std::fs::remove_file(root.join("src/scene-text-v1.mjs")).unwrap();
-        assert!(check_export_video_modules_v2(&runner).is_err());
+        check_export_video_modules(&runner).unwrap();
+        std::fs::remove_file(root.join("src/scene-text.mjs")).unwrap();
+        assert!(check_export_video_modules(&runner).is_err());
     }
 }

@@ -8,7 +8,10 @@ use futures_util::StreamExt;
 use opencut_automation::Caller;
 use opencut_contracts::EditorError;
 use opencut_host_runtime::workspace::Workspace as EditorApplication;
-use std::{path::Path, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Identity {
@@ -65,13 +68,77 @@ pub(super) struct AuthorizedHost(pub super::http::Host);
 #[derive(Clone)]
 pub(super) struct RevalidateStream;
 #[derive(Clone)]
-pub(super) struct RevalidateV4Resource(
-    pub opencut_contracts::project_v4_resources::InspectResourceV4,
+pub(super) struct RevalidateProjectResource(
+    pub opencut_contracts::project_resources::InspectResource,
 );
 #[derive(Clone)]
 pub(super) struct RevalidateVisualPreviewFont(
-    pub opencut_host_runtime::visual_preview_text_contracts::VisualPreviewFontV2,
+    pub opencut_host_runtime::visual_preview_contracts::VisualPreviewFont,
 );
+
+/// A font response owns its connections, never an authorization result. Moving
+/// this context through each blocking check keeps live reads in autocommit
+/// mode while avoiding workspace initialization for every 64KiB body chunk.
+struct StreamValidation {
+    app: EditorApplication,
+    font_host: Option<opencut_host_runtime::Automation>,
+    database: PathBuf,
+}
+impl StreamValidation {
+    fn open(database: &Path) -> Result<Self, EditorError> {
+        Ok(Self {
+            app: EditorApplication::open_managed(database)?,
+            font_host: None,
+            database: database.to_path_buf(),
+        })
+    }
+
+    fn check(
+        &mut self,
+        identity: &Identity,
+        call_source: opencut_automation::CallSource,
+        request_id: &str,
+        resource: Option<&opencut_contracts::project_resources::InspectResource>,
+        font: Option<&opencut_host_runtime::visual_preview_contracts::VisualPreviewFont>,
+    ) -> Result<(), EditorError> {
+        let result = identity.validate(&mut self.app).and_then(|()| {
+            self.app.set_caller(identity.caller.clone());
+            if let Some(resource) = resource {
+                self.app.revalidate_project_resource_read(resource)?;
+            }
+            if let Some(font) = font {
+                if self.font_host.is_none() {
+                    self.font_host = Some(
+                        opencut_host_runtime::Automation::open(&self.database)?
+                            .with_source(call_source)
+                            .with_caller(identity.caller.clone()),
+                    );
+                }
+                self.font_host
+                    .as_mut()
+                    .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing font stream host"))?
+                    .authorize_visual_preview_font(font)?;
+            }
+            Ok(())
+        });
+        use opencut_automation::denials::*;
+        if result.as_ref().err().is_some_and(is_denial)
+            && self
+                .app
+                .record_denial(&Denial {
+                    request_id,
+                    source: call_source,
+                    caller: Some(&identity.caller),
+                    operation: DeniedOperation::Stream,
+                    reason: DenialReason::PolicyChanged,
+                })
+                .is_err()
+        {
+            eprintln!("{FAILURE_WARNING}: {request_id}");
+        }
+        result
+    }
+}
 impl FromRequestParts<super::http::Host> for AuthorizedHost {
     type Rejection = Response;
     async fn from_request_parts(
@@ -102,7 +169,7 @@ pub(super) fn guard_stream(
 ) -> Response {
     let resource_scope = response
         .extensions()
-        .get::<RevalidateV4Resource>()
+        .get::<RevalidateProjectResource>()
         .map(|value| value.0.clone());
     let font_scope = response
         .extensions()
@@ -142,8 +209,17 @@ pub(super) fn guard_stream(
             request_id,
             resource_scope,
             font_scope,
+            None::<StreamValidation>,
         ),
-        move |(mut source, database, identity, request_id, resource_scope, font_scope)| async move {
+        move |(
+            mut source,
+            database,
+            identity,
+            request_id,
+            resource_scope,
+            font_scope,
+            mut validation,
+        )| async move {
             loop {
                 let chunk = tokio::select! {
                     value=source.next()=>Some(value),
@@ -154,41 +230,27 @@ pub(super) fn guard_stream(
                 let trace = request_id.clone();
                 let scope = resource_scope.clone();
                 let font = font_scope.clone();
-                let valid = tokio::task::spawn_blocking(move || {
-                    let mut app = EditorApplication::open_managed(path.as_ref())?;
-                    let result = expected.validate(&mut app).and_then(|()| {
-                        app.set_caller(expected.caller.clone());
-                        if let Some(scope) = scope {
-                            app.revalidate_v4_resource_read(&scope)?;
-                        }
-                        if let Some(font) = font {
-                            opencut_host_runtime::Automation::open(path.as_ref())?
-                                .with_source(call_source)
-                                .with_caller(expected.caller.clone())
-                                .authorize_visual_preview_font(&font)?;
-                        }
-                        Ok(())
-                    });
-                    use opencut_automation::denials::*;
-                    if result.as_ref().err().is_some_and(is_denial)
-                        && app
-                            .record_denial(&Denial {
-                                request_id: &trace,
-                                source: call_source,
-                                caller: Some(&expected.caller),
-                                operation: DeniedOperation::Stream,
-                                reason: DenialReason::PolicyChanged,
-                            })
-                            .is_err()
-                    {
-                        eprintln!("{FAILURE_WARNING}: {trace}");
-                    }
-                    result
+                let checked = tokio::task::spawn_blocking(move || {
+                    let mut context = match validation {
+                        Some(context) => context,
+                        None => StreamValidation::open(path.as_ref())?,
+                    };
+                    context.check(
+                        &expected,
+                        call_source,
+                        &trace,
+                        scope.as_ref(),
+                        font.as_ref(),
+                    )?;
+                    // Only fixed preview-font responses retain connections.
+                    // Other stream routes preserve their existing lifecycle.
+                    Ok::<_, EditorError>(font.map(|_| context))
                 })
                 .await;
-                if !matches!(valid, Ok(Ok(()))) {
-                    return None;
-                }
+                validation = match checked {
+                    Ok(Ok(context)) => context,
+                    _ => return None,
+                };
                 if let Some(chunk) = chunk {
                     return chunk.map(|value| {
                         (
@@ -200,6 +262,7 @@ pub(super) fn guard_stream(
                                 request_id,
                                 resource_scope,
                                 font_scope,
+                                validation,
                             ),
                         )
                     });

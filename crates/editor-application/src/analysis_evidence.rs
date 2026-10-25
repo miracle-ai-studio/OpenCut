@@ -5,11 +5,9 @@ use opencut_api_contracts::analysis_evidence::{
     AnalysisProvenance,
 };
 use opencut_contracts::{EditorError, Time, TimeRange};
-use opencut_job_contracts::{AnalysisJobResult, SpeakerTurnsJobResult, TranscribeJobResult};
-use opencut_media_contracts::{ShotsResult, SilenceResult, WaveformResult, WordTimingStatus};
+use opencut_media_contracts::WordTimingStatus;
 use opencut_time::{RationalTime, range_end, validate_range};
 use serde::Serialize;
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 
@@ -76,27 +74,26 @@ fn keep_point(
     let at = RationalTime::try_from(time)?;
     Ok(at.cmp_exact(from) != Ordering::Less && at.cmp_exact(to) == Ordering::Less)
 }
-fn result_data(view: &opencut_api_contracts::job_views::JobView) -> Result<Value, EditorError> {
+fn result_data(
+    view: &opencut_api_contracts::job_views::JobView,
+) -> Result<&opencut_api_contracts::job_results::AssetAnalysisResult, EditorError> {
     if view.state != JobState::Succeeded {
         return Err(EditorError::new(
             "ANALYSIS_NOT_READY",
             "Analysis must succeed before evidence can be queried",
         ));
     }
-    if view.result_unavailable.is_some() || view.result.is_some() {
+    if view.result_unavailable.is_some() {
         return Err(bad_result());
     }
-    let ext = view.extended_result.as_ref().ok_or_else(bad_result)?;
-    if ext.kind != view.kind || ext.schema_version != 1 {
-        return Err(EditorError::new(
-            "UNSUPPORTED_RESULT_VERSION",
-            "Unsupported analysis result version",
-        ));
+    match &view.result {
+        Some(opencut_api_contracts::job_results::JobResultView::AssetAnalysis(result))
+            if view.kind == "analysis.asset" =>
+        {
+            Ok(result)
+        }
+        _ => Err(bad_result()),
     }
-    Ok(ext.data.clone())
-}
-fn params<T: serde::de::DeserializeOwned>(input: &Value) -> Result<T, EditorError> {
-    serde_json::from_value(input.clone()).map_err(|_| bad_result())
 }
 fn digest<T: Serialize>(value: &T) -> Result<String, EditorError> {
     let bytes = serde_json::to_vec(value)
@@ -119,7 +116,7 @@ pub fn query(
     let (record, principal) = store
         .read_job_for_cursor(&input.job_id)
         .map_err(job_views::public_error)?;
-    let view = job_views::project(record.clone());
+    let view = job_views::project(record);
     let data = result_data(&view)?;
     let target = view.target.as_ref().ok_or_else(bad_result)?;
     let (asset_id, asset_version, provenance, mut evidence): (
@@ -128,230 +125,164 @@ pub fn query(
         AnalysisProvenance,
         Vec<AnalysisEvidenceItem>,
     );
-    match view.kind.as_str() {
-        "analysis.transcribe" => {
-            let result: TranscribeJobResult = params(&data)?;
-            let prepared: opencut_job_execution::PreparedTranscribeInput = params(&record.input)?;
-            if !opencut_media_contracts::validate_public_transcription_result(&result.transcription)
-                || result.project_id != target.project_id
-                || result.revision != target.revision
-                || result.asset_id != prepared.asset_id
-                || result.asset_version.asset_id != result.asset_id
-            {
-                return Err(bad_result());
-            }
-            asset_id = result.asset_id.clone();
-            asset_version = result.asset_version.clone();
+    use crate::asset_analysis::{AssetAnalysisData, AssetAnalysisOptions};
+    let result = data;
+    if result.project_id != target.project_id || result.revision != target.revision {
+        return Err(bad_result());
+    }
+    asset_id = result.asset_id.clone();
+    asset_version = result.asset_version.clone();
+    match (&result.options, &result.data) {
+        (
+            AssetAnalysisOptions::Transcribe { language, .. },
+            AssetAnalysisData::Transcribe(value),
+        ) => {
             provenance = AnalysisProvenance {
-                provider: result.transcription.provider.clone(),
+                provider: value.provider.clone(),
                 method: None,
-                model: Some(result.transcription.model.clone()),
-                model_sha256: result.transcription.model_sha256.clone(),
+                model: Some(value.model.clone()),
+                model_sha256: value.model_sha256.clone(),
                 confidence_known: Some(false),
                 speaker_identity_status: None,
                 parameters: AnalysisParameters::Transcription {
-                    language: prepared.language,
-                    word_timing_status: match result.transcription.word_timing_status {
-                        WordTimingStatus::NotRequested => "not_requested",
+                    language: language.clone(),
+                    word_timing_status: match value.word_timing_status {
                         WordTimingStatus::Available => "available",
                         WordTimingStatus::Unavailable => "unavailable",
+                        WordTimingStatus::NotRequested => "not_requested",
                     }
                     .into(),
                 },
             };
-            evidence = result
-                .transcription
+            evidence = value
                 .segments
                 .iter()
                 .enumerate()
-                .map(|(i, segment)| {
+                .map(|(i, s)| {
                     Ok(AnalysisEvidenceItem::TranscriptSegment {
                         evidence_id: format!("{}:segment:{i}", input.job_id),
                         index: i as u32,
-                        source_range: interval(&segment.start, &segment.end)?,
-                        text: segment.text.clone(),
+                        source_range: interval(&s.start, &s.end)?,
+                        text: s.text.clone(),
                     })
                 })
                 .collect::<Result<_, EditorError>>()?;
         }
-        "analysis.silence" => {
-            let result: AnalysisJobResult<SilenceResult> = params(&data)?;
-            let prepared: opencut_job_execution::PreparedAnalysisInput = params(&record.input)?;
-            if result.project_id != target.project_id
-                || result.revision != target.revision
-                || result.asset_id != prepared.asset_id
-                || result.asset_version.asset_id != result.asset_id
-                || !opencut_media_contracts::validate_public_silence_result(&result.analysis)
-            {
-                return Err(bad_result());
-            }
-            asset_id = result.asset_id.clone();
-            asset_version = result.asset_version.clone();
-            let options = match prepared.options {
-                opencut_job_execution::AnalysisOptions::Silence {
-                    noise_db,
-                    min_duration_ms,
-                } => AnalysisParameters::Silence {
-                    noise_db,
-                    min_duration_ms,
-                },
-                _ => return Err(bad_result()),
-            };
+        (
+            AssetAnalysisOptions::Silence {
+                noise_db,
+                min_duration_ms,
+            },
+            AssetAnalysisData::Silence(value),
+        ) => {
             provenance = AnalysisProvenance {
-                provider: result.analysis.provider.clone(),
-                method: Some(result.analysis.method.clone()),
+                provider: value.provider.clone(),
+                method: Some(value.method.clone()),
                 model: None,
                 model_sha256: None,
-                confidence_known: Some(result.analysis.confidence_known),
+                confidence_known: Some(value.confidence_known),
                 speaker_identity_status: None,
-                parameters: options,
+                parameters: AnalysisParameters::Silence {
+                    noise_db: *noise_db,
+                    min_duration_ms: *min_duration_ms,
+                },
             };
-            evidence = result
-                .analysis
+            evidence = value
                 .intervals
                 .iter()
                 .enumerate()
-                .map(|(i, item)| {
+                .map(|(i, s)| {
                     Ok(AnalysisEvidenceItem::SilenceInterval {
                         evidence_id: format!("{}:silence:{i}", input.job_id),
                         index: i as u32,
-                        source_range: interval(&item.start, &item.end)?,
+                        source_range: interval(&s.start, &s.end)?,
                     })
                 })
                 .collect::<Result<_, EditorError>>()?;
         }
-        "analysis.shots" => {
-            let result: AnalysisJobResult<ShotsResult> = params(&data)?;
-            let prepared: opencut_job_execution::PreparedAnalysisInput = params(&record.input)?;
-            if result.project_id != target.project_id
-                || result.revision != target.revision
-                || result.asset_id != prepared.asset_id
-                || result.asset_version.asset_id != result.asset_id
-                || !opencut_media_contracts::validate_public_shots_result(&result.analysis)
-            {
-                return Err(bad_result());
-            }
-            asset_id = result.asset_id.clone();
-            asset_version = result.asset_version.clone();
-            let options = match prepared.options {
-                opencut_job_execution::AnalysisOptions::Shots { threshold } => {
-                    AnalysisParameters::Shots { threshold }
-                }
-                _ => return Err(bad_result()),
-            };
+        (AssetAnalysisOptions::Shots { threshold }, AssetAnalysisData::Shots(value)) => {
             provenance = AnalysisProvenance {
-                provider: result.analysis.provider.clone(),
-                method: Some(result.analysis.method.clone()),
+                provider: value.provider.clone(),
+                method: Some(value.method.clone()),
                 model: None,
                 model_sha256: None,
-                confidence_known: Some(result.analysis.confidence_known),
+                confidence_known: Some(value.confidence_known),
                 speaker_identity_status: None,
-                parameters: options,
+                parameters: AnalysisParameters::Shots {
+                    threshold: *threshold,
+                },
             };
-            evidence = result
-                .analysis
+            evidence = value
                 .boundaries
                 .iter()
                 .enumerate()
-                .map(|(i, item)| AnalysisEvidenceItem::ShotBoundary {
+                .map(|(i, s)| AnalysisEvidenceItem::ShotBoundary {
                     evidence_id: format!("{}:shot:{i}", input.job_id),
                     index: i as u32,
-                    source_time: public_time(&item.at),
-                    scene_score: item.scene_score,
+                    source_time: public_time(&s.at),
+                    scene_score: s.scene_score,
                 })
                 .collect();
         }
-        "analysis.waveform" => {
-            let result: AnalysisJobResult<WaveformResult> = params(&data)?;
-            let prepared: opencut_job_execution::PreparedAnalysisInput = params(&record.input)?;
-            if result.project_id != target.project_id
-                || result.revision != target.revision
-                || result.asset_id != prepared.asset_id
-                || result.asset_version.asset_id != result.asset_id
-                || !opencut_media_contracts::validate_public_waveform_result(&result.analysis)
-            {
-                return Err(bad_result());
-            }
-            asset_id = result.asset_id.clone();
-            asset_version = result.asset_version.clone();
-            let options = match prepared.options {
-                opencut_job_execution::AnalysisOptions::Waveform { buckets } => {
-                    AnalysisParameters::Waveform { buckets }
-                }
-                _ => return Err(bad_result()),
-            };
+        (AssetAnalysisOptions::Waveform { buckets }, AssetAnalysisData::Waveform(value)) => {
             provenance = AnalysisProvenance {
-                provider: result.analysis.provider.clone(),
-                method: Some(result.analysis.method.clone()),
+                provider: value.provider.clone(),
+                method: Some(value.method.clone()),
                 model: None,
                 model_sha256: None,
-                confidence_known: Some(result.analysis.confidence_known),
+                confidence_known: Some(value.confidence_known),
                 speaker_identity_status: None,
-                parameters: options,
+                parameters: AnalysisParameters::Waveform { buckets: *buckets },
             };
-            evidence = result
-                .analysis
+            evidence = value
                 .buckets
                 .iter()
                 .enumerate()
-                .map(|(i, item)| {
+                .map(|(i, s)| {
                     Ok(AnalysisEvidenceItem::WaveformBucket {
                         evidence_id: format!("{}:waveform:{i}", input.job_id),
                         index: i as u32,
-                        source_range: interval(&item.start, &item.end)?,
-                        rms: item.rms,
-                        peak: item.peak,
+                        source_range: interval(&s.start, &s.end)?,
+                        rms: s.rms,
+                        peak: s.peak,
                     })
                 })
                 .collect::<Result<_, EditorError>>()?;
         }
-        "analysis.speaker_turns" => {
-            let result: SpeakerTurnsJobResult = params(&data)?;
-            let prepared: opencut_job_execution::PreparedSpeakerTurnsInput = params(&record.input)?;
-            if result.project_id != target.project_id
-                || result.revision != target.revision
-                || result.asset_id != prepared.asset_id
-                || result.asset_version.asset_id != result.asset_id
-                || !opencut_media_contracts::validate_public_speaker_turns_result(&result.analysis)
-            {
-                return Err(bad_result());
-            }
-            asset_id = result.asset_id.clone();
-            asset_version = result.asset_version.clone();
+        (AssetAnalysisOptions::SpeakerTurns {}, AssetAnalysisData::SpeakerTurns(value)) => {
             provenance = AnalysisProvenance {
-                provider: result.analysis.provider.clone(),
-                method: Some(result.analysis.method.clone()),
-                model: Some(result.analysis.model.clone()),
-                model_sha256: Some(result.analysis.model_sha256.clone()),
-                confidence_known: Some(result.analysis.confidence_known),
-                speaker_identity_status: Some(result.analysis.speaker_identity_status.clone()),
+                provider: value.provider.clone(),
+                method: Some(value.method.clone()),
+                model: Some(value.model.clone()),
+                model_sha256: Some(value.model_sha256.clone()),
+                confidence_known: Some(value.confidence_known),
+                speaker_identity_status: Some(value.speaker_identity_status.clone()),
                 parameters: AnalysisParameters::SpeakerTurns {
-                    language: prepared.language,
+                    language: "en".into(),
                 },
             };
-            evidence = result
-                .analysis
+            evidence = value
                 .turns
                 .iter()
                 .enumerate()
-                .map(|(i, item)| AnalysisEvidenceItem::SpeakerTurn {
+                .map(|(i, s)| AnalysisEvidenceItem::SpeakerTurn {
                     evidence_id: format!("{}:turn:{i}", input.job_id),
                     index: i as u32,
-                    source_time: public_time(&item.at),
+                    source_time: public_time(&s.at),
                 })
                 .collect();
         }
-        _ => {
-            return Err(EditorError::new(
-                "UNSUPPORTED_ANALYSIS_QUERY",
-                "This task does not contain queryable analysis evidence",
-            ));
-        }
+        _ => return Err(bad_result()),
     }
     if asset_version.asset_id != asset_id {
         return Err(bad_result());
     }
-    if !text.is_empty() && view.kind != "analysis.transcribe" {
+    if !text.is_empty()
+        && !matches!(
+            provenance.parameters,
+            AnalysisParameters::Transcription { .. }
+        )
+    {
         return Err(invalid(
             "Text matching is only available for transcription evidence",
         ));

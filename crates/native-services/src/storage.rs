@@ -273,7 +273,6 @@ mod unix {
                 .to_string()
         };
         Ok(UsageReport {
-            schema_version: 1,
             consistency: "live_non_atomic".into(),
             complete: categories.iter().all(|u| u.complete),
             visited_entries: scan.visited,

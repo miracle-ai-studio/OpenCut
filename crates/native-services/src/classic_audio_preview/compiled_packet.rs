@@ -1,10 +1,9 @@
 //! Lossless private transport projection of already compiled Rust sample facts.
 //! Tuples shorten the JSON packet; this adapter evaluates no project clocks.
 use super::error;
-use opencut_composition::project_v4::{
-    CLASSIC_REALTIME_AUDIO_PROFILE_V4, MAX_AUDIO_BLOCK_FRAMES_V4, MAX_AUDIO_BLOCK_GAIN_SAMPLES_V4,
-    MAX_RUNTIME_AUDIO_VOICES_V4, PreviewAudioBlockV4, PreviewAudioVoiceBlockV4,
-    PreviewSourceSampleV4,
+use opencut_composition::scene::{
+    CLASSIC_REALTIME_AUDIO_PROFILE, MAX_AUDIO_BLOCK_FRAMES, MAX_AUDIO_BLOCK_GAIN_SAMPLES,
+    MAX_RUNTIME_AUDIO_VOICES, PreviewAudioBlock, PreviewSourceSample,
 };
 use opencut_contracts::EditorError;
 use serde::{
@@ -28,7 +27,7 @@ fn budget() -> EditorError {
 fn valid_id(value: &str) -> bool {
     !value.trim().is_empty() && value.len() <= 1024 && !value.chars().any(char::is_control)
 }
-fn validate_preview_block(block: &PreviewAudioBlockV4) -> Result<(), EditorError> {
+fn validate_preview_block(block: &PreviewAudioBlock) -> Result<(), EditorError> {
     let identity = &block.identity;
     if ![
         &identity.project_id,
@@ -37,10 +36,10 @@ fn validate_preview_block(block: &PreviewAudioBlockV4) -> Result<(), EditorError
     ]
     .into_iter()
     .all(|value| valid_id(value))
-        || identity.profile != CLASSIC_REALTIME_AUDIO_PROFILE_V4
+        || identity.profile != CLASSIC_REALTIME_AUDIO_PROFILE
         || !matches!(identity.sample_rate, 44_100 | 48_000)
         || identity.channels != 2
-        || !(1..=MAX_AUDIO_BLOCK_FRAMES_V4).contains(&block.frame_count)
+        || !(1..=MAX_AUDIO_BLOCK_FRAMES).contains(&block.frame_count)
         || block
             .start_sample
             .checked_add(u64::from(block.frame_count))
@@ -48,7 +47,7 @@ fn validate_preview_block(block: &PreviewAudioBlockV4) -> Result<(), EditorError
     {
         return Err(invalid());
     }
-    if block.voices.len() > MAX_RUNTIME_AUDIO_VOICES_V4 {
+    if block.voices.len() > MAX_RUNTIME_AUDIO_VOICES {
         return Err(budget());
     }
     // Receipts include non-audio/disabled elements. Serialized reply bytes are
@@ -87,7 +86,7 @@ fn validate_preview_block(block: &PreviewAudioBlockV4) -> Result<(), EditorError
         }
         work = work
             .checked_add(voice.frame_count as usize)
-            .filter(|n| *n <= MAX_AUDIO_BLOCK_GAIN_SAMPLES_V4)
+            .filter(|n| *n <= MAX_AUDIO_BLOCK_GAIN_SAMPLES)
             .ok_or_else(budget)?;
         if voice.amplitudes.iter().any(|value| !value.is_finite()) {
             return Err(invalid());
@@ -104,7 +103,7 @@ fn validate_preview_block(block: &PreviewAudioBlockV4) -> Result<(), EditorError
     Ok(())
 }
 
-struct PackedPoint<'a>(&'a Option<PreviewSourceSampleV4>);
+struct PackedPoint<'a>(&'a Option<PreviewSourceSample>);
 impl Serialize for PackedPoint<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let Some(point) = self.0 else {
@@ -118,7 +117,7 @@ impl Serialize for PackedPoint<'_> {
         tuple.end()
     }
 }
-struct PackedPositions<'a>(&'a [Option<PreviewSourceSampleV4>]);
+struct PackedPositions<'a>(&'a [Option<PreviewSourceSample>]);
 impl Serialize for PackedPositions<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
@@ -128,67 +127,10 @@ impl Serialize for PackedPositions<'_> {
         sequence.end()
     }
 }
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PackedVoice<'a> {
-    element_id: &'a str,
-    block_offset: u32,
-    frame_count: u32,
-    positions: PackedPositions<'a>,
-    amplitudes: &'a [f64],
-}
-struct PackedVoices<'a>(&'a [PreviewAudioVoiceBlockV4]);
-impl Serialize for PackedVoices<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
-        for voice in self.0 {
-            sequence.serialize_element(&PackedVoice {
-                element_id: &voice.element_id,
-                block_offset: voice.block_offset,
-                frame_count: voice.frame_count,
-                positions: PackedPositions(&voice.positions),
-                amplitudes: &voice.amplitudes,
-            })?;
-        }
-        sequence.end()
-    }
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PackedBlock<'a> {
-    identity: &'a opencut_composition::project_v4::PreviewAudioIdentityV4,
-    start_sample: String,
-    frame_count: u32,
-    voices: PackedVoices<'a>,
-    receipts: &'a [opencut_composition::project_v4::AudioReceiptV4],
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PackedPacket<'a> {
-    schema_version: u32,
-    block: PackedBlock<'a>,
-}
-
-pub(super) fn pack_preview_block(block: PreviewAudioBlockV4) -> Result<Vec<u8>, EditorError> {
-    validate_preview_block(&block)?;
-    // Borrow dense data all the way into the serializer: no intermediate point
-    // maps, JSON values, sample vectors or clones are constructed.
-    serde_json::to_vec(&PackedPacket {
-        schema_version: 1,
-        block: PackedBlock {
-            identity: &block.identity,
-            start_sample: block.start_sample.to_string(),
-            frame_count: block.frame_count,
-            voices: PackedVoices(&block.voices),
-            receipts: &block.receipts,
-        },
-    })
-    .map_err(|_| invalid())
-}
 
 fn same_positions(
-    left: &[Option<PreviewSourceSampleV4>],
-    right: &[Option<PreviewSourceSampleV4>],
+    left: &[Option<PreviewSourceSample>],
+    right: &[Option<PreviewSourceSample>],
 ) -> bool {
     left.len() == right.len()
         && left
@@ -214,7 +156,7 @@ fn same_amplitudes(left: &[f64], right: &[f64]) -> bool {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PackedVoiceV2<'a> {
+struct PackedVoice<'a> {
     element_id: &'a str,
     block_offset: u32,
     frame_count: u32,
@@ -223,23 +165,22 @@ struct PackedVoiceV2<'a> {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PackedBlockV2<'a> {
-    identity: &'a opencut_composition::project_v4::PreviewAudioIdentityV4,
+struct PackedBlock<'a> {
+    identity: &'a opencut_composition::scene::PreviewAudioIdentity,
     start_sample: String,
     frame_count: u32,
-    voices: Vec<PackedVoiceV2<'a>>,
-    receipts: &'a [opencut_composition::project_v4::AudioReceiptV4],
+    voices: Vec<PackedVoice<'a>>,
+    receipts: &'a [opencut_composition::scene::AudioReceipt],
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PackedPacketV2<'a> {
-    schema_version: u32,
-    block: PackedBlockV2<'a>,
+struct PackedPacket<'a> {
+    block: PackedBlock<'a>,
     position_tables: Vec<PackedPositions<'a>>,
     amplitude_tables: Vec<&'a [f64]>,
 }
 
-pub(super) fn pack_preview_block_v2(block: PreviewAudioBlockV4) -> Result<Vec<u8>, EditorError> {
+pub(super) fn pack_preview_block(block: PreviewAudioBlock) -> Result<Vec<u8>, EditorError> {
     // Admission counts the original per-voice work, even when all tables share.
     validate_preview_block(&block)?;
     let mut position_tables: Vec<PackedPositions<'_>> = Vec::new();
@@ -260,7 +201,7 @@ pub(super) fn pack_preview_block_v2(block: PreviewAudioBlockV4) -> Result<Vec<u8
                 amplitude_tables.push(&voice.amplitudes);
                 amplitude_tables.len() - 1
             });
-        voices.push(PackedVoiceV2 {
+        voices.push(PackedVoice {
             element_id: &voice.element_id,
             block_offset: voice.block_offset,
             frame_count: voice.frame_count,
@@ -271,9 +212,8 @@ pub(super) fn pack_preview_block_v2(block: PreviewAudioBlockV4) -> Result<Vec<u8
     }
     // Only references and at most 32 voice records are allocated. Source maps
     // remain per voice; sharing is exact compiled fact equality, not clock math.
-    serde_json::to_vec(&PackedPacketV2 {
-        schema_version: 2,
-        block: PackedBlockV2 {
+    serde_json::to_vec(&PackedPacket {
+        block: PackedBlock {
             identity: &block.identity,
             start_sample: block.start_sample.to_string(),
             frame_count: block.frame_count,

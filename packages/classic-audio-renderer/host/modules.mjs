@@ -53,7 +53,7 @@ export async function moduleRegistry(runtime, options = {}) {
   for (const file of await fs.readdir(path.join(packageRoot, "host"))) {
     if (file.endsWith(".mjs")) await add(packageRoot, "/renderer/", path.join("host", file), false);
   }
-  for (const extra of options.identityFiles ?? []) await add(extra.root, extra.prefix, extra.relative, false);
+  for (const extra of options.identityFiles ?? []) await add(extra.root, extra.prefix, extra.relative, extra.served === true);
   const media = await exactDependency("mediabunny", "1.41.0", runtime.mediabunnyRoot, packageRoot);
   // The official browser bundle applies mediabunny's browser aliases, disabling
   // Node filesystem code. Its source ESM entry statically imports node:fs.
@@ -65,7 +65,9 @@ export async function moduleRegistry(runtime, options = {}) {
   for (const [name, bytes] of [...identityModules].sort(([a], [b]) => a.localeCompare(b))) { digest.update(name); digest.update("\0"); digest.update(bytes); digest.update("\0"); }
   const moduleSha256 = digest.digest("hex"), nonce = randomBytes(16).toString("hex");
   const csp = `default-src 'none'; script-src 'self' 'nonce-${nonce}'; connect-src 'none'; media-src blob:; ${options.staticImages ? 'img-src blob:;' : ''} worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
-  const html = `<!doctype html><meta charset="utf-8"><title>OpenCut isolated audio</title><script type="importmap" nonce="${nonce}">${JSON.stringify({ imports: { mediabunny: entryUrl } })}</script>`;
+  const rangeSourceUrl = packageRoot === PACKAGE_ROOT ? "/renderer/src/verified-range-source.mjs" : "/shared-renderer/src/verified-range-source.mjs";
+  const streamedPcmUrl = packageRoot === PACKAGE_ROOT ? "/renderer/src/windowed-decoder.mjs" : "/shared-renderer/src/windowed-decoder.mjs";
+  const html = `<!doctype html><meta charset="utf-8"><title>OpenCut isolated audio</title><script type="importmap" nonce="${nonce}">${JSON.stringify({ imports: { mediabunny: entryUrl, "@opencut/classic-audio-renderer/verified-range-source": rangeSourceUrl, "@opencut/classic-audio-renderer/streamed-pcm": streamedPcmUrl } })}</script>`;
   return { registry, moduleSha256, html, csp, dependencyBytes: total };
 }
 export async function playwrightRuntime(runtime, packageRoot = PACKAGE_ROOT) {

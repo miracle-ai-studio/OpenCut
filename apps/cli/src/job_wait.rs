@@ -1,35 +1,31 @@
 //! Interrupting an observation and cancelling durable work are separate actions.
+use crate::connection::Connection;
 use opencut_automation::Response;
 use opencut_contracts::EditorError;
 use serde_json::json;
-use std::path::Path;
 
 async fn observe(
-    database: &Path,
+    source: Connection,
     job_id: &str,
     timeout_seconds: u64,
-    caller: opencut_automation::Caller,
 ) -> Result<Response, EditorError> {
     use opencut_editor_application::JobState;
     use opencut_host_runtime::workspace::Workspace as EditorApplication;
     let started = std::time::Instant::now();
     loop {
-        let path = database.to_path_buf();
+        let source = source.clone();
         let id = job_id.to_owned();
-        let identity = caller.clone();
-        let job = tokio::task::spawn_blocking(move || {
-            let mut app = EditorApplication::open_managed(path)?;
-            app.set_caller(identity);
-            app.get_job(&id)
+        let job = tokio::task::spawn_blocking(move || match source {
+            Connection::Local { database, caller } => {
+                let mut app = EditorApplication::open_managed(database)?;
+                app.set_caller(caller);
+                app.job_view(&id)
+            }
+            remote => remote.data("opencut_job_view", json!({"job_id":id})),
         })
         .await
         .map_err(|error| EditorError::new("INTERNAL_ERROR", error.to_string()))??;
-        // Owner keeps the legacy shape; scoped observers receive the safe public view.
-        let data = if caller.is_owner() {
-            json!(job)
-        } else {
-            json!(opencut_editor_application::job_views::project(job.clone()))
-        };
+        let data = json!(job);
         match job.state {
             JobState::Succeeded => return Ok(opencut_automation::response(Ok(data))),
             JobState::Failed | JobState::Cancelled => {
@@ -54,25 +50,22 @@ async fn observe(
     }
 }
 pub async fn run(
-    database: &Path,
+    source: Connection,
     job_id: &str,
     timeout: u64,
     cancel_on_interrupt: bool,
-    caller: opencut_automation::Caller,
 ) -> Result<Response, EditorError> {
     tokio::select! {
-        result = observe(database,job_id,timeout,caller.clone()) => result,
+        result = observe(source.clone(),job_id,timeout) => result,
         signal=tokio::signal::ctrl_c()=>{
             signal.map_err(|error| EditorError::new("INTERNAL_ERROR",error.to_string()))?;
             let cancellation = if cancel_on_interrupt {
-                let path=database.to_path_buf();
+                let source=source.clone();
                 let id=job_id.to_owned();
-                let identity = caller.clone();
                 Some(tokio::task::spawn_blocking(move || {
-                    let tool = if identity.is_owner() {"opencut_job_cancel"} else {"opencut_job_request_cancel"};
-                    opencut_host_runtime::Automation::open(path).map(|app|app.with_source(opencut_automation::CallSource::Cli).with_caller(identity).call(tool, json!({"job_id":id})))
-                }).await.map_err(|error|EditorError::new("INTERNAL_ERROR",error.to_string()))?
-                    .unwrap_or_else(|error|opencut_automation::response(Err(error))))
+                    let tool = "opencut_job_request_cancel";
+                    source.call(tool, json!({"job_id":id}))
+                }).await.map_err(|error|EditorError::new("INTERNAL_ERROR",error.to_string()))?)
             } else {None};
             Err(EditorError::new("USER_INTERRUPTED","Job observation was interrupted")
                 .with_details(json!({"job_id":job_id,"cancellation_requested":cancel_on_interrupt,"cancellation":cancellation})))

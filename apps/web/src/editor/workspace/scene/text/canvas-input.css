@@ -1,0 +1,52 @@
+.editor-canvas-text-session {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 5;
+}
+.editor-canvas-text-position {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.editor-canvas-text-position textarea {
+  position: absolute;
+  box-sizing: content-box;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--accent, #79a7ff);
+  outline: none;
+  resize: none;
+  overflow: visible;
+  background: rgba(15, 20, 30, 0.15);
+  white-space: pre;
+  pointer-events: auto;
+  border-radius: 0;
+}
+.editor-canvas-text-tools {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+  background: var(--panel, #171b24);
+  padding: 6px;
+  border-radius: 6px;
+}
+.editor-canvas-text-hit {
+  position: absolute;
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: transparent;
+  cursor: text;
+}
+.editor-canvas-text-hit:hover {
+  outline: 1px solid var(--accent, #79a7ff);
+}

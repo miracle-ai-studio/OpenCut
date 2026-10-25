@@ -18,7 +18,7 @@ pub fn put(
     store: &mut impl UploadStore,
     input: &ChunkDescriptor,
     bytes: &[u8],
-) -> Result<UploadSession, EditorError> {
+) -> Result<UploadView, EditorError> {
     opencut_asset_store::uploads::UploadChunks::managed(root).put(store, input, bytes)
 }
 
@@ -26,7 +26,7 @@ pub fn abort(
     root: &Path,
     store: &mut (impl UploadStore + UploadRetentionStore),
     input: UploadInput,
-) -> Result<UploadSession, EditorError> {
+) -> Result<UploadView, EditorError> {
     opencut_editor_application::uploads::abort_with_cleanup(
         store,
         &opencut_asset_store::uploads::UploadChunks::managed(root),

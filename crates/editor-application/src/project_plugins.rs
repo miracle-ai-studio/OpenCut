@@ -1,11 +1,13 @@
 //! Authorization tickets are native application values, never client claims.
-use crate::{
-    access,
-    projects::{EditIntent, ProjectRead},
-};
+mod planning;
+use crate::access;
 use opencut_api_contracts::plugins::{PlanInput, PluginLimits};
 pub use opencut_api_contracts::project_plugins::*;
-use opencut_contracts::{EditorError, Operation, ProjectSnapshot, TransactionRequest};
+use opencut_contracts::{
+    EditorError,
+    project_public::{ProjectEditOperation, PublicProjectSnapshot},
+};
+pub use planning::plan;
 pub const MAX_GRANTS: usize = 64;
 pub const MAX_OPERATIONS: usize = 32;
 pub const MAX_PARAMETERS: usize = 256 * 1024;
@@ -57,10 +59,10 @@ pub trait ProjectPluginRuntime {
     fn propose_project_operations(
         &self,
         input: &PlanInput,
-        snapshot: &ProjectSnapshot,
+        snapshot: &PublicProjectSnapshot,
         grant: &Grant,
         authorize: &dyn Fn() -> Result<(), EditorError>,
-    ) -> Result<Vec<Operation>, EditorError>;
+    ) -> Result<Vec<ProjectEditOperation>, EditorError>;
 }
 pub fn validate_target(target: &PluginTarget, hash: &str) -> Result<(), EditorError> {
     if target.project_id.is_empty()
@@ -127,54 +129,4 @@ pub fn inspect(
     });
     store.revalidate_plugin(&input, false, &ticket)?;
     result
-}
-pub fn plan(
-    store: &(impl ProjectPluginStore + ProjectRead),
-    runtime: &impl ProjectPluginRuntime,
-    input: PlanInput,
-) -> Result<PlanView, EditorError> {
-    if serde_json::to_vec(&input.parameters)
-        .map_err(|_| invalid())?
-        .len()
-        > MAX_PARAMETERS
-    {
-        return Err(invalid());
-    }
-    let inspection = InspectInput {
-        target: PluginTarget {
-            project_id: input.project_id.clone(),
-            id: input.id.clone(),
-            version: input.version.clone(),
-        },
-        operation_name: input.operation_name.clone(),
-    };
-    let ticket = store.authorize_plugin(&inspection, true)?;
-    let snapshot = store.revision(&input.project_id, &input.revision)?;
-    if serde_json::to_vec(&snapshot).map_err(|_| invalid())?.len() > MAX_SNAPSHOT {
-        return Err(invalid());
-    }
-    let proposed = runtime.propose_project_operations(&input, &snapshot, &ticket.grant, &|| {
-        store.revalidate_plugin(&inspection, true, &ticket)
-    });
-    store.revalidate_plugin(&inspection, true, &ticket)?;
-    let operations = proposed?;
-    let request = TransactionRequest {
-        expected_revision: input.revision.clone(),
-        idempotency_key: "project-plugin-plan".into(),
-        label: "Project plugin plan".into(),
-        operations: operations.clone(),
-    };
-    store.authorize_edit(&input.project_id, EditIntent::Apply(&request))?;
-    let result = crate::plugins::plan_operations(
-        &input.id,
-        &input.version,
-        &input.operation_name,
-        &snapshot,
-        operations,
-    )?;
-    store.revalidate_plugin(&inspection, true, &ticket)?;
-    Ok(PlanView {
-        grant: ticket.grant,
-        result,
-    })
 }

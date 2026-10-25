@@ -9,30 +9,30 @@ const DEFAULT_FPS = 30;
 
 type LegacyMediaType = "image" | "video" | "audio";
 
-export interface V1ToV2Context {
+export interface ToContext {
 	legacyTracksBySceneId: Record<string, unknown[]>;
 	mediaTypesById: Record<string, LegacyMediaType>;
 }
 
-const EMPTY_V1_TO_V2_CONTEXT: V1ToV2Context = {
+const EMPTY_TO_CONTEXT: ToContext = {
 	legacyTracksBySceneId: {},
 	mediaTypesById: {},
 };
 
-interface V2Transform {
+interface Transform {
 	scale: number;
 	position: { x: number; y: number };
 	rotate: number;
 }
 
-interface V2VideoElement {
+interface VideoElement {
 	id: string;
 	name: string;
 	type: "video";
 	mediaId: string;
 	muted: boolean;
 	hidden: boolean;
-	transform: V2Transform;
+	transform: Transform;
 	opacity: number;
 	duration: number;
 	startTime: number;
@@ -40,7 +40,7 @@ interface V2VideoElement {
 	trimEnd: number;
 }
 
-interface V2ImageElement {
+interface ImageElement {
 	id: string;
 	name: string;
 	type: "image";
@@ -50,11 +50,11 @@ interface V2ImageElement {
 	trimStart: number;
 	trimEnd: number;
 	hidden: boolean;
-	transform: V2Transform;
+	transform: Transform;
 	opacity: number;
 }
 
-interface V2TextElement {
+interface TextElement {
 	id: string;
 	name: string;
 	type: "text";
@@ -76,7 +76,7 @@ interface V2TextElement {
 	fontStyle: "normal" | "italic";
 	textDecoration: "none" | "underline" | "line-through";
 	hidden: boolean;
-	transform: V2Transform;
+	transform: Transform;
 	opacity: number;
 	duration: number;
 	startTime: number;
@@ -84,7 +84,7 @@ interface V2TextElement {
 	trimEnd: number;
 }
 
-interface V2AudioElement {
+interface AudioElement {
 	id: string;
 	name: string;
 	type: "audio";
@@ -97,47 +97,47 @@ interface V2AudioElement {
 	trimEnd: number;
 }
 
-interface V2VideoTrack {
+interface VideoTrack {
 	id: string;
 	name: string;
 	type: "video";
-	elements: (V2VideoElement | V2ImageElement)[];
+	elements: (VideoElement | ImageElement)[];
 	isMain: boolean;
 	muted: boolean;
 	hidden: boolean;
 }
 
-interface V2TextTrack {
+interface TextTrack {
 	id: string;
 	name: string;
 	type: "text";
-	elements: V2TextElement[];
+	elements: TextElement[];
 	hidden: boolean;
 }
 
-interface V2AudioTrack {
+interface AudioTrack {
 	id: string;
 	name: string;
 	type: "audio";
-	elements: V2AudioElement[];
+	elements: AudioElement[];
 	muted: boolean;
 }
 
-type V2TimelineTrack = V2VideoTrack | V2TextTrack | V2AudioTrack;
+type TimelineTrack = VideoTrack | TextTrack | AudioTrack;
 
-export function transformProjectV1ToV2({
+export function transformProjectTo({
 	project,
-	context = EMPTY_V1_TO_V2_CONTEXT,
+	context = EMPTY_TO_CONTEXT,
 }: {
 	project: ProjectRecord;
-	context?: V1ToV2Context;
+	context?: ToContext;
 }): MigrationResult<ProjectRecord> {
 	const projectId = getProjectId({ project });
 	if (!projectId) {
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV2Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v2" };
 	}
 
@@ -156,7 +156,7 @@ function migrateProject({
 }: {
 	project: ProjectRecord;
 	projectId: string;
-	context: V1ToV2Context;
+	context: ToContext;
 }): ProjectRecord {
 	const createdAt = normalizeDateString({ value: project.createdAt });
 	const updatedAt = normalizeDateString({ value: project.updatedAt });
@@ -270,14 +270,14 @@ function transformTracks({
 	context,
 }: {
 	tracks: unknown[];
-	context: V1ToV2Context;
-}): V2TimelineTrack[] {
+	context: ToContext;
+}): TimelineTrack[] {
 	if (!Array.isArray(tracks)) {
 		return [];
 	}
 
 	let isFirstVideoTrackFound = false;
-	const transformedTracks = tracks.map((track): V2TimelineTrack | null => {
+	const transformedTracks = tracks.map((track): TimelineTrack | null => {
 		if (!isRecord(track)) {
 			return null;
 		}
@@ -306,7 +306,7 @@ function transformTracks({
 	});
 
 	return transformedTracks.filter(
-		(track): track is V2TimelineTrack => track !== null,
+		(track): track is TimelineTrack => track !== null,
 	);
 }
 
@@ -316,9 +316,9 @@ function transformMediaTrack({
 	isMain,
 }: {
 	track: Record<string, unknown>;
-	context: V1ToV2Context;
+	context: ToContext;
 	isMain: boolean;
-}): V2VideoTrack {
+}): VideoTrack {
 	const elements = Array.isArray(track.elements) ? track.elements : [];
 
 	const transformedElements = elements.map((element) => {
@@ -337,7 +337,7 @@ function transformMediaTrack({
 			mediaType = storedMediaType === "image" ? "image" : "video";
 		}
 
-		const defaultTransform: V2Transform = {
+		const defaultTransform: Transform = {
 			scale: 1,
 			position: { x: 0, y: 0 },
 			rotate: 0,
@@ -346,7 +346,7 @@ function transformMediaTrack({
 		const muted = element.muted === true;
 
 		if (mediaType === "image") {
-			const imageElement: V2ImageElement = {
+			const imageElement: ImageElement = {
 				id: getStringValue({ value: element.id, fallback: "" }),
 				name: getStringValue({ value: element.name, fallback: "" }),
 				type: "image",
@@ -368,7 +368,7 @@ function transformMediaTrack({
 			return imageElement;
 		}
 
-		const videoElement: V2VideoElement = {
+		const videoElement: VideoElement = {
 			id: getStringValue({ value: element.id, fallback: "" }),
 			name: getStringValue({ value: element.name, fallback: "" }),
 			type: "video",
@@ -386,7 +386,7 @@ function transformMediaTrack({
 	});
 
 	const validElements = transformedElements.filter(
-		(element): element is V2VideoElement | V2ImageElement => element !== null,
+		(element): element is VideoElement | ImageElement => element !== null,
 	);
 
 	return {
@@ -404,11 +404,11 @@ function transformTextTrack({
 	track,
 }: {
 	track: Record<string, unknown>;
-}): V2TextTrack {
+}): TextTrack {
 	const elements = Array.isArray(track.elements) ? track.elements : [];
 
 	const transformedElements = elements
-		.map((element): V2TextElement | null => {
+		.map((element): TextElement | null => {
 			if (!isRecord(element) || element.type !== "text") {
 				return null;
 			}
@@ -424,7 +424,7 @@ function transformTextTrack({
 				fallback: 1,
 			});
 
-			const transform: V2Transform = {
+			const transform: Transform = {
 				scale: 1,
 				position: { x, y },
 				rotate: rotation,
@@ -488,7 +488,7 @@ function transformTextTrack({
 				trimEnd: getNumberValue({ value: element.trimEnd, fallback: 0 }),
 			};
 		})
-		.filter((element): element is V2TextElement => element !== null);
+		.filter((element): element is TextElement => element !== null);
 
 	return {
 		id: getStringValue({ value: track.id, fallback: "" }),
@@ -503,11 +503,11 @@ function transformAudioTrack({
 	track,
 }: {
 	track: Record<string, unknown>;
-}): V2AudioTrack {
+}): AudioTrack {
 	const elements = Array.isArray(track.elements) ? track.elements : [];
 
 	const transformedElements = elements
-		.map((element): V2AudioElement | null => {
+		.map((element): AudioElement | null => {
 			if (!isRecord(element) || element.type !== "audio") {
 				return null;
 			}
@@ -530,7 +530,7 @@ function transformAudioTrack({
 				trimEnd: getNumberValue({ value: element.trimEnd, fallback: 0 }),
 			};
 		})
-		.filter((element): element is V2AudioElement => element !== null);
+		.filter((element): element is AudioElement => element !== null);
 
 	return {
 		id: getStringValue({ value: track.id, fallback: "" }),
@@ -764,7 +764,7 @@ function normalizeDateString({ value }: { value: unknown }): string {
 	return new Date(0).toISOString();
 }
 
-function isV2Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	const versionValue = project.version;
 	if (typeof versionValue === "number" && versionValue >= 2) {
 		return true;

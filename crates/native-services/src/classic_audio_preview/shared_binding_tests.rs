@@ -14,7 +14,7 @@ fn fixture() -> (Value, Value, Value) {
         {"elementId":"ordinary","sampleRate":48_000,"frameCount":"3","channels":1,"prepared":false,"sourceRef":"asset"},
         {"elementId":"prepared","sampleRate":48_000,"frameCount":"2","channels":1,"prepared":true,"sourceRef":null},
     ]);
-    let binding = json!({"schemaVersion":1,"ordinarySources":[{"assetId":"asset","segments":segments}],"sourceFormats":formats});
+    let binding = json!({"ordinarySources":[{"assetId":"asset","segments":segments}],"sourceFormats":formats});
     let expanded = json!([
         {"elementId":"ordinary","sampleRate":48_000,"frameCount":"3","channels":1,"prepared":false,"segments":segments},
         {"elementId":"prepared","sampleRate":48_000,"frameCount":"2","channels":1,"prepared":true,"segments":[]},
@@ -27,7 +27,7 @@ fn shared_binding_preserves_voice_segment_order_decimal_and_original_pts_hash() 
     let (binding, voices, expected) = fixture();
     let expanded = expand_source_binding(&binding, &voices).unwrap();
     assert_eq!(expanded, expected);
-    let typed: Vec<PreviewSourceFormatV4> = serde_json::from_value(expanded.clone()).unwrap();
+    let typed: Vec<PreviewSourceFormat> = serde_json::from_value(expanded.clone()).unwrap();
     assert_eq!(typed[0].segments[0].segment_id, 9);
     assert_eq!(typed[0].segments[1].segment_id, 2);
     assert_eq!(
@@ -44,7 +44,7 @@ fn shared_binding_preserves_voice_segment_order_decimal_and_original_pts_hash() 
     );
     assert_eq!(
         expand_source_binding(
-            &json!({"schemaVersion":1,"ordinarySources":[],"sourceFormats":[]}),
+            &json!({"ordinarySources":[],"sourceFormats":[]}),
             &json!([])
         )
         .unwrap(),
@@ -171,7 +171,7 @@ fn dense_binding(voices: usize, segments: usize) -> (Value, Value) {
     let fixed = (0..voices).map(|index| json!({"elementId":format!("voice-{index}"),"assetId":"asset","sourceMode":"preserve-pts"})).collect::<Vec<_>>();
     let formats = (0..voices).map(|index| json!({"elementId":format!("voice-{index}"),"sampleRate":48_000,"frameCount":(segments*1024).to_string(),"channels":1,"prepared":false,"sourceRef":"asset"})).collect::<Vec<_>>();
     (
-        json!({"schemaVersion":1,"ordinarySources":[{"assetId":"asset","segments":dictionary}],"sourceFormats":formats}),
+        json!({"ordinarySources":[{"assetId":"asset","segments":dictionary}],"sourceFormats":formats}),
         Value::Array(fixed),
     )
 }

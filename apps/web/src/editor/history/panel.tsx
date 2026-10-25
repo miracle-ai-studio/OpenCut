@@ -1,100 +1,23 @@
 import { t, useLocale } from "../shared/locale";
-import { Eye, Redo2, Undo2 } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useWorkspace } from "../workspace/context";
 import { Button, Empty, Panel } from "../shared/ui";
+
+/** Historical revisions are inspected without authoring or replaying edits. */
 export function HistoryPanel() {
   useLocale();
-  const { controller, api, snapshot, historical, history, busy } =
-    useWorkspace();
-  const undo = () =>
-    controller.undo().catch((error) => controller.report(error));
-  const redoEdit = () =>
-    controller.redo().catch((error) => controller.report(error));
-  const restore = async () => {
-    if (!api || !snapshot || !historical) return;
-    try {
-      await controller.write(() =>
-        api.sdk.call("opencut_revision_restore", {
-          project_id: snapshot.project.id,
-          request: {
-            expected_revision: snapshot.revision,
-            target_revision: historical.revision,
-            label: "Restore saved revision",
-            idempotency_key: crypto.randomUUID(),
-          },
-        }),
-      );
-    } catch (error) {
-      controller.report(error);
-    }
-  };
-  return (
-    <Panel title={t("History")}>
-      <div className="toolbar padded">
-        <Button
-          aria-label={t("Undo latest action")}
-          disabled={busy || !!historical || !controller.canUndo}
-          icon={<Undo2 size={14} />}
-          onClick={() => void undo()}
-        >
-          {t("Undo")}
-        </Button>
-        <Button
-          aria-label={t("Redo action")}
-          disabled={busy || !!historical || !controller.canRedo}
-          icon={<Redo2 size={14} />}
-          onClick={() => void redoEdit()}
-        >
-          {t("Redo")}
-        </Button>
-      </div>
-      {historical && (
-        <div className="history-banner">
-          <strong>{t("Viewing a saved revision")}</strong>
-          <Button onClick={() => controller.returnToHead()}>
-            {t("Return to current")}
-          </Button>
-          {snapshot?.format === "base" && (
-            <Button disabled={busy} onClick={() => void restore()}>
-              {t("Restore this revision")}
-            </Button>
-          )}
-        </div>
-      )}
-      <div className="scroll history-list">
-        {!history && <Empty title={t("No history")} />}
-        {history?.revisions.map((item, index) => (
-          <button
-            key={item.revision}
-            className={`history-row ${historical?.revision === item.revision ? "active" : ""}`}
-            onClick={() =>
-              void controller
-                .inspectRevision(item.revision)
-                .catch((error) => controller.report(error))
-            }
-          >
-            <Eye size={14} />
-            <span>
-              <strong>{item.label ?? "Project created"}</strong>
-              <small>
-                {index === 0 ? t("Current · ") : ""}
-                {new Date(item.created_at).toLocaleString()}
-              </small>
-            </span>
-          </button>
-        ))}
-        {history?.next_cursor && (
-          <Button
-            onClick={() =>
-              void controller
-                .olderHistory()
-                .catch((error) => controller.report(error))
-            }
-          >
-            {t("Load earlier history")}
-          </Button>
-        )}
-      </div>
-    </Panel>
-  );
+  const { controller, snapshot, historical, history, busy } = useWorkspace();
+  return <Panel title={t("History")}>
+    <div className="toolbar padded">
+      {historical && <Button disabled={busy} onClick={() => controller.returnToHead()}>{t("Return to current")}</Button>}
+    </div>
+    {!history?.revisions.length ? <Empty title={t("No history yet")} /> : <ol className="history-list">
+      {history.revisions.map(revision => <li key={revision.revision}>
+        <span>{revision.label}</span><span className="muted">{revision.revision}</span>
+        <Button icon={<Eye size={14} />} disabled={busy || revision.revision === (historical ?? snapshot)?.revision}
+          onClick={() => void controller.inspectRevision(revision.revision).catch(error => controller.report(error))}>{t("View")}</Button>
+      </li>)}
+    </ol>}
+    {history?.next_cursor && <Button disabled={busy} onClick={() => void controller.olderHistory().catch(error => controller.report(error))}>{t("Load more")}</Button>}
+  </Panel>;
 }

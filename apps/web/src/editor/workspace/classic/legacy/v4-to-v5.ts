@@ -8,7 +8,7 @@ const KNOWN_STICKER_PROVIDER_IDS = new Set([
 	"shapes",
 ]);
 
-export function transformProjectV4ToV5({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;
@@ -18,7 +18,7 @@ export function transformProjectV4ToV5({
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV5Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v5" };
 	}
 
@@ -171,7 +171,7 @@ function normalizeStickerId({ value }: { value: unknown }): string | null {
 	return `icons:${value}`;
 }
 
-function isV5Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	const versionValue = project.version;
 	return typeof versionValue === "number" && versionValue >= 5;
 }

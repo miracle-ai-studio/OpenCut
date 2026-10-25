@@ -10,7 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalSessionButton } from "./local-session";
 import { preferences } from "../shared/locale";
 const context = vi.hoisted(() => ({ value: {} as unknown }));
-vi.mock("./context", () => ({ useWorkspace: () => context.value }));
+vi.mock("./context", () => ({ useWorkspace: () => context.value, useEditingWorkspace: () => context.value }));
 beforeEach(() => {
   preferences({ language: "en" });
   HTMLDialogElement.prototype.showModal = function () {
@@ -27,7 +27,8 @@ afterEach(() => {
 });
 function setup(active = true, token = "") {
   const controller = {
-    start: vi.fn().mockResolvedValue(undefined),
+    canStartLocalSession: !token,
+    start: vi.fn().mockResolvedValue(true),
     logoutLocalSession: vi.fn().mockResolvedValue(undefined),
   };
   context.value = {
@@ -82,4 +83,17 @@ it("does not present local cookie controls for an explicit bearer connection", (
   const { fetcher } = setup(true, "private-token");
   expect(screen.queryByRole("button", { name: "Local session" })).toBeNull();
   expect(fetcher).not.toHaveBeenCalled();
+});
+it("keeps a failed start open with a connection retry instead of claiming logout failed", async () => {
+  const { controller } = setup(false);
+  controller.start.mockResolvedValueOnce(false);
+  fireEvent.click(screen.getByRole("button", { name: "Local session" }));
+  await screen.findByRole("button", { name: "Start local session" });
+  fireEvent.click(screen.getByRole("button", { name: "Start local session" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("could not be started");
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Start local session" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(controller.start).toHaveBeenCalledTimes(2);
+  expect(controller.logoutLocalSession).not.toHaveBeenCalled();
 });

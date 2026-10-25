@@ -84,14 +84,14 @@ def verify(binary: Path, root: Path) -> dict:
         })
         invalid_media = mount / "invalid-media"
         invalid_media.write_bytes(b"x")
-        upload = tool("opencut_upload_create", {
+        upload = tool("opencut_upload_begin", {
             "project_id": "repair", "idempotency_key": "invalid-upload",
             "name": "invalid.wav", "size_bytes": "1",
             "content_hash": hashlib.sha256(b"x").hexdigest(),
         })
         call(["upload", "put", upload["upload_id"], "--offset", "0",
               "--input", str(invalid_media)])
-        import_job = tool("opencut_upload_seal", {"upload_id": upload["upload_id"]})
+        import_job = tool("opencut_upload_complete", {"upload_id":upload["upload_id"], "content_hash":upload["content_hash"]})
         command([str(binary), "--database", str(database), "worker", "run", "--once"])
         assert tool("opencut_job_get", {"job_id": import_job["job_id"]})["state"] == "failed"
         assert tool("opencut_upload_retention", {"upload_id": upload["upload_id"]})["state"] == "retained"

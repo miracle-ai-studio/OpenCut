@@ -96,13 +96,26 @@ def copy_web_build(source, destination):
         raise ValueError('Web build is missing index.html')
     allowed_root = {'index.html', 'favicon.ico', 'manifest.json', 'robots.txt'}
     allowed_assets = {'.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.woff2'}
+    atlas = Path('assets/classic-font-atlas')
+    atlas_files = {'README.md', 'font-atlas.json'} | {f'font-chunk-{i}.avif' for i in range(15)}
+    if (source / atlas).exists():
+        actual = {p.name for p in (source / atlas).iterdir()}
+        if actual != atlas_files:
+            raise ValueError('Public font atlas differs from the reviewed complete file set')
     for file in sorted(source.rglob('*')):
         relative = file.relative_to(source)
         if file.is_symlink():
             raise ValueError(f'Symlink in Web build: {relative}')
         if file.is_dir():
             continue
-        if str(relative) not in allowed_root and not (relative.parts[0] == 'assets' and file.suffix in allowed_assets):
+        if relative.parent == atlas:
+            original = ROOT / 'apps/web/public' / relative
+            if (relative.name not in atlas_files or not original.is_file()
+                    or not original.resolve().is_relative_to(ROOT.resolve())
+                    or any(p.is_symlink() for p in [original, *original.parents] if p != ROOT and ROOT in p.parents)
+                    or sha(file) != sha(original)):
+                raise ValueError(f'Public asset bytes differ from reviewed source: {relative}')
+        elif str(relative) not in allowed_root and not (relative.parts[0] == 'assets' and file.suffix in allowed_assets):
             raise ValueError(f'Unreviewed Web build file: {relative}')
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -166,7 +179,7 @@ def copy_catalog_runtime(packages_root, destination):
     packages_root = Path(packages_root)
     resolved_root = packages_root.resolve(strict=True)
     selected = ['classic-visual-renderer/package.json',
-                'classic-visual-renderer/host/catalog-archive-v1.mjs']
+                'classic-visual-renderer/host/catalog-archive.mjs']
     for relative in selected:
         file = packages_root / relative
         for ancestor in [file, *file.parents]:
@@ -197,17 +210,22 @@ def copy_catalog_runtime(packages_root, destination):
     }
 
 
-def package(output, skip_build, supplied_binary=None, runtime_spec=None):
+def package(output, skip_build, supplied_binary=None, runtime_spec=None, supplied_web_root=None, reuse_sdk_dist=False):
+    if supplied_web_root is not None:
+        if supplied_binary is None:
+            raise ValueError('Reusing a Web build requires an explicit already-built binary')
+        return package_with_web_root(output, True, supplied_binary, supplied_web_root, runtime_spec, prebuilt_web=True, reuse_sdk_dist=reuse_sdk_dist)
     # Build assets away from the directory a running service may be serving.
     with tempfile.TemporaryDirectory(prefix='opencut-package-web-') as web_directory:
-        return package_with_web_root(output, skip_build, supplied_binary, Path(web_directory), runtime_spec)
+        return package_with_web_root(output, skip_build, supplied_binary, Path(web_directory), runtime_spec, reuse_sdk_dist=reuse_sdk_dist)
 
 
-def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime_spec=None):
+def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime_spec=None, *, prebuilt_web=False, reuse_sdk_dist=False):
     if not skip_build and supplied_binary is None:
         run(['cargo', 'build', '--locked', '--release', '-p', 'opencut-cli'])
-    run(['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], ROOT / 'apps/web')
-    run(['npm', 'run', 'build', '--', '--outDir', web_root], ROOT / 'apps/web')
+    if not prebuilt_web:
+        run(['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], ROOT / 'apps/web')
+        run(['npm', 'run', 'build', '--', '--outDir', web_root], ROOT / 'apps/web')
     binary = supplied_binary or ROOT / 'target/release/opencut'
     assert binary.is_file(), 'Build the release CLI first'
     run(['node', ROOT / 'packages/sdk-ts/scripts/generate.mjs', '--check', '--skip-build', '--binary', binary])
@@ -228,7 +246,13 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
     with tempfile.TemporaryDirectory(prefix='opencut-package-') as temporary:
         stage = Path(temporary)
         sdk_ts = ROOT / 'packages/sdk-ts'
-        run(['npm', 'run', 'build'], sdk_ts)
+        if reuse_sdk_dist:
+            for filename in ('index.js', 'index.d.ts'):
+                file = sdk_ts / 'dist' / filename
+                if file.is_symlink() or not file.is_file() or file.stat().st_size == 0:
+                    raise ValueError('Reusing the SDK requires an existing complete public dist')
+        else:
+            run(['npm', 'run', 'build'], sdk_ts)
         npm_package = json.loads(run(['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', stage], sdk_ts))[0]
         validate_npm_files(npm_package['files'])
         packed = npm_package['filename']
@@ -255,6 +279,7 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
         host = stage / f'opencut-{version}-{target}'
         (host / 'bin').mkdir(parents=True)
         shutil.copy2(binary, host / 'bin/opencut')
+        copy_web_build(web_root, host / 'web')
         packet_runtime = copy_packet_rate_runtime(ROOT / 'packages', host / 'bin/libexec')
         catalog_runtime = copy_catalog_runtime(ROOT / 'packages', host / 'bin/libexec')
         runtime = runtime_bundle.bundle(ROOT, host / 'bin/libexec', target, runtime_spec)
@@ -263,7 +288,6 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
         packet_runtime['excluded'] = 'No project/source media or implicit runtime acquisition; full renderer acceptance remains separate'
         catalog_runtime['excluded'] = 'No resource audio/source archive; executable installations are declared by runtime_bundle'
         shutil.copy2(ROOT / 'LICENSE', host / 'LICENSE')
-        copy_web_build(web_root, host / 'web')
         shutil.copy2(ROOT / 'scripts/distribution/doctor.py', host / 'doctor.py')
         shutil.copy2(ROOT / 'scripts/distribution/runtime_bundle.py', host / 'runtime_bundle.py')
         shutil.copy2(ROOT / 'scripts/distribution/agent-config.py', host / 'agent-config.py')
@@ -271,7 +295,7 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
         with (host / 'README.md').open('a') as readme:
             readme.write('\n\nExplicit local runtime delivery\n\n'
                          'bin/libexec contains the complete Classic renderer modules and locked Node dependencies, '
-                         'the fixed catalog adapter, and both font derivation implementations and locks. '
+                         'the fixed catalog adapter, and three font derivation implementations and locks. '
                          'runtime-bundle.json records every file, executable bit and permitted internal link. '
                          'Runtime state: ' + runtime['delivery'] + '. '
                          'Without an explicit build-time --runtime-spec, Node, Chromium and standalone Python with locked fontTools remain external. '
@@ -306,7 +330,7 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
         files = {str(p.relative_to(host)): {'sha256': sha(p), 'size': p.stat().st_size} for p in sorted(host.rglob('*')) if p.is_file() and not p.is_symlink()}
         links = {'bin/libexec/' + name: entry['target'] for name, entry in runtime['files'].items() if entry['kind'] == 'symlink'}
         manifest = {'format': 'opencut.local-bundle.v1', 'version': version, 'maturity': 'development', 'target': target,
-                    'api_version': '1', 'database_schema': database_schema, 'operation_count': len(tools),
+                    'database_schema': database_schema, 'operation_count': len(tools),
                     'domain_count': len(domains), 'binary_sha256': sha(binary), 'files': files,
                     'external_dependencies': runtime['external_dependencies'], 'links': links,
                     'runtime_bundle': {'manifest': 'bin/libexec/runtime-bundle.json', 'sha256': sha(host / 'bin/libexec/runtime-bundle.json'),
@@ -336,6 +360,9 @@ if __name__ == '__main__':
     parser.add_argument('--skip-build', action='store_true')
     parser.add_argument('--binary', type=Path, help='Package an already-built local CLI instead of building release')
     parser.add_argument('--runtime-spec', type=Path, help='Trusted explicit Node/Chromium/standalone-Python installation and license spec; never downloads runtimes')
+    parser.add_argument('--web-root', type=Path, help='Reuse an already-built public Web tree with --binary; skip Web install/build, retain contract and delivery-file checks')
+    parser.add_argument('--reuse-sdk-dist', action='store_true', help='Reuse the already-built local TypeScript SDK dist; public contents and generated contracts are still checked')
     args = parser.parse_args()
     package(args.output.resolve(), args.skip_build, args.binary.resolve() if args.binary else None,
-            args.runtime_spec.resolve() if args.runtime_spec else None)
+            args.runtime_spec.resolve() if args.runtime_spec else None,
+            args.web_root.resolve() if args.web_root else None, args.reuse_sdk_dist)

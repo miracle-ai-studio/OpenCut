@@ -1,0 +1,127 @@
+import type { Language } from "../../shared/locale";
+
+const copy: Record<string, [string, string]> = {
+  changes: ["Changes", "修改内容"], before: ["Before", "修改前"], after: ["After", "修改后"],
+  object: ["Object", "对象"], property: ["Property", "属性"],
+  expand: ["View changes", "查看修改内容"], collapse: ["Hide changes", "收起修改内容"],
+  loading: ["Reading saved changes…", "正在读取已保存的修改…"], retry: ["Retry", "重试"],
+  failed: ["Could not read these saved changes. Try again.", "暂时无法读取这次修改，请重试。"],
+  actorFailed: ["Could not read who made this change. Try again.", "暂时无法读取操作者，请重试。"],
+  actorUnavailable: ["Operator information unavailable", "操作者信息暂不可用"],
+  dateUnavailable: ["Time unavailable", "时间暂不可用"],
+  unknownActor: ["Operator not recorded", "操作者未记录"], localAccount: ["Local account", "本机账户"],
+  account: ["Account: {name}", "账户：{name}"],
+  http: ["Connected app", "连接的应用"], cli: ["Local tool", "本机工具"],
+  mcp: ["Assistant connection", "助手连接"], embedded: ["Local application", "本地应用"], worker: ["Background task", "后台任务"],
+  unknownSource: ["Source not recorded", "来源未记录"],
+  none: ["Not present", "不存在"], present: ["Present", "存在"], added: ["Added", "已添加"], removed: ["Removed", "已删除"],
+  relativeFontSize: ["{value} (relative to canvas height)", "{value}（相对画布高度）"], relativeFeather: ["{value}% of canvas", "画布的 {value}%"],
+  on: ["On", "开启"], off: ["Off", "关闭"], unset: ["Not set", "未设置"],
+  oldValue: ["Previous setting", "原有设置"], newValue: ["Updated setting", "更新后的设置"],
+  noChanges: ["No visible content changes in these saved versions.", "这两个已保存版本没有可显示的内容变化。"],
+  explanation: ["Expand a change to see its objects and before/after values. Only the selected saved versions are read.", "展开一条记录，可查看具体对象和修改前后内容。仅按需读取所选的已保存版本。"],
+  initial: ["Project created", "创建工程"], edited: ["Project edited", "修改工程"],
+  undoSummary: ["Undo change", "撤销修改"], redoSummary: ["Redo change", "重做修改"],
+  actions: ["Version actions", "版本操作"], loaded: ["{count} saved versions shown", "已显示 {count} 个已保存版本"],
+  rowHint: ["Choose a record to read its changes. More actions are on the right.", "选择记录查看前后差异，版本操作位于右侧。"],
+  noThumbnail: ["No saved thumbnail", "此版本暂无缩略图"],
+  addedSummary: ["Added {object}", "添加了 {object}"], removedSummary: ["Removed {object}", "删除了 {object}"],
+  changedSummary: ["{object}: {field}", "{object}：{field}"], more: ["and {count} more changes", "另有 {count} 处修改"],
+  restoreCompare: ["Changes from the current version to the selected version", "从当前版本恢复到所选版本的变化"],
+  staleRestore: ["The project changed. Close this window and review the restore again.", "工程已更新，请关闭此窗口后重新确认恢复内容。"],
+  project: ["Project", "工程"], scene: ["Scene", "场景"], track: ["Track", "轨道"], clip: ["Clip", "片段"],
+  caption: ["Subtitle", "字幕"], bookmark: ["Marker", "标记"], transition: ["Transition", "转场"],
+  asset: ["Media", "素材"], fontResource: ["Font", "字体"], settings: ["Video settings", "视频设置"],
+  masks: ["Mask", "蒙版"], effects: ["Effect", "效果"], channels: ["Animated property", "动画属性"],
+  keys: ["Keyframe", "关键帧"], points: ["Path point", "路径节点"], order: ["Order", "顺序"],
+  location: ["Track / scene", "所在轨道 / 场景"], name: ["Name", "名称"], content: ["Content", "内容"], text: ["Text", "文字内容"], note: ["Note", "说明"],
+  enabled: ["Visible / enabled", "显示 / 启用"], locked: ["Locked", "锁定"], muted: ["Muted", "静音"],
+  timeline_range: ["Timeline", "时间线"], start: ["Start time", "开始时间"], duration: ["Duration", "时长"],
+  source_span: ["Source trim", "素材裁切"], trim_start: ["Trim from start", "开头裁切"], trim_end: ["Trim from end", "结尾裁切"],
+  source_duration: ["Source duration", "素材时长"], source_range: ["Source range", "素材范围"],
+  visual: ["Picture", "画面"], audio: ["Audio", "音频"], transform: ["Position and size", "位置与大小"],
+  position_x_px: ["Horizontal position", "水平位置"], position_y_px: ["Vertical position", "垂直位置"],
+  scale_x: ["Horizontal scale", "水平缩放"], scale_y: ["Vertical scale", "垂直缩放"], rotation_degrees: ["Rotation", "旋转"],
+  opacity: ["Opacity", "不透明度"], gain: ["Volume", "音量"], retime: ["Playback", "播放"], rate: ["Speed", "速度"], maintain_pitch: ["Keep pitch", "保持音高"],
+  fps: ["Frame rate", "帧率"], canvas_size: ["Size", "尺寸"], background: ["Background", "背景"],
+  color: ["Color", "颜色"], background_color: ["Background color", "背景颜色"], fill: ["Fill", "填充"], stroke: ["Outline", "描边"],
+  font: ["Font", "字体"], family: ["Font family", "字体名称"], font_weight: ["Weight", "字重"], font_style: ["Style", "字体样式"],
+  weight: ["Weight", "字重"], style: ["Style", "样式"], decoration: ["Decoration", "文字装饰"], align: ["Alignment", "对齐方式"], text_align: ["Alignment", "对齐方式"],
+  font_size: ["Font size", "字号"], letter_spacing_px: ["Letter spacing", "字间距"], line_height_multiplier: ["Line spacing", "行间距"], line_height_px: ["Line height", "行高"],
+  padding_x: ["Horizontal padding", "左右留白"], padding_y: ["Vertical padding", "上下留白"], offset_x: ["Horizontal offset", "水平偏移"], offset_y: ["Vertical offset", "垂直偏移"],
+  padding_x_at_size15: ["Horizontal padding", "左右留白"], padding_y_at_size15: ["Vertical padding", "上下留白"], offset_x_px: ["Horizontal offset", "水平偏移"], offset_y_px: ["Vertical offset", "垂直偏移"],
+  corner_radius_percent: ["Roundness", "圆角"], width: ["Width", "宽度"], height: ["Height", "高度"], max_width_px: ["Maximum width", "最大宽度"],
+  width_px: ["Outline width", "描边宽度"], shape: ["Shape", "形状"], geometry: ["Shape geometry", "形状尺寸"],
+  inverted: ["Inverted", "反转"], feather: ["Feather", "羽化"], center_x: ["Horizontal center", "水平中心"], center_y: ["Vertical center", "垂直中心"], scale: ["Scale", "缩放"],
+  effect: ["Effect", "效果"], intensity: ["Blur amount", "模糊强度"], radius_px: ["Blur radius", "模糊半径"], exposure_ev: ["Exposure", "曝光"], contrast: ["Contrast", "对比度"], saturation: ["Saturation", "饱和度"],
+  sides: ["Sides", "边数"], depth_percent: ["Inner depth", "内凹深度"], closed: ["Closed path", "闭合路径"], x: ["Horizontal position", "水平位置"], y: ["Vertical position", "垂直位置"],
+  blend_mode: ["Blend", "混合方式"], kind: ["Type", "类型"], source_audio_enabled: ["Original sound", "原声"],
+  asset_id: ["Media", "素材"], font_id: ["Font", "字体"], track_id: ["Track", "轨道"], main_track_id: ["Main track", "主轨道"], default_sequence_id: ["Default scene", "默认场景"],
+  outgoing_element_id: ["From clip", "前一片段"], incoming_element_id: ["To clip", "后一片段"],
+  time: ["Time", "时间"], value: ["Value", "数值"], binding: ["Animated property", "动画属性"], parameter: ["Property", "属性"], component: ["Color channel", "颜色通道"],
+  target: ["Applies to", "应用对象"], element_id: ["Clip", "片段"], effect_id: ["Effect", "效果"], mask_id: ["Mask", "蒙版"], sequence_id: ["Scene", "场景"],
+  tangent_mode: ["Curve handles", "曲线控制方式"], dt: ["Time offset", "时间偏移"], dv: ["Value offset", "数值偏移"], curve: ["Easing curve", "缓动曲线"],
+  extrapolation: ["Outside keyframes", "关键帧之外"],
+  segment_to_next: ["Animation easing", "动画缓动"], left_handle: ["Incoming curve", "进入曲线"], right_handle: ["Outgoing curve", "离开曲线"],
+  x1: ["Start timing", "起点时间"], y1: ["Start value", "起点数值"], x2: ["End timing", "终点时间"], y2: ["End value", "终点数值"],
+  version: ["Media version", "素材版本"], sourceChanged: ["Content replaced", "内容已替换"], metadata: ["Media information", "素材信息"],
+  canvas_size_mode: ["Canvas sizing", "画布尺寸设置"], preset: ["Preset", "预设"], custom: ["Custom", "自定义"],
+  video_stream: ["Video track", "视频轨道"], stream: ["Audio track", "音频轨道"], face_index: ["Font face", "字体字型"], intrinsic_size: ["Original size", "原始尺寸"], status: ["Availability", "可用状态"], absent: ["None", "无"], available: ["Available", "可用"],
+  profile: ["Processing mode", "处理方式"], origin: ["Source", "来源"], source_anchor: ["Linked source", "关联素材"], mapping: ["Timing mode", "时间处理方式"], layout: ["Layout mode", "排版方式"], policy: ["Font matching", "字体匹配方式"], encoding: ["Color format", "色彩格式"],
+  license: ["Usage information", "使用说明"], range: ["Source range", "素材范围"], provider: ["Provider", "提供方"], original_name: ["Original name", "原名称"], notice: ["Usage notice", "使用说明"], attribution: ["Credit", "署名"],
+  scalar: ["Gradual change", "连续变化"], discrete: ["Step change", "分步变化"], element: ["Clip", "片段"], color_component: ["Color channel", "颜色通道"],
+  path: ["Custom shape", "自定义形状"], mask: ["Text mask", "文字蒙版"], source_size: ["Original size", "原始尺寸"], radius_x_px: ["Horizontal radius", "水平半径"], radius_y_px: ["Vertical radius", "垂直半径"],
+  heart: ["Heart", "心形"], diamond: ["Diamond", "菱形"], legacy_rectangle: ["Rectangle with fixed dimensions", "固定尺寸矩形"], legacy_ellipse: ["Ellipse with fixed dimensions", "固定尺寸椭圆"],
+  darken: ["Darken", "变暗"], multiply: ["Multiply", "正片叠底"], "color-burn": ["Color burn", "颜色加深"], lighten: ["Lighten", "变亮"], screen: ["Screen", "滤色"],
+  "plus-lighter": ["Add light", "叠加亮度"], "color-dodge": ["Color dodge", "颜色减淡"], overlay: ["Overlay", "叠加"], "soft-light": ["Soft light", "柔光"], "hard-light": ["Hard light", "强光"], difference: ["Difference", "差值"], exclusion: ["Exclusion", "排除"], hue: ["Hue", "色相"], luminosity: ["Luminosity", "明度"],
+  main_track_blur: ["Blurred main-track background", "主轨道模糊背景"],
+  legacy_caption_v2: ["Original subtitle layout", "原版字幕排版"], pinned_caption_v4: ["Consistent subtitle layout", "统一字幕排版"],
+  exact_rational: ["Exact speed timing", "精确变速计时"], classic_rounded_ticks: ["Rounded speed timing", "取整变速计时"], timebase: ["Timing precision", "时间精度"],
+  classic_canvas_v31: ["Canvas-relative picture layout", "按画布布局画面"], legacy_composition_v3: ["Original picture layout", "保留原画面布局"],
+  classic_trimmed: ["Trim from source edges", "按素材首尾裁切"], legacy_source_range: ["Selected source range", "选定素材范围"],
+  local_import: ["Imported from this computer", "从本机导入"], online: ["Online media", "在线素材"], generated: ["Generated media", "生成素材"], legacy: ["Original media source", "原素材来源"], legacy_locator: ["Original media source", "原素材来源"],
+  unresolved_family: ["Match by font name", "按名称匹配字体"], srgb: ["Standard color", "标准色彩"], linear_srgb: ["Linear color", "线性色彩"],
+  mode: ["Matching mode", "匹配方式"], strict: ["Use the exact font", "使用指定字体"], explicit_fallback: ["Use a listed alternative if needed", "必要时使用指定备用字体"], families: ["Alternative fonts", "备用字体"],
+  in_x: ["Incoming handle horizontal position", "进入曲线的水平控制点"], in_y: ["Incoming handle vertical position", "进入曲线的垂直控制点"], out_x: ["Outgoing handle horizontal position", "离开曲线的水平控制点"], out_y: ["Outgoing handle vertical position", "离开曲线的垂直控制点"],
+  legacy_crossfade_v3: ["Crossfade", "淡入淡出"], classic_global: ["Shared video settings", "共用视频设置"], legacy_per_sequence: ["Separate settings for each scene", "各场景独立设置"],
+  auto: ["Automatic", "自动"], aligned: ["Linked", "联动"], broken: ["Independent", "独立"], flat: ["Flat", "平直"], step: ["Hold", "保持不变"], bezier: ["Curve", "曲线"], legacy_normalized_bezier: ["Easing curve", "缓动曲线"],
+  line_through: ["Strikethrough", "删除线"], red: ["Red", "红色"], green: ["Green", "绿色"], blue: ["Blue", "蓝色"], alpha: ["Opacity", "不透明度"],
+  other: ["Other settings", "其他设置"], count: ["{count} items", "{count} 项"],
+  normal: ["Normal", "普通"], bold: ["Bold", "粗体"], italic: ["Italic", "斜体"], underline: ["Underline", "下划线"], strikethrough: ["Strikethrough", "删除线"],
+  left: ["Left", "左对齐"], center: ["Center", "居中"], right: ["Right", "右对齐"], inside: ["Inside", "内侧"], outside: ["Outside", "外侧"],
+  image: ["Image", "图片"], video: ["Video", "视频"], graphic: ["Shape", "形状"], effect_layer: ["Effect layer", "效果图层"],
+  rectangle: ["Rectangle", "矩形"], ellipse: ["Ellipse", "椭圆"], circle: ["Circle", "圆形"], star: ["Star", "星形"], polygon: ["Polygon", "多边形"], freeform: ["Custom path", "自定义路径"],
+  split: ["Split mask", "分割蒙版"], cinematic_bars: ["Cinema bars", "电影黑边"], classic_blur: ["Blur", "模糊"], legacy_gaussian_blur: ["Blur", "模糊"], legacy_color_adjust: ["Color adjustment", "色彩调整"],
+  hold: ["Hold", "保持不变"], linear: ["Linear", "匀速"], cubic_bezier: ["Custom easing", "自定义缓动"], crossfade: ["Crossfade", "淡入淡出"],
+};
+
+// The same friendly labels describe static properties and animation bindings.
+const aliases: Record<string, string> = {
+  gain_decibels: "gain", gain_linear_legacy: "gain", font_size_classic_height90: "font_size", font_size_canvas_pixels: "font_size",
+  text_background_padding_x_at_size15: "padding_x_at_size15", text_background_padding_y_at_size15: "padding_y_at_size15",
+  text_background_offset_x_px: "offset_x_px", text_background_offset_y_px: "offset_y_px", text_background_corner_radius_percent: "corner_radius_percent",
+  graphic_stroke_width_px: "width_px", graphic_corner_radius_percent: "corner_radius_percent", graphic_sides: "sides", graphic_points: "points", graphic_depth_percent: "depth_percent",
+  classic_blur_intensity: "intensity", legacy_blur_radius_px: "radius_px", legacy_exposure_ev: "exposure_ev", legacy_contrast: "contrast", legacy_saturation: "saturation",
+  mask_center_x: "center_x", mask_center_y: "center_y", mask_width: "width", mask_height: "height", mask_rotation_degrees: "rotation_degrees", mask_scale: "scale",
+  mask_feather_classic_pixels: "feather", mask_feather_legacy_canvas_fraction: "feather", mask_stroke_width_px: "width_px",
+  mask_font_size_classic_height90: "font_size", mask_font_size_canvas_pixels: "font_size", mask_letter_spacing_px: "letter_spacing_px", mask_line_height_multiplier: "line_height_multiplier",
+  text_color: "color", text_background_color: "background_color", graphic_fill: "fill", graphic_stroke: "stroke", mask_stroke: "stroke", graphic_stroke_align: "align", mask_stroke_align: "align",
+};
+
+export function historyText(key: string, language: Language, values: Record<string, string | number> = {}) {
+  return (copy[aliases[key] ?? key]?.[language === "zh" ? 1 : 0] ?? copy.other[language === "zh" ? 1 : 0])
+    .replace(/\{(\w+)\}/g, (match, name) => String(values[name] ?? match));
+}
+export const hasHistoryText = (key: string) => Object.hasOwn(copy, key) || Object.hasOwn(aliases, key);
+
+/** SQLite history timestamps without an offset are UTC; display in the viewer's local zone. */
+export function formatHistoryDate(value: string, language: Language, timeZone?: string, compact = false) {
+  const timestamp = value.trim();
+  const utc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/.exec(timestamp);
+  const date = new Date(utc ? `${utc[1]}T${utc[2]}Z` : timestamp);
+  if (!Number.isFinite(date.getTime())) return historyText("dateUnavailable", language);
+  return date.toLocaleString(language === "zh" ? "zh-CN" : "en-US", {
+    ...(timeZone ? { timeZone } : {}),
+    ...(compact ? { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false } as const : {}),
+  });
+}

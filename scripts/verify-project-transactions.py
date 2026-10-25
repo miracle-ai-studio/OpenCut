@@ -80,17 +80,17 @@ try:
 
     restore={'project_id':'p','request':{'expected_revision':committed['revision'],'target_revision':original['revision'],'idempotency_key':'restore','label':'Restore original'}}
     before=counts();reject('transaction.committed')
-    call('opencut_revision_restore',restore,'failed-restore','STORAGE_ERROR')
+    call('opencut_project_restore',restore,'failed-restore','STORAGE_ERROR')
     assert counts()==before and snapshot('after-failed-restore')['revision']==committed['revision']
     sql('DROP TRIGGER qa_reject;')
-    restored=call('opencut_revision_restore',restore,'restore')
+    restored=call('opencut_project_restore',restore,'restore')
     assert restored['base_revision']==committed['revision'] and restored['revision']!=original['revision']
     assert snapshot('after-restore')['project']==original['project']
     checks.append('restore publication failure is atomic; retry creates a new revision while preserving immutable history')
 
     assert call('opencut_project_create',create,'create-replay')==original
     assert call('opencut_edit_apply',wanted,'edit-replay')==committed
-    assert call('opencut_revision_restore',restore,'restore-replay')==restored
+    assert call('opencut_project_restore',restore,'restore-replay')==restored
     checks.append('separate CLI processes replay original create/edit/restore receipts after later head changes')
 
     before=counts()

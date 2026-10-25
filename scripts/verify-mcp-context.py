@@ -106,7 +106,9 @@ def verify(binary, root):
         assert 'listChanged' not in c.init['capabilities']['resources']
         listed = c.request('resources/list', {})['resources']
         templates = c.request('resources/templates/list', {})['resourceTemplates']
-        assert len(listed) == 4 and len(templates) == 7
+        assert len(listed) == 4 and len(templates) == 8
+        assert any(t['uriTemplate'] == 'opencut://projects/{project}/branches/{branch}/summary'
+                   for t in templates)
         for resource in listed:
             view = c.resource(resource['uri'])
             assert view == cli('opencut_resource_read', {'uri': resource['uri']})
@@ -143,13 +145,17 @@ def verify(binary, root):
                     'opencut://jobs/job_' + 'a'*32):
             c.request('resources/read', {'uri': uri}, error=-32002)
             c.request('resources/subscribe', {'uri': uri}, error=-32002)
-        operations = cli('opencut_capabilities', {})['operations']
+        declaration = cli('opencut_capabilities', {})['edit_operation_schema']
+        operations = declaration['oneOf']
         for op in operations:
-            uri = 'opencut://schemas/operations/' + quote(op['name'], safe='') + '/' + str(op['version'])
+            name = op['properties']['type']['const']
+            uri = 'opencut://schemas/operations/' + quote(name, safe='')
             data = c.resource(uri)['payload']['data']
-            assert data['descriptor'] == op
-            assert data['schema']['properties']['type']['const'] == op['name'] and '$defs' in data['schema']
-        c.request('resources/read', {'uri': 'opencut://schemas/operations/track.create/999'}, error=-32002)
+            assert data['name'] == name
+            assert data['schema']['properties']['type']['const'] == name
+            assert data['schema']['$defs'] == declaration['$defs']
+        c.request('resources/read', {'uri': 'opencut://schemas/operations/not_an_operation'}, error=-32002)
+        c.request('resources/read', {'uri': 'opencut://schemas/operations/track.create/999'}, error=-32602)
         checks.append('URI validation, missing resources, unsupported branches and all published operation schemas')
 
         before = cli('opencut_events_read', {})

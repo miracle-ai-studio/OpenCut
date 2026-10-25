@@ -13,7 +13,8 @@ impl Default for Policy {
     fn default() -> Self {
         Self {
             revision: 0,
-            payload_limit_bytes: (64u64 << 30).to_string(),
+            // No default product media quota; physical volume headroom remains enforced.
+            payload_limit_bytes: i64::MAX.to_string(),
             minimum_available_bytes: (64u64 << 20).to_string(),
         }
     }

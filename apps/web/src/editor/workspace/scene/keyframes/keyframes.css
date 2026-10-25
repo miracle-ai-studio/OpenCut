@@ -1,0 +1,61 @@
+.editor-keyframes {
+  display: grid;
+  gap: 0.65rem;
+  border-top: 1px solid var(--border, #444);
+  padding-top: 0.75rem;
+}
+.editor-keyframes fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+.editor-keyframes label {
+  display: grid;
+  gap: 0.2rem;
+}
+.editor-keyframes input[type="number"] {
+  width: 7rem;
+}
+.editor-keyframe-chart {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  background: var(--panel-bg, #16181c);
+  border: 1px solid var(--border, #444);
+}
+.editor-keyframe-chart .key {
+  fill: #bbc1ca;
+  stroke: #16181c;
+  stroke-width: 1;
+  cursor: ew-resize;
+}
+.editor-keyframe-chart .selected {
+  fill: #7cb9ff;
+  stroke: white;
+}
+.editor-keyframe-chart .selection {
+  fill: #7cb9ff22;
+  stroke: #7cb9ff;
+  stroke-width: 1;
+}
+.editor-keyframe-rows {
+  max-height: 12rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.3rem;
+}
+.editor-keyframe-rows label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.editor-keyframe-curve {
+  width: 150px;
+  height: 120px;
+  background: #16181c;
+  touch-action: none;
+}
+.editor-keyframes .error {
+  color: #f88;
+}

@@ -107,10 +107,10 @@ otherwise the host searches absolute directories in its trusted `PATH` without
 invoking a shell. When the package variable is absent, an existing
 `libexec/classic-audio-renderer` beside the host executable is the only fallback.
 Install the exact locked dependencies beforehand; discovery never downloads,
-launches Node or probes Chromium. `opencut_project_v4_audio_capability` reports
+launches Node or probes Chromium. `opencut_project_audio_capability` reports
 missing configuration or unavailable files/pins with path-free reason codes.
-The new schema 1 submission tool is `opencut_job_v4_audio_wav`, supporting
-44100 and 48000 Hz; `opencut_job_v4_audio_range_wav` submits a fixed sample range
+The new schema 1 submission tool is `opencut_job_audio_wav`, supporting
+44100 and 48000 Hz; `opencut_job_audio_range_wav` submits a fixed sample range
 through the same execution and publication path. Each job's captured policy
 supplies its execution budgets;
 local assembly selects `monitored-terminate` explicitly.

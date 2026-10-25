@@ -1,17 +1,19 @@
+pub use opencut_api_contracts::plugin_packages::PinnedPluginPackage;
 use opencut_api_contracts::plugin_publication;
-pub use opencut_api_contracts::plugins::{
-    InstallInput, InstallPinnedInput, InstalledPlugin, PlanInput, PlanInvocation, PluginInput,
-};
-use opencut_contracts::{EditorError, Operation, ProjectSnapshot};
+pub use opencut_api_contracts::plugins::{InstallInput, PlanInput, PluginInput};
+use opencut_contracts::EditorError;
 use opencut_editor_application::maintenance::{PublicationJournal, UntrackedPublication};
-use opencut_editor_application::{plugins as application, projects::ProjectRead};
+use opencut_editor_application::plugins as application;
+pub use opencut_editor_application::plugins::InstalledWasmPlugin;
 use opencut_plugin_host::PluginHost;
 use std::path::Path;
 pub struct NativePlugins<'a>(
     pub &'a Path,
     pub Option<&'a dyn PublicationJournal<plugin_publication::Object>>,
 );
-fn portable(value: opencut_plugin_host::InstalledPlugin) -> Result<InstalledPlugin, EditorError> {
+fn portable(
+    value: opencut_plugin_host::InstalledWasmPlugin,
+) -> Result<InstalledWasmPlugin, EditorError> {
     let install_path = value
         .install_path
         .into_os_string()
@@ -22,7 +24,7 @@ fn portable(value: opencut_plugin_host::InstalledPlugin) -> Result<InstalledPlug
                 "Plugin installation path is not valid UTF-8",
             )
         })?;
-    Ok(InstalledPlugin {
+    Ok(InstalledWasmPlugin {
         manifest: value.manifest,
         package_sha256: value.package_sha256,
         granted_permissions: value.granted_permissions,
@@ -30,17 +32,17 @@ fn portable(value: opencut_plugin_host::InstalledPlugin) -> Result<InstalledPlug
     })
 }
 impl application::PluginCatalog for NativePlugins<'_> {
-    fn list(&self) -> Result<Vec<InstalledPlugin>, EditorError> {
+    fn list(&self) -> Result<Vec<InstalledWasmPlugin>, EditorError> {
         PluginHost::read_only(self.0)?
             .list()?
             .into_iter()
             .map(portable)
             .collect()
     }
-    fn inspect(&self, input: &PluginInput) -> Result<InstalledPlugin, EditorError> {
+    fn inspect(&self, input: &PluginInput) -> Result<InstalledWasmPlugin, EditorError> {
         portable(PluginHost::read_only(self.0)?.inspect(&input.id, &input.version)?)
     }
-    fn install(&self, input: InstallInput) -> Result<InstalledPlugin, EditorError> {
+    fn install(&self, input: InstallInput) -> Result<InstalledWasmPlugin, EditorError> {
         // Reject an unrepresentable public location before publishing a package.
         if self.0.to_str().is_none() {
             return Err(EditorError::new(
@@ -54,7 +56,10 @@ impl application::PluginCatalog for NativePlugins<'_> {
             self.1.unwrap_or(&UntrackedPublication),
         )?)
     }
-    fn install_pinned(&self, input: InstallPinnedInput) -> Result<InstalledPlugin, EditorError> {
+    fn install_pinned(
+        &self,
+        input: PinnedPluginPackage,
+    ) -> Result<InstalledWasmPlugin, EditorError> {
         if self.0.to_str().is_none() {
             return Err(EditorError::new(
                 "INVALID_PLUGIN",
@@ -69,51 +74,6 @@ impl application::PluginCatalog for NativePlugins<'_> {
         )?)
     }
 }
-impl application::PluginRuntime for NativePlugins<'_> {
-    fn propose(
-        &self,
-        input: &PlanInput,
-        snapshot: &ProjectSnapshot,
-    ) -> Result<Vec<Operation>, EditorError> {
-        PluginHost::read_only(self.0)?.invoke_operations(
-            &input.id,
-            &input.version,
-            &input.operation_name,
-            snapshot,
-            &input.parameters,
-        )
-    }
-}
-pub fn list(root: &Path) -> Result<Vec<InstalledPlugin>, EditorError> {
-    application::list(&NativePlugins(root, None))
-}
-pub fn inspect(root: &Path, input: PluginInput) -> Result<InstalledPlugin, EditorError> {
-    application::inspect(&NativePlugins(root, None), input)
-}
-pub fn install(root: &Path, input: InstallInput) -> Result<InstalledPlugin, EditorError> {
-    application::install(&NativePlugins(root, None), input)
-}
-pub fn install_pinned(
-    root: &Path,
-    input: InstallPinnedInput,
-) -> Result<InstalledPlugin, EditorError> {
-    application::install_pinned(&NativePlugins(root, None), input)
-}
-pub fn install_pinned_observed(
-    root: &Path,
-    input: InstallPinnedInput,
-    journal: &dyn PublicationJournal<plugin_publication::Object>,
-) -> Result<InstalledPlugin, EditorError> {
-    application::install_pinned(&NativePlugins(root, Some(journal)), input)
-}
-pub fn plan(
-    projects: &impl ProjectRead,
-    root: &Path,
-    input: PlanInput,
-) -> Result<PlanInvocation, EditorError> {
-    application::plan(projects, &NativePlugins(root, None), input)
-}
-
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
@@ -123,8 +83,8 @@ mod tests {
     fn unrepresentable_install_location_fails_before_creating_directories() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().join(OsString::from_vec(vec![b'p', 0xff]));
-        let error = install(
-            &root,
+        let error = application::install(
+            &NativePlugins(&root, None),
             InstallInput {
                 package_root: "unused".into(),
                 granted_permissions: vec![],
@@ -137,13 +97,6 @@ mod tests {
     }
 }
 
-pub fn install_observed(
-    root: &Path,
-    input: InstallInput,
-    journal: &dyn PublicationJournal<plugin_publication::Object>,
-) -> Result<InstalledPlugin, EditorError> {
-    application::install(&NativePlugins(root, Some(journal)), input)
-}
 pub fn reconcile(
     root: &Path,
     input: plugin_publication::ReconcileInput,
@@ -193,15 +146,39 @@ impl scoped::ProjectPluginRuntime for NativePlugins<'_> {
     fn propose_project_operations(
         &self,
         input: &PlanInput,
-        snapshot: &ProjectSnapshot,
+        snapshot: &opencut_contracts::project_public::PublicProjectSnapshot,
         grant: &scoped::Grant,
         authorize: &dyn Fn() -> Result<(), EditorError>,
-    ) -> Result<Vec<Operation>, EditorError> {
+    ) -> Result<Vec<opencut_contracts::project_public::ProjectEditOperation>, EditorError> {
         let _slot = ProjectCall::acquire()?;
-        PluginHost::read_only(self.0)?.invoke_checked(
+        PluginHost::read_only(self.0)?.invoke_project_operations(
             input,
             snapshot,
-            Some(&opencut_plugin_host::project_scope::ProjectPolicy { grant, authorize }),
+            &opencut_plugin_host::project_scope::ProjectPolicy { grant, authorize },
         )
+    }
+}
+
+impl opencut_editor_application::project_readonly::EffectAvailability for NativePlugins<'_> {
+    fn unavailable_reason(
+        &self,
+        plugin: &opencut_contracts::project_readonly::EffectPluginRef,
+    ) -> Result<opencut_contracts::project_readonly::UnavailableEffectReason, EditorError> {
+        use opencut_contracts::project_readonly::UnavailableEffectReason as R;
+        let host = match PluginHost::read_only(self.0) {
+            Ok(host) => host,
+            Err(_) => return Ok(R::InspectionUnavailable),
+        };
+        match host.inspect(&plugin.id, &plugin.version) {
+            Ok(installed) if installed.package_sha256 == plugin.package_sha256 => {
+                Ok(R::UnsupportedByHost)
+            }
+            Ok(_) => Ok(R::InvalidPackage),
+            Err(error) if error.code == "NOT_FOUND" => Ok(R::NotInstalled),
+            Err(error) if matches!(error.code.as_str(), "INVALID_PLUGIN" | "PERMISSION_DENIED") => {
+                Ok(R::InvalidPackage)
+            }
+            Err(_) => Ok(R::InspectionUnavailable),
+        }
     }
 }

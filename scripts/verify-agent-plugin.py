@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Exercise both delivered plugin MCP configurations with synthetic local media.
+"""Exercise current delivered V4 MCP adapters in an owned acceptance workspace.
 
-No real projects, credentials, client installation, live server or model calls.
-The two adapters share a new database but use different synthetic projects.
+Reuse an exact successful render request, its source revision and media. Never
+install clients, create credentials, import fixtures or submit a new render.
+Legacy V3 editing/render coverage remains in verify-editorial.py.
 """
 import argparse
 import hashlib
 import importlib.util
 import json
 from pathlib import Path
-import shutil
-import subprocess
-import tempfile
-import time
+import sqlite3
+
+from acceptance import Harness, at
 
 HERE = Path(__file__).resolve().parent
 
@@ -24,189 +24,195 @@ def load(name, path):
     return module
 
 
-def verify(binary, root):
-    root.mkdir(parents=True, exist_ok=False)
-    frozen = root / 'opencut'
-    shutil.copy2(binary, frozen)
-    binary_sha = hashlib.sha256(frozen.read_bytes()).hexdigest()
-    database = root / 'workspace.sqlite'
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def write(path, value):
+    pending = path.with_suffix('.pending')
+    pending.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+    pending.replace(path)
+
+
+def verify(args):
+    root, workspace, binary = args.artifacts_dir.resolve(), args.workspace.resolve(), args.binary.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    database = workspace / 'workspace.sqlite'
+    assert database.is_file(), 'An existing owned workspace is required'
+    replay = json.loads(args.replay_checkpoint.read_text())['requests'][args.replay_request]
+    assert replay['tool'] == 'opencut_render_submit'
+    target = replay['input']['request']
+    source_scope = {key: target[key] for key in ('project_id', 'revision', 'sequence_id')}
+    with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as db:
+        assert db.execute("SELECT count(*) FROM jobs WHERE state IN ('queued','running')").fetchone()[0] == 0, \
+            'Managed MCP workers need the owned queue to be idle before adapter verification'
+    baseline = Harness(binary, workspace, 'agent-plugin-source')
+    source_before = baseline.inspect(source_scope['project_id'])
+    original = baseline.call(replay['tool'], replay['input'])
+    original_view = baseline.call('opencut_job_view', {'job_id': original['job_id']})
+    assert original_view['state'] == 'succeeded' and not original_view['result_unavailable']
+    artifact = original_view['artifacts'][0]
+    original_path = baseline.artifact(original_view)
+    assert digest(original_path) == artifact['content_hash']
+    candidate = digest(binary)
     bundle = root / 'plugins'
     generator = load('agent_plugin', HERE / 'distribution/agent-plugin.py')
-    receipt = generator.generate(frozen, database, bundle)
-    assert not database.exists(), 'Packaging must not open the database'
+    if not bundle.exists():
+        before = database.stat().st_mtime_ns
+        generator.generate(binary, database, bundle, with_worker=True)
+        assert database.stat().st_mtime_ns == before, 'Packaging must not mutate the workspace'
+    receipt = json.loads((bundle / 'manifest.json').read_text())
+    assert receipt['binary_sha256'] == candidate and receipt['database'] == str(database)
+    assert receipt['version'] == generator.PLUGIN_VERSION
     for relative, expected in receipt['files'].items():
-        assert hashlib.sha256((bundle / relative).read_bytes()).hexdigest() == expected
-    mcp_type = load('editorial', HERE / 'verify-editorial.py').Mcp
-    trace, results = [], []
-
-    def tick(n):
-        return {'ticks': str(n), 'timebase': 10}
-
-    def span(start, duration):
-        return {'start': tick(start), 'duration': tick(duration)}
-
+        assert digest(bundle / relative) == expected
+    Mcp = load('editorial', HERE / 'verify-editorial.py').Mcp
+    results, trace = [], []
     try:
         for client in ('codex', 'claude'):
             output = root / client
-            output.mkdir()
-            server = json.loads((bundle / client / 'plugins/opencut/.mcp.json').read_text())['mcpServers']['opencut']
-            assert server['command'] == str(frozen)
+            output.mkdir(exist_ok=True)
+            plugin = bundle / client / 'plugins/opencut'
+            manifest = json.loads((plugin / f'.{client}-plugin/plugin.json').read_text())
+            assert manifest['version'] == receipt['version']
+            server = json.loads((plugin / '.mcp.json').read_text())['mcpServers']['opencut']
+            assert server['command'] == str(binary)
             assert server['args'] == ['--database', str(database), 'mcp', 'serve', '--with-worker']
-            mcp = mcp_type(frozen, database, output, [server['command'], *server['args']], trace)
-            checks = []
-            try:
-                listed = mcp.request('tools/list', {})['tools']
-                assert len(listed) == 9 and any(x['name'] == 'opencut_edit' for x in listed)
-                resource = mcp.request('resources/read', {'uri': 'opencut://schemas/domains'})
-                assert resource['contents'] and 'timeline.plan' in resource['contents'][0]['text']
-                def call(domain, action, value):
-                    return mcp.tool('opencut_' + domain, {'action': action, 'input': value})
+            h = Harness(binary, workspace, f'agent-plugin-v4-{client}-{candidate[:12]}')
+            h.runtime = {'bundle_manifest_sha256': digest(bundle / 'manifest.json')}
+            accepted = h.state['stages'].get('delivered-mcp')
+            if accepted:
+                assert accepted['runtime'] == h.runtime, 'Retained evidence belongs to another bundle'
+            # Fixture setup uses the existing public copy operation. It shares the
+            # original CAS and does not depend on discovery exposing copy by default.
+            project_id = h.name
+            copied = h.stage('copy', lambda: h.request('copy', 'opencut_project_copy', {
+                'source_project_id': source_scope['project_id'], 'source_revision': source_scope['revision'],
+                'project_id': project_id, 'name': f'{client} delivered V4 adapter acceptance',
+                'idempotency_key': h.key('copy')}))
 
-                # Resolve advertised per-action schemas, as the shared skill instructs.
-                for domain in ('system', 'project', 'media', 'edit', 'task'):
-                    schemas = mcp.request('resources/read', {'uri': 'opencut://schemas/domains/' + domain})
-                    assert 'input_schema' in schemas['contents'][0]['text']
-                call('system', 'capabilities', {})
-                checks.append('MCP initialize, nine compact tools, capabilities and exact action schema resources')
-                project_id = client + '-film'
-                created = call('project', 'v3.create', {'project': {
-                    'id': project_id, 'name': client + ' synthetic plugin test', 'sequence_id': 'main',
-                    'width': 160, 'height': 90, 'fps': {'numerator': 10, 'denominator': 1}},
-                    'idempotency_key': 'create-' + client})
+            def exercise():
+                mcp = Mcp(binary, database, output, [server['command'], *server['args']], trace)
+                try:
+                    tools = mcp.request('tools/list', {})['tools']
+                    assert 0 < len(tools) <= 12
+                    catalog = mcp.request('resources/read', {'uri': 'opencut://schemas/domains'})
+                    assert 'agent.plan' in catalog['contents'][0]['text']
+                    routes = {}
+                    for domain in ('system', 'project', 'edit', 'media', 'analysis', 'render', 'catalog', 'task', 'observe'):
+                        resource = mcp.request('resources/read', {'uri': f'opencut://schemas/domains/{domain}'})
+                        payload = json.loads(resource['contents'][0]['text'])
+                        assert payload['payload']['kind'] == 'domains'
+                        for group in payload['payload']['data']:
+                            for action in group['actions']:
+                                assert action.get('input_schema') and action.get('output_schema')
+                                routes[action['operation']] = (group['domain'], action['action'])
 
-                def inspect():
-                    return call('project', 'v3.inspect', {'project_id': project_id, 'revision': None})
+                    def call(operation, value, error=None, credential=None):
+                        assert credential is None, 'This scope is the explicitly owned local workspace'
+                        domain, action = routes[operation]
+                        arguments = {'action': action, 'input': value}
+                        result = mcp.request('tools/call', {'name': 'opencut_' + domain,
+                                                          'arguments': arguments})['structuredContent']
+                        trace.append({'adapter': client, 'tool': operation, 'request': value, 'reply': result})
+                        if error:
+                            assert result['error']['code'] == error, result
+                        else:
+                            assert result.get('error') is None, result
+                        return result.get('data')
 
-                def wait_job(job):
-                    deadline = time.monotonic() + 120
-                    while time.monotonic() < deadline:
-                        view = call('task', 'view', {'job_id': job['job_id']})
-                        if view['state'] in ('succeeded', 'failed', 'cancelled'):
-                            assert view['state'] == 'succeeded', view
-                            return view
-                        time.sleep(.1)
-                    raise AssertionError('Managed Worker timed out')
+                    h.call = call
+                    call('opencut_capabilities', {})
+                    scope = {**source_scope, 'project_id': project_id, 'revision': copied['revision']}
+                    summary = call('opencut_project_summary', {**{k: scope[k] for k in ('project_id', 'revision')},
+                                                                'sequence_offset': 0, 'limit': 1})
+                    assert summary['revision'] == copied['revision']
+                    # Copying changes the aggregate identity/revision. Pin every read
+                    # to the copy's actual immutable revision, not the source hash.
+                    before = h.inspect(project_id, copied['revision'])
+                    scope['revision'] = copied['revision']
+                    query = call('opencut_project_timeline_query', {**scope,
+                        'range': {'start': at(0), 'duration': at(1)}, 'track_ids': [],
+                        'include_annotations': True, 'offset': 0, 'limit': 1})
+                    assert query['revision'] == copied['revision']
 
-                def artifact(job, destination):
-                    wait_job(job)
-                    record = call('task', 'get', {'job_id': job['job_id']})
-                    path = Path(record['result']['artifact']['path'])
-                    assert path.is_file() and path.stat().st_size > 0
-                    shutil.copy2(path, destination)
-                    return destination
+                    def plan():
+                        request = {'project_id': project_id, 'expected_revision': copied['revision'],
+                            'idempotency_key': h.key('bookmark'), 'label': 'Delivered adapter V4 atomic edit',
+                            'steps': [{'kind': 'operations', 'operations': [{'type': 'bookmark', 'operation': {
+                                'kind': 'put', 'bookmark': {'id': h.key('mark'),
+                                    'sequence_id': scope['sequence_id'], 'time': at(.5),
+                                    'duration': None, 'color': '#44aaff', 'note': 'Adapter V4 readback'}}}]}]}
+                        planned = h.request('bookmark-plan', 'opencut_edit_agent_plan', request)
+                        assert call('opencut_edit_agent_plan', request) == planned
+                        assert h.inspect(project_id)['revision'] == copied['revision'], 'Planning published a change'
+                        return planned
 
-                def base(operation):
-                    return {'type': 'base.apply', 'operation': operation}
-
-                operations = [base({'type': 'track.create', 'sequence_id': 'main', 'track': {
-                    'id': 'video', 'name': 'Video', 'kind': 'video', 'enabled': True,
-                    'muted': True, 'locked': False, 'clips': []}})]
-                media_ids = []
-                for i, color in enumerate(('red', 'blue')):
-                    source = output / (color + '.mp4')
-                    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
-                                    f'color={color}:s=160x90:r=10:d=3', '-c:v', 'libx264',
-                                    '-pix_fmt', 'yuv420p', str(source)], check=True, timeout=30)
-                    upload = call('media', 'upload.stream.begin', {'project_id': project_id,
-                        'idempotency_key': client + '-upload-' + color, 'name': source.name,
-                        'size_bytes': str(source.stat().st_size)})
-                    # Existing public byte transport, never inline media bytes in MCP JSON.
-                    put = subprocess.run([str(frozen), '--database', str(database), '--json',
-                        'upload', 'stream-put', upload['upload_id'], '--offset', '0', '--input', str(source)],
-                        check=True, capture_output=True, text=True, timeout=30)
-                    assert json.loads(put.stdout)['data']['next_offset'] == str(source.stat().st_size)
-                    job = wait_job(call('media', 'upload.stream.complete', {'upload_id': upload['upload_id'],
-                        'content_hash': hashlib.sha256(source.read_bytes()).hexdigest()}))
-                    media_id = job['extended_result']['data']['media_id']
-                    media_ids.append(media_id)
-                    asset = call('media', 'project.media.inspect', {'project_id': project_id, 'media_id': media_id})['asset']
-                    asset['id'] = color
-                    call('media', 'upload.release', {'upload_id': upload['upload_id']})
-                    operations.extend([base({'type': 'asset.bind', 'asset': asset}), base({
-                        'type': 'clip.insert', 'sequence_id': 'main', 'track_id': 'video', 'clip': {
-                            'id': color + '-clip', 'asset_id': color, 'timeline_range': span(i * 20, 20),
-                            'source_range': span(0, 20), 'params': {}, 'channels': []}})])
-                    source.unlink()
-                seed = {'project_id': project_id, 'expected_revision': created['revision'],
-                        'idempotency_key': client + '-seed', 'label': 'Synthetic red then blue', 'operations': operations}
-                call('edit', 'v3.plan', seed)
-                call('edit', 'v3.apply', seed)
-                before = inspect()
-                library = call('project', 'library', {'cursor': None, 'limit': 100})
-                assert project_id in [p['project_id'] for p in library['items']]
-                assert len(before['project']['base']['assets']) == 2
-                checks.append('Project/media reads and managed import of two synthetic videos; originals deleted')
-                request = {'project_id': project_id, 'expected_revision': before['revision'],
-                    'sequence_id': 'main', 'idempotency_key': client + '-shorten', 'label': 'Remove middle second',
-                    'command': {'kind': 'ripple_delete', 'range': span(10, 10)}}
-                planned = call('edit', 'timeline.plan', request)
-                assert inspect() == before, 'Plan unexpectedly changed project'
-                edited = call('edit', 'v3.apply', planned['transaction'])
-                assert call('edit', 'v3.apply', planned['transaction']) == edited
-                after = inspect()
-                clips = after['project']['base']['sequences'][0]['tracks'][0]['clips']
-                assert [c['timeline_range'] for c in clips] == [span(0, 10), span(10, 20)]
-                stale = mcp.request('tools/call', {'name': 'opencut_edit', 'arguments': {
-                    'action': 'timeline.plan', 'input': {**request, 'idempotency_key': client + '-stale'}}})
-                assert stale['structuredContent']['error']['code'] == 'REVISION_CONFLICT'
-                checks.append('Read-only plan, one atomic ripple edit, identical retry and stale-revision rejection')
-                target = {'project_id': project_id, 'revision': after['revision'], 'sequence_id': 'main'}
-                preview = artifact(call('task', 'v3.frame', {**target, 'idempotency_key': client + '-preview',
-                    'requested_time': tick(15), 'alignment': 'exact'}), output / 'preview.png')
-
-                def blue_pixel(path, movie=False):
-                    command = ['ffmpeg', '-v', 'error', '-i', str(path)]
-                    if movie:
-                        command += ['-vf', 'select=eq(n\\,15)']
-                    raw = subprocess.check_output(command + ['-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], timeout=30)
-                    assert len(raw) == 160 * 90 * 3
-                    rgb = raw[(45 * 160 + 80) * 3:(45 * 160 + 80) * 3 + 3]
-                    assert rgb[2] > 230 and rgb[0] < 15 and rgb[1] < 15, list(rgb)
-                    return list(rgb)
-
-                preview_rgb = blue_pixel(preview)
-                checks.append('Rendered preview at 1.5 seconds is independently expected blue after deletion')
-                undo = {'project_id': project_id, 'expected_revision': after['revision'],
-                    'target_transaction_id': edited['transaction_id'], 'idempotency_key': client + '-undo'}
-                assert not call('edit', 'v3.undo.plan', undo)['conflicts']
-                undone = call('edit', 'v3.undo.apply', undo)
-                assert inspect()['project'] == before['project']
-                call('edit', 'v3.redo.apply', {'project_id': project_id,
-                    'expected_revision': undone['transaction']['revision'],
-                    'undo_transaction_id': undone['transaction']['transaction_id'], 'idempotency_key': client + '-redo'})
-                final = inspect()
-                assert final['project'] == after['project']
-                checks.append('Undo restores exact original document; redo restores intended final edit')
-                movie = artifact(call('task', 'v3.render', {**target, 'revision': final['revision'],
-                    'idempotency_key': client + '-export', 'container': 'mp4', 'video_codec': 'h264'}), output / 'export.mp4')
-                metadata = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_format',
-                    '-show_streams', '-of', 'json', str(movie)], timeout=30))
-                duration = float(metadata['format']['duration'])
-                assert abs(duration - 3) < .12
-                assert metadata['streams'][0]['codec_name'] == 'h264'
-                movie_rgb = blue_pixel(movie, True)
-                checks.append('Export job succeeds; actual H.264 MP4 decodes to three seconds and expected blue frame')
-                results.append({'adapter': client, 'checks': checks, 'project_id': project_id,
-                    'revision': final['revision'], 'preview': str(preview), 'preview_rgb': preview_rgb,
-                    'movie': str(movie), 'movie_rgb': movie_rgb, 'duration': duration,
-                    'movie_sha256': hashlib.sha256(movie.read_bytes()).hexdigest()})
-            finally:
-                mcp.close()
-        report = {'status': 'passed', 'binary_sha256': binary_sha, 'bundle': str(bundle),
-                  'workspace': str(root), 'database': str(database), 'adapters': results,
-                  'limits': ['Deterministic MCP harness, not an external model conversation',
-                             'Synthetic silent video; no audio/ASR/full Classic parity acceptance',
-                             'Separate client manifest validation recorded outside this report',
-                             'Local owner on isolated database; no credentials or live service changes']}
-        (root / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+                    planned = h.stage('plan', plan)
+                    committed = h.apply('bookmark', planned['transaction'])
+                    after = h.inspect(project_id, committed['revision'])
+                    assert after['project'] != before['project']
+                    stale = {**h.state['requests']['bookmark-plan']['input'], 'idempotency_key': h.key('stale')}
+                    # On a resumed episode the head may already include undo/redo;
+                    # the original base is still stale and must never be re-planned.
+                    call('opencut_edit_agent_plan', stale, error='REVISION_CONFLICT')
+                    undo_request = {'project_id': project_id, 'expected_revision': committed['revision'],
+                        'target_transaction_id': committed['transaction_id'], 'idempotency_key': h.key('undo')}
+                    undo_plan = h.stage('undo-plan', lambda: call('opencut_edit_undo_plan', undo_request))
+                    assert not undo_plan['conflicts']
+                    undone = h.request('undo', 'opencut_edit_undo_apply', undo_request)
+                    assert call('opencut_edit_undo_apply', undo_request) == undone
+                    assert h.inspect(project_id, undone['transaction']['revision'])['project'] == before['project']
+                    redo_request = {'project_id': project_id, 'expected_revision': undone['transaction']['revision'],
+                        'undo_transaction_id': undone['transaction']['transaction_id'], 'idempotency_key': h.key('redo')}
+                    redo_plan = h.stage('redo-plan', lambda: call('opencut_edit_redo_plan', redo_request))
+                    assert not redo_plan['conflicts']
+                    redone = h.request('redo', 'opencut_edit_redo_apply', redo_request)
+                    assert call('opencut_edit_redo_apply', redo_request) == redone
+                    final = h.inspect(project_id, redone['transaction']['revision'])
+                    assert final['project'] == after['project']
+                    assert call(replay['tool'], replay['input'])['job_id'] == original['job_id']
+                    view = call('opencut_job_view', {'job_id': original['job_id']})
+                    assert view['state'] == 'succeeded' and view['artifacts'] == original_view['artifacts']
+                    access = call('opencut_artifact_get', {'artifact_id': artifact['artifact_id']})
+                    assert access['artifact']['content_hash'] == artifact['content_hash']
+                    assert access['resource_uri'] and access['http_path'].startswith('/api/')
+                    return {'adapter': client, 'plugin_version': receipt['version'], 'compact_tools': len(tools),
+                        'project_id': project_id, 'revision': final['revision'], 'job_id': original['job_id'],
+                        'artifact_id': artifact['artifact_id'], 'artifact_sha256': artifact['content_hash'],
+                        'checks': ['actual packaged stdio configuration and connected V4 schemas',
+                            'fixed-revision summary and bounded timeline read',
+                            'read-only deterministic plan, atomic apply and original request replay',
+                            'stale revision rejection, exact document undo/redo and receipt replay',
+                            'existing fixed-revision render submission replay, terminal job and public artifact handle']}
+                finally:
+                    mcp.close()
+            results.append(h.stage('delivered-mcp', exercise))
+        assert baseline.inspect(source_scope['project_id']) == source_before, 'Source project changed'
+        report = {'status': 'passed_scoped', 'binary_sha256': candidate, 'bundle': str(bundle),
+            'plugin_version': receipt['version'], 'workspace': str(workspace), 'database': str(database),
+            'source': source_scope, 'adapters': results, 'reused_render_request': replay,
+            'reused_artifact_path': str(original_path),
+            'limits': ['Deterministic MCP clients, not installed client UI or model conversations',
+                'Fixture project copies share existing CAS; no new source media or rendering',
+                'Prior pixel/PCM/render evidence retains its own producer identity and scope',
+                'Native client manifest parsing is recorded separately; not full A7/D8 acceptance']}
+        write(root / 'report.json', report)
         print(json.dumps(report, indent=2))
+    except BaseException as error:
+        write(root / 'failed.json', {'status': 'failed', 'error': str(error), 'completed_adapters': results})
+        raise
     finally:
-        (root / 'trace.json').write_text(json.dumps(trace, indent=2) + '\n')
+        previous = root / 'trace.json'
+        old = json.loads(previous.read_text()) if previous.exists() else []
+        write(previous, old + trace)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
-    parser.add_argument('--artifacts-dir', type=Path, default=Path(tempfile.gettempdir()) / f'opencut-plugin-{time.time_ns()}')
-    args = parser.parse_args()
-    verify(args.binary.resolve(), args.artifacts_dir.resolve())
+    parser.add_argument('--workspace', type=Path, required=True)
+    parser.add_argument('--replay-checkpoint', type=Path, required=True)
+    parser.add_argument('--replay-request', required=True)
+    parser.add_argument('--artifacts-dir', type=Path, required=True)
+    verify(parser.parse_args())

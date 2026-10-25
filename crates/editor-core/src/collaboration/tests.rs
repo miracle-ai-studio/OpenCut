@@ -1,9 +1,9 @@
 use super::*;
-use opencut_contracts::project_v4::*;
+use opencut_contracts::scene::*;
 use serde_json::json;
 
-fn document_v4() -> ProjectDocumentV4 {
-    use crate::project_v4::legacy::*;
+fn document_scene() -> EditorDocument {
+    use crate::scene::legacy::*;
     match convert_legacy_project(
         LegacyProjectInput::Base(&document()),
         &LegacyConversionInputs::default(),
@@ -12,21 +12,21 @@ fn document_v4() -> ProjectDocumentV4 {
         result => panic!("valid independent fixture must promote: {result:?}"),
     }
 }
-fn voice_v4(document: &mut ProjectDocumentV4) -> &mut TrackV4 {
+fn voice_scene(document: &mut EditorDocument) -> &mut SceneTrack {
     document.sequences[0]
         .tracks
         .iter_mut()
         .find(|t| t.id == "voice")
         .unwrap()
 }
-fn channel_v4(id: &str, parameter: ScalarParameterV4, value: f64) -> AnimationChannelV4 {
-    AnimationChannelV4::Scalar {
+fn channel_scene(id: &str, parameter: ScalarParameter, value: f64) -> AnimationChannel {
+    AnimationChannel::Scalar {
         id: id.into(),
-        target: ChannelTargetV4::Track {
+        target: ChannelTarget::Track {
             track_id: "voice".into(),
         },
-        binding: ScalarBindingV4::Property { parameter },
-        keys: vec![ScalarKeyV4 {
+        binding: ScalarBinding::Property { parameter },
+        keys: vec![ScalarKey {
             id: format!("{id}-key"),
             segment_id: None,
             time: opencut_contracts::Time {
@@ -36,21 +36,21 @@ fn channel_v4(id: &str, parameter: ScalarParameterV4, value: f64) -> AnimationCh
             value,
             left_handle: None,
             right_handle: None,
-            segment_to_next: ScalarSegmentV4::Linear,
-            tangent_mode: TangentModeV4::Aligned,
+            segment_to_next: ScalarSegment::Linear,
+            tangent_mode: TangentMode::Aligned,
         }],
-        extrapolation: ExtrapolationV4 {
-            before: ExtrapolationModeV4::Hold,
-            after: ExtrapolationModeV4::Hold,
+        extrapolation: Extrapolation {
+            before: ExtrapolationMode::Hold,
+            after: ExtrapolationMode::Hold,
         },
     }
 }
 
 #[test]
 fn v4_selective_undo_never_splices_exact_time_or_rate_components() {
-    use opencut_contracts::{Time, scene_bookmarks::SceneBookmarkV1};
-    let mut before = document_v4();
-    before.sequences[0].bookmarks.push(SceneBookmarkV1 {
+    use opencut_contracts::{Time, scene_bookmarks::SceneBookmark};
+    let mut before = document_scene();
+    before.sequences[0].bookmarks.push(SceneBookmark {
         id: "marker".into(),
         sequence_id: "main".into(),
         time: Time {
@@ -63,16 +63,16 @@ fn v4_selective_undo_never_splices_exact_time_or_rate_components() {
     });
     let mut after = before.clone();
     after.sequences[0].bookmarks[0].time.ticks = "2".into();
-    if let SettingsProfileV4::LegacyPerScene { formats } = &mut after.settings {
+    if let SettingsProfile::LegacyPerScene { formats } = &mut after.settings {
         formats[0].fps.numerator = 30;
     }
     let mut head = after.clone();
     head.sequences[0].bookmarks[0].time.timebase = 60;
-    if let SettingsProfileV4::LegacyPerScene { formats } = &mut head.settings {
+    if let SettingsProfile::LegacyPerScene { formats } = &mut head.settings {
         formats[0].fps.denominator = 2;
     }
-    crate::project_v4::validate_project_v4(&head).unwrap();
-    let merged = selective_merge_v4(&after, &before, &head);
+    crate::scene::validate_project_scene(&head).unwrap();
+    let merged = selective_merge_scene(&after, &before, &head);
     assert!(merged.project.is_none());
     assert!(
         merged
@@ -90,12 +90,12 @@ fn v4_selective_undo_never_splices_exact_time_or_rate_components() {
 
 #[test]
 fn v4_gain_unit_undo_rejects_later_value_in_changed_unit() {
-    let before = document_v4();
+    let before = document_scene();
     let mut after = before.clone();
-    voice_v4(&mut after).gain = GainV4::Decibels { value: 0.0 };
+    voice_scene(&mut after).gain = Gain::Decibels { value: 0.0 };
     let mut head = after.clone();
-    voice_v4(&mut head).gain = GainV4::Decibels { value: -6.0 };
-    let undo = selective_merge_v4(&after, &before, &head);
+    voice_scene(&mut head).gain = Gain::Decibels { value: -6.0 };
+    let undo = selective_merge_scene(&after, &before, &head);
     assert!(undo.project.is_none());
     assert_eq!(undo.conflicts.len(), 1);
     assert_eq!(undo.conflicts[0].path, "/sequences/main/tracks/voice/gain");
@@ -103,25 +103,25 @@ fn v4_gain_unit_undo_rejects_later_value_in_changed_unit() {
 
 #[test]
 fn v4_channel_rebound_does_not_reinterpret_later_keys_in_old_unit() {
-    let mut before = document_v4();
-    voice_v4(&mut before).channels.push(channel_v4(
+    let mut before = document_scene();
+    voice_scene(&mut before).channels.push(channel_scene(
         "gain",
-        ScalarParameterV4::GainLinearLegacy,
+        ScalarParameter::GainLinearLegacy,
         1.0,
     ));
     let mut after = before.clone();
-    voice_v4(&mut after).gain = GainV4::Decibels { value: 0.0 };
+    voice_scene(&mut after).gain = Gain::Decibels { value: 0.0 };
     // The stored key happens to be 1 in either revision. It means amplitude 1
     // before rebinding and +1dB afterward, despite equal numeric JSON values.
-    voice_v4(&mut after).channels[0] = channel_v4("gain", ScalarParameterV4::GainDecibels, 1.0);
+    voice_scene(&mut after).channels[0] = channel_scene("gain", ScalarParameter::GainDecibels, 1.0);
     let mut head = after.clone();
-    if let AnimationChannelV4::Scalar { keys, .. } = &mut voice_v4(&mut head).channels[0] {
+    if let AnimationChannel::Scalar { keys, .. } = &mut voice_scene(&mut head).channels[0] {
         keys[0].value = 2.0;
     }
-    crate::project_v4::validate_project_v4(&before).unwrap();
-    crate::project_v4::validate_project_v4(&after).unwrap();
-    crate::project_v4::validate_project_v4(&head).unwrap();
-    let undo = selective_merge_v4(&after, &before, &head);
+    crate::scene::validate_project_scene(&before).unwrap();
+    crate::scene::validate_project_scene(&after).unwrap();
+    crate::scene::validate_project_scene(&head).unwrap();
+    let undo = selective_merge_scene(&after, &before, &head);
     assert!(undo.project.is_none());
     assert!(
         undo.conflicts
@@ -132,24 +132,24 @@ fn v4_channel_rebound_does_not_reinterpret_later_keys_in_old_unit() {
 
 #[test]
 fn v4_collection_merge_retains_later_channel_and_sequence_format() {
-    let mut before = document_v4();
-    voice_v4(&mut before).channels.push(channel_v4(
+    let mut before = document_scene();
+    voice_scene(&mut before).channels.push(channel_scene(
         "gain",
-        ScalarParameterV4::GainLinearLegacy,
+        ScalarParameter::GainLinearLegacy,
         1.0,
     ));
     let mut after = before.clone();
-    if let AnimationChannelV4::Scalar { keys, .. } = &mut voice_v4(&mut after).channels[0] {
+    if let AnimationChannel::Scalar { keys, .. } = &mut voice_scene(&mut after).channels[0] {
         keys[0].value = 0.5;
     }
-    if let SettingsProfileV4::LegacyPerScene { formats } = &mut after.settings {
+    if let SettingsProfile::LegacyPerScene { formats } = &mut after.settings {
         formats[0].fps.numerator = 30;
     }
     let mut head = after.clone();
-    let mut later = channel_v4("later-opacity", ScalarParameterV4::Opacity, 0.75);
+    let mut later = channel_scene("later-opacity", ScalarParameter::Opacity, 0.75);
     let main_id = head.sequences[0].main_track_id.clone();
-    if let AnimationChannelV4::Scalar { target, .. } = &mut later {
-        *target = ChannelTargetV4::Track {
+    if let AnimationChannel::Scalar { target, .. } = &mut later {
+        *target = ChannelTarget::Track {
             track_id: main_id.clone(),
         };
     }
@@ -168,17 +168,17 @@ fn v4_collection_merge_retains_later_channel_and_sequence_format() {
     scene.tracks[0].channels.clear();
     scene.main_track_id = "later-main".into();
     head.sequences.push(scene);
-    if let SettingsProfileV4::LegacyPerScene { formats } = &mut head.settings {
+    if let SettingsProfile::LegacyPerScene { formats } = &mut head.settings {
         let mut later = formats[0].clone();
         later.sequence_id = "later-scene".into();
         later.fps.numerator = 24;
         formats.insert(0, later);
     }
-    crate::project_v4::validate_project_v4(&head).unwrap();
-    let undo = selective_merge_v4(&after, &before, &head);
+    crate::scene::validate_project_scene(&head).unwrap();
+    let undo = selective_merge_scene(&after, &before, &head);
     assert!(undo.conflicts.is_empty(), "{:?}", undo.conflicts);
     let mut merged = undo.project.unwrap();
-    crate::project_v4::validate_project_v4(&merged).unwrap();
+    crate::scene::validate_project_scene(&merged).unwrap();
     assert_eq!(
         merged.sequences[0]
             .tracks
@@ -188,11 +188,11 @@ fn v4_collection_merge_retains_later_channel_and_sequence_format() {
             .channels[0],
         later
     );
-    let AnimationChannelV4::Scalar { keys, .. } = &voice_v4(&mut merged).channels[0] else {
+    let AnimationChannel::Scalar { keys, .. } = &voice_scene(&mut merged).channels[0] else {
         panic!()
     };
     assert_eq!(keys[0].value, 1.0);
-    let SettingsProfileV4::LegacyPerScene { formats } = &merged.settings else {
+    let SettingsProfile::LegacyPerScene { formats } = &merged.settings else {
         panic!()
     };
     assert_eq!(formats[0].sequence_id, "later-scene");
@@ -344,7 +344,7 @@ fn reverses_pure_track_order_and_preserves_later_entities() {
 #[test]
 fn v3_undo_preserves_later_independent_shape_and_detects_same_property() {
     let base = document();
-    let before = ProjectDocumentV3 {
+    let before = HistoricalVisualDocument {
         schema_version: 3,
         base: base.clone(),
         visual: vec![],
@@ -364,7 +364,7 @@ fn v3_undo_preserves_later_independent_shape_and_detects_same_property() {
         "effects":[],"masks":[],"transitions":[]}))
         .unwrap(),
     );
-    let undone = selective_merge_v3(&after, &before, &head);
+    let undone = selective_merge_historical_visual(&after, &before, &head);
     assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
     let result = undone.project.unwrap();
     assert_eq!(
@@ -375,7 +375,7 @@ fn v3_undo_preserves_later_independent_shape_and_detects_same_property() {
     head.base.sequences[0].tracks[0]
         .params
         .insert("volume".into(), json!(0.8));
-    let conflict = selective_merge_v3(&after, &before, &head);
+    let conflict = selective_merge_historical_visual(&after, &before, &head);
     assert!(conflict.project.is_none());
     assert_eq!(
         conflict.conflicts[0].path,
@@ -385,7 +385,7 @@ fn v3_undo_preserves_later_independent_shape_and_detects_same_property() {
 
 #[test]
 fn v3_undo_first_visual_node_preserves_later_shape_in_same_sequence() {
-    let before = ProjectDocumentV3 {
+    let before = HistoricalVisualDocument {
         schema_version: 3,
         base: document(),
         visual: vec![],
@@ -405,7 +405,7 @@ fn v3_undo_first_visual_node_preserves_later_shape_in_same_sequence() {
     let mut later = head.visual[0].shapes[0].clone();
     later.id = "later".into();
     head.visual[0].shapes.push(later);
-    let undone = selective_merge_v3(&after, &before, &head);
+    let undone = selective_merge_historical_visual(&after, &before, &head);
     assert!(undone.conflicts.is_empty(), "{:?}", undone.conflicts);
     assert_eq!(
         undone.project.unwrap().visual[0]
@@ -420,7 +420,7 @@ fn v3_undo_first_visual_node_preserves_later_shape_in_same_sequence() {
 #[test]
 fn v3_undo_of_one_keyframe_curve_preserves_an_independent_curve() {
     let base = document();
-    let before = ProjectDocumentV3 {
+    let before = HistoricalVisualDocument {
         schema_version: 3,
         base: base.clone(),
         visual: vec![],
@@ -433,22 +433,22 @@ fn v3_undo_of_one_keyframe_curve_preserves_an_independent_curve() {
             "curve":{"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}
         })
     };
-    let first: opencut_contracts::project_v3::KeyframeCurveV1 =
+    let first: opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve =
         serde_json::from_value(curve("curve-a", "key-a")).unwrap();
-    let second: opencut_contracts::project_v3::KeyframeCurveV1 =
+    let second: opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve =
         serde_json::from_value(curve("curve-b", "key-b")).unwrap();
     let mut after = before.clone();
     after.keyframe_curves = vec![first.clone()];
     let mut head = after.clone();
     head.keyframe_curves.push(second.clone());
 
-    let undo = selective_merge_v3(&after, &before, &head);
+    let undo = selective_merge_historical_visual(&after, &before, &head);
     assert!(undo.conflicts.is_empty(), "{:?}", undo.conflicts);
     assert_eq!(undo.project.unwrap().keyframe_curves, [second]);
 
     let mut conflicting_head = after.clone();
     conflicting_head.keyframe_curves[0].curve.y1 = 0.25;
-    let conflict = selective_merge_v3(&after, &before, &conflicting_head);
+    let conflict = selective_merge_historical_visual(&after, &before, &conflicting_head);
     assert_eq!(conflict.conflicts.len(), 1);
     assert!(conflict.conflicts[0].path.contains("curve-a"));
 }

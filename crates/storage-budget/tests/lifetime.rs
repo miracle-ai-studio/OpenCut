@@ -28,6 +28,27 @@ fn configure(root: &Path, bytes: u64) {
         )
         .unwrap();
 }
+#[test]
+fn catalog_acquisition_and_generation_share_quota_until_their_reservations_drop() {
+    let directory = tempfile::tempdir().unwrap();
+    configure(directory.path(), 1024);
+    let budget = Budget::new(directory.path());
+    let acquired = budget.reserve("catalog_resource", 512).unwrap();
+    assert_eq!(
+        budget
+            .reserve("catalog_generated_sound", 513)
+            .err()
+            .unwrap()
+            .code,
+        "STORAGE_BUDGET_EXCEEDED"
+    );
+    let generated = budget.reserve("catalog_generated_sound", 512).unwrap();
+    drop(acquired);
+    assert!(budget.reserve("catalog_resource", 513).is_err());
+    drop(generated);
+    drop(budget.reserve("catalog_generated_sound", 1024).unwrap());
+    drop(budget.reserve("catalog_resource", 1024).unwrap());
+}
 fn wait(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !fs::read(path).is_ok_and(|contents| !contents.is_empty()) {
@@ -40,10 +61,35 @@ fn bound_database_connection_does_not_need_an_exclusive_admission_gate() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     let budget = Budget::new(root);
+    // A real historical workspace can have no policy-change receipt. Its
+    // original baseline must remain valid after the product defaults change.
+    let control = root.join(".storage-budget");
+    fs::create_dir(&control).unwrap();
+    let historical = serde_json::json!({"version":1,
+        "policy":{"revision":0,"payload_limit_bytes":"68719476736","minimum_available_bytes":"67108864"},
+        "held":{},"changes":[]});
+    let original = serde_json::to_vec(&historical).unwrap();
+    fs::write(control.join("ledger.json"), &original).unwrap();
+    let before = budget.inspect(false).unwrap();
+    assert_eq!(before.policy.payload_limit_bytes, "68719476736");
+    assert_eq!(
+        before.media_output_limit_bytes.as_deref(),
+        Some("1073741824")
+    );
+    assert_eq!(fs::read(control.join("ledger.json")).unwrap(), original);
     drop(
         budget
             .database_connection_lease("workspace.sqlite", false)
             .unwrap(),
+    );
+    let current: serde_json::Value =
+        serde_json::from_slice(&fs::read(control.join("ledger.json")).unwrap()).unwrap();
+    assert!(current.get("version").is_none());
+    assert_eq!(current["baseline"]["policy"], historical["policy"]);
+    assert_eq!(current["policy"], historical["policy"]);
+    assert_eq!(
+        current["baseline"]["media_output_limit_bytes"],
+        "1073741824"
     );
     let gate = fs::File::open(root.join(".storage-budget")).unwrap();
     FileExt::lock_shared(&gate).unwrap();
@@ -723,7 +769,15 @@ fn control_ledger_is_independent_of_payload_and_recovers_a_killed_writer() {
     let ledger: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join(".storage-budget/ledger.json")).unwrap())
             .unwrap();
-    assert_eq!(ledger["version"], 3);
+    assert!(ledger.get("version").is_none());
+    assert_eq!(
+        ledger["baseline"]["policy"]["payload_limit_bytes"],
+        i64::MAX.to_string()
+    );
+    assert_eq!(
+        ledger["baseline"]["media_output_limit_bytes"],
+        i64::MAX.to_string()
+    );
     assert_eq!(ledger["repair"]["state"], "ready");
     assert_eq!(ledger["repair"]["target_bytes"], "8388608");
     let allocated = fs::metadata(root.join(".storage-budget/repair.reserve")).unwrap();

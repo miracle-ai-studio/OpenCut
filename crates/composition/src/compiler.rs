@@ -34,7 +34,7 @@ pub(crate) fn compile_with_min_end_and_curves(
     sequence_id: &str,
     scope: CompositionScope,
     minimum_end: Option<RationalTime>,
-    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
+    keyframe_curves: &[opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve],
 ) -> Result<Composition, CompositionError> {
     opencut_editor_core::validate_project(&snapshot.project)
         .map_err(|e| error("INVALID_PROJECT", e.to_string()))?;
@@ -200,7 +200,7 @@ fn compile_visual_clips(
     sequence: &opencut_contracts::Sequence,
     assets: &HashMap<&str, &Asset>,
     include_video_audio: bool,
-    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
+    keyframe_curves: &[opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve],
 ) -> Result<CompiledVisualClips, CompositionError> {
     let mut video_clips = Vec::new();
     let mut image_clips = Vec::new();
@@ -398,7 +398,7 @@ fn visual_curves(
     clip: &Clip,
     track_opacity: f64,
     sequence_id: &str,
-    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
+    keyframe_curves: &[opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve],
 ) -> Result<TimelineVisualCurves, CompositionError> {
     Ok(TimelineVisualCurves {
         opacity: curve(clip, "opacity", track_opacity, sequence_id, keyframe_curves)?,
@@ -415,7 +415,7 @@ fn curve(
     parameter: &str,
     multiplier: f64,
     sequence_id: &str,
-    keyframe_curves: &[opencut_contracts::project_v3::KeyframeCurveV1],
+    keyframe_curves: &[opencut_contracts::historical_visual::HistoricalVisualKeyframeCurve],
 ) -> Result<EvaluatedCurve, CompositionError> {
     let Some(channel) = clip.channels.iter().find(|c| c.parameter == parameter) else {
         return Ok(EvaluatedCurve::default());

@@ -2,8 +2,8 @@
 //! Classic reference: timeline/bookmarks/utils.ts and commands/scene/*-bookmark.ts.
 use opencut_contracts::{
     EditorError, FrameRate, ProjectDocument, Time,
-    project_v4::{ProjectDocumentV4, SettingsProfileV4},
-    scene_bookmarks::{BookmarkOperationV1, SceneBookmarkV1},
+    scene::{EditorDocument, SettingsProfile},
+    scene_bookmarks::{BookmarkOperation, SceneBookmark},
 };
 use opencut_time::{FrameRounding, RationalTime, align_to_frame};
 use std::{cmp::Ordering, collections::BTreeSet};
@@ -38,14 +38,14 @@ impl BookmarkScope for ProjectDocument {
             .map(|s| &s.fps)
     }
 }
-impl BookmarkScope for ProjectDocumentV4 {
+impl BookmarkScope for EditorDocument {
     fn frame_rate(&self, sequence_id: &str) -> Option<&FrameRate> {
         if !self.sequences.iter().any(|s| s.id == sequence_id) {
             return None;
         }
         match &self.settings {
-            SettingsProfileV4::ClassicGlobal { settings } => Some(&settings.fps),
-            SettingsProfileV4::LegacyPerScene { formats } => formats
+            SettingsProfile::ClassicGlobal { settings } => Some(&settings.fps),
+            SettingsProfile::LegacyPerScene { formats } => formats
                 .iter()
                 .find(|f| f.sequence_id == sequence_id)
                 .map(|f| &f.fps),
@@ -53,16 +53,13 @@ impl BookmarkScope for ProjectDocumentV4 {
     }
 }
 
-pub fn validate(
-    project: &ProjectDocument,
-    bookmarks: &[SceneBookmarkV1],
-) -> Result<(), EditorError> {
+pub fn validate(project: &ProjectDocument, bookmarks: &[SceneBookmark]) -> Result<(), EditorError> {
     validate_for_scope(project, bookmarks)
 }
 
 fn validate_for_scope(
     project: &impl BookmarkScope,
-    bookmarks: &[SceneBookmarkV1],
+    bookmarks: &[SceneBookmark],
 ) -> Result<(), EditorError> {
     if bookmarks.len() > MAX_BOOKMARKS {
         return Err(invalid("Project exceeds the 10000 bookmark limit"));
@@ -109,7 +106,7 @@ fn frame_time(
     align_to_frame(time, fps, FrameRounding::Nearest)
 }
 
-fn index(bookmarks: &[SceneBookmarkV1], sequence_id: &str, id: &str) -> Result<usize, EditorError> {
+fn index(bookmarks: &[SceneBookmark], sequence_id: &str, id: &str) -> Result<usize, EditorError> {
     bookmarks
         .iter()
         .position(|b| b.id == id && b.sequence_id == sequence_id)
@@ -120,21 +117,21 @@ fn index(bookmarks: &[SceneBookmarkV1], sequence_id: &str, id: &str) -> Result<u
 /// A move may retain equal-time bookmarks, matching Classic's non-merging behavior.
 pub fn apply(
     project: &ProjectDocument,
-    bookmarks: &[SceneBookmarkV1],
-    operations: &[BookmarkOperationV1],
-) -> Result<Vec<SceneBookmarkV1>, EditorError> {
+    bookmarks: &[SceneBookmark],
+    operations: &[BookmarkOperation],
+) -> Result<Vec<SceneBookmark>, EditorError> {
     crate::validate_project(project)?;
     apply_to_scope(project, bookmarks, operations)
 }
 
 /// Mutate revision-owned annotations using the aggregate's real format scope.
 /// No legacy document projection or independent bookmark store is created.
-pub fn apply_bookmarks_v4(
-    project: &ProjectDocumentV4,
-    operations: &[BookmarkOperationV1],
-) -> Result<ProjectDocumentV4, EditorError> {
-    crate::project_v4::validate_project_v4(project)?;
-    let proposed = plan_bookmarks_v4(project, operations)?;
+pub fn apply_bookmarks_scene(
+    project: &EditorDocument,
+    operations: &[BookmarkOperation],
+) -> Result<EditorDocument, EditorError> {
+    crate::scene::validate_project_scene(project)?;
+    let proposed = plan_bookmarks_scene(project, operations)?;
     let mut result = project.clone();
     for scene in &mut result.sequences {
         scene.bookmarks = proposed
@@ -143,17 +140,17 @@ pub fn apply_bookmarks_v4(
             .cloned()
             .collect();
     }
-    crate::project_v4::validate_project_v4(&result)?;
+    crate::scene::validate_project_scene(&result)?;
     Ok(result)
 }
 
 /// Plan only annotations within a larger aggregate transaction. The application
 /// validates the starting snapshot and complete final aggregate; temporary
 /// unrelated resource changes must not invalidate this collection-only step.
-pub fn plan_bookmarks_v4(
-    project: &ProjectDocumentV4,
-    operations: &[BookmarkOperationV1],
-) -> Result<Vec<SceneBookmarkV1>, EditorError> {
+pub fn plan_bookmarks_scene(
+    project: &EditorDocument,
+    operations: &[BookmarkOperation],
+) -> Result<Vec<SceneBookmark>, EditorError> {
     let bookmarks: Vec<_> = project
         .sequences
         .iter()
@@ -164,9 +161,9 @@ pub fn plan_bookmarks_v4(
 
 fn apply_to_scope(
     project: &impl BookmarkScope,
-    bookmarks: &[SceneBookmarkV1],
-    operations: &[BookmarkOperationV1],
-) -> Result<Vec<SceneBookmarkV1>, EditorError> {
+    bookmarks: &[SceneBookmark],
+    operations: &[BookmarkOperation],
+) -> Result<Vec<SceneBookmark>, EditorError> {
     validate_for_scope(project, bookmarks)?;
     if operations.is_empty() || operations.len() > 128 {
         return Err(invalid("Choose 1 to 128 bookmark operations"));
@@ -174,7 +171,7 @@ fn apply_to_scope(
     let mut proposed = bookmarks.to_vec();
     for operation in operations {
         match operation {
-            BookmarkOperationV1::Toggle {
+            BookmarkOperation::Toggle {
                 sequence_id,
                 time,
                 bookmark_id,
@@ -195,7 +192,7 @@ fn apply_to_scope(
                     if proposed.iter().any(|b| b.id == *bookmark_id) {
                         return Err(invalid("Bookmark ID already exists"));
                     }
-                    proposed.push(SceneBookmarkV1 {
+                    proposed.push(SceneBookmark {
                         id: bookmark_id.clone(),
                         sequence_id: sequence_id.clone(),
                         time,
@@ -205,7 +202,7 @@ fn apply_to_scope(
                     });
                 }
             }
-            BookmarkOperationV1::Put { bookmark } => {
+            BookmarkOperation::Put { bookmark } => {
                 let mut bookmark = bookmark.clone();
                 bookmark.time = frame_time(project, &bookmark.sequence_id, &bookmark.time)?;
                 if let Some(at) = proposed.iter().position(|b| b.id == bookmark.id) {
@@ -217,7 +214,7 @@ fn apply_to_scope(
                     proposed.push(bookmark);
                 }
             }
-            BookmarkOperationV1::Move {
+            BookmarkOperation::Move {
                 sequence_id,
                 bookmark_id,
                 time,
@@ -225,7 +222,7 @@ fn apply_to_scope(
                 let at = index(&proposed, sequence_id, bookmark_id)?;
                 proposed[at].time = frame_time(project, sequence_id, time)?;
             }
-            BookmarkOperationV1::Delete {
+            BookmarkOperation::Delete {
                 sequence_id,
                 bookmark_id,
             } => {
@@ -248,10 +245,10 @@ fn apply_to_scope(
 /// Classic notes include both interval boundaries, even for a zero-duration marker.
 /// Blank notes are retained in the project but excluded from the auxiliary HUD.
 pub fn active_notes<'a>(
-    bookmarks: &'a [SceneBookmarkV1],
+    bookmarks: &'a [SceneBookmark],
     sequence_id: &str,
     time: &Time,
-) -> Result<Vec<&'a SceneBookmarkV1>, EditorError> {
+) -> Result<Vec<&'a SceneBookmark>, EditorError> {
     let now = nonnegative(time)?;
     let mut result = Vec::new();
     for bookmark in bookmarks {
@@ -305,8 +302,8 @@ mod tests {
         p.sequences.push(other);
         p
     }
-    fn bookmark(id: &str, scene: &str) -> SceneBookmarkV1 {
-        SceneBookmarkV1 {
+    fn bookmark(id: &str, scene: &str) -> SceneBookmark {
+        SceneBookmark {
             id: id.into(),
             sequence_id: scene.into(),
             time: time(1, 24),
@@ -322,7 +319,7 @@ mod tests {
         let after = apply(
             &p,
             &original,
-            &[BookmarkOperationV1::Toggle {
+            &[BookmarkOperation::Toggle {
                 sequence_id: "main".into(),
                 time: time(2, 48),
                 bookmark_id: "new".into(),
@@ -334,7 +331,7 @@ mod tests {
         let after = apply(
             &p,
             &[],
-            &[BookmarkOperationV1::Toggle {
+            &[BookmarkOperation::Toggle {
                 sequence_id: "main".into(),
                 time: time(1, 48),
                 bookmark_id: "new".into(),
@@ -352,7 +349,7 @@ mod tests {
         let moved = apply(
             &p,
             &[b.clone()],
-            &[BookmarkOperationV1::Move {
+            &[BookmarkOperation::Move {
                 sequence_id: "other".into(),
                 bookmark_id: "a".into(),
                 time: time(1, 20),
@@ -373,7 +370,7 @@ mod tests {
             apply(
                 &p,
                 std::slice::from_ref(&b),
-                &[BookmarkOperationV1::Put { bookmark: update }]
+                &[BookmarkOperation::Put { bookmark: update }]
             )
             .is_err()
         );
@@ -381,7 +378,7 @@ mod tests {
             apply(
                 &p,
                 &[b],
-                &[BookmarkOperationV1::Delete {
+                &[BookmarkOperation::Delete {
                     sequence_id: "other".into(),
                     bookmark_id: "a".into()
                 }]
@@ -398,7 +395,7 @@ mod tests {
         let after = apply(
             &p,
             &before,
-            &[BookmarkOperationV1::Toggle {
+            &[BookmarkOperation::Toggle {
                 sequence_id: "main".into(),
                 time: time(1, 24),
                 bookmark_id: "unused".into(),
@@ -419,8 +416,8 @@ mod tests {
                 &p,
                 &before,
                 &[
-                    BookmarkOperationV1::Put { bookmark: b },
-                    BookmarkOperationV1::Delete {
+                    BookmarkOperation::Put { bookmark: b },
+                    BookmarkOperation::Delete {
                         sequence_id: "main".into(),
                         bookmark_id: "missing".into()
                     }
@@ -490,9 +487,9 @@ mod tests {
         let b = bookmark("a", "main");
         let mut value = serde_json::to_value(b).unwrap();
         value["native_path"] = serde_json::json!("/private");
-        assert!(serde_json::from_value::<SceneBookmarkV1>(value).is_err());
+        assert!(serde_json::from_value::<SceneBookmark>(value).is_err());
         assert!(
-            serde_json::from_value::<BookmarkOperationV1>(serde_json::json!({
+            serde_json::from_value::<BookmarkOperation>(serde_json::json!({
                 "kind":"delete","sequence_id":"main","bookmark_id":"a","force":true
             }))
             .is_err()

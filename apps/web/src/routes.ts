@@ -1,6 +1,9 @@
 export function isEditorPath(path: string) {
   return (
-    path === "/projects" || path === "/editor" || path.startsWith("/editor/")
+    path === "/" ||
+    path === "/projects" ||
+    path === "/editor" ||
+    path.startsWith("/editor/")
   );
 }
 

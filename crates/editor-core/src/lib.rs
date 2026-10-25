@@ -1,7 +1,7 @@
 pub mod collaboration;
 pub mod dependencies;
-pub mod project_v3;
-pub mod project_v4;
+pub mod historical_visual;
+pub mod scene;
 pub mod scene_bookmarks;
 use std::cmp::Ordering;
 
@@ -999,7 +999,9 @@ fn validate_duration(time: &Time) -> Result<(), EditorError> {
         Ok(())
     }
 }
-fn validate_asset_version(version: &AssetVersion) -> Result<(), EditorError> {
+/// Validate an immutable descriptor without claiming that its bytes exist.
+/// Storage adapters still verify actual CAS content before use/publication.
+pub fn validate_asset_version(version: &AssetVersion) -> Result<(), EditorError> {
     let valid_hash = version.content_hash.len() == 64
         && version
             .content_hash

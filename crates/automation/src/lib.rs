@@ -48,23 +48,6 @@ pub fn dispatch(
         backend.execute_tool(tools::ToolRequest::decode(&name, arguments)?)
     })();
     let mut response = Response::from_result_with_id(context.request_id().into(), result);
-    if matches!(
-        leaf,
-        "opencut_project_v3_package_export"
-            | "opencut_project_v3_package_import"
-            | "opencut_project_package_export"
-            | "opencut_project_package_import"
-    ) && response
-        .data
-        .as_ref()
-        .and_then(|v| v.get("fully_reproducible"))
-        .and_then(Value::as_bool)
-        == Some(true)
-    {
-        response
-            .warnings
-            .push("LEGACY_REPRODUCIBILITY_CLAIM_UNVERIFIED".into());
-    }
     if response.error.as_ref().is_some_and(denials::is_denial)
         && backend
             .record_tool_denial(&denials::Denial {
@@ -157,7 +140,7 @@ mod port_tests {
         let result = dispatch(
             &mut backend,
             ExecutionContext::for_caller(CallSource::Http, caller),
-            "opencut_project_package_reproducibility_v1",
+            "opencut_project_package_reproducibility",
             Value::Null,
         );
         assert_eq!(result.error.unwrap().code, "NOT_AUTHORIZED");

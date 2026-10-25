@@ -146,7 +146,7 @@ def start():
         if token_path.exists():
             token = token_path.read_text().strip()
             try:
-                request('/v1/capabilities')
+                request('/api/capabilities')
                 return
             except (OSError, urllib.error.URLError):
                 pass
@@ -177,11 +177,11 @@ try:
     source_hash = sha256_file(source)
     source_bytes = source.stat().st_size
     start()
-    created = call('/v1/projects', {'project': {'id': 'large-download', 'name': 'Large artifact QA',
+    created = call('/api/projects', {'project': {'id': 'large-download', 'name': 'Large artifact QA',
                       'sequence_id': 'main', 'width': 1920, 'height': 1080,
                       'fps': {'numerator': 24, 'denominator': 1}}, 'idempotency_key': 'create-large'})
     upload_started = time.monotonic()
-    uploaded = upload_stream('/v1/media/upload?name=large-source.mp4', source)
+    uploaded = upload_stream('/api/media/upload?name=large-source.mp4', source)
     upload_seconds = time.monotonic() - upload_started
     asset = uploaded['asset']
     assert asset['kind'] == 'video' and asset['metadata']['content_hash'] == source_hash, asset
@@ -196,8 +196,8 @@ try:
                 {'type': 'asset.bind', 'asset': asset},
                 {'type': 'track.create', 'sequence_id': 'main', 'track': track},
                 {'type': 'clip.insert', 'sequence_id': 'main', 'track_id': 'large-video', 'clip': clip}]}
-    bound = call('/v1/projects/large-download/branches/main/transactions', edit)
-    job = call('/v1/jobs', {'kind': 'render.project', 'idempotency_key': 'large-render',
+    bound = call('/api/projects/large-download/branches/main/transactions', edit)
+    job = call('/api/jobs', {'kind': 'render.project', 'idempotency_key': 'large-render',
                 'input': {'project_id': 'large-download', 'revision': bound['revision'],
                           'sequence_id': 'main', 'container': 'mp4', 'video_codec': 'h264'}})
     render_started = time.monotonic()
@@ -205,7 +205,7 @@ try:
     while job['state'] not in ('succeeded', 'failed', 'cancelled'):
         assert time.monotonic() < deadline, job
         time.sleep(0.5)
-        job = call('/v1/jobs/' + job['job_id'])
+        job = call('/api/jobs/' + job['job_id'])
     render_seconds = time.monotonic() - render_started
     assert job['state'] == 'succeeded', job
     artifact = job['result']['artifact']
@@ -214,7 +214,7 @@ try:
         f'output {expected_bytes} bytes was below the requested large-file threshold '
         f'{args.minimum_artifact_bytes}; increase --duration-seconds')
     download_started = time.monotonic()
-    actual_bytes, actual_hash, mime = stream_download('/v1/jobs/' + job['job_id'] + '/artifact', downloaded)
+    actual_bytes, actual_hash, mime = stream_download('/api/jobs/' + job['job_id'] + '/artifact', downloaded)
     download_seconds = time.monotonic() - download_started
     assert actual_bytes == expected_bytes == downloaded.stat().st_size, (actual_bytes, expected_bytes)
     assert actual_hash == artifact['content_hash'] == sha256_file(downloaded), (actual_hash, artifact)

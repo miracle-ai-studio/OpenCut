@@ -50,7 +50,7 @@ def verify(binary, source_report, root):
         return command(['call', name, '--input', '-'], value, **kwargs)
 
     def http(name, value):
-        request = urllib.request.Request(f'http://127.0.0.1:{port}/v1/tools/{name}',
+        request = urllib.request.Request(f'http://127.0.0.1:{port}/api/tools/{name}',
             data=json.dumps(value).encode(), headers={'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + token.read_text().strip()})
         with urllib.request.urlopen(request, timeout=90) as response:
@@ -80,7 +80,7 @@ def verify(binary, source_report, root):
         mappings = [{'classic_media_id': media['id'], 'source_project_id': 'library', 'source_revision': pinned['revision'],
             'asset_id': media['id']} for media in source['media']]
         value = {'content': source['decoded']['content'], 'target_project_id': 'recovered', 'media_mappings': mappings}
-        analyze_tool, import_tool = 'opencut_classic_recovery_analyze_v1', 'opencut_classic_recovery_import_v1'
+        analyze_tool, import_tool = 'opencut_classic_analyze', 'opencut_classic_import'
         analyzed = call(analyze_tool, value)
         assert not analyzed['blockers'] and len(analyzed['proposed_project']['assets']) == 3, analyzed
         assert not any(loss['code'] == 'UNUSED_MEDIA_MAPPING' for loss in analyzed['losses'])

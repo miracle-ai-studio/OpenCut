@@ -74,6 +74,14 @@ class RuntimeBundleTest(unittest.TestCase):
                 self.assertIn(name + '/host/runner.mjs', manifest['files'])
                 self.assertIn(name + '/src/index.mjs', manifest['files'])
             self.assertIn('font-catalog/run_derived_v2.py', manifest['files'])
+            self.assertIn('font-catalog/run_color_static_v1.py', manifest['files'])
+            self.assertEqual((manifest['format'],manifest['schema_version']), ('opencut.runtime-bundle.v2',2))
+            legacy = json.loads(json.dumps(manifest))
+            legacy.update(format='opencut.runtime-bundle.v1',schema_version=1)
+            del legacy['scripts']['run_color_static_v1.py']
+            (destination / 'runtime-bundle.json').write_text(json.dumps(legacy))
+            self.assertEqual(runtime.verify(destination),legacy)
+            (destination / 'runtime-bundle.json').write_text(json.dumps(manifest))
             self.assertNotIn(str(repository), (destination / 'runtime-bundle.json').read_text())
             (destination / 'unlisted').write_bytes(b'extra')
             with self.assertRaisesRegex(ValueError, 'mirror'):
@@ -194,7 +202,7 @@ class RuntimeBundleTest(unittest.TestCase):
             self.write(dist / 'licenses/LICENSE', b'original fontTools license')
             identity = hashlib.sha256(json.dumps([['__init__.py', runtime.sha(tools)]], separators=(',', ':')).encode()).hexdigest()
             lock = {'python_version': '3.14.7', 'fonttools_version': '4.61.1', 'fonttools_implementation_sha256': identity}
-            for name in ['derived-runtime-lock.json', 'derived-v2-runtime-lock.json']:
+            for name in ['derived-runtime-lock.json', 'derived-v2-runtime-lock.json','color-static-runtime-lock.json']:
                 (repository / 'scripts/font-catalog' / name).write_text(json.dumps(lock))
             target = root / 'relocated/bin/libexec'
             manifest = runtime.bundle(repository, target, spec['target'], filename)

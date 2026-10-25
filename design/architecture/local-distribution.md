@@ -2,6 +2,10 @@
 
 这是包含 Web、CLI、HTTP、stdio/Streamable HTTP MCP 与独立 SDK 的本地开发包，不是 R0–R7 完整产品发布。桌面客户端和其他平台二进制不在本包中。具体 CPU/OS 目标、版本和文件 SHA-256 见 `manifest.json`；不包含工程、素材、认证 token 或用户配置。
 
+每份归档的具体Native/Web/运行时身份及已验证范围以其`manifest.json`和归档旁独立的`.acceptance.json`为准。原producer receipt与限定验收记录并存，不把打包成功或限定通过写成完整R0–R7放行；历史包的证据保持各自产出身份。固定三组件运行时、包外启动和Agent接线分别记录，FFmpeg/ffprobe仍明确外置。
+
+浏览器预览可在首次私有字节快照校验后，复用同一 GPU realm 中已加载字体的解析结果；每帧仍检查当前授权、完整字体身份、描述符、字形覆盖和原预算，离开 realm 后不能复用。原生导出和普通可变字节执行保持原逐帧校验。实际八类字体、含约29 MB大字体的3秒历史场景取得24个不同时间画面，两次独立像素对照IoU均为1；这不是全字体、持续30fps或跨平台性能声明。具体计时和限制以相应候选的验收记录为准。
+
 打包入口从被测二进制读取实际数据库格式、操作数和领域数写入清单。MCP 默认发现领域工具，具体动作通过领域契约查询，旧叶操作仍可调用。生成 OpenAPI 覆盖公共操作及原始上传／下载／SSE 路径。当前包须以匹配归档及程序哈希的独立验收报告判定，打包成功本身不是放行。
 
 ## 解包和启动
@@ -131,6 +135,8 @@ policy 例：`{"principal_id":"reader","expected_revision":"0","enabled":true,"g
 ## 构建与验收入口
 
 仓库中运行 `python3 scripts/package-local.py` 构建 release 二进制并产生 `dist/local/*.tar.gz`、校验文件和机器可读清单。打包成功仅标记 `packaged_not_yet_accepted`。
+
+已有集成候选时，可同时提供 `--binary /absolute/path/opencut --web-root /absolute/path/web`，复用该二进制与已构建的公开 Web 文件，避免重新安装依赖和构建正在验收的 Web。同一二进制的生成契约、公开文件准入和实际包清单检查仍执行；显式 `--runtime-spec` 继续固定各运行时及其原始许可。SDK 默认在打包时构建；确认当前源码及其构建证据未变后，可用 `--reuse-sdk-dist` 复用现有 SDK 公开产物，缺失或链接入口会拒绝。搬迁后的 doctor 与受影响实际行为验收仍须单独完成。
 
 随后运行 `python3 scripts/verify-local-package.py <archive>`，在仓库外校验/解包、执行诊断、安装 TS SDK、编译 Rust SDK、启动解包程序并走共享编辑和真实媒体任务。历史格式另由 `scripts/verify-history-compatibility.py --binary <解包的 bin/opencut>` 检查。只有实际验收结果可以支持对应平台的交付声明。
 

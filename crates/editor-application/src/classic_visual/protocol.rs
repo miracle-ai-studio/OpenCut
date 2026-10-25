@@ -1,10 +1,8 @@
-pub use opencut_api_contracts::visual_preview_v4::{
+pub use opencut_api_contracts::visual_preview::{
     ClassicVisualLayerPlan, ClassicVisualPlan, VisualDecodeAdmission, VisualDecodeRequest,
     VisualResource, VisualResourceKind,
 };
-use opencut_composition::project_v4::{
-    BoundVisualFrameV4, DecodedVisualSourceV4, VisualFrameIdentityV4,
-};
+use opencut_composition::scene::{BoundVisualFrame, DecodedVisualSource, VisualFrameIdentity};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -53,14 +51,14 @@ pub struct VisualAdmitDecode {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualBindFrame {
-    pub decoded: Vec<DecodedVisualSourceV4>,
+    pub decoded: Vec<DecodedVisualSource>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ClassicVisualRenderReceipt {
-    pub identity: VisualFrameIdentityV4,
+    pub identity: VisualFrameIdentity,
     pub engine_identity: String,
-    pub bound: BoundVisualFrameV4,
+    pub bound: BoundVisualFrame,
     pub rgba_bytes: String,
     pub peak_accounted_bytes: String,
 }

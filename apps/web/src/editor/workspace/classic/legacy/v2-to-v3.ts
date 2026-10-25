@@ -1,7 +1,7 @@
 import type { MigrationResult, ProjectRecord } from "./types";
 import { getProjectId, isRecord } from "./utils";
 
-export function transformProjectV2ToV3({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;
@@ -11,7 +11,7 @@ export function transformProjectV2ToV3({
 		return { project, skipped: true, reason: "no project id" };
 	}
 
-	if (isV3Project({ project })) {
+	if (isProject({ project })) {
 		return { project, skipped: true, reason: "already v3" };
 	}
 
@@ -72,7 +72,7 @@ function getDurationFromScenes({ scenes }: { scenes: unknown[] }): number {
 	return maxEnd;
 }
 
-function isV3Project({ project }: { project: ProjectRecord }): boolean {
+function isProject({ project }: { project: ProjectRecord }): boolean {
 	const versionValue = project.version;
 	if (typeof versionValue === "number" && versionValue >= 3) {
 		return true;

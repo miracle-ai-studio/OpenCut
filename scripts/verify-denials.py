@@ -43,22 +43,22 @@ def verify(binary,root,sdk):
    headers={'Content-Type':'application/json'}
    if credential:headers['Authorization']='Bearer '+credential.read_text().strip()
    headers.update(extra or {});c=http.client.HTTPConnection('127.0.0.1',port,timeout=15);c.request(method,path,json.dumps(data) if data is not None else None,headers);r=c.getresponse();out=json.loads(r.read());h=dict(r.getheaders());c.close();trace.append({'http':method,'status':r.status,'response':out});return r.status,out,{k.lower():v for k,v in h.items()}
-  status,out,h=raw('POST','/v1/tools/opencut_plugin_list',{'secret':marker},extra={'X-OpenCut-Request-Id':marker});assert status==403 and h['x-opencut-request-id']==out['request_id']!=marker;assert len(by_request(out))==1 and by_request(out)[0]['source']=='http'
+  status,out,h=raw('POST','/api/tools/opencut_plugin_list',{'secret':marker},extra={'X-OpenCut-Request-Id':marker});assert status==403 and h['x-opencut-request-id']==out['request_id']!=marker;assert len(by_request(out))==1 and by_request(out)[0]['source']=='http'
   for credential,extra,reason in [(None,None,'authentication_rejected'),(bad,None,'authentication_rejected'),(agent,{'Origin':'https://'+marker+'.invalid'},'origin_rejected')]:
-   status,out,h=raw('GET','/v1/capabilities',credential=credential,extra=extra);assert status==403 and h['x-opencut-request-id']==out['request_id'];r=by_request(out);assert len(r)==1 and r[0]['principal_id'] is None and r[0]['reason']==reason
-  status,out,h=raw('GET','/v1/media/'+marker);assert status==403 and by_request(out)[0]['operation']['kind']=='http_request'
+   status,out,h=raw('GET','/api/capabilities',credential=credential,extra=extra);assert status==403 and h['x-opencut-request-id']==out['request_id'];r=by_request(out);assert len(r)==1 and r[0]['principal_id'] is None and r[0]['reason']==reason
+  status,out,h=raw('GET','/api/media/'+marker);assert status==403 and by_request(out)[0]['operation']['kind']=='http_request'
   status,out,h=raw('POST','/mcp',{'jsonrpc':'2.0','id':1,'method':'initialize','params':{}},extra={'Host':'attacker.invalid'});assert status==403;r=query({'kind':'request','id':h['x-opencut-request-id']})['records'];assert len(r)==1 and r[0]['source']=='mcp_http'
   checks.append('HTTP tool refusal deduplicates across adapters; server request header ignores client claims; missing/bad bearer, Origin, global media and MCP Host refusals are recorded')
   # Audit failure must remain a refusal and must be visible, without recursive logging.
   sql("CREATE TRIGGER deny_audit BEFORE INSERT ON denial_records BEGIN SELECT RAISE(ABORT,'QA denied log'); END")
   count=sql('SELECT COUNT(*) FROM denial_records');fail=call('opencut_plugin_list',{},agent,'NOT_AUTHORIZED');assert fail['warnings']==['DENIAL_AUDIT_UNAVAILABLE'];assert sql('SELECT COUNT(*) FROM denial_records')==count
-  status,out,h=raw('POST','/v1/tools/opencut_plugin_list',{});assert status==403 and h['x-opencut-audit-warning']=='DENIAL_AUDIT_UNAVAILABLE';assert out['warnings']==['DENIAL_AUDIT_UNAVAILABLE'];assert sql('SELECT COUNT(*) FROM denial_records')==count
+  status,out,h=raw('POST','/api/tools/opencut_plugin_list',{});assert status==403 and h['x-opencut-audit-warning']=='DENIAL_AUDIT_UNAVAILABLE';assert out['warnings']==['DENIAL_AUDIT_UNAVAILABLE'];assert sql('SELECT COUNT(*) FROM denial_records')==count
   sql('DROP TRIGGER deny_audit');assert len(by_request(call('opencut_plugin_list',{},agent,'NOT_AUTHORIZED')))==1
   checks.append('Injected audit persistence failure preserves 403/refusal and domain state; envelope/header expose degraded logging, with no recursive or phantom rows')
   if sdk:
    p=subprocess.run(['node',str(ROOT/'scripts/verify-denials-mcp.mjs'),str(sdk),str(binary),str(db),f'http://127.0.0.1:{port}',str(agent),str(token)],text=True,capture_output=True,timeout=90);(root/'mcp.stdout').write_text(p.stdout);(root/'mcp.stderr').write_text(p.stderr);assert p.returncode==0,(p.stdout,p.stderr);checks.append('Official MCP clients on stdio/HTTP correlate tool and resource denials by server request ID with accurate transport source')
   # Use an independent credential to prove idle SSE revalidation closes and logs once.
-  stream_credential,stream_id=issue('agent');c=http.client.HTTPConnection('127.0.0.1',port,timeout=5);c.request('POST','/v1/changes/stream',json.dumps({'scope':{'kind':'projects','project_id':'a'},'limit':100}),{'Authorization':'Bearer '+stream_credential.read_text().strip(),'Content-Type':'application/json'});response=c.getresponse();assert response.status==200;stream_request=response.getheader('X-OpenCut-Request-Id');assert stream_request
+  stream_credential,stream_id=issue('agent');c=http.client.HTTPConnection('127.0.0.1',port,timeout=5);c.request('POST','/api/changes/stream',json.dumps({'scope':{'kind':'projects','project_id':'a'},'limit':100}),{'Authorization':'Bearer '+stream_credential.read_text().strip(),'Content-Type':'application/json'});response=c.getresponse();assert response.status==200;stream_request=response.getheader('X-OpenCut-Request-Id');assert stream_request
   # Consume ready and the already committed project event before revocation.
   seen=[]
   while True:

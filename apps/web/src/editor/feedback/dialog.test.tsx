@@ -214,12 +214,12 @@ it("rejects corrupted or extra-field personal data instead of restoring project 
     signal,
   );
   localStorage.setItem(
-    "opencut.feedback.mock-history.v1",
+    "opencut.feedback.mock-history",
     JSON.stringify([{ ...entry, token: "must not restore" }, entry]),
   );
   expect(readFeedbackHistory()).toEqual([entry]);
   localStorage.setItem(
-    "opencut.feedback.draft.v1",
+    "opencut.feedback.draft",
     JSON.stringify({
       requestId: "bad",
       message: "Draft",
@@ -233,7 +233,7 @@ it("rejects corrupted or extra-field personal data instead of restoring project 
       signal,
     ),
   ).rejects.toMatchObject({ code: "invalid" });
-  localStorage.setItem("opencut.feedback.mock-history.v1", "not JSON");
+  localStorage.setItem("opencut.feedback.mock-history", "not JSON");
   expect(readFeedbackHistory()).toEqual([]);
 });
 it("never overwrites history on a failed read and repairs corrupt history only after explicit clear", async () => {
@@ -252,7 +252,7 @@ it("never overwrites history on a failed read and repairs corrupt history only a
   expect(write).not.toHaveBeenCalled();
   read.mockRestore();
   expect(readFeedbackHistory()).toEqual([entry]);
-  localStorage.setItem("opencut.feedback.mock-history.v1", "not JSON");
+  localStorage.setItem("opencut.feedback.mock-history", "not JSON");
   write.mockClear();
   await expect(
     receiveMockFeedback({ requestId: "new", message: "New feedback" }, signal),

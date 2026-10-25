@@ -107,7 +107,7 @@ def verify(binary,root,sdk):
   done=execute(plan('killed-publisher-cleanup'))['data'];assert done['state']=='complete' and all(not p.exists() for p in abandoned);assert all(a['id']!='killed' for a in inspect()['project']['assets']);assert large.exists()
   checks.append('Actual CLI publisher SIGKILL leaves an abandoned capture; explicit collection reclaims it without touching external source or publishing a revision')
   # Old history remains usable after actual collection, not just visible in SQL.
-  restored=data('opencut_revision_restore',{'project_id':'a','request':{'expected_revision':inspect()['revision'],'target_revision':old,'idempotency_key':'restore-red','label':'restore'}})
+  restored=data('opencut_project_restore',{'project_id':'a','request':{'expected_revision':inspect()['revision'],'target_revision':old,'idempotency_key':'restore-red','label':'restore'}})
   render=data('opencut_job_submit',{'kind':'render.project','idempotency_key':'render-old','input':{'project_id':'a','revision':restored['revision'],'sequence_id':'main','container':'mp4','video_codec':'h264'}})
   for _ in range(2):
    worker=subprocess.run([str(binary),'--database',str(db),'worker','run','--once'],capture_output=True,text=True,timeout=30)
@@ -128,7 +128,7 @@ def verify(binary,root,sdk):
     with socket.create_connection(('127.0.0.1',port),timeout=.2):break
    except OSError:assert time.monotonic()<until;time.sleep(.03)
   def request_http(name,body,credential=token):
-   c=http.client.HTTPConnection('127.0.0.1',port,timeout=20);c.request('POST','/v1/tools/'+name,json.dumps(body),{'Content-Type':'application/json','Authorization':'Bearer '+credential.read_text().strip()});response=c.getresponse();r=json.loads(response.read());c.close();return response.status,r
+   c=http.client.HTTPConnection('127.0.0.1',port,timeout=20);c.request('POST','/api/tools/'+name,json.dumps(body),{'Content-Type':'application/json','Authorization':'Bearer '+credential.read_text().strip()});response=c.getresponse();r=json.loads(response.read());c.close();return response.status,r
   status,out=request_http('opencut_cas_gc_plan',{'idempotency_key':'network'});assert status==200 and out['data']['state']=='complete'
   status,out=request_http('opencut_cas_gc_plan',{'idempotency_key':'forbidden'},agent);assert status==403 and out['error']['code']=='NOT_AUTHORIZED';checks.append('CLI and real HTTP share owner-only collection and structured restricted refusals')
   if sdk:

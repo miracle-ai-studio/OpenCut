@@ -106,7 +106,7 @@ export async function verifyMediaLibrary(page, inspect, directory, check) {
   const chunkGate = new Promise((resolve) => (releaseChunk = resolve));
   let observedChunk;
   const chunkStarted = new Promise((resolve) => (observedChunk = resolve));
-  await page.route("**/v1/stream-uploads/**/chunks/**", async (route) => {
+  await page.route("**/api/uploads/**/chunks/**", async (route) => {
     observedChunk();
     await chunkGate;
     await route.continue();
@@ -181,7 +181,7 @@ export async function verifyMediaLibrary(page, inspect, directory, check) {
     );
   } finally {
     releaseChunk();
-    await page.unroute("**/v1/stream-uploads/**/chunks/**");
+    await page.unroute("**/api/uploads/**/chunks/**");
   }
   check(
     "media grid/list and all sort choices, Shift batch selection, cancellable atomic media removal across scenes with effect/mask cleanup, exact undo, file clipboard import and single removal",

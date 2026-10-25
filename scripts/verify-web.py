@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/opencut')
     parser.add_argument('--web-root', type=Path, help='Verify a supplied built Web tree, including extracted bundles')
-    parser.add_argument('--suite', choices=['full', 'timeline-selection', 'media-fps', 'v4-media-fps', 'v4-file-import', 'v4-file-import-boundaries', 'scene-preview', 'scene-preview-hd', 'scene-preview-performance', 'scene-preview-continuity', 'scene-preview-retirement', 'scene-preview-identity', 'scene-preview-revocation', 'scene-preview-acoustics', 'scene-preview-acoustics-hot', 'scene-preview-acoustics-gap', 'scene-preview-gain', 'scene-preview-gain-paused', 'scene-preview-seek', 'scene-preview-seek-pause', 'scene-preview-pcm', 'scene-preview-pcm-terminal', 'scene-preview-boundaries', 'project-covers', 'classic-recovery', 'classic-v4', 'classic-v4-subtitle-style', 'feedback', 'v4-editor', 'v4-text', 'v4-canvas-text', 'v4-canvas-text-blur', 'v4-bookmark-lifecycle', 'v4-font-browser', 'v4-font-browser-offline', 'v4-captions', 'v4-asr', 'v4-caption-video', 'v4-text-timeline', 'v4-text-timeline-resume', 'v4-text-transform', 'v4-text-style', 'v4-editable-subtitles', 'v4-asr-editable', 'v4-ass-import', 'v4-graphic', 'v4-mask', 'v4-scene-stack', 'v4-parallel-editing', 'v4-blend', 'v4-blend-outputs', 'v4-graphic-output', 'v4-package', 'v4-package-output', 'classic-graphic-v4', 'v4-derived-font', 'v4-derived-font-offline', 'v4-text-layout', 'v4-video', 'classic-audio', 'v4-performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
+    parser.add_argument('--suite', choices=['full', 'media-fps', 'file-import', 'file-import-boundaries', 'scene-preview', 'scene-preview-hd', 'scene-preview-performance', 'scene-preview-continuity', 'scene-preview-retirement', 'scene-preview-identity', 'scene-preview-revocation', 'scene-preview-acoustics', 'scene-preview-acoustics-hot', 'scene-preview-acoustics-gap', 'scene-preview-gain', 'scene-preview-gain-paused', 'scene-preview-seek', 'scene-preview-seek-pause', 'scene-preview-pcm', 'scene-preview-pcm-terminal', 'scene-preview-boundaries', 'project-covers', 'classic-recovery', 'classic', 'classic-subtitle-style', 'feedback', 'editor', 'text', 'canvas-text', 'canvas-text-blur', 'bookmark-lifecycle', 'font-browser', 'font-browser-offline', 'captions', 'asr', 'caption-video', 'text-timeline', 'text-timeline-resume', 'text-transform', 'text-style', 'editable-subtitles', 'asr-editable', 'ass-import', 'graphic', 'mask', 'scene-stack', 'parallel-editing', 'blend', 'blend-outputs', 'graphic-output', 'package', 'package-output', 'classic-graphic', 'derived-font', 'derived-font-offline', 'text-layout', 'video', 'classic-audio', 'performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
     parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
     parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
     parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
@@ -49,18 +49,18 @@ def main():
         subprocess.run(['npm', 'run', 'build', '--prefix', str(ROOT / 'apps/web')], check=True)
         web = ROOT / 'apps/web/dist'
     workspace = args.reuse_workspace.resolve() if args.reuse_workspace else Path(tempfile.mkdtemp(prefix='opencut-web-'))
-    no_media_fixture = all(s in {'edit-recovery', 'v4-package', 'v4-package-output', 'classic-graphic-v4'} for s in suites)
+    no_media_fixture = all(s in {'edit-recovery', 'package', 'package-output', 'classic-graphic'} for s in suites)
     if args.reuse_workspace:
         required = ['workspace.sqlite'] + ([] if no_media_fixture else ['sample.mp4', 'sample.wav'])
-        if any(suite in suites for suite in ['v4-editor', 'v4-file-import', 'v4-file-import-boundaries']):
+        if any(suite in suites for suite in ['full', 'editor', 'file-import', 'file-import-boundaries']):
             required += ['sample.png', 'replacement.wav']
         if any(s in suites for s in ['scene-preview-boundaries', 'scene-preview-performance', 'scene-preview-continuity', 'scene-preview-retirement', 'scene-preview-identity', 'scene-preview-revocation', 'scene-preview-acoustics', 'scene-preview-acoustics-hot', 'scene-preview-acoustics-gap', 'scene-preview-gain', 'scene-preview-gain-paused', 'scene-preview-seek', 'scene-preview-seek-pause', 'scene-preview-pcm-terminal']) and not any(s in suites for s in ['scene-preview', 'scene-preview-hd']):
             required += ['scene-preview-fixture.json']
         if any(s in suites for s in ['scene-preview-continuity', 'scene-preview-pcm']):
             required += ['scene-preview-dense-fixture.json']
-        if 'v4-file-import-boundaries' in suites:
+        if 'file-import-boundaries' in suites:
             required += ['fractional.wav', 'fractional-b.wav']
-        if 'v4-media-fps' in suites:
+        if 'media-fps' in suites:
             required += ['fps-vfr.mp4', 'fps-v4-fixture.json']
         if not workspace.is_dir() or any(not (workspace / name).is_file() for name in required):
             parser.error('Reused workspace must contain the existing synthetic fixtures and database')
@@ -78,7 +78,7 @@ def main():
         probe_files = {name: hashlib.sha256((ROOT / 'apps/web/scripts' / name).read_bytes()).hexdigest()
                        for name in ['native-preview-timing.mjs', 'native-preview-dispatch.mjs', 'profile-native-preview-preload.mjs',
                                     'scene-preview-continuity.mjs', 'summarize-native-preview-timing.mjs',
-                                    'verify-v4-scene-preview.mjs', 'verify-v4-scene-preview-continuity.mjs']}
+                                    'verify-scene-preview.mjs', 'verify-scene-preview-continuity.mjs']}
     def cli(*arguments):
         result = subprocess.run([str(binary), '--json', '--database', str(workspace / 'workspace.sqlite'),
                                  'server', '--directory', str(service), *arguments], capture_output=True, text=True, timeout=60, cwd=workspace, env=run_env)
@@ -114,7 +114,7 @@ def main():
                             '-frames:v', '12', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', str(workspace / 'short.mp4')], check=True)
             subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
                             'sine=frequency=220:sample_rate=48000:duration=12', '-c:a', 'pcm_s16le', str(workspace / 'long.wav')], check=True)
-        if 'v4-media-fps' in suites and not args.reuse_workspace:
+        if 'media-fps' in suites and not args.reuse_workspace:
             # Independent authored PTS: 120 frames at 60 Hz, then 60 at 12 Hz.
             # Classic observes the first 100 packets (60 Hz), not the whole-file
             # average. Preserve every PTS and disable B-frame reordering.
@@ -142,7 +142,7 @@ def main():
                 'packet_limit': 100, 'frame_count': 180,
                 'authored_schedule': [{'frames': 120, 'fps': 60}, {'frames': 60, 'fps': 12}],
             })+'\n')
-        if any(suite in suites for suite in ['v4-editor', 'v4-file-import', 'v4-file-import-boundaries']) and not args.reuse_workspace:
+        if any(suite in suites for suite in ['full', 'editor', 'file-import', 'file-import-boundaries']) and not args.reuse_workspace:
             # Exact RGBA fixture, independent of FFmpeg's YUV color conversion.
             def png_chunk(kind, data):
                 return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
@@ -152,7 +152,7 @@ def main():
             subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i',
                             str(workspace / 'sample.wav'), '-af', 'volume=0.5', '-c:a', 'pcm_s16le',
                             str(workspace / 'replacement.wav')], check=True)
-        if 'v4-file-import-boundaries' in suites and not args.reuse_workspace:
+        if 'file-import-boundaries' in suites and not args.reuse_workspace:
             # Exact source extent, independent of probe/frame alignment: 48480
             # PCM frames / 48000 Hz = 1.01 s, not a whole 24fps frame span.
             import math

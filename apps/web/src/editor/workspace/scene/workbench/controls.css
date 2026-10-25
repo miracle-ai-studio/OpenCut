@@ -1,0 +1,104 @@
+/* Shared editor control skin. Keep native form/keyboard semantics, replace
+ * OS picker chrome where customizable selects are supported. */
+:root :is(input, select, textarea, button) {
+  font-family: inherit;
+}
+:root :is(input:not([type="range"], [type="checkbox"], [type="radio"], [type="file"], [type="color"]), select, textarea) {
+  min-height: 30px;
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 100ms;
+}
+:root :is(input, textarea)::placeholder {
+  color: var(--muted);
+  opacity: .8;
+}
+:root .field {
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  text-transform: none;
+}
+:root .field > :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+  width: 100%;
+}
+:root input[type="number"] {
+  appearance: textfield;
+}
+:root input[type="number"]::-webkit-inner-spin-button,
+:root input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+:root input[type="checkbox"] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  padding: 0;
+  margin: 0 6px 0 0;
+  vertical-align: -2px;
+  border: 1px solid #60616a;
+  border-radius: 3px;
+  background: var(--background);
+  cursor: pointer;
+}
+:root input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+:root input[type="checkbox"]:checked::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border-left: 1.5px solid #102325;
+  border-bottom: 1.5px solid #102325;
+  transform: translateY(-1px) rotate(-45deg);
+}
+:root input[type="checkbox"]:disabled {
+  opacity: .4;
+  cursor: default;
+}
+:root input[type="range"] {
+  appearance: none;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+:root input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: #55555c;
+}
+:root input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--foreground);
+}
+:root input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: #55555c;
+}
+:root input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root :is(input, select, textarea) { transition: none; }
+}

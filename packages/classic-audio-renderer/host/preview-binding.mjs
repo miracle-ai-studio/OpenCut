@@ -16,7 +16,7 @@ function fixedVoices(plan) {
   return plan.voices;
 }
 function segments(value) {
-  if (!Array.isArray(value) || !value.length || value.length > 65536) invalid();
+  if (!Array.isArray(value) || value.length > 65536) invalid();
   const ids = new Set();
   return value.map(segment => {
     fields(segment, ["segmentId", "timestampSeconds", "frameCount"]);
@@ -46,7 +46,7 @@ export function packPreviewBinding(plan, formats) {
     if (format.elementId !== voice.elementId || typeof format.prepared !== "boolean" || format.prepared !== (voice.sourceMode === "prepared-concat")) invalid();
     integer(format.sampleRate, "preview source rate", 1, 384000);
     integer(format.channels, "preview source channels", 1, 2);
-    if (natural(format.frameCount, "preview source frames") === 0n) invalid();
+    if (natural(format.frameCount, "preview source frames") === 0n && format.prepared) invalid();
     let sourceRef = null;
     if (format.prepared) {
       if (!Array.isArray(format.segments) || format.segments.length) invalid();
@@ -63,15 +63,15 @@ export function packPreviewBinding(plan, formats) {
     }
     return { elementId: format.elementId, sampleRate: format.sampleRate, frameCount: format.frameCount, channels: format.channels, prepared: format.prepared, sourceRef };
   });
-  return { schemaVersion: 1, ordinarySources: [...ordinary.values()], sourceFormats };
+  return { ordinarySources: [...ordinary.values()], sourceFormats };
 }
 
 // Reverse projection is used to verify the transport is lossless. Native uses
 // its independently typed equivalent before existing application validation.
 export function expandPreviewBinding(plan, binding) {
   const voices = fixedVoices(plan);
-  fields(binding, ["schemaVersion", "ordinarySources", "sourceFormats"]);
-  if (binding.schemaVersion !== 1 || !Array.isArray(binding.ordinarySources) || binding.ordinarySources.length > AUDIO_EXECUTION_LIMITS.resources || !Array.isArray(binding.sourceFormats) || binding.sourceFormats.length !== voices.length) invalid();
+  fields(binding, ["ordinarySources", "sourceFormats"]);
+  if (!Array.isArray(binding.ordinarySources) || binding.ordinarySources.length > AUDIO_EXECUTION_LIMITS.resources || !Array.isArray(binding.sourceFormats) || binding.sourceFormats.length !== voices.length) invalid();
   const table = new Map();
   for (const source of binding.ordinarySources) {
     fields(source, ["assetId", "segments"]);

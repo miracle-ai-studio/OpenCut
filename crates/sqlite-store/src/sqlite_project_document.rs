@@ -1,49 +1,61 @@
-//! Shared stored-document decoding. Frozen versioned readers never project newer content.
+//! Strict stored-document readers. Original formats never discard richer content.
 use super::*;
 use opencut_contracts::{
-    ProjectDocument, project_v3::ProjectDocumentV3, project_v4::ProjectDocumentV4,
+    ProjectDocument, historical_visual::HistoricalVisualDocument, scene::EditorDocument,
 };
 
-pub(super) enum VersionedProjectDocument {
+pub(super) enum ProjectStorageDocument {
     Legacy(ProjectDocument),
-    V3(ProjectDocumentV3),
-    V4(ProjectDocumentV4),
+    HistoricalVisual(HistoricalVisualDocument),
+    Editable(EditorDocument),
+    ReadOnly(opencut_contracts::project_readonly::ReadOnlyProjectDocument),
 }
 
-pub(super) fn decode_versioned_project(raw: &str) -> Result<VersionedProjectDocument, EditorError> {
+pub(super) fn decode_stored_project(raw: &str) -> Result<ProjectStorageDocument, EditorError> {
     let value: Value = decode_json(raw, "stored project document")?;
     match value.get("schema_version").and_then(Value::as_u64) {
+        Some(5) => {
+            let project: opencut_contracts::project_readonly::ReadOnlyProjectDocument =
+                serde_json::from_value(value).map_err(|_| {
+                    EditorError::new("STORAGE_ERROR", "Invalid preserved project document")
+                })?;
+            opencut_editor_application::project_readonly::validate_document(&project).map_err(
+                |_| EditorError::new("STORAGE_ERROR", "Invalid preserved project graph"),
+            )?;
+            Ok(ProjectStorageDocument::ReadOnly(project))
+        }
         Some(4) => {
-            let project: ProjectDocumentV4 = serde_json::from_value(value).map_err(|e| {
+            let project: EditorDocument = serde_json::from_value(value).map_err(|e| {
                 EditorError::new(
                     "STORAGE_ERROR",
                     format!("Invalid schema 4 project document: {e}"),
                 )
             })?;
-            opencut_editor_core::project_v4::validate_project_v4(&project).map_err(|e| {
+            opencut_editor_core::scene::validate_project_scene(&project).map_err(|e| {
                 EditorError::new(
                     "STORAGE_ERROR",
                     format!("Invalid schema 4 project document: {}", e.message),
                 )
             })?;
-            Ok(VersionedProjectDocument::V4(project))
+            Ok(ProjectStorageDocument::Editable(project))
         }
         Some(3) => {
-            let project: ProjectDocumentV3 = serde_json::from_value(value).map_err(|e| {
+            let project: HistoricalVisualDocument = serde_json::from_value(value).map_err(|e| {
                 EditorError::new(
                     "STORAGE_ERROR",
                     format!("Invalid schema 3 project document: {e}"),
                 )
             })?;
-            opencut_editor_core::project_v3::validate_project_v3(&project).map_err(|e| {
-                EditorError::new(
-                    "STORAGE_ERROR",
-                    format!("Invalid schema 3 project document: {}", e.message),
-                )
-            })?;
-            Ok(VersionedProjectDocument::V3(project))
+            opencut_editor_core::historical_visual::validate_project_historical_visual(&project)
+                .map_err(|e| {
+                    EditorError::new(
+                        "STORAGE_ERROR",
+                        format!("Invalid schema 3 project document: {}", e.message),
+                    )
+                })?;
+            Ok(ProjectStorageDocument::HistoricalVisual(project))
         }
-        Some(1 | 2) => Ok(VersionedProjectDocument::Legacy(
+        Some(1 | 2) => Ok(ProjectStorageDocument::Legacy(
             serde_json::from_value(value).map_err(|e| {
                 EditorError::new(
                     "STORAGE_ERROR",
@@ -59,12 +71,17 @@ pub(super) fn decode_versioned_project(raw: &str) -> Result<VersionedProjectDocu
 }
 
 pub(super) fn decode_legacy_project(raw: &str) -> Result<ProjectDocument, EditorError> {
-    match decode_versioned_project(raw)? {
-        VersionedProjectDocument::Legacy(project) => Ok(project),
-        VersionedProjectDocument::V3(_) | VersionedProjectDocument::V4(_) => Err(EditorError::new(
-            "UNSUPPORTED_PROJECT_VERSION",
-            "This project requires its versioned project tools",
-        )),
+    match decode_stored_project(raw)? {
+        ProjectStorageDocument::Legacy(project) => Ok(project),
+        ProjectStorageDocument::ReadOnly(_) => {
+            Err(opencut_editor_application::project_readonly::readonly_error())
+        }
+        ProjectStorageDocument::HistoricalVisual(_) | ProjectStorageDocument::Editable(_) => {
+            Err(EditorError::new(
+                "UNSUPPORTED_PROJECT_VERSION",
+                "This project requires its versioned project tools",
+            ))
+        }
     }
 }
 /// Validate scope without projecting a newer aggregate into a legacy document.
@@ -85,10 +102,11 @@ pub(super) fn project_head_revision(
         .map_err(storage_error)?;
     let (raw, revision) =
         row.ok_or_else(|| EditorError::new("NOT_FOUND", "Project does not exist"))?;
-    let actual = match decode_versioned_project(&raw)? {
-        VersionedProjectDocument::Legacy(document) => document.id,
-        VersionedProjectDocument::V3(document) => document.base.id,
-        VersionedProjectDocument::V4(document) => document.id,
+    let actual = match decode_stored_project(&raw)? {
+        ProjectStorageDocument::Legacy(document) => document.id,
+        ProjectStorageDocument::HistoricalVisual(document) => document.base.id,
+        ProjectStorageDocument::Editable(document) => document.id,
+        ProjectStorageDocument::ReadOnly(document) => document.id,
     };
     if actual != project {
         return Err(EditorError::new(
@@ -98,14 +116,72 @@ pub(super) fn project_head_revision(
     }
     Ok(revision)
 }
-pub(super) fn decode_v3_project(raw: &str) -> Result<ProjectDocumentV3, EditorError> {
-    match decode_versioned_project(raw)? {
-        VersionedProjectDocument::V3(project) => Ok(project),
-        VersionedProjectDocument::Legacy(_) | VersionedProjectDocument::V4(_) => {
+pub(super) fn decode_historical_visual_project(
+    raw: &str,
+) -> Result<HistoricalVisualDocument, EditorError> {
+    match decode_stored_project(raw)? {
+        ProjectStorageDocument::HistoricalVisual(project) => Ok(project),
+        ProjectStorageDocument::ReadOnly(_) => {
+            Err(opencut_editor_application::project_readonly::readonly_error())
+        }
+        ProjectStorageDocument::Legacy(_) | ProjectStorageDocument::Editable(_) => {
             Err(EditorError::new(
                 "UNSUPPORTED_PROJECT_VERSION",
                 "Project revision requires a different versioned project tool",
             ))
         }
     }
+}
+
+/// Collection-only expanded view. Original opaque strings stay unchanged in the
+/// revision; parsed values expose escaped artifact/CAS references conservatively.
+pub(super) fn reference_document(raw: &str) -> Result<(Value, usize), EditorError> {
+    let mut value: Value = decode_json(raw, "reference document")?;
+    let mut extra = 0usize;
+    if value.get("schema_version").and_then(Value::as_u64) == Some(5) {
+        let ProjectStorageDocument::ReadOnly(document) = decode_stored_project(raw)? else {
+            unreachable!()
+        };
+        let mut payloads = Vec::new();
+        for effect in &document.opaque_effects {
+            extra = extra.saturating_add(effect.payload_json.len());
+            // Decode every JSON string token, including overwritten duplicate
+            // keys/values. Parsing into Value alone would discard a dependency
+            // stored in an earlier duplicate key. Validation above already
+            // established valid, bounded JSON; this is a conservative scan.
+            let bytes = effect.payload_json.as_bytes();
+            let mut cursor = 0;
+            while cursor < bytes.len() {
+                if bytes[cursor] != b'"' {
+                    cursor += 1;
+                    continue;
+                }
+                let start = cursor;
+                cursor += 1;
+                while cursor < bytes.len() {
+                    match bytes[cursor] {
+                        b'\\' => cursor += 2,
+                        b'"' => {
+                            cursor += 1;
+                            break;
+                        }
+                        _ => cursor += 1,
+                    }
+                }
+                let token: String = serde_json::from_str(&effect.payload_json[start..cursor])
+                    .map_err(|_| {
+                        EditorError::new("STORAGE_ERROR", "Invalid preserved reference token")
+                    })?;
+                payloads.push(Value::String(token));
+            }
+        }
+        value
+            .as_object_mut()
+            .ok_or_else(|| EditorError::new("STORAGE_ERROR", "Invalid preserved reference root"))?
+            .insert(
+                "__preserved_reference_values".into(),
+                Value::Array(payloads),
+            );
+    }
+    Ok((value, extra))
 }

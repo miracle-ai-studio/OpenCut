@@ -1,17 +1,18 @@
-mod export_video_v2;
+mod asset_analysis;
+mod export_video;
+mod historical_visual;
+mod media_frame;
 #[cfg(unix)]
 mod media_output;
+mod media_video;
 mod output_attempt;
-mod project_v3;
-mod project_v4_audio;
-mod project_v4_caption_video;
-mod project_v4_frame;
-mod project_v4_text_frame;
-mod project_v4_video;
-mod sequence_transcribe_v4;
+mod scene_audio;
+mod scene_caption_video;
+mod scene_text_frame;
+mod scene_transcription;
 pub(super) fn sequence_transcribe_capability()
--> opencut_job_contracts::sequence_transcribe_v4::SequenceTranscribeCapabilityV4 {
-    sequence_transcribe_v4::capability()
+-> opencut_job_contracts::scene_transcription::SceneTranscriptionCapability {
+    scene_transcription::capability()
 }
 pub(crate) mod receipts;
 use opencut_job_execution::{
@@ -59,13 +60,13 @@ use sha2::{Digest, Sha256};
 const HEARTBEAT_BUSY_RUNWAY_MS: u64 = 5_000;
 
 use opencut_job_runtime::{ExecutorPort, JobStore, JobStoreFactory, LEASE_MS};
-struct SqliteJobStore(EditorApplication);
+struct SqliteJobStore(EditorApplication,PathBuf,opencut_editor_application::preview_cache::PreviewClaimBudget);
 struct SqliteFactory<'a>(&'a Path);
 impl JobStoreFactory for SqliteFactory<'_> {
     fn open(&self) -> Result<Box<dyn JobStore>, EditorError> {
         Ok(Box::new(SqliteJobStore(EditorApplication::open_managed(
             self.0,
-        )?)))
+        )?,self.0.to_path_buf(),Default::default())))
     }
 }
 impl JobStore for SqliteJobStore {
@@ -73,7 +74,10 @@ impl JobStore for SqliteJobStore {
         self.0.live_jobs().recover()
     }
     fn claim(&mut self, worker: &str, lease_ms: i64) -> Result<Option<JobRecord>, EditorError> {
-        self.0.live_jobs().claim(worker, lease_ms)
+        let preferred=if self.2.allows_preference(){crate::audio_preview::cache::preferred_jobs(&self.1,&self.0)?}else{Vec::new()};
+        let job=self.0.live_jobs().claim_preferred(worker, lease_ms,&preferred)?;
+        self.2.claimed(job.as_ref().is_some_and(|job|preferred.contains(&job.job_id)));
+        Ok(job)
     }
     fn get_job(&self, id: &str) -> Result<JobRecord, EditorError> {
         self.0.get_job(id)
@@ -105,8 +109,10 @@ impl JobStore for SqliteJobStore {
                         | "render.project_mask_video.v4"
                         | "render.project_scene_video.v4"
                         | "render.export_video.v2"
+                        | "render.export_video_range.v1"
                         | "render.project_blend_video.v4"
                         | "analysis.sequence_transcribe.v4"
+                        | "analysis.asset.v4"
                 ) && !matches!(error.code.as_str(), "DATABASE_BUSY" | "JOB_LEASE_LOST") =>
             {
                 // Completion revalidates the original caller inside its SQL
@@ -203,6 +209,12 @@ fn execute_monitored(
     let heartbeat_pending = Arc::new(AtomicBool::new(false));
     let monitor_app = EditorApplication::open_managed(database)?;
     let progress_app = EditorApplication::open_managed(database)?;
+    let import_input: Option<opencut_editor_application::uploads::PreparedMediaImportInput> =
+        if job.kind == "media.import" {
+            Some(parse(job.input.clone())?)
+        } else {
+            None
+        };
     std::thread::scope(|scope| {
         let monitor_cancel = cancel.clone();
         let monitor_done = done.clone();
@@ -221,14 +233,19 @@ fn execute_monitored(
                     break None;
                 }
                 monitor_heartbeat_pending.store(true, Ordering::SeqCst);
-                let heartbeat = (|| {
+                let heartbeat: Result<JobRecord, EditorError> = (|| {
                     if app.is_none() {
                         app = Some(EditorApplication::open_managed(database)?);
                     }
-                    app.as_mut()
-                        .expect("monitor connection was opened")
-                        .live_jobs()
-                        .heartbeat(&job.job_id, worker, job.attempt, LEASE_MS)
+                    let app = app.as_mut().expect("monitor connection was opened");
+                    let state =
+                        app.live_jobs()
+                            .heartbeat(&job.job_id, worker, job.attempt, LEASE_MS)?;
+                    if let Some(input) = &import_input {
+                        use opencut_editor_application::uploads::SealedUploadRead;
+                        app.authorize_sealed_import(input, &job.job_id, worker, job.attempt)?;
+                    }
+                    Ok(state)
                 })();
                 if heartbeat.is_ok() {
                     monitor_heartbeat_pending.store(false, Ordering::SeqCst);
@@ -276,14 +293,14 @@ fn execute_monitored(
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             if matches!(
                 job.kind.as_str(),
-                opencut_job_contracts::project_v4_audio::V4_AUDIO_WAV_KIND
-                    | opencut_job_contracts::project_v4_audio::V4_AUDIO_RANGE_WAV_KIND
+                opencut_job_contracts::scene_audio::AUDIO_WAV_KIND
+                    | opencut_job_contracts::scene_audio::AUDIO_RANGE_WAV_KIND
             ) {
-                project_v4_audio::execute(database, root, worker, job, &cancel, publication_attempt)
+                scene_audio::execute(database, root, worker, job, &cancel, publication_attempt)
             } else if job.kind
-                == opencut_job_contracts::sequence_transcribe_v4::SEQUENCE_TRANSCRIBE_V4_KIND
+                == opencut_job_contracts::scene_transcription::SCENE_TRANSCRIPTION_KIND
             {
-                sequence_transcribe_v4::execute(
+                scene_transcription::execute(
                     database,
                     root,
                     worker,
@@ -291,90 +308,104 @@ fn execute_monitored(
                     &cancel,
                     publication_attempt,
                 )
-            } else if job.kind == opencut_job_contracts::export_video_v2::EXPORT_VIDEO_V2_KIND {
-                export_video_v2::execute(database, root, worker, job, &cancel, publication_attempt)
-            } else if job.kind
-                == opencut_job_contracts::project_v4_scene_video::V4_SCENE_VIDEO_MP4_KIND
-            {
-                project_v4_video::execute_with_profile(
+            } else if job.kind == "analysis.asset.v4" {
+                asset_analysis::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if matches!(
+                job.kind.as_str(),
+                opencut_job_contracts::export_video::EXPORT_VIDEO_KIND
+                    | opencut_job_contracts::export_video::EXPORT_VIDEO_RANGE_KIND
+            ) {
+                export_video::execute(
                     database,
                     root,
                     worker,
                     job,
                     &cancel,
                     publication_attempt,
-                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::SceneV1,
+                    &mut |update| reporter.report(update),
                 )
-            } else if job.kind == opencut_job_contracts::project_v4_video::V4_VIDEO_MP4_KIND {
-                project_v4_video::execute(database, root, worker, job, &cancel, publication_attempt)
-            } else if job.kind
-                == opencut_job_contracts::project_v4_caption_video::V4_CAPTION_VIDEO_MP4_KIND
-            {
-                project_v4_caption_video::execute(
+            } else if job.kind == opencut_job_contracts::scene_video::SCENE_VIDEO_MP4_KIND {
+                media_video::execute_with_profile(
                     database,
                     root,
                     worker,
                     job,
                     &cancel,
                     publication_attempt,
+                    opencut_editor_application::media_video_jobs::VideoFrameProfile::SceneV1,
+                    &mut |update| reporter.report(update),
                 )
-            } else if job.kind
-                == opencut_job_contracts::project_v4_graphic_video::V4_GRAPHIC_VIDEO_MP4_KIND
-            {
-                project_v4_video::execute_with_profile(
+            } else if job.kind == opencut_job_contracts::media_video::MEDIA_VIDEO_MP4_KIND {
+                media_video::execute(
                     database,
                     root,
                     worker,
                     job,
                     &cancel,
                     publication_attempt,
-                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::GraphicV1,
+                    &mut |update| reporter.report(update),
                 )
-            } else if job.kind
-                == opencut_job_contracts::project_v4_mask_video::V4_MASK_VIDEO_MP4_KIND
+            } else if job.kind == opencut_job_contracts::scene_caption_video::CAPTION_VIDEO_MP4_KIND
             {
-                project_v4_video::execute_with_profile(
+                scene_caption_video::execute(
                     database,
                     root,
                     worker,
                     job,
                     &cancel,
                     publication_attempt,
-                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::MaskV1,
+                    &mut |update| reporter.report(update),
                 )
-            } else if job.kind
-                == opencut_job_contracts::project_v4_blend_video::V4_BLEND_VIDEO_MP4_KIND
+            } else if job.kind == opencut_job_contracts::scene_graphic_video::GRAPHIC_VIDEO_MP4_KIND
             {
-                project_v4_video::execute_with_profile(
+                media_video::execute_with_profile(
                     database,
                     root,
                     worker,
                     job,
                     &cancel,
                     publication_attempt,
-                    opencut_editor_application::project_v4_video_jobs::VideoFrameProfile::BlendV1,
+                    opencut_editor_application::media_video_jobs::VideoFrameProfile::GraphicV1,
+                    &mut |update| reporter.report(update),
+                )
+            } else if job.kind == opencut_job_contracts::scene_mask_video::MASK_VIDEO_MP4_KIND {
+                media_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::media_video_jobs::VideoFrameProfile::MaskV1,
+                    &mut |update| reporter.report(update),
+                )
+            } else if job.kind == opencut_job_contracts::scene_blend_video::BLEND_VIDEO_MP4_KIND {
+                media_video::execute_with_profile(
+                    database,
+                    root,
+                    worker,
+                    job,
+                    &cancel,
+                    publication_attempt,
+                    opencut_editor_application::media_video_jobs::VideoFrameProfile::BlendV1,
+                    &mut |update| reporter.report(update),
                 )
             } else if matches!(
                 job.kind.as_str(),
-                opencut_job_contracts::project_v4_text_frame::V4_TEXT_FRAME_PNG_KIND
-                    | opencut_job_contracts::project_v4_caption_frame::V4_CAPTION_FRAME_PNG_KIND
-                    | opencut_job_contracts::project_v4_graphic_frame::V4_GRAPHIC_FRAME_PNG_KIND
-                    | opencut_job_contracts::project_v4_mask_frame::V4_MASK_FRAME_PNG_KIND
-                    | opencut_job_contracts::project_v4_scene_frame::V4_SCENE_FRAME_PNG_KIND
-                    | opencut_job_contracts::project_v4_blend_frame::V4_BLEND_FRAME_PNG_KIND
+                opencut_job_contracts::scene_text_frame::TEXT_FRAME_PNG_KIND
+                    | opencut_job_contracts::scene_caption_frame::CAPTION_FRAME_PNG_KIND
+                    | opencut_job_contracts::scene_graphic_frame::GRAPHIC_FRAME_PNG_KIND
+                    | opencut_job_contracts::scene_mask_frame::MASK_FRAME_PNG_KIND
+                    | opencut_job_contracts::scene_frame::SCENE_FRAME_PNG_KIND
+                    | opencut_job_contracts::scene_blend_frame::BLEND_FRAME_PNG_KIND
             ) {
-                project_v4_text_frame::execute(
-                    database,
-                    root,
-                    worker,
-                    job,
-                    &cancel,
-                    publication_attempt,
-                )
-            } else if job.kind == opencut_job_contracts::project_v4_frame::V4_FRAME_PNG_KIND {
-                project_v4_frame::execute(database, root, worker, job, &cancel, publication_attempt)
+                scene_text_frame::execute(database, root, worker, job, &cancel, publication_attempt)
+            } else if job.kind == opencut_job_contracts::media_frame::MEDIA_FRAME_PNG_KIND {
+                media_frame::execute(database, root, worker, job, &cancel, publication_attempt)
             } else {
-                execute(root, job, &cancel, &mut |update| reporter.report(update))
+                execute(database, worker, root, job, &cancel, &mut |update| {
+                    reporter.report(update)
+                })
             }
         }));
         done.store(true, Ordering::SeqCst);
@@ -751,6 +782,8 @@ impl Drop for PreviewFiles {
 }
 
 fn execute(
+    database: &Path,
+    worker: &str,
     root: &Path,
     job: &JobRecord,
     cancel: &CancellationToken,
@@ -810,7 +843,7 @@ fn execute(
             | "preview.project_frame.v3"
             | "preview.project_range.v3"
             | "analysis.sequence_transcribe" => {
-                project_v3::execute(root, &directory, &backend, job, cancel, progress)
+                historical_visual::execute(root, &directory, &backend, job, cancel, progress)
             }
             "analysis.silence" | "analysis.shots" | "analysis.waveform" => {
                 let input: PreparedAnalysisInput = parse(job.input.clone())?;
@@ -1076,8 +1109,24 @@ fn execute(
                 let workspace = root
                     .parent()
                     .ok_or_else(|| EditorError::new("INTERNAL_ERROR", "Missing workspace root"))?;
+                use opencut_editor_application::uploads::SealedUploadRead;
+                let app = EditorApplication::open_managed(database)?;
+                app.authorize_sealed_import(&input, &job.job_id, worker, job.attempt)?;
                 opencut_asset_store::uploads::UploadChunks::managed(workspace.join("uploads"))
-                    .assemble(&input, &file, &|| cancel.is_cancelled())?;
+                    .assemble(
+                        &input,
+                        &file,
+                        &mut |offset| {
+                            app.sealed_import_chunks(
+                                &input,
+                                &job.job_id,
+                                worker,
+                                job.attempt,
+                                offset,
+                            )
+                        },
+                        &|| cancel.is_cancelled(),
+                    )?;
                 let file = fs::canonicalize(&file).map_err(io_error)?;
                 let metadata = backend.probe_upload(&file, cancel).map_err(media_error)?;
                 let mut asset = opencut_editor_application::media::describe(
@@ -1100,7 +1149,7 @@ fn execute(
                     let packet_admission: Option<
                         &dyn opencut_media::OutputAdmission,
                     > = None;
-                    let observed = opencut_media::run_classic_packet_rate_v1(
+                    let observed = opencut_media::run_classic_packet_rate(
                         &config,
                         &file,
                         cancel,
@@ -1108,7 +1157,7 @@ fn execute(
                     )
                     .map_err(media_error)?;
                     asset.metadata.insert(
-                        opencut_media::CLASSIC_PACKET_RATE_METADATA_KEY_V1.into(),
+                        opencut_media::CLASSIC_PACKET_RATE_METADATA_KEY.into(),
                         serde_json::to_value(observed).map_err(|_| {
                             EditorError::new(
                                 "MEDIA_INVALID_TOOL_OUTPUT",
@@ -1474,7 +1523,7 @@ fn execute(
                 "Cancelled before execution receipt",
             ));
         }
-        let receipt_path = directory.join("execution-v1.json");
+        let receipt_path = directory.join("execution.json");
         #[cfg(unix)]
         opencut_media::OutputAdmission::write(admission.as_ref(), &receipt_path, &bytes)
             .map_err(media_error)?;

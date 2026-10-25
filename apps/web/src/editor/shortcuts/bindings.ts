@@ -212,7 +212,7 @@ export function displayChord(
 export const textOrControlTarget = (target: EventTarget | null): boolean =>
   target instanceof Element &&
   !!target.closest(
-    "input,textarea,select,button,a,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=combobox],[role=spinbutton],[role=slider],[role=button],[role=tab],[role=treeitem],[role=menu],[role=menubar],[data-shortcuts-ignore]",
+    "input,textarea,select,button,a,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=combobox],[role=spinbutton],[role=slider],[role=scrollbar],[role=button],[role=tab],[role=treeitem],[role=menu],[role=menubar],[data-shortcuts-ignore]",
   );
 export const modalOpen = (): boolean =>
   !!document.querySelector(

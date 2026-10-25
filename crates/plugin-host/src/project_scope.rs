@@ -9,7 +9,7 @@ pub struct ProjectPolicy<'a> {
     pub authorize: &'a dyn Fn() -> Result<(), EditorError>,
 }
 pub(super) fn limits(
-    plugin: &mut InstalledPlugin,
+    plugin: &mut InstalledWasmPlugin,
     policy: &ProjectPolicy<'_>,
 ) -> Result<(), EditorError> {
     if plugin.package_sha256 != policy.grant.package_sha256

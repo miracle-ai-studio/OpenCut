@@ -11,10 +11,10 @@ const bridges = new Map([
   ["apps/web/src/lib/editor-contracts.generated.ts",new Set(["packages/sdk-ts/src/contracts.generated"])],
   // One pure WebAudio graph definition keeps live preview and the reviewed
   // renderer parameters identical; no decoder, host or execution is imported.
-  ["apps/web/src/editor/workspace/v4/audio-preview-mastering.ts",new Set(["packages/classic-audio-renderer/src/mastering"])],
+  ["apps/web/src/editor/workspace/scene/audio-preview-mastering.ts",new Set(["packages/classic-audio-renderer/src/mastering"])],
   // Existing reviewed Web execution adapter (also gated by apps/web/scripts/
   // check-boundaries.mjs): public browser renderer only, no native host imports.
-  ["apps/web/src/editor/workspace/v4/visual-preview-renderer.ts",new Set(["packages/classic-visual-renderer/src/index"])],
+  ["apps/web/src/editor/workspace/scene/visual-preview-renderer.ts",new Set(["packages/classic-visual-renderer/src/index"])],
 ]);
 // Historical generator lives under src but is a build entry, never a runtime dependency.
 const buildOnly = "apps/web/src/editor/generate-contracts.mjs";

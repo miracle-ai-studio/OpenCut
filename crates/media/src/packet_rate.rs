@@ -1,6 +1,6 @@
 //! Private fixed-runtime Node probe; the locked Mediabunny library owns packet statistics.
 use crate::{CancellationToken, MediaError, MediaResult, OutputAdmission, process};
-use opencut_media_contracts::ClassicPacketRateV1;
+use opencut_media_contracts::ClassicPacketRate;
 use sha2::{Digest, Sha256};
 use std::{
     fs::File,
@@ -72,12 +72,12 @@ fn verify_module(path: &Path, expected: &str, cancel: &CancellationToken) -> Med
     Ok(())
 }
 
-pub fn run_classic_packet_rate_v1(
+pub fn run_classic_packet_rate(
     config: &ClassicPacketRateConfig,
     input: &Path,
     cancel: &CancellationToken,
     admission: Option<&dyn OutputAdmission>,
-) -> MediaResult<ClassicPacketRateV1> {
+) -> MediaResult<ClassicPacketRate> {
     if cancel.is_cancelled() {
         return Err(MediaError::Cancelled);
     }
@@ -102,7 +102,7 @@ pub fn run_classic_packet_rate_v1(
     if cancel.is_cancelled() {
         return Err(MediaError::Cancelled);
     }
-    let observation: ClassicPacketRateV1 =
+    let observation: ClassicPacketRate =
         serde_json::from_slice(&bytes).map_err(|_| MediaError::InvalidToolOutput {
             tool: "classic-packet-rate".into(),
             detail: "Invalid typed packet-rate observation".into(),

@@ -1,0 +1,5 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Edit only the placement of the audio property controls. In TOP RIGHT audio RESOURCE panel, REMOVE the entire bottom strip '选中：海浪 音量 -6 dB 淡入 0.50 秒 淡出 0.50 秒'. Resource panel must contain only search, category tabs, preview/play waveformrows and + buttons plus its brief试听note. Do not leave any volume/fade form in the resource panel. Move those three fields into BOTTOM RIGHT property examples: inside the far-right narrowcolumn currently titled '选中图形时', retain graphicfill andstroke in upperhalf, then add separate lowerhalf section titled '右侧属性示例' and secondline '时间轴选中：海浪', three stacked compact fields 音量 -6 dB / 淡入0.50秒 / 淡出0.50秒. This clearly shows timeline-selected audio attributes beside other rightinspector examples, physically separate from resourcebrowser. Preserve every other panel, text, controls andillustrations unchanged. User specifically wants no repeated editing formsbelow resourcecards.",
+  "output": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-ab630c95-5a1b-4ff1-bdd7-dabae72f3aae.png"
+}

@@ -1,14 +1,14 @@
 //! Internal persisted worker inputs; never imported by a client SDK.
-pub mod project_v4_mask_video;
+pub mod scene_mask_video;
 use opencut_contracts::{AssetLockManifest, ProjectSnapshot, Time, TimeRange};
-pub mod project_v3;
-pub mod project_v4_audio;
-pub mod project_v4_blend_video;
-pub mod project_v4_caption_video;
-pub mod project_v4_frame;
-pub mod project_v4_graphic_video;
-pub mod project_v4_text_frame;
-pub mod project_v4_video;
+pub mod historical_visual;
+pub mod media_frame;
+pub mod media_video;
+pub mod scene_audio;
+pub mod scene_blend_video;
+pub mod scene_caption_video;
+pub mod scene_graphic_video;
+pub mod scene_text_frame;
 use opencut_media_contracts::{Container, FrameAlignment, VideoCodec};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -154,6 +154,12 @@ pub struct PreparedMediaImportInput {
     pub name: String,
     pub size_bytes: u64,
     pub content_hash: String,
+    /// Captured by the host; absent only on exact retained historical inputs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority: Option<scene_audio::TrustedJobAuthority>,
+    /// Historical jobs captured a bounded inline manifest. Current jobs read
+    /// immutable acknowledged rows through the application paging port.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chunks: Vec<PreparedUploadChunk>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -164,4 +170,4 @@ pub struct PreparedUploadChunk {
     pub content_hash: String,
 }
 
-pub mod project_v4_scene_video;
+pub mod scene_video;

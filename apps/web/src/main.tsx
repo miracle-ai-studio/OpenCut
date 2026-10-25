@@ -7,10 +7,15 @@ const Editor = lazy(() =>
     default: module.EditorWorkspace,
   })),
 );
-const Site = lazy(() =>
-  import("./site/site").then((module) => ({ default: module.Site })),
-);
-const Page = isEditorPath(location.pathname) ? Editor : Site;
+function UnknownPage() {
+  return (
+    <main style={{ padding: 24 }}>
+      <h1>Page not found</h1>
+      <a href="/projects">Open projects</a>
+    </main>
+  );
+}
+const Page = isEditorPath(location.pathname) ? Editor : UnknownPage;
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Suspense

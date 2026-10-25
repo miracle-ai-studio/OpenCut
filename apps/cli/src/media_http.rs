@@ -18,7 +18,7 @@ use crate::http::{Host, error_response, into_http};
 use crate::http_identity::AuthorizedHost;
 
 const UPLOAD_WRITE_BATCH_BYTES: usize = 4 * 1024 * 1024;
-const MAX_UPLOAD_BYTES: u64 = opencut_editor_application::uploads::MAX_UPLOAD_BYTES;
+const MAX_SOURCE_BYTES: u64 = opencut_editor_application::uploads::MAX_SOURCE_BYTES;
 
 #[derive(Deserialize)]
 pub(super) struct UploadQuery {
@@ -91,10 +91,10 @@ async fn upload_inner(
         size = size
             .checked_add(chunk.len() as u64)
             .ok_or_else(|| EditorError::new("INVALID_ARGUMENT", "Upload exceeds size limit"))?;
-        if size > MAX_UPLOAD_BYTES {
+        if size > MAX_SOURCE_BYTES {
             return Err(EditorError::new(
                 "INVALID_ARGUMENT",
-                "Upload exceeds 16 GiB limit",
+                "Upload exceeds exact source addressability",
             ));
         }
         hash.update(&chunk);
@@ -148,7 +148,7 @@ async fn upload_inner(
                 &hash,
                 size,
             )?;
-            Ok(json!({"asset":asset,"media_url":format!("/v1/media/{hash}")}))
+            Ok(json!({"asset":asset,"media_url":format!("/api/media/{hash}")}))
         })
         .await?;
     Ok(result)
@@ -163,10 +163,10 @@ fn declared_upload_length(headers: &HeaderMap) -> Result<Option<u64>, EditorErro
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| EditorError::new("INVALID_ARGUMENT", "Invalid Content-Length"))?;
-    if !(1..=MAX_UPLOAD_BYTES).contains(&size) {
+    if !(1..=MAX_SOURCE_BYTES).contains(&size) {
         return Err(EditorError::new(
             "INVALID_ARGUMENT",
-            "Upload must be between 1 byte and 16 GiB",
+            "Upload size is outside exact source addressability",
         ));
     }
     Ok(Some(size))
@@ -187,13 +187,14 @@ mod upload_length_tests {
 
         headers.insert(
             CONTENT_LENGTH,
-            HeaderValue::from_str(&MAX_UPLOAD_BYTES.to_string()).unwrap(),
+            HeaderValue::from_str(&MAX_SOURCE_BYTES.to_string()).unwrap(),
         );
         assert_eq!(
             declared_upload_length(&headers).unwrap(),
-            Some(MAX_UPLOAD_BYTES)
+            Some(MAX_SOURCE_BYTES)
         );
-        for value in ["0", "17179869185", "not-a-number"] {
+        let oversized = (MAX_SOURCE_BYTES + 1).to_string();
+        for value in ["0", oversized.as_str(), "not-a-number"] {
             headers.insert(CONTENT_LENGTH, HeaderValue::from_str(value).unwrap());
             assert_eq!(
                 declared_upload_length(&headers).unwrap_err().code,
@@ -286,9 +287,9 @@ pub(super) async fn read_project(
     serve_verified_file(file, size, mime, headers).await
 }
 
-pub(super) async fn read_v4_resource(
+pub(super) async fn read_project_resource(
     AuthorizedHost(host): AuthorizedHost,
-    Query(input): Query<opencut_contracts::project_v4_resources::InspectResourceV4>,
+    Query(input): Query<opencut_contracts::project_resources::InspectResource>,
     headers: HeaderMap,
 ) -> Response {
     let database = host.database.clone();
@@ -298,14 +299,14 @@ pub(super) async fn read_v4_resource(
         let mut app = opencut_host_runtime::workspace::Workspace::open_managed(database.as_ref())?;
         identity.validate(&mut app)?;
         app.set_caller(identity.caller.clone());
-        let resource = app.project_v4_resource(&input)?;
-        let (file, size) = opencut_host_runtime::transport_io::open_verified_v4_resource(
+        let resource = app.project_resource(&input)?;
+        let (file, size) = opencut_host_runtime::transport_io::open_verified_project_resource(
             &database,
             &resource.version,
         )?;
         // Hashing may take time. Recheck current authority before response bytes.
         identity.validate(&mut app)?;
-        let current = app.project_v4_resource(&input)?;
+        let current = app.project_resource(&input)?;
         if current != resource {
             return Err(EditorError::new(
                 "ARTIFACT_VERIFICATION_FAILED",
@@ -347,10 +348,15 @@ pub(super) async fn read_v4_resource(
             )
         })
         .unwrap_or_else(|| "application/octet-stream".into());
-    let mut response = serve_verified_file(file, size, Some(mime), headers).await;
+    // Use the same bounded chunk size as fixed preview fonts. A 4KiB default
+    // otherwise reopens/revalidates the workspace over 1500 times for a 6MiB
+    // source, which can exhaust preparation before any frame is drawn.
+    // The existing stream guard still checks live authority before every chunk.
+    let mut response =
+        serve_verified_file_with_capacity(file, size, Some(mime), headers, Some(64 * 1024)).await;
     response
         .extensions_mut()
-        .insert(crate::http_identity::RevalidateV4Resource(scope));
+        .insert(crate::http_identity::RevalidateProjectResource(scope));
     response
 }
 
@@ -360,7 +366,7 @@ pub(super) async fn read_visual_preview_font(
     AuthorizedHost(host): AuthorizedHost,
     headers: HeaderMap,
     input: Result<
-        axum::Json<opencut_host_runtime::visual_preview_text_contracts::VisualPreviewFontV2>,
+        axum::Json<opencut_host_runtime::visual_preview_contracts::VisualPreviewFont>,
         axum::extract::rejection::JsonRejection,
     >,
 ) -> Response {
@@ -447,9 +453,9 @@ async fn serve_verified_file_with_capacity(
     if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
         return error_response("STORAGE_ERROR", "Cannot seek media");
     }
-    // Font responses use a bounded 64 KiB chunk so authorization does not
-    // reopen the workspace once per 4 KiB. The stream guard still authorizes
-    // every chunk; other resources retain ReaderStream's default capacity.
+    // Fixed V4 resources and preview fonts use bounded 64KiB chunks so live
+    // authorization does not reopen the workspace once per 4KiB. Other routes
+    // retain ReaderStream's default; every guarded chunk is still authorized.
     let stream = match capacity {
         Some(capacity) => ReaderStream::with_capacity(file.take(length), capacity),
         None => ReaderStream::new(file.take(length)),
@@ -722,5 +728,66 @@ mod range_tests {
             assert_eq!(byte_range(value, 10), None);
         }
         assert_eq!(byte_range("bytes=0-", 0), None);
+    }
+}
+
+/// Binary adaptation of the same typed bounded-read operation used by MCP.
+pub(super) async fn read_visual_preview_resource(
+    AuthorizedHost(host): AuthorizedHost,
+    input: Result<
+        axum::Json<opencut_host_runtime::visual_preview_contracts::VisualPreviewResourceRead>,
+        axum::extract::rejection::JsonRejection,
+    >,
+) -> Response {
+    let input = match input {
+        Ok(axum::Json(input)) => input,
+        Err(_) => return error_response("INVALID_ARGUMENT", "Invalid visual resource range"),
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        // Local-owner identity has no principal policy revision to read. A
+        // delegated reader keeps both live policy checks around the byte read.
+        let mut workspace = if host.identity.caller.is_owner() {
+            None
+        } else {
+            Some(opencut_host_runtime::workspace::Workspace::open_managed(
+                host.database.as_ref(),
+            )?)
+        };
+        let validate =
+            |workspace: &mut Option<opencut_host_runtime::workspace::Workspace>| match workspace {
+                Some(app) => host.identity.validate(app),
+                None => host.identity.check_lifetime(),
+            };
+        validate(&mut workspace)?;
+        let (bytes, eof) = host.with_automation(|app| app.read_visual_preview_resource(&input))?;
+        validate(&mut workspace)?;
+        Ok::<_, EditorError>((bytes, eof, input.offset))
+    })
+    .await;
+    match result {
+        Ok(Ok((bytes, eof, offset))) => {
+            let mut response = (StatusCode::OK, bytes).into_response();
+            let headers = response.headers_mut();
+            headers.insert(
+                "content-type",
+                HeaderValue::from_static("application/octet-stream"),
+            );
+            headers.insert("cache-control", HeaderValue::from_static("no-store"));
+            headers.insert(
+                "x-content-type-options",
+                HeaderValue::from_static("nosniff"),
+            );
+            headers.insert(
+                "x-opencut-resource-offset",
+                HeaderValue::from_str(&offset).expect("canonical decimal"),
+            );
+            headers.insert(
+                "x-opencut-resource-eof",
+                HeaderValue::from_static(if eof { "true" } else { "false" }),
+            );
+            response
+        }
+        Ok(Err(error)) => into_http(opencut_automation::response(Err(error))),
+        Err(_) => error_response("INTERNAL_ERROR", "Cannot read visual resource range"),
     }
 }

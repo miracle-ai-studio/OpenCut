@@ -1,15 +1,15 @@
 use super::*;
-use opencut_composition::project_v4::*;
+use opencut_composition::scene::*;
 use opencut_contracts::AssetKind;
-use opencut_job_execution::project_v4_frame::LocalVisualExecutionPolicyV1;
+use opencut_job_execution::media_frame::LocalVisualExecutionPolicy;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
 pub struct ClassicVisualSession<'a> {
-    prepared: &'a PreparedVisualFrameV4,
-    policy: LocalVisualExecutionPolicyV1,
+    prepared: &'a PreparedVisualFrame,
+    policy: LocalVisualExecutionPolicy,
     admissions: BTreeSet<String>,
-    bound: Option<BoundVisualFrameV4>,
+    bound: Option<BoundVisualFrame>,
     received_bytes: u64,
     rgba_bytes: u64,
     decoded_limit_pixels: u64,
@@ -19,10 +19,10 @@ fn budget(message: &str) -> EditorError {
 }
 impl<'a> ClassicVisualSession<'a> {
     pub fn new(
-        prepared: &'a PreparedVisualFrameV4,
-        policy: &LocalVisualExecutionPolicyV1,
+        prepared: &'a PreparedVisualFrame,
+        policy: &LocalVisualExecutionPolicy,
     ) -> Result<Self, EditorError> {
-        crate::project_v4_frame_jobs::validate_policy(policy)?;
+        crate::media_frame_jobs::validate_policy(policy)?;
         let i = prepared.identity();
         let pixels = u64::from(i.width)
             .checked_mul(u64::from(i.height))
@@ -40,18 +40,55 @@ impl<'a> ClassicVisualSession<'a> {
             .checked_mul(8)
             .and_then(|n| n.checked_add(readback))
             .ok_or_else(|| budget("GPU overflow"))?;
-        let mut encoded = 0u64;
-        for resource in prepared.resources() {
-            if resource.version.size == 0 || resource.version.size > policy.max_encoded_bytes {
-                return Err(budget("Encoded resource exceeds admission"));
-            }
-            encoded = encoded
-                .checked_add(resource.version.size)
-                .ok_or_else(|| budget("Encoded overflow"))?;
+        // File length is not resident memory. Videos use the pinned bounded
+        // demux cache; static images still require their complete encoded data.
+        let images = prepared
+            .resources()
+            .iter()
+            .filter(|r| r.kind != AssetKind::Video)
+            .try_fold(0u64, |n, r| {
+                n.checked_add(r.version.size)
+                    .ok_or_else(|| budget("Encoded overflow"))
+            })?;
+        let videos = prepared
+            .resources()
+            .iter()
+            .filter(|r| r.kind == AssetKind::Video)
+            .collect::<Vec<_>>();
+        if prepared
+            .resources()
+            .iter()
+            .any(|r| r.version.size == 0 || r.version.size > 9_007_199_254_740_991)
+            || images > policy.max_encoded_bytes
+        {
+            return Err(budget("Encoded resource cannot be addressed safely"));
         }
-        let encoded_reserve = encoded
+        let mut encoded_reserve = images
             .checked_mul(3)
             .ok_or_else(|| budget("Encoded reserve overflow"))?;
+        if !videos.is_empty() {
+            let workers = (videos.len() + 1).min(32) as u64;
+            let available = policy.max_encoded_bytes - images;
+            let cache = (available / workers)
+                .checked_sub(512 * 1024 * 8)
+                .map(|n| n / 3)
+                .filter(|n| *n >= 65536)
+                .ok_or_else(|| budget("No bounded video range cache fits admission"))?
+                .min(2 * 1024 * 1024);
+            let resident = videos.iter().try_fold(0u64, |n, r| {
+                n.checked_add(cache.min(r.version.size) * 3 + 512 * 1024 * 8)
+                    .ok_or_else(|| budget("Range reserve overflow"))
+            })?;
+            if images
+                .checked_add(resident)
+                .is_none_or(|n| n > policy.max_encoded_bytes)
+            {
+                return Err(budget("Encoded resident budget exceeded"));
+            }
+            encoded_reserve = encoded_reserve
+                .checked_add(resident)
+                .ok_or_else(|| budget("Range reserve overflow"))?;
+        }
         let gpu_remaining = policy
             .max_gpu_bytes
             .checked_sub(gpu_base)
@@ -83,10 +120,10 @@ impl<'a> ClassicVisualSession<'a> {
             decoded_limit_pixels,
         })
     }
-    pub fn prepared(&self) -> &PreparedVisualFrameV4 {
+    pub fn prepared(&self) -> &PreparedVisualFrame {
         self.prepared
     }
-    pub fn policy(&self) -> &LocalVisualExecutionPolicyV1 {
+    pub fn policy(&self) -> &LocalVisualExecutionPolicy {
         &self.policy
     }
     pub fn resource(&self, id: &str) -> Result<VisualResource, EditorError> {
@@ -112,29 +149,42 @@ impl<'a> ClassicVisualSession<'a> {
         let mut layers = Vec::new();
         for layer in self.prepared.layers() {
             let (id, decode) = match &layer.content {
-                SampledContentV4::Image { asset_id } => (asset_id, VisualDecodeRequest::Image),
-                SampledContentV4::Video {
+                SampledContent::Image { asset_id } => (asset_id, VisualDecodeRequest::Image),
+                SampledContent::Video {
                     asset_id,
                     stream,
                     source,
                     ..
-                } => (
-                    asset_id,
-                    VisualDecodeRequest::Video {
-                        requested_time: source.source_time.clone(),
-                        requested_time_seconds: {
-                            let t = opencut_time::RationalTime::try_from(&source.source_time)?;
-                            t.ticks() as f64 / f64::from(t.timebase())
+                } => {
+                    let eof_policy =
+                        video_eof_policy_scene(layer).map_err(|e| invalid(e.message))?;
+                    let readable = source.sample == SourceReadState::InBounds
+                        || matches!(eof_policy, VisualVideoEofPolicy::HoldLastFrame { .. });
+                    (
+                        asset_id,
+                        VisualDecodeRequest::Video {
+                            requested_time: source.source_time.clone(),
+                            requested_time_seconds: {
+                                let t = opencut_time::RationalTime::try_from(&source.source_time)?;
+                                t.ticks() as f64 / f64::from(t.timebase())
+                            },
+                            point_profile: match source.point_profile {
+                                SourcePointProfile::ClassicVideoRoundedTicks => {
+                                    "classic_video_rounded_ticks"
+                                }
+                                SourcePointProfile::ExactRational => "exact_rational",
+                            }
+                            .into(),
+                            selected_video_stream: *stream,
+                            eof_policy,
+                            no_frame_reason: if readable {
+                                None
+                            } else {
+                                Some(VisualNoFrameReason::OutsideReadWindow)
+                            },
                         },
-                        point_profile: "classic_video_rounded_ticks".into(),
-                        selected_video_stream: *stream,
-                        no_frame_reason: if source.sample == SourceReadStateV4::InBounds {
-                            None
-                        } else {
-                            Some(VisualNoFrameReasonV4::OutsideReadWindow)
-                        },
-                    },
-                ),
+                    )
+                }
                 _ => return Err(invalid("Preparation contains nonmedia visual node")),
             };
             layers.push(ClassicVisualLayerPlan {
@@ -170,26 +220,80 @@ impl<'a> ClassicVisualSession<'a> {
             max_decoded_bytes: (max_pixels * 16).to_string(),
         })
     }
-    pub fn bound(&self) -> Option<&BoundVisualFrameV4> {
+    /// Reserve fixed-source size hints first, then divide the remaining space.
+    /// Per-layer caps still sum to at most the original decoded limit. Missing
+    /// or inconsistent metadata cannot enlarge the aggregate budget, and actual
+    /// dimensions remain independently checked by the decoder and binding.
+    pub fn decode_admission_for(
+        &self,
+        element_id: &str,
+    ) -> Result<VisualDecodeAdmission, EditorError> {
+        let mut admission = self.decode_admission()?;
+        let mut total = 0u64;
+        let mut requested = None;
+        for layer in self.prepared.layers() {
+            let asset_id = match &layer.content {
+                SampledContent::Image { asset_id } | SampledContent::Video { asset_id, .. } => {
+                    asset_id
+                }
+                _ => return Err(invalid("Decode admission requires a media layer")),
+            };
+            let pixels = self
+                .prepared
+                .resources()
+                .iter()
+                .find(|r| &r.asset_id == asset_id)
+                .and_then(|r| r.metadata.intrinsic_size.as_ref())
+                .map_or(0, |size| u64::from(size.width) * u64::from(size.height));
+            total = total.saturating_add(pixels);
+            if layer.element_id == element_id {
+                requested = Some(pixels);
+            }
+        }
+        let requested = requested.ok_or_else(|| invalid("Unknown decode admission layer"))?;
+        // Oversized hints retain the prior conservative equal-share rejection;
+        // they never claim space that the original frame policy did not grant.
+        if total <= self.decoded_limit_pixels {
+            let pixels = requested
+                + (self.decoded_limit_pixels - total)
+                    / (self.prepared.layers().len() as u64).max(1);
+            if pixels == 0 {
+                return Err(budget("No decoded pixels available for this layer"));
+            }
+            admission.max_pixels = pixels.to_string();
+            admission.max_decoded_bytes = (pixels * 16).to_string();
+        }
+        Ok(admission)
+    }
+    pub fn bound(&self) -> Option<&BoundVisualFrame> {
         self.bound.as_ref()
     }
     /// Pure validation also used when projecting a persisted completion result.
     pub fn project_decoded_sources(
         &self,
-        decoded: &[DecodedVisualSourceV4],
-    ) -> Result<BoundVisualFrameV4, EditorError> {
-        let per_layer = self.decoded_limit_pixels / (self.prepared.layers().len() as u64).max(1);
+        decoded: &[DecodedVisualSource],
+    ) -> Result<BoundVisualFrame, EditorError> {
         for observation in decoded {
-            if let DecodedVisualSourceV4::ReadyImage { width, height, .. }
-            | DecodedVisualSourceV4::ReadyVideo { width, height, .. } = observation
+            if let DecodedVisualSource::ReadyImage {
+                element_id,
+                width,
+                height,
+            }
+            | DecodedVisualSource::ReadyVideo {
+                element_id,
+                width,
+                height,
+                ..
+            } = observation
                 && (*width > 16384
                     || *height > 16384
-                    || u64::from(*width) * u64::from(*height) > per_layer)
+                    || u64::from(*width) * u64::from(*height)
+                        > decimal(&self.decode_admission_for(element_id)?.max_pixels)?)
             {
                 return Err(budget("Decoded dimensions exceed prior admission"));
             }
         }
-        bind_visual_sources_v4(self.prepared, decoded).map_err(|e| invalid(e.message))
+        bind_visual_sources_scene(self.prepared, decoded).map_err(|e| invalid(e.message))
     }
     pub fn callback(
         &mut self,
@@ -206,7 +310,9 @@ impl<'a> ClassicVisualSession<'a> {
                 if size != decimal(&v.resource.size)? {
                     return Err(invalid("Verified resource size changed"));
                 }
-                Ok(json!({"transferId":id,"byteLength":size.to_string()}))
+                Ok(
+                    json!({"transferId":id,"byteLength":size.to_string(),"contentHash":v.resource.content_hash,"maxChunkBytes":65536}),
+                )
             }
             VisualCallback::Read(v) => {
                 if v.count == 0 || v.count > 65536 {
@@ -216,7 +322,7 @@ impl<'a> ClassicVisualSession<'a> {
                 if bytes.len() > v.count as usize {
                     return Err(invalid("Resource port exceeded chunk"));
                 }
-                let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+                let hex = crate::browser_callback_encoding::bytes_hex(&bytes);
                 Ok(json!({"offset":v.offset,"bytesHex":hex,"eof":eof}))
             }
             VisualCallback::Release(v) => {
@@ -230,13 +336,13 @@ impl<'a> ClassicVisualSession<'a> {
                         .layers()
                         .iter()
                         .any(|l| l.element_id == v.element_id)
-                    || !self.admissions.insert(v.element_id)
+                    || !self.admissions.insert(v.element_id.clone())
                 {
                     return Err(invalid(
                         "Decode admission is unknown, repeated or already bound",
                     ));
                 }
-                let admission = self.decode_admission()?;
+                let admission = self.decode_admission_for(&v.element_id)?;
                 serde_json::to_value(admission)
                     .map_err(|_| invalid("Cannot serialize visual admission"))
             }
@@ -289,7 +395,7 @@ impl<'a> ClassicVisualSession<'a> {
             || self.received_bytes != self.rgba_bytes
             || decimal(&receipt.rgba_bytes)? != self.rgba_bytes
             || decimal(&receipt.peak_accounted_bytes)? > self.policy.max_rgba_bytes
-            || receipt.engine_identity != CLASSIC_VISUAL_PROFILE_V4
+            || receipt.engine_identity != CLASSIC_VISUAL_PROFILE
         {
             return Err(invalid(
                 "Receipt differs from complete fixed frame execution",

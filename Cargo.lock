@@ -4532,7 +4532,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "ureq",
  "uuid",
 ]
 
@@ -4682,6 +4681,7 @@ dependencies = [
 name = "opencut-native-services"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "libc",
  "opencut-api-contracts",
  "opencut-asset-store",

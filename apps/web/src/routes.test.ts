@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { editorProjectId, editorProjectPath } from "./routes";
+import { editorProjectId, editorProjectPath, isEditorPath } from "./routes";
 describe("Agent project routes", () => {
   it("round trips non UUID and encoded application IDs", () => {
+    expect(isEditorPath("/")).toBe(true);
+    expect(isEditorPath("/projects")).toBe(true);
+    expect(isEditorPath("/blog")).toBe(false);
     for (const id of ["speech", "剪辑 / 100%", "project?#one", "asset%2Fraw"])
       expect(editorProjectId(editorProjectPath(id))).toBe(id);
   });

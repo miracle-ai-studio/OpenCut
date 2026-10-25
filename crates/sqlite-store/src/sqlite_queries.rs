@@ -1,6 +1,43 @@
 //! Native read adapters. Multi-row pages use a single SQLite read snapshot.
 use super::*;
 use queries::{EventAnchor, JobPageSlice, JobRead, WorkspaceRead};
+// Compound V4 use cases need both project/resource and job read ports. Keep
+// the facade on the same authorized connection and existing snapshot semantics.
+impl JobRead for EditorApplication {
+    fn read_job(&self, id: &str) -> Result<JobRecord, EditorError> {
+        self.connection.read_job(id)
+    }
+    fn read_job_for_cursor(&self, id: &str) -> Result<(JobRecord, String), EditorError> {
+        self.connection.read_job_for_cursor(id)
+    }
+    fn read_jobs(&self) -> Result<Vec<JobRecord>, EditorError> {
+        self.connection.read_jobs()
+    }
+    fn read_job_page(
+        &self,
+        upper: Option<&str>,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<JobPageSlice, EditorError> {
+        self.connection.read_job_page(upper, after, limit)
+    }
+    fn read_job_changes(
+        &self,
+        anchor: Option<&EventAnchor>,
+        job_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<JobEvent>, EditorError> {
+        self.connection.read_job_changes(anchor, job_id, limit)
+    }
+    fn read_job_events(
+        &self,
+        after: i64,
+        limit: usize,
+        job_id: Option<&str>,
+    ) -> Result<Vec<JobEvent>, EditorError> {
+        self.connection.read_job_events(after, limit, job_id)
+    }
+}
 impl JobRead for SqliteConnection {
     fn read_job(&self, id: &str) -> Result<JobRecord, EditorError> {
         sqlite_access::require_job(self, &self.1, id, ProjectAction::Read)?;
@@ -198,12 +235,9 @@ impl WorkspaceRead for SqliteConnection {
         let label = request
             .map(|s| decode_json::<Value>(&s, "stored transaction request"))
             .transpose()?
-            .and_then(|v| {
-                v.get("label")
-                    .or_else(|| v.get("request").and_then(|r| r.get("label")))
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            });
+            .map(revision_label)
+            .transpose()?
+            .flatten();
         Ok(RevisionSummary {
             revision,
             parent_revision,
@@ -249,6 +283,37 @@ impl WorkspaceRead for SqliteConnection {
             })
         })
         .collect()
+    }
+}
+
+/// Human history labels project the recorded journal, never infer a write from
+/// revision IDs or change the immutable journal to accommodate one consumer.
+fn revision_label(value: Value) -> Result<Option<String>, EditorError> {
+    if let Some(label) = value
+        .get("label")
+        .or_else(|| value.get("request").and_then(|r| r.get("label")))
+        .and_then(Value::as_str)
+    {
+        return Ok(Some(label.to_owned()));
+    }
+    match value.get("kind").and_then(Value::as_str) {
+        Some("project_v4_selective_undo" | "project_v4_selective_redo") => {
+            use opencut_contracts::project_history::CausalJournal;
+            let journal: CausalJournal = serde_json::from_value(value).map_err(|error| {
+                EditorError::new(
+                    "STORAGE_CORRUPT",
+                    format!("could not decode stored history journal: {error}"),
+                )
+            })?;
+            Ok(Some(
+                match journal {
+                    CausalJournal::Undo { .. } => "Undo change",
+                    CausalJournal::Redo { .. } => "Redo change",
+                }
+                .into(),
+            ))
+        }
+        _ => Ok(None),
     }
 }
 fn read_job_events(

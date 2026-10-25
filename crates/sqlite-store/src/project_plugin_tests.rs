@@ -180,11 +180,16 @@ fn concurrent_grant_updates_only_one_commits() {
 }
 
 #[test]
-fn application_discards_output_after_runtime_revocation() {
-    use opencut_api_contracts::plugins::PlanInput;
-    use std::cell::RefCell;
-    struct Runtime(RefCell<Option<Box<dyn FnOnce()>>>);
-    impl ProjectPluginRuntime for Runtime {
+fn planner_reuses_grant_fences_public_projection_and_atomic_dry_run() {
+    use opencut_contracts::{project_public::*, scene_ops::*};
+    use opencut_editor_application::project_plugins as planning;
+    use std::cell::{Cell, RefCell};
+    struct Runtime {
+        observed: Cell<bool>,
+        revoke: RefCell<Option<Box<dyn FnOnce()>>>,
+        invalid: bool,
+    }
+    impl planning::ProjectPluginRuntime for Runtime {
         fn inspect_project_operation(
             &self,
             _: &InspectInput,
@@ -195,44 +200,131 @@ fn application_discards_output_after_runtime_revocation() {
         }
         fn propose_project_operations(
             &self,
-            _: &PlanInput,
-            _: &ProjectSnapshot,
+            _: &opencut_api_contracts::plugins::PlanInput,
+            snapshot: &PublicProjectSnapshot,
             _: &Grant,
             authorize: &dyn Fn() -> Result<(), EditorError>,
-        ) -> Result<Vec<opencut_contracts::Operation>, EditorError> {
+        ) -> Result<Vec<ProjectEditOperation>, EditorError> {
             authorize()?;
-            self.0.borrow_mut().take().unwrap()();
-            Ok(vec![])
+            assert!(
+                serde_json::to_value(&snapshot.project)
+                    .unwrap()
+                    .get("schema_version")
+                    .is_none()
+            );
+            self.observed.set(true);
+            if let Some(revoke) = self.revoke.borrow_mut().take() {
+                revoke();
+            }
+            Ok(if self.invalid {
+                vec![ProjectEditOperation::TrackDelete {
+                    sequence_id: "missing".into(),
+                    track_id: "missing".into(),
+                }]
+            } else {
+                vec![ProjectEditOperation::Rename {
+                    name: "Plugin proposed".into(),
+                }]
+            })
         }
     }
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("db");
-    let (mut app, input) = setup(&db);
-    app.set_plugin_grant(&input).unwrap();
-    let snapshot = app.snapshot("a").unwrap();
-    let request = PlanInput {
-        id: input.target.id.clone(),
-        version: input.target.version.clone(),
-        operation_name: "org.example.planner.plan".into(),
-        project_id: "a".into(),
-        revision: snapshot.revision.clone(),
-        parameters: json!({}),
+    let (mut app, grant) = setup(&db);
+    let snapshot = app
+        .create_scene_project(&CreateProjectRequest {
+            project: CreateProject {
+                id: "v4".into(),
+                name: "V4".into(),
+                sequence_id: "main".into(),
+                width: 64,
+                height: 48,
+                fps: opencut_contracts::FrameRate {
+                    numerator: 10,
+                    denominator: 1,
+                },
+            },
+            idempotency_key: "v4-create".into(),
+        })
+        .unwrap();
+    let mut grant = grant;
+    grant.target.project_id = "v4".into();
+    app.set_plugin_grant(&grant).unwrap();
+    let input = planning::PlanProjectPlugin {
+        branch_name: None,
+        plugin: opencut_api_contracts::plugins::PlanInput {
+            project_id: "v4".into(),
+            revision: snapshot.revision.clone(),
+            id: grant.target.id.clone(),
+            version: grant.target.version.clone(),
+            operation_name: grant.operations.iter().next().unwrap().clone(),
+            parameters: serde_json::json!({}),
+        },
+        idempotency_key: "v4-plugin-apply".into(),
+        label: "Reviewed plugin proposal".into(),
     };
-    let runtime = Runtime(RefCell::new(Some(Box::new(move || {
-        let mut owner = EditorApplication::open(db).unwrap();
-        let next = SetGrant {
-            enabled: false,
-            expected_revision: "1".into(),
-            idempotency_key: "revoke".into(),
-            ..input
-        };
-        owner.set_plugin_grant(&next).unwrap();
-    }))));
+    let runtime = Runtime {
+        observed: Cell::new(false),
+        revoke: RefCell::new(None),
+        invalid: false,
+    };
+    let plan = planning::plan(&app, &runtime, input.clone()).unwrap();
+    assert!(runtime.observed.get());
+    assert_eq!(plan.preview.name, "Plugin proposed");
+    assert_eq!(plan.transaction.expected_revision, snapshot.revision);
     assert_eq!(
-        opencut_editor_application::project_plugins::plan(&app, &runtime, request)
+        app.inspect_scene_project(&InspectProject {
+            project_id: "v4".into(),
+            revision: None
+        })
+        .unwrap(),
+        snapshot
+    );
+    let invalid = Runtime {
+        observed: Cell::new(false),
+        revoke: RefCell::new(None),
+        invalid: true,
+    };
+    assert!(planning::plan(&app, &invalid, input.clone()).is_err());
+    assert_eq!(
+        app.inspect_scene_project(&InspectProject {
+            project_id: "v4".into(),
+            revision: None
+        })
+        .unwrap(),
+        snapshot
+    );
+    let revoke_db = db.clone();
+    let revoke = Runtime {
+        observed: Cell::new(false),
+        invalid: false,
+        revoke: RefCell::new(Some(Box::new(move || {
+            let mut app = EditorApplication::open(&revoke_db).unwrap();
+            let mut disabled = grant;
+            disabled.enabled = false;
+            disabled.expected_revision = "1".into();
+            disabled.idempotency_key = "revoke-v4".into();
+            app.set_plugin_grant(&disabled).unwrap();
+        }))),
+    };
+    assert_eq!(
+        planning::plan(&app, &revoke, input.clone())
             .unwrap_err()
             .code,
         "NOT_AUTHORIZED"
     );
-    assert_eq!(app.snapshot("a").unwrap(), snapshot);
+    runtime.observed.set(false);
+    assert_eq!(
+        planning::plan(&app, &runtime, input).unwrap_err().code,
+        "NOT_AUTHORIZED"
+    );
+    assert!(!runtime.observed.get());
+    assert_eq!(
+        app.inspect_scene_project(&InspectProject {
+            project_id: "v4".into(),
+            revision: None
+        })
+        .unwrap(),
+        snapshot
+    );
 }

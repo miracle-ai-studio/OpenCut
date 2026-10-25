@@ -32,7 +32,6 @@ export function ProjectInfo({
     ],
     ["Scenes", meta ? String(meta.scene_count) : "—"],
     ["Media", meta ? String(meta.asset_count) : "—"],
-    ["Schema", project.format === "v4" ? "4" : "Legacy"],
   ];
   return (
     <Modal title={t("Project information")} onClose={onClose}>

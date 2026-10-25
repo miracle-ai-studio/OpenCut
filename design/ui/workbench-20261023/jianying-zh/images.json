@@ -1,0 +1,58 @@
+[
+  {
+    "n": "01",
+    "name": "workbench",
+    "title": "工作台与默认上下文",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-4dc43413-4df8-4b6a-a8f8-0cd3605170df.png",
+    "file": "01-workbench.png",
+    "description": "中文剪映式三栏工作区与全宽时间线。未选中对象时显示草稿参数，播放器保留画布边界。"
+  },
+  {
+    "n": "02",
+    "name": "resource-interactions",
+    "title": "资源分类、卡片与添加",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-b48dc063-8f66-43de-87da-ab212d68030f.png",
+    "file": "02-resource-interactions.png",
+    "description": "主类横排、子类纵排；预览、获取、添加与应用分别表达。卡片名称下方不再放整行操作。"
+  },
+  {
+    "n": "03",
+    "name": "timeline-interactions",
+    "title": "时间线、落点与滑杆",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-b4697bbd-3818-4819-8634-68d76d6abc3f.png",
+    "file": "03-timeline-interactions.png",
+    "description": "主体移动、边缘裁剪、接缝转场。缩放与平移分开，正常轨道和锁定拒绝状态清楚。"
+  },
+  {
+    "n": "04",
+    "name": "history-export",
+    "title": "紧凑历史与导出流程",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-c052225c-22bd-41ec-978d-70168b49cc36.png",
+    "file": "04-history-export.png",
+    "description": "历史只管理项目修改与版本；导出记录管理输出文件。摘要、对象、作者、时间集中展示。"
+  },
+  {
+    "n": "05",
+    "name": "contextual-editing",
+    "title": "播放器与上下文属性",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-2bd7ad9c-f8eb-4355-904b-4479f56918c4.png",
+    "file": "05-contextual-editing.png",
+    "description": "字幕列表、播放器和右侧属性使用同一选中对象；素材预览保留独立播放上下文。"
+  },
+  {
+    "n": "06",
+    "name": "states-recovery",
+    "title": "边界状态与恢复",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-9ecd846c-9905-40ec-bf8d-badc99f4fcc3.png",
+    "file": "06-states-recovery.png",
+    "description": "错误落点、替换转场、保存结果未知、版本恢复、素材隐藏、加载与键盘路径。"
+  },
+  {
+    "n": "07",
+    "name": "media-audio-graphics",
+    "title": "素材、音频、图形与参数",
+    "source": "/Users/vincent/.codex/generated_images/01a1684f-48ef-7972-95b0-201011cd71b4/exec-ab630c95-5a1b-4ff1-bdd7-dabae72f3aae.png",
+    "file": "07-media-audio-graphics.png",
+    "description": "补充媒体、音频、图形及参数样式；试听与时间线选中片段独立，参数统一归右侧属性。"
+  }
+]

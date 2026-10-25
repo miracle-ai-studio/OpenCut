@@ -7,13 +7,13 @@ import { fileURLToPath } from "node:url";
 import { build } from "vite";
 
 const time = (ticks, timebase = 1) => ({ ticks: String(ticks), timebase });
-const toolName = "opencut_source_art_v1_get";
-const displayTool = "opencut_source_art_waveform_display_v1_get";
+const toolName = "opencut_source_art_get";
+const displayTool = "opencut_source_art_waveform_display_get";
 const artworkTools = [toolName, displayTool];
 const observationBudget = Object.freeze({ entries: 256, encoded_bytes: 16 * 1024 * 1024 });
 
-// Independent owned-fixture oracle: Chromium PCM16 conversion uses positive
-// /32767 and negative /32768, then Classic takes all-channel 128-sample maxima.
+// Independent owned-fixture oracle: the captured streamed PCM16 decoder uses
+// signed /2^15 normalization, then Classic takes all-channel 128-sample maxima.
 // This reads the original tiny synthetic WAV, never a service-generated peak.
 async function pcm16Oracle(filename, frames = 192000) {
   const bytes = await readFile(filename);
@@ -31,7 +31,7 @@ async function pcm16Oracle(filename, frames = 192000) {
   expect(data.length).toBe(frames * 2);
   const summary = new Float32Array(Math.ceil(frames / 128));
   for (let sample = 0; sample < frames; sample++) {
-    const raw = data.readInt16LE(sample * 2), normalized = Math.fround(raw * Math.fround(1 / (raw > 0 ? 32767 : 32768)));
+    const raw = data.readInt16LE(sample * 2), normalized = Math.fround(raw / 32768);
     const bucket = Math.floor(sample / 128); summary[bucket] = Math.max(summary[bucket], Math.abs(normalized));
   }
   return { sampleRate: 48000, frames, summary };
@@ -45,7 +45,7 @@ export async function buildSourceArtCacheProbe() {
   const entry = "virtual:source-art-cache-acceptance", absoluteEntry = path.resolve(webRoot, entry), resolved = `\0${entry}`;
   const result = await build({ configFile: false, root: webRoot, logLevel: "silent",
     plugins: [{ name: "source-art-cache-acceptance", resolveId: id => id === entry || id === absoluteEntry ? resolved : null,
-      load: id => id === resolved ? `export {SourceArtCache} from ${JSON.stringify(path.join(webRoot, "src/editor/workspace/v4/source-art/cache.ts"))};\nexport {allocateArt} from ${JSON.stringify(path.join(webRoot, "src/editor/workspace/v4/source-art/service.ts"))};` : null }],
+      load: id => id === resolved ? `export {SourceArtCache} from ${JSON.stringify(path.join(webRoot, "src/editor/workspace/scene/source-art/cache.ts"))};\nexport {allocateArt} from ${JSON.stringify(path.join(webRoot, "src/editor/workspace/scene/source-art/service.ts"))};` : null }],
     build: { write: false, minify: false, sourcemap: false, lib: { entry, name: "SourceArtCacheAcceptance", formats: ["iife"] } } });
   const chunks = (Array.isArray(result) ? result : [result]).flatMap(value => value.output).filter(value => value.type === "chunk");
   expect(chunks).toHaveLength(1); expect(Buffer.byteLength(chunks[0].code)).toBeLessThan(1024 * 1024);
@@ -113,7 +113,7 @@ export async function verifyCacheAllocations(browser, large, small) {
   } finally { await isolated.close(); }
 }
 function assertDisplayOracle(response, request, oracle, decibels) {
-  expect(response.schema_version).toBe(1);
+  expect(response).not.toHaveProperty("schema_version");
   for (const key of ["project_id", "revision", "asset_id", "sequence_id", "track_id", "element_id", "temporary_gain", "sample_rate", "viewport"]) expect(response[key]).toEqual(request[key]);
   expect(response.display_profile).toBe("classic-waveform-display-v1"); expect(response.channels).toBe(1);
   expect(response.total_samples).toBe(String(oracle.frames)); expect(response.bucket_size).toBe(128);
@@ -192,8 +192,8 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
   });
   page.on("request", request => {
     if (sessionRequest(request)) activeSessions.add(request);
-    if (request.url().endsWith("/v1/tools/opencut_edit_v4_apply")) writes.push(request.postDataJSON());
-    if (request.url().endsWith("/v1/tools/opencut_project_v4_audio_gain_plan")) gainPlans.push(request.postDataJSON());
+    if (request.url().endsWith("/api/tools/opencut_edit_apply")) writes.push(request.postDataJSON());
+    if (request.url().endsWith("/api/tools/opencut_project_audio_gain_plan")) gainPlans.push(request.postDataJSON());
   });
   page.on("requestfinished", request => activeSessions.delete(request));
   page.on("pageerror", error => pageErrors.push(error.message));
@@ -206,12 +206,12 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
       return;
     }
     // View invalidation deliberately aborts its in-flight source-art waiter.
-    if (artworkTools.some(name => record.url.endsWith(`/v1/tools/${name}`)) && /ERR_ABORTED|NS_BINDING_ABORTED/.test(record.error ?? "")) cancelledRequests.push(record);
+    if (artworkTools.some(name => record.url.endsWith(`/api/tools/${name}`)) && /ERR_ABORTED|NS_BINDING_ABORTED/.test(record.error ?? "")) cancelledRequests.push(record);
     else failedRequests.push(record);
   });
   page.on("response", response => {
     responseStatuses.set(response.request(), response.status());
-    const operation = artworkTools.find(name => response.url().endsWith(`/v1/tools/${name}`));
+    const operation = artworkTools.find(name => response.url().endsWith(`/api/tools/${name}`));
     if (!operation) return;
     const task = (async () => {
       try { observeArtwork(operation, response.request().postDataJSON(), await response.json()); }
@@ -251,7 +251,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
   });
   const tool = async (name, input) => {
     const envelope = await page.evaluate(async ({ name, input }) => {
-      const response = await fetch(`/v1/tools/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      const response = await fetch(`/api/tools/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
       return response.json();
     }, { name, input });
     expect(envelope.error, `${name}: ${JSON.stringify(envelope.error)}`).toBeNull();
@@ -264,10 +264,10 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     await action();
   };
   const createProject = async name => {
-    const create = page.getByRole("button", { name: "New project with scene notes", exact: true });
+    const create = page.getByRole("button", { name: "New project", exact: true });
     await expect(create).toBeEnabled(); // The real HttpOnly session has bootstrapped.
     await create.click();
-    const dialog = page.getByRole("dialog", { name: "New project with scene notes", exact: true });
+    const dialog = page.getByRole("dialog", { name: "New project", exact: true });
     await dialog.getByLabel("Project name", { exact: true }).fill(name);
     await dialog.getByRole("button", { name: "Create project", exact: true }).click();
     await expect(page).toHaveURL(/\/editor\/.+/);
@@ -278,12 +278,12 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     return id;
   };
   const importMedia = async name => {
-    const planning = page.waitForResponse(response => response.url().endsWith("/v1/tools/opencut_media_workspace_plan_v4"));
+    const planning = page.waitForResponse(response => response.url().endsWith("/api/tools/opencut_media_import_plan"));
     await page.getByLabel("Import media files", { exact: true }).setInputFiles(path.join(directory, name));
     const review = page.getByRole("dialog", { name: "Review media changes", exact: true });
     await expect(review).toBeVisible();
     expect((await (await planning).json()).error).toBeNull();
-    const applying = page.waitForResponse(response => response.url().endsWith("/v1/tools/opencut_edit_v4_apply"));
+    const applying = page.waitForResponse(response => response.url().endsWith("/api/tools/opencut_edit_apply"));
     await review.getByRole("button", { name: "Apply media changes", exact: true }).click();
     expect((await (await applying).json()).error).toBeNull();
     await expect(review.getByText("Media changes saved.", { exact: true })).toBeVisible();
@@ -305,7 +305,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     await navigate(() => page.goto(`${endpoint}/editor`));
     const projectId = await createProject("Source artwork acceptance");
     await importMedia("sample.mp4"); await importMedia("sample.wav");
-    const imported = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+    const imported = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
     const sceneId = imported.project.default_sequence_id;
     const scene = imported.project.sequences.find(value => value.id === sceneId);
     const video = imported.project.assets.find(value => value.name === "sample.mp4" && value.kind === "video");
@@ -314,7 +314,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     for (const asset of [video, audio]) expect(BigInt(asset.duration.ticks)).toBe(4n * BigInt(asset.duration.timebase));
     const audioTrackId = crypto.randomUUID(), videoId = crypto.randomUUID(), audioId = crypto.randomUUID();
     const timing = { kind: "source_range", range: { start: time(0), duration: time(4) }, rate: { numerator: 1, denominator: 1 }, maintain_pitch: false };
-    const plan = await tool("opencut_media_workspace_plan_v4", {
+    const plan = await tool("opencut_media_import_plan", {
       project_id: projectId, expected_revision: imported.revision, sequence_id: sceneId, idempotency_key: crypto.randomUUID(),
       label: "Actual source artwork placements", bindings: [], ripple: false,
       new_tracks: [{ id: audioTrackId, name: "Source artwork audio", kind: "audio" }], placements: [
@@ -322,12 +322,12 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         { element_id: audioId, name: "Artwork audio", track_id: audioTrackId, asset_id: audio.id, start: time(0), content: { kind: "audio", timing } },
       ],
     });
-    await tool("opencut_edit_v4_apply", plan.transaction);
-    const fixed = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+    await tool("opencut_edit_apply", plan.transaction);
+    const fixed = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
     await navigate(() => page.reload());
-    await expect(page.getByLabel("V4 scene", { exact: true })).toHaveValue(sceneId);
-    const videoCard = page.locator(".v4-media-card").filter({ hasText: "sample.mp4" });
-    const audioCard = page.locator(".v4-media-card").filter({ hasText: "sample.wav" });
+    await expect(page.getByLabel("Scene", { exact: true })).toHaveValue(sceneId);
+    const videoCard = page.locator(".editor-media-card").filter({ hasText: "sample.mp4" });
+    const audioCard = page.locator(".editor-media-card").filter({ hasText: "sample.wav" });
     await requireArtwork(videoCard, "Source thumbnail");
     await expect.poll(() => videoCard.locator("img").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
     await requireArtwork(audioCard, "Source peaks before element gain");
@@ -340,7 +340,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const source = await tool(toolName, { project_id: projectId, revision: fixed.revision, asset_id: audio.id,
       request_id: crypto.randomUUID(), query: { kind: "waveform", sample_rate: 48000, projection: { kind: "source", range: null, bins: 128 } } });
     for (const [response, asset, algorithm] of [[thumbnail, video, "classic-thumbnail-1s-jpeg08-v1"], [source, audio, "source-peaks128-v1"]]) {
-      expect(response.schema_version).toBe(1); expect(response.project_id).toBe(projectId); expect(response.revision).toBe(fixed.revision);
+      expect(response).not.toHaveProperty("schema_version"); expect(response.project_id).toBe(projectId); expect(response.revision).toBe(fixed.revision);
       expect(response.asset_id).toBe(asset.id); expect(response.version).toEqual(asset.version);
       expect(response.identity.algorithm).toBe(algorithm); expect(response.identity.browser_version).toBeTruthy();
       for (const field of ["browser_sha256", "node_sha256", "module_sha256"]) expect(response.identity[field]).toMatch(/^[a-f0-9]{64}$/);
@@ -359,23 +359,23 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         content_hash: thumbnail.data.content_hash, identity: thumbnail.identity }, waveform: { sample_rate: 48000, total_samples: source.data.total_samples,
         bins: source.data.amplitudes.length, identity: source.identity }, independent_pixels_pcm: "native source-art tests; this check covers public receipts and UI consumption" },
     });
-    const selectedScene = await page.getByLabel("V4 scene", { exact: true }).inputValue();
+    const selectedScene = await page.getByLabel("Scene", { exact: true }).inputValue();
     const ids = await page.locator("[data-element-id]").evaluateAll(nodes => nodes.map(node => node.dataset.elementId));
     await page.getByLabel("Playhead (seconds)", { exact: true }).fill("1.25");
     await page.getByRole("button", { name: "Go to time", exact: true }).click();
     await expect(page.getByRole("slider", { name: "Scene playhead", exact: true })).toHaveAttribute("aria-valuenow", "1.25");
-    const timeline = page.locator(".v4-timeline-panel");
+    const timeline = page.locator(".editor-timeline-panel");
     for (let count = 0; count < 5; count++) await timeline.getByRole("button", { name: "Zoom in", exact: true }).click();
-    const viewport = page.locator(".v4-timeline-viewport");
+    const viewport = page.locator(".editor-timeline-viewport");
     await viewport.evaluate(node => { node.scrollLeft = 200; node.dispatchEvent(new Event("scroll")); });
     await expect.poll(() => viewport.evaluate(node => node.scrollLeft)).toBeGreaterThan(0);
     await expect(audioClip.getByRole("img", { name: "Classic element waveform", exact: true })).toBeVisible();
     await viewport.evaluate(node => { node.scrollLeft = 0; node.dispatchEvent(new Event("scroll")); });
     for (let count = 0; count < 5; count++) await timeline.getByRole("button", { name: "Zoom out", exact: true }).click();
     await expect(audioClip.getByRole("img", { name: "Classic element waveform", exact: true })).toBeVisible();
-    expect(await page.getByLabel("V4 scene", { exact: true }).inputValue()).toBe(selectedScene);
+    expect(await page.getByLabel("Scene", { exact: true }).inputValue()).toBe(selectedScene);
     expect(await page.locator("[data-element-id]").evaluateAll(nodes => nodes.map(node => node.dataset.elementId))).toEqual(ids);
-    const afterViews = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+    const afterViews = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
     expect(afterViews).toEqual(fixed);
     await expect.poll(() => observations.some(({ request, envelope }) => request?.project_id === projectId && request.revision === fixed.revision &&
       request.element_id === audioId && request.temporary_gain === null &&
@@ -422,13 +422,13 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const burningRequest = { ...savedDisplay.request, request_id: crypto.randomUUID(), temporary_gain: 200 };
     const burning = await tool(displayTool, burningRequest); assertDisplayOracle(burning, burningRequest, oracle, 20);
     expect(burning.bars.some(bar => bar.burn && bar.height_fraction === 1 && bar.burn_height > 0)).toBe(true);
-    expect((await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
+    expect((await tool("opencut_project_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
     check("waveform display: independent original PCM16 buckets, static gain, dB height and over-unity burn agree with public facts; real canvas paints bars and transparent gaps", {
       waveform_display_oracle: { source: "owned sample.wav mono PCM16/48000; independent original-byte conversion and 128-sample peaks", profiles: ["source-peaks128-v1", "classic-waveform-display-v1"], baseline_db: 0, readonly_burn_db: 20, baseline_pixels: basePixels,
         dense_100_clips_5_tracks_300_seconds: "separate metadata-only viewport check below; no audio-playback or native-cache-occupancy claim" },
     });
     const slider = audioClip.getByRole("slider", { name: "Volume Artwork audio", exact: true });
-    const surface = audioClip.locator(".v4-gain-surface");
+    const surface = audioClip.locator(".editor-gain-surface");
     const drag = async () => {
       await expect(slider).toHaveAttribute("aria-disabled", "false"); await slider.scrollIntoViewIfNeeded();
       expect(await slider.evaluate(element => { const r = element.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return hit === element || element.contains(hit); }), "The actual pointer hits the visible volume line").toBe(true);
@@ -441,15 +441,15 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const writeStart = writes.length, planStart = gainPlans.length, draftStart = observationSequence;
     await drag(); const draft = await display(fixed.revision, -120, draftStart); const draftPixels = await pixels(draft);
     expect(draft.envelope.data.bars[0].height_fraction).toBeLessThan(savedDisplay.envelope.data.bars[0].height_fraction);
-    expect((await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
+    expect((await tool("opencut_project_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
     expect(writes.length).toBe(writeStart); expect(gainPlans.length).toBe(planStart);
     await page.keyboard.press("Escape"); await page.mouse.up();
     await expect(slider).toHaveAttribute("aria-valuenow", "0"); const restored = await display(fixed.revision, null);
     await pixels(restored); expect(writes.length).toBe(writeStart); expect(gainPlans.length).toBe(planStart);
-    expect((await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
+    expect((await tool("opencut_project_inspect", { project_id: projectId, revision: null })).revision).toBe(fixed.revision);
     await drag(); await display(fixed.revision, -120);
-    const planned = page.waitForResponse(response => response.url().endsWith("/v1/tools/opencut_project_v4_audio_gain_plan") && response.request().postDataJSON().element_id === audioId);
-    const applied = page.waitForResponse(response => response.url().endsWith("/v1/tools/opencut_edit_v4_apply") && response.request().postDataJSON().project_id === projectId);
+    const planned = page.waitForResponse(response => response.url().endsWith("/api/tools/opencut_project_audio_gain_plan") && response.request().postDataJSON().element_id === audioId);
+    const applied = page.waitForResponse(response => response.url().endsWith("/api/tools/opencut_edit_apply") && response.request().postDataJSON().project_id === projectId);
     const [planResponse, applyResponse] = await Promise.all([planned, applied, page.mouse.up()]);
     const planEnvelope = await planResponse.json(), applyEnvelope = await applyResponse.json();
     expect(planEnvelope.error).toBeNull(); expect(applyEnvelope.error).toBeNull();
@@ -457,7 +457,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     expect(writes.length).toBe(writeStart + 1); expect(gainPlans.length).toBe(planStart + 1);
     expect(planResponse.request().postDataJSON().command).toEqual({ kind: "set_decibels", decibels_tenths: -120 });
     expect(planEnvelope.data.transaction.expected_revision).toBe(fixed.revision);
-    const afterGain = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+    const afterGain = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
     expect(afterGain.revision).toBe(applyEnvelope.data.revision); expect(afterGain.revision).not.toBe(fixed.revision);
     const storedAudio = afterGain.project.sequences.find(sequence => sequence.id === sceneId).tracks.find(track => track.id === audioTrackId).elements.find(element => element.id === audioId);
     expect(storedAudio.content.audio.gain).toEqual({ unit: "decibels", value: -12 }); expect(storedAudio.content.audio.muted).toBe(false);
@@ -468,10 +468,10 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     // A new document discards every prior Web cache/delegate. The native cache
     // may remain warm; this is not a native decoder-count/eviction assertion.
     const beforeReloadUrl = await videoCard.locator("img").getAttribute("src");
-    const beforeReloadIds = await page.locator(".v4-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId));
+    const beforeReloadIds = await page.locator(".editor-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId));
     const reloadObservationStart = observationSequence;
     await navigate(() => page.reload());
-    await expect(page.getByLabel("V4 scene", { exact: true })).toHaveValue(sceneId);
+    await expect(page.getByLabel("Scene", { exact: true })).toHaveValue(sceneId);
     await requireArtwork(videoCard, "Source thumbnail");
     await requireArtwork(audioClip, "Classic element waveform");
     const rebuiltThumbnailUrl = await videoCard.locator("img").getAttribute("src");
@@ -484,8 +484,8 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const rebuiltDisplay = await display(afterGain.revision, null, reloadObservationStart);
     const rebuiltPixels = await pixels(rebuiltDisplay);
     expect(rebuiltPixels).toEqual(committedPixels);
-    expect(await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null })).toEqual(afterGain);
-    expect(await page.locator(".v4-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId))).toEqual(beforeReloadIds);
+    expect(await tool("opencut_project_inspect", { project_id: projectId, revision: null })).toEqual(afterGain);
+    expect(await page.locator(".editor-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId))).toEqual(beforeReloadIds);
     expect(writes.length).toBe(writeStart + 1);
     check("source art: whole-page reload rebuilds a new JPEG ObjectURL and identical Classic display at the unchanged fixed head", {
       source_art_reload: { revision: afterGain.revision, thumbnail_hash: rebuiltThumbnail.data.content_hash,
@@ -495,7 +495,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     // Metadata-only dense source-art matrix. Two existing CAS resources are
     // reused by 100 clips; no new media or audio-playback benchmark is created.
     const denseId = crypto.randomUUID();
-    const copied = await tool("opencut_project_v4_copy", { source_project_id: projectId, source_revision: afterGain.revision,
+    const copied = await tool("opencut_project_copy", { source_project_id: projectId, source_revision: afterGain.revision,
       project_id: denseId, name: "Dense source artwork acceptance", idempotency_key: crypto.randomUUID() });
     projects.push(denseId);
     const dense = structuredClone(afterGain.project.sequences.find(value => value.id === sceneId));
@@ -518,9 +518,9 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         }) };
     });
     dense.main_track_id = dense.tracks[0].id;
-    const denseReceipt = await tool("opencut_edit_v4_apply", { project_id: denseId, expected_revision: copied.revision,
+    const denseReceipt = await tool("opencut_edit_apply", { project_id: denseId, expected_revision: copied.revision,
       idempotency_key: crypto.randomUUID(), label: "Dense source artwork metadata baseline", operations: [{ type: "sequence_put", sequence: dense }] });
-    const denseFixed = await tool("opencut_project_v4_inspect", { project_id: denseId, revision: denseReceipt.revision });
+    const denseFixed = await tool("opencut_project_inspect", { project_id: denseId, revision: denseReceipt.revision });
     const denseIds = dense.tracks.flatMap(track => track.elements.map(element => element.id));
     const budget = { navigation_100_dom_ms: 2000, input_two_raf_p95_ms: 50, input_two_raf_max_ms: 100, heap_delta_bytes: 64 * 1024 * 1024 };
     const evidence = { machine: { platform: os.platform(), release: os.release(), architecture: os.arch(), cpu: os.cpus()[0]?.model, logical_cpus: os.cpus().length,
@@ -534,19 +534,19 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const heaps = [];
     try {
       await navigate(() => page.goto(`${endpoint}/editor`));
-      await expect(page.getByRole("button", { name: "New project with scene notes", exact: true })).toBeEnabled();
+      await expect(page.getByRole("button", { name: "New project", exact: true })).toBeEnabled();
       await cdp.send("HeapProfiler.collectGarbage");
       const heapBefore = await heap(); heaps.push(heapBefore);
       const opening = performance.now();
       await navigate(() => page.goto(`${endpoint}/editor/${encodeURIComponent(denseId)}?scene=${encodeURIComponent(sceneId)}`));
-      await expect(page.locator(".v4-timeline-element")).toHaveCount(100); await expect(page.locator(".v4-track-name")).toHaveCount(5);
+      await expect(page.locator(".editor-timeline-element")).toHaveCount(100); await expect(page.locator(".editor-track-name")).toHaveCount(5);
       evidence.navigation_100_dom_ms = performance.now() - opening;
       await requireArtwork(page.locator(`[data-element-id="${dense.tracks[0].elements[0].id}"]`), "Source thumbnail");
       evidence.first_video_art_ms = performance.now() - opening;
       // Five 80px tracks exceed the real 320px vertical viewport. Reveal the
       // first audio art before expecting its lazy visible-only decoder result.
       const firstAudio = page.locator(`[data-element-id="${dense.tracks[3].elements[0].id}"]`);
-      await firstAudio.locator(".v4-timeline-art").scrollIntoViewIfNeeded();
+      await firstAudio.locator(".editor-timeline-art").scrollIntoViewIfNeeded();
       await requireArtwork(firstAudio, "Classic element waveform");
       evidence.first_audio_art_ms = performance.now() - opening;
       evidence.art_timing_method = "Navigation to first video art; navigation plus explicit vertical reveal to first audio art. No initial hidden-track readiness claim.";
@@ -557,7 +557,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         const observer = new PerformanceObserver(list => { for (const entry of list.getEntries()) if (data.long_tasks.length < 512) data.long_tasks.push(entry.duration); });
         observer.observe({ type: "longtask", buffered: false });
         const input = event => {
-          if (!event.isTrusted || !event.target.closest?.(".v4-timeline-panel")) return;
+          if (!event.isTrusted || !event.target.closest?.(".editor-timeline-panel")) return;
           const at = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => {
             if (data.inputs.length < 256) data.inputs.push({ type: event.type, two_raf_ms: performance.now() - at });
           }));
@@ -573,10 +573,10 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         await denseZoom.press(index < 10 ? "ArrowRight" : "ArrowLeft");
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); heaps.push(await heap());
       }
-      const denseViewport = page.locator(".v4-timeline-viewport");
+      const denseViewport = page.locator(".editor-timeline-viewport");
       for (const index of [0, 10, 19]) {
         const track = dense.tracks[3], element = track.elements[index];
-        const clip = page.locator(`[data-element-id="${element.id}"]`), select = clip.locator(".v4-element-select");
+        const clip = page.locator(`[data-element-id="${element.id}"]`), select = clip.locator(".editor-element-select");
         await select.scrollIntoViewIfNeeded();
         // Scroll to an actual visible intersection, then physically select.
         const point = await select.evaluate(button => {
@@ -586,7 +586,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
             if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) { bounds.left = Math.max(bounds.left, left); bounds.right = Math.min(bounds.right, left + parent.clientWidth); }
             if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) { bounds.top = Math.max(bounds.top, top); bounds.bottom = Math.min(bounds.bottom, top + parent.clientHeight); }
           }
-          const label = button.closest(".v4-track").querySelector(".v4-track-name").getBoundingClientRect(); bounds.left = Math.max(bounds.left, label.right);
+          const label = button.closest(".editor-track").querySelector(".editor-track-name").getBoundingClientRect(); bounds.left = Math.max(bounds.left, label.right);
           const x = (bounds.left + bounds.right) / 2, y = (bounds.top + bounds.bottom) / 2;
           return { x, y, bounds, hit: button.contains(document.elementFromPoint(x, y)) };
         });
@@ -599,7 +599,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
           await denseZoom.focus();
           for (const key of ["ArrowRight", "ArrowRight", "ArrowLeft", "ArrowLeft"]) await denseZoom.press(key);
           await denseViewport.evaluate((node, id) => {
-            const art = node.querySelector(`[data-element-id="${id}"] .v4-timeline-art`), rect = art.getBoundingClientRect(), viewport = node.getBoundingClientRect();
+            const art = node.querySelector(`[data-element-id="${id}"] .editor-timeline-art`), rect = art.getBoundingClientRect(), viewport = node.getBoundingClientRect();
             node.scrollLeft += rect.left - viewport.left + rect.width / 2;
             node.dispatchEvent(new Event("scroll"));
           }, element.id);
@@ -609,13 +609,13 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         let observed;
         await expect.poll(async () => {
           // Match the LAST rendered viewport, not any earlier successful HTTP.
-          const actual = await clip.locator(".v4-timeline-art").evaluate(node => {
-            const rect = node.getBoundingClientRect(), viewport = node.closest(".v4-timeline-viewport").getBoundingClientRect();
+          const actual = await clip.locator(".editor-timeline-art").evaluate(node => {
+            const rect = node.getBoundingClientRect(), viewport = node.closest(".editor-timeline-viewport").getBoundingClientRect();
             return { clip_left_px: Math.max(0, viewport.left - rect.left), clip_right_px: Math.min(rect.width, viewport.right - rect.left),
               pixels_per_second: rect.width / 4, css_height: rect.height, device_pixel_ratio: devicePixelRatio };
           });
           const canvasActual = await denseCanvas.evaluate(node => {
-            const rect = node.getBoundingClientRect(), parent = node.closest(".v4-timeline-art").getBoundingClientRect();
+            const rect = node.getBoundingClientRect(), parent = node.closest(".editor-timeline-art").getBoundingClientRect();
             return { width: node.width, height: node.height, temporary_gain: node.dataset.temporaryGain,
               inline: { left: node.style.left, width: node.style.width, height: node.style.height },
               layout: { left: rect.left - parent.left, width: rect.width, height: rect.height } };
@@ -659,9 +659,9 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
       evidence.long_tasks_ms = metrics.long_tasks; evidence.raf_gap_max_ms = Math.max(0, ...metrics.raf_gaps);
       heaps.push(await heap()); evidence.heap_baseline_bytes = heapBefore; evidence.heap_peak_bytes = Math.max(...heaps); evidence.heap_delta_bytes = evidence.heap_peak_bytes - heapBefore;
       evidence.heap_method = "CDP JSHeapUsedSize, baseline GC before navigation only; raw sampled peak after open, each zoom and each viewport. No retained-leak claim.";
-      expect(await page.getByLabel("V4 scene", { exact: true }).inputValue()).toBe(sceneId);
-      expect(await page.locator(".v4-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId))).toEqual(denseIds);
-      expect(await tool("opencut_project_v4_inspect", { project_id: denseId, revision: null })).toEqual(denseFixed);
+      expect(await page.getByLabel("Scene", { exact: true }).inputValue()).toBe(sceneId);
+      expect(await page.locator(".editor-timeline-element").evaluateAll(nodes => nodes.map(node => node.dataset.elementId))).toEqual(denseIds);
+      expect(await tool("opencut_project_inspect", { project_id: denseId, revision: null })).toEqual(denseFixed);
       expect(writes.length).toBe(denseWriteStart);
       expect(evidence.navigation_100_dom_ms, JSON.stringify(evidence)).toBeLessThanOrEqual(budget.navigation_100_dom_ms);
       expect(evidence.input_two_raf_p95_ms, JSON.stringify(evidence)).toBeLessThanOrEqual(budget.input_two_raf_p95_ms);
@@ -681,24 +681,25 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     await navigate(() => page.goto(`${endpoint}/editor/${encodeURIComponent(projectId)}?scene=${encodeURIComponent(sceneId)}`));
     await expect(page.getByRole("button", { name: "Import media", exact: true })).toBeEnabled();
     for (const name of ["tiny.png", "tiny.jpg", "short.mp4", "long.wav"]) await importMedia(name);
-    const varied = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+    const varied = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
     const variedEvidence = [];
     let smallThumbnail, smallSelection;
     for (const name of ["tiny.png", "tiny.jpg", "short.mp4", "long.wav"]) {
       const asset = varied.project.assets.find(value => value.name === name);
       expect(asset, name).toBeTruthy();
-      const card = page.locator(".v4-media-card").filter({ hasText: name });
+      const card = page.locator(".editor-media-card").filter({ hasText: name });
       await card.scrollIntoViewIfNeeded();
       await requireArtwork(card, name === "long.wav" ? "Source peaks before element gain" : "Source thumbnail");
       const query = name === "long.wav" ? { kind: "waveform", sample_rate: 48000, projection: { kind: "source", range: null, bins: 128 } }
         : { kind: "thumbnail" };
       const response = await tool(toolName, { project_id: projectId, revision: varied.revision, asset_id: asset.id,
         request_id: crypto.randomUUID(), query });
-      expect(response.schema_version).toBe(1); expect(response.project_id).toBe(projectId); expect(response.revision).toBe(varied.revision);
+      expect(response).not.toHaveProperty("schema_version"); expect(response.project_id).toBe(projectId); expect(response.revision).toBe(varied.revision);
       expect(response.asset_id).toBe(asset.id); expect(response.version).toEqual(asset.version);
       for (const field of ["browser_sha256", "node_sha256", "module_sha256"]) expect(response.identity[field]).toMatch(/^[a-f0-9]{64}$/);
       if (name === "long.wav") {
         expect(response.identity.algorithm).toBe("source-peaks128-v1");
+        expect(response.identity.decode_profile).toBe("fixed-cas-streamed-concat-webaudio-canvas");
         expect(response.data.kind).toBe("waveform"); expect(response.data.total_samples).toBe("576000");
         expect(response.data.sample_rate).toBe(48000); expect(response.data.channels).toBe(1); expect(response.data.bucket_size).toBe(128);
         expect(response.data.amplitudes).toHaveLength(128);
@@ -746,7 +747,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
         }
       }
     }
-    expect(await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null })).toEqual(varied);
+    expect(await tool("opencut_project_inspect", { project_id: projectId, revision: null })).toEqual(varied);
     check("source art: static PNG/JPEG retain tiny dimensions and independent red pixels, short video preserves Classic 1-second last-sample selection, and 12-second PCM peaks match original source bytes", {
       source_art_varied: { revision: varied.revision, sources: variedEvidence },
     });
@@ -760,7 +761,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     expect(oldUrls.length).toBeGreaterThan(0);
     await page.getByRole("button", { name: "Back to projects", exact: true }).click();
     const emptyId = await createProject("Source artwork empty scope");
-    await expect(page.locator(".v4-media-card")).toHaveCount(0);
+    await expect(page.locator(".editor-media-card")).toHaveCount(0);
     await expect(page.getByRole("img", { name: "Source thumbnail", exact: true })).toHaveCount(0);
     await expect(page.getByRole("img", { name: "Source peaks before element gain", exact: true })).toHaveCount(0);
     await expect(page.getByRole("img", { name: "Classic element waveform", exact: true })).toHaveCount(0);
@@ -793,7 +794,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     let mountedErrors = [];
     try { mountedErrors = await page.getByLabel("Source artwork unavailable", { exact: true }).evaluateAll(nodes => nodes.slice(0, 8).map(node => ({
       title: (node.getAttribute("title") ?? "").slice(0, 400),
-      surface: node.closest(".v4-media-card") ? "media" : node.closest(".v4-timeline-art") ? "timeline" : "other",
+      surface: node.closest(".editor-media-card") ? "media" : node.closest(".editor-timeline-art") ? "timeline" : "other",
     }))); } catch {}
     const responses = observations.slice(-12).map(({ operation, request, envelope }) => ({
       operation,
@@ -815,7 +816,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const cleanup = [];
     try { await navigate(() => page.goto(`${endpoint}/editor`)); } catch (error) { cleanup.push(String(error)); }
     for (const projectId of projects.reverse()) try {
-      const head = await tool("opencut_project_v4_inspect", { project_id: projectId, revision: null });
+      const head = await tool("opencut_project_inspect", { project_id: projectId, revision: null });
       await tool("opencut_project_delete", { idempotency_key: crypto.randomUUID(), projects: [{ project_id: projectId, expected_revision: head.revision }] });
     } catch (error) { cleanup.push(String(error)); }
     await page.close();

@@ -6,7 +6,7 @@ import {
 } from "./catalog";
 import { normalizeChord, reservedReason } from "./bindings";
 
-export const SHORTCUT_STORAGE_KEY = "opencut.shortcuts.v1";
+export const SHORTCUT_STORAGE_KEY = "opencut.shortcuts";
 export const MAX_SHORTCUT_CONFIG_BYTES = 48 * 1024;
 export type ShortcutStorage = {
   read(): string | null;
@@ -15,30 +15,38 @@ export type ShortcutStorage = {
 // Only bounded action names and physical chords. No project, media, connection,
 // credentials or edit transactions belong in this preference adapter.
 export const browserShortcutStorage: ShortcutStorage = {
-  read: () => window.localStorage.getItem("opencut.shortcuts.v1"),
-  write: (value) => window.localStorage.setItem("opencut.shortcuts.v1", value),
+  read: () => window.localStorage.getItem("opencut.shortcuts") ??
+    window.localStorage.getItem("opencut.shortcuts.v1"),
+  write: (value) => window.localStorage.setItem("opencut.shortcuts", value),
 };
+export function shortcutStorageEventIsRelevant(key: string | null): boolean {
+  if (key === null || key === SHORTCUT_STORAGE_KEY) return true;
+  if (key !== "opencut.shortcuts.v1") return false;
+  try { return window.localStorage.getItem("opencut.shortcuts") === null; }
+  catch { return true; } // The shared reader publishes the existing denial notice.
+}
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 export function parseShortcutConfig(text: string): ShortcutBindings {
-  if (new TextEncoder().encode(text).byteLength > MAX_SHORTCUT_CONFIG_BYTES)
+  if (text.length > MAX_SHORTCUT_CONFIG_BYTES || new TextEncoder().encode(text).byteLength > MAX_SHORTCUT_CONFIG_BYTES)
     throw new Error("The shortcut configuration is too large.");
   let config: unknown;
   try {
     config = JSON.parse(text);
   } catch {
     throw new Error(
-      "The shortcut configuration is invalid or has an unsupported version.",
+      "The shortcut configuration is invalid.",
     );
   }
   if (
     !object(config) ||
-    Object.keys(config).sort().join(",") !== "bindings,schema_version" ||
-    config.schema_version !== 1 ||
+    (Object.hasOwn(config, "schema_version")
+      ? Object.keys(config).sort().join(",") !== "bindings,schema_version" || config.schema_version !== 1
+      : Object.keys(config).join(",") !== "bindings") ||
     !object(config.bindings)
   )
     throw new Error(
-      "The shortcut configuration is invalid or has an unsupported version.",
+      "The shortcut configuration is invalid.",
     );
   const bindings = defaultBindings();
   // Require the complete table. An incomplete or future table cannot silently
@@ -71,7 +79,7 @@ export function parseShortcutConfig(text: string): ShortcutBindings {
   return bindings;
 }
 export const serializeShortcutConfig = (bindings: ShortcutBindings) =>
-  JSON.stringify({ schema_version: 1, bindings }, null, 2);
+  JSON.stringify({ bindings }, null, 2);
 export function readShortcutPreferences(storage: ShortcutStorage): {
   bindings: ShortcutBindings;
   notice: string | null;

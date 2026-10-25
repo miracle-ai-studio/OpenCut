@@ -12,7 +12,8 @@ import shutil
 import stat
 import struct
 
-FORMAT = 'opencut.runtime-bundle.v1'
+FORMAT_V1 = 'opencut.runtime-bundle.v1'
+FORMAT = 'opencut.runtime-bundle.v2'
 MAX_FILES = 100000
 MAX_FILE = 512 * 1024 * 1024
 MAX_TOTAL = 8 * 1024 * 1024 * 1024
@@ -20,7 +21,10 @@ MAX_MANIFEST = 16 * 1024 * 1024
 COMPONENTS = {'node', 'chromium', 'python'}
 SCRIPTS = ('run_derived.py', 'run_derived_v2.py', 'derive_static.py',
            'derive_renamed_v2.py', 'generate.py', 'fonttools-lock.json',
-           'derived-runtime-lock.json', 'derived-v2-runtime-lock.json')
+           'derived-runtime-lock.json', 'derived-v2-runtime-lock.json',
+           'run_color_static_v1.py', 'derive_color_static_v1.py', 'color-static-runtime-lock.json')
+WORKERS_V1 = ('run_derived.py', 'run_derived_v2.py')
+WORKERS = WORKERS_V1 + ('run_color_static_v1.py',)
 PACKAGES = ('classic-audio-renderer', 'classic-visual-renderer', 'classic-source-art-renderer')
 DEPENDENCIES = {
     'mediabunny': ('1.41.0', {'@types/dom-mediacapture-transform': '^0.1.11', '@types/dom-webcodecs': '0.1.13'}),
@@ -380,8 +384,9 @@ def bundle(repository, destination, target, spec_path=None):
         spec = validate_spec(spec_path, target)
         lock = read_json(scripts / 'derived-runtime-lock.json', 65536)
         lock_v2 = read_json(scripts / 'derived-v2-runtime-lock.json', 65536)
+        lock_color = read_json(scripts / 'color-static-runtime-lock.json', 65536)
         for key in ('fonttools_version', 'fonttools_implementation_sha256', 'python_version'):
-            if lock[key] != lock_v2[key]:
+            if lock[key] != lock_v2[key] or lock[key] != lock_color[key]:
                 raise ValueError('Derivation runtimes require incompatible Python installations')
         for name, component in spec['components'].items():
             prefix = 'runtimes/' + name
@@ -395,10 +400,10 @@ def bundle(repository, destination, target, spec_path=None):
                 if component['version'] != lock['python_version']:
                     raise ValueError('Python version declaration differs from derivation lock')
                 components[name]['fonttools'] = python_identity(copied, lock)
-    result = {'format': FORMAT, 'schema_version': 1, 'target': target,
+    result = {'format': FORMAT, 'schema_version': 2, 'target': target,
               'delivery': 'bundled_unverified' if components else 'external_executables',
               'components': components,
-              'scripts': {name: 'font-catalog/' + name for name in ('run_derived.py', 'run_derived_v2.py')},
+              'scripts': {name: 'font-catalog/' + name for name in WORKERS},
               'external_dependencies': ['ffmpeg', 'ffprobe'] + ([] if components else sorted(COMPONENTS)),
               'files': inventory(destination)}
     serialized = json.dumps(result, indent=2) + '\n'
@@ -414,11 +419,13 @@ def verify(root):
     if path.is_symlink():
         raise ValueError('Runtime manifest must not be a link')
     manifest = read_json(path)
+    version = (manifest.get('format'), manifest.get('schema_version'))
+    workers = WORKERS_V1 if version == (FORMAT_V1, 1) else WORKERS
     if (set(manifest) != {'format', 'schema_version', 'target', 'delivery', 'components', 'scripts', 'external_dependencies', 'files'}
-            or manifest['format'] != FORMAT or manifest['schema_version'] != 1
+            or version not in ((FORMAT_V1, 1), (FORMAT, 2))
             or set(manifest['components']) not in (set(), COMPONENTS)
             or manifest['delivery'] != ('bundled_unverified' if manifest['components'] else 'external_executables')
-            or manifest['scripts'] != {name: 'font-catalog/' + name for name in ('run_derived.py', 'run_derived_v2.py')}
+            or manifest['scripts'] != {name: 'font-catalog/' + name for name in workers}
             or manifest['external_dependencies'] != ['ffmpeg', 'ffprobe'] + ([] if manifest['components'] else sorted(COMPONENTS))):
         raise ValueError('Invalid runtime bundle declaration')
     if inventory(root, ('runtime-bundle.json',)) != manifest['files']:

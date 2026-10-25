@@ -4,15 +4,15 @@ export {
   OpenCutProtocolError,
   OpenCutTransportError,
   JobCompletionError,
-  publicJobResult,
+  jobResult,
   requestEnvelope,
 } from "../../../../packages/sdk-ts/src/index";
 export type {
-  AudioPreviewPcmHeaderV4,
+  AudioPreviewPcmHeader,
   ToolInput,
   ToolOutput,
   ToolName,
-  PublicJob,
+  Job,
   ArtifactReference,
   HostCapabilities,
   Envelope,

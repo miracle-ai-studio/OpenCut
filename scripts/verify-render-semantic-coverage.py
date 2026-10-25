@@ -54,7 +54,7 @@ def verify(binary, artifacts):
         assert worker.returncode == 0, worker.stderr
         done = call("opencut_job_view", {"job_id": queued["job_id"]})
         assert done["state"] == "succeeded", done
-        receipt = call("opencut_job_execution_receipt_v1", {"job_id": queued["job_id"]})
+        receipt = call("opencut_job_execution_receipt", {"job_id": queued["job_id"]})
         record = call("opencut_job_get", {"job_id": queued["job_id"]})
         artifact = record["result"]["artifact"]
         assert receipt["job_id"] == record["job_id"] and receipt["attempt"] == record["attempt"]
@@ -64,13 +64,13 @@ def verify(binary, artifacts):
         assert receipt["artifact_size"] == Path(artifact["path"]).stat().st_size
         assert receipt["semantic_output_verified"] is False
         # Receipt substitution across attempts must fail even if the artifact exists.
-        receipt_path = Path(artifact["path"]).parent / "execution-v1.json"
+        receipt_path = Path(artifact["path"]).parent / "execution.json"
         original = receipt_path.read_bytes()
         tampered = json.loads(original)
         tampered["attempt"] += 1
         try:
             receipt_path.write_text(json.dumps(tampered))
-            call("opencut_job_execution_receipt_v1", {"job_id": queued["job_id"]}, error="ARTIFACT_VERIFICATION_FAILED")
+            call("opencut_job_execution_receipt", {"job_id": queued["job_id"]}, error="ARTIFACT_VERIFICATION_FAILED")
         finally:
             receipt_path.write_bytes(original)
         jobs.append(done)
@@ -82,15 +82,15 @@ def verify(binary, artifacts):
     def span(start, duration):
         return {"start": tick(start), "duration": tick(duration)}
 
-    initial = call("opencut_project_v3_create", {"project": {"id": "semantic-film", "name": "Synthetic oracle",
+    initial = call("opencut_project_create", {"project": {"id": "semantic-film", "name": "Synthetic oracle",
         "sequence_id": "main", "width": 160, "height": 90, "fps": {"numerator": 10, "denominator": 1}},
         "idempotency_key": "create"})
     # Long-media control admission and independent quota ceiling, without a huge
     # fixture or media upload. Actual 16 GiB byte IO/performance is a separate test.
     large = {"project_id":"semantic-film","idempotency_key":"large-admission","name":"4k.mov", "size_bytes":str(16 * 1024**3), "content_hash":"a"*64}
-    held = call("opencut_upload_create",large)
+    held = call("opencut_upload_begin",large)
     assert held["size_bytes"] == large["size_bytes"]
-    call("opencut_upload_create",{**large,"idempotency_key":"oversized","size_bytes":str(16*1024**3+1)},error="INVALID_ARGUMENT")
+    call("opencut_upload_begin",{**large,"idempotency_key":"oversized","size_bytes":str(16*1024**3+1)},error="INVALID_ARGUMENT")
     call("opencut_upload_abort",{"upload_id":held["upload_id"]})
     operations = [{"type": "base.apply", "operation": {"type": "track.create", "sequence_id": "main",
         "track": {"id": "video", "name": "Video", "kind": "video", "enabled": True,
@@ -135,25 +135,25 @@ def verify(binary, artifacts):
     operations.append({"type": "transition.put", "sequence_id": "main", "transition": {
         "id": "crossfade", "outgoing_clip_id": "clip-red", "incoming_clip_id": "clip-blue",
         "duration": tick(6), "transition": {"kind": "crossfade"}}})
-    edited = call("opencut_edit_v3_apply", {"project_id": "semantic-film", "expected_revision": initial["revision"],
+    edited = call("opencut_edit_apply", {"project_id": "semantic-film", "expected_revision": initial["revision"],
         "idempotency_key": "transition", "label": "Independent transition oracle", "operations": operations})
     target = {"project_id": "semantic-film", "revision": edited["revision"], "sequence_id": "main"}
     for position in (6, 10, 14):
-        job("opencut_job_v3_frame", {**target, "idempotency_key": f"frame-{position}",
+        job("opencut_job_frame", {**target, "idempotency_key": f"frame-{position}",
             "requested_time": tick(position), "alignment": "exact"})
-    job("opencut_job_v3_render", {**target, "idempotency_key": "render", "container": "mp4", "video_codec": "h264"})
-    job("opencut_job_v3_range", {**target, "idempotency_key": "range", "requested_range": span(5, 10),
+    job("opencut_job_render", {**target, "idempotency_key": "render", "container": "mp4", "video_codec": "h264"})
+    job("opencut_job_range", {**target, "idempotency_key": "range", "requested_range": span(5, 10),
                                  "alignment": "exact"})
     # A separate revision changes incoming opacity. At sequence 1.3, local time is
     # 0.3, so blue is 255 * (0.25 + 0.3 * 0.5) ~= 102, not ~138 from shifted handles.
-    animated = call("opencut_edit_v3_apply", {"project_id": "semantic-film", "expected_revision": edited["revision"],
+    animated = call("opencut_edit_apply", {"project_id": "semantic-film", "expected_revision": edited["revision"],
         "idempotency_key": "animate", "label": "Clip-local clock oracle", "operations": [
             {"type": "base.apply", "operation": {"type": "keyframe.channel_set", "sequence_id": "main",
                 "track_id": "video", "clip_id": "clip-blue", "channel": {"parameter": "opacity", "keyframes": [
                     {"id": "fade-start", "time": tick(0), "value": 0.25, "interpolation": "linear"},
                     {"id": "fade-end", "time": tick(10), "value": 0.75, "interpolation": "linear"}]}}},
         ]})
-    job("opencut_job_v3_frame", {**target, "revision": animated["revision"], "idempotency_key": "animation-clock",
+    job("opencut_job_frame", {**target, "revision": animated["revision"], "idempotency_key": "animation-clock",
         "requested_time": tick(13), "alignment": "exact"})
 
     package = call("opencut_project_v3_package_export", {"project_id": "semantic-film", "revision": edited["revision"],
@@ -162,16 +162,16 @@ def verify(binary, artifacts):
     package_root = Path(package["package_path"])
     before = {str(p.relative_to(package_root)): sha(p.read_bytes()) for p in package_root.rglob('*') if p.is_file()}
     probe_input = {"package_path": str(package_root), "expected_manifest_sha256": package["manifest_sha256"]}
-    report = call("opencut_project_package_reproducibility_v1", probe_input)
+    report = call("opencut_project_package_reproducibility", probe_input)
     assert report["legacy_fully_reproducible_claim"] is True, report
     assert report["strictly_reproducible"] is False and report["execution_environment_locked"] == "not_verified", report
     assert report["native_tool_environment"] == "verified", report
     assert report["current_execution"]["process_binary_sha256"] == sha(binary.read_bytes()), report
     assert report["media_contents_verified"] == report["semantic_output_verified"] == report["bit_exact_verified"] == "not_verified"
-    call("opencut_project_package_reproducibility_v1", {**probe_input, "expected_manifest_sha256": "0" * 64}, "PACKAGE_INVALID")
+    call("opencut_project_package_reproducibility", {**probe_input, "expected_manifest_sha256": "0" * 64}, "PACKAGE_INVALID")
     after = {str(p.relative_to(package_root)): sha(p.read_bytes()) for p in package_root.rglob('*') if p.is_file()}
     assert before == after, "Read-only inspection changed the package"
-    assert call("opencut_project_v3_inspect", {"project_id": "semantic-film", "revision": None})["revision"] == animated["revision"]
+    assert call("opencut_project_inspect", {"project_id": "semantic-film", "revision": None})["revision"] == animated["revision"]
 
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -193,7 +193,7 @@ def verify(binary, artifacts):
                 time.sleep(.05)
             for index, done in enumerate(jobs):
                 artifact = done["artifacts"][0]
-                request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/jobs/{done['job_id']}/artifact",
+                request = urllib.request.Request(f"http://127.0.0.1:{port}/api/jobs/{done['job_id']}/artifact",
                     headers={"Authorization": "Bearer " + token.read_text().strip()})
                 with urllib.request.urlopen(request, timeout=30) as response:
                     data = response.read()

@@ -13,3 +13,27 @@ license = "MIT"
 
 [workspace.dependencies]
 gpui = "0.2.2"
+
+# Keep the local media pipeline usable with debug assertions and symbols.
+# Shared generic serializers may be emitted by any consuming crate, so media
+# package overrides alone leave their selected implementations unoptimized.
+[profile.dev]
+opt-level = 1
+
+# Renderer identity checks hash the executing binary even in local development.
+# Optimize the digest implementation so those checks do not stall media jobs.
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.serde_json]
+opt-level = 3
+
+[profile.dev.package.memchr]
+opt-level = 3
+
+[profile.dev.package.flate2]
+opt-level = 3
+
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+

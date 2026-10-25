@@ -1,5 +1,5 @@
 use super::*;
-use opencut_contracts::{AssetVersion, CreateProject, FrameRate, project_v4::*};
+use opencut_contracts::{AssetVersion, CreateProject, FrameRate, scene::*};
 
 struct EventFixture(Vec<StoredEvent>);
 impl ProjectEventRead for EventFixture {
@@ -101,7 +101,7 @@ impl JobRead for EventFixture {
 
 #[test]
 fn v4_creation_and_copy_events_hide_complete_internal_snapshots() {
-    let mut document = crate::project_v4::new_document(&CreateProject {
+    let mut document = crate::scene::new_document(&CreateProject {
         id: "private-payload-id".into(),
         name: "/private/source/project".into(),
         sequence_id: "scene".into(),
@@ -113,23 +113,23 @@ fn v4_creation_and_copy_events_hide_complete_internal_snapshots() {
         },
     })
     .unwrap();
-    document.fonts.push(FontResourceV4 {
+    document.fonts.push(FontResource {
         id: "font".into(),
         family: "Example".into(),
         weight: 400,
-        style: FontStyleV4::Normal,
+        style: FontStyle::Normal,
         face_index: 0,
         content: AssetVersion {
             id: "av".into(),
             content_hash: "0".repeat(64),
             size: 1,
         },
-        origin: ResourceOriginV4::LegacyLocator {
+        origin: ResourceOrigin::LegacyLocator {
             uri: "/Users/private/fonts/source.ttf".into(),
         },
         license: None,
     });
-    let private = serde_json::to_value(ProjectSnapshotV4 {
+    let private = serde_json::to_value(EditorSnapshot {
         project: document,
         revision: "private-revision".into(),
     })

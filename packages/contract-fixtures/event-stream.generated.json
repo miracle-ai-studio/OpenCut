@@ -231,7 +231,7 @@
     },
     "StreamFormat": {
       "enum": [
-        "opencut.events.v1"
+        "opencut.events"
       ],
       "type": "string"
     },

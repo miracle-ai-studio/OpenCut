@@ -1,0 +1,198 @@
+.resource-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.resource-preset-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.resource-preset-card[aria-pressed="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+.resource-preset-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.resource-preset-card strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resource-preset-card > .resource-example {
+  width: 100%;
+  aspect-ratio: 1;
+}
+.resource-preset-card > .resource-example > svg {
+  height: 100%;
+  object-fit: cover;
+}
+.resource-preset-apply {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 5px;
+  background: var(--panel);
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.resource-preset-tile, .resource-font-card)
+    :is(.resource-preset-apply, .resource-transition-apply, .resource-font-apply) {
+    opacity: 0;
+  }
+  :is(.resource-preset-tile, .resource-font-card):is(:hover, :focus-within)
+    :is(.resource-preset-apply, .resource-transition-apply, .resource-font-apply) {
+    opacity: 1;
+  }
+  :is(.resource-preset-tile, .resource-font-card):is(:hover, :focus-within)
+    :is(.resource-preset-apply, .resource-transition-apply, .resource-font-apply):disabled {
+    opacity: 0.4;
+  }
+}
+.effect-preview-dialog {
+  width: min(560px, calc(100vw - 40px));
+}
+.effect-preview-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.effect-preview-compare figure {
+  margin: 0;
+  min-width: 0;
+}
+.effect-preview-compare figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.resource-example {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  border-radius: 6px;
+  background: #243b62;
+}
+.resource-example svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.resource-example-layer {
+  position: absolute;
+  inset: 0;
+}
+.resource-example-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 6px 0;
+}
+.resource-example-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.resource-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.resource-presets button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.resource-effect-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.resource-details {
+  margin: 14px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.resource-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.resource-sound-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+.v4-resource-catalog .resource-sound-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.resource-sound-title {
+  flex: 1 1 100px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.resource-sound-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.resource-sound-row .resource-audition {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+.resource-sound-row details {
+  flex: 1 0 100%;
+  font-size: 11px;
+  color: var(--muted);
+}
+.resource-sound-row details a {
+  margin-left: 8px;
+}
+.resource-audition {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.resource-audition p {
+  margin: 0;
+  font-size: 12px;
+}
+.resource-recovery {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.workbench-transition-list > div {
+  flex-wrap: wrap;
+}
+.workbench-transition-list > div > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

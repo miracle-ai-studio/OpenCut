@@ -2,12 +2,12 @@
 //! the native adapter and refreshed when any captured file changes or TTL ends.
 use opencut_contracts::{
     EditorError,
-    source_art_v1::{SourceArtIdentityV1, SourceArtQueryV1},
+    source_art::{SourceArtIdentity, SourceArtQuery},
 };
-use opencut_editor_application::source_art_v1::{
-    SOURCE_PEAKS_ALGORITHM_V1, SourceArtPolicyV1, THUMBNAIL_ALGORITHM_V1,
+use opencut_editor_application::source_art::{
+    SOURCE_PEAKS_ALGORITHM, SourceArtPolicy, THUMBNAIL_ALGORITHM,
 };
-use opencut_native_services::source_art_v1::{SourceArtProcessConfig, resolve_identity};
+use opencut_native_services::source_art::{SourceArtProcessConfig, resolve_identity};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
@@ -17,7 +17,7 @@ use std::{
 };
 struct Captured {
     fingerprint: String,
-    identity: SourceArtIdentityV1,
+    identity: SourceArtIdentity,
     captured: Instant,
 }
 fn unavailable() -> EditorError {
@@ -27,10 +27,10 @@ fn unavailable() -> EditorError {
     )
 }
 pub(crate) fn configured(
-    policy: &SourceArtPolicyV1,
-    query: &SourceArtQueryV1,
+    policy: &SourceArtPolicy,
+    query: &SourceArtQuery,
 ) -> Result<SourceArtProcessConfig, EditorError> {
-    opencut_editor_application::source_art_v1::validate_policy(policy)?;
+    opencut_editor_application::source_art::validate_policy(policy)?;
     let runtime = crate::classic_audio_runtime::preview_config()?;
     let audio = runtime
         .runner
@@ -83,8 +83,8 @@ pub(crate) fn configured(
     }
     let mut identity = captured.as_ref().ok_or_else(unavailable)?.identity.clone();
     identity.algorithm = match query {
-        SourceArtQueryV1::Waveform { .. } => SOURCE_PEAKS_ALGORITHM_V1,
-        SourceArtQueryV1::Thumbnail {} => THUMBNAIL_ALGORITHM_V1,
+        SourceArtQuery::Waveform { .. } => SOURCE_PEAKS_ALGORITHM,
+        SourceArtQuery::Thumbnail {} => THUMBNAIL_ALGORITHM,
     }
     .into();
     Ok(SourceArtProcessConfig {
@@ -134,6 +134,10 @@ fn fingerprint(
         "host/limits.mjs",
         "host/protocol.mjs",
         "src/validation.mjs",
+        "src/verified-range-source.mjs",
+        "src/windowed-decoder.mjs",
+        "src/runtime.mjs",
+        "src/pcm-source.mjs",
     ] {
         files.push(audio.join(file));
     }

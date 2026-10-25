@@ -1,80 +1,21 @@
 //! Upload rules and transactional ports. Native byte storage is a separate adapter.
-pub use opencut_api_contracts::stream_uploads::*;
 pub use opencut_api_contracts::uploads::*;
 use opencut_contracts::EditorError;
 
-/// In-process receiving state. An undeclared full digest is never forged into a legacy DTO.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UploadSession {
-    pub upload_id: String,
-    pub project_id: String,
-    pub name: String,
-    pub size_bytes: String,
-    pub content_hash: Option<String>,
-    pub next_offset: String,
-    pub state: UploadState,
-    pub job_id: Option<String>,
-}
-impl UploadSession {
-    pub fn legacy(self) -> Result<UploadView, EditorError> {
-        Ok(UploadView {
-            upload_id: self.upload_id,
-            project_id: self.project_id,
-            name: self.name,
-            size_bytes: self.size_bytes,
-            content_hash: self.content_hash.ok_or_else(|| {
-                EditorError::new(
-                    "UPLOAD_HASH_REQUIRED",
-                    "Use the streaming upload operations until its complete digest is declared",
-                )
-            })?,
-            next_offset: self.next_offset,
-            state: self.state,
-            job_id: self.job_id,
-        })
-    }
-    pub fn stream(self) -> StreamUploadView {
-        StreamUploadView {
-            upload_id: self.upload_id,
-            project_id: self.project_id,
-            name: self.name,
-            size_bytes: self.size_bytes,
-            content_hash: self.content_hash,
-            next_offset: self.next_offset,
-            state: self.state,
-            job_id: self.job_id,
-        }
-    }
-}
-impl From<UploadView> for UploadSession {
-    fn from(view: UploadView) -> Self {
-        Self {
-            upload_id: view.upload_id,
-            project_id: view.project_id,
-            name: view.name,
-            size_bytes: view.size_bytes,
-            content_hash: Some(view.content_hash),
-            next_offset: view.next_offset,
-            state: view.state,
-            job_id: view.job_id,
-        }
-    }
-}
-pub trait StreamUploadStore {
-    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadSession, EditorError>;
-    fn inspect_stream_upload(&self, id: &str) -> Result<UploadSession, EditorError>;
-    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadSession, EditorError>;
-}
 pub fn validate_begin(input: &BeginUpload) -> Result<(), EditorError> {
     validate_metadata(
         &input.project_id,
         &input.name,
         &input.size_bytes,
         &input.idempotency_key,
-    )
+    )?;
+    if let Some(hash) = &input.content_hash {
+        validate_hash(hash)?;
+    }
+    Ok(())
 }
-/// Bounds database/event growth independently from the byte quota.
-pub const MAX_UPLOAD_CHUNKS: i64 = 4096;
+/// One immutable manifest page. File length does not determine resident metadata.
+pub const IMPORT_CHUNK_PAGE_SIZE: usize = 128;
 fn invalid(message: &str) -> EditorError {
     EditorError::new("INVALID_ARGUMENT", message)
 }
@@ -126,19 +67,12 @@ fn validate_metadata(
         return Err(invalid("Invalid upload project or display name"));
     }
     crate::require_idempotency_key(key)?;
-    if !(1..=MAX_UPLOAD_BYTES).contains(&decimal(size_bytes)?) {
-        return Err(invalid("Upload size must be between 1 byte and 16 GiB"));
+    if !(1..=MAX_SOURCE_BYTES).contains(&decimal(size_bytes)?) {
+        return Err(invalid(
+            "Upload size is outside exact resource addressability",
+        ));
     }
     Ok(())
-}
-pub fn validate_create(input: &CreateUpload) -> Result<(), EditorError> {
-    validate_metadata(
-        &input.project_id,
-        &input.name,
-        &input.size_bytes,
-        &input.idempotency_key,
-    )?;
-    validate_hash(&input.content_hash)
 }
 pub fn validate_chunk(input: &ChunkDescriptor) -> Result<(), EditorError> {
     validate_id(&input.upload_id)?;
@@ -148,7 +82,7 @@ pub fn validate_chunk(input: &ChunkDescriptor) -> Result<(), EditorError> {
     if !(1..=MAX_CHUNK_BYTES).contains(&size)
         || offset
             .checked_add(size)
-            .is_none_or(|end| end > MAX_UPLOAD_BYTES)
+            .is_none_or(|end| end > MAX_SOURCE_BYTES)
     {
         return Err(invalid("Invalid chunk byte range"));
     }
@@ -161,7 +95,7 @@ pub enum ChunkPosition {
 }
 /// A storage transaction still checks the exact replay's stored length and digest.
 pub fn chunk_position(
-    upload: &UploadSession,
+    upload: &UploadView,
     chunk: &ChunkDescriptor,
 ) -> Result<ChunkPosition, EditorError> {
     validate_chunk(chunk)?;
@@ -195,40 +129,59 @@ pub fn chunk_position(
 /// Implementations enforce project authorization before replay and again inside
 /// every state-changing transaction. Native files must be durable before ACK.
 pub trait UploadStore {
-    fn create_upload(&mut self, input: &CreateUpload) -> Result<UploadView, EditorError>;
+    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadView, EditorError>;
     fn inspect_upload(&self, id: &str) -> Result<UploadView, EditorError>;
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError>;
-    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError>;
-    fn abort_upload(&mut self, id: &str) -> Result<UploadSession, EditorError>;
+    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadView, EditorError>;
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError>;
+    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadView, EditorError>;
+    fn abort_upload(&mut self, id: &str) -> Result<UploadView, EditorError>;
 }
-pub fn create(
-    store: &mut impl UploadStore,
-    input: CreateUpload,
-) -> Result<UploadView, EditorError> {
-    validate_create(&input)?;
-    store.create_upload(&input)
+pub fn begin(store: &mut impl UploadStore, input: BeginUpload) -> Result<UploadView, EditorError> {
+    validate_begin(&input)?;
+    store.begin_upload(&input)
 }
 pub fn inspect(store: &impl UploadStore, input: UploadInput) -> Result<UploadView, EditorError> {
     validate_id(&input.upload_id)?;
     store.inspect_upload(&input.upload_id)
 }
+pub fn complete(
+    store: &mut impl UploadStore,
+    input: CompleteUpload,
+) -> Result<UploadView, EditorError> {
+    validate_id(&input.upload_id)?;
+    validate_hash(&input.content_hash)?;
+    store.complete_upload(&input)
+}
 pub fn abort(store: &mut impl UploadStore, input: UploadInput) -> Result<UploadView, EditorError> {
     validate_id(&input.upload_id)?;
     store.inspect_upload(&input.upload_id)?;
-    store.abort_upload(&input.upload_id)?.legacy()
+    store.abort_upload(&input.upload_id)
 }
-
 pub use opencut_job_execution::{PreparedMediaImportInput, PreparedUploadChunk};
-/// Import acceptance and project resource lookup are separate from byte ACK.
+/// Worker-only read port. Every read rechecks the captured authority, original
+/// sealed input and current attempt; no caller can supply a native locator.
+pub trait SealedUploadRead {
+    fn authorize_sealed_import(
+        &self,
+        input: &PreparedMediaImportInput,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+    ) -> Result<(), EditorError>;
+    fn sealed_import_chunks(
+        &self,
+        input: &PreparedMediaImportInput,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        offset: u64,
+    ) -> Result<Vec<PreparedUploadChunk>, EditorError>;
+}
+/// Import acceptance remains atomic with complete_upload;project resource
+/// lookup has its own scope and exposes no native paths.
 pub trait ImportStore {
-    /// Atomically seal, accept one durable job and bind that job to this project.
-    fn seal_upload(&mut self, id: &str) -> Result<UploadView, EditorError>;
     fn project_media(&self, input: &ProjectMediaInput)
     -> Result<MediaImportJobResult, EditorError>;
-}
-pub fn seal(store: &mut impl ImportStore, input: UploadInput) -> Result<UploadView, EditorError> {
-    validate_id(&input.upload_id)?;
-    store.seal_upload(&input.upload_id)
 }
 pub fn validate_media_id(id: &str) -> Result<(), EditorError> {
     let value = id
@@ -246,14 +199,22 @@ pub fn validate_media_id(id: &str) -> Result<(), EditorError> {
 pub fn validate_manifest(input: &PreparedMediaImportInput) -> Result<(), EditorError> {
     validate_id(&input.upload_id)?;
     validate_media_id(&input.media_id)?;
-    validate_create(&CreateUpload {
+    validate_begin(&BeginUpload {
         project_id: input.project_id.clone(),
         idempotency_key: "sealed".into(),
         name: input.name.clone(),
         size_bytes: input.size_bytes.to_string(),
-        content_hash: input.content_hash.clone(),
+        content_hash: Some(input.content_hash.clone()),
     })?;
-    if input.chunks.is_empty() || input.chunks.len() > MAX_UPLOAD_CHUNKS as usize {
+    if input.chunks.is_empty() {
+        return input
+            .authority
+            .as_ref()
+            .map(|_| ())
+            .ok_or_else(|| invalid("Paged imports require captured execution authority"));
+    }
+    // Exact old stored jobs are read-only, never generated by current sealing.
+    if input.chunks.len() > 4096 {
         return Err(invalid("Invalid sealed chunk count"));
     }
     let mut next = 0;
@@ -295,19 +256,17 @@ pub fn validate_import_result(
                     result.asset.kind,
                     opencut_contracts::AssetKind::Audio | opencut_contracts::AssetKind::Video
                 )
-                && serde_json::from_value::<opencut_contracts::project_v4::AudioMetadataV4>(
-                    value.clone(),
-                )
-                .is_ok_and(|format| format.sample_rate > 0 && format.channels > 0)
+                && serde_json::from_value::<opencut_contracts::scene::AudioMetadata>(value.clone())
+                    .is_ok_and(|format| format.sample_rate > 0 && format.channels > 0)
         }
         "frame_rate" => {
             result.asset.kind == opencut_contracts::AssetKind::Video
                 && serde_json::from_value::<opencut_contracts::FrameRate>(value.clone())
                     .is_ok_and(|rate| rate.numerator > 0 && rate.denominator > 0)
         }
-        opencut_media_contracts::CLASSIC_PACKET_RATE_METADATA_KEY_V1 => {
+        opencut_media_contracts::CLASSIC_PACKET_RATE_METADATA_KEY => {
             result.asset.kind == opencut_contracts::AssetKind::Video
-                && serde_json::from_value::<opencut_media_contracts::ClassicPacketRateV1>(
+                && serde_json::from_value::<opencut_media_contracts::ClassicPacketRate>(
                     value.clone(),
                 )
                 .is_ok_and(|observation| observation.validate().is_ok())
@@ -326,6 +285,10 @@ pub fn validate_import_result(
                     | "image/gif"
                     | "video/mp4"
                     | "video/quicktime"
+                    | "video/3gpp"
+                    | "video/3gpp2"
+                    | "video/mp2t"
+                    | "video/mpeg"
                     | "video/x-msvideo"
                     | "application/octet-stream"
                     | "audio/wav"
@@ -333,6 +296,10 @@ pub fn validate_import_result(
                     | "audio/ogg"
                     | "audio/flac"
                     | "audio/mp4"
+                    | "audio/quicktime"
+                    | "audio/3gpp"
+                    | "audio/3gpp2"
+                    | "audio/aac"
             )
         }),
         _ => false,
@@ -488,7 +455,7 @@ pub fn abort_with_cleanup(
     store: &mut (impl UploadStore + UploadRetentionStore),
     cleanup: &impl UploadCleanup,
     input: UploadInput,
-) -> Result<UploadSession, EditorError> {
+) -> Result<UploadView, EditorError> {
     let expected_id = input.upload_id.clone();
     validate_id(&input.upload_id)?;
     let view = store.abort_upload(&input.upload_id)?;
@@ -517,9 +484,8 @@ pub fn abort_with_cleanup(
     Ok(view)
 }
 
-/// Logical source-byte reservations, not a quota on CAS, outputs or filesystem blocks.
-pub const PROJECT_UPLOAD_RESERVATION_LIMIT: u64 = 32 * 1024 * 1024 * 1024;
-pub const WORKSPACE_UPLOAD_RESERVATION_LIMIT: u64 = 64 * 1024 * 1024 * 1024;
+// Logical source-byte reservations remain observable until durable cleanup.
+// Native disk admission and explicit storage policy govern actual allocation.
 pub trait UploadRetentionStore {
     fn read_upload_page(
         &self,
@@ -585,19 +551,15 @@ pub fn release_upload(
     })
 }
 
-pub struct UploadSessionEntry {
-    pub upload: UploadSession,
-    pub retention: UploadRetentionView,
-}
 pub struct UploadPageSlice {
-    pub records: Vec<UploadSessionEntry>,
+    pub records: Vec<UploadEntry>,
     pub upper_id: Option<String>,
     pub has_more: bool,
 }
 fn query_sessions(
     store: &impl UploadRetentionStore,
     input: UploadQuery,
-) -> Result<(Vec<UploadSessionEntry>, Option<String>), EditorError> {
+) -> Result<(Vec<UploadEntry>, Option<String>), EditorError> {
     if !(1..=100).contains(&input.limit) {
         return Err(invalid("Upload page size must be 1 to 100"));
     }
@@ -647,32 +609,11 @@ pub fn query_uploads(
     input: UploadQuery,
 ) -> Result<UploadPage, EditorError> {
     let (records, next_cursor) = query_sessions(store, input)?;
-    // Pending streaming sessions are exposed by their own versioned projection.
-    let uploads = records
-        .into_iter()
-        .filter(|entry| entry.upload.content_hash.is_some())
-        .map(|entry| {
-            Ok(UploadEntry {
-                upload: entry.upload.legacy()?,
-                retention: entry.retention,
-            })
-        })
-        .collect::<Result<_, EditorError>>()?;
     Ok(UploadPage {
-        uploads,
-        next_cursor,
-    })
-}
-pub fn query_stream_uploads(
-    store: &impl UploadRetentionStore,
-    input: UploadQuery,
-) -> Result<StreamUploadPage, EditorError> {
-    let (records, next_cursor) = query_sessions(store, input)?;
-    Ok(StreamUploadPage {
         uploads: records
             .into_iter()
-            .map(|entry| StreamUploadEntry {
-                upload: entry.upload.stream(),
+            .map(|entry| UploadEntry {
+                upload: entry.upload,
                 retention: entry.retention,
             })
             .collect(),
@@ -685,32 +626,33 @@ mod long_media_tests {
     use super::*;
     #[test]
     fn long_media_boundary_and_final_chunk_are_consistent() {
-        let input = CreateUpload {
+        let input = BeginUpload {
             project_id: "p".into(),
             name: "4k.mov".into(),
             idempotency_key: "long-import".into(),
-            size_bytes: MAX_UPLOAD_BYTES.to_string(),
-            content_hash: "a".repeat(64),
+            size_bytes: MAX_SOURCE_BYTES.to_string(),
+            content_hash: Some("a".repeat(64)),
         };
-        validate_create(&input).unwrap();
+        validate_begin(&input).unwrap();
         let final_chunk = ChunkDescriptor {
             upload_id: format!("upload_{}", "a".repeat(32)),
-            offset: (MAX_UPLOAD_BYTES - MAX_CHUNK_BYTES).to_string(),
+            offset: (MAX_SOURCE_BYTES - MAX_CHUNK_BYTES).to_string(),
             size_bytes: MAX_CHUNK_BYTES.to_string(),
             content_hash: "b".repeat(64),
         };
         validate_chunk(&final_chunk).unwrap();
-        assert_eq!(MAX_UPLOAD_BYTES / MAX_CHUNK_BYTES, MAX_UPLOAD_CHUNKS as u64);
+        // Source addressability is independent from the number of uploaded chunks.
+        assert!(MAX_SOURCE_BYTES > 16 * 1024 * 1024 * 1024);
         assert!(
-            validate_create(&CreateUpload {
-                size_bytes: (MAX_UPLOAD_BYTES + 1).to_string(),
+            validate_begin(&BeginUpload {
+                size_bytes: (MAX_SOURCE_BYTES + 1).to_string(),
                 ..input
             })
             .is_err()
         );
         assert!(
             validate_chunk(&ChunkDescriptor {
-                offset: MAX_UPLOAD_BYTES.to_string(),
+                offset: MAX_SOURCE_BYTES.to_string(),
                 ..final_chunk
             })
             .is_err()

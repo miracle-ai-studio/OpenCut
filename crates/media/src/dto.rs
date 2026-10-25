@@ -66,22 +66,23 @@ pub struct TimelineRangeRenderRequest {
 /// Schema 3 visual graph; `base` retains the exact schema 2 media and audio timeline.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct TimelineExportRequestV3 {
+pub struct HistoricalVisualTimelineExportRequest {
     pub base: TimelineExportRequest,
-    pub visual: opencut_media_contracts::composition_v3::CompiledVisualGraphV3,
+    pub visual:
+        opencut_media_contracts::historical_visual_composition::HistoricalVisualCompiledVisualGraph,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct TimelineFrameRenderRequestV3 {
-    pub timeline: TimelineExportRequestV3,
+pub struct HistoricalVisualTimelineFrameRenderRequest {
+    pub timeline: HistoricalVisualTimelineExportRequest,
     pub sequence_time: MediaTime,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct TimelineRangeRenderRequestV3 {
-    pub timeline: TimelineExportRequestV3,
+pub struct HistoricalVisualTimelineRangeRenderRequest {
+    pub timeline: HistoricalVisualTimelineExportRequest,
     pub sequence_start: MediaTime,
     pub sequence_duration: MediaTime,
 }
@@ -99,7 +100,7 @@ pub struct RenderedTimelineFrame {
 pub use opencut_media_contracts::composition::{
     EvaluatedCurve, EvaluatedSegment, TimelineCaption, TimelineVisualCurves,
 };
-pub use opencut_media_contracts::composition_v3::*;
+pub use opencut_media_contracts::historical_visual_composition::*;
 pub type TimelineVideoClip = opencut_media_contracts::composition::TimelineVideoClip<PathBuf>;
 pub type TimelineImageClip = opencut_media_contracts::composition::TimelineImageClip<PathBuf>;
 pub type TimelineAudioClip = opencut_media_contracts::composition::TimelineAudioClip<PathBuf>;

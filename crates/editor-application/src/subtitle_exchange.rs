@@ -1,10 +1,10 @@
-//! Strict, bounded SRT/ASS interchange mapped to ordinary caption transactions.
+//! Shared strict,bounded SRT/ASS parsing and historical caption export.
 use opencut_api_contracts::subtitle_exchange::{
-    SubtitleExport, SubtitleExportReceipt, SubtitleFormat, SubtitleImport,
+    SubtitleExport, SubtitleExportReceipt, SubtitleFormat,
 };
 use opencut_contracts::{
-    CaptionCue, CaptionStyle, EditorError, FontResolutionPolicy, Operation, ProjectSnapshot,
-    TextAlign, Time, TimeRange, TransactionRequest,
+    CaptionCue, CaptionStyle, EditorError, FontResolutionPolicy, ProjectSnapshot, TextAlign, Time,
+    TimeRange,
 };
 use opencut_time::{RationalTime, range_end};
 use std::collections::{BTreeMap, BTreeSet};
@@ -325,54 +325,6 @@ pub(crate) fn parse_ass(
     Ok(cues)
 }
 
-/// Returns the exact transaction to commit through the ordinary CAS/idempotency path.
-pub fn import_transaction(
-    snapshot: &ProjectSnapshot,
-    input: &SubtitleImport,
-) -> Result<TransactionRequest, EditorError> {
-    if snapshot.project.id != input.project_id || snapshot.revision != input.expected_revision {
-        return Err(EditorError::new(
-            "REVISION_CONFLICT",
-            "Subtitle import revision changed",
-        ));
-    }
-    sequence(snapshot, &input.sequence_id)?;
-    if input.content.len() > MAX_CONTENT || input.idempotency_key.is_empty() {
-        return Err(invalid(
-            "Subtitle input is too large or lacks an idempotency key",
-        ));
-    }
-    let style = input.style.clone().unwrap_or_else(default_style);
-    let mut cues = match input.format {
-        SubtitleFormat::Srt => parse_srt(&input.content, &style)?,
-        SubtitleFormat::Ass => parse_ass(&input.content, &style)?,
-    };
-    let operations = cues
-        .iter_mut()
-        .enumerate()
-        .map(|(index, cue)| {
-            cue.id = crate::content_id(
-                "cue",
-                format!(
-                    "subtitle:{}:{}:{}",
-                    input.project_id, input.idempotency_key, index
-                )
-                .as_bytes(),
-            );
-            Operation::InsertCaption {
-                sequence_id: input.sequence_id.clone(),
-                cue: cue.clone(),
-            }
-        })
-        .collect();
-    Ok(TransactionRequest {
-        expected_revision: input.expected_revision.clone(),
-        idempotency_key: input.idempotency_key.clone(),
-        label: "Import subtitles".into(),
-        operations,
-    })
-}
-
 fn rounded_units(time: &Time, units: i128) -> Result<(i64, bool), EditorError> {
     let t = RationalTime::try_from(time)?;
     if t.ticks() < 0 {
@@ -464,6 +416,12 @@ pub fn export_subtitles(
         return Err(EditorError::new(
             "REVISION_CONFLICT",
             "Subtitle export revision changed",
+        ));
+    }
+    if input.track_id.is_some() {
+        return Err(EditorError::new(
+            "UNSUPPORTED_RENDER_FEATURE",
+            "This historical document has no owning caption tracks;export all captions without a track filter",
         ));
     }
     let sequence = sequence(snapshot, &input.sequence_id)?;
@@ -596,35 +554,17 @@ mod tests {
     #[test]
     fn srt_import_and_export_preserve_text_and_millisecond_times() {
         let source = "1\r\n00:00:01,250 --> 00:00:02,500\r\n中文\r\nsecond line\r\n";
-        let input = SubtitleImport {
-            project_id: "p".into(),
-            expected_revision: "rev".into(),
-            sequence_id: "main".into(),
-            idempotency_key: "srt".into(),
-            format: SubtitleFormat::Srt,
-            content: source.into(),
-            style: None,
-        };
-        let transaction = import_transaction(&snapshot(), &input).unwrap();
-        assert_eq!(transaction.operations.len(), 1);
+        let cues = parse_srt(source, &default_style()).unwrap();
+        assert_eq!(cues.len(), 1);
         let mut project = snapshot();
-        project.project.sequences[0].caption_cues = transaction
-            .operations
-            .into_iter()
-            .map(|op| {
-                if let Operation::InsertCaption { cue, .. } = op {
-                    cue
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect();
+        project.project.sequences[0].caption_cues = cues;
         let result = export_subtitles(
             &project,
             &SubtitleExport {
                 project_id: "p".into(),
                 revision: "rev".into(),
                 sequence_id: "main".into(),
+                track_id: None,
                 format: SubtitleFormat::Srt,
             },
         )
@@ -639,19 +579,11 @@ mod tests {
 
     #[test]
     fn ass_plain_dialogue_import_rejects_override_tags() {
-        let mut input = SubtitleImport {project_id:"p".into(),expected_revision:"rev".into(),
-            sequence_id:"main".into(),idempotency_key:"ass".into(),format:SubtitleFormat::Ass,
-            content:"[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:01.25,0:00:02.50,Default,,0,0,0,,Hello\\N世界".into(),style:None};
+        let mut content="[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:01.25,0:00:02.50,Default,,0,0,0,,Hello\\N世界".to_string();
+        assert_eq!(parse_ass(&content, &default_style()).unwrap().len(), 1);
+        content.push_str("{\\pos(1,2)}");
         assert_eq!(
-            import_transaction(&snapshot(), &input)
-                .unwrap()
-                .operations
-                .len(),
-            1
-        );
-        input.content.push_str("{\\pos(1,2)}");
-        assert_eq!(
-            import_transaction(&snapshot(), &input).unwrap_err().code,
+            parse_ass(&content, &default_style()).unwrap_err().code,
             "SUBTITLE_INVALID"
         );
     }
@@ -677,27 +609,14 @@ mod tests {
                 project_id: "p".into(),
                 revision: "rev".into(),
                 sequence_id: "main".into(),
+                track_id: None,
                 format: SubtitleFormat::Ass,
             },
         )
         .unwrap();
         assert!(export.losses.is_empty(), "{:?}", export.losses);
-        let transaction = import_transaction(
-            &snapshot(),
-            &SubtitleImport {
-                project_id: "p".into(),
-                expected_revision: "rev".into(),
-                sequence_id: "main".into(),
-                idempotency_key: "roundtrip".into(),
-                format: SubtitleFormat::Ass,
-                content: export.content,
-                style: None,
-            },
-        )
-        .unwrap();
-        let Operation::InsertCaption { cue, .. } = &transaction.operations[0] else {
-            panic!()
-        };
+        let parsed = parse_ass(&export.content, &default_style()).unwrap();
+        let cue = &parsed[0];
         assert_eq!(cue.style, style);
         assert_eq!(cue.text, "你好\n世界");
         assert_eq!(

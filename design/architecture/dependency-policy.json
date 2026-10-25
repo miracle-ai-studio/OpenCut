@@ -85,7 +85,6 @@
           "tokio",
           "tokio-util",
           "uuid",
-          "ureq",
           "opencut-host-runtime"
         ],
         "build": [],
@@ -277,6 +276,7 @@
       "responsibility": "实现应用能力端口并组合原生适配器",
       "dependencies": {
         "normal": [
+          "flate2",
           "libc",
           "opencut-api-contracts",
           "opencut-asset-store",

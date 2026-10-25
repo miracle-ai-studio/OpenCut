@@ -4,3 +4,8 @@ world planner {
   /// Returns a JSON array of OpenCut Operation values. The host validates it.
   export plan: func(snapshot-json: string, parameters-json: string) -> string;
 }
+
+/// Additive public V4 snapshot/operation ABI. The original planner stays frozen.
+world planner-v4-v1 {
+  export plan-v4-v1: func(snapshot-json: string, parameters-json: string) -> string;
+}

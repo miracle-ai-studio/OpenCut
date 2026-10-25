@@ -91,19 +91,19 @@ test("graph tee preserves original connections/results, waits for observation mo
   await context.audioWorklet.addModule("product.js");assert.deepEqual(modules,["product.js","blob:observer"]);
   const gain=new GainNode(context);const result=gain.connect(context.destination);
   assert.equal(result,context.destination);assert.equal(calls[0][1],context.destination);assert.equal(calls.length,3);
-  const product=new env.window.AudioWorkletNode(context,"opencut-v4-audio-preview");
+  const product=new env.window.AudioWorkletNode(context,"opencut-audio-preview");
   product.port.postMessage({kind:"reset",token:"owned"});
   const observer=calls[1][1];assert.equal(observer.options.numberOfInputs,1);
   assert.equal(observer.sent[0][0].token,"owned");assert.equal(product.sent[0][0].token,"owned");
   const record=env.window.__sceneMasteringWitness.records[0];assert.equal(record.token,"owned");
   const worker=new env.window.Worker("actual",{name:"opencut-audio-pump"});
-  const message={channel:"opencut-audio-pump",version:1,kind:"start",token:"owned",
+  const message={channel:"opencut-audio-pump",kind:"start",token:"owned",
     session:{session_id:"different-from-gesture-token",generation:"1",overlay_epoch:"0",identity:{revision:"fixed"}}};
   const transfer=[{}];worker.postMessage(message,transfer);
   assert.equal(worker.sent[0][0],message);assert.equal(worker.sent[0][1],transfer);
   assert.equal(record.session.session_id,"different-from-gesture-token");
   assert.equal(record.session.identity.revision,"fixed");
-  worker.listeners[0]({data:{channel:"opencut-audio-pump",version:1,kind:"progress",token:"owned",
+  worker.listeners[0]({data:{channel:"opencut-audio-pump",kind:"progress",token:"owned",
     receipt:{token:"owned",copied:128,consumedFrames:"128",renderFrame:1024,quantumFrames:128,completedBlocks:0}}});
   assert.equal(record.quanta.length,1);assert.equal(record.quanta[0].copied,128);
   assert.throws(()=>worker.postMessage({...message,token:"other"}),/ownership/);

@@ -1,8 +1,8 @@
 //! Shared media-library removal planning; persistence uses the existing edit authority.
 use opencut_api_contracts::media_library::RemoveMedia;
 use opencut_contracts::{
-    EditorError, Operation, ProjectDocument, project_v3::ProjectDocumentV3,
-    project_v3_ops::VisualOperation,
+    EditorError, Operation, ProjectDocument, historical_visual::HistoricalVisualDocument,
+    historical_visual_ops::VisualOperation,
 };
 use std::collections::HashSet;
 
@@ -82,7 +82,7 @@ pub fn base_operations(
     Ok(operations)
 }
 pub fn visual_operations(
-    document: &ProjectDocumentV3,
+    document: &HistoricalVisualDocument,
     input: &RemoveMedia,
 ) -> Result<Vec<VisualOperation>, EditorError> {
     let base = base_operations(&document.base, input)?;
@@ -155,11 +155,11 @@ mod tests {
     use super::*;
     use opencut_contracts::{
         CreateProject, FrameRate, ProjectSnapshot, TransactionRequest,
-        project_v3_ops::ApplyV3Project,
+        historical_visual_ops::ApplyHistoricalVisualProject,
     };
     use serde_json::json;
-    fn fixture() -> ProjectDocumentV3 {
-        let mut p = crate::project_v3::create(&CreateProject {
+    fn fixture() -> HistoricalVisualDocument {
+        let mut p = crate::historical_visual::create(&CreateProject {
             id: "p".into(),
             name: "P".into(),
             sequence_id: "main".into(),
@@ -199,9 +199,9 @@ mod tests {
         let p = fixture();
         let input = input();
         let ops = visual_operations(&p, &input).unwrap();
-        let plan = crate::project_v3::plan_apply(
+        let plan = crate::historical_visual::plan_apply(
             &p,
-            &ApplyV3Project {
+            &ApplyHistoricalVisualProject {
                 project_id: input.project_id.clone(),
                 expected_revision: input.expected_revision.clone(),
                 label: "Remove media".into(),
@@ -260,9 +260,9 @@ mod tests {
     fn a_locked_reference_rejects_the_whole_removal_and_invalid_selections_are_rejected() {
         let mut p = fixture();
         p.base.sequences[1].tracks[0].locked = true;
-        let plan = crate::project_v3::plan_apply(
+        let plan = crate::historical_visual::plan_apply(
             &p,
-            &ApplyV3Project {
+            &ApplyHistoricalVisualProject {
                 project_id: "p".into(),
                 expected_revision: "head".into(),
                 label: "Remove media".into(),

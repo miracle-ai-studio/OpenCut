@@ -48,16 +48,16 @@ fn upload(
     wrong_hash: bool,
 ) -> UploadView {
     let view = app
-        .create_upload(&CreateUpload {
+        .begin_upload(&BeginUpload {
             project_id: "a".into(),
             idempotency_key: key.into(),
             name: "display-name.mp4".into(),
             size_bytes: bytes.len().to_string(),
-            content_hash: if wrong_hash {
+            content_hash: Some(if wrong_hash {
                 "0".repeat(64)
             } else {
                 format!("{:x}", Sha256::digest(bytes))
-            },
+            }),
         })
         .unwrap();
     let mut offset = 0;
@@ -73,7 +73,11 @@ fn upload(
             .unwrap();
         offset += part.len();
     }
-    app.seal_upload(&view.upload_id).unwrap()
+    app.complete_upload(&CompleteUpload {
+        upload_id: view.upload_id,
+        content_hash: view.content_hash.unwrap(),
+    })
+    .unwrap()
 }
 fn run(database: &Path) {
     opencut_host_runtime::worker::run(database, true, Arc::new(AtomicBool::new(false))).unwrap();
@@ -124,9 +128,11 @@ fn uploaded_image_survives_source_removal_and_renders_after_scoped_binding() {
     run(&database);
     let view = app.job_view(accepted.job_id.as_deref().unwrap()).unwrap();
     assert_eq!(view.state, JobState::Succeeded, "{view:?}");
-    let extended = view.extended_result.unwrap();
-    assert_eq!(extended.kind, "media.import");
-    let imported: MediaImportJobResult = serde_json::from_value(extended.data).unwrap();
+    let Some(opencut_api_contracts::job_results::JobResultView::MediaImport(imported)) =
+        view.result
+    else {
+        panic!("Expected typed media import result")
+    };
     assert_eq!(imported.asset.kind, AssetKind::Image);
     assert_eq!(app.snapshot("a").unwrap(), original);
     assert_eq!(
@@ -337,7 +343,7 @@ fn video_and_audio_are_classified_from_uploaded_bytes() {
         assert_eq!(std::fs::read(resolved.uri).unwrap(), bytes);
         assert_eq!(app.snapshot("a").unwrap(), original);
         let public = app.job_view(&job.job_id).unwrap();
-        assert!(public.extended_result.is_some());
+        assert!(public.result.is_some());
         assert!(
             !serde_json::to_string(&public)
                 .unwrap()

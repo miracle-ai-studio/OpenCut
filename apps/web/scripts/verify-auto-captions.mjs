@@ -1,3 +1,4 @@
+import { editorSnapshot } from "./project-inspection.mjs";
 import { verifyViewport } from "./verify-viewport.mjs";
 import { chromium, expect } from "@playwright/test";
 import fs from "node:fs/promises";
@@ -24,7 +25,7 @@ const check = (name) => {
 async function call(name, input) {
   return page.evaluate(
     async ({ name, input }) => {
-      const result = await fetch(`/v1/tools/${name}`, {
+      const result = await fetch(`/api/tools/${name}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -36,7 +37,7 @@ async function call(name, input) {
   );
 }
 const inspect = () =>
-  call("opencut_project_v3_inspect", { project_id: "speech", revision: null });
+  editorSnapshot(call("opencut_project_inspect", { project_id: "speech", revision: null }));
 const cues = (snapshot) => snapshot.project.base.sequences[0].caption_cues;
 try {
   await page.goto(`${endpoint}/editor/speech?scene=main`);
@@ -46,7 +47,7 @@ try {
   let seeded = await inspect();
   expect(seeded.project.base.name).toBe("Speech acceptance");
   while (cues(seeded).length) {
-    await call("opencut_edit_v3_apply", {
+    await call("opencut_edit_apply", {
       project_id: "speech",
       expected_revision: seeded.revision,
       idempotency_key: crypto.randomUUID(),

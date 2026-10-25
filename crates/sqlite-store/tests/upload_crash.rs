@@ -26,16 +26,19 @@ impl Paused {
     }
 }
 impl UploadStore for Paused {
-    fn create_upload(&mut self, input: &CreateUpload) -> Result<UploadView, EditorError> {
-        self.app.create_upload(input)
+    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadView, EditorError> {
+        self.app.begin_upload(input)
     }
     fn inspect_upload(&self, id: &str) -> Result<UploadView, EditorError> {
         self.app.inspect_upload(id)
     }
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
+    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadView, EditorError> {
+        self.app.complete_upload(input)
+    }
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
         self.app.authorize_chunk(input)
     }
-    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
+    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
         if self.mode == "before" {
             self.pause();
         }
@@ -45,7 +48,7 @@ impl UploadStore for Paused {
         }
         Ok(view)
     }
-    fn abort_upload(&mut self, id: &str) -> Result<UploadSession, EditorError> {
+    fn abort_upload(&mut self, id: &str) -> Result<UploadView, EditorError> {
         self.app.abort_upload(id)
     }
 }
@@ -123,7 +126,7 @@ fn upload_child() {
                 upload_id: id.clone(),
             },
         )
-        .map(|_| UploadSession::from(store.inspect_upload(&id).unwrap()))
+        .map(|_| store.inspect_upload(&id).unwrap())
     } else if mode == "abort" {
         abort_with_cleanup(
             &mut store,
@@ -137,7 +140,7 @@ fn upload_child() {
     };
     std::fs::write(
         root.join(format!("{mode}-result.json")),
-        serde_json::to_vec(&result.and_then(UploadSession::legacy)).unwrap(),
+        serde_json::to_vec(&result).unwrap(),
     )
     .unwrap();
 }
@@ -201,12 +204,12 @@ fn setup(root: &Path) -> (EditorApplication, UploadView) {
     )
     .unwrap();
     let view = app
-        .create_upload(&CreateUpload {
+        .begin_upload(&BeginUpload {
             project_id: "a".into(),
             idempotency_key: "upload".into(),
             name: "file".into(),
             size_bytes: "6".into(),
-            content_hash: format!("{:x}", Sha256::digest(b"abcdef")),
+            content_hash: Some(format!("{:x}", Sha256::digest(b"abcdef"))),
         })
         .unwrap();
     std::fs::write(root.join("upload-id"), &view.upload_id).unwrap();

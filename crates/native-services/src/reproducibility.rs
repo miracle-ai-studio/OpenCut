@@ -1,17 +1,20 @@
 //! Read-only package observation behind the application verification port.
 use crate::project_package as common;
 use opencut_api_contracts::{
-    project_package_v3::{PackageManifestV3, PackageToolLock},
-    reproducibility::{ExecutionIdentityV1, InspectV1},
+    historical_visual_package::{HistoricalVisualManifest, PackageToolLock},
+    reproducibility::{ExecutionIdentity, InspectPackageReproducibility},
 };
-use opencut_contracts::{EditorError, project_v3::ProjectDocumentV3};
+use opencut_contracts::{EditorError, historical_visual::HistoricalVisualDocument};
 use opencut_editor_application::reproducibility::{PackageObservation, ReproducibilityProbe};
 use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::Path};
 
 pub struct NativeReproducibility;
 impl ReproducibilityProbe for NativeReproducibility {
-    fn observe(&self, input: &InspectV1) -> Result<PackageObservation, EditorError> {
+    fn observe(
+        &self,
+        input: &InspectPackageReproducibility,
+    ) -> Result<PackageObservation, EditorError> {
         let root = Path::new(&input.package_path);
         if !root.is_absolute() || fs::canonicalize(root).map_err(common::io)? != root {
             return Err(common::invalid(
@@ -26,9 +29,9 @@ impl ReproducibilityProbe for NativeReproducibility {
         if manifest_sha256 != input.expected_manifest_sha256 {
             return Err(common::invalid("Package manifest SHA-256 mismatch"));
         }
-        let manifest: PackageManifestV3 = serde_json::from_slice(&bytes)
+        let manifest: HistoricalVisualManifest = serde_json::from_slice(&bytes)
             .map_err(|_| common::invalid("Invalid legacy package manifest"))?;
-        opencut_editor_application::project_package_v3::validate_manifest(&manifest)?;
+        opencut_editor_application::historical_visual_package::validate_manifest(&manifest)?;
         let project = common::bounded_bytes(
             &common::relative(root, &manifest.project_path)?,
             common::MAX_DOCUMENT_BYTES,
@@ -36,9 +39,9 @@ impl ReproducibilityProbe for NativeReproducibility {
         if common::digest(&project) != manifest.project_sha256 {
             return Err(common::invalid("Project document SHA-256 mismatch"));
         }
-        let document: ProjectDocumentV3 = serde_json::from_slice(&project)
+        let document: HistoricalVisualDocument = serde_json::from_slice(&project)
             .map_err(|_| common::invalid("Invalid project document"))?;
-        opencut_editor_application::project_package_v3::validate_export_document(&document)?;
+        opencut_editor_application::historical_visual_package::validate_export_document(&document)?;
         if document.base.id != manifest.source_project_id {
             return Err(common::invalid("Project identity differs from manifest"));
         }
@@ -71,7 +74,7 @@ impl ReproducibilityProbe for NativeReproducibility {
 /// Capture the host actually executing an attempt; never backfill old packages.
 pub fn execution_identity(
     native_tools: Vec<PackageToolLock>,
-) -> Result<ExecutionIdentityV1, EditorError> {
+) -> Result<ExecutionIdentity, EditorError> {
     let mut executable =
         fs::File::open(std::env::current_exe().map_err(common::io)?).map_err(common::io)?;
     let mut digest = Sha256::new();
@@ -83,7 +86,7 @@ pub fn execution_identity(
         }
         digest.update(&buffer[..read]);
     }
-    Ok(ExecutionIdentityV1 {
+    Ok(ExecutionIdentity {
         process_binary_sha256: format!("{:x}", digest.finalize()),
         platform: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
         native_tools,

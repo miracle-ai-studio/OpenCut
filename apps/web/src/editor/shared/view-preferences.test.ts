@@ -8,7 +8,6 @@ import {
   saveWorkspaceLayout,
   readWelcomePreferences,
   saveWelcomePreferences,
-  unseenUpstreamRelease,
   readLibraryPreferences,
   saveLibraryPreferences,
   saveTimelinePreferences,
@@ -26,7 +25,7 @@ it("cover scene views persist only bounded identities, isolate hosts/projects an
   views.save("copy", views.read("project")!);
   expect(views.read("copy")).toBe("other");
   for (let n = 0; n < 66; n++) views.save("p" + n, "s");
-  const raw = JSON.parse(localStorage.getItem("opencut.cover-scenes.v1")!);
+  const raw = JSON.parse(localStorage.getItem("opencut.cover-scenes")!);
   expect(raw).toHaveLength(64);
   expect(
     raw.every(
@@ -36,13 +35,13 @@ it("cover scene views persist only bounded identities, isolate hosts/projects an
   ).toBe(true);
   expect(views.read("project")).toBeNull();
   views.save("x".repeat(513), "s");
-  expect(JSON.parse(localStorage.getItem("opencut.cover-scenes.v1")!)).toEqual(
+  expect(JSON.parse(localStorage.getItem("opencut.cover-scenes")!)).toEqual(
     raw,
   );
 });
 it("cover scene views reject credentials and recover the session when storage is unavailable", () => {
   new CoverSceneViews("http://user:secret@localhost:8788").save("p", "s");
-  expect(localStorage.getItem("opencut.cover-scenes.v1")).toBeNull();
+  expect(localStorage.getItem("opencut.cover-scenes")).toBeNull();
   const views = new CoverSceneViews("http://localhost:8788");
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("quota");
@@ -256,10 +255,6 @@ describe("bounded editor presentation preferences", () => {
       completed: false,
       lastSeenRelease: null,
     });
-    expect(unseenUpstreamRelease("0.3.0", null)).toBe(true);
-    expect(unseenUpstreamRelease("0.3.0", "0.2.0")).toBe(true);
-    expect(unseenUpstreamRelease("0.3.0", "0.3.0")).toBe(false);
-    expect(unseenUpstreamRelease("0.3.0", "0.10.0")).toBe(false);
   });
   it("keeps guide and resizing usable when optional browser preferences are blocked", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {

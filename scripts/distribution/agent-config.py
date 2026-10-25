@@ -8,7 +8,7 @@ import re
 import tempfile
 
 
-def generate(binary, database, output, name='opencut', credential=None):
+def generate(binary, database, output, name='opencut', credential=None, *, service_directory=None, with_worker=False):
     if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
         raise ValueError('Server name must contain only letters, digits, underscores or hyphens')
     binary, database, output = (Path(p).expanduser().resolve() for p in (binary, database, output))
@@ -22,9 +22,16 @@ def generate(binary, database, output, name='opencut', credential=None):
         if not credential.is_file():
             raise ValueError('Credential file does not exist')
         args += ['--credential-file', str(credential)]
+    if with_worker and credential:
+        raise ValueError('A managed Worker requires local-owner mode')
+    if with_worker and service_directory is not None:
+        raise ValueError('Choose an independent service or an explicit portable Worker')
     args += ['mcp', 'serve']
-    if not credential:
+    if with_worker:
         args += ['--with-worker']
+    else:
+        service_directory = Path(service_directory or Path.home() / '.opencut/server').expanduser().resolve()
+        args += ['--service-directory', str(service_directory)]
     # Claude expands ${...} in config values. Reject these literal paths rather
     # than silently redirecting the executable/database through an environment.
     if any('${' in value for value in [str(binary), *args]):
@@ -56,8 +63,9 @@ def generate(binary, database, output, name='opencut', credential=None):
         stage.rename(output)
     return {'status': 'generated', 'directory': str(output), 'files': list(files),
             'identity': 'restricted' if credential else 'local-owner',
-            'managed_worker': not bool(credential),
-            'requires_external_worker': bool(credential)}
+            'managed_worker': with_worker,
+            'requires_external_worker': not with_worker,
+            'service_directory': str(service_directory) if not with_worker else None}
 
 
 if __name__ == '__main__':
@@ -67,6 +75,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True, help='New output directory; existing directories are refused')
     parser.add_argument('--name', default='opencut')
     parser.add_argument('--credential-file', type=Path)
+    parser.add_argument('--service-directory', type=Path, help='Existing independent service (default: ~/.opencut/server)')
+    parser.add_argument('--with-worker', action='store_true', help='Explicit portable session; its Worker ends when this MCP session closes')
     args = parser.parse_args()
     try:
         print(json.dumps(generate(args.binary, args.database, args.output, args.name, args.credential_file), ensure_ascii=False, indent=2))

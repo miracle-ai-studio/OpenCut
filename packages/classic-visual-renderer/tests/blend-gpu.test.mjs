@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { BLEND_MODES_V1 } from "../src/blend-modes-v1.mjs";
-import { prepareGraphicSourcesV1, resolveGraphicSourceV1, isRetainedGraphicSourceV1 } from "../src/graphic-source.mjs";
+import { BLEND_MODES } from "../src/blend-modes.mjs";
+import { prepareGraphicSources, resolveGraphicSource, isRetainedGraphicSource } from "../src/graphic-source.mjs";
 
 // Node cannot import the isolated browser's /renderer WGSL modules. Load the
 // actual GPU orchestration with only shader imports replaced by labels; this
@@ -140,7 +140,7 @@ async function execute(layers, gpu, budget = "8192", sourceMap, size = [2, 2], s
 
 test("one shared GPU pipeline binds all 17 shader codes in layer order and reuses mode buffers", async () => {
   const gpu = fakeGpu();
-  const layers = [...BLEND_MODES_V1, "multiply"].map((blendMode, index) => ({
+  const layers = [...BLEND_MODES, "multiply"].map((blendMode, index) => ({
     elementId: String(index),
     quad,
     blendMode,
@@ -204,10 +204,10 @@ function retainedSource(gpu, fill = [1, 0, 0, 1]) {
   const layer = { elementId: 'static', graphic: { sourceWidth: 2, sourceHeight: 2,
     geometry: { kind: 'rectangle', cornerRadiusPercent: 0 }, fill,
     stroke: { widthPx: 0, align: 'center', color: [0, 0, 0, 0] } } };
-  const prepared = prepareGraphicSourcesV1(gpu.realm, {
+  const prepared = prepareGraphicSources(gpu.realm, {
     identity: { projectId: 'p', revision: 'r', sequenceId: 's' }, graphics: [layer],
   }, { maxDecodedPixels: '100', maxRgbaBytes: '4096' });
-  return resolveGraphicSourceV1(prepared, layer, { maxPixels: '100', maxRasterBytes: '4096' }, (width, height) => {
+  return resolveGraphicSource(prepared, layer, { maxPixels: '100', maxRasterBytes: '4096' }, (width, height) => {
     const canvas = { width, height };
     canvas.getContext = () => ({ canvas, clearRect() {}, save() {}, restore() {}, translate() {}, fill() {} });
     return canvas;
@@ -217,7 +217,7 @@ function retainedSource(gpu, fill = [1, 0, 0, 1]) {
 test('only controlled static graphic sources skip upload; scratch targets are reused and warm bytes stay charged', async () => {
   const gpu = fakeGpu(), source = retainedSource(gpu);
   const mutable = { width: 2, height: 2, canvas: { width: 2, height: 2 }, borrowed: true, borrowedCanvas: true };
-  assert.equal(isRetainedGraphicSourceV1(mutable), false);
+  assert.equal(isRetainedGraphicSource(mutable), false);
   const layers = [{ elementId: 'static', quad }, { elementId: 'video', quad, blendMode: 'screen' }];
   const sources = new Map([['static', source], ['video', mutable]]);
   const cold = await execute(layers, gpu, '8192', sources);
@@ -291,4 +291,15 @@ test('malformed GPU admission on a warm realm releases existing textures and sou
   const retry=retainedSource(gpu);
   await execute(layers,gpu,'8192',new Map([['static',retry]]));
   assert.equal(retry.canvas.width,2);closeGpuRealm(gpu.realm);
+});
+
+test('pops both submitted GPU scopes before waiting and still rejects a late memory error', { timeout: 1000 }, async () => {
+  const gpu = fakeGpu(); let calls = 0, validation;
+  gpu.realm.device.popErrorScope = () => {
+    if (++calls === 1) return new Promise(resolve => { validation = resolve; });
+    validation(null); return Promise.resolve({ message: 'memory rejected' });
+  };
+  await assert.rejects(execute([{ elementId: 'layer', quad, blendMode: 'normal' }], gpu), error => error.code === 'VISUAL_GPU_FAILED');
+  assert.equal(calls, 2);
+  assert.ok(gpu.allocations.every(value => value.destroyed));
 });

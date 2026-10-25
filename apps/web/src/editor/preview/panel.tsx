@@ -1,23 +1,9 @@
 import { GuideControls, GuideOverlay } from "./guides";
-import {
-  readPreviewGuides,
-  savePreviewGuides,
-} from "../shared/view-preferences";
+import { readPreviewGuides, savePreviewGuides } from "../shared/view-preferences";
 import { usePreviewViewport, ViewportControls } from "./viewport";
-import { SnapshotActions } from "./snapshot-actions";
-import { TransformOverlay } from "./transform-overlay";
 import { t, useLocale } from "../shared/locale";
 import { useEffect, useRef, useState } from "react";
-import {
-  Image,
-  Maximize2,
-  Pause,
-  Play,
-  SkipBack,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
-import type { OpenCutClient } from "../../lib/editor-sdk";
+import { Maximize2, Pause, Play, SkipBack, Volume2, VolumeX } from "lucide-react";
 import { useWorkspace } from "../workspace/context";
 import { activeSequence } from "../model/types";
 import { formatTime, zero } from "../model/time";
@@ -49,26 +35,10 @@ export function PreviewPanel() {
   );
   const video = useRef<HTMLVideoElement>(null),
     playback = useRef<Playback | null>(null),
-    generation = useRef(0),
-    frameAbort = useRef<AbortController | null>(null);
-  const frameJob = useRef<{ sdk: OpenCutClient; id: string } | null>(null);
-  const cancelFrame = () => {
-    frameAbort.current?.abort();
-    frameAbort.current = null;
-    const job = frameJob.current;
-    frameJob.current = null;
-    if (job) void job.sdk.cancelPublicJob(job.id).catch(() => {});
-  };
-  const [playing, setPlaying] = useState(false),
-    [loading, setLoading] = useState(false),
-    [frame, setFrame] = useState<string | null>(null),
-    [muted, setMuted] = useState(false),
-    [snapshotMenu, setSnapshotMenu] = useState<{ x: number; y: number } | null>(
-      null,
-    );
+    generation = useRef(0);
+  const [playing, setPlaying] = useState(false), [loading, setLoading] = useState(false), [muted, setMuted] = useState(false);
   const stop = () => {
     generation.current++;
-    cancelFrame();
     playback.current?.stop();
     playback.current = null;
     setPlaying(false);
@@ -76,22 +46,13 @@ export function PreviewPanel() {
   };
   useEffect(() => {
     stop();
-    setFrame(null);
-    setSnapshotMenu(null);
   }, [api, view?.project.id, view?.revision, sequence?.id, seekId]);
   useEffect(
     () => () => {
       generation.current++;
-      cancelFrame();
-      playback.current?.stop();
+        playback.current?.stop();
     },
     [],
-  );
-  useEffect(
-    () => () => {
-      if (frame) URL.revokeObjectURL(frame);
-    },
-    [frame],
   );
   const play = () => {
     if (playing) {
@@ -106,10 +67,8 @@ export function PreviewPanel() {
     }
     if (!api || !view || !sequence || !video.current) return;
     const startTime = video.current.ended ? zero : playhead;
-    cancelFrame();
     playback.current?.stop();
     const requested = ++generation.current;
-    setFrame(null);
     setLoading(true);
     const session = new Playback(api.sdk, video.current, (error) => {
       if (requested === generation.current) controller.report(error);
@@ -139,76 +98,6 @@ export function PreviewPanel() {
       reason: "Open a project first.",
     },
   });
-  const previewFrame = async (): Promise<Blob | null> => {
-    if (!api || !view || !sequence) return null;
-    stop();
-    const requested = ++generation.current,
-      request = new AbortController();
-    frameAbort.current = request;
-    setLoading(true);
-    try {
-      const input = {
-        project_id: view.project.id,
-        revision: view.revision,
-        sequence_id: sequence.id,
-        requested_time: playhead,
-        alignment: "nearest" as const,
-      };
-      const accepted =
-        view.format === "visual"
-          ? await api.sdk.call("opencut_job_v3_frame", {
-              ...input,
-              idempotency_key: crypto.randomUUID(),
-            })
-          : await api.sdk.submitJob({
-              kind: "preview.composited_frame",
-              input,
-              idempotency_key: crypto.randomUUID(),
-            });
-      if (requested !== generation.current) {
-        void api.sdk.cancelPublicJob(accepted.job_id).catch(() => {});
-        return null;
-      }
-      frameJob.current = { sdk: api.sdk, id: accepted.job_id };
-      const job = await api.sdk.waitForPublicJob(accepted.job_id, {
-        signal: request.signal,
-        timeoutMs: 180000,
-        pollIntervalMs: 200,
-      });
-      if (frameJob.current?.id === accepted.job_id) frameJob.current = null;
-      const artifact = job.artifacts[0];
-      if (!artifact) throw new Error("Frame job returned no artifact.");
-      const blob = await (
-        await api.sdk.downloadArtifact(artifact, { signal: request.signal })
-      ).blob();
-      if (requested !== generation.current) return null;
-      setFrame(URL.createObjectURL(blob));
-      return blob;
-    } catch (error) {
-      if (requested === generation.current) controller.report(error);
-      return null;
-    } finally {
-      if (requested === generation.current) {
-        frameAbort.current = null;
-        setLoading(false);
-      }
-    }
-  };
-  useEffect(() => {
-    if (
-      !sequence ||
-      (!sequence.tracks.some((track) => track.clips.length) &&
-        !sequence.caption_cues?.length &&
-        !view?.visual.some(
-          (graph) => graph.sequence_id === sequence.id && graph.shapes.length,
-        ))
-    )
-      return;
-    const timer = setTimeout(() => {
-      if (!playback.current && !frameAbort.current) void previewFrame();
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [api, view?.project.id, view?.revision, sequence?.id, seekId]);
   return (
     <Panel
       title={t("Preview")}
@@ -237,11 +126,6 @@ export function PreviewPanel() {
         className={`preview-stage${viewport.panning ? " panning" : ""}`}
         data-shortcut-scope="canvas"
         {...viewport.events}
-        onContextMenu={(event) => {
-          if (!sequence) return;
-          event.preventDefault();
-          setSnapshotMenu({ x: event.clientX, y: event.clientY });
-        }}
         style={
           {
             "--canvas-ratio": sequence
@@ -277,18 +161,13 @@ export function PreviewPanel() {
               if (position) controller.present(position);
             }}
           />
-          {frame && <img src={frame} alt="Rendered project frame" />}
-          {!frame && !playback.current && !loading && (
+          {!playback.current && !loading && (
             <Empty title={t("See your edit")}>
               <span>{t("Your project preview appears here.")}</span>
             </Empty>
           )}
           <GuideOverlay value={guides} />
-          {frame && !playing && (
-            <TransformOverlay
-              key={`${view?.revision}-${sequenceId}-${controller.getSnapshot().selection?.id}`}
-            />
-          )}
+
         </div>
         {loading && (
           <div className="preview-loading" role="status">
@@ -326,20 +205,6 @@ export function PreviewPanel() {
           <output>{formatTime(playhead)}</output>
         </div>
         <div className="toolbar">
-          <Button
-            aria-label={t("Render frame")}
-            disabled={!sequence || loading}
-            icon={<Image size={15} />}
-            onClick={() => void previewFrame()}
-          />
-          <SnapshotActions
-            menu={snapshotMenu}
-            closeMenu={() => setSnapshotMenu(null)}
-            capture={previewFrame}
-            name={view?.project.name ?? "OpenCut"}
-            disabled={!sequence || loading}
-            report={(error) => controller.report(error)}
-          />
           <Button
             aria-label={muted ? t("Unmute preview") : t("Mute preview")}
             onClick={() => setMuted(!muted)}

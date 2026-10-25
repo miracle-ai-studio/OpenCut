@@ -27,7 +27,7 @@ def verify(binary, root):
         if stream:connections.append(connection);return connection,response
         value=response.read();status=response.status;hs=dict(response.getheaders());connection.close();return status,hs,value
     def call(token,name,args,error=None,extra=None):
-        status,_,data=raw(token,'POST','/v1/tools/'+name,args,extra);out=json.loads(data)
+        status,_,data=raw(token,'POST','/api/tools/'+name,args,extra);out=json.loads(data)
         trace.append({'http':name,'status':status,'response':out})
         if error:assert status==403 and out['error']['code']==error,out
         else:assert status==200 and out['error'] is None,out
@@ -113,12 +113,12 @@ def verify(binary, root):
         a,a_id=issue('editor-a','a.secret');a2,a2_id=issue('editor-a','a2.secret');b,b_id=issue('editor-b','b.secret');reader,reader_id=issue('reader-a','reader.secret')
         assert 'http' in call(a,'opencut_capabilities',{})['access']['scoped_transports']
         def read_project(token):
-            status,_,payload=raw(token,'GET','/v1/projects');data=json.loads(payload);assert status==200;return [p['project']['id'] for p in data['data']]
+            status,_,payload=raw(token,'GET','/api/projects');data=json.loads(payload);assert status==200;return [p['project']['id'] for p in data['data']]
         with ThreadPoolExecutor(max_workers=8) as pool:
             outputs=list(pool.map(read_project,[a,b]*12))
         assert outputs==[['a'],['b']]*12
-        denied(a,'GET','/v1/projects/b/snapshot');denied(b,'GET','/v1/projects/a/revisions/'+snapshots['a'])
-        denied(a,'POST','/v1/media/upload?name=forbidden',b'no file');denied(a,'GET','/v1/media/'+'f'*64)
+        denied(a,'GET','/api/projects/b/snapshot');denied(b,'GET','/api/projects/a/revisions/'+snapshots['a'])
+        denied(a,'POST','/api/media/upload?name=forbidden',b'no file');denied(a,'GET','/api/media/'+'f'*64)
         for name,args in [('opencut_plugin_list',{}),('opencut_media_inspect',{'hash':'f'*64}),('opencut_job_get',{'job_id':'guessed'})]:call(a,name,args,'NOT_AUTHORIZED')
         call(a,'opencut_job_submit',{'kind':'media.probe','idempotency_key':'native-path','input':{'input':str(source)}},'NOT_AUTHORIZED')
         changed=call(a,'opencut_edit_apply',edit('a',snapshots['a'],'http-a'),extra={'X-Actor':'local-owner','X-Principal-Id':'editor-b'})
@@ -148,17 +148,17 @@ def verify(binary, root):
         cached,cache_ids=mcp_call(a,sid,'opencut_project_inspect',{'project_id':'a'});assert cache_ids
         checks.append('MCP HTTP tools/resources/prompts/subscriptions carry verified identity; other credentials including same-principal and owner cannot use GET/POST/DELETE on the session')
         scope={'kind':'projects','project_id':'a'};expected=call(a,'opencut_event_changes',{'scope':scope,'limit':100})['events']
-        stream_conn,stream=raw(a,'POST','/v1/changes/stream',{'scope':scope,'limit':2},stream=True)
+        stream_conn,stream=raw(a,'POST','/api/changes/stream',{'scope':scope,'limit':2},stream=True)
         assert stream.status==200
         first=json.loads(sse(stream)['data']);assert first['format']=='opencut.events.v1' and first['type']=='ready'
         observed=[]
         for _ in expected:
             event=sse(stream);value=json.loads(event['data']);assert value['cursor']==event['id'];observed.append(value)
         assert [v['event'] for v in observed]==[v['event'] for v in expected]
-        resume_conn,resume=raw(a,'POST','/v1/changes/stream',{'scope':scope,'cursor':'overridden','limit':1},{'Last-Event-ID':observed[0]['cursor']},True)
+        resume_conn,resume=raw(a,'POST','/api/changes/stream',{'scope':scope,'cursor':'overridden','limit':1},{'Last-Event-ID':observed[0]['cursor']},True)
         assert resume.status==200;assert json.loads(sse(resume)['data'])['type']=='ready';assert json.loads(sse(resume)['data'])['cursor']==observed[1]['cursor'];resume_conn.close()
-        denied(a,'POST','/v1/changes/stream',{'scope':{'kind':'projects','project_id':'b'}})
-        denied(a,'GET','/v1/job-events/stream')
+        denied(a,'POST','/api/changes/stream',{'scope':{'kind':'projects','project_id':'b'}})
+        denied(a,'GET','/api/job-events/stream')
         checks.append('Public SSE preserves shared scope, record schema, per-event opaque cursors and Last-Event-ID resume; unauthorized filters and legacy raw job streams reject')
         tasks={}
         for token,project,revision in [(b,'b',snapshots['b']),(a,'a',latest['revision'])]:
@@ -169,7 +169,7 @@ def verify(binary, root):
             assert task['state']=='succeeded',task;tasks[project]=task
         call(a,'opencut_job_view',{'job_id':tasks['b']['job_id']},'NOT_AUTHORIZED')
         assert [job['job_id'] for job in call(a,'opencut_job_query',{})['jobs']]==[tasks['a']['job_id']]
-        reference=tasks['a']['artifacts'][0];path='/v1/artifacts/'+quote(reference['artifact_id'],safe='')
+        reference=tasks['a']['artifacts'][0];path='/api/artifacts/'+quote(reference['artifact_id'],safe='')
         for token in [b,reader]:denied(token,'GET',path)
         status,headers,data=raw(a,'GET',path);assert status==200 and len(data)==int(reference['size_bytes']) and hashlib.sha256(data).hexdigest()==reference['content_hash']
         output=root/'download.png';output.write_bytes(data)
@@ -187,7 +187,7 @@ def verify(binary, root):
         stream_conn.close()
         current_events=call(a,'opencut_event_changes',{'scope':scope,'limit':100})['events']
         current_cursor=current_events[-1]['cursor']
-        stream_conn,stream=raw(a,'POST','/v1/changes/stream',{'scope':scope,'limit':2},
+        stream_conn,stream=raw(a,'POST','/api/changes/stream',{'scope':scope,'limit':2},
                                {'Last-Event-ID':current_cursor},True)
         assert stream.status==200 and json.loads(sse(stream)['data'])['type']=='ready'
         # Force actual TCP backpressure so revocation occurs while bytes remain unsent.
@@ -216,10 +216,10 @@ def verify(binary, root):
         get_conn,get_stream=raw(a,'GET','/mcp',headers={'Mcp-Session-Id':fresh,'Mcp-Protocol-Version':'2025-11-25'},stream=True);assert get_stream.status==200
         cli(['access','revoke',a_id]);time.sleep(.35)
         assert not get_stream.read(1);get_conn.close()
-        denied(a,'POST','/v1/tools/opencut_project_list',{})
+        denied(a,'POST','/api/tools/opencut_project_list',{})
         denied(a,'POST','/mcp',{'jsonrpc':'2.0','id':1,'method':'tools/list','params':{}})
         assert call(a2,'opencut_access_inspect',{})['principal_id']=='editor-a'
-        policy('editor-a','a',full,False);denied(a2,'GET','/v1/projects')
+        policy('editor-a','a',full,False);denied(a2,'GET','/api/projects')
         assert mcp_call(b,sid_b,'opencut_access_inspect',{})[0]['principal_id']=='editor-b'
         assert mcp_call(owner,sid_owner,'opencut_access_inspect',{})[0]['owner']
         checks.append('Credential revocation closes an existing MCP GET, rejects further requests, preserves another credential until principal disable, and leaves unrelated/owner sessions working')

@@ -61,7 +61,7 @@ export class CoverSceneViews {
     if (this.fallback) return this.fallback;
     try {
       const raw: unknown = JSON.parse(
-        localStorage.getItem("opencut.cover-scenes.v1") ?? "[]",
+        localStorage.getItem("opencut.cover-scenes") ?? localStorage.getItem("opencut.cover-scenes.v1") ?? "[]",
       );
       if (!Array.isArray(raw)) return [];
       return raw.slice(-64).flatMap((value) => {
@@ -141,7 +141,7 @@ export class CoverSceneViews {
     this.fallback = entries.slice(-64);
     try {
       localStorage.setItem(
-        "opencut.cover-scenes.v1",
+        "opencut.cover-scenes",
         JSON.stringify(this.fallback),
       );
       this.fallback = null;
@@ -383,16 +383,6 @@ export function saveWelcomePreferences(next: Partial<WelcomePreferences>) {
     );
   } catch {}
 }
-export function unseenUpstreamRelease(version: string, seen: string | null) {
-  if (!seen) return true;
-  const a = version.split(".").map(BigInt),
-    b = seen.split(".").map(BigInt);
-  for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
-  }
-  return false;
-}
-
 export type PreviewGuides = {
   kind: "none" | "grid" | "tiktok" | "custom";
   rows: number;
@@ -507,7 +497,7 @@ export class HistoryViewStore {
   private entries: HistoryViews[] = [];
   private load(): HistoryViews[] {
     try {
-      const text = localStorage.getItem("opencut.history-views.v1");
+      const text = localStorage.getItem("opencut.history-views") ?? localStorage.getItem("opencut.history-views.v1");
       if (!text) return [];
       if (text.length > 2_000_000) return [];
       const raw: unknown = JSON.parse(text);
@@ -581,7 +571,7 @@ export class HistoryViewStore {
         ...this.load().filter((item) => !matches(item)),
         next,
       ].slice(-limit);
-      localStorage.setItem("opencut.history-views.v1", JSON.stringify(merged));
+      localStorage.setItem("opencut.history-views", JSON.stringify(merged));
     } catch {
       // Private browsing/storage denial keeps the current session usable.
     }

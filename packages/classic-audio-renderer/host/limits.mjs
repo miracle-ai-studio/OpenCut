@@ -50,10 +50,16 @@ export function processTreeBytes(text, rootPid, browserPid) {
   return rows.reduce((sum, row) => sum + (roots.has(row.pid) ? row.bytes : 0n), 0n);
 }
 export class QuotaMonitor {
-  constructor(admission, abort, now = () => performance.now(), validate = validateAdmission) {
-    this.admission = validate(admission); this.abort = abort; this.now = now; this.started = now(); this.deadlineAt = this.started + this.admission.deadlineMs; this.peak = 0n; this.browserPid = undefined; this.stopped = false;
+  constructor(admission, abort, now = () => performance.now(), validate = validateAdmission, ownerControlsLifetime = false) {
+    this.admission = validate(admission); this.abort = abort; this.now = now; this.started = now(); this.deadlineAt = this.started + this.admission.deadlineMs; this.peak = 0n; this.browserPid = undefined; this.stopped = false; this.ownerControlsLifetime = ownerControlsLifetime;
   }
   remainingTimeout(maximumMs = 10000) {
+    // Persistent video delegates task lifetime to its native owner/watchdog.
+    // Every actual browser operation and frame retains its own finite timeout.
+    if (this.ownerControlsLifetime) {
+      if (this.stopped) throw new AudioExecutionError("CANCELLED", "The execution monitor has stopped");
+      return integer(maximumMs, "operation timeout cap", 1);
+    }
     // Never let Playwright's zero timeout disable the remaining deadline.
     const remaining = Math.floor(this.deadlineAt - this.now());
     if (remaining < 1) {
@@ -64,7 +70,7 @@ export class QuotaMonitor {
     return Math.min(integer(maximumMs, "operation timeout cap", 1), remaining);
   }
   async start() {
-    this.deadline = setTimeout(() => this.fail("AUDIO_DEADLINE_EXCEEDED", "Browser audio execution exceeded its deadline"), this.remainingTimeout(this.admission.deadlineMs));
+    if (!this.ownerControlsLifetime) this.deadline = setTimeout(() => this.fail("AUDIO_DEADLINE_EXCEEDED", "Browser audio execution exceeded its deadline"), this.remainingTimeout(this.admission.deadlineMs));
     if (this.admission.quotaProfile === "strict-hard") this.cgroup = await strictCgroup(this.admission);
     this.remainingTimeout();
     await this.sample();

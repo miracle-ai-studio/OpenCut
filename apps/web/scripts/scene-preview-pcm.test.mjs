@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { densePcmWindows, measurePcmWindow, observePcmOrigin } from "./scene-preview-pcm.mjs";
-import { installScenePreviewPumpWitness } from "./verify-v4-scene-preview.mjs";
+import { installScenePreviewPumpWitness } from "./verify-scene-preview.mjs";
 function observer(windows) {
   const context = vm.createContext({performance: {timeOrigin: 0, now: () => 0}, Float32Array,
     addEventListener: (_, listener) => context.start = listener, fetch: async () => ({}),
     MessagePort: class { postMessage(data) { this.forwarded = data; } }});
   vm.runInContext(`(${installScenePreviewPumpWitness.toString()})(${JSON.stringify({pcmWindows: windows})})`, context);
-  context.start({data: {channel: "opencut-audio-pump", version: 1, kind: "start", token: "owned"}});
+  context.start({data: {channel: "opencut-audio-pump", kind: "start", token: "owned"}});
   const port = new context.MessagePort();
   return {context, port, w: context.__scenePumpWitness,
     block(values, token = "owned") { const data = {kind: "block", token, pcm: Float32Array.from(values).buffer}; port.postMessage(data); assert.equal(port.forwarded, data); }};

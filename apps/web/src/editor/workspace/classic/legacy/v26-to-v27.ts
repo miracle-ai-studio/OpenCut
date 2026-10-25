@@ -44,7 +44,7 @@ function parseFreeformPath({
 	}
 }
 
-export function transformProjectV26ToV27({
+export function transformProjectTo({
 	project,
 }: {
 	project: ProjectRecord;

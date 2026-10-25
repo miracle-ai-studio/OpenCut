@@ -1,14 +1,14 @@
 import { t, useLocale } from "./locale";
-import { useEffect } from "react";
+import { useEffect, isValidElement, cloneElement, Fragment } from "react";
 import { useEntrance } from "./motion";
-import type { ReactNode, ButtonHTMLAttributes } from "react";
+import type { ReactNode, ButtonHTMLAttributes, Ref } from "react";
 import { X } from "lucide-react";
 export function Button({
   children,
   icon,
   title,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode;ref?:Ref<HTMLButtonElement> }) {
   useLocale();
   return (
     <button type="button" title={title} {...props}>
@@ -68,8 +68,13 @@ export function Modal({
   useLocale();
   const ref = useEntrance<HTMLDialogElement>();
   useEffect(() => {
-    ref.current?.showModal();
-    return () => ref.current?.close();
+    const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (opener?.isConnected) opener.focus();
+    };
   }, []);
   return (
     <dialog
@@ -107,7 +112,7 @@ export function Field({
   return (
     <label className="field">
       <span>{label}</span>
-      {children}
+      {isValidElement<{"aria-label"?: string}>(children) && children.type !== Fragment ? cloneElement(children, {"aria-label": children.props["aria-label"] ?? label}) : children}
     </label>
   );
 }

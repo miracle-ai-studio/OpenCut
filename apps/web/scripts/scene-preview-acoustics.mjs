@@ -133,7 +133,7 @@ export function installMasteringWitness({processorSource}) {
       super(...args);
       if (args[1]?.name !== "opencut-audio-pump") return;
       this.addEventListener("message", ({data}) => {
-        if (data.channel !== "opencut-audio-pump" || data.version !== 1 || data.kind !== "progress") return;
+        if (data.channel !== "opencut-audio-pump" || data.kind !== "progress") return;
         const record = records.find(r => r.token === data.token);
         if (!record) throw Error("Missing mastering quantum owner");
         const q = data.receipt;
@@ -144,7 +144,7 @@ export function installMasteringWitness({processorSource}) {
       });
       const post = this.postMessage.bind(this);
       this.postMessage = (data, ...rest) => {
-        if (data.channel === "opencut-audio-pump" && data.version === 1 && data.kind === "start") {
+        if (data.channel === "opencut-audio-pump" && data.kind === "start") {
           const record = records.find(r => r.token === data.token);
           if (!record || record.session) throw Error("Missing/duplicate mastering Worker ownership");
           const s = data.session;
@@ -189,7 +189,7 @@ export function installMasteringWitness({processorSource}) {
   window.AudioWorkletNode = class extends Native {
     constructor(...args) {
       super(...args);
-      if (args[1] !== "opencut-v4-audio-preview") return;
+      if (args[1] !== "opencut-audio-preview") return;
       const post = this.port.postMessage.bind(this.port);
       this.port.postMessage = (data, ...rest) => {
         if (data.kind === "reset") {

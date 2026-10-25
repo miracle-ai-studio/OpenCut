@@ -6,15 +6,19 @@ use opencut_api_contracts::{
 use opencut_contracts::EditorError;
 use serde_json::json;
 
+pub mod project_context;
+
 pub enum ContextSnapshot {
+    Current(ProjectContext),
     Legacy(opencut_contracts::ProjectSnapshot),
-    V3(opencut_contracts::project_v3::ProjectSnapshotV3),
+    HistoricalVisual(opencut_contracts::historical_visual::HistoricalVisualSnapshot),
 }
 pub trait ProjectContextRead {
     fn project_context(
         &self,
         project: &str,
         revision: Option<&str>,
+        sequence: Option<&str>,
     ) -> Result<ContextSnapshot, EditorError>;
 }
 
@@ -31,6 +35,11 @@ pub const TEMPLATES: &[(&str, &str, &str)] = &[
         "Current branch summary; only main is currently supported. Subscribable.",
     ),
     (
+        "opencut://projects/{project}/revisions/{revision}/summary",
+        "project-revision",
+        "Bounded immutable project summary; continue with the returned fixed revision.",
+    ),
+    (
         "opencut://projects/{project}/branches/{branch}/revisions/{revision}/summary",
         "project-revision",
         "Immutable revision summary; branch must be main.",
@@ -38,7 +47,7 @@ pub const TEMPLATES: &[(&str, &str, &str)] = &[
     (
         "opencut://projects/{project}/revisions/{revision}/sequences/{sequence}/timeline",
         "revision-timeline",
-        "Immutable complete sequence; large resources return RESOURCE_TOO_LARGE.",
+        "First bounded timeline page; continue through project.timeline.query at the fixed revision.",
     ),
     (
         "opencut://jobs/{job}",
@@ -56,9 +65,9 @@ pub const TEMPLATES: &[(&str, &str, &str)] = &[
         "Actions and exact input/output schemas for one editing domain.",
     ),
     (
-        "opencut://schemas/operations/{name}/{version}",
+        "opencut://schemas/operations/{name}",
         "operation-schema",
-        "Published operation descriptor and its exact input variant schema.",
+        "Current edit operation name and its exact input variant schema.",
     ),
 ];
 #[derive(Debug, Clone)]
@@ -80,7 +89,6 @@ pub enum Target {
     Artifact(String),
     Operation {
         name: String,
-        version: u32,
     },
 }
 impl Target {
@@ -110,7 +118,7 @@ pub fn component(value: &str) -> String {
         })
         .collect()
 }
-fn decode(value: &str) -> Result<String, EditorError> {
+pub(crate) fn decode(value: &str) -> Result<String, EditorError> {
     if value.is_empty() {
         return Err(invalid());
     }
@@ -162,6 +170,10 @@ pub fn target(uri: &str) -> Result<Target, EditorError> {
                 revision: Some(r.to_string()),
             })
         }
+        ["projects", p, "revisions", r, "summary"] => Ok(Target::Summary {
+            project: p.to_string(),
+            revision: Some(r.to_string()),
+        }),
         ["projects", p, "revisions", r, "sequences", s, "timeline"] => Ok(Target::Timeline {
             project: p.to_string(),
             revision: r.to_string(),
@@ -169,9 +181,8 @@ pub fn target(uri: &str) -> Result<Target, EditorError> {
         }),
         ["jobs", j] => Ok(Target::Job(j.to_string())),
         ["artifacts", a] => Ok(Target::Artifact(a.to_string())),
-        ["schemas", "operations", n, v] => Ok(Target::Operation {
+        ["schemas", "operations", n] => Ok(Target::Operation {
             name: n.to_string(),
-            version: v.parse::<u32>().map_err(|_| invalid())?,
         }),
         ["projects", _, "branches", _, "summary"]
         | ["projects", _, "branches", _, "revisions", _, "summary"] => Err(missing()),
@@ -187,25 +198,15 @@ pub fn read(
         Target::Capabilities => ResourcePayload::Capabilities(Box::new(capabilities())),
         Target::Tools => ResourcePayload::Tools(tool_specs()),
         Target::Domains(domain) => {
-            ResourcePayload::Domains(domains::catalog(domain.as_deref(), domain.is_some())?)
+            ResourcePayload::Domains(domains::agent_catalog(domain.as_deref(), domain.is_some())?)
         }
         Target::EventSchema => {
             ResourcePayload::EventSchema(opencut_api_contracts::event_stream::schema())
         }
-        Target::Operation { name, version } => {
-            let descriptor = capabilities()
-                .api
-                .operations
-                .into_iter()
-                .find(|op| op.name == name && op.version == version)
-                .ok_or_else(missing)?;
-            let tool = tool_specs()
-                .into_iter()
-                .find(|tool| tool.name == "opencut_edit_apply")
-                .expect("registered edit operation");
-            let variants = tool
-                .input_schema
-                .pointer("/$defs/Operation/oneOf")
+        Target::Operation { name } => {
+            let declaration = capabilities().api.edit_operation_schema;
+            let variants = declaration
+                .get("oneOf")
                 .and_then(|v| v.as_array())
                 .ok_or_else(|| {
                     EditorError::new("INTERNAL_ERROR", "Operation registry schema is unavailable")
@@ -217,49 +218,56 @@ pub fn read(
                 })
                 .cloned()
                 .ok_or_else(missing)?;
-            schema["$defs"] = tool.input_schema["$defs"].clone();
+            schema["$defs"] = declaration["$defs"].clone();
             schema["$schema"] = json!("https://json-schema.org/draft/2020-12/schema");
-            ResourcePayload::OperationSchema(OperationSchema { descriptor, schema })
+            ResourcePayload::OperationSchema(OperationSchema { name, schema })
         }
         Target::Summary { project, revision } => {
-            let (p, revision, schema_version) =
-                match store.project_context(&project, revision.as_deref())? {
-                    ContextSnapshot::Legacy(s) => {
-                        let version = s.project.schema_version;
-                        (s.project, s.revision, version)
-                    }
-                    ContextSnapshot::V3(s) => (s.project.base, s.revision, 3),
-                };
-            let sequences = p
-                .sequences
-                .into_iter()
-                .map(|s| SequenceSummary {
-                    sequence_id: s.id,
-                    name: s.name,
-                    width: s.width,
-                    height: s.height,
-                    fps: s.fps,
-                    track_count: s.tracks.len(),
-                    clip_count: s.tracks.iter().map(|t| t.clips.len()).sum(),
-                    caption_count: s.caption_cues.len(),
-                })
-                .collect();
-            ResourcePayload::ProjectSummary(ProjectSummary {
-                project_id: p.id,
-                name: p.name,
-                branch: "main".into(),
-                revision,
-                schema_version,
-                default_sequence_id: p.default_sequence_id,
-                sequences,
-                asset_count: p.assets.len(),
-            })
+            match store.project_context(&project, revision.as_deref(), None)? {
+                ContextSnapshot::Current(context) => {
+                    ResourcePayload::ProjectContext(Box::new(context))
+                }
+                snapshot => {
+                    let (p, revision) = match snapshot {
+                        ContextSnapshot::Legacy(s) => (s.project, s.revision),
+                        ContextSnapshot::HistoricalVisual(s) => (s.project.base, s.revision),
+                        ContextSnapshot::Current(_) => {
+                            unreachable!("current projection handled above")
+                        }
+                    };
+                    let sequences = p
+                        .sequences
+                        .into_iter()
+                        .map(|s| SequenceSummary {
+                            sequence_id: s.id,
+                            name: s.name,
+                            width: s.width,
+                            height: s.height,
+                            fps: s.fps,
+                            track_count: s.tracks.len(),
+                            clip_count: s.tracks.iter().map(|t| t.clips.len()).sum(),
+                            caption_count: s.caption_cues.len(),
+                        })
+                        .collect();
+                    ResourcePayload::ProjectSummary(ProjectSummary {
+                        project_id: p.id,
+                        name: p.name,
+                        branch: "main".into(),
+                        revision,
+
+                        default_sequence_id: p.default_sequence_id,
+                        sequences,
+                        asset_count: p.assets.len(),
+                    })
+                }
+            }
         }
         Target::Timeline {
             project,
             revision,
             sequence: sequence_id,
-        } => match store.project_context(&project, Some(&revision))? {
+        } => match store.project_context(&project, Some(&revision), Some(&sequence_id))? {
+            ContextSnapshot::Current(context) => ResourcePayload::ProjectContext(Box::new(context)),
             ContextSnapshot::Legacy(snapshot) => {
                 let sequence = snapshot
                     .project
@@ -273,19 +281,21 @@ pub fn read(
                     sequence,
                 })
             }
-            ContextSnapshot::V3(snapshot) => {
+            ContextSnapshot::HistoricalVisual(snapshot) => {
                 let visual = snapshot
                     .project
                     .visual
                     .into_iter()
                     .find(|v| v.sequence_id == sequence_id)
-                    .unwrap_or(opencut_contracts::project_v3::SequenceVisualV3 {
-                        sequence_id: sequence_id.clone(),
-                        shapes: vec![],
-                        effects: vec![],
-                        masks: vec![],
-                        transitions: vec![],
-                    });
+                    .unwrap_or(
+                        opencut_contracts::historical_visual::HistoricalVisualSequenceVisual {
+                            sequence_id: sequence_id.clone(),
+                            shapes: vec![],
+                            effects: vec![],
+                            masks: vec![],
+                            transitions: vec![],
+                        },
+                    );
                 let sequence = snapshot
                     .project
                     .base
@@ -293,10 +303,10 @@ pub fn read(
                     .into_iter()
                     .find(|s| s.id == sequence_id)
                     .ok_or_else(missing)?;
-                ResourcePayload::TimelineV3(RevisionTimelineV3 {
+                ResourcePayload::VisualTimeline(VisualTimeline {
                     project_id: project,
                     revision: snapshot.revision,
-                    schema_version: 3,
+
                     sequence,
                     visual,
                     keyframe_curves: snapshot

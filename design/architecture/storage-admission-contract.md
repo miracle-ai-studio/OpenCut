@@ -1,6 +1,6 @@
 # 持久写入准入与恢复契约
 
-当前实现是统一预留协议的分批写入接入，不代表全工作区硬配额完成。当前仓库主 SQLite schema 为 23；原生准入账本格式兼容 `version=1..=3`，受控数据库准入／恢复路径会将账本升级到 v3。当前开发宿主快照为 127 个叶工具、17 类任务，生成的 OpenAPI 为 143 条路径；这些数量会随能力注册变化，应以 `opencut --json system capabilities` 和生成契约为准。网页／桌面只冻结接入约定。
+当前源码已统一为一个原生准入账本写入结构，不带开发版本计数；必要旧账本只在私有严格读取中校验并归一化。策略、活动预留、真实初始策略基线、完整审计回执及修复状态共同构成权威，不由文件代际决定功能。当前改造尚未统一构建或运行验收，不能据此声称全工作区硬配额已交付。公开能力与生成契约以同一个后续集成二进制为准。
 
 ## 分层与权威
 
@@ -8,7 +8,7 @@
 
 预留不采用业务 SQLite 的写事务：文件写入必须在工程/任务提交之前获得额度，且不能持 SQLite 写锁执行长时间 IO。原生账本是该资源协议的权威，与业务提交不假装跨数据库原子。它记录准备写入的额度，实际字节是否仍占用由受控目录观察确认；业务失败产生的孤儿仍计入占用，另走显式回收。
 
-账本位于工作区 `.storage-budget/ledger.json`，包含版本、策略、活动预留和策略变更回执。策略改变与幂等回执在一次文件替换中提交；暂存文件 sync 后 rename，再 sync 目录。不是覆盖原账本就视为提交成功。回执保存可信原始 request_id/actor，重试返回原回执；inspect 的 last_policy_change 可核对最近来源。未知版本、损坏内容或不明确的目录对象拒绝写入。该目录计入 storage_inspect 的 database 控制存储类别，不计入 payload 字节。
+账本位于工作区 `.storage-budget/ledger.json`，包含真实初始策略基线、当前策略、活动预留和策略变更回执。策略改变与幂等回执在一次文件替换中提交；暂存文件 sync 后 rename，再 sync 目录。不是覆盖原账本就视为提交成功。回执保存可信原始 request_id/actor，重试返回原回执；inspect 的 last_policy_change 可核对最近来源。当前文件的未知/重复字段、损坏内容或不明确的目录对象拒绝写入；旧文件先按其原始格式及历史默认值严格校验，没有失败后换解码器的回退。该目录计入 storage_inspect 的 database 控制存储类别，不计入 payload 字节。
 
 ## 当前覆盖与默认策略
 
@@ -34,19 +34,13 @@
 
 普通嵌入式 open/new 构造仍供独立使用者选择自己的资源策略；原生宿主的所有上述入口必须走 managed 构造。非 Unix 暂不启用此适配器，原有嵌入行为保留；管理工具明确返回不可用。内存数据库不提供公开策略管理。
 
-缺少账本时默认逻辑 payload 准入上限为 64 GiB，最小卷可用余量 64 MiB。第一次受控写入才创建控制目录；inspect 不创建任何控制状态。Owner 可以显式改变策略，没有环境变量暗中重置额度。
+缺少账本时，新工作区没有默认产品 payload 或媒体输出文件额度（规范整数记账上界仍为 i64::MAX），最小卷可用余量为64 MiB。现有持久策略和输出上限保持原值，不随新默认值自动放宽。第一次受控写入才创建控制目录；inspect 不创建任何控制状态。Owner 可以显式改变策略，没有环境变量暗中重置额度。
 
 观察范围是 asset-store、media、uploads、artifacts、plugins 下唯一普通文件的长度，跨目录硬链接按 device/inode 去重，稀疏文件按逻辑长度计入。既有文件、失败留下的文件和未受控类别中的可见文件都参加观察。没有预先迁移一份可能失真的“已用量”。符号链接、特殊对象、跨设备、无法安全读取的目录、超过 100000 条目/64 层/5000ms 合作式遍历预算均拒绝准入；不是返回不完整结果后继续写。
 
-`enforces_all_workspace_writes=false` 保持明确：SQLite/WAL、系统控制元数据增长及完整保留/回收策略尚未接入。观察这些目录不能替代写入拦截。此增量不抵扣完整物理配额、完整 R2 或 R3–R7。
+`enforces_all_workspace_writes=false`保持明确：管理型CLI/HTTP/MCP/Worker的主库、WAL、journal、SHM和匿名磁盘临时文件经过既有具名VFS及独立控制预留；嵌入式非管理连接、外部写者、文件系统/控制元数据和完整保留回收不属于全工作区硬物理保证。`managed_vfs_enabled`报告连接入口，`control.write_interception_enabled`和总强制位继续按实际范围保守报告。控制额度、已用量、预留及真实repair状态单独呈现，不占用payload逻辑额度；两者共同参与卷余量判断。详见[控制写入契约](database-control-admission.md)。
 
-2026-09-24 增量：owner 可单独配置 `control_limit_bytes`，持久账本 v2 分别记录控制与 payload 预留，控制报告单独呈现；两类活动预留共同参与卷余量判断。SQLite 本身仍通过原生连接直接写入，`control.write_interception_enabled=false`，参见[当前交付台账](headless-completion-ledger.md)。配置控制额度尚不限制实际数据库事务，不可把该字段解释成已生效的硬数据库配额。
-
-2026-09-24 后续增量：管理型 CLI／HTTP／MCP／Worker SQLite 连接已切到具名 VFS，主库、WAL、主 journal 和 SHM 增长会先申请独立控制预留；`opencut_database_inspect.managed_vfs_enabled` 说明当前连接实际入口。固定读者的 CLI 动线已证明紧额度拒绝编辑、head 不动，扩大额度后原幂等键只提交一次。上段是账本增量当时的历史状态；目前仍不能将 `control.write_interception_enabled` 或 `enforces_all_workspace_writes` 改为 true，因为临时文件、外部写者、修复预留和全工作区物理边界尚未覆盖。详见[控制写入契约](database-control-admission.md)。
-
-2026-09-24 最新增量：本机具名 VFS 已按工作区绑定，SQLite 匿名磁盘临时文件纳入控制预留；临时文件打开后被 SQLite unlink 时，活动预留仍随句柄存活。已有 4 MiB 磁盘临时表的拒绝／恢复和目录符号链接原生回归。上段描述的是当时的历史边界；当前仍不能将两个全局强制标志改为 true，预算／业务控制元数据、外部写者、运行中 repair 和完整物理故障矩阵未放行。
-
-2026-09-24 账本暂存增量：`.storage-budget/ledger.tmp` 在创建前核对活动预留与可用物理空间，普通准入另保留最小空余；owner 恢复仍可越过过高的旧最小空余设定，但不能在真正无暂存空间时伪报策略已写入。repair 退出先检查补足 8 MiB 后能否保存下一版账本。真实盘满卷上的失败／同键恢复已验；写时复制、外部写入和文件系统元数据仍不在严格物理保证内，能力位保持 false。
+`.storage-budget/ledger.tmp`在创建前核对活动预留与可用物理空间，普通准入另保留最小余量；owner恢复可以越过过高的旧最小余量配置，但不能在没有暂存空间时报告策略已持久化。repair退出先检查补足8 MiB实分配储备后能否安全保存账本。当前源码改造并未重跑原盘满/恢复证据，APFS写时复制、外部写入及文件系统元数据仍在严格物理保证之外。
 
 ## 准入与保守计费
 
@@ -59,7 +53,7 @@
 
 活动写入已经落盘的部分可能同时出现在“观察占用”和“完整预留”中。这是有意保守计费，不报告为实际独占磁盘空间；高并发时可能提前拒绝。物理块舍入、APFS clone/快照、外部进程和文件系统自身开销使其不能成为整个卷的硬物理保证。实际 ENOSPC 仍由写入错误路径处理。
 
-已知大小先预留完整大小；源文件增长时，在每次超出当前预留的写入之前增加额度，扩额失败就停止，不先写后补。正常结束不需要猜测“实际使用”并扣减另一份计数器：移除预留后，下次扫描仍计入已发布或未清理的文件。上传源额度（项目 8 GiB、工作区 32 GiB）是另一层语义，创建会话不会保证后续分块/拼接/CAS 的准入成功。
+已知大小先预留完整大小；源文件增长时，在每次超出当前预留的写入之前增加额度，扩额失败就停止，不先写后补。正常结束不需要猜测“实际使用”并扣减另一份计数器：移除预留后，下次扫描仍计入已发布或未清理的文件。上传声明不再带额外的固定素材总量额度；封存清单分页读取，实际分块/拼接/CAS 写入仍逐次按卷空间和显式策略准入，创建会话不预先保证后续分配成功。
 
 降低策略不杀死已获准的写入。它可使 headroom 为零；已有预留可写到原上限，新增申请或扩额按新策略检查。不会为了满足新上限自动删除历史或重试失败任务。
 
@@ -76,7 +70,7 @@
 三个 owner-only 工具：
 
 1. `opencut_storage_budget_inspect {}`：读取 policy、last_policy_change、观察使用量、完整预留、保守 headroom、活动条目和真实 coverage；只读，不恢复。
-2. `opencut_storage_budget_configure`：expected_revision、稳定 idempotency_key、规范十进制字符串 payload_limit_bytes/minimum_available_bytes，以及可选的正数字符串 media_output_limit_bytes（省略/null 保留当前值，默认 1 GiB）。返回 policy/request_id/actor 与本次媒体上限的持久回执。Policy 的原三个字段不变，媒体上限位于 Report/PolicyChange 顶层；旧回执保持原样。同键同请求重放原结果；同键换参数拒绝；版本不匹配须重新审阅后显式提交。
+2. `opencut_storage_budget_configure`：expected_revision、稳定 idempotency_key、规范十进制字符串 payload_limit_bytes/minimum_available_bytes，以及可选的正数字符串 media_output_limit_bytes（省略/null 保留当前值，新工作区无产品默认额度）。返回 policy/request_id/actor 与本次媒体上限的持久回执。Policy 的原三个字段不变，媒体上限位于 Report/PolicyChange 顶层；旧回执保持原样。同键同请求重放原结果；同键换参数拒绝；真实策略revision不匹配须重新审阅后显式提交。
 3. `opencut_storage_budget_recover {}`：持锁确认死亡写入并重新核对实际占用，返回释放条数与新观察；这是写操作，不能由 SDK 自动触发。
 
 MEDIA_OUTPUT_LIMIT_EXCEEDED、STORAGE_BUDGET_EXCEEDED 与 STORAGE_CAPACITY_LOW 为 HTTP 422 / CLI 6；STORAGE_POLICY_CONFLICT 为 409 / 5；STORAGE_BUDGET_BUSY 为 429 / 7；账本/观察错误为 500 / 8。受限主体无权读取全局策略；其上传和公开任务结果仍返回经过清理的准确容量错误，让 Agent 请求 owner 处理，而不是把所有失败折叠为未知存储错误。
@@ -97,3 +91,11 @@ MEDIA_OUTPUT_LIMIT_EXCEEDED、STORAGE_BUDGET_EXCEEDED 与 STORAGE_CAPACITY_LOW �
 - 产物保留与下载/持续预览租约、工程包/插件版本和历史裁剪：先冻结引用/租约协议，再显式可恢复删除与释放。
 
 验收必须继续覆盖真实磁盘满、并发完整导入/导出、下载中回收、租约丢失与旧 attempt 结算、每个发布/删除窗口 SIGKILL，不能用当前十四类受控写入的测试宣称全局准入已经完成。
+
+## 当前账本及长音频输出接线
+
+当前写入器用`baseline`保存真实初始payload策略和媒体输出上限。新工作区基线来自当前默认值；原账本在私有读取时绑定原64 GiB/1 GiB历史默认值，原政策变更回执、request_id/actor、幂等键及预留不改。策略校验从该实际基线重放，避免拿新的`Policy::default()`拒绝无变更记录的旧工作区。原格式的结构限制仍单独验证，拒绝混合当前/历史根字段；当前写入没有`version`字段。控制/repair能力按其真实状态判断，策略revision及repair revision是实际并发/审计时钟，继续保留。
+
+原生Float32立体声WAVE输出共用纯长度规划：小输出保持原58字节RIFF头，超过RIFF长度时使用94字节RF64头和`ds64`的64位长度/样本数。准入、Native写入和Application结果校验使用同一容器选择与实际长度；PCM块仍逐声道严格有序、有限值、最多4096采样，最终长度、同步、真实进程结束及发布围栏保持。RF64格式依据[EBU Tech3306](https://tech.ebu.ch/docs/tech/tech3306v1_1.pdf)，固定Mediabunny已有对应读取器；这不证明当前长音频已通过。
+
+当前仍需完成长SoundTouch准备与整段Web Audio压缩器的有界执行。不能通过逐块重建压缩器而丢失连续DSP状态，也不能把文件/RF64准入改造当成长场景PCM驻留已解决。未知长度原生FFmpeg输出仍按实际可用空间及显式策略选择并持有一个保守内核上限，其并发预留成本保留为集中验收项。没有修改已保留工作区的账本或数据库，也未运行当前产品测试。

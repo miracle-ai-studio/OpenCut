@@ -173,8 +173,7 @@ impl ResponseGrant {
     }
 }
 #[derive(serde::Serialize)]
-struct SessionStatusV1 {
-    schema_version: u8,
+struct SessionStatus {
     active: bool,
     expires_in_seconds: u64,
 }
@@ -230,7 +229,7 @@ impl BrowserSession {
     pub(super) fn response_grant(&self, request: &Request) -> Option<ResponseGrant> {
         let path = request.uri().path();
         if request.headers().contains_key(header::AUTHORIZATION)
-            || !(path.starts_with("/v1/") || path == "/mcp")
+            || !(path.starts_with("/api/") || path == "/mcp")
         {
             return None;
         }
@@ -252,8 +251,7 @@ impl BrowserSession {
         let now = Instant::now();
         if matches!(*request.method(), Method::GET | Method::HEAD) {
             let remaining = self.remaining(&request, now);
-            let mut response = axum::Json(SessionStatusV1 {
-                schema_version: 1,
+            let mut response = axum::Json(SessionStatus {
                 active: remaining.is_some(),
                 expires_in_seconds: remaining.map_or(0, |d| d.as_secs()),
             })
@@ -578,7 +576,15 @@ mod tests {
             .await
             .unwrap();
         let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(value["schema_version"], 1);
+        assert_eq!(
+            value
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from(["active".into(), "expires_in_seconds".into()])
+        );
         assert_eq!(value["active"], true);
         assert!(
             value["expires_in_seconds"]
@@ -606,7 +612,7 @@ mod tests {
     }
     fn api_request(cookie: &str) -> Request {
         let mut r = request(Method::GET, Some(cookie));
-        *r.uri_mut() = "/v1/job-events/stream".parse().unwrap();
+        *r.uri_mut() = "/api/job-events/stream".parse().unwrap();
         r
     }
     #[test]
@@ -620,7 +626,7 @@ mod tests {
                 .is_none()
         );
         let mut public = api_request(&cookie);
-        *public.uri_mut() = "/blog".parse().unwrap();
+        *public.uri_mut() = "/".parse().unwrap();
         assert!(sessions.response_grant(&public).is_none());
         let mut bearer = api_request(&cookie);
         bearer.headers_mut().insert(

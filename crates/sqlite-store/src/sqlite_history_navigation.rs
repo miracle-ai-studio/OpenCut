@@ -23,12 +23,13 @@ fn require_supported_revision(
         .map_err(storage_error)?;
     let raw = raw
         .ok_or_else(|| EditorError::new("NOT_FOUND", "Revision does not belong to this project"))?;
-    use sqlite_project_document::VersionedProjectDocument;
-    let document = sqlite_project_document::decode_versioned_project(&raw)?;
+    use sqlite_project_document::ProjectStorageDocument;
+    let document = sqlite_project_document::decode_stored_project(&raw)?;
     let id = match &document {
-        VersionedProjectDocument::Legacy(value) => &value.id,
-        VersionedProjectDocument::V3(value) => &value.base.id,
-        VersionedProjectDocument::V4(value) => &value.id,
+        ProjectStorageDocument::Legacy(value) => &value.id,
+        ProjectStorageDocument::HistoricalVisual(value) => &value.base.id,
+        ProjectStorageDocument::Editable(value) => &value.id,
+        ProjectStorageDocument::ReadOnly(value) => &value.id,
     };
     if id != project {
         return Err(EditorError::new(
@@ -36,7 +37,10 @@ fn require_supported_revision(
             "History document identity differs from project scope",
         ));
     }
-    if matches!(document, VersionedProjectDocument::V4(_)) {
+    if matches!(document, ProjectStorageDocument::ReadOnly(_)) {
+        return Err(opencut_editor_application::project_readonly::readonly_error());
+    }
+    if matches!(document, ProjectStorageDocument::Editable(_)) {
         return Err(EditorError::new(
             "UNSUPPORTED_PROJECT_VERSION",
             "Schema 4 history requires versioned navigation and undo tools",
@@ -163,14 +167,14 @@ mod tests {
     use opencut_api_contracts::{
         branching::{BranchCreateRequest, BranchMergeRequest},
         collaboration::{RedoRequest, UndoRequest},
-        project_v3_collaboration::V3BranchEditRequest,
+        historical_visual_collaboration::HistoricalVisualBranchEditRequest,
     };
     use opencut_contracts::{
+        historical_visual_ops::{CreateProjectRequest, InspectProject},
         project_edit::{ProjectEdit, ProjectEditRequest},
-        project_v3_ops::{CreateV3Project, InspectV3Project},
     };
     fn create(app: &mut EditorApplication, id: &str) -> String {
-        app.create_v3_project(&serde_json::from_value::<CreateV3Project>(json!({"project":{"id":id,"name":"Initial","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":id})).unwrap()).unwrap().revision
+        app.create_historical_visual_project(&serde_json::from_value::<CreateProjectRequest>(json!({"project":{"id":id,"name":"Initial","sequence_id":"main","width":640,"height":360,"fps":{"numerator":25,"denominator":1}},"idempotency_key":id})).unwrap()).unwrap().revision
     }
     fn nav(app: &EditorApplication) -> HistoryNavigation {
         app.history_navigation(&HistoryNavigationInput {
@@ -192,7 +196,7 @@ mod tests {
     fn step(app: &mut EditorApplication, undo: bool, key: &str) {
         let state = nav(app);
         if undo {
-            app.apply_v3_undo(&UndoRequest {
+            app.apply_historical_visual_undo(&UndoRequest {
                 project_id: "p".into(),
                 expected_revision: state.revision,
                 target_transaction_id: state.undo.unwrap().transaction_id,
@@ -200,7 +204,7 @@ mod tests {
             })
             .unwrap();
         } else {
-            app.apply_v3_redo(&RedoRequest {
+            app.apply_historical_visual_redo(&RedoRequest {
                 project_id: "p".into(),
                 expected_revision: state.revision,
                 undo_transaction_id: state.redo.unwrap().undo_transaction_id,
@@ -210,7 +214,7 @@ mod tests {
         }
     }
     fn name(app: &EditorApplication) -> String {
-        app.inspect_v3_project(&InspectV3Project {
+        app.inspect_historical_visual_project(&InspectProject {
             project_id: "p".into(),
             revision: None,
         })
@@ -286,7 +290,7 @@ mod tests {
     fn navigation_excludes_unmerged_branch_and_treats_merge_as_one_action() {
         let mut app = EditorApplication::open(":memory:").unwrap();
         let initial = create(&mut app, "p");
-        app.create_v3_branch(&BranchCreateRequest {
+        app.create_historical_visual_branch(&BranchCreateRequest {
             project_id: "p".into(),
             branch_name: "alternate".into(),
             from_revision: initial.clone(),
@@ -294,11 +298,12 @@ mod tests {
             idempotency_key: "branch".into(),
         })
         .unwrap();
-        let branch:V3BranchEditRequest=serde_json::from_value(json!({"project_id":"p","branch_name":"alternate","request":{"project_id":"p","expected_revision":initial,"idempotency_key":"branch-edit","label":"Branch track","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"main","track":{"id":"branch-track","name":"Branch","kind":"video","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}}]}})).unwrap();
-        let edited = app.apply_v3_branch_edit(&branch).unwrap();
+        let branch:HistoricalVisualBranchEditRequest=serde_json::from_value(json!({"project_id":"p","branch_name":"alternate","request":{"project_id":"p","expected_revision":initial,"idempotency_key":"branch-edit","label":"Branch track","operations":[{"type":"base.apply","operation":{"type":"track.create","sequence_id":"main","track":{"id":"branch-track","name":"Branch","kind":"video","enabled":true,"muted":false,"locked":false,"clips":[],"params":{}}}}]}})).unwrap();
+        let edited = app.apply_historical_visual_branch_edit(&branch).unwrap();
         assert!(nav(&app).undo.is_none());
         let merged = app
-            .merge_v3_branches(&BranchMergeRequest {
+            .merge_historical_visual_branches(&BranchMergeRequest {
+                base_asset_versions: Default::default(),
                 project_id: "p".into(),
                 source_branch: "alternate".into(),
                 target_branch: "main".into(),
@@ -342,11 +347,13 @@ mod tests {
                 idempotency_key: "legacy-redo".into(),
             })
             .unwrap();
-        app.promote_v3_project(&opencut_contracts::project_v3_ops::PromoteV3Project {
-            project_id: "p".into(),
-            expected_revision: redone.transaction.revision,
-            idempotency_key: "promote".into(),
-        })
+        app.promote_historical_visual(
+            &crate::sqlite_historical_visual::HistoricalVisualPromotion {
+                project_id: "p".into(),
+                expected_revision: redone.transaction.revision,
+                idempotency_key: "promote".into(),
+            },
+        )
         .unwrap();
         assert_eq!(nav(&app).undo.unwrap().transaction_id, edit.transaction_id);
         step(&mut app, true, "visual-undo");
@@ -365,7 +372,7 @@ mod tests {
         let stale = nav(&app);
         rename(&mut app, "B");
         assert_eq!(
-            app.apply_v3_undo(&UndoRequest {
+            app.apply_historical_visual_undo(&UndoRequest {
                 project_id: "p".into(),
                 expected_revision: stale.revision,
                 target_transaction_id: stale.undo.unwrap().transaction_id,

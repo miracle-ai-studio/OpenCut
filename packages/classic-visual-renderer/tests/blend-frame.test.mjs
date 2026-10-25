@@ -1,9 +1,9 @@
-import { clearGraphicSourceCacheV1 } from "../src/graphic-source.mjs";
+import { clearGraphicSourceCache } from "../src/graphic-source.mjs";
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { blendBeginV1 } from "./blend-fixture.mjs";
-import { validateBlendFramePlanV1 } from "../src/blend-plan-v1.mjs";
-import { BLEND_MODES_V1, blendModeIndexV1 } from "../src/blend-modes-v1.mjs";
+import { blendBegin } from "./blend-fixture.mjs";
+import { validateBlendFramePlan } from "../src/blend-plan.mjs";
+import { BLEND_MODES, blendModeIndex } from "../src/blend-modes.mjs";
 
 const canvases = [],
   gpuCalls = [],
@@ -57,8 +57,8 @@ mock.module("../src/decoder.mjs", {
 mock.module("../src/gpu.mjs", {
   namedExports: {
     openGpuRealm: async () => ({}),
-    clearGpuFrameCaches: clearGraphicSourceCacheV1,
-    closeGpuRealm: clearGraphicSourceCacheV1,
+    clearGpuFrameCaches: clearGraphicSourceCache,
+    closeGpuRealm: clearGraphicSourceCache,
     renderGpuFrame: async (bound, sources, _admission, emit) => {
       gpuCalls.push({
         bound: structuredClone(bound),
@@ -74,10 +74,10 @@ mock.module("../src/gpu.mjs", {
     },
   },
 });
-const { renderClassicBlendFrameV1 } = await import("../src/blend-frame-v1.mjs");
+const { renderClassicBlendFrame } = await import("../src/blend-frame.mjs");
 assert.equal(
-  (await import("../src/index.mjs")).renderClassicBlendFrameV1,
-  renderClassicBlendFrameV1,
+  (await import("../src/index.mjs")).renderClassicBlendFrame,
+  renderClassicBlendFrame,
 );
 
 function host(packet, change = () => {}) {
@@ -162,7 +162,7 @@ function host(packet, change = () => {}) {
 }
 
 test("17 mode indices are exact and unknown values never fall through to normal", () => {
-  assert.deepEqual(BLEND_MODES_V1, [
+  assert.deepEqual(BLEND_MODES, [
     "normal",
     "darken",
     "multiply",
@@ -182,12 +182,12 @@ test("17 mode indices are exact and unknown values never fall through to normal"
     "luminosity",
   ]);
   assert.deepEqual(
-    BLEND_MODES_V1.map(blendModeIndexV1),
+    BLEND_MODES.map(blendModeIndex),
     Array.from({ length: 17 }, (_, index) => index),
   );
   for (const value of [undefined, null, 0, "Normal", "unknown"])
     assert.throws(
-      () => blendModeIndexV1(value),
+      () => blendModeIndex(value),
       (error) => error.code === "INVALID_VISUAL_PLAN",
     );
 });
@@ -202,25 +202,25 @@ test("blend wrapper requires identical fixed child scope and an exact ordered co
     (p) => (p.blends[0].quad = null),
     (p) => (p.extra = true),
   ]) {
-    const packet = blendBeginV1();
+    const packet = blendBegin();
     change(packet.plan);
     assert.throws(
-      () => validateBlendFramePlanV1(packet.plan, packet.admission),
+      () => validateBlendFramePlan(packet.plan, packet.admission),
       (error) => error.code === "INVALID_VISUAL_PLAN",
     );
   }
-  const packet = blendBeginV1();
+  const packet = blendBegin();
   packet.plan.execution.graphics[0].quad = null;
-  validateBlendFramePlanV1(packet.plan, packet.admission);
+  validateBlendFramePlan(packet.plan, packet.admission);
   packet.plan.blends.shift();
-  assert.throws(() => validateBlendFramePlanV1(packet.plan, packet.admission));
+  assert.throws(() => validateBlendFramePlan(packet.plan, packet.admission));
 });
 test("one decode/GPU executes after all four binds, preserving child DTOs and source accounting", async () => {
   canvases.length = gpuCalls.length = decodes.length = 0;
-  const packet = blendBeginV1(),
+  const packet = blendBegin(),
     original = structuredClone(packet.plan),
     h = host(packet);
-  const receipt = await renderClassicBlendFrameV1(packet.plan, h, {}, null);
+  const receipt = await renderClassicBlendFrame(packet.plan, h, {}, null);
   assert.equal(decodes.length, 1);
   assert.equal(gpuCalls.length, 1);
   assert.deepEqual(
@@ -271,9 +271,9 @@ test("final wrapper cannot change identity, geometry, source observations, mode 
     (b) => (b.extra = true),
   ]) {
     canvases.length = gpuCalls.length = 0;
-    const packet = blendBeginV1();
+    const packet = blendBegin();
     await assert.rejects(
-      renderClassicBlendFrameV1(packet.plan, host(packet, change), {}, null),
+      renderClassicBlendFrame(packet.plan, host(packet, change), {}, null),
       (error) => error.code === "INVALID_VISUAL_PLAN",
     );
     assert.equal(gpuCalls.length, 0);
@@ -281,13 +281,13 @@ test("final wrapper cannot change identity, geometry, source observations, mode 
   }
 });
 test("cancellation during final bind releases sources and prevents pixels", async () => {
-  const packet = blendBeginV1(),
+  const packet = blendBegin(),
     cancel = new AbortController(),
     reason = Error("cancelled");
   gpuCalls.length = canvases.length = 0;
   const h = host(packet, () => cancel.abort(reason));
   await assert.rejects(
-    renderClassicBlendFrameV1(packet.plan, h, {}, cancel.signal),
+    renderClassicBlendFrame(packet.plan, h, {}, cancel.signal),
     (error) => error === reason,
   );
   assert.equal(gpuCalls.length, 0);
@@ -295,12 +295,12 @@ test("cancellation during final bind releases sources and prevents pixels", asyn
   assert.ok(canvases.every((canvas) => canvas.width === 0));
 });
 test("blend wrapper retains aggregate source budget rejection and does not add surfaces", async () => {
-  const packet = blendBeginV1();
+  const packet = blendBegin();
   packet.admission.maxDecodedPixels = "5";
   gpuCalls.length = canvases.length = 0;
   const h = host(packet);
   await assert.rejects(
-    renderClassicBlendFrameV1(packet.plan, h, {}, null),
+    renderClassicBlendFrame(packet.plan, h, {}, null),
     (error) => error.code === "VISUAL_BUDGET_EXCEEDED",
   );
   assert.ok(!h.calls.includes("bindBlendFrameV1"));
@@ -311,14 +311,14 @@ test("blend wrapper retains aggregate source budget rejection and does not add s
 
 test('warm blend cache is cleared when a new wrapper fails validation before rendering, and can retry',async()=>{
   canvases.length=gpuCalls.length=0;let destroys=0;
-  const packet=blendBeginV1(),realm={device:{destroy(){destroys++;}}};
-  await renderClassicBlendFrameV1(packet.plan,host(packet),realm,null);
+  const packet=blendBegin(),realm={device:{destroy(){destroys++;}}};
+  await renderClassicBlendFrame(packet.plan,host(packet),realm,null);
   const warm=canvases.find(canvas=>canvas.width>0);
   assert.ok(warm);
   const invalid=structuredClone(packet);invalid.plan.blends=[];
   const h=host(invalid);
-  await assert.rejects(renderClassicBlendFrameV1(invalid.plan,h,realm,null),error=>error.code==='INVALID_VISUAL_PLAN');
+  await assert.rejects(renderClassicBlendFrame(invalid.plan,h,realm,null),error=>error.code==='INVALID_VISUAL_PLAN');
   assert.equal(warm.width,0);assert.equal(h.calls.length,0);assert.equal(gpuCalls.length,1);assert.equal(destroys,0);
-  await renderClassicBlendFrameV1(packet.plan,host(packet),realm,null);
-  assert.equal(gpuCalls.length,2);assert.ok(canvases.some(canvas=>canvas.width>0));clearGraphicSourceCacheV1(realm);
+  await renderClassicBlendFrame(packet.plan,host(packet),realm,null);
+  assert.equal(gpuCalls.length,2);assert.ok(canvases.some(canvas=>canvas.width>0));clearGraphicSourceCache(realm);
 });

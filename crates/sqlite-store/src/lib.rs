@@ -1,68 +1,72 @@
+mod agent_render;
 pub mod analysis;
+mod asset_analysis;
 #[cfg(unix)]
 mod control_vfs;
-pub mod export_video_v2;
+pub mod export_video;
+mod job_submission;
 pub mod job_views;
 pub mod jobs;
+mod recovery_migrations;
+mod revision_actors;
 pub mod speaker_turns;
 mod sqlite_access;
 mod sqlite_artifact_gc;
 mod sqlite_artifact_publication;
 mod sqlite_artifact_references;
 mod sqlite_artifact_retention;
-mod sqlite_audio_preview_recovery_v1;
+mod sqlite_audio_preview_recovery;
 mod sqlite_audit;
 mod sqlite_branching;
-mod sqlite_caption_generation;
-mod sqlite_caption_v4;
-mod sqlite_classic_import;
-mod sqlite_classic_import_v4;
-mod sqlite_classic_import_v5;
+mod sqlite_captions;
+mod sqlite_classic_restore;
 mod sqlite_collaboration;
 mod sqlite_denials;
-mod sqlite_derived_font_recovery_v1;
 mod sqlite_edit_control;
+mod sqlite_edit_recovery;
 mod sqlite_edit_recovery_shared;
-mod sqlite_edit_recovery_v1;
-mod sqlite_edit_recovery_v2;
-mod sqlite_font_derived_v1;
-mod sqlite_font_recovery_v1;
+mod sqlite_font_derivations;
 mod sqlite_gc;
+mod sqlite_historical_snapshot_package;
+mod sqlite_historical_visual;
+#[cfg(test)]
+mod sqlite_historical_visual_branching;
+mod sqlite_historical_visual_collaboration;
+pub mod sqlite_historical_visual_jobs;
+mod sqlite_historical_visual_package;
 mod sqlite_history_navigation;
 mod sqlite_jobs;
 mod sqlite_maintenance;
+pub mod sqlite_media_frame_jobs;
+pub mod sqlite_media_video_jobs;
 mod sqlite_new_project;
-mod sqlite_plugin_v2;
+mod sqlite_presets;
+mod sqlite_project_archive;
+mod sqlite_project_branches;
 mod sqlite_project_document;
 mod sqlite_project_edit;
-mod sqlite_project_history_package_v1;
+mod sqlite_project_exchange;
+mod sqlite_project_history;
+mod sqlite_project_inspection;
 mod sqlite_project_library;
 mod sqlite_project_package;
-mod sqlite_project_package_v3;
-mod sqlite_project_package_v4;
 mod sqlite_project_plugins;
-mod sqlite_project_v3;
-mod sqlite_project_v3_branching;
-mod sqlite_project_v3_collaboration;
-pub mod sqlite_project_v3_jobs;
-mod sqlite_project_v4;
-pub mod sqlite_project_v4_audio_jobs;
-pub mod sqlite_project_v4_blend_video_jobs;
-pub mod sqlite_project_v4_caption_video_jobs;
-pub mod sqlite_project_v4_frame_jobs;
-pub mod sqlite_project_v4_graphic_video_jobs;
-mod sqlite_project_v4_history;
-mod sqlite_project_v4_jobs;
-pub mod sqlite_project_v4_mask_video_jobs;
-pub mod sqlite_project_v4_scene_video_jobs;
-pub mod sqlite_project_v4_text_frame_jobs;
-pub mod sqlite_project_v4_video_jobs;
+mod sqlite_project_readonly;
 mod sqlite_projects;
 mod sqlite_queries;
-mod sqlite_render_v3;
+mod sqlite_render;
 mod sqlite_resources;
-pub mod sqlite_sequence_transcribe_v4;
-mod sqlite_source_art_v1;
+mod sqlite_scene;
+pub mod sqlite_scene_audio_jobs;
+pub mod sqlite_scene_blend_video_jobs;
+pub mod sqlite_scene_caption_video_jobs;
+pub mod sqlite_scene_graphic_video_jobs;
+mod sqlite_scene_jobs;
+pub mod sqlite_scene_mask_video_jobs;
+pub mod sqlite_scene_text_frame_jobs;
+pub mod sqlite_scene_transcription;
+pub mod sqlite_scene_video_jobs;
+mod sqlite_source_art;
 mod sqlite_upload_retention;
 mod sqlite_uploads;
 use std::{path::Path, time::Duration};
@@ -78,7 +82,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const DATABASE_SCHEMA_VERSION: i64 = 31;
+const DATABASE_SCHEMA_VERSION: i64 = 33;
 const SUPPORTED_JOB_KINDS: &[&str] = &[
     "media.probe",
     "preview.frame",
@@ -106,10 +110,12 @@ const SUPPORTED_JOB_KINDS: &[&str] = &[
     "render.project_mask_video.v4",
     "render.project_scene_video.v4",
     "render.export_video.v2",
+    "render.export_video_range.v1",
     "artifact.verify",
     "analysis.transcribe",
     "analysis.sequence_transcribe",
     "analysis.sequence_transcribe.v4",
+    "analysis.asset.v4",
     "analysis.silence",
     "analysis.shots",
     "analysis.waveform",
@@ -134,12 +140,11 @@ pub struct EditorApplication {
     _memory_store: Option<tempfile::TempDir>,
     managed_vfs: bool,
     repair_mode: bool,
+    scene_job_input: std::cell::RefCell<Option<sqlite_scene_jobs::FixedJobInput>>,
 }
 
-pub use opencut_api_contracts::{
-    JobEvent, JobProgress, JobRecord, JobState, RestoreRevisionRequest, RevisionPage,
-    RevisionSummary, StoredEvent,
-};
+pub use opencut_api_contracts::{JobState, RestoreRevisionRequest, RevisionPage, RevisionSummary};
+pub use opencut_editor_application::{JobEvent, JobProgress, JobRecord, StoredEvent};
 
 impl EditorApplication {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, EditorError> {
@@ -466,12 +471,12 @@ impl EditorApplication {
             version = 21;
         }
         if version == 21 {
-            tx.execute_batch(sqlite_plugin_v2::MIGRATION)
+            tx.execute_batch(sqlite_presets::MIGRATION)
                 .map_err(storage_error)?;
             version = 22;
         }
         if version == 22 {
-            tx.execute_batch(sqlite_project_v3::MIGRATION)
+            tx.execute_batch(sqlite_historical_visual::MIGRATION)
                 .map_err(storage_error)?;
             version = 23;
         }
@@ -496,27 +501,41 @@ impl EditorApplication {
             version = 26;
         }
         if version == 26 {
-            tx.execute_batch(sqlite_project_v4::MIGRATION)
+            tx.execute_batch(sqlite_scene::MIGRATION)
                 .map_err(storage_error)?;
             version = 27;
         }
         if version == 27 {
-            tx.execute_batch(sqlite_edit_recovery_v1::MIGRATION)
+            tx.execute_batch(recovery_migrations::CREATE_TIMELINE_STORE)
                 .map_err(storage_error)?;
             version = 28;
         }
         if version == 28 {
-            tx.execute_batch(sqlite_edit_recovery_v2::MIGRATION)
+            tx.execute_batch(recovery_migrations::CREATE_INTENT_STORE)
                 .map_err(storage_error)?;
             version = 29;
         }
         if version == 29 {
-            tx.execute_batch(sqlite_font_derived_v1::MIGRATION)
+            tx.execute_batch(sqlite_font_derivations::MIGRATION)
                 .map_err(storage_error)?;
             version = 30;
         }
         if version == 30 {
-            tx.execute_batch(sqlite_audio_preview_recovery_v1::MIGRATION)
+            tx.execute_batch(sqlite_audio_preview_recovery::MIGRATION)
+                .map_err(storage_error)?;
+            version = 31;
+        }
+        if version == 31 {
+            // Protocol barrier: older hosts must not write schema5 preservation documents.
+            tx.execute(
+                "UPDATE metadata SET value='32' WHERE key='schema_version' AND value='31'",
+                [],
+            )
+            .map_err(storage_error)?;
+            version = 32;
+        }
+        if version == 32 {
+            tx.execute_batch(recovery_migrations::CONSOLIDATE)
                 .map_err(storage_error)?;
         }
         tx.commit().map_err(storage_error)?;
@@ -560,6 +579,7 @@ impl EditorApplication {
             _memory_store: memory_store,
             managed_vfs,
             repair_mode,
+            scene_job_input: std::cell::RefCell::new(None),
         })
     }
 
@@ -668,7 +688,7 @@ impl EditorApplication {
             .map_err(storage_error)?;
         sqlite_access::require_submission(&tx, &context, &request)?;
         if request.kind == "analysis.sequence_transcribe.v4" {
-            sqlite_sequence_transcribe_v4::validate_acceptance(
+            sqlite_scene_transcription::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -679,7 +699,7 @@ impl EditorApplication {
             request.kind.as_str(),
             "render.project_audio.v4" | "render.project_audio_range.v4"
         ) {
-            sqlite_project_v4_audio_jobs::validate_acceptance(
+            sqlite_scene_audio_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -687,7 +707,7 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_video.v4" {
-            sqlite_project_v4_video_jobs::validate_acceptance(
+            sqlite_media_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -695,7 +715,7 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_caption_video.v4" {
-            sqlite_project_v4_caption_video_jobs::validate_acceptance(
+            sqlite_scene_caption_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -703,18 +723,24 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_graphic_video.v4" {
-            sqlite_project_v4_graphic_video_jobs::validate_acceptance(
+            sqlite_scene_graphic_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
                 &execution_input,
             )?;
         }
-        if request.kind == "render.export_video.v2" {
-            export_video_v2::validate_acceptance(&tx, &context, &request, &execution_input)?;
+        if matches!(
+            request.kind.as_str(),
+            "render.export_video.v2" | "render.export_video_range.v1"
+        ) {
+            export_video::validate_acceptance(&tx, &context, &request, &execution_input)?;
+        }
+        if request.kind == "analysis.asset.v4" {
+            asset_analysis::validate_acceptance(&tx, &context, &request, &execution_input)?;
         }
         if request.kind == "render.project_scene_video.v4" {
-            sqlite_project_v4_scene_video_jobs::validate_acceptance(
+            sqlite_scene_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -722,7 +748,7 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_mask_video.v4" {
-            sqlite_project_v4_mask_video_jobs::validate_acceptance(
+            sqlite_scene_mask_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -730,7 +756,7 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_blend_video.v4" {
-            sqlite_project_v4_blend_video_jobs::validate_acceptance(
+            sqlite_scene_blend_video_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -746,7 +772,7 @@ impl EditorApplication {
                 | "render.project_scene_frame.v4"
                 | "render.project_blend_frame.v4"
         ) {
-            sqlite_project_v4_text_frame_jobs::validate_acceptance(
+            sqlite_scene_text_frame_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -754,7 +780,7 @@ impl EditorApplication {
             )?;
         }
         if request.kind == "render.project_frame.v4" {
-            sqlite_project_v4_frame_jobs::validate_acceptance(
+            sqlite_media_frame_jobs::validate_acceptance(
                 &tx,
                 &context,
                 &request,
@@ -996,7 +1022,7 @@ impl EditorApplication {
                 ProjectAction::ReadArtifacts,
             )?;
         }
-        opencut_editor_application::resources::read(&self.connection, input, capabilities)
+        opencut_editor_application::resources::read(self, input, capabilities)
     }
     pub fn event_changes(
         &self,
@@ -1266,19 +1292,19 @@ fn load_idempotent(
     identity: &RequestIdentity,
     result_kind: &str,
 ) -> Result<Option<String>, EditorError> {
-    // Legacy families keep their published independent key spaces. New V4
+    // Legacy families keep their published independent key spaces. New V4/V5
     // project intents share a key scope across families; neither direction may
     // reuse one of their receipts as a different mutation.
     let v4_collision: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM idempotency
              WHERE scope=?1 AND idempotency_key=?2 AND operation_family<>?3
-             AND (?4 OR operation_family GLOB 'project_v4_*'))",
+             AND (?4 OR operation_family GLOB 'project_v4_*' OR operation_family GLOB 'project_v5_*' OR operation_family IN ('project_branch_create','project_branch_merge')))",
             params![
                 scope,
                 key,
                 operation_family,
-                operation_family.starts_with("project_v4_")
+                (operation_family.starts_with("project_v4_") || operation_family.starts_with("project_v5_") || matches!(operation_family,"project_branch_create"|"project_branch_merge"))
             ],
             |row| row.get(0),
         )
@@ -1542,7 +1568,7 @@ mod tests {
     }
 
     #[test]
-    fn equivalent_rational_times_share_identity_across_v2_and_legacy_records() {
+    fn equivalent_rational_times_share_identity_across_and_legacy_records() {
         let path = database_path();
         let mut app = EditorApplication::open(&path).unwrap();
         let created = app
@@ -2373,8 +2399,8 @@ mod tests {
             .unwrap();
         connection
             .execute_batch(
-                "DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
+                "DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control; DROP TABLE project_merge_parents; DROP TABLE project_branches; DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events; DROP TABLE maintenance_publications; DROP TABLE job_projects;
              DROP TABLE access_events;
              DROP TABLE access_credentials;
              DROP TABLE access_grants;
@@ -2538,8 +2564,8 @@ DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_pro
         connection
             .execute_batch(
                 "PRAGMA foreign_keys = OFF;
-             DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations_v1;
-DROP TABLE edit_recovery_v2; DROP TABLE edit_recovery_v1; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
+             DROP TABLE audio_preview_recovery_v1; DROP TABLE font_derivations;
+DROP TABLE edit_recovery; DROP TABLE deleted_projects; DROP VIEW available_project_media; DROP TABLE project_media_bindings; DROP TABLE project_preset_grants; DROP TABLE project_edit_control;
              DROP TABLE project_merge_parents;
              DROP TABLE project_branches;
              DROP TABLE artifact_gc_plans; DROP TABLE artifact_retention; DROP TABLE cas_gc_events; DROP TABLE cas_gc_plans; DROP TABLE denial_records; DROP TABLE project_plugin_grants; DROP TABLE upload_retention; DROP TABLE project_media; DROP TABLE upload_chunks; DROP TABLE upload_sessions; DROP TABLE plugin_events; DROP TABLE plugin_publications; DROP TABLE maintenance_events;
@@ -2708,7 +2734,3 @@ mod project_plugin_tests;
 mod denial_tests;
 
 mod sqlite_database;
-
-mod sqlite_plugin_v3;
-
-mod sqlite_edit_recovery_v3;

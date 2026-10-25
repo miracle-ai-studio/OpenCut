@@ -111,40 +111,40 @@ def verify(binary):
                 while True:
                     if process.poll() is not None: raise AssertionError("HTTP host exited before startup")
                     try:
-                        code,result=request("/v1/capabilities")
+                        code,result=request("/api/capabilities")
                         break
                     except urllib.error.URLError:
                         if time.monotonic()>deadline: raise
                         time.sleep(.05)
                 assert code==403 and result["error"]["code"]=="NOT_AUTHORIZED"
                 token=token_file.read_text().strip()
-                code,result=request("/v1/capabilities",token=token)
+                code,result=request("/api/capabilities",token=token)
                 assert code==200 and result["data"]["features"]["atomic_transactions"]
                 assert_job_kind_schemas(result["data"])
-                code,_=request("/v1/capabilities",token=token,origin="https://untrusted.invalid")
+                code,_=request("/api/capabilities",token=token,origin="https://untrusted.invalid")
                 assert code==403
                 creation={"project":{"id":"http-demo","name":"HTTP acceptance","sequence_id":"main","width":640,"height":360,"fps":{"numerator":24,"denominator":1}},"idempotency_key":"create-http"}
-                code,created=request("/v1/projects",creation,token,"http://localhost:5173")
+                code,created=request("/api/projects",creation,token,"http://localhost:5173")
                 assert code==200,created
-                _,repeat=request("/v1/projects",creation,token)
+                _,repeat=request("/api/projects",creation,token)
                 assert created["data"]==repeat["data"]
                 changed=json.loads(json.dumps(creation))
                 changed["project"]["name"]="Different input"
-                code,rejected=request("/v1/projects",changed,token)
+                code,rejected=request("/api/projects",changed,token)
                 assert code==409 and rejected["error"]["code"]=="IDEMPOTENCY_KEY_REUSED",rejected
-                code,snapshot=request("/v1/projects/http-demo/branches/main/snapshot",token=token)
+                code,snapshot=request("/api/projects/http-demo/branches/main/snapshot",token=token)
                 assert code==200 and snapshot["data"]==created["data"]
                 preflight_input={"project_id":"http-demo","revision":created["data"]["revision"],"sequence_id":"missing","container":"mp4","video_codec":"h264"}
-                code,preflight=request("/v1/render/preflight",preflight_input,token)
+                code,preflight=request("/api/render/preflight",preflight_input,token)
                 assert code==200 and preflight["data"]["ready"] is False,preflight
                 assert preflight["data"]["revision"]==created["data"]["revision"],preflight
                 assert preflight["data"]["issues"][0]["code"]=="SEQUENCE_NOT_FOUND",preflight
                 invalid_preflight=dict(preflight_input,unexpected=True)
-                code,rejected_preflight=request("/v1/render/preflight",invalid_preflight,token)
+                code,rejected_preflight=request("/api/render/preflight",invalid_preflight,token)
                 assert code==400 and rejected_preflight["error"]["code"]=="INVALID_ARGUMENT",rejected_preflight
                 cli=json.loads(subprocess.check_output([str(binary),"--database",str(db),"--json","project","inspect","http-demo"]))
                 assert cli["data"]==snapshot["data"]
-                event_request=urllib.request.Request(base+"/v1/events?after_sequence=0",headers={"Authorization":f"Bearer {token}"})
+                event_request=urllib.request.Request(base+"/api/events?after_sequence=0",headers={"Authorization":f"Bearer {token}"})
                 with urllib.request.urlopen(event_request,timeout=5) as stream:
                     fields={}
                     while True:
@@ -160,9 +160,9 @@ def verify(binary):
                 creation2=json.loads(json.dumps(creation))
                 creation2["project"]["id"]="http-second"
                 creation2["idempotency_key"]="create-second"
-                code,_=request("/v1/projects",creation2,token)
+                code,_=request("/api/projects",creation2,token)
                 assert code==200
-                resumed=urllib.request.Request(base+"/v1/events?after_sequence=0",headers={"Authorization":f"Bearer {token}","Last-Event-ID":fields["id"]})
+                resumed=urllib.request.Request(base+"/api/events?after_sequence=0",headers={"Authorization":f"Bearer {token}","Last-Event-ID":fields["id"]})
                 with urllib.request.urlopen(resumed,timeout=5) as stream:
                     while True:
                         line=stream.readline().decode().strip()
@@ -170,27 +170,27 @@ def verify(binary):
                             event2=json.loads(line.split(":",1)[1])
                             break
                     assert event2["project_id"]=="http-second" and event2["sequence"]>event["sequence"],event2
-                code,history=request("/v1/projects/http-demo/revisions?limit=1",token=token)
+                code,history=request("/api/projects/http-demo/revisions?limit=1",token=token)
                 assert code==200 and len(history["data"]["revisions"])==1,history
                 old_revision=created["data"]["revision"]
-                code,historical=request(f"/v1/projects/http-demo/revisions/{old_revision}",token=token)
+                code,historical=request(f"/api/projects/http-demo/revisions/{old_revision}",token=token)
                 assert code==200 and historical["data"]==created["data"]
-                code,restored=request("/v1/projects/http-demo/branches/main/restore",{"expected_revision":old_revision,"target_revision":old_revision,"idempotency_key":"restore-http","label":"Restore snapshot"},token)
+                code,restored=request("/api/projects/http-demo/branches/main/restore",{"expected_revision":old_revision,"target_revision":old_revision,"idempotency_key":"restore-http","label":"Restore snapshot"},token)
                 assert code==200 and restored["data"]["revision"]!=old_revision,restored
-                code,_=request("/v1/projects/http-demo/branches/unsupported/snapshot",token=token)
+                code,_=request("/api/projects/http-demo/branches/unsupported/snapshot",token=token)
                 assert code==404
 
                 # The fixture was queued and cancelled through the public CLI before
                 # server startup, so the HTTP worker cannot race this lifecycle.
-                code,cancelled=request(f"/v1/jobs/{queued_id}/cancel",{},token)
+                code,cancelled=request(f"/api/jobs/{queued_id}/cancel",{},token)
                 assert code==200 and cancelled["data"]["state"]=="cancelled",cancelled
-                code,job_events=request(f"/v1/job-events?after_sequence=0&limit=20&job_id={queued_id}",token=token)
+                code,job_events=request(f"/api/job-events?after_sequence=0&limit=20&job_id={queued_id}",token=token)
                 assert code==200,job_events
                 assert [item["event_type"] for item in job_events["data"]]==["queued","cancelled"],job_events
                 queued_event,cancelled_event=job_events["data"]
 
                 job_stream=urllib.request.Request(
-                    base+f"/v1/job-events/stream?after_sequence=0&job_id={queued_id}",
+                    base+f"/api/job-events/stream?after_sequence=0&job_id={queued_id}",
                     headers={"Authorization":f"Bearer {token}","Last-Event-ID":str(queued_event["sequence"])}
                 )
                 with urllib.request.urlopen(job_stream,timeout=5) as stream:

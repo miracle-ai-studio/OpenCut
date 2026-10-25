@@ -74,7 +74,7 @@ def verify(binary, root):
         assert [p['project']['id'] for p in call('opencut_project_list',{},editor)]==['a']
         for identity in (reader,editor):
             call('opencut_project_inspect',{'project_id':'b'},identity,'NOT_AUTHORIZED')
-            call('opencut_revision_inspect',{'project_id':'b','revision':b['revision']},identity,'NOT_AUTHORIZED')
+            call('opencut_project_inspect',{'project_id':'b','revision':b['revision']},identity,'NOT_AUTHORIZED')
             command(['access','issue','editor','--output',str(root/'forbidden.secret')],credential=identity,error='NOT_AUTHORIZED')
         assert not (root/'forbidden.secret').exists()
         with sqlite3.connect(db) as c:

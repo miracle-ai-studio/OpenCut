@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { violations, isTestOnlySource, inspect } from "../scripts/check-boundaries.mjs";
 const web="apps/web/src/lib/example.ts";
 test("TS boundary matches the reviewed visual browser bridge without admitting host or sibling implementations",()=>{
- const bridge="apps/web/src/editor/workspace/v4/visual-preview-renderer.ts";
+ const bridge="apps/web/src/editor/workspace/scene/visual-preview-renderer.ts";
  const publicPath="../../../../../../packages/classic-visual-renderer/src/index.mjs";
  assert.deepEqual(violations(bridge,`import {renderClassicFrame} from "${publicPath}";`),[]);
  for(const target of ["../../../../../../packages/classic-visual-renderer/host/runner.mjs", "../../../../../../packages/classic-visual-renderer/src/decoder.mjs", "../../../../../../packages/classic-audio-renderer/src/index.mjs"]) assert.equal(violations(bridge,`import "${target}";`).length,1);
- assert.equal(violations("apps/web/src/editor/workspace/v4/audio-preview.ts",`import "${publicPath}";`).length,1);
+ assert.equal(violations("apps/web/src/editor/workspace/scene/audio-preview.ts",`import "${publicPath}";`).length,1);
  assert.equal(violations("packages/sdk-ts/src/index.ts",'import "../../classic-visual-renderer/src/index.mjs";').length,1);
 });
 test("TS boundary accepts local aliases and declared packages",()=>{
@@ -25,7 +25,7 @@ test("TS boundary permits only the public SDK bridge target",()=>{
  assert.deepEqual(violations(bridge,'export * from "../../../../packages/sdk-ts/src/index";'),[]);
  assert.equal(violations(bridge,'export * from "../../../../packages/sdk-ts/src/transport";').length,1);
  assert.equal(violations(web,'import "../editor/generate-contracts.mjs";').length,1);
- const audio="apps/web/src/editor/workspace/v4/audio-preview-mastering.ts";
+ const audio="apps/web/src/editor/workspace/scene/audio-preview-mastering.ts";
  const pure="../../../../../../packages/classic-audio-renderer/src/mastering.mjs";
  assert.deepEqual(violations(audio,`export {createClassicMasteringChain} from "${pure}";`),[]);
  assert.equal(violations(web,'import "../../../../packages/classic-audio-renderer/src/mastering.mjs";').length,1);
@@ -48,13 +48,13 @@ test("TS boundary narrowly classifies test helper filenames",()=>{
 
 test("TS boundary rejects runtime references to fixtures through every module form",()=>{
  for (const code of [
-  'import {x} from "../editor/workspace/v4/fixture";',
-  'export * from "@/editor/workspace/v4/media-fixture.ts";',
-  'export {x} from "#/editor/workspace/v4/audio-wav-fixture";',
-  'const x=require("../editor/workspace/v4/source-audio-fixture.js");',
-  'const x=import("../editor/workspace/v4/media-fixture");',
-  'type X=import("../editor/workspace/v4/fixture.ts").X;',
-  'import X=require("../editor/workspace/v4/media-fixture");',
+  'import {x} from "../editor/workspace/scene/fixture";',
+  'export * from "@/editor/workspace/scene/media-fixture.ts";',
+  'export {x} from "#/editor/workspace/scene/audio-wav-fixture";',
+  'const x=require("../editor/workspace/scene/source-audio-fixture.js");',
+  'const x=import("../editor/workspace/scene/media-fixture");',
+  'type X=import("../editor/workspace/scene/fixture.ts").X;',
+  'import X=require("../editor/workspace/scene/media-fixture");',
  ]) assert.match(violations(web,code).join("\n"),/Runtime source cannot import test-only code/,code);
  assert.match(violations("packages/sdk-ts/src/index.ts",'export * from "./media-fixture";').join("\n"),/test-only code/);
 });

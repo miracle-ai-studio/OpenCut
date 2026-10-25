@@ -77,7 +77,7 @@ class AgentDistributionTest(unittest.TestCase):
             changed = json.loads(json.dumps(manifest)); changed['catalog_archive_runtime']['files']['../outside'] = {'size': 1, 'sha256': '0' * 64}
             with self.assertRaisesRegex(ValueError, 'declaration'):
                 doctor.catalog_runtime_files(root, changed)
-            helper_name = 'bin/libexec/classic-visual-renderer/host/catalog-archive-v1.mjs'
+            helper_name = 'bin/libexec/classic-visual-renderer/host/catalog-archive.mjs'
             changed = json.loads(json.dumps(manifest)); changed['catalog_archive_runtime']['files'][helper_name]['sha256'] = '0' * 64
             with self.assertRaisesRegex(ValueError, 'inventory'):
                 doctor.catalog_runtime_files(root, changed)
@@ -101,8 +101,10 @@ class AgentDistributionTest(unittest.TestCase):
             self.assertEqual(codex['command'], str(binary.resolve()))
             self.assertEqual(codex['args'], claude['args'])
             self.assertIn(str(database.resolve()), claude['args'])
-            self.assertIn('--with-worker', codex['args'])
-            self.assertTrue(report['managed_worker'])
+            self.assertNotIn('--with-worker', codex['args'])
+            self.assertIn('--service-directory', codex['args'])
+            self.assertFalse(report['managed_worker'])
+            self.assertTrue(report['requires_external_worker'])
             self.assertFalse(database.parent.exists())
             with self.assertRaises(FileExistsError):
                 config.generate(binary, database, output)

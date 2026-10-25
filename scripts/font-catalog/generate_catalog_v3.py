@@ -14,7 +14,7 @@ from pathlib import Path
 import generate as original
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "crates/editor-application/src/font_catalog_v3"
+OUT = ROOT / "crates/editor-application/src/font_catalog"
 ALIASES = {
     "Fjord One": "Fjord", "Headland One": "HeadlandOne",
     "IM Fell Double Pica": "IM FELL Double Pica", "IM Fell Double Pica SC": "IM FELL Double Pica SC",
@@ -47,13 +47,13 @@ def emit(records, target):
         notice = OUT / "licenses" / (pin["license_sha256"] + ".txt")
         notice.parent.mkdir(parents=True, exist_ok=True)
         notice.write_bytes(pin["license_notice"].encode())
-        lines += ["    StaticFontEntryV3 {", "        approved: ApprovedFontSourceV3 {", "            source: PinnedFontSourceV1 {"]
+        lines += ["    StaticFontEntry {", "        approved: ApprovedFontSource {", "            source: PinnedFontSource {"]
         for key in ("catalog_id", "family", "weight", "style", "source_commit", "source_url", "content_hash", "size_bytes", "license_url", "license_sha256", "license_identifier", "license_notice", "attribution"):
-            if key == "style": value = "opencut_contracts::project_v4::FontStyleV4::" + {"normal": "Normal", "italic": "Italic"}[pin[key]]
+            if key == "style": value = "opencut_contracts::scene::FontStyle::" + {"normal": "Normal", "italic": "Italic"}[pin[key]]
             elif key == "license_notice": value = f'include_str!("licenses/{pin["license_sha256"]}.txt")'
             else: value = json.dumps(pin[key], ensure_ascii=False)
             lines.append(f"                {key}: {value},")
-        lines += ["            },", f'            render_profile: FontRenderProfileV3::{PROFILES[record["render_profile"]]},', "        },",
+        lines += ["            },", f'            render_profile: FontRenderProfile::{PROFILES[record["render_profile"]]},', "        },",
                   f'        display_family: {json.dumps(record["display_family"], ensure_ascii=False)},',
                   "        alias_reason: " + ("None" if record.get("alias_reason") is None else f'Some({json.dumps(record["alias_reason"],ensure_ascii=False)})') + ",", "    },"]
     lines.append("]")
@@ -61,11 +61,32 @@ def emit(records, target):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tree", type=Path, required=True)
+    parser.add_argument("--tree", type=Path)
     parser.add_argument("--cache", type=Path, required=True)
+    parser.add_argument("--distribution-only", action="store_true")
     args = parser.parse_args()
     if ROOT == args.cache.resolve() or ROOT in args.cache.resolve().parents:
         raise ValueError("Source cache must remain outside the repository")
+    if args.distribution_only:
+        records = json.loads((OUT / "distribution_source_pins.json").read_text())
+        for record in records:
+            pin, proof = record["source"], record["distribution"]
+            data = (args.cache / record["source_path"]).read_bytes()
+            css = (args.cache / record["css_cache_name"]).read_bytes()
+            if (pin["source_commit"] or original.digest(data) != pin["content_hash"]
+                    or len(data) != pin["size_bytes"]
+                    or original.face(data) != (pin["family"], pin["weight"], pin["style"])
+                    or original.digest(css) != proof["css_sha256"]
+                    or pin["source_url"] != proof["source_url"]
+                    or urllib.parse.urlparse(pin["source_url"]).netloc != "fonts.gstatic.com"
+                    or pin["source_url"] not in css.decode()
+                    or f"font-family: '{record['display_family']}'" not in css.decode()):
+                raise ValueError("Distribution differs from its reviewed native face and Classic CSS")
+        emit(records, OUT / "distribution_generated.rs")
+        print(json.dumps({"reviewed_distribution_sources": len(records)}))
+        return
+    if args.tree is None:
+        parser.error("--tree is required unless --distribution-only is selected")
     raw_tree = json.loads(args.tree.read_text())
     if raw_tree.get("truncated") or raw_tree.get("sha") != original.COMMIT:
         raise ValueError("Expected complete pinned Google tree")

@@ -92,12 +92,12 @@ def verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "Service exited while waiting"
                     assert time.monotonic() < deadline, job
                     time.sleep(.1)
-                    job = call(f'/v1/jobs/{job["job_id"]}')
+                    job = call(f'/api/jobs/{job["job_id"]}')
                 return job
 
             def download(job, filename):
                 assert job["state"] == "succeeded", job
-                payload = request(f'/v1/jobs/{job["job_id"]}/artifact', raw=True)
+                payload = request(f'/api/jobs/{job["job_id"]}/artifact', raw=True)
                 descriptor = job["result"]["artifact"]
                 assert hashlib.sha256(payload).hexdigest() == descriptor["content_hash"]
                 assert len(payload) == descriptor["size"]
@@ -114,14 +114,14 @@ def verify(binary, artifacts_dir=None):
                     assert process.poll() is None, "HTTP service exited"
                     try:
                         token = token_file.read_text().strip()
-                        capabilities = call("/v1/capabilities")
+                        capabilities = call("/api/capabilities")
                         break
                     except (FileNotFoundError, urllib.error.URLError):
                         assert time.monotonic() < deadline, "Startup timeout"
                         time.sleep(.05)
                 assert capabilities["rendering"]["project_frame_preview"]
-                upload = call("/v1/media/upload?name=red.mp4", source.read_bytes())
-                snapshot = call("/v1/projects", {
+                upload = call("/api/media/upload?name=red.mp4", source.read_bytes())
+                snapshot = call("/api/projects", {
                     "project": {"id": "preview", "name": "Animated project preview", "sequence_id": "main",
                                 "width": 160, "height": 90, "fps": {"numerator": 10, "denominator": 1}},
                     "idempotency_key": "create",
@@ -136,7 +136,7 @@ def verify(binary, artifacts_dir=None):
                         {"id": "right", "time": at(20), "value": 40, "interpolation": "hold"},
                     ]}],
                 }
-                edited = call("/v1/projects/preview/branches/main/transactions", {
+                edited = call("/api/projects/preview/branches/main/transactions", {
                     "expected_revision": snapshot["revision"], "idempotency_key": "edit", "label": "Animated clip",
                     "operations": [
                         {"type": "asset.bind", "asset": upload["asset"]},
@@ -156,14 +156,14 @@ def verify(binary, artifacts_dir=None):
                     }}
 
                 body = preview_body(126, 100, "nearest", "preview-nearest")
-                first = call("/v1/jobs", body)
-                assert call("/v1/jobs", body)["job_id"] == first["job_id"]
-                split_revision = call("/v1/projects/preview/branches/main/transactions", {
+                first = call("/api/jobs", body)
+                assert call("/api/jobs", body)["job_id"] == first["job_id"]
+                split_revision = call("/api/projects/preview/branches/main/transactions", {
                     "expected_revision": revision, "idempotency_key": "split-animation", "label": "Split animated clip",
                     "operations": [{"type": "clip.split", "sequence_id": "main", "track_id": "video",
                                     "clip_id": "moving", "at": at(20), "right_clip_id": "moving-right"}],
                 })["revision"]
-                later = call("/v1/projects/preview/branches/main/transactions", {
+                later = call("/api/projects/preview/branches/main/transactions", {
                     "expected_revision": split_revision, "idempotency_key": "remove", "label": "Later user edit",
                     "operations": [
                         {"type": "clip.delete", "sequence_id": "main", "track_id": "video", "clip_id": "moving"},
@@ -181,7 +181,7 @@ def verify(binary, artifacts_dir=None):
                     (5, 10, "exact", Fraction(1, 2), None),
                 ]:
                     key = f"preview-{ticks}-{timebase}-{alignment}"
-                    job = wait(first if not samples else call("/v1/jobs", preview_body(ticks, timebase, alignment, key)))
+                    job = wait(first if not samples else call("/api/jobs", preview_body(ticks, timebase, alignment, key)))
                     assert job["state"] == "succeeded", job
                     result = job["result"]
                     assert result["revision"] == revision and result["sequence_id"] == "main", result
@@ -201,19 +201,19 @@ def verify(binary, artifacts_dir=None):
 
                 # Invalid exact/boundary requests cannot become successful clamped frames.
                 for ticks, timebase, alignment in [(125, 100, "exact"), (30, 10, "floor"), (299, 100, "ceil")]:
-                    response = request("/v1/jobs", preview_body(ticks, timebase, alignment, f"invalid-{ticks}"))
+                    response = request("/api/jobs", preview_body(ticks, timebase, alignment, f"invalid-{ticks}"))
                     if response["error"] is not None:
                         assert response["error"]["code"] == "INVALID_ARGUMENT", response
                     else:
                         failed = wait(response["data"])
                         assert failed["state"] == "failed" and failed["error"]["code"] == "INVALID_ARGUMENT", failed
                         assert failed["result"] is None
-                        assert request(f'/v1/jobs/{failed["job_id"]}/artifact')["error"] is not None
+                        assert request(f'/api/jobs/{failed["job_id"]}/artifact')["error"] is not None
                         attempt_root = root / "artifacts" / failed["job_id"]
                         assert not list(attempt_root.glob("attempt-*/preview-source.mp4"))
                         assert not list(attempt_root.glob("attempt-*/frame.png"))
 
-                exported = wait(call("/v1/jobs", {"kind": "render.project", "idempotency_key": "export", "input": {
+                exported = wait(call("/api/jobs", {"kind": "render.project", "idempotency_key": "export", "input": {
                     "project_id": "preview", "revision": revision, "sequence_id": "main", "container": "mp4", "video_codec": "h264",
                 }}))
                 movie = download(exported, "animated-project.mp4")
@@ -221,7 +221,7 @@ def verify(binary, artifacts_dir=None):
                     exported_pixels = decode(movie, int(actual * 10))
                     assert len(exported_pixels) == len(pixels)
                     assert max(abs(a - b) for a, b in zip(exported_pixels, pixels)) <= 2, actual
-                split_export = wait(call("/v1/jobs", {"kind": "render.project", "idempotency_key": "split-export", "input": {
+                split_export = wait(call("/api/jobs", {"kind": "render.project", "idempotency_key": "split-export", "input": {
                     "project_id": "preview", "revision": split_revision, "sequence_id": "main", "container": "mp4", "video_codec": "h264",
                 }}))
                 split_movie = download(split_export, "split-animated-project.mp4")
@@ -236,30 +236,30 @@ def verify(binary, artifacts_dir=None):
                 offset_clip = json.loads(json.dumps(clip))
                 offset_clip["id"] = "offset-clip"
                 offset_clip["timeline_range"]["start"] = at(105, 100)
-                offset_revision = call("/v1/projects/preview/branches/main/transactions", {
+                offset_revision = call("/api/projects/preview/branches/main/transactions", {
                     "expected_revision": later["revision"], "idempotency_key": "offset-edit", "label": "Sub-frame clip start",
                     "operations": [{"type": "clip.insert", "sequence_id": "main", "track_id": "video", "clip": offset_clip}],
                 })["revision"]
                 for ticks, expected_center in [(11, 42), (12, 46)]:
                     offset_body = preview_body(ticks, 10, "exact", f"offset-{ticks}")
                     offset_body["input"]["revision"] = offset_revision
-                    offset_job = wait(call("/v1/jobs", offset_body))
+                    offset_job = wait(call("/api/jobs", offset_body))
                     offset_pixels = decode(download(offset_job, f"offset-{ticks}.png"))
                     observed_center, _ = red_center(offset_pixels)
                     assert abs(observed_center - expected_center) < 1, (ticks, observed_center, expected_center)
-                events = call(f'/v1/job-events?job_id={first["job_id"]}&limit=500')
+                events = call(f'/api/job-events?job_id={first["job_id"]}&limit=500')
                 assert events[-1]["state"] == "succeeded", events
                 assert {event["payload"].get("stage") for event in events if event["event_type"] == "progress"} >= {"encoding", "selecting_frame", "decoding"}
                 independent = json.loads(subprocess.check_output([
                     str(binary), "--database", str(database), "--json", "job", "get", first["job_id"],
                 ]))
                 assert independent["error"] is None and independent["data"]["result"]["revision"] == revision, independent
-                ntsc = call("/v1/projects", {
+                ntsc = call("/api/projects", {
                     "project": {"id": "ntsc", "name": "Fractional frame grid", "sequence_id": "ntsc-main",
                                 "width": 160, "height": 90, "fps": {"numerator": 30000, "denominator": 1001}},
                     "idempotency_key": "create-ntsc",
                 })
-                ntsc_edit = call("/v1/projects/ntsc/branches/main/transactions", {
+                ntsc_edit = call("/api/projects/ntsc/branches/main/transactions", {
                     "expected_revision": ntsc["revision"], "idempotency_key": "ntsc-edit", "label": "Fractional sequence",
                     "operations": [
                         {"type": "asset.bind", "asset": upload["asset"]},
@@ -274,7 +274,7 @@ def verify(binary, artifacts_dir=None):
                         }},
                     ],
                 })
-                ntsc_job = wait(call("/v1/jobs", {"kind": "preview.project_frame", "idempotency_key": "ntsc-frame", "input": {
+                ntsc_job = wait(call("/api/jobs", {"kind": "preview.project_frame", "idempotency_key": "ntsc-frame", "input": {
                     "project_id": "ntsc", "revision": ntsc_edit["revision"], "sequence_id": "ntsc-main",
                     "requested_time": at(1001, 60000), "alignment": "nearest",
                 }}))
@@ -282,14 +282,14 @@ def verify(binary, artifacts_dir=None):
                 assert rational(ntsc_job["result"]["actual_sequence_time"]) == Fraction(1001, 30000), ntsc_job
                 ntsc_pixels = decode(download(ntsc_job, "ntsc-frame.png"))
                 assert ntsc_pixels[0] > 180 and max(ntsc_pixels[1:3]) < 60, ntsc_pixels[:3]
-                third = call("/v1/projects/ntsc/branches/main/transactions", {
+                third = call("/api/projects/ntsc/branches/main/transactions", {
                     "expected_revision": ntsc_edit["revision"], "idempotency_key": "third-edit", "label": "Exact third-second duration",
                     "operations": [
                         {"type": "sequence.update_settings", "sequence_id": "ntsc-main", "fps": {"numerator": 3, "denominator": 1}},
                         {"type": "clip.retime", "sequence_id": "ntsc-main", "track_id": "ntsc-video", "clip_id": "ntsc-clip", "timeline_duration": at(1, 3)},
                     ],
                 })
-                third_frame = wait(call("/v1/jobs", {"kind": "preview.project_frame", "idempotency_key": "third-end", "input": {
+                third_frame = wait(call("/api/jobs", {"kind": "preview.project_frame", "idempotency_key": "third-end", "input": {
                     "project_id": "ntsc", "revision": third["revision"], "sequence_id": "ntsc-main",
                     "requested_time": at(1, 3), "alignment": "exact",
                 }}))
@@ -298,7 +298,7 @@ def verify(binary, artifacts_dir=None):
                 # Wait for real encoder progress before cancelling. A longer,
                 # larger static sequence prevents a queued-only cancellation
                 # from masquerading as cancellation of active media work.
-                long_edit = call("/v1/projects/ntsc/branches/main/transactions", {
+                long_edit = call("/api/projects/ntsc/branches/main/transactions", {
                     "expected_revision": third["revision"], "idempotency_key": "long-edit", "label": "Cancellation fixture",
                     "operations": [
                         {"type": "sequence.update_settings", "sequence_id": "ntsc-main", "width": 1920, "height": 1080,
@@ -306,22 +306,22 @@ def verify(binary, artifacts_dir=None):
                         {"type": "clip.retime", "sequence_id": "ntsc-main", "track_id": "ntsc-video", "clip_id": "ntsc-clip", "timeline_duration": at(100, 1)},
                     ],
                 })
-                active = call("/v1/jobs", {"kind": "preview.project_frame", "idempotency_key": "cancel-active", "input": {
+                active = call("/api/jobs", {"kind": "preview.project_frame", "idempotency_key": "cancel-active", "input": {
                     "project_id": "ntsc", "revision": long_edit["revision"], "sequence_id": "ntsc-main",
                     "requested_time": at(1, 1), "alignment": "exact",
                 }})
                 deadline = time.monotonic() + 45
                 while True:
-                    active = call(f'/v1/jobs/{active["job_id"]}')
+                    active = call(f'/api/jobs/{active["job_id"]}')
                     assert active["state"] in ("queued", "running"), active
                     progress = active.get("progress") or {}
                     if progress.get("stage") == "encoding" and progress.get("media_time") and rational(progress["media_time"]) > 0:
                         break
                     assert time.monotonic() < deadline, {"failure": "No real encoder progress before cancellation", "job": active}
                     time.sleep(.05)
-                cancelled = wait(call(f'/v1/jobs/{active["job_id"]}/cancel', {}))
+                cancelled = wait(call(f'/api/jobs/{active["job_id"]}/cancel', {}))
                 assert cancelled["state"] == "cancelled" and cancelled["result"] is None, cancelled
-                assert request(f'/v1/jobs/{cancelled["job_id"]}/artifact')["error"] is not None
+                assert request(f'/api/jobs/{cancelled["job_id"]}/artifact')["error"] is not None
                 attempt_root = root / "artifacts" / cancelled["job_id"]
                 assert not list(attempt_root.glob("attempt-*/preview-source.mp4"))
                 assert not list(attempt_root.glob("attempt-*/frame.png"))

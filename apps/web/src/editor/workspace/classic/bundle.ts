@@ -5,10 +5,10 @@ export const bundleMagic = new TextEncoder().encode(
   "OPENCUT-CLASSIC-RECOVERY\n",
 );
 const maxHeader = 4 * 1024 * 1024,
-  maxFile = 16 * 1024 ** 3;
+  originalMaxFile = 16 * 1024 ** 3;
 export type RecoveryMedia = { id: string; file: File; sha256: string };
 type Header = {
-  format: "opencut.classic-recovery.v1";
+  format: "opencut.classic-recovery";
   snapshot: ClassicSnapshot;
   media: Array<{
     id: string;
@@ -63,15 +63,18 @@ export async function createRecoveryBundle(
   )
     throw new Error("Recovery bundle must include every original media file");
   const entries: Header["media"] = [];
+  let mediaBytes = 0;
   for (const item of media) {
     if (
       !snapshot.media.some((row) => row.id === item.id) ||
       !item.file.size ||
-      item.file.size > maxFile ||
+      !Number.isSafeInteger(item.file.size) ||
+      item.file.size > Number.MAX_SAFE_INTEGER - mediaBytes ||
       !/^[a-f0-9]{64}$/.test(item.sha256) ||
       (await fileDigest(item.file, signal)) !== item.sha256
     )
       throw new Error("Classic recovery file changed or exceeds its limit");
+    mediaBytes += item.file.size;
     entries.push({
       id: item.id,
       name: item.file.name,
@@ -81,7 +84,7 @@ export async function createRecoveryBundle(
     });
   }
   const header: Header = {
-    format: "opencut.classic-recovery.v1",
+    format: "opencut.classic-recovery",
     snapshot,
     media: entries,
   };
@@ -94,6 +97,8 @@ export async function createRecoveryBundle(
   );
   if (bytes.length > maxHeader)
     throw new Error("Classic recovery header exceeds 4 MiB");
+  if (mediaBytes > Number.MAX_SAFE_INTEGER - bundleMagic.length - 4 - bytes.length)
+    throw new Error("Classic recovery size exceeds exact file addressing");
   const size = new Uint8Array(4);
   new DataView(size.buffer).setUint32(0, bytes.length, true);
   return new Blob([bundleMagic, size, bytes, ...media.map((m) => m.file)], {
@@ -106,6 +111,8 @@ export async function readRecoveryBundle(
   progress: (name: string, index: number, count: number) => void,
 ) {
   signal.throwIfAborted();
+  if (!Number.isSafeInteger(file.size))
+    throw new Error("Classic recovery size exceeds exact file addressing");
   const prefixLength = bundleMagic.length + 4;
   const prefix = new Uint8Array(
     await file.slice(0, prefixLength).arrayBuffer(),
@@ -125,12 +132,13 @@ export async function readRecoveryBundle(
   );
   if (
     !isRecord(raw) ||
-    raw.format !== "opencut.classic-recovery.v1" ||
+    (raw.format !== "opencut.classic-recovery" && raw.format !== "opencut.classic-recovery.v1") ||
     Object.keys(raw).some(
       (key) => !["format", "snapshot", "media"].includes(key),
     )
   )
-    throw new Error("Unsupported Classic recovery bundle version");
+    throw new Error("Invalid Classic recovery bundle format");
+  const historical = raw.format === "opencut.classic-recovery.v1";
   checkSnapshot(raw.snapshot);
   if (
     !Array.isArray(raw.media) ||
@@ -152,10 +160,10 @@ export async function readRecoveryBundle(
       typeof row.size !== "number" ||
       !Number.isSafeInteger(row.size) ||
       row.size <= 0 ||
-      row.size > maxFile ||
+      (historical && row.size > originalMaxFile) ||
       typeof row.sha256 !== "string" ||
       !/^[a-f0-9]{64}$/.test(row.sha256) ||
-      offset + row.size > file.size ||
+      row.size > file.size - offset ||
       Object.keys(row).some(
         (key) => !["id", "name", "type", "size", "sha256"].includes(key),
       )

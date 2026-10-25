@@ -113,7 +113,7 @@ pub fn open_verified_media(
     })
 }
 /// Native host opens bytes only after application resource authorization.
-pub fn open_verified_v4_resource(
+pub fn open_verified_project_resource(
     database: &Path,
     version: &opencut_contracts::AssetVersion,
 ) -> Result<(std::fs::File, u64), EditorError> {
@@ -158,8 +158,8 @@ pub fn recover_previews(database: &Path) -> Result<(), EditorError> {
     opencut_native_services::preview::recover_workspace(database).map(|_| ())
 }
 pub fn shutdown_previews(database: &Path) -> Result<(), EditorError> {
-    let audio = crate::audio_preview_v4::shutdown(database);
-    let art = crate::source_art_v1::shutdown(database);
+    let audio = crate::audio_preview::shutdown(database);
+    let art = crate::source_art::shutdown(database);
     let preview = opencut_native_services::preview::shutdown_workspace(database);
     audio.and(art).and(preview)
 }

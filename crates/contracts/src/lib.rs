@@ -1,49 +1,51 @@
-pub mod export_video_v2;
-pub mod keyframe_edit_v1;
-pub mod keyframe_legacy_conversion_v1;
-pub mod mask_authoring_v1;
-pub mod mask_frame_v1;
-pub mod scene_frame_v1;
+pub mod agent_recipe;
+pub mod export_video;
+pub mod keyframe_edit;
+pub mod keyframe_legacy_conversion;
+pub mod mask_authoring;
+pub mod mask_frame;
+pub mod scene_frame;
+pub mod source_evidence;
+pub mod text_canvas;
 use std::{collections::BTreeMap, error::Error, fmt};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub mod audio_gain_v4;
-pub mod blend_frame_v1;
-pub mod edit_recovery_v1;
-pub mod edit_recovery_v2;
-pub mod font_browser_v2;
-pub mod font_catalog_v3;
-pub mod font_derived_v1;
-pub mod font_import_v1;
-pub mod font_recovery_v1;
-pub mod font_synthesis_v1;
-pub mod graphic_edit_v1;
-pub mod graphic_frame_v1;
+pub mod agent_edit;
+pub mod agent_read;
+pub mod audio_gain;
+pub mod blend_frame;
+pub mod branching;
+pub mod edit_recovery;
+pub mod font_catalog;
+pub mod font_derived;
+pub mod font_import;
+pub mod font_inventory;
+pub mod font_synthesis;
+pub mod graphic_edit;
+pub mod graphic_frame;
+pub mod historical_visual;
+pub mod historical_visual_ops;
 pub mod media_import;
-pub mod media_import_v4;
 pub mod project_edit;
-pub mod project_v3;
-pub mod project_v3_ops;
-pub mod project_v4;
-pub mod project_v4_history;
-pub mod project_v4_ops;
-pub mod project_v4_public;
-pub mod project_v4_resources;
+pub mod project_history;
+pub mod project_inspection;
+pub mod project_public;
+pub mod project_resources;
+pub mod scene;
 pub mod scene_bookmarks;
-pub mod source_art_v1;
-pub mod source_art_waveform_display_v1;
-pub mod source_audio_v4;
-pub mod text_authoring_v1;
-pub mod text_canvas_v1;
-pub mod text_canvas_v2;
-pub mod text_frame_v2;
-pub mod timeline_clipboard_v4;
+pub mod scene_ops;
+pub mod source_art;
+pub mod source_art_waveform_display;
+pub mod source_audio;
+pub mod text_authoring;
+pub mod text_frame;
+pub mod timeline;
+pub mod timeline_clipboard;
 pub mod timeline_edit;
-pub mod timeline_v4;
-pub mod track_removal_v1;
-pub mod visual_frame_v4;
+pub mod track_removal;
+pub mod visual_frame;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -613,22 +615,25 @@ pub struct CatalogEntry {
     pub asset: Option<Asset>,
 }
 
-pub mod subtitle_ass_v1;
-pub mod subtitle_text_v1;
-pub mod subtitle_v4;
+pub mod subtitle_ass;
+pub mod subtitle_text;
+pub mod subtitles;
 
-pub mod edit_recovery_v3;
+pub mod caption_frame;
 
-pub mod text_frame_v3;
+pub mod element_properties;
+pub mod element_transform;
+pub mod visual_edit_draft;
 
-pub mod element_properties_v1;
-pub mod element_transform_v2;
+pub mod scene_authoring;
 
-pub mod scene_authoring_v1;
+pub mod keyframe_sample;
 
-pub mod keyframe_sample_v1;
+pub mod brand_resources;
+pub mod catalog_resources;
 
-pub mod brand_resources_v1;
-pub mod catalog_resources_v1;
+pub mod subtitle_classic_ass;
 
-pub mod subtitle_classic_ass_v1;
+pub mod project_readonly;
+
+pub mod project_catalog;

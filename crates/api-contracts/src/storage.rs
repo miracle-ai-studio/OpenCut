@@ -57,7 +57,6 @@ pub enum StopReason {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UsageReport {
-    pub schema_version: u32,
     pub consistency: String,
     pub complete: bool,
     pub visited_entries: usize,

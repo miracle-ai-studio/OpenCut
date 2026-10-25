@@ -1,0 +1,140 @@
+import { afterEach, expect, it, vi } from "vitest";
+afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+it("starts after six blocks while retaining bounded jitter storage; short EOF and stopped cursor cannot deadlock or advance silence", async () => {
+  class Processor {
+    port = { onmessage: null as null | ((event: { data: Record<string, unknown> }) => void), postMessage: vi.fn() };
+    process(_inputs: Float32Array[][], _outputs: Float32Array[][]) { return true; }
+  }
+  let Current = Processor;
+  vi.stubGlobal("AudioWorkletProcessor", Processor);
+  vi.stubGlobal("currentFrame", 128);
+  vi.stubGlobal("registerProcessor", (_name: string, ctor: typeof Processor) => { Current = ctor; });
+  await import("./worklet");
+  const p = new Current();
+  const send = (data: Record<string, unknown>) => p.port.onmessage!({ data });
+  const left = new Float32Array(2), right = new Float32Array(2);
+  let frame=128;
+  const quantum = () => {vi.stubGlobal("currentFrame",frame);frame+=left.length;return p.process([], [[left, right]]);};
+  send({ kind: "prime", blocks: 6 });
+  send({ kind: "reset", token: "first" });
+  send({ kind: "block", token: "first", pcm: new Float32Array([.1, .2, .3, .4]).buffer });
+  quantum(); expect([...left]).toEqual([0, 0]); expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({phase: "preparing", consumedFrames: "0"}));
+  send({ kind: "block", token: "first", pcm: new Float32Array([.5, .6, .7, .8]).buffer });
+  for (let i = 0; i < 3; i++) send({ kind: "block", token: "first", pcm: new Float32Array([.5, .6, .7, .8]).buffer });
+  quantum(); expect([...left]).toEqual([0, 0]);
+  send({ kind: "block", token: "first", pcm: new Float32Array([.5, .6, .7, .8]).buffer });
+  quantum(); expect(left[0]).toBeCloseTo(.1);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "2", copied: 2, renderFrame: 132, quantumFrames: 2 }));
+  send({ kind: "stop" });
+  expect(p.port.postMessage).toHaveBeenLastCalledWith({ kind: "stopped", token: "first", consumedFrames: "2" });
+  send({ kind: "reset", token: "short" });
+  send({ kind: "block", token: "short", pcm: new Float32Array([.25, .75]).buffer });
+  send({ kind: "end", token: "first" }); quantum(); expect([...left]).toEqual([0, 0]);
+  send({ kind: "end", token: "short" }); quantum(); expect([...left]).toEqual([.25, 0]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 1, phase: "ended" }));
+  frame=256;
+  quantum();
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 0, renderFrame: 256, quantumFrames: 2, underflowEvents:0,underflowFrames:"0" }));
+  send({ kind: "stop" });
+  send({ kind: "prime", blocks: 2 });
+  send({ kind: "reset", token: "small-host" });
+  send({ kind: "block", token: "small-host", pcm: new Float32Array([.1, .2, .3, .4]).buffer });
+  quantum(); expect([...left]).toEqual([0, 0]);
+  send({ kind: "block", token: "small-host", pcm: new Float32Array([.5, .6, .7, .8]).buffer });
+  quantum(); expect(left[0]).toBeCloseTo(.1);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "2", copied: 2 }));
+  quantum(); quantum();
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "4", copied: 0 }));
+  send({ kind: "block", token: "small-host", pcm: new Float32Array([.25, .75, .5, 1]).buffer });
+  quantum(); expect([...left]).toEqual([0, 0]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "4", copied: 0 }));
+  send({ kind: "block", token: "small-host", pcm: new Float32Array([.6, .6, .7, .7]).buffer });
+  quantum(); expect([...left]).toEqual([.25, .5]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "6", copied: 2,underflowEvents:1,underflowFrames:"4" }));
+
+});
+
+it("stalls at picture credit without consuming PCM and resumes the exact samples across port/reset ordering", async () => {
+  class Processor {
+    port = { onmessage: null as null | ((event: { data: Record<string, unknown> }) => void), postMessage: vi.fn() };
+    process(_inputs: Float32Array[][], _outputs: Float32Array[][]) { return true; }
+  }
+  let Current = Processor;
+  vi.stubGlobal("AudioWorkletProcessor", Processor);
+  vi.stubGlobal("currentFrame", 128);
+  vi.stubGlobal("registerProcessor", (_name: string, ctor: typeof Processor) => { Current = ctor; });
+  await import("./worklet");
+  const p = new Current(), gate = { onmessage: null as null | ((event: { data: unknown }) => void), start: vi.fn() };
+  const send = (data: Record<string, unknown>) => p.port.onmessage!({ data });
+  const limit = (token: string, frames: string) => gate.onmessage!({ data: { kind: "picture-limit", token, frames } });
+  const left = new Float32Array(2), right = new Float32Array(2);
+  let frame=128;
+  const quantum = () => {vi.stubGlobal("currentFrame",frame);frame+=left.length;return p.process([], [[left, right]]);};
+  send({ kind: "picture-port", token: "first", port: gate });
+  limit("first", "1"); // Separate control port may arrive before data-port reset.
+  send({ kind: "reset", token: "first" });
+  send({ kind: "block", token: "first", pcm: new Float32Array([.1,.2,.3,.4]).buffer });
+  send({ kind: "end", token: "first" });
+  quantum(); expect(left[0]).toBeCloseTo(.1); expect(left[1]).toBe(0);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 1, phase: "buffering", elapsedRenderFrames:"1" }));
+  limit("old", "100"); quantum(); expect([...left]).toEqual([0,0]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "1", copied: 0, completedBlocks: 0 }));
+  limit("first", "2"); quantum(); expect(left[0]).toBeCloseTo(.3); expect(right[0]).toBeCloseTo(.4);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ consumedFrames: "2", copied: 1, completedBlocks: 1, elapsedRenderFrames:"5" }));
+  send({ kind: "stop" });
+  expect(p.port.postMessage).toHaveBeenLastCalledWith({ kind: "stopped", token: "first", consumedFrames: "2" });
+});
+
+it("reports the identical sample interval directly to the clock without giving it device submission ownership",async()=>{
+  class Processor {
+    port={onmessage:null as null|((event:{data:Record<string,unknown>})=>void),postMessage:vi.fn()};
+    process(_inputs:Float32Array[][],_outputs:Float32Array[][]){return true;}
+  }
+  let Current=Processor;
+  vi.stubGlobal('AudioWorkletProcessor',Processor);vi.stubGlobal('currentFrame',128);
+  vi.stubGlobal('registerProcessor',(_name:string,ctor:typeof Processor)=>{Current=ctor;});
+  await import('./worklet');const p=new Current(),clock={postMessage:vi.fn()},viewer={postMessage:vi.fn(),start:vi.fn()};
+  const send=(data:Record<string,unknown>)=>p.port.onmessage!({data});
+  send({kind:'clock-port',token:'first',port:clock});send({kind:'reset',token:'first'});
+  send({kind:'presentation-clock-port',token:'first',port:viewer});
+  send({kind:'block',token:'first',pcm:new Float32Array([.25,.75]).buffer});send({kind:'end',token:'first'});
+  p.process([],[[new Float32Array(2),new Float32Array(2)]]);
+  expect(clock.postMessage.mock.calls[0][0]).toEqual(p.port.postMessage.mock.calls.at(-1)![0]);
+  expect(viewer.postMessage.mock.calls[0][0]).toEqual(clock.postMessage.mock.calls[0][0]);
+  expect(clock.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({consumedFrames:'1',copied:1,runStartFrame:128,runStartConsumed:'0'}));
+  send({kind:'stop'});expect(clock.postMessage).toHaveBeenCalledOnce();
+  expect(viewer.postMessage).toHaveBeenLastCalledWith({kind:'stopped',token:'first',consumedFrames:'1'});
+  send({kind:'reset',token:'other'});p.process([],[[new Float32Array(2),new Float32Array(2)]]);
+  expect(clock.postMessage).toHaveBeenCalledOnce();
+  expect(viewer.postMessage).toHaveBeenCalledTimes(2);
+});
+
+
+it("serves a repeated device quantum identically without skipping PCM or crossing a reset",async()=>{
+  class Processor {port={onmessage:null as null|((e:{data:Record<string,unknown>})=>void),postMessage:vi.fn()};process(_i:Float32Array[][],_o:Float32Array[][]){return true;}}
+  let Current=Processor;vi.stubGlobal("AudioWorkletProcessor",Processor);vi.stubGlobal("currentFrame",128);
+  vi.stubGlobal("registerProcessor",(_name:string,ctor:typeof Processor)=>{Current=ctor;});await import("./worklet");
+  const p=new Current(),send=(data:Record<string,unknown>)=>p.port.onmessage!({data});
+  send({kind:"reset",token:"first"});send({kind:"block",token:"first",pcm:new Float32Array([.25,.5,.75,1]).buffer});send({kind:"end",token:"first"});
+  const render=()=>{const channels=[new Float32Array(1),new Float32Array(1)];p.process([],[channels]);return channels.map(c=>c[0]);};
+  expect(render()).toEqual([.25,.5]);const count=p.port.postMessage.mock.calls.length;
+  expect(render()).toEqual([.25,.5]);expect(p.port.postMessage).toHaveBeenCalledTimes(count);
+  vi.stubGlobal("currentFrame",129);expect(render()).toEqual([.75,1]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({consumedFrames:"2",repeatedQuanta:1}));
+  send({kind:"reset",token:"next"});send({kind:"block",token:"next",pcm:new Float32Array([.125,.375]).buffer});send({kind:"end",token:"next"});
+  expect(render()).toEqual([0,0]);vi.stubGlobal("currentFrame",130);expect(render()).toEqual([.125,.375]);
+  expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({token:"next",consumedFrames:"1"}));
+});
+
+it('accepts contiguous picture credit on the presentation port and ignores delayed lower or foreign credit',async()=>{
+ class Processor{port={onmessage:null as null|((e:{data:Record<string,unknown>})=>void),postMessage:vi.fn()};process(_i:Float32Array[][],_o:Float32Array[][]){return true;}}
+ let Current=Processor;vi.stubGlobal('AudioWorkletProcessor',Processor);vi.stubGlobal('currentFrame',128);vi.stubGlobal('registerProcessor',(_name:string,ctor:typeof Processor)=>{Current=ctor;});
+ await import('./worklet');const p=new Current(),main={onmessage:null as null|((e:{data:unknown})=>void),start:vi.fn()},viewer={onmessage:null as null|((e:{data:unknown})=>void),start:vi.fn(),postMessage:vi.fn()};
+ const send=(data:Record<string,unknown>)=>p.port.onmessage!({data}),credit=(port:typeof main,token:string,frames:string)=>port.onmessage!({data:{kind:'picture-limit',token,frames}});
+ send({kind:'picture-port',token:'first',port:main});credit(main,'first','0');send({kind:'reset',token:'first'});send({kind:'presentation-clock-port',token:'first',port:viewer});
+ send({kind:'block',token:'first',pcm:new Float32Array([.1,.2,.3,.4,.5,.6,.7,.8]).buffer});send({kind:'end',token:'first'});
+ credit(viewer,'first','2');credit(main,'first','0');const left=new Float32Array(2),right=new Float32Array(2);p.process([],[[left,right]]);expect(left[1]).toBeCloseTo(.3);
+ credit(viewer,'old','100');credit(viewer,'first','NaN');vi.stubGlobal('currentFrame',130);p.process([],[[left,right]]);expect([...left]).toEqual([0,0]);
+ credit(viewer,'first','4');credit(main,'first','3');vi.stubGlobal('currentFrame',132);p.process([],[[left,right]]);expect(left[0]).toBeCloseTo(.5);expect(left[1]).toBeCloseTo(.7);
+ expect(p.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({consumedFrames:'4',copied:2}));
+});

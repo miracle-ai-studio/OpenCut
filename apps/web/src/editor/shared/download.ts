@@ -22,7 +22,15 @@ export async function saveResponse(
   const response = await fetchResponse();
   if (!response.body) throw new Error("The download has no content.");
   if (handle) {
-    await response.body.pipeTo(await handle.createWritable());
+    try {
+      await response.body.pipeTo(await handle.createWritable());
+    } catch (error) {
+      // Creating the writable can fail before pipeTo owns the body. Release
+      // the authenticated stream in that case as well as on a pipe failure.
+      if (!response.body.locked)
+        await response.body.cancel(error).catch(() => {});
+      throw error;
+    }
     return;
   }
   const limit = 256 * 1024 * 1024;

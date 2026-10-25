@@ -1,12 +1,12 @@
-import { graphicSourceLayoutV1 } from "../src/graphic-source.mjs";
+import { graphicSourceLayout } from "../src/graphic-source.mjs";
 import { moduleRegistry, playwrightRuntime } from "./modules.mjs";
-import { observeVisualPage, executeVisualPage, executeTextVisualPage, executeCaptionVisualPageV3, executeGraphicVisualPageV1, executeBlendVisualPageV1, executeMaskVisualPageV1, executeSceneVisualPageV1 } from "./page.mjs";
+import { observeVisualPage, executeVisualPage, executeTextVisualPage, executeCaptionVisualPage, executeGraphicVisualPage, executeBlendVisualPage, executeMaskVisualPage, executeSceneVisualPage } from "./page.mjs";
 import { checkAbort, integer, natural, reject, sameJsonFacts, VisualExecutionError } from "../src/validation.mjs";
-import { sceneFontResourcesV1 } from "../src/scene-text-v1.mjs";
+import { sceneFontResources } from "../src/scene-text.mjs";
 import { fontResource } from "../src/text-frame.mjs";
-export const browserHooks={moduleRegistry,playwrightRuntime,
+export const browserHooks={moduleRegistry,playwrightRuntime,ownedLocal:true,
   async configurePage(realm) {
-    const sceneFrame=realm.begin.type==="beginSceneFrameV1",maskFrame=realm.begin.type==="beginMaskFrameV1",blendFrame=sceneFrame||maskFrame||realm.begin.type==="beginBlendFrameV1",graphicFrame=blendFrame||realm.begin.type==="beginGraphicFrameV1",captionFrame=graphicFrame||realm.begin.type==="beginCaptionFrameV3",textFrame=captionFrame||realm.begin.type==="beginTextFrameV2";
+    const sceneFrame=realm.begin.type==="beginSceneFrame",maskFrame=realm.begin.type==="beginMaskFrame",blendFrame=sceneFrame||maskFrame||realm.begin.type==="beginBlendFrame",graphicFrame=blendFrame||realm.begin.type==="beginGraphicFrame",captionFrame=graphicFrame||realm.begin.type==="beginCaptionFrame",textFrame=captionFrame||realm.begin.type==="beginTextFrame";
     const blendPlan=sceneFrame||maskFrame?realm.begin.plan.execution:realm.begin.plan;
     const graphicPlan=blendFrame?blendPlan.execution:realm.begin.plan;
     const captionPlan=graphicFrame?graphicPlan.execution:realm.begin.plan;
@@ -14,11 +14,11 @@ export const browserHooks={moduleRegistry,playwrightRuntime,
     const handles=new Map(realm.begin.resources.map(r=>[r.assetId,r.handle])),fixed=new Map(plan.resources.map(r=>[r.assetId,r]));
     const layers=new Set(plan.layers.map(l=>l.elementId));
     const fontHandles=new Map(textFrame?realm.begin.fonts.map(f=>[f.fontId,f.handle]):[]);
-    const fonts=sceneFrame?sceneFontResourcesV1(realm.begin.plan):new Map(textFrame?textPlan.texts.map(layer=>[layer.font.fontId,fontResource(layer.font)]):[]);
+    const fonts=sceneFrame?sceneFontResources(realm.begin.plan):new Map(textFrame?textPlan.texts.map(layer=>[layer.font.fontId,fontResource(layer.font)]):[]);
     const texts=new Set(textFrame?textPlan.texts.map(layer=>layer.elementId):[]);
     const captions=new Map(captionFrame?captionPlan.captions.map(c=>[c.elementId,c]):[]);
     const expectedGraphics=graphicFrame?graphicPlan.graphics.map(layer=>{
-      const {width,height,originX,originY}=graphicSourceLayoutV1(layer.graphic,{maxPixels:realm.begin.admission.maxDecodedPixels,maxRasterBytes:realm.begin.admission.maxRgbaBytes});
+      const {width,height,originX,originY}=graphicSourceLayout(layer.graphic,{maxPixels:realm.begin.admission.maxDecodedPixels,maxRasterBytes:realm.begin.admission.maxRgbaBytes});
       return {elementId:layer.elementId,width,height,originX,originY};
     }):[];
     let captionBound=false,graphicBound=false,captionBinding=false,graphicBinding=false,blendBound=false,blendBinding=false,maskBound=false,maskBinding=false;
@@ -79,7 +79,7 @@ export const browserHooks={moduleRegistry,playwrightRuntime,
     return {...gpu,shaderSha256:modules.shaderSha256,decoderProfile:"mediabunny-1.41.0-initial-canvases-half-open;static-png-jpeg-browser-image",engine:realm.identity.engine+" · "+modules.shaderSha256+" · "+gpu.gpuDevice};
   },
   async render(realm) {
-    const execute=realm.begin.type==="beginSceneFrameV1"?executeSceneVisualPageV1:realm.begin.type==="beginMaskFrameV1"?executeMaskVisualPageV1:realm.begin.type==="beginBlendFrameV1"?executeBlendVisualPageV1:realm.begin.type==="beginGraphicFrameV1"?executeGraphicVisualPageV1:realm.begin.type==="beginCaptionFrameV3"?executeCaptionVisualPageV3:realm.begin.type==="beginTextFrameV2"?executeTextVisualPage:executeVisualPage;
+    const execute=realm.begin.type==="beginSceneFrame"?executeSceneVisualPage:realm.begin.type==="beginMaskFrame"?executeMaskVisualPage:realm.begin.type==="beginBlendFrame"?executeBlendVisualPage:realm.begin.type==="beginGraphicFrame"?executeGraphicVisualPage:realm.begin.type==="beginCaptionFrame"?executeCaptionVisualPage:realm.begin.type==="beginTextFrame"?executeTextVisualPage:executeVisualPage;
     const result=await realm.page.evaluate(execute,{plan:realm.begin.plan,admission:realm.begin.admission});
     if(result?.ok!==true)throw new VisualExecutionError(result?.error?.code??"VISUAL_BROWSER_EXECUTION_FAILED","Browser visual execution failed");
     return result.receipt;

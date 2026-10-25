@@ -19,6 +19,10 @@ def verify(bundle, output):
         return result.stdout
 
     try:
+        receipt = json.loads((bundle / 'manifest.json').read_text())
+        manifests = [json.loads((bundle / client / 'plugins/opencut' /
+                     f'.{client}-plugin/plugin.json').read_text()) for client in ('codex', 'claude')]
+        assert all(manifest['version'] == receipt['version'] for manifest in manifests)
         codex_version = run('codex-version', ['codex', '--version']).strip()
         claude_version = run('claude-version', ['claude', '--version']).strip()
         # Command-scoped config overrides, no marketplace add/install or user config writes.
@@ -28,11 +32,12 @@ def verify(bundle, output):
             'plugin', 'list', '--available', '--json', '--marketplace', 'opencut-local']))
         entries = listed['available'] + listed['installed']
         entry = next(p for p in entries if p['pluginId'] == 'opencut@opencut-local')
-        assert entry['version'] == '0.1.0'
+        assert entry['version'] == receipt['version']
         assert Path(entry['source']['path']).resolve() == (bundle / 'codex/plugins/opencut').resolve()
         run('claude-plugin', ['claude', 'plugin', 'validate', '--strict', str(bundle / 'claude/plugins/opencut')])
         run('claude-marketplace', ['claude', 'plugin', 'validate', '--strict', str(bundle / 'claude')])
-        report = {'status': 'passed', 'codex_version': codex_version, 'claude_version': claude_version,
+        report = {'status': 'passed', 'plugin_version': receipt['version'],
+                  'codex_version': codex_version, 'claude_version': claude_version,
                   'codex': 'Native local marketplace discovery and plugin manifest parsing',
                   'claude': 'Native strict plugin and marketplace validation',
                   'limits': ['Does not install into global clients or grant persistent tool permissions',

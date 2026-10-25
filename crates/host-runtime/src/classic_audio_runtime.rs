@@ -5,8 +5,8 @@ use crate::browser_runtime::{
     Unavailable, absolute, dependency, executable, metadata, package_file,
 };
 use opencut_contracts::EditorError;
-use opencut_job_contracts::project_v4_audio::V4AudioWavCapabilityV1;
-use opencut_job_execution::project_v4_audio::LocalAudioExecutionPolicyV1;
+use opencut_job_contracts::scene_audio::AudioWavCapability;
+use opencut_job_execution::scene_audio::LocalAudioExecutionPolicy;
 use opencut_native_services::classic_audio::ClassicAudioProcessConfig;
 #[cfg(test)]
 use std::fs;
@@ -62,9 +62,9 @@ impl Unavailable {
 }
 
 pub(crate) fn configured(
-    policy: &LocalAudioExecutionPolicyV1,
+    policy: &LocalAudioExecutionPolicy,
 ) -> Result<ClassicAudioProcessConfig, EditorError> {
-    opencut_editor_application::project_v4_audio_jobs::validate_policy(policy)?;
+    opencut_editor_application::scene_audio_jobs::validate_policy(policy)?;
     let paths = resolve(&HostConfiguration::capture())
         .map_err(|reason| EditorError::new("CAPABILITY_UNAVAILABLE", reason.reason()))?;
     Ok(ClassicAudioProcessConfig {
@@ -81,7 +81,7 @@ pub(crate) fn configured(
     })
 }
 
-pub(crate) fn capability() -> V4AudioWavCapabilityV1 {
+pub(crate) fn capability() -> AudioWavCapability {
     capability_for(&HostConfiguration::capture())
 }
 
@@ -138,42 +138,40 @@ pub(crate) fn preview_config() -> Result<
     )
 }
 
-pub(crate) fn preview_capability()
--> opencut_api_contracts::audio_preview_v4::AudioPreviewCapabilityV4 {
-    use opencut_api_contracts::audio_preview_v4::*;
+pub(crate) fn preview_capability() -> opencut_api_contracts::audio_preview::AudioPreviewCapability {
+    use opencut_api_contracts::audio_preview::*;
     let resolved = preview_config();
-    AudioPreviewCapabilityV4 {
-        schema_version: 1,
+    AudioPreviewCapability {
         available: resolved.is_ok(),
         unavailable_reason: resolved.err().map(|e| e.code),
-        profile: AudioPreviewProfileV4::ClassicRealtimeV31,
+        profile: AudioPreviewProfile::ClassicRealtimeV31,
         sample_rates: vec![44100, 48000],
-        stream_path: "/v1/preview/v4/audio/stream".into(),
+        stream_path: "/api/preview/audio/stream".into(),
         max_sessions_per_database: 4,
         max_block_frames: 4096,
-        max_buffered_frames: 8192,
+        max_buffered_frames:
+            opencut_editor_application::audio_preview::AUDIO_PREVIEW_MAX_BUFFERED_FRAMES as u32,
         owner_lease_ms: 30_000,
         authorization_heartbeat_ms: 1000,
         session_ttl_ms: 3_600_000,
     }
 }
-pub(crate) fn range_capability()
--> opencut_job_contracts::project_v4_audio::V4AudioRangeWavCapabilityV1 {
+pub(crate) fn range_capability() -> opencut_job_contracts::scene_audio::AudioRangeWavCapability {
     let whole = capability();
-    opencut_job_contracts::project_v4_audio::V4AudioRangeWavCapabilityV1 {
+    opencut_job_contracts::scene_audio::AudioRangeWavCapability {
         schema_version: 1,
         available: whole.available,
-        submit_tool: "opencut_job_v4_audio_range_wav".into(),
+        submit_tool: "opencut_job_audio_range_wav".into(),
         sample_rates: whole.sample_rates,
         unavailable_reason: whole.unavailable_reason,
     }
 }
-fn capability_for(configuration: &HostConfiguration) -> V4AudioWavCapabilityV1 {
+fn capability_for(configuration: &HostConfiguration) -> AudioWavCapability {
     let result = resolve(configuration);
-    V4AudioWavCapabilityV1 {
+    AudioWavCapability {
         schema_version: 1,
         available: result.is_ok(),
-        submit_tool: "opencut_job_v4_audio_wav".into(),
+        submit_tool: "opencut_job_audio_wav".into(),
         sample_rates: vec![44_100, 48_000],
         unavailable_reason: result.err().map(|reason| reason.reason().into()),
     }
@@ -467,7 +465,7 @@ mod tests {
             reply.unavailable_reason.as_deref(),
             Some("AUDIO_RUNTIME_NOT_CONFIGURED")
         );
-        assert_eq!(reply.submit_tool, "opencut_job_v4_audio_wav");
+        assert_eq!(reply.submit_tool, "opencut_job_audio_wav");
         assert_eq!(reply.schema_version, 1);
     }
 

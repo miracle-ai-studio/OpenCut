@@ -15,11 +15,11 @@ import type { ShortcutRegistry } from "./registry";
 
 const scopeOf = (target: Element): ShortcutScope =>
   target.closest(
-    '[data-shortcut-scope="timeline"],.v4-timeline,.v4-timeline-panel,.timeline,.timeline-panel,.timeline-area',
+    '[data-shortcut-scope="timeline"],.editor-timeline,.editor-timeline-panel,.timeline,.timeline-panel,.timeline-area',
   )
     ? "timeline"
     : target.closest(
-          '[data-shortcut-scope="assets"],.v4-media-panel,.assets-panel',
+          '[data-shortcut-scope="assets"],.editor-media-panel,.assets-panel',
         )
       ? "assets"
       : target.closest('[data-shortcut-scope="canvas"],.preview-stage')

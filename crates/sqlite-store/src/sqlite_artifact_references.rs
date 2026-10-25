@@ -149,7 +149,21 @@ pub(super) fn scan(
             {
                 return Err(limit());
             }
-            let value: Value = decode_json(&document, "artifact reference root")?;
+            let (value, extra) = if kind == ReferenceKind::Revision {
+                sqlite_project_document::reference_document(&document)?
+            } else {
+                (
+                    decode_json::<Value>(&document, "artifact reference root")?,
+                    0,
+                )
+            };
+            examined_bytes = examined_bytes.saturating_add(extra);
+            if document.len().saturating_add(extra) > MAX_REFERENCE_DOCUMENT_BYTES
+                || examined_bytes > MAX_REFERENCE_BYTES
+                || started.elapsed().as_millis() > u128::from(MAX_REFERENCE_MS)
+            {
+                return Err(limit());
+            }
             // The producing result is the publication fact. Counting it as a
             // dependency would make explicit release permanently ineligible.
             if kind == ReferenceKind::JobResult && id == producing_job_id {
@@ -170,6 +184,9 @@ pub(super) fn scan(
                 return Err(limit());
             }
         }
+    }
+    if started.elapsed().as_millis() > u128::from(MAX_REFERENCE_MS) {
+        return Err(limit());
     }
     Ok(References {
         roots,

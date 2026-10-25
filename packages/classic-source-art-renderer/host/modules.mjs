@@ -22,6 +22,9 @@ export async function moduleRegistry(runtime) {
   const media = await exactDependency("mediabunny", "1.41.0", runtime.mediabunnyRoot);
   const identityFiles = ["shared", "browser", "runner", "modules", "limits", "protocol", "page"].map(file => ({ root: SHARED_ROOT, prefix: "/shared-host/", relative: `host/${file}.mjs` }));
   identityFiles.push({ root: SHARED_ROOT, prefix: "/shared-host/", relative: "src/validation.mjs" });
+  identityFiles.push({ root: SHARED_ROOT, prefix: "/shared-renderer/", relative: "src/verified-range-source.mjs", served: true });
+  for (const relative of ["src/windowed-decoder.mjs", "src/runtime.mjs", "src/pcm-source.mjs", "src/validation.mjs"])
+    identityFiles.push({ root: SHARED_ROOT, prefix: "/shared-renderer/", relative, served: true });
   identityFiles.push({ root: media.root, prefix: "/dependencies/mediabunny/", relative: "package.json" });
   for (const relative of await runtimeFiles(playwright.root)) identityFiles.push({ root: playwright.root, prefix: "/dependencies/playwright-core/", relative });
   return sharedRegistry(runtime, { packageRoot: PACKAGE_ROOT, vendorFiles: [], identityFiles, staticImages: true });

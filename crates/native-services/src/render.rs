@@ -1,68 +1,70 @@
-use opencut_contracts::EditorError;
-use opencut_editor_application::{
-    access::ProjectExecutionRead,
-    render::{FixedPreflight, RenderPreflight},
-};
-use opencut_project_render::{
-    PreflightIssue, ProjectPreflightReport, ProjectRenderAdapter, ResolvedProjectPreflightRequest,
-};
-use std::path::Path;
-
+//! Existing historical media graphs and complete editor export admission share one port.
+use opencut_api_contracts::render::ProjectPreflightReport;
 pub use opencut_api_contracts::render::RenderPreflightInput;
-
+use opencut_contracts::EditorError;
+use opencut_editor_application::render::{FixedPreflight, PreflightSource, RenderPreflight, issue};
+use std::path::Path;
 pub struct NativePreflight<'a>(pub &'a Path);
-pub fn preflight(
-    app: &impl ProjectExecutionRead,
-    asset_store_root: &Path,
+impl RenderPreflight for NativePreflight<'_> {
+    fn inspect(&self, request: FixedPreflight) -> Result<ProjectPreflightReport, EditorError> {
+        match request.source {
+            PreflightSource::Editor(authorized) => editor(self.0, authorized, request.input),
+            _ => Ok(issue(&request.input, "PROJECT_PROMOTION_REQUIRED")),
+        }
+    }
+}
+
+fn editor(
+    root: &Path,
+    authorized: opencut_editor_application::media_video_jobs::AuthorizedVideoSnapshot,
     input: RenderPreflightInput,
 ) -> Result<ProjectPreflightReport, EditorError> {
-    opencut_editor_application::render::preflight(app, &NativePreflight(asset_store_root), input)
-}
-impl RenderPreflight for NativePreflight<'_> {
-    fn inspect(&self, input: FixedPreflight) -> Result<ProjectPreflightReport, EditorError> {
-        let revision = input.snapshot.revision.clone();
-        let snapshot = input.snapshot;
-        let asset_store_root = self.0;
-        let mut store = None;
-        let resolved =
-            match ProjectRenderAdapter::resolve_assets(snapshot, &input.sequence_id, |asset| {
-                let store = store.get_or_insert_with(|| {
-                    opencut_asset_store::AssetStore::read_only(asset_store_root)
-                });
-                match store {
-                    Ok(store) => store
-                        .resolve_asset(asset)
-                        .map(|resolved| std::path::PathBuf::from(resolved.uri)),
-                    Err(error) => Err(error.clone()),
-                }
-            }) {
-                Ok(resolved) => resolved,
-                Err(error) => {
-                    let code = match error.code {
-                        "NOT_FOUND" => "SEQUENCE_NOT_FOUND",
-                        code => code,
-                    };
-                    return Ok(ProjectPreflightReport {
-                        revision,
-                        sequence_id: input.sequence_id,
-                        ready: false,
-                        issues: vec![PreflightIssue {
-                            code: code.into(),
-                            message: error.message,
-                            asset_id: None,
-                            clip_id: None,
-                            cue_id: None,
-                        }],
-                    });
-                }
-            };
-        Ok(ProjectRenderAdapter::preflight_resolved(
-            &ResolvedProjectPreflightRequest {
-                resolved: &resolved,
-                container: input.container,
-                video_codec: input.video_codec,
-            },
-        ))
+    use opencut_editor_application::{export_video as export, media_video_jobs as video};
+    let result = (|| {
+        let profile = export::select_profile(&authorized.snapshot, &input.sequence_id)?;
+        let prepared = video::prepare_with_frame_window(
+            &authorized.snapshot,
+            &input.sequence_id,
+            &authorized.processing_policy,
+            export::frame_profile(profile),
+            input.options.include_audio,
+            input.range.as_ref(),
+        )?;
+        let store = opencut_asset_store::AssetStore::read_only(root)?;
+        for id in &prepared.asset_ids {
+            let asset = authorized
+                .snapshot
+                .project
+                .assets
+                .iter()
+                .find(|a| &a.id == id)
+                .ok_or_else(|| {
+                    EditorError::new("ASSET_LOCK_INVALID", "Fixed export asset is missing")
+                })?;
+            store.open_version_verified(&asset.version)?;
+        }
+        for id in &prepared.font_ids {
+            let font = authorized
+                .snapshot
+                .project
+                .fonts
+                .iter()
+                .find(|f| &f.id == id)
+                .ok_or_else(|| {
+                    EditorError::new("FONT_LOCK_INVALID", "Fixed export font is missing")
+                })?;
+            store.open_version_verified(&font.content)?;
+        }
+        Ok::<(), EditorError>(())
+    })();
+    match result {
+        Ok(()) => Ok(ProjectPreflightReport {
+            revision: input.revision,
+            sequence_id: input.sequence_id,
+            ready: true,
+            issues: vec![],
+        }),
+        Err(error) => Ok(issue(&input, &error.code)),
     }
 }
 #[cfg(test)]
@@ -93,15 +95,15 @@ mod tests {
             )
             .unwrap();
 
-        let report = preflight(
+        let report = opencut_editor_application::render::preflight(
             &app,
-            &directory.path().join("asset-store"),
+            &NativePreflight(&directory.path().join("asset-store")),
             RenderPreflightInput {
                 project_id: "project-1".into(),
                 revision: snapshot.revision.clone(),
                 sequence_id: "missing".into(),
-                container: Container::Mp4,
-                video_codec: VideoCodec::H264,
+                options: Default::default(),
+                range: None,
             },
         )
         .unwrap();

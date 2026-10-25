@@ -10,7 +10,7 @@ const {StdioClientTransport}=await import(pathToFileURL(path.join(dir,'stdio.js'
 const {StreamableHTTPClientTransport}=await import(pathToFileURL(path.join(dir,'streamableHttp.js')));
 const {ResourceUpdatedNotificationSchema}=await import(pathToFileURL(path.join(dir,'../types.js')));
 const checks=[];
-async function query(id){const r=await fetch(base+'/v1/tools/opencut_denial_query',{method:'POST',headers:{Authorization:'Bearer '+fs.readFileSync(owner,'utf8').trim(),'Content-Type':'application/json'},body:JSON.stringify({target:{kind:'request',id}})});assert.equal(r.status,200);return (await r.json()).data.records;}
+async function query(id){const r=await fetch(base+'/api/tools/opencut_denial_query',{method:'POST',headers:{Authorization:'Bearer '+fs.readFileSync(owner,'utf8').trim(),'Content-Type':'application/json'},body:JSON.stringify({target:{kind:'request',id}})});assert.equal(r.status,200);return (await r.json()).data.records;}
 for(const mode of ['stdio','http']){
  const credential=mode==='stdio'?path.join(path.dirname(owner),'mcp-revocable.secret'):agent;
  let credentialId;
@@ -28,7 +28,7 @@ for(const mode of ['stdio','http']){
    execFileSync(binary,['--database',database,'--json','access','revoke',credentialId]);
    let metadataError;try{await client.listTools();}catch(e){metadataError=e;}
    assert.equal(metadataError?.data?.code,'NOT_AUTHORIZED');assert.equal((await query(metadataError.data.request_id)).length,1);
-   const readCredential=async()=>{const response=await fetch(base+'/v1/tools/opencut_denial_query',{method:'POST',headers:{Authorization:'Bearer '+fs.readFileSync(owner,'utf8').trim(),'Content-Type':'application/json'},body:JSON.stringify({target:{kind:'credential',id:credentialId}})});return (await response.json()).data.records.filter(r=>r.operation.name==='opencut_resource_read');};
+   const readCredential=async()=>{const response=await fetch(base+'/api/tools/opencut_denial_query',{method:'POST',headers:{Authorization:'Bearer '+fs.readFileSync(owner,'utf8').trim(),'Content-Type':'application/json'},body:JSON.stringify({target:{kind:'credential',id:credentialId}})});return (await response.json()).data.records.filter(r=>r.operation.name==='opencut_resource_read');};
    const deadline=Date.now()+5000;while(updates===0){assert.ok(Date.now()<deadline);await new Promise(r=>setTimeout(r,50));}
    const before=(await readCredential()).length;await new Promise(r=>setTimeout(r,800));assert.equal(before,2);assert.equal((await readCredential()).length,before);assert.equal(updates,1);
   }

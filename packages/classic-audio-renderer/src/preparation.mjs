@@ -2,16 +2,19 @@ import { PitchShifter } from "../vendor/soundtouchjs-0.3.0/soundtouch.js";
 import { checkAbort, frameCount, integer, natural, pcmBytes, reject } from "./validation.mjs";
 import { cancellable } from "./runtime.mjs";
 import { sampleLinear } from "./mixing.mjs";
+import { copyPcmChannel, isWindowedPcmSource } from "./pcm-source.mjs";
 
 export async function prepareVoice(voice, decoded, context, host, budget, signal) {
-  const supplied = await cancellable(host.compilePitchPreparation({ elementId: voice.elementId, decodedSampleRate: decoded.sampleRate, decodedFrameCount: String(decoded.length), decodedChannels: decoded.numberOfChannels }), host, signal);
+  const observed = { elementId: voice.elementId, decodedSampleRate: decoded.sampleRate, decodedFrameCount: String(decoded.length), decodedChannels: decoded.numberOfChannels,
+    residentFrameCount: isWindowedPcmSource(decoded) ? String(decoded.residentFrames) : null };
+  const supplied = await cancellable(host.compilePitchPreparation(observed), host, signal);
   const facts = freezeFacts(structuredClone(supplied));
   if (!facts || !["unprepared-linear", "prepared-linear", "prepared-soundtouch"].includes(facts.mode)) reject("INVALID_AUDIO_PLAN", "Unknown pitch preparation mode");
   if (facts.decodedSampleRate !== decoded.sampleRate || facts.targetSampleRate !== context.sampleRate || facts.numChannels !== Math.min(2, decoded.numberOfChannels)) reject("INVALID_AUDIO_PLAN", "Pitch facts do not bind the actual decoded format");
-  const outputFrames = frameCount(facts.outputFrames, "pitch output frames", 1);
   // Rust facts include actual decoder memory plus all preparation buffers.
   // Adapter allocations remain separately admitted, including full-scene PCM.
   if (facts.mode === "unprepared-linear") return { buffer: decoded, facts, release: () => {} };
+  const outputFrames = frameCount(facts.outputFrames, "pitch output frames", 1);
   const channels = integer(facts.numChannels, "pitch channels", 1, 2);
   const release = budget.reserve(pcmBytes(outputFrames, channels));
   try {
@@ -45,7 +48,7 @@ export async function prepareVoice(voice, decoded, context, host, budget, signal
     try {
       const resampleContext = host.createOfflineContext(channels, resampled, context.sampleRate);
       const native = resampleContext.createBuffer(channels, actual, decoded.sampleRate);
-      for (let c = 0; c < channels; c++) native.copyToChannel(decoded.getChannelData(c).subarray(sliceStart, sliceStart + actual), c);
+      for (let c = 0; c < channels; c++) copyPcmChannel(decoded, c, sliceStart, actual, native);
       node = resampleContext.createBufferSource(); node.buffer = native;
       node.connect(resampleContext.destination); node.start(0);
       const resampledBuffer = await cancellable(resampleContext.startRendering(), host, signal);

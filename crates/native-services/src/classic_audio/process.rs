@@ -84,9 +84,7 @@ impl ClassicAudioProcess {
                     Some(message) => message,
                     None => continue,
                 };
-                if message.get("protocolVersion").and_then(Value::as_u64) != Some(1)
-                    || message.get("executionId").and_then(Value::as_str) != Some(&execution)
-                {
+                if message.get("executionId").and_then(Value::as_str) != Some(&execution) {
                     return Err(error(
                         "AUDIO_PROTOCOL_ERROR",
                         "Audio packet changed its execution identity",
@@ -179,6 +177,12 @@ impl ClassicAudioProcess {
                         .map_err(|_| {
                             error("AUDIO_PROTOCOL_ERROR", "Invalid typed audio callback")
                         })?;
+                        if let AudioCallback::Block(request) = callback {
+                            let block = session.compile_export_block_typed(request, resources)?;
+                            let bytes = super::compiled_packet::pack_export_block(block)?;
+                            reply_encoded(&mut stdin, &execution, &id, &bytes)?;
+                            continue;
+                        }
                         match session.callback(callback, resources) {
                             Ok(value) => reply(&mut stdin, &execution, &id, value)?,
                             Err(cause) => {

@@ -2,8 +2,8 @@ use super::super::tests::{fixture, t};
 use super::*;
 use serde_json::json;
 
-fn request(command: ClassicCommandV1, ripple: bool) -> ClassicEditRequestV1 {
-    ClassicEditRequestV1 {
+fn request(command: ClassicCommand, ripple: bool) -> ClassicEditRequest {
+    ClassicEditRequest {
         project_id: "p".into(),
         expected_revision: "rev_fixture".into(),
         sequence_id: "s".into(),
@@ -13,8 +13,8 @@ fn request(command: ClassicCommandV1, ripple: bool) -> ClassicEditRequestV1 {
         ripple,
     }
 }
-fn split(retain: SplitRetainV1) -> ClassicCommandV1 {
-    ClassicCommandV1::Split {
+fn split(retain: SplitRetain) -> ClassicCommand {
+    ClassicCommand::Split {
         clip_ids: vec!["b".into()],
         caption_ids: vec![],
         shape_ids: vec![],
@@ -23,23 +23,19 @@ fn split(retain: SplitRetainV1) -> ClassicCommandV1 {
     }
 }
 fn apply(
-    snapshot: &ProjectSnapshotV3,
-    command: ClassicCommandV1,
+    snapshot: &HistoricalVisualSnapshot,
+    command: ClassicCommand,
     ripple: bool,
-) -> (ProjectDocumentV3, ClassicEditPlanV1) {
+) -> (HistoricalVisualDocument, ClassicEditPlan) {
     let result = plan(snapshot, &request(command, ripple)).unwrap();
-    let next = crate::project_v3::plan_apply(&snapshot.project, &result.plan.transaction)
+    let next = crate::historical_visual::plan_apply(&snapshot.project, &result.plan.transaction)
         .unwrap()
         .proposed_project;
     (next, result)
 }
 #[test]
 fn retained_sides_preserve_exact_source_animation_effects_and_track_local_ripple() {
-    for retain in [
-        SplitRetainV1::Both,
-        SplitRetainV1::Left,
-        SplitRetainV1::Right,
-    ] {
+    for retain in [SplitRetain::Both, SplitRetain::Left, SplitRetain::Right] {
         for ripple in [false, true] {
             let snapshot = fixture();
             let untouched = snapshot.clone();
@@ -59,22 +55,22 @@ fn retained_sides_preserve_exact_source_animation_effects_and_track_local_ripple
                 later.timeline_range.start,
                 t(if ripple {
                     match retain {
-                        SplitRetainV1::Left => 4,
-                        SplitRetainV1::Right => 5,
+                        SplitRetain::Left => 4,
+                        SplitRetain::Right => 5,
                         _ => 6,
                     }
                 } else {
                     6
                 })
             );
-            if retain != SplitRetainV1::Left {
+            if retain != SplitRetain::Left {
                 let right_id = &result.selection.as_ref().unwrap().clip_ids[0];
                 let right = clips.iter().find(|c| &c.id == right_id).unwrap();
                 assert_eq!(right.source_range.as_ref().unwrap().start, t(31));
                 assert_eq!(right.source_range.as_ref().unwrap().duration, t(2));
                 assert_eq!(
                     right.timeline_range.start,
-                    t(if ripple && retain == SplitRetainV1::Right {
+                    t(if ripple && retain == SplitRetain::Right {
                         3
                     } else {
                         4
@@ -96,7 +92,7 @@ fn retained_sides_preserve_exact_source_animation_effects_and_track_local_ripple
                 );
                 assert_eq!(
                     result.selection.as_ref().unwrap().playhead,
-                    if ripple && retain == SplitRetainV1::Right {
+                    if ripple && retain == SplitRetain::Right {
                         Some(t(3))
                     } else {
                         None
@@ -111,8 +107,8 @@ fn boundaries_locks_missing_ids_duplicate_selection_and_fixed_revision_reject_wi
     let mut snapshot = fixture();
     let original = snapshot.clone();
     for at in [3, 6, 9] {
-        let mut command = split(SplitRetainV1::Right);
-        if let ClassicCommandV1::Split { at: time, .. } = &mut command {
+        let mut command = split(SplitRetain::Right);
+        if let ClassicCommand::Split { at: time, .. } = &mut command {
             *time = t(at);
         }
         assert_eq!(
@@ -122,19 +118,19 @@ fn boundaries_locks_missing_ids_duplicate_selection_and_fixed_revision_reject_wi
     }
     snapshot.project.base.sequences[0].tracks[0].locked = true;
     assert_eq!(
-        plan(&snapshot, &request(split(SplitRetainV1::Both), true))
+        plan(&snapshot, &request(split(SplitRetain::Both), true))
             .unwrap_err()
             .code,
         "CONSTRAINT_VIOLATION"
     );
     snapshot = original.clone();
-    let mut input = request(split(SplitRetainV1::Both), true);
+    let mut input = request(split(SplitRetain::Both), true);
     input.expected_revision = "old".into();
     assert_eq!(
         plan(&snapshot, &input).unwrap_err().code,
         "REVISION_CONFLICT"
     );
-    if let ClassicCommandV1::Split { clip_ids, .. } = &mut input.command {
+    if let ClassicCommand::Split { clip_ids, .. } = &mut input.command {
         *clip_ids = vec!["b".into(), "b".into()];
     }
     input.expected_revision = snapshot.revision.clone();
@@ -142,7 +138,7 @@ fn boundaries_locks_missing_ids_duplicate_selection_and_fixed_revision_reject_wi
         plan(&snapshot, &input).unwrap_err().code,
         "INVALID_ARGUMENT"
     );
-    if let ClassicCommandV1::Split { clip_ids, .. } = &mut input.command {
+    if let ClassicCommand::Split { clip_ids, .. } = &mut input.command {
         *clip_ids = vec!["missing".into()];
     }
     assert_eq!(plan(&snapshot, &input).unwrap_err().code, "NOT_FOUND");
@@ -158,7 +154,7 @@ fn multiple_selected_clips_close_only_vacated_union_and_cross_track_move_does_no
             clip_id: "a".into(),
         },
     }];
-    let (next, _) = apply(&snapshot, ClassicCommandV1::Apply { operations: ops }, true);
+    let (next, _) = apply(&snapshot, ClassicCommand::Apply { operations: ops }, true);
     assert_eq!(
         next.base.sequences[0].tracks[0].clips[0]
             .timeline_range
@@ -182,7 +178,7 @@ fn multiple_selected_clips_close_only_vacated_union_and_cross_track_move_does_no
     modified.project.base.sequences[0].tracks.push(destination);
     let (moved, _) = apply(
         &modified,
-        ClassicCommandV1::Apply {
+        ClassicCommand::Apply {
             operations: vec![VisualOperation::Base {
                 operation: Operation::MoveClip {
                     sequence_id: "s".into(),
@@ -209,12 +205,12 @@ fn caption_shape_split_preserves_related_nodes_and_row_isolation() {
     snapshot.project.visual[0].shapes=serde_json::from_value(json!([{"id":"shape","track_id":"g","timeline_range":{"start":t(1),"duration":t(6)},"primitive":{"kind":"rectangle","width_px":10,"height_px":10},"fill":{"red":255,"green":0,"blue":0,"alpha":255},"position_x":0,"position_y":0,"rotation_degrees":0,"opacity":1}])).unwrap();
     let (next, result) = apply(
         &snapshot,
-        ClassicCommandV1::Split {
+        ClassicCommand::Split {
             clip_ids: vec![],
             caption_ids: vec!["caption".into()],
             shape_ids: vec!["shape".into()],
             at: t(4),
-            retain: SplitRetainV1::Right,
+            retain: SplitRetain::Right,
         },
         true,
     );
@@ -258,14 +254,14 @@ fn wrapped_base_operations_cannot_escape_the_captured_scene() {
     other.tracks.clear();
     other.caption_cues.clear();
     snapshot.project.base.sequences.push(other);
-    let input = ClassicEditRequestV1 {
+    let input = ClassicEditRequest {
         project_id: "p".into(),
         expected_revision: snapshot.revision.clone(),
         sequence_id: "s".into(),
         idempotency_key: "scope".into(),
         label: "Scope".into(),
         ripple: true,
-        command: ClassicCommandV1::Apply {
+        command: ClassicCommand::Apply {
             operations: vec![VisualOperation::Base {
                 operation: Operation::UpdateSequenceSettings {
                     sequence_id: "other".into(),

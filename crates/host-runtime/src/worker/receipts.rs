@@ -2,7 +2,7 @@
 //! is durable; readers authorize the job and require the published attempt.
 use super::*;
 use opencut_api_contracts::{
-    execution_receipt::ExecutionReceiptV1, project_package_v3::PackageToolLock,
+    execution_receipt::ExecutionReceipt, historical_visual_package::PackageToolLock,
 };
 use opencut_composition::CompositionScope;
 const MAX_RECEIPT: u64 = 2 * 1024 * 1024;
@@ -17,7 +17,7 @@ fn hash(value: &impl serde::Serialize) -> Result<String, EditorError> {
 }
 fn identity(
     backend: &FfmpegBackend,
-) -> Result<opencut_api_contracts::reproducibility::ExecutionIdentityV1, EditorError> {
+) -> Result<opencut_api_contracts::reproducibility::ExecutionIdentity, EditorError> {
     let tools = backend
         .tool_fingerprints()
         .map_err(media_error)?
@@ -33,7 +33,7 @@ fn identity(
 pub(super) fn prepare(
     job: &JobRecord,
     backend: &FfmpegBackend,
-) -> Result<Option<ExecutionReceiptV1>, EditorError> {
+) -> Result<Option<ExecutionReceipt>, EditorError> {
     let visual = matches!(
         job.kind.as_str(),
         "preview.project_frame" | "preview.project_frame.v3"
@@ -65,9 +65,11 @@ pub(super) fn prepare(
         .cloned()
         .ok_or_else(|| EditorError::new("INVALID_ARGUMENT", "Missing prepared snapshot"))?;
     let (revision, composition_sha256, covered) = if job.kind.ends_with(".v3") {
-        let source: opencut_contracts::project_v3::ProjectSnapshotV3 = parse(snapshot)?;
-        let compiled = opencut_composition::project_v3::compile_v3(&source, seq, scope)
-            .map_err(|e| EditorError::new(e.code, e.message))?;
+        let source: opencut_contracts::historical_visual::HistoricalVisualSnapshot =
+            parse(snapshot)?;
+        let compiled =
+            opencut_composition::historical_visual::compile_historical_visual(&source, seq, scope)
+                .map_err(|e| EditorError::new(e.code, e.message))?;
         let base = ProjectSnapshot {
             project: source.project.base.clone(),
             revision: source.revision.clone(),
@@ -78,8 +80,10 @@ pub(super) fn prepare(
             &source.project.keyframe_curves,
         )
         .map_err(|e| EditorError::new(e.code, e.message))?;
-        let visual = opencut_composition::coverage_v3::audit_visual_coverage(&source, &compiled)
-            .map_err(|e| EditorError::new(e.code, e.message))?;
+        let visual = opencut_composition::historical_visual_coverage::audit_visual_coverage(
+            &source, &compiled,
+        )
+        .map_err(|e| EditorError::new(e.code, e.message))?;
         let mut covered: Vec<String> = semantics
             .entries
             .into_iter()
@@ -108,8 +112,7 @@ pub(super) fn prepare(
                 .collect(),
         )
     };
-    Ok(Some(ExecutionReceiptV1 {
-        schema_version: 1,
+    Ok(Some(ExecutionReceipt {
         job_id: job.job_id.clone(),
         attempt: job.attempt,
         kind: job.kind.clone(),
@@ -125,7 +128,7 @@ pub(super) fn prepare(
     }))
 }
 pub(super) fn finish(
-    mut receipt: ExecutionReceiptV1,
+    mut receipt: ExecutionReceipt,
     backend: &FfmpegBackend,
     result: &Value,
 ) -> Result<Vec<u8>, EditorError> {
@@ -158,7 +161,7 @@ pub(super) fn finish(
     }
     Ok(bytes)
 }
-pub(crate) fn inspect(database: &Path, job: &JobRecord) -> Result<ExecutionReceiptV1, EditorError> {
+pub(crate) fn inspect(database: &Path, job: &JobRecord) -> Result<ExecutionReceipt, EditorError> {
     if job.state != JobState::Succeeded {
         return Err(EditorError::new(
             "NOT_FOUND",
@@ -174,12 +177,21 @@ pub(crate) fn inspect(database: &Path, job: &JobRecord) -> Result<ExecutionRecei
         .as_ref()
         .and_then(|r| r.get("artifact"))
         .ok_or_else(|| EditorError::new("NOT_FOUND", "Job has no artifact"))?;
-    let path = artifact
+    let directory = artifact
         .get("path")
         .and_then(Value::as_str)
         .and_then(|s| Path::new(s).parent())
-        .ok_or_else(|| EditorError::new("NOT_FOUND", "Job has no artifact path"))?
-        .join("execution-v1.json");
+        .ok_or_else(|| EditorError::new("NOT_FOUND", "Job has no artifact path"))?;
+    let current = directory.join("execution.json");
+    let historical = matches!(
+        std::fs::symlink_metadata(&current),
+        Err(ref error) if error.kind() == std::io::ErrorKind::NotFound
+    );
+    let path = if historical {
+        directory.join("execution-v1.json")
+    } else {
+        current
+    };
     let mut source = opencut_native_services::artifacts::ArtifactSource::open(
         &root,
         &job.job_id,
@@ -197,11 +209,18 @@ pub(crate) fn inspect(database: &Path, job: &JobRecord) -> Result<ExecutionRecei
             "Oversized execution receipt",
         ));
     }
-    let receipt: ExecutionReceiptV1 = serde_json::from_slice(&bytes).map_err(|_| {
-        EditorError::new("ARTIFACT_VERIFICATION_FAILED", "Invalid execution receipt")
-    })?;
-    if receipt.schema_version != 1
-        || receipt.job_id != job.job_id
+    let invalid = || EditorError::new("ARTIFACT_VERIFICATION_FAILED", "Invalid execution receipt");
+    let mut value: Value = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
+    if historical
+        && value
+            .as_object_mut()
+            .and_then(|object| object.remove("schema_version"))
+            != Some(serde_json::json!(1))
+    {
+        return Err(invalid());
+    }
+    let receipt: ExecutionReceipt = serde_json::from_value(value).map_err(|_| invalid())?;
+    if receipt.job_id != job.job_id
         || receipt.attempt != job.attempt
         || receipt.kind != job.kind
         || receipt.request_sha256 != hash(&job.input)?

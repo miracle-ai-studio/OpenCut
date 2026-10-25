@@ -1,3 +1,4 @@
+import { Select } from "../shared/controls";
 import { useEntrance } from "../shared/motion";
 import { useEffect, useRef, useState, useId } from "react";
 import { createPortal } from "react-dom";
@@ -92,7 +93,7 @@ export function GuideControls({
           >
             <label>
               {t("Guide type")}
-              <select
+              <Select
                 aria-label={t("Guide type")}
                 value={value.kind}
                 onChange={(event) =>
@@ -103,7 +104,7 @@ export function GuideControls({
                 <option value="grid">{t("Grid")}</option>
                 <option value="tiktok">TikTok</option>
                 <option value="custom">{t("Custom")}</option>
-              </select>
+              </Select>
             </label>
             {value.kind === "grid" && (
               <div className="guide-grid-fields">

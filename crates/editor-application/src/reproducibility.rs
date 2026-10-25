@@ -1,6 +1,7 @@
 //! Pure policy for the versioned package verification view.
 use opencut_api_contracts::reproducibility::{
-    ExecutionIdentityV1, InspectV1, ReportV1, VerificationStatus,
+    ExecutionIdentity, InspectPackageReproducibility, PackageReproducibilityReport,
+    VerificationStatus,
 };
 use opencut_contracts::EditorError;
 
@@ -11,19 +12,22 @@ pub struct PackageObservation {
     pub legacy_claim: bool,
     pub media_self_contained_declared: bool,
     pub native_tools_match: bool,
-    pub current_execution: ExecutionIdentityV1,
+    pub current_execution: ExecutionIdentity,
 }
 
 pub trait ReproducibilityProbe {
-    fn observe(&self, input: &InspectV1) -> Result<PackageObservation, EditorError>;
+    fn observe(
+        &self,
+        input: &InspectPackageReproducibility,
+    ) -> Result<PackageObservation, EditorError>;
 }
 
 /// Supported legacy packages do not identify their original OpenCut engine.
 pub fn inspect(
-    input: &InspectV1,
+    input: &InspectPackageReproducibility,
     caller: &crate::access::Caller,
     probe: &impl ReproducibilityProbe,
-) -> Result<ReportV1, EditorError> {
+) -> Result<PackageReproducibilityReport, EditorError> {
     if !caller.is_owner() {
         return Err(crate::access::denied());
     }
@@ -47,8 +51,7 @@ pub fn inspect(
             "Observation does not match the requested legacy package",
         ));
     }
-    Ok(ReportV1 {
-        schema_version: 1,
+    Ok(PackageReproducibilityReport {
         manifest_sha256: observed.manifest_sha256,
         source_revision: observed.source_revision,
         package_schema_version: observed.package_schema_version,
@@ -80,7 +83,10 @@ mod tests {
     use super::*;
     struct FakeProbe(u32);
     impl ReproducibilityProbe for FakeProbe {
-        fn observe(&self, input: &InspectV1) -> Result<PackageObservation, EditorError> {
+        fn observe(
+            &self,
+            input: &InspectPackageReproducibility,
+        ) -> Result<PackageObservation, EditorError> {
             Ok(PackageObservation {
                 manifest_sha256: input.expected_manifest_sha256.clone(),
                 source_revision: "rev".into(),
@@ -88,7 +94,7 @@ mod tests {
                 legacy_claim: self.0 >= 3,
                 media_self_contained_declared: true,
                 native_tools_match: self.0 >= 3,
-                current_execution: ExecutionIdentityV1 {
+                current_execution: ExecutionIdentity {
                     process_binary_sha256: "b".repeat(64),
                     platform: "fake".into(),
                     native_tools: vec![],
@@ -99,7 +105,7 @@ mod tests {
     #[test]
     fn legacy_true_and_matching_tools_do_not_prove_reproducibility() {
         let report = inspect(
-            &InspectV1 {
+            &InspectPackageReproducibility {
                 package_path: "opaque-location".into(),
                 expected_manifest_sha256: "a".repeat(64),
             },
@@ -118,7 +124,7 @@ mod tests {
     #[test]
     fn legacy_unlocked_tools_are_unknown_rather_than_a_mismatch() {
         let report = inspect(
-            &InspectV1 {
+            &InspectPackageReproducibility {
                 package_path: "opaque".into(),
                 expected_manifest_sha256: "a".repeat(64),
             },
@@ -137,7 +143,7 @@ mod tests {
     fn invalid_identity_rejected_before_native_observation() {
         assert_eq!(
             inspect(
-                &InspectV1 {
+                &InspectPackageReproducibility {
                     package_path: "opaque-location".into(),
                     expected_manifest_sha256: "invalid".into()
                 },
@@ -154,7 +160,10 @@ mod tests {
     fn restricted_caller_cannot_trigger_native_reads() {
         struct MustNotRun;
         impl ReproducibilityProbe for MustNotRun {
-            fn observe(&self, _: &InspectV1) -> Result<PackageObservation, EditorError> {
+            fn observe(
+                &self,
+                _: &InspectPackageReproducibility,
+            ) -> Result<PackageObservation, EditorError> {
                 panic!("unauthorized native read");
             }
         }
@@ -163,7 +172,7 @@ mod tests {
         );
         assert_eq!(
             inspect(
-                &InspectV1 {
+                &InspectPackageReproducibility {
                     package_path: "opaque".into(),
                     expected_manifest_sha256: "a".repeat(64)
                 },

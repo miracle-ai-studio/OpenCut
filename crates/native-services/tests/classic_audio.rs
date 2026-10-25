@@ -1,11 +1,11 @@
 //! Real Rust -> isolated Chromium -> PCM acceptance. Uses only synthetic local
 //! Synthetic WAV/PCM-container CAS in a TempDir; no public job claim is made here.
 use opencut_asset_store::AssetStore;
-use opencut_composition::project_v4::*;
+use opencut_composition::scene::*;
 use opencut_contracts::{
-    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, project_v4::*,
+    Asset, AssetKind, CreateProject, EditorError, FrameRate, Time, TimeRange, scene::*,
 };
-use opencut_editor_application::{classic_audio::*, project_v4::new_document};
+use opencut_editor_application::{classic_audio::*, scene::new_document};
 use opencut_native_services::classic_audio::*;
 use std::{
     collections::BTreeMap,
@@ -53,7 +53,7 @@ fn wav(path: &Path, tone: bool) {
     }
     std::fs::write(path, output).unwrap();
 }
-fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, ProjectSnapshotV4) {
+fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, EditorSnapshot) {
     let path = directory.join("synthetic.wav");
     wav(&path, tone);
     let root = directory.join("cas");
@@ -79,22 +79,22 @@ fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, ProjectSnapsh
         },
     })
     .unwrap();
-    project.assets.push(AssetV4 {
+    project.assets.push(ProjectAsset {
         id: "source".into(),
         name: "Synthetic".into(),
         kind: AssetKind::Audio,
         version: pinned.version.unwrap(),
         duration: Some(time(if tone { 2 } else { 1 }, 1)),
-        origin: ResourceOriginV4::LegacyLocator {
+        origin: ResourceOrigin::LegacyLocator {
             uri: "unused-provenance.wav".into(),
         },
-        metadata: MediaMetadataV4 {
+        metadata: ProjectMediaMetadata {
             mime_type: Some("audio/wav".into()),
             intrinsic_size: None,
             frame_rate: None,
             rotation_degrees: None,
-            audio: AudioPresenceV4::Present {
-                metadata: Some(AudioMetadataV4 {
+            audio: AudioPresence::Present {
+                metadata: Some(AudioMetadata {
                     sample_rate: 44_100,
                     channels: 1,
                     channel_layout: None,
@@ -107,8 +107,8 @@ fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, ProjectSnapsh
     let mut track = sequence.tracks[0].clone();
     track.id = "sound".into();
     track.name = "Sound".into();
-    track.kind = TrackKindV4::Audio;
-    track.elements.push(TimelineElementV4 {
+    track.kind = SceneTrackKind::Audio;
+    track.elements.push(TimelineElement {
         id: "voice".into(),
         name: "Voice".into(),
         enabled: true,
@@ -116,25 +116,25 @@ fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, ProjectSnapsh
             start: if tone { time(0, 1) } else { time(1, 8) },
             duration: if tone { time(1, 1) } else { time(3, 8) },
         },
-        source_span: ElementSourceSpanV4::ClassicTrimmed {
+        source_span: ElementSourceSpan::ClassicTrimmed {
             trim_start: if tone { time(0, 1) } else { time(1, 8) },
             trim_end: if tone { time(0, 1) } else { time(1, 2) },
             source_duration: Some(time(if tone { 2 } else { 1 }, 1)),
         },
-        content: ElementContentV4::Audio {
+        content: ElementContent::Audio {
             asset_id: "source".into(),
-            audio: AudioStyleV4 {
+            audio: AudioStyle {
                 stream: None,
-                gain: GainV4::LinearLegacy { value: 0.5 },
+                gain: Gain::LinearLegacy { value: 0.5 },
                 muted: false,
             },
-            retime: RetimeV4 {
-                rate: RationalRateV4 {
+            retime: Retime {
+                rate: RationalRate {
                     numerator: if tone { 2 } else { 1 },
                     denominator: 1,
                 },
                 maintain_pitch: pitch,
-                mapping: RetimeMappingV4::ExactRational,
+                mapping: RetimeMapping::ExactRational,
             },
         },
         visual: None,
@@ -143,7 +143,7 @@ fn fixture(directory: &Path, tone: bool, pitch: bool) -> (PathBuf, ProjectSnapsh
     sequence.tracks.push(track);
     (
         root,
-        ProjectSnapshotV4 {
+        EditorSnapshot {
             project,
             revision: "fixed-native-audio".into(),
         },
@@ -223,11 +223,11 @@ fn config() -> ClassicAudioProcessConfig {
 fn fixed_callback_admission_rejects_zero_decode_and_changed_final_pcm() {
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = fixture(directory.path(), false, false);
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         &snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 44_100,
             channels: 2,
         },
@@ -250,6 +250,7 @@ fn fixed_callback_admission_rejects_zero_decode_and_changed_final_pcm() {
         decoded_sample_rate: 44_100,
         decoded_frame_count: "44100".into(),
         decoded_channels: 1,
+        resident_frame_count: None,
     };
     assert!(
         session
@@ -342,11 +343,11 @@ fn rust_browser_fixed_trim_gain_pitch_and_termination() {
     ] {
         let directory = tempfile::tempdir().unwrap();
         let (root, snapshot) = fixture(directory.path(), tone, pitch);
-        let prepared = prepare_audio_v4(
+        let prepared = prepare_audio_scene(
             &snapshot,
             "s",
-            AudioExecutionProfileV4::ClassicV31,
-            PcmFormatV4 {
+            AudioExecutionProfile::ClassicV31,
+            PcmFormat {
                 sample_rate: 44_100,
                 channels: 2,
             },
@@ -399,11 +400,11 @@ fn rust_browser_fixed_trim_gain_pitch_and_termination() {
 fn rust_browser_policy_revocation_terminates_without_pcm() {
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = fixture(directory.path(), false, false);
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         &snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 44_100,
             channels: 2,
         },
@@ -434,11 +435,11 @@ fn rust_browser_policy_revocation_terminates_without_pcm() {
 fn rust_browser_rejects_unsupported_hard_quota_and_enforces_rss_monitor() {
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = fixture(directory.path(), false, false);
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         &snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 44_100,
             channels: 2,
         },
@@ -565,8 +566,40 @@ fn private_wav_storage_bounds_precede_allocation_and_final_length_is_fenced() {
         ClassicAudioWavSink::checked_bytes(48_000, maximum_frames).unwrap(),
         58 + 8 * maximum_frames
     );
-    for frames in [0, maximum_frames + 1, u64::MAX] {
+    // Crossing RIFF's exact 32-bit length switches the same output to RF64.
+    let large_frames = maximum_frames + 1;
+    assert_eq!(
+        ClassicAudioWavSink::checked_bytes(48_000, large_frames).unwrap(),
+        94 + 8 * large_frames
+    );
+    for frames in [0, u64::MAX, i64::MAX as u64 / 8] {
         assert!(ClassicAudioWavSink::checked_bytes(44_100, frames).is_err());
+    }
+    {
+        use std::io::{Read, Seek, SeekFrom};
+        // Sparse synthetic output checks the independent 94-byte header only;
+        // this does not allocate or render a 4GiB PCM fixture.
+        let file = tempfile::tempfile().unwrap();
+        let mut observed = file.try_clone().unwrap();
+        let large = ClassicAudioWavSink::new(file, 48_000, large_frames).unwrap();
+        observed.seek(SeekFrom::Start(0)).unwrap();
+        let mut header = [0u8; 94];
+        observed.read_exact(&mut header).unwrap();
+        let word = |at| u32::from_le_bytes(header[at..at + 4].try_into().unwrap());
+        let wide = |at| u64::from_le_bytes(header[at..at + 8].try_into().unwrap());
+        assert_eq!(&header[..4], b"RF64");
+        assert_eq!(&header[8..16], b"WAVEds64");
+        assert_eq!((word(4), word(16), word(44)), (u32::MAX, 28, 0));
+        assert_eq!(
+            (wide(20), wide(28), wide(36)),
+            (86 + 8 * large_frames, 8 * large_frames, large_frames)
+        );
+        assert_eq!(&header[48..52], b"fmt ");
+        assert_eq!(&header[74..78], b"fact");
+        assert_eq!(&header[86..90], b"data");
+        assert_eq!((word(82), word(90)), (u32::MAX, u32::MAX));
+        assert_eq!(observed.metadata().unwrap().len(), 94 + 8 * large_frames);
+        assert!(large.finalize().is_err());
     }
     assert!(ClassicAudioWavSink::checked_bytes(96_000, 1).is_err());
     let file = tempfile::tempfile().unwrap();
@@ -622,11 +655,11 @@ fn real_browser_startup_cancellation_consumes_delayed_started_and_leaves_no_grou
     }
     let directory = tempfile::tempdir().unwrap();
     let (root, snapshot) = fixture(directory.path(), false, false);
-    let prepared = prepare_audio_v4(
+    let prepared = prepare_audio_scene(
         &snapshot,
         "s",
-        AudioExecutionProfileV4::ClassicV31,
-        PcmFormatV4 {
+        AudioExecutionProfile::ClassicV31,
+        PcmFormat {
             sample_rate: 44_100,
             channels: 2,
         },

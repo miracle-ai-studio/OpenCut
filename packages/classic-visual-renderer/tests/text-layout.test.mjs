@@ -2,7 +2,7 @@ import { controlledWorkers } from "./font-hash-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { createFrameFontChecks, drawClassicText, measureClassicText, rasterizeClassicText, validateClassicText, createSceneTextStyleScopeV1, rasterizeSceneClassicText, validateSceneFontSynthesisV1 } from "../src/text-layout.mjs";
+import { createFrameFontChecks, drawClassicText, measureClassicText, rasterizeClassicText, validateClassicText, createSceneTextStyleScope, rasterizeSceneClassicText, validateSceneFontSynthesis, enableImmutablePreviewFonts } from "../src/text-layout.mjs";
 
 const code = expected => error => error.code === expected;
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -99,14 +99,14 @@ function installRealm(options = {}) {
   const originals = new Map(["FontFace", "OffscreenCanvas", "fonts"].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const faces = [], canvases = [], active = new Set(), additions = [], deletions = [];
   class FontFace {
-    constructor(family, source, descriptors) { this.family = family; this.source = source; this.descriptors = descriptors; this.status = "unloaded"; faces.push(this); }
+    constructor(family, source, descriptors) { this.family = family; this.source = source; this.descriptors = descriptors; Object.assign(this,descriptors); this.status = "unloaded"; faces.push(this); }
     async load() { if (options.load) await options.load(this); else this.status = "loaded"; return this; }
   }
   class OffscreenCanvas {
     constructor(width, height) { this.width = width; this.height = height; this.ctx = context(); canvases.push(this); }
     getContext(kind) { assert.equal(kind, "2d"); if (options.context) return options.context(this); return this.ctx; }
   }
-  const fonts = { add(face) { active.add(face); additions.push(face); }, delete(face) { deletions.push(face); return active.delete(face); } };
+  const fonts = { has(face) { return active.has(face); }, add(face) { active.add(face); additions.push(face); }, delete(face) { deletions.push(face); return active.delete(face); } };
   for (const [key, value] of Object.entries({ FontFace, OffscreenCanvas, fonts })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   return { faces, canvases, active, additions, deletions, restore() { for (const [key, descriptor] of originals) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; } } };
 }
@@ -191,7 +191,7 @@ function controlledFontHashes(t) {
 
 test("Scene italic uses the actual normal FontFace and Classic requested Canvas style without changing the old receipt", async () => {
   const realm = installRealm(), t = text(), f = { ...font(t.content), weight: 700, size: String(bytes.length) };
-  const binding = synthesisBinding(f), scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding }]);
+  const binding = synthesisBinding(f), scope = createSceneTextStyleScope([{ key: "title", font: f, binding }]);
   try {
     const token = scope.tokenFor("title", f), retained = { bytes };
     const result = await rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, retained, token);
@@ -218,9 +218,9 @@ test("Scene synthesis rejects changed native identity, synthetic bold, unsupport
     b => { b.requested.weight = 700; }, b => { b.requested.style = "normal"; },
     b => { b.profile = "arbitrary-skew"; }, b => { b.binding_id = "fake"; },
     b => { b.actual.surprise = true; }, b => { b.requested.surprise = true; },
-  ]) { const bad = structuredClone(valid); change(bad); assert.throws(() => validateSceneFontSynthesisV1(bad, f), code("INVALID_VISUAL_PLAN")); }
+  ]) { const bad = structuredClone(valid); change(bad); assert.throws(() => validateSceneFontSynthesis(bad, f), code("INVALID_VISUAL_PLAN")); }
   await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, {}), code("INVALID_VISUAL_PLAN"));
-  const signal = new AbortController().signal, scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: valid }], signal), token = scope.tokenFor("title", f);
+  const signal = new AbortController().signal, scope = createSceneTextStyleScope([{ key: "title", font: f, binding: valid }], signal), token = scope.tokenFor("title", f);
   assert.throws(() => scope.tokenFor("title", { ...f, fontId: "other" }), code("INVALID_VISUAL_PLAN"));
   await assert.rejects(rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, token), code("INVALID_VISUAL_PLAN"));
   scope.close();
@@ -231,7 +231,7 @@ test("Scene scope closing while FontFace loads cannot publish a late raster or l
   let entered, release;
   const loading = new Promise(resolve => { entered = resolve; }), pending = new Promise(resolve => { release = resolve; });
   const realm = installRealm({ async load(face) { entered(); await pending; face.status = "loaded"; } });
-  const t = text(), f = { ...font(t.content), size: String(bytes.length) }, scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: synthesisBinding(f) }]);
+  const t = text(), f = { ...font(t.content), size: String(bytes.length) }, scope = createSceneTextStyleScope([{ key: "title", font: f, binding: synthesisBinding(f) }]);
   try {
     const result = rasterizeSceneClassicText(t, f, bytes, dimensions, undefined, undefined, scope.tokenFor("title", f));
     await loading; scope.close(); release();
@@ -242,7 +242,7 @@ test("Scene scope closing while FontFace loads cannot publish a late raster or l
 
 test("Scene synthesis retains full-byte hash, exact-text coverage, cancellation and raster budgets", async () => {
   const realm = installRealm(), t = text(), f = { ...font(t.content), size: String(bytes.length) }, cancel = new AbortController();
-  const scope = createSceneTextStyleScopeV1([{ key: "title", font: f, binding: synthesisBinding(f) }], cancel.signal), token = scope.tokenFor("title", f);
+  const scope = createSceneTextStyleScope([{ key: "title", font: f, binding: synthesisBinding(f) }], cancel.signal), token = scope.tokenFor("title", f);
   try {
     await assert.rejects(rasterizeSceneClassicText(t, f, Uint8Array.of(9, 8, 7, 6), dimensions, cancel.signal, undefined, token), code("ASSET_HASH_MISMATCH"));
     await assert.rejects(rasterizeSceneClassicText({ ...t, content: "uncovered" }, f, bytes, dimensions, cancel.signal, undefined, token), code("INVALID_VISUAL_PLAN"));
@@ -275,6 +275,78 @@ test('per-frame font checks hash each retained font once and render from the pri
     await assert.rejects(rasterizeClassicText(text(),next.f,source,{...dimensions,frameFontCheck:next.token},signal),code('ASSET_HASH_MISMATCH'));
     await next.checks.close();
   } finally {await checks.close();realm.restore();}
+});
+
+test('a verified loaded face can draw during a fresh hash but frame completion still rejects changed bytes',async t=>{
+  const realm=installRealm(),source=bytes.slice(),signal=new AbortController().signal;
+  const f={...font(text().content),size:String(source.length)},retained={bytes:source};
+  try {
+    await rasterizeClassicText(text(),f,source,dimensions,signal,retained);
+    const pending=controlledFontHashes(t);
+    for(const changed of [false,true]) {
+      if(changed)source.fill(0);
+      const checks=createFrameFontChecks(signal,pending.realm,{deferLoadedFaces:true});checks.start([{font:f}],new Map([[`${f.fontId}:${f.contentHash}:${f.size}`,retained]]));
+      try {
+        const raster=await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:checks.tokenFor(f,source)},signal,retained);
+        assert.equal(realm.faces.length,1);assert.ok(raster.canvas);
+        let finished=false;const completing=checks.verify().then(()=>{finished=true;});
+        const observed=changed?assert.rejects(completing,code('ASSET_HASH_MISMATCH')):completing;
+        await Promise.resolve();assert.equal(finished,false);
+        pending.at(-1).resolve();await observed;assert.equal(finished,!changed);
+      }finally{await checks.close();}
+    }
+  }finally{realm.restore();}
+});
+
+test('opted-in preview consumes a face built from the private verified snapshot and rejects descriptor or source replacement',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t),source=bytes.slice(),signal=new AbortController().signal;
+  const f={...font(text().content),size:String(source.length)},retained={bytes:source},cache=new Map([[`${f.fontId}:${f.contentHash}:${f.size}`,retained]]);
+  enableImmutablePreviewFonts(pending.realm);
+  const frame=()=>{const checks=createFrameFontChecks(signal,pending.realm);checks.start([{font:f}],cache);return {checks,token:checks.tokenFor(f,source)};};
+  const first=frame();
+  try {
+    source.fill(0);pending[0].resolve();
+    const raster=await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:first.token},signal,retained);
+    await first.checks.verify();raster.canvas.width=0;
+    assert.deepEqual(retained.face.source,bytes);assert.notEqual(retained.face.source,source);
+  }finally{await first.checks.close();}
+  const face=retained.face,next=frame();
+  try {
+    assert.equal(pending.length,1);
+    const raster=await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:next.token},signal,retained);
+    await next.checks.verify();raster.canvas.width=0;
+    assert.equal(retained.face,face);assert.equal(realm.faces.length,1);
+    face.featureSettings='"kern" 0';
+    await assert.rejects(next.checks.verify(),code('FONT_LOAD_FAILED'));
+    face.featureSettings=undefined;
+  }finally{await next.checks.close();}
+  // An arbitrary same-name face does not inherit the private proof. The raw
+  // cache is now corrupt, so a fresh snapshot must fail before rasterization.
+  retained.face=new FontFace(face.family,source,{style:f.style,weight:String(f.weight)});
+  const replaced=frame();
+  try {
+    assert.equal(pending.length,2);pending[1].resolve();
+    await assert.rejects(rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:replaced.token},signal,retained),code('ASSET_HASH_MISMATCH'));
+  }finally{await replaced.checks.close();realm.restore();}
+});
+
+test('immutable preview reuse cannot bypass cancellation, realm lifetime or exact text coverage',async t=>{
+  const realm=installRealm(),pending=controlledFontHashes(t),source=bytes.slice(),cancel=new AbortController(),signal=cancel.signal;
+  const f={...font(text().content),size:String(source.length)},retained={bytes:source},cache=new Map([[`${f.fontId}:${f.contentHash}:${f.size}`,retained]]);
+  enableImmutablePreviewFonts(pending.realm);
+  const first=createFrameFontChecks(signal,pending.realm);first.start([{font:f}],cache);pending[0].resolve();
+  try {
+    await rasterizeClassicText(text(),f,source,{...dimensions,frameFontCheck:first.tokenFor(f,source)},signal,retained);await first.verify();
+    const next=createFrameFontChecks(signal,pending.realm);next.start([{font:f}],cache);
+    try {
+      assert.equal(pending.length,1);
+      await assert.rejects(rasterizeClassicText(text(),{...f,validatedTextHash:hash('wrong')},source,{...dimensions,frameFontCheck:next.tokenFor(f,source)},signal,retained),code('INVALID_VISUAL_PLAN'));
+      const reason=Error('preview left');cancel.abort(reason);
+      await assert.rejects(next.verify(),e=>e===reason);
+    }finally{await next.close();}
+    pending.realm.closed=true;
+    assert.throws(()=>enableImmutablePreviewFonts(pending.realm),code('INVALID_VISUAL_PLAN'));
+  }finally{await first.close();realm.restore();}
 });
 
 test('frame font tokens reject forged, changed identity/reference/signal, stale scope and different text coverage',async t=>{

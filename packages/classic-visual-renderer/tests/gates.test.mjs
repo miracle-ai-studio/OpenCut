@@ -29,7 +29,7 @@ test("actual dimensions use pixel and byte admission independently of authored m
   assert.throws(()=>admitDimensions(16,8,{...admission,maxDecodedBytes:"2047"}),hasCode("VISUAL_BUDGET_EXCEEDED"));
   assert.throws(()=>admitDimensions(0,8,admission),hasCode("INVALID_VISUAL_PLAN"));
 });
-const begin=()=>({protocolVersion:1,type:"begin",executionId:"fixed-frame",plan:{identity:{projectId:"p",revision:"r",sequenceId:"s",time:{ticks:"1",timebase:120000},width:16,height:16,profile:"classic-v31-gpu-normal-frame"},resources:[],layers:[]},resources:[],admission:{maxEncodedBytes:1048576,maxFramePixels:"256",maxDecodedPixels:"256",maxGpuBytes:"1048576",maxRgbaBytes:"1048576",maxOutputBytes:"1048576",maxRssBytes:"536870912",deadlineMs:1000,quotaProfile:"monitored-terminate"},runtime:{chromiumExecutable:"/host/configured/browser"}});
+const begin=()=>({type:"begin",executionId:"fixed-frame",plan:{identity:{projectId:"p",revision:"r",sequenceId:"s",time:{ticks:"1",timebase:120000},width:16,height:16,profile:"classic-v31-gpu-normal-frame"},resources:[],layers:[]},resources:[],admission:{maxEncodedBytes:1048576,maxFramePixels:"256",maxDecodedPixels:"256",maxGpuBytes:"1048576",maxRgbaBytes:"1048576",maxOutputBytes:"1048576",maxRssBytes:"536870912",deadlineMs:1000,quotaProfile:"monitored-terminate"},runtime:{chromiumExecutable:"/host/configured/browser"}});
 test("fixed plan validates private handles and visual quota instead of audio DTOs",()=>{
   assert.equal(validateBegin(begin()).admission.monitorIntervalMs,100);
   const b=begin();b.plan.resources.push({assetId:"image",contentHash:"0".repeat(64),size:"12",kind:"image"});
@@ -41,7 +41,7 @@ test("fixed plan validates private handles and visual quota instead of audio DTO
 test("execution identity includes original shaders and shared Node controls but serves only browser modules",async()=>{
   const registry=await moduleRegistry({});assert.match(registry.moduleSha256,/^[a-f0-9]{64}$/);assert.match(registry.shaderSha256,/^[a-f0-9]{64}$/);
   for(const shader of SHADERS)assert.match(registry.registry.get("/renderer/"+shader).toString(),/^export default /);
-  for(const file of ["blend-modes-v1.mjs","blend-plan-v1.mjs","blend-frame-v1.mjs"])
+  for(const file of ["blend-modes.mjs","blend-plan.mjs","blend-frame.mjs"])
     assert.ok(registry.registry.has("/renderer/src/"+file),"New blend execution module is served and identity-hashed");
   // Compute the protocol's canonical digest from independent on-disk input
   // sets, including hash-only Node controls. Omitting a control from production
@@ -52,6 +52,7 @@ test("execution identity includes original shaders and shared Node controls but 
   for(const file of SHADERS)await capture(PACKAGE_ROOT,"/renderer/",file);
   for(const file of await fs.readdir(path.join(SHARED_ROOT,"host")))if(file.endsWith(".mjs"))await capture(SHARED_ROOT,"/shared-host/","host/"+file);
   await capture(SHARED_ROOT,"/shared-host/","src/validation.mjs");
+  await capture(SHARED_ROOT,"/shared-renderer/","src/verified-range-source.mjs");
   const media=await fs.realpath(path.join(PACKAGE_ROOT,"node_modules/mediabunny"));
   await capture(media,"/dependencies/mediabunny/","dist/bundles/mediabunny.mjs");
   const digest=createHash("sha256");for(const [name,bytes] of [...inputs].sort(([a],[b])=>a.localeCompare(b))){digest.update(name);digest.update("\0");digest.update(bytes);digest.update("\0");}

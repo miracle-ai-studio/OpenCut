@@ -67,7 +67,7 @@ export function preflightRegistry({ tools, jobs, domains, eventSchema, audioStre
       throw new Error(`Invalid or duplicate job: ${job?.name}`);
     }
     jobNames.add(job.name);
-    for (const side of ["input_schema", "result_schema"]) {
+    for (const side of ["result_schema"]) {
       schema(job[side], `${job.name}.${side}`);
       namespace(`Job${pascal(job.name)}${side === "input_schema" ? "Input" : "Result"}`);
     }
@@ -92,12 +92,12 @@ export function preflightRegistry({ tools, jobs, domains, eventSchema, audioStre
   }
   if (mapped.size !== names.size) throw new Error("Domain registry does not cover every operation");
   schema(eventSchema, "event stream");
-  for (const [name, value] of [["AudioPreviewStreamV4", audioStream?.input], ["AudioPreviewPcmV4", audioStream?.header]]) {
+  for (const [name, value] of [["AudioPreviewTransport", audioStream?.input], ["AudioPreviewPcm", audioStream?.header]]) {
     namespace(name);
     schema(value, name);
     if (!rootTitle(value)) throw new Error(`Unsupported root type in ${name}`);
   }
-  if (uploads && (uploads.chunk_method !== "PUT" || uploads.chunk_path_template !== "/v1/uploads/{upload_id}/chunks/{offset}"
+  if (uploads && (uploads.chunk_method !== "PUT" || uploads.chunk_path_template !== "/api/uploads/{upload_id}/chunks/{offset}"
       || !Array.isArray(uploads.chunk_query_fields) || uploads.chunk_query_fields.join(",") !== "size_bytes,content_hash")) {
     throw new Error("Unsupported upload byte transport in host capabilities");
   }
@@ -265,7 +265,7 @@ if (domainsEnvelope.error || !Array.isArray(domainsEnvelope.data)) {
 if (
   capabilitiesEnvelope.error ||
   !capabilitiesEnvelope.data ||
-  !Array.isArray(capabilitiesEnvelope.data.job_kinds)
+  !Array.isArray(capabilitiesEnvelope.data.job_results)
 ) {
   throw new Error(
     capabilitiesEnvelope.error?.message ?? "Invalid job schema registry",
@@ -281,7 +281,7 @@ if (audioStreamEnvelope.error || !audioStreamEnvelope.data ||
     !audioStreamEnvelope.data.input || !audioStreamEnvelope.data.header) {
   throw new Error("Invalid V4 audio stream schema registry");
 }
-preflightRegistry({ tools: envelope.data, jobs: capabilitiesEnvelope.data.job_kinds,
+preflightRegistry({ tools: envelope.data, jobs: capabilitiesEnvelope.data.job_results,
   domains: domainsEnvelope.data, eventSchema: eventSchemaEnvelope.data,
   audioStream: audioStreamEnvelope.data, uploads: capabilitiesEnvelope.data.uploads });
 compile = memoizeSchemaCompiler(compile);
@@ -299,8 +299,8 @@ for (const tool of envelope.data) {
     output += `export namespace ${namespace} {\n${source.replace(/^export /gm, "  export ")}\n}\n\n`;
   }
 }
-for (const job of capabilitiesEnvelope.data.job_kinds) {
-  for (const side of ["input_schema", "result_schema"]) {
+for (const job of capabilitiesEnvelope.data.job_results) {
+  for (const side of ["result_schema"]) {
     const namespace = `Job${pascal(job.name)}${side === "input_schema" ? "Input" : "Result"}`;
     const source = await compile(job[side], "Schema", {
       bannerComment: "",
@@ -312,8 +312,8 @@ for (const job of capabilitiesEnvelope.data.job_kinds) {
 }
 
 for (const [namespace, schema] of [
-  ["AudioPreviewStreamV4", audioStreamEnvelope.data.input],
-  ["AudioPreviewPcmV4", audioStreamEnvelope.data.header],
+  ["AudioPreviewTransport", audioStreamEnvelope.data.input],
+  ["AudioPreviewPcm", audioStreamEnvelope.data.header],
 ]) {
   const source = await compile(schema, "Schema", {
     bannerComment: "", style: { singleQuote: true }, unknownAny: false,
@@ -338,11 +338,12 @@ output += "}\n";
 output += "export const domainNames = " + JSON.stringify(domainsEnvelope.data.map(d => d.domain), null, 2) + " as const;\n";
 output += "export const domainActions = " + JSON.stringify(Object.fromEntries(domainsEnvelope.data.map(d => [d.domain, d.actions.map(a => a.action)])), null, 2) + " as const;\n";
 output += "export interface JobResultMap {\n";
-for (const job of capabilitiesEnvelope.data.job_kinds) {
+for (const job of capabilitiesEnvelope.data.job_results) {
   const title = job.result_schema.title;
   output += `  "${job.name}": Job${pascal(job.name)}Result.${title};\n`;
 }
 output += "}\n";
+
 output += "export const toolNames = " + JSON.stringify([...toolNames], null, 2) + " as const;\n";
 
 // JSON Schema local refs must be rebased when embedded into an OpenAPI document.
@@ -352,7 +353,7 @@ for (const tool of envelope.data) {
   const input = component(tool.input_schema, `${pascal(tool.name)}Input`);
   const output = component(tool.output_schema, `${pascal(tool.name)}Output`);
   const response = { description: "OpenCut response envelope; inspect error.code on failure.", content: { "application/json": { schema: output } } };
-  paths[`/v1/tools/${tool.name}`] = { post: {
+  paths[`/api/tools/${tool.name}`] = { post: {
     operationId: tool.name,
     description: tool.description,
     "x-opencut-read-only": tool.read_only,
@@ -373,7 +374,7 @@ for (const domain of domainsEnvelope.data) {
   const resultVariants = domain.actions.map((action) => ({
     $ref: `#/components/schemas/${pascal(action.operation)}Output`,
   }));
-  paths[`/v1/tools/opencut_${domain.domain}`] = { post: {
+  paths[`/api/tools/opencut_${domain.domain}`] = { post: {
     operationId: `opencut_${domain.domain}`,
     description: `${domain.description} The action selects the exact legacy operation and its input schema.`,
     "x-opencut-action-operations": Object.fromEntries(domain.actions.map(a => [a.action, a.operation])),
@@ -400,9 +401,9 @@ schemas.DomainDescriptor = {
   }, additionalProperties: false,
 };
 schemas.DomainCatalogEnvelope = {
-  type: "object", required: ["api_version", "request_id", "data", "error", "warnings"],
+  type: "object", required: ["request_id", "data", "error", "warnings"],
   properties: {
-    api_version: { const: "1" }, request_id: { type: "string" },
+    request_id: { type: "string" },
     data: { anyOf: [{ type: "array", items: { $ref: "#/components/schemas/DomainDescriptor" } }, { type: "null" }] },
     error: { anyOf: [{ type: "object" }, { type: "null" }] },
     warnings: { type: "array", items: { type: "string" } },
@@ -412,19 +413,19 @@ const domainResponse = {
   description: "Authenticated domain catalog or exact per-action schema envelope.",
   content: { "application/json": { schema: { $ref: "#/components/schemas/DomainCatalogEnvelope" } } },
 };
-paths["/v1/domains"] = { get: {
+paths["/api/domains"] = { get: {
   operationId: "opencut_domains_list", description: "Discover domains and action summaries without expanding per-action schemas.",
   responses: { "200": domainResponse, default: domainResponse },
 } };
-paths["/v1/domains/{domain}"] = { get: {
+paths["/api/domains/{domain}"] = { get: {
   operationId: "opencut_domain_inspect", description: "Get one domain with exact input/output schemas for every action.",
   parameters: [{ name: "domain", in: "path", required: true, schema: { type: "string", enum: domainsEnvelope.data.map(d => d.domain) } }],
   responses: { "200": domainResponse, default: domainResponse },
 } };
 schemas.OpenCutErrorEnvelope = {
-  type: "object", required: ["api_version", "request_id", "data", "error", "warnings"],
+  type: "object", required: ["request_id", "data", "error", "warnings"],
   properties: {
-    api_version: { const: "1" }, request_id: { type: "string" }, data: { type: "null" },
+    request_id: { type: "string" }, data: { type: "null" },
     error: { type: "object", required: ["code", "message", "details"],
       properties: { code: { type: "string" }, message: { type: "string" }, details: true },
       additionalProperties: false },
@@ -435,22 +436,22 @@ const transportError = {
   description: "Structured OpenCut error envelope; inspect error.code before retrying.",
   content: { "application/json": { schema: { $ref: "#/components/schemas/OpenCutErrorEnvelope" } } },
 };
-const audioStreamInput = component(audioStreamEnvelope.data.input, "AudioPreviewStreamV4");
+const audioStreamInput = component(audioStreamEnvelope.data.input, "AudioPreviewTransport");
 component(audioStreamEnvelope.data.header, "AudioPreviewPcmHeaderV4");
-paths["/v1/preview/v4/audio/stream"] = { post: {
-  operationId: "opencut_audio_preview_v4_stream",
-  description: "Bounded fixed-generation unmastered stereo Float32. Each OCA4 frame has 12-byte little-endian lengths, a generated JSON header and a maximum 32768-byte interleaved payload. Actual consumption is acknowledged through the control operation.",
+paths["/api/preview/audio/stream"] = { post: {
+  operationId: "opencut_audio_preview_stream",
+  description: "Bounded fixed-generation unmastered stereo Float32. Each OCAP frame has 12-byte little-endian lengths, a generated JSON header and a maximum 32768-byte interleaved payload. Actual consumption is acknowledged through the control operation.",
   requestBody: { required: true, content: { "application/json": { schema: audioStreamInput } } },
-  responses: { "200": { description: "OCA4 framed PCM; maximum two unconsumed blocks.", content: {
-    "application/vnd.opencut.audio-preview-v4": { schema: { type: "string", format: "binary" } },
+  responses: { "200": { description: "OCAP framed PCM; maximum two unconsumed blocks.", content: {
+    "application/vnd.opencut.audio-preview": { schema: { type: "string", format: "binary" } },
   } }, default: transportError },
 } };
-const previewFontTool = envelope.data.find(tool => tool.name === "opencut_visual_preview_v4_font_authorize");
+const previewFontTool = envelope.data.find(tool => tool.name === "opencut_visual_preview_font_authorize");
 if (previewFontTool) {
-  paths["/v1/preview/v4/visual-font/stream"] = { post: {
-    operationId: "opencut_visual_preview_v4_font_stream",
+  paths["/api/preview/visual-font/stream"] = { post: {
+    operationId: "opencut_visual_preview_font_stream",
     description: "Read the participating locked font under the live preview owner, lease and generation. Authorization is rechecked while streaming; cached font reuse requires the same authorization operation.",
-    requestBody: paths["/v1/tools/opencut_visual_preview_v4_font_authorize"].post.requestBody,
+    requestBody: paths["/api/tools/opencut_visual_preview_font_authorize"].post.requestBody,
     responses: { "200": { description: "Verified font bytes with no-store caching.", content: {
       "application/octet-stream": { schema: { type: "string", format: "binary" } },
     } }, default: transportError },
@@ -460,7 +461,7 @@ const uploads = capabilitiesEnvelope.data.uploads;
 if (uploads) {
   paths[uploads.chunk_path_template] = { put: {
     operationId: "opencut_upload_chunk",
-    description: `Send sequential raw bytes with a complete SHA-256 and canonical decimal offset/size. Maximum ${uploads.max_chunk_bytes} bytes per chunk, ${uploads.max_upload_bytes} bytes per upload, ${uploads.max_inflight_chunks} concurrent requests and ${uploads.chunk_timeout_seconds} seconds receiving. A lost response has an unknown outcome: inspect the confirmed next_offset before retrying identical bytes. Project read, edit and run_jobs permissions are required.`,
+    description: `Send sequential raw bytes with the chunk SHA-256 and canonical decimal offset/size. The full-file digest is required only by opencut_upload_complete. Maximum ${uploads.max_chunk_bytes} bytes per chunk; source offsets are exactly addressable through ${uploads.max_source_bytes} bytes and actual writes use configured storage admission. At most ${uploads.max_inflight_chunks} concurrent requests and ${uploads.chunk_timeout_seconds} seconds receiving. A lost response has an unknown outcome: inspect the confirmed next_offset before retrying identical bytes. Project read, edit and run_jobs permissions are required.`,
     parameters: [
       { name: "upload_id", in: "path", required: true, schema: { type: "string", pattern: "^upload_[a-f0-9]{32}$" } },
       { name: "offset", in: "path", required: true, schema: { type: "string", pattern: "^(0|[1-9][0-9]*)$" } },
@@ -473,20 +474,9 @@ if (uploads) {
       default: transportError,
     },
   } };
-  if (envelope.data.some(tool => tool.name === "opencut_upload_stream_inspect")) {
-    const chunk = paths[uploads.chunk_path_template].put;
-    paths["/v1/stream-uploads/{upload_id}/chunks/{offset}"] = { put: {
-      ...chunk,
-      operationId: "opencut_upload_stream_chunk",
-      description: `Transfer one verified chunk of a streaming upload. The complete file digest can remain unset until opencut_upload_stream_complete. ${chunk.description}`,
-      responses: {
-        "200": { description: "Confirmed streaming upload state and next_offset.", content: { "application/json": { schema: { $ref: "#/components/schemas/OpencutUploadStreamInspectOutput" } } } },
-        default: transportError,
-      },
-    } };
-  }
+
 }
-paths["/v1/projects/{project}/media/{media_id}/content"] = { get: {
+paths["/api/projects/{project}/media/{media_id}/content"] = { get: {
   operationId: "opencut_project_media_content",
   description: "Read the verified fixed bytes of an imported project media resource. Requires the current project's read grant; the opaque media ID does not grant access by itself. Long responses revalidate authorization after policy changes. The response is not a host path or an owner-only global media URL.",
   "x-opencut-read-only": true,
@@ -500,9 +490,9 @@ paths["/v1/projects/{project}/media/{media_id}/content"] = { get: {
     default: transportError,
   },
 } };
-paths["/v1/project-v4-resources/content"] = { get: {
-  operationId: "opencut_project_v4_resource_content",
-  description: "Read exact verified asset/font bytes selected from a fixed V4 revision under live project authorization. Query identifiers never become path segments. Current credentials, grant and project presence are checked before bytes and during streaming.",
+paths["/api/project-resources/content"] = { get: {
+  operationId: "opencut_project_resource_content",
+  description: "Read exact verified asset/font bytes selected from a fixed project revision under live project authorization. Query identifiers never become path segments. Current credentials, grant and project presence are checked before bytes and during streaming.",
   "x-opencut-read-only": true,
   parameters: [
     { name: "project_id", in: "query", required: true, schema: { type: "string" } },
@@ -518,7 +508,7 @@ paths["/v1/project-v4-resources/content"] = { get: {
     default: transportError,
   },
 } };
-paths["/v1/artifacts/{artifact}"] = { get: {
+paths["/api/artifacts/{artifact}"] = { get: {
   operationId: "opencut_artifact_download",
   description: "Download the bytes of a published job artifact identified by job ID and SHA-256. Authorization and integrity are checked against the committed job; a historical successful job does not guarantee that its file remains available. Content-Type identifies the actual media format.",
   parameters: [{ name: "artifact", in: "path", required: true,
@@ -529,7 +519,7 @@ paths["/v1/artifacts/{artifact}"] = { get: {
     default: transportError,
   },
 } };
-paths["/v1/changes/stream"] = { post: {
+paths["/api/changes/stream"] = { post: {
   operationId: "opencut_changes_stream",
   description: "Observe public project or job changes with an opaque cursor. SSE data contains one opencut.events.v1 record; the SSE id is its resume cursor. Last-Event-ID overrides the body cursor. Reconnect using the last fully processed id. Closing observation does not cancel durable tasks.",
   "x-opencut-read-only": true,
@@ -542,7 +532,7 @@ paths["/v1/changes/stream"] = { post: {
     default: transportError,
   },
 } };
-paths["/v1/preview/stream"] = { post: {
+paths["/api/preview/stream"] = { post: {
   operationId: "opencut_preview_stream",
   description: "Claim the current owner generation's single bounded fMP4 stream. Requires bearer authorization plus owner lease. Disconnect cancels that generation. Host restart ends all preview sessions.",
   requestBody: { required: true, content: { "application/json": { schema: {

@@ -1,7 +1,7 @@
 import { t } from "../shared/locale";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { publicJobResult } from "../../lib/editor-sdk";
+import { jobResult } from "../../lib/editor-sdk";
 import type { OpenCutClient } from "../../lib/editor-sdk";
 
 export async function uploadMedia(
@@ -16,10 +16,10 @@ export async function uploadMedia(
     throw new Error("This service does not support media uploads.");
   if (
     !file.size ||
-    BigInt(file.size) > BigInt(capabilities.uploads.max_upload_bytes)
+    BigInt(file.size) > BigInt(capabilities.uploads.max_source_bytes)
   )
     throw new Error(
-      `File exceeds the service limit (${capabilities.uploads.max_upload_bytes} bytes).`,
+      "File size is outside exact source addressability.",
     );
   const chunkSize = Math.min(
       Number(capabilities.uploads.max_chunk_bytes),
@@ -29,7 +29,7 @@ export async function uploadMedia(
   if (!Number.isSafeInteger(chunkSize) || chunkSize < 1)
     throw new Error("The service returned an invalid upload chunk limit.");
   const session = await sdk.callWithAdmissionRetry(
-    "opencut_upload_stream_begin",
+    "opencut_upload_begin",
     {
       project_id: projectId,
       idempotency_key: crypto.randomUUID(),
@@ -63,7 +63,7 @@ export async function uploadMedia(
       const nextOffset = offset + chunk.length;
       // At most one read-ahead chunk; acknowledgements and sends stay ordered.
       const [accepted, nextChunk] = await Promise.all([
-        sdk.uploadStreamChunk(session.upload_id, String(offset), chunk, {
+        sdk.uploadChunk(session.upload_id, String(offset), chunk, {
           signal,
         }),
         nextOffset < file.size ? readChunk(nextOffset) : Promise.resolve(null),
@@ -82,7 +82,7 @@ export async function uploadMedia(
     }
     const digest = bytesToHex(hash.digest());
     const accepted = await sdk.callWithAdmissionRetry(
-      "opencut_upload_stream_complete",
+      "opencut_upload_complete",
       { upload_id: session.upload_id, content_hash: digest },
       { signal },
     );
@@ -90,12 +90,12 @@ export async function uploadMedia(
     if (!accepted.job_id) throw new Error("Import was not accepted.");
     jobId = accepted.job_id;
     onProgress(t("Preparing media…"));
-    const job = await sdk.waitForPublicJob(accepted.job_id, {
+    const job = await sdk.waitForJob(accepted.job_id, {
       signal,
       timeoutMs: 300000,
       pollIntervalMs: 300,
     });
-    const result = publicJobResult(job, "media.import");
+    const result = jobResult(job, "media.import");
     const media = await sdk.call(
       "opencut_project_media_inspect",
       { project_id: projectId, media_id: result.media_id },
@@ -125,14 +125,14 @@ export async function uploadMedia(
   } catch (error) {
     if (sealed && jobId && signal.aborted) {
       try {
-        await sdk.cancelPublicJob(jobId);
+        await sdk.cancelJob(jobId);
       } catch {
         // The accepted job remains discoverable if cancellation cannot be confirmed.
       }
     }
     if (!sealed) {
       try {
-        await sdk.call("opencut_upload_stream_abort", {
+        await sdk.call("opencut_upload_abort", {
           upload_id: session.upload_id,
         });
         await sdk.call("opencut_upload_release", {

@@ -18,12 +18,36 @@ fn enqueue(app: &mut EditorApplication, key: &str) -> JobRecord {
     })
     .unwrap()
 }
+#[test]
+fn queued_jobs_with_equal_timestamp_keep_admission_order_instead_of_uuid_order() {
+    let mut app=EditorApplication::open(":memory:").unwrap();
+    let expected=(0..32).map(|i|enqueue(&mut app,&format!("nearby-{i}"))).collect::<Vec<_>>();
+    for job in expected {
+        assert_eq!(app.claim_job("worker",0,30_000).unwrap().unwrap().job_id,job.job_id);
+    }
+}
 fn sample() -> JobProgress {
     JobProgress {
         stage: "encoding".into(),
         fraction: Some(0.5),
         media_time: None,
     }
+}
+#[test]
+fn preferred_claim_keeps_eligibility_lease_and_original_fifo_order() {
+    let mut app=EditorApplication::open(":memory:").unwrap();
+    let old=enqueue(&mut app,"old-background");
+    let cancelled=enqueue(&mut app,"cancelled-preview");
+    let current=enqueue(&mut app,"current-preview");
+    app.cancel_job(&cancelled.job_id).unwrap();
+    let preferred=vec![cancelled.job_id.clone(),current.job_id.clone()];
+    let first=app.live_jobs().claim_preferred("foreground",30_000,&preferred).unwrap().unwrap();
+    assert_eq!(first.job_id,current.job_id);assert_eq!(first.attempt,1);
+    assert_eq!(first.lease_owner.as_deref(),Some("foreground"));
+    let next=app.live_jobs().claim_preferred("other-worker",30_000,&preferred).unwrap().unwrap();
+    assert_eq!(next.job_id,old.job_id);
+    assert_eq!(app.get_job(&current.job_id).unwrap().lease_owner.as_deref(),Some("foreground"));
+    assert!(app.live_jobs().claim_preferred("other-worker",30_000,&preferred).unwrap().is_none());
 }
 thread_local! { static BUSY_NOTICE: RefCell<Option<mpsc::Sender<()>>> = const { RefCell::new(None) }; }
 fn busy(attempt: i32) -> bool {

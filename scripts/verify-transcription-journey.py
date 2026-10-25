@@ -84,7 +84,7 @@ def verify(binary, audio, root, model, english_audio=None):
         return status, data
 
     def tool(name, payload, credential=runner, error=None):
-        status, raw = request('POST', '/v1/tools/' + name, credential, json.dumps(payload).encode())
+        status, raw = request('POST', '/api/tools/' + name, credential, json.dumps(payload).encode())
         response = json.loads(raw)
         trace.append({'http': name, 'status': status, 'response': response})
         if error:
@@ -108,17 +108,17 @@ def verify(binary, audio, root, model, english_audio=None):
         descriptor = {'project_id': 'transcription', 'idempotency_key': key,
                       'name': path.name, 'size_bytes': str(len(data)),
                       'content_hash': hashlib.sha256(data).hexdigest()}
-        view = tool('opencut_upload_create', descriptor)
+        view = tool('opencut_upload_begin', descriptor)
         for offset in range(0, len(data), 4 * 1024 * 1024):
             chunk = data[offset:offset + 4 * 1024 * 1024]
             query = urlencode({'size_bytes': str(len(chunk)),
                                'content_hash': hashlib.sha256(chunk).hexdigest()})
-            status, raw = request('PUT', f"/v1/uploads/{view['upload_id']}/chunks/{offset}?{query}",
+            status, raw = request('PUT', f"/api/uploads/{view['upload_id']}/chunks/{offset}?{query}",
                                   runner, chunk, 'application/octet-stream')
             result = json.loads(raw)
             assert status == 200 and result['error'] is None, (status, result)
             assert result['data']['next_offset'] == str(offset + len(chunk)), result
-        accepted = tool('opencut_upload_seal', {'upload_id': view['upload_id']})
+        accepted = tool('opencut_upload_complete', {'upload_id':view['upload_id'], 'content_hash':view['content_hash']})
         imported = wait(accepted['job_id'], 90)['extended_result']['data']
         assert imported['asset']['version']['content_hash'] == descriptor['content_hash'], imported
         return imported
@@ -298,7 +298,7 @@ def verify(binary, audio, root, model, english_audio=None):
                 'sequence_id': 'main', 'container': 'mp4', 'video_codec': 'h264'}})
         exported = wait(render['job_id'], 180)
         artifact = exported['artifacts'][0]
-        status, bytes_out = request('GET', '/v1/artifacts/' + quote(artifact['artifact_id'], safe=''), runner)
+        status, bytes_out = request('GET', '/api/artifacts/' + quote(artifact['artifact_id'], safe=''), runner)
         assert status == 200 and hashlib.sha256(bytes_out).hexdigest() == artifact['content_hash']
         output = root / 'captioned-export.mp4'
         output.write_bytes(bytes_out)

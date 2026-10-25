@@ -72,7 +72,7 @@ def main():
                 temporary=a.evidence/'progress.tmp.json';temporary.write_text(json.dumps(progress,indent=2)+'\n');temporary.replace(a.evidence/'progress.json')
                 print(f'{i}/{len(jobs)} derived={len(results)} failed={len(failures)}',flush=True)
     results.sort(key=lambda r:r['face']['id']);unique={r['face']['id']:r for r in reversed(results)}
-    target=g.ROOT/'crates/editor-application/src/font_derived_v1/catalog_pins.json';target.parent.mkdir(parents=True,exist_ok=True);target.write_text(json.dumps(list(sorted(unique.values(),key=lambda r:r['face']['id'])),ensure_ascii=False,indent=2)+'\n')
+    target=g.ROOT/'crates/editor-application/src/font_derived/catalog_pins.json';target.parent.mkdir(parents=True,exist_ok=True);target.write_text(json.dumps(list(sorted(unique.values(),key=lambda r:r['face']['id'])),ensure_ascii=False,indent=2)+'\n')
     report=dict(source_commit=g.COMMIT,attempted=len(jobs),derived=len(unique),families=len({r['face']['family'] for r in unique.values()}),failures=sorted(failures,key=lambda r:(r['family'],r['weight'],r['style'])))
     report=coverage_report(report,list(unique.values()),atlas,present,target.read_bytes())
     (target.parent/'catalog_source_report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')

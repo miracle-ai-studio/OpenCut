@@ -9,6 +9,18 @@ export function fontResource(font) {
   return Object.fromEntries(["fontId", "contentHash", "size", "weight", "style", "faceIndex"].map(key => [key, font[key]]));
 }
 
+// Evict before reserving decoder capacity: the current native frame admission
+// excludes inactive fonts. Release their installed faces as well as byte views.
+export function retainTextFrameFonts(fontCache, fonts, retainEmpty=false) {
+  if (!fontCache) return;
+  const keys = new Set(Array.from(fonts, font => `${font.fontId}:${font.contentHash}:${font.size}`));
+  if(retainEmpty&&keys.size===0)return;
+  for (const [key, item] of fontCache) if (!keys.has(key)) {
+    if (item.face) (globalThis.fonts ?? globalThis.document?.fonts)?.delete(item.face);
+    fontCache.delete(key);
+  }
+}
+
 export function validateTextFramePlan(plan, admission) {
   if (!plan || plan.identity?.profile !== TEXT_FRAME_PROFILE || plan.media?.identity?.profile !== MEDIA_PROFILE || !Array.isArray(plan.media.resources) || !Array.isArray(plan.media.layers) || !Array.isArray(plan.texts) || !Array.isArray(plan.order)) reject("INVALID_VISUAL_PLAN", "Invalid V2 text frame plan");
   const identity = { ...plan.identity, profile: MEDIA_PROFILE };
@@ -22,7 +34,9 @@ export function validateTextFramePlan(plan, admission) {
   for (const resource of plan.media.resources) {
     if (typeof resource.assetId !== "string" || !resource.assetId || resources.has(resource.assetId)) reject("INVALID_VISUAL_PLAN", "V2 media resources must be distinct");
     resources.add(resource.assetId);
-    encoded += natural(resource.size, "media encoded bytes");
+    const length = natural(resource.size, "media encoded bytes");
+    if (length === 0n || length > BigInt(Number.MAX_SAFE_INTEGER)) reject("INVALID_VISUAL_PLAN", "Media length cannot be addressed safely");
+    if (resource.kind !== "video") encoded += length;
   }
   for (const layer of plan.media.layers) {
     if (typeof layer.elementId !== "string" || !layer.elementId || elements.has(layer.elementId) || !["image", "video"].includes(layer.decode?.kind)) reject("INVALID_VISUAL_PLAN", "V2 media layers must be distinct media nodes");

@@ -45,6 +45,7 @@ impl EditorApplication {
 
     /// Read one fixed project revision and every declared project plugin grant.
     /// The native adapter then packages exact CAS content for this snapshot.
+    #[cfg(test)]
     pub fn package_export_source(
         &self,
         project_id: &str,
@@ -75,6 +76,7 @@ impl EditorApplication {
     /// Publish a verified package as one new project. CAS capture occurs before
     /// this transaction; failed SQL may leave unreferenced CAS bytes for GC,
     /// never a visible partial project or success receipt.
+    #[cfg(test)]
     pub fn package_import_commit(
         &mut self,
         input: &ImportPackage,

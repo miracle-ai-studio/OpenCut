@@ -1,5 +1,5 @@
 use crate::browser_resources::VerifiedBrowserResources;
-use opencut_composition::project_v4::PreparedVisualFrameV4;
+use opencut_composition::scene::PreparedVisualFrame;
 use opencut_contracts::EditorError;
 use opencut_editor_application::classic_visual::{
     ClassicVisualResourceHandle, ClassicVisualResources, VisualResource,
@@ -11,7 +11,7 @@ pub struct VerifiedClassicVisualResources<F> {
 impl<F: FnMut() -> Result<(), EditorError>> VerifiedClassicVisualResources<F> {
     pub fn new(
         root: &Path,
-        prepared: &PreparedVisualFrameV4,
+        prepared: &PreparedVisualFrame,
         checkpoint: F,
     ) -> Result<Self, EditorError> {
         Ok(Self {

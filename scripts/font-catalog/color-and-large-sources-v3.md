@@ -13,7 +13,7 @@ the existing pinned fontTools environment:
 /private/tmp/opencut-font-derive-venv/bin/python scripts/font-catalog/generate_color_sources_v3.py \
   --tree /private/tmp/opencut-google-fonts-tree.json \
   --cache /private/tmp/opencut-b3-font-cache \
-  --output crates/editor-application/src/font_catalog_v3
+  --output crates/editor-application/src/font_catalog
 ```
 
 The reviewed Google Fonts commit is
@@ -25,7 +25,7 @@ COLR sources and four Anonymous Pro one-bit bitmap sources. The 21 entries in
 bytes, names and derivation proofs belong to the separate V2 derivation pipeline.
 Neither source bytes nor a variable source digest can stand in for an output pin.
 
-`CatalogFontInspectorV2` only enables a declared rendering profile for a compiled
+`CatalogFontInspector` only enables a declared rendering profile for a compiled
 SHA-256 and exact size, then checks actual family, weight and style. Unknown
 fonts continue through the unchanged V1 inspector. SFNT checksums, directory
 bounds, Unicode coverage, glyph metrics, shaping-table parsing and cancellation
@@ -51,7 +51,7 @@ The source cap is 64 MiB; metadata and license each remain at most 64 KiB.
 /private/tmp/opencut-font-derive-venv/bin/python scripts/font-catalog/prepare_large_source_v3.py \
   --tree /private/tmp/opencut-google-fonts-tree.json \
   --cache /private/tmp/opencut-b3-font-cache \
-  --output crates/editor-application/src/font_catalog_v3/large_variable_inputs.json \
+  --output crates/editor-application/src/font_catalog/large_variable_inputs.json \
   --download
 ```
 
@@ -65,7 +65,7 @@ its 32 MiB contract. A V3 output above that limit requires both an explicitly
 larger caller budget and an exact compiled output hash/size; no arbitrary upload
 or project resource receives the larger allowance.
 
-Native tests are in `font_import_v2/tests.rs`. The ignored fixed-cache tests use
+Native tests are in `font_inspection/tests.rs`. The ignored fixed-cache tests use
 `OPENCUT_FONT_CATALOG_CACHE=/private/tmp/opencut-b3-font-cache` and do not fetch
 or derive. The synthetic red-square color glyph has an independently authored
 geometry/palette reference; it is not added to the production approved catalog.

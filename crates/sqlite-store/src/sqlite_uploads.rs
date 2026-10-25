@@ -38,7 +38,7 @@ pub(super) fn permission(
     }
     Ok(())
 }
-pub(super) fn read(c: &Connection, id: &str) -> Result<Option<UploadSession>, EditorError> {
+pub(super) fn read(c: &Connection, id: &str) -> Result<Option<UploadView>, EditorError> {
     type UploadRow = (String, String, i64, String, i64, String, Option<String>);
     let row: Option<UploadRow> = c.query_row("SELECT project_id,name,size_bytes,content_hash,next_offset,state,job_id FROM upload_sessions WHERE upload_id=?1",[id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?))).optional().map_err(storage_error)?;
     row.map(
@@ -49,7 +49,7 @@ pub(super) fn read(c: &Connection, id: &str) -> Result<Option<UploadSession>, Ed
                 "aborted" => UploadState::Aborted,
                 _ => return Err(EditorError::new("STORAGE_ERROR", "Unknown upload state")),
             };
-            Ok(UploadSession {
+            Ok(UploadView {
                 upload_id: id.into(),
                 project_id,
                 name,
@@ -72,7 +72,7 @@ pub(super) fn authorized(
     ctx: &ExecutionContext,
     id: &str,
     write: bool,
-) -> Result<UploadSession, EditorError> {
+) -> Result<UploadView, EditorError> {
     let view = read(c, id)?.ok_or_else(|| {
         if ctx.caller().is_owner() {
             EditorError::new("NOT_FOUND", "Upload was not found")
@@ -86,7 +86,7 @@ pub(super) fn authorized(
 pub(super) fn event(
     c: &Connection,
     ctx: &ExecutionContext,
-    view: &UploadSession,
+    view: &UploadView,
     action: &str,
     media_id: Option<&str>,
 ) -> Result<(), EditorError> {
@@ -122,7 +122,7 @@ fn checked_chunk(
     c: &Connection,
     ctx: &ExecutionContext,
     input: &ChunkDescriptor,
-) -> Result<(UploadSession, ChunkPosition), EditorError> {
+) -> Result<(UploadView, ChunkPosition), EditorError> {
     uploads::validate_chunk(input)?;
     let view = authorized(c, ctx, &input.upload_id, true)?;
     let position = uploads::chunk_position(&view, input)?;
@@ -139,20 +139,6 @@ fn checked_chunk(
                 "A different chunk was confirmed at this offset",
             ));
         }
-    } else {
-        let count: i64 = c
-            .query_row(
-                "SELECT count(*) FROM upload_chunks WHERE upload_id=?1",
-                [&input.upload_id],
-                |r| r.get(0),
-            )
-            .map_err(storage_error)?;
-        if count >= uploads::MAX_UPLOAD_CHUNKS {
-            return Err(EditorError::new(
-                "RESOURCE_TOO_LARGE",
-                "Upload chunk limit reached; abort and restart with larger chunks",
-            ));
-        }
     }
     Ok((view, position))
 }
@@ -161,7 +147,8 @@ fn create_session(
     input: &BeginUpload,
     content_hash: Option<&str>,
     identity: RequestIdentity,
-) -> Result<UploadSession, EditorError> {
+    historical: Option<RequestIdentity>,
+) -> Result<UploadView, EditorError> {
     let ctx = app.connection.1.clone();
     let tx = app
         .connection
@@ -171,7 +158,11 @@ fn create_session(
     sqlite_project_document::project_head_revision(&tx, &input.project_id)?;
     let replay:Option<(String,String)>=tx.query_row("SELECT upload_id,request_hash FROM upload_sessions WHERE project_id=?1 AND idempotency_key=?2",params![input.project_id,input.idempotency_key],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(storage_error)?;
     if let Some((id, hash)) = replay {
-        if !identity.matches(&hash, None) {
+        if !identity.matches(&hash, None)
+            && !historical
+                .as_ref()
+                .is_some_and(|old| old.matches(&hash, None))
+        {
             return Err(EditorError::new(
                 "IDEMPOTENCY_KEY_REUSED",
                 "Upload key was used with different parameters",
@@ -208,22 +199,44 @@ fn create_session(
     Ok(view)
 }
 
+// Exact predeclared-digest request schema, retained solely for replay of
+// existing creation receipts. It is not exported and has no write operation.
+#[derive(serde::Serialize)]
+struct PinnedUploadCreation<'a> {
+    project_id: &'a str,
+    idempotency_key: &'a str,
+    name: &'a str,
+    size_bytes: &'a str,
+    content_hash: &'a str,
+}
 impl UploadStore for EditorApplication {
-    fn create_upload(&mut self, input: &CreateUpload) -> Result<UploadView, EditorError> {
-        uploads::validate_create(input)?;
-        let identity = request_hash("create_upload", &input.project_id, input)?;
+    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadView, EditorError> {
+        uploads::validate_begin(input)?;
+        let identity = request_hash("begin_upload", &input.project_id, input)?;
+        let historical = input
+            .content_hash
+            .as_deref()
+            .map(|hash| {
+                request_hash(
+                    "create_upload",
+                    &input.project_id,
+                    &PinnedUploadCreation {
+                        project_id: &input.project_id,
+                        idempotency_key: &input.idempotency_key,
+                        name: &input.name,
+                        size_bytes: &input.size_bytes,
+                        content_hash: hash,
+                    },
+                )
+            })
+            .transpose()?;
         create_session(
             self,
-            &BeginUpload {
-                project_id: input.project_id.clone(),
-                idempotency_key: input.idempotency_key.clone(),
-                name: input.name.clone(),
-                size_bytes: input.size_bytes.clone(),
-            },
-            Some(&input.content_hash),
+            input,
+            input.content_hash.as_deref(),
             identity,
-        )?
-        .legacy()
+            historical,
+        )
     }
     fn inspect_upload(&self, id: &str) -> Result<UploadView, EditorError> {
         uploads::validate_id(id)?;
@@ -231,11 +244,16 @@ impl UploadStore for EditorApplication {
             .connection
             .unchecked_transaction()
             .map_err(storage_error)?;
-        let view = authorized(&tx, &self.connection.1, id, false)?;
+        let result = authorized(&tx, &self.connection.1, id, false)?;
         tx.commit().map_err(storage_error)?;
-        view.legacy()
+        Ok(result)
     }
-    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
+    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadView, EditorError> {
+        uploads::validate_id(&input.upload_id)?;
+        uploads::validate_hash(&input.content_hash)?;
+        seal_session(self, &input.upload_id, &input.content_hash)
+    }
+    fn authorize_chunk(&self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
         let tx = self
             .connection
             .unchecked_transaction()
@@ -244,7 +262,7 @@ impl UploadStore for EditorApplication {
         tx.commit().map_err(storage_error)?;
         Ok(view)
     }
-    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadSession, EditorError> {
+    fn acknowledge_chunk(&mut self, input: &ChunkDescriptor) -> Result<UploadView, EditorError> {
         let ctx = self.connection.1.clone();
         let tx = self
             .connection
@@ -267,7 +285,7 @@ impl UploadStore for EditorApplication {
         tx.commit().map_err(storage_error)?;
         Ok(view)
     }
-    fn abort_upload(&mut self, id: &str) -> Result<UploadSession, EditorError> {
+    fn abort_upload(&mut self, id: &str) -> Result<UploadView, EditorError> {
         uploads::validate_id(id)?;
         let ctx = self.connection.1.clone();
         let tx = self
@@ -298,22 +316,10 @@ impl UploadStore for EditorApplication {
 }
 
 fn prepared(
-    c: &Connection,
-    view: &UploadSession,
+    view: &UploadView,
     media_id: String,
+    authority: Option<opencut_job_execution::scene_audio::TrustedJobAuthority>,
 ) -> Result<PreparedMediaImportInput, EditorError> {
-    let mut statement = c.prepare("SELECT offset_bytes,size_bytes,content_hash FROM upload_chunks WHERE upload_id=?1 ORDER BY offset_bytes LIMIT 4097").map_err(storage_error)?;
-    let chunks = statement
-        .query_map([&view.upload_id], |r| {
-            Ok(PreparedUploadChunk {
-                offset: r.get(0)?,
-                size_bytes: r.get(1)?,
-                content_hash: r.get(2)?,
-            })
-        })
-        .map_err(storage_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(storage_error)?;
     let input = PreparedMediaImportInput {
         upload_id: view.upload_id.clone(),
         project_id: view.project_id.clone(),
@@ -326,16 +332,172 @@ fn prepared(
                 "Declare the complete digest before sealing",
             )
         })?,
-        chunks,
+        authority,
+        chunks: Vec::new(),
     };
-    uploads::validate_manifest(&input)?;
     Ok(input)
 }
+fn historical_chunks(c: &Connection, id: &str) -> Result<Vec<PreparedUploadChunk>, EditorError> {
+    let mut statement = c.prepare("SELECT offset_bytes,size_bytes,content_hash FROM upload_chunks WHERE upload_id=?1 ORDER BY offset_bytes LIMIT 4097").map_err(storage_error)?;
+    statement
+        .query_map([id], |r| {
+            Ok(PreparedUploadChunk {
+                offset: r.get(0)?,
+                size_bytes: r.get(1)?,
+                content_hash: r.get(2)?,
+            })
+        })
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)
+}
+fn require_import_authority(
+    c: &Connection,
+    input: &PreparedMediaImportInput,
+    job_id: &str,
+) -> Result<(), EditorError> {
+    if let Some(authority) = &input.authority {
+        return permission(
+            c,
+            &sqlite_scene_jobs::context(authority),
+            &input.project_id,
+            true,
+        );
+    }
+    // Old inline jobs did not capture a credential ID. Only an exact original
+    // owner acceptance proves owner authority;never infer it from a missing field.
+    let actor:Option<String>=c.query_row("SELECT actor_json FROM audit_records WHERE job_id=?1 AND action='job.accepted' ORDER BY sequence LIMIT 1",[job_id],|r|r.get(0)).optional().map_err(storage_error)?;
+    let actor: opencut_api_contracts::audit::Actor = actor
+        .as_deref()
+        .map(|v| decode_json(v, "original import actor"))
+        .transpose()?
+        .ok_or_else(|| {
+            EditorError::new(
+                "IMPORT_AUTHORITY_UNAVAILABLE",
+                "Historical import lacks original execution authority",
+            )
+        })?;
+    if actor.principal_id != opencut_editor_application::access::Caller::LocalOwner.principal_id() {
+        return Err(EditorError::new(
+            "IMPORT_AUTHORITY_UNAVAILABLE",
+            "Historical import did not capture its original credential identity",
+        ));
+    }
+    permission(
+        c,
+        &ExecutionContext::local(opencut_api_contracts::audit::CallSource::Worker),
+        &input.project_id,
+        true,
+    )
+}
+fn check_sealed_import(
+    c: &Connection,
+    input: &PreparedMediaImportInput,
+    job_id: &str,
+    worker: &str,
+    attempt: u32,
+) -> Result<(), EditorError> {
+    uploads::validate_manifest(input)?;
+    let view = read(c, &input.upload_id)?
+        .ok_or_else(|| EditorError::new("NOT_FOUND", "Sealed upload was not found"))?;
+    let row: (String,u32,Option<String>,Option<i64>,bool,String) = c.query_row(
+        "SELECT state,attempt,lease_owner,lease_until,cancel_requested,input_json FROM jobs WHERE job_id=?1 AND kind='media.import'",
+        [job_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).map_err(storage_error)?;
+    let now = lifecycle::JobClock::now_ms(&sqlite_jobs::SystemClock)?;
+    if row.0 != "running"
+        || row.1 != attempt
+        || row.2.as_deref() != Some(worker)
+        || row.3.is_none_or(|until| until <= now)
+    {
+        return Err(EditorError::new(
+            "JOB_LEASE_LOST",
+            "Upload import attempt is no longer current",
+        ));
+    }
+    if row.4 {
+        return Err(EditorError::new(
+            "JOB_CANCELLED",
+            "Upload import was cancelled",
+        ));
+    }
+    let persisted: Value = decode_json(&row.5, "sealed import")?;
+    let mut fixed = prepared(&view, input.media_id.clone(), input.authority.clone())?;
+    fixed.chunks = input.chunks.clone();
+    if view.state != UploadState::Sealed
+        || view.job_id.as_deref() != Some(job_id)
+        || fixed != *input
+        || persisted != json!(input)
+    {
+        return Err(EditorError::new(
+            "UPLOAD_INTEGRITY_ERROR",
+            "Import differs from its original sealed identity",
+        ));
+    }
+    require_import_authority(c, input, job_id)?;
+    sqlite_project_document::project_head_revision(c, &view.project_id)?;
+    Ok(())
+}
+impl SealedUploadRead for EditorApplication {
+    fn authorize_sealed_import(
+        &self,
+        input: &PreparedMediaImportInput,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+    ) -> Result<(), EditorError> {
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        check_sealed_import(&tx, input, job_id, worker, attempt)?;
+        tx.commit().map_err(storage_error)
+    }
+    fn sealed_import_chunks(
+        &self,
+        input: &PreparedMediaImportInput,
+        job_id: &str,
+        worker: &str,
+        attempt: u32,
+        offset: u64,
+    ) -> Result<Vec<PreparedUploadChunk>, EditorError> {
+        if offset > input.size_bytes {
+            return Err(EditorError::new(
+                "UPLOAD_INTEGRITY_ERROR",
+                "Manifest cursor exceeds the sealed source",
+            ));
+        }
+        let tx = self
+            .connection
+            .unchecked_transaction()
+            .map_err(storage_error)?;
+        check_sealed_import(&tx, input, job_id, worker, attempt)?;
+        let chunks = {
+            let mut statement=tx.prepare_cached("SELECT offset_bytes,size_bytes,content_hash FROM upload_chunks WHERE upload_id=?1 AND offset_bytes>=?2 ORDER BY offset_bytes LIMIT ?3").map_err(storage_error)?;
+            statement
+                .query_map(
+                    params![input.upload_id, offset, IMPORT_CHUNK_PAGE_SIZE as i64],
+                    |r| {
+                        Ok(PreparedUploadChunk {
+                            offset: r.get(0)?,
+                            size_bytes: r.get(1)?,
+                            content_hash: r.get(2)?,
+                        })
+                    },
+                )
+                .map_err(storage_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?
+        };
+        tx.commit().map_err(storage_error)?;
+        Ok(chunks)
+    }
+}
+
 fn seal_session(
     app: &mut EditorApplication,
     id: &str,
-    digest: Option<&str>,
-) -> Result<UploadSession, EditorError> {
+    digest: &str,
+) -> Result<UploadView, EditorError> {
     uploads::validate_id(id)?;
     let ctx = app.connection.1.clone();
     let tx = app
@@ -343,8 +505,8 @@ fn seal_session(
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(storage_error)?;
     let mut view = authorized(&tx, &ctx, id, true)?;
-    if let Some(digest) = digest {
-        uploads::validate_hash(digest)?;
+    uploads::validate_hash(digest)?;
+    {
         if view
             .content_hash
             .as_deref()
@@ -380,7 +542,12 @@ fn seal_session(
             "Upload all declared bytes before sealing",
         ));
     }
-    let input = prepared(&tx, &view, format!("media_{}", Uuid::new_v4().simple()))?;
+    let input = prepared(
+        &view,
+        format!("media_{}", Uuid::new_v4().simple()),
+        Some(sqlite_scene_jobs::authority(&ctx)),
+    )?;
+    uploads::validate_manifest(&input)?;
     let head_revision = sqlite_project_document::project_head_revision(&tx, &view.project_id)?;
     let record = JobRecord {
         job_id: format!("job_{}", Uuid::new_v4().simple()),
@@ -417,10 +584,6 @@ fn seal_session(
 }
 
 impl ImportStore for EditorApplication {
-    fn seal_upload(&mut self, id: &str) -> Result<UploadView, EditorError> {
-        self.inspect_upload(id)?;
-        seal_session(self, id, None)?.legacy()
-    }
     fn project_media(
         &self,
         input: &ProjectMediaInput,
@@ -476,9 +639,14 @@ pub(super) fn publish_import(
     uploads::validate_import_result(&input, &record.job_id, &result)?;
     let view = read(c, &input.upload_id)?
         .ok_or_else(|| EditorError::new("INVALID_JOB_RESULT", "Import upload is absent"))?;
+    let mut fixed = prepared(&view, input.media_id.clone(), input.authority.clone())?;
+    if !input.chunks.is_empty() {
+        fixed.chunks = historical_chunks(c, &input.upload_id)?;
+    }
+    require_import_authority(c, &input, &record.job_id)?;
     if view.state != UploadState::Sealed
         || view.job_id.as_deref() != Some(record.job_id.as_str())
-        || prepared(c, &view, input.media_id.clone())? != input
+        || fixed != input
     {
         return Err(EditorError::new(
             "INVALID_JOB_RESULT",
@@ -577,27 +745,5 @@ impl ProjectMediaRead for EditorApplication {
             upper_id: Some(upper_id),
             has_more,
         })
-    }
-}
-
-impl StreamUploadStore for EditorApplication {
-    fn begin_upload(&mut self, input: &BeginUpload) -> Result<UploadSession, EditorError> {
-        uploads::validate_begin(input)?;
-        let identity = request_hash("begin_upload", &input.project_id, input)?;
-        create_session(self, input, None, identity)
-    }
-    fn inspect_stream_upload(&self, id: &str) -> Result<UploadSession, EditorError> {
-        uploads::validate_id(id)?;
-        let tx = self
-            .connection
-            .unchecked_transaction()
-            .map_err(storage_error)?;
-        let result = authorized(&tx, &self.connection.1, id, false)?;
-        tx.commit().map_err(storage_error)?;
-        Ok(result)
-    }
-    fn complete_upload(&mut self, input: &CompleteUpload) -> Result<UploadSession, EditorError> {
-        uploads::validate_hash(&input.content_hash)?;
-        seal_session(self, &input.upload_id, Some(&input.content_hash))
     }
 }

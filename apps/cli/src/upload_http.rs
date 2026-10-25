@@ -50,26 +50,6 @@ pub(super) async fn put_chunk(
     headers: HeaderMap,
     body: Body,
 ) -> Response {
-    put_chunk_inner(host, upload_id, offset, query, headers, body, false).await
-}
-pub(super) async fn put_stream_chunk(
-    AuthorizedHost(host): AuthorizedHost,
-    Path((upload_id, offset)): Path<(String, String)>,
-    query: Result<Query<ChunkQuery>, QueryRejection>,
-    headers: HeaderMap,
-    body: Body,
-) -> Response {
-    put_chunk_inner(host, upload_id, offset, query, headers, body, true).await
-}
-async fn put_chunk_inner(
-    host: Host,
-    upload_id: String,
-    offset: String,
-    query: Result<Query<ChunkQuery>, QueryRejection>,
-    headers: HeaderMap,
-    body: Body,
-    streaming: bool,
-) -> Response {
     let Query(query) = match query {
         Ok(v) => v,
         Err(_) => {
@@ -182,11 +162,7 @@ async fn put_chunk_inner(
         let mut automation = Automation::open(task_host.database.as_ref())?
             .with_source(CallSource::Http)
             .with_caller(task_host.identity.caller);
-        Ok::<_, EditorError>(if streaming {
-            automation.put_stream_upload_chunk(&input, &bytes)
-        } else {
-            automation.put_upload_chunk(&input, &bytes)
-        })
+        Ok::<_, EditorError>(automation.put_upload_chunk(&input, &bytes))
     })
     .await;
     match result {

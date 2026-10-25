@@ -2,10 +2,12 @@
 mod protocol;
 mod receipt;
 mod session;
+mod wav_layout;
 use opencut_contracts::EditorError;
 pub use protocol::*;
 pub use receipt::*;
 pub use session::*;
+pub use wav_layout::ClassicAudioWavLayout;
 
 /// A host holds verified CAS descriptors and the shared collection gate for the
 /// entire execution. Every method must recheck cancellation and live policy.

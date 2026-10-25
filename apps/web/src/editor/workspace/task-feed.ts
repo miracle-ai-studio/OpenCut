@@ -1,12 +1,12 @@
 import { OpenCutApiError } from "../../lib/editor-sdk";
 import type {
   OpenCutClient,
-  PublicJob,
+  Job,
   ToolOutput,
 } from "../../lib/editor-sdk";
 /** Poll changes after a single paged bootstrap; never rescan all task history per tick. */
 export class TaskFeed {
-  private jobs = new Map<string, PublicJob>();
+  private jobs = new Map<string, Job>();
   private cursor: string | null = null;
   private initialized = false;
   private pending: Promise<void> | null = null;
@@ -28,7 +28,7 @@ export class TaskFeed {
     const changes = await this.changes(this.cursor, signal);
     if (!this.initialized) {
       let cursor: string | null = null;
-      const jobs = new Map<string, PublicJob>();
+      const jobs = new Map<string, Job>();
       do {
         const page: ToolOutput<"opencut_job_query"> = await this.sdk.call(
           "opencut_job_query",
@@ -42,7 +42,7 @@ export class TaskFeed {
       this.initialized = true;
     } else {
       const ids = [...changes.ids],
-        updates: PublicJob[] = [];
+        updates: Job[] = [];
       for (let start = 0; start < ids.length; start += 4) {
         const batch = await Promise.all(
           ids.slice(start, start + 4).map(async (job_id) => {
@@ -62,7 +62,7 @@ export class TaskFeed {
             }
           }),
         );
-        updates.push(...batch.filter((job): job is PublicJob => job !== null));
+        updates.push(...batch.filter((job): job is Job => job !== null));
       }
       for (const job of updates) this.jobs.set(job.job_id, job);
     }

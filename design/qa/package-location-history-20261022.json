@@ -1,0 +1,252 @@
+{
+  "evidence_id": "package_location_history_20261022",
+  "date": "2026-10-22",
+  "status": "scoped_verified_native_dialog_manual_check_open",
+  "whole_migration_complete": false,
+  "whole_feature_complete": false,
+  "scope": "macOS package location selection and authorized named-actor fixed-revision history comparison; existing synthetic workspace",
+  "report": "design/qa/package-location-history-20261022.md",
+  "candidate": {
+    "source_head": "abd2c969b4b48067a85f7020d84b04fbb48a2d38",
+    "dirty_source": true,
+    "native_binary": "/tmp/opencut-package-history-20261022/runtime-final/opencut",
+    "native_sha256": "069a21775bf41839ac2a2afa8172f228ff169fcd1e5254e776a6b0e193950869",
+    "native_inputs_sha256": "5eecc86d5c378be4ea00ca02f6d8b36f7fea6d1a38cae92bc7eecef346d3d9ba",
+    "web_src_sha256": "969c20be891ccd8022eed5a4547981abf65814be70c9e1bfabbffbc886691407",
+    "web_dist_sha256": "d2e6dcc0b5af36aa0a0e5ff54148bf409cf5b7ba4c425cbd8530c6563b439e55",
+    "sdk_src_sha256": "7a85041d23c42091f41793ced90ecd707f94bd4d2df240c499f6cd5fcdd68415",
+    "generated_contracts_sha256": "055c22e9c080d60c934299e3adb6924c4c51ffe22f9d57a40aa4109e2f74868b"
+  },
+  "validation": {
+    "native_release_build": "passed; corrected unpublished action metadata and rebuilt once; original rejected candidate retained",
+    "native_scoped_tests": {
+      "application_passed": 1,
+      "native_passed": 5,
+      "new_picker_tests": 3,
+      "log": "/tmp/opencut-package-history-20261022/location-tests.log"
+    },
+    "web_tests": {
+      "integrated_files": 5,
+      "integrated_passed": 64,
+      "final_history_files": 3,
+      "final_history_passed": 19,
+      "counts_overlap": true
+    },
+    "web_typecheck_vite": "passed after final date/label correction; existing chunk-size warning",
+    "web_boundaries_files": 256,
+    "architecture_tests_passed": 14,
+    "dependency_modules": 22,
+    "dependency_exceptions": 0,
+    "contract_boundaries": "passed",
+    "canonical_contract": {
+      "status": "passed",
+      "binary": "/private/tmp/opencut-package-history-20261022/runtime-final/opencut",
+      "binary_sha256": "069a21775bf41839ac2a2afa8172f228ff169fcd1e5254e776a6b0e193950869",
+      "tools": 184,
+      "domains": 12,
+      "contract": "one final declaration with exact domain ownership"
+    },
+    "generated_contracts": "current against the same explicit final native binary",
+    "native_dialog": "AppleScript compiled with macOS osacompile; actual system-panel clicks not performed",
+    "protocol": "actual CLI/HTTP validation, MCP discovery and restricted caller NOT_AUTHORIZED before native UI",
+    "stateful_browser": "/tmp/opencut-package-history-20261022/browser.json",
+    "initial_verifier_exit": "duplicate Close locator only, after accepted real save/check; original evidence preserved",
+    "followup": {
+      "started": "2026-10-21T16:51:46.839Z",
+      "timezone": "Asia/Shanghai",
+      "mutationScope": "read-only; reuse accepted historical rows and saved package",
+      "combos": [
+        {
+          "language": "en",
+          "theme": "dark",
+          "date": "10/22/2026, 12:43:38 AM",
+          "bounds": {
+            "width": 272,
+            "scrollWidth": 272
+          },
+          "passed": true
+        },
+        {
+          "language": "en",
+          "theme": "light",
+          "date": "10/22/2026, 12:43:38 AM",
+          "bounds": {
+            "width": 272,
+            "scrollWidth": 272
+          },
+          "passed": true
+        },
+        {
+          "language": "zh",
+          "theme": "dark",
+          "date": "2026/10/22 00:43:38",
+          "bounds": {
+            "width": 272,
+            "scrollWidth": 272
+          },
+          "passed": true
+        },
+        {
+          "language": "zh",
+          "theme": "light",
+          "date": "2026/10/22 00:43:38",
+          "bounds": {
+            "width": 272,
+            "scrollWidth": 272
+          },
+          "passed": true
+        }
+      ],
+      "pageerrors": [],
+      "priorDuplicateCloseLocatorResolved": true,
+      "domainTablesUnchanged": true,
+      "passed": true,
+      "completed": "2026-10-21T16:52:02.328Z"
+    }
+  },
+  "behavior": {
+    "package": [
+      "No UI path textbox",
+      "Save/open native chooser entry",
+      "Cancellation starts no export",
+      "Existing folder rejected unchanged",
+      "New selection saved and verified by real exporter",
+      "Real saved package inspected for restore; no import"
+    ],
+    "history": [
+      "Recorded named account plus friendly source",
+      "On-demand fixed parent/target comparison",
+      "Object names and before/after values",
+      "Narrow cards and restore comparison table",
+      "Restore current-head fence and late-reply isolation",
+      "Missing actors never invented",
+      "Naive SQLite UTC shown in viewer local timezone"
+    ],
+    "accepted_human_edit": {
+      "clip": "sample.mp4",
+      "horizontal_position_px": [
+        0,
+        12.5
+      ]
+    },
+    "accepted_mcp_edit": {
+      "principal": "UI 验收助手 20261022",
+      "clip": "sample.mp4",
+      "horizontal_position_px": [
+        12.5,
+        24
+      ],
+      "gain_db": [
+        0,
+        -6
+      ]
+    }
+  },
+  "state": {
+    "deployment": {
+      "status": "passed",
+      "endpoint": "http://127.0.0.1:59790",
+      "binary": "/tmp/opencut-package-history-20261022/runtime-final/opencut",
+      "sha256": "069a21775bf41839ac2a2afa8172f228ff169fcd1e5254e776a6b0e193950869",
+      "instance": "982f9618-d796-4887-93fd-0889c911bd91",
+      "before": {
+        "projects": {
+          "rows": 48,
+          "sha256": "c4961f12a8f4a41853e26171d94a8037348de5a049e069cc258eb3425dfeb5b8"
+        },
+        "revisions": {
+          "rows": 916,
+          "sha256": "6ccb084438f7298e461a0d303520a870abc382cd3ae820bbca83f07b79a64854"
+        },
+        "editor_transactions": {
+          "rows": 868,
+          "sha256": "509d2bcd8302cc4d1a108733c01a9a3989522dec1426aaeaff6117499d70d72a"
+        },
+        "jobs": {
+          "rows": 288,
+          "sha256": "d48bf847d4041b92c86ff09b5334e8766deaafa25f675c6b47de1a1a2cd9a4ce"
+        }
+      },
+      "after": {
+        "projects": {
+          "rows": 48,
+          "sha256": "c4961f12a8f4a41853e26171d94a8037348de5a049e069cc258eb3425dfeb5b8"
+        },
+        "revisions": {
+          "rows": 916,
+          "sha256": "6ccb084438f7298e461a0d303520a870abc382cd3ae820bbca83f07b79a64854"
+        },
+        "editor_transactions": {
+          "rows": 868,
+          "sha256": "509d2bcd8302cc4d1a108733c01a9a3989522dec1426aaeaff6117499d70d72a"
+        },
+        "jobs": {
+          "rows": 288,
+          "sha256": "d48bf847d4041b92c86ff09b5334e8766deaafa25f675c6b47de1a1a2cd9a4ce"
+        }
+      }
+    },
+    "before": {
+      "projects": {
+        "rows": 48,
+        "sha256": "c4961f12a8f4a41853e26171d94a8037348de5a049e069cc258eb3425dfeb5b8"
+      },
+      "revisions": {
+        "rows": 916,
+        "sha256": "6ccb084438f7298e461a0d303520a870abc382cd3ae820bbca83f07b79a64854"
+      },
+      "editor_transactions": {
+        "rows": 868,
+        "sha256": "509d2bcd8302cc4d1a108733c01a9a3989522dec1426aaeaff6117499d70d72a"
+      },
+      "jobs": {
+        "rows": 288,
+        "sha256": "d48bf847d4041b92c86ff09b5334e8766deaafa25f675c6b47de1a1a2cd9a4ce"
+      }
+    },
+    "after": {
+      "projects": {
+        "rows": 48,
+        "sha256": "007055ee6289a8969551fcc5cf2bb37bf26cffdab4c1584513c47d20854eeeb6"
+      },
+      "revisions": {
+        "rows": 920,
+        "sha256": "77caae41e39001dddfc583dea96c42f35ca599becb904aada4deb461f8862b7b"
+      },
+      "editor_transactions": {
+        "rows": 872,
+        "sha256": "3f49374a0af0062e746738fd26f7634ac96b69f3150a147caacc878255af917c"
+      },
+      "jobs": {
+        "rows": 288,
+        "sha256": "d48bf847d4041b92c86ff09b5334e8766deaafa25f675c6b47de1a1a2cd9a4ce"
+      }
+    },
+    "fixture_before": {
+      "revision": "rev_4374238b9ae531e935ecf63166d174cb06deb0133bafc00011ad0bec83bdcdd0",
+      "sha256": "feac15c345134185ae6b5a8846606a5753aaed249c13bddd74c5dd7c49f43fb3"
+    },
+    "fixture_final": {
+      "revision": "rev_dc179a0b462b4482c876ad84e492bfa049971dacd67b8f51126b942db80c00ac",
+      "sha256": "feac15c345134185ae6b5a8846606a5753aaed249c13bddd74c5dd7c49f43fb3"
+    },
+    "original_document_restored": true,
+    "new_jobs": 0,
+    "temporary_principal_disabled": true,
+    "temporary_active_credentials": 0,
+    "sqlite_quick_check": "ok"
+  },
+  "artifacts": {
+    "directory": "/tmp/opencut-package-history-20261022",
+    "source_identity": "/tmp/opencut-package-history-20261022/source-identity.json",
+    "package": "/tmp/opencut-package-history-20261022/selected-project.opencut",
+    "package_checksums": "/tmp/opencut-package-history-20261022/package-SHA256SUMS",
+    "new_plugin_bundle": "/tmp/opencut-package-history-20261022/plugins",
+    "plugin_global_install": false
+  },
+  "open_limits": [
+    "Native system save/open panel clicks require manual confirmation; browser tests stub only path/cancel boundary while real package/history actions run.",
+    "Native package chooser currently macOS-only. No zip format or new renderer acceptance added.",
+    "Full keyboard/screen-reader, other browsers/touch, rare permission/network/process faults, exact composition covers and whole-project delivery remain open."
+  ]
+}

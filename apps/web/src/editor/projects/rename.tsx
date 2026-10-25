@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Pencil } from "lucide-react";
 import type { ProjectRef } from "../model/types";
-import { useWorkspace } from "../workspace/context";
+import { useEditingWorkspace as useWorkspace } from "../workspace/context";
 import { t, useLocale } from "../shared/locale";
 import { Button, Field, Modal } from "../shared/ui";
 
@@ -16,14 +16,16 @@ export function RenameProject({
   menu?: boolean;
 }) {
   useLocale();
-  const { controller, busy, historical } = useWorkspace();
+  const { controller, busy, historical, scene } = useWorkspace();
   const [open, setOpen] = useState(false),
     [name, setName] = useState(project.name),
     [pending, setPending] = useState(false);
+  const [captured, setCaptured] = useState<ProjectRef | null>(null);
   const save = async () => {
     setPending(true);
     try {
-      await controller.renameProject(project, name.trim());
+      if (!captured) throw new Error("Open the rename dialog again.");
+      await controller.renameProject(captured, name.trim());
       setOpen(false);
     } catch (error) {
       controller.report(error);
@@ -37,10 +39,13 @@ export function RenameProject({
         className={compact ? "project-rename" : "project-name"}
         aria-label={t("Rename project {name}", { name: project.name })}
         disabled={
-          busy || (!!historical && !compact) || project.format !== "visual"
+          busy || (!!historical && !compact) ||
+          (scene?.head.project.id === project.id && !!scene.historical) ||
+          project.format !== "editor"
         }
         icon={compact ? <Pencil size={14} /> : undefined}
         onClick={() => {
+          setCaptured(structuredClone(project));
           setName(project.name);
           setOpen(true);
         }}
