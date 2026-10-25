@@ -1,18 +1,11 @@
 {
   "format": "opencut.delivery-status.v1",
-  "source_commit": "48a7e20f4726af779e668797dd40753d26a884e3",
   "delivery_ready": false,
   "scope": "Local CLI/HTTP/MCP/SDK service and Web editor; GPUI shell is not an integrated editor.",
   "public_contract": {
-    "operations": 186,
+    "operations": 184,
     "domains": 12,
     "authority": "Rust generated declaration"
-  },
-  "verified_behavior": {
-    "scope": "One 42-second 1080p/25fps project: initial playback, playback after edit, playback after causal Undo.",
-    "presented_frames_per_run": 1050,
-    "runs": 3,
-    "does_not_establish": "Arbitrary projects, zero stalls, physical audio, complete export or cross-platform qualification."
   },
   "known_limits": [
     "Full export pixels/throughput, arbitrary edit/seek/fault, large/long media, device/browser and physical output matrices are incomplete.",
@@ -31,28 +24,53 @@
   ],
   "excluded": [
     "Marketing/blog/cloud-account/SEO pages",
-    "Whole-document in-memory BFCache restoration"
+    "Whole-document in-memory BFCache restoration",
+    "Classic browser-project recovery and its public analyze/import operations"
   ],
   "validation": {
-    "repository_checks": "passed",
     "architecture": {
+      "status": "passed",
       "modules": 22,
-      "exceptions": 0
+      "exceptions": 0,
+      "unit_tests": 14
     },
-    "python_boundary_and_package_tests": 42,
-    "web_and_sdk_boundary_tests": 33,
-    "web_boundary_files": 303,
-    "sdk_boundary_files": 306,
+    "contract_boundaries": "passed",
+    "package_local_tests": 7,
+    "web_project_tests": 38,
+    "web_boundary_tests": 23,
+    "sdk_tests": 42,
+    "web_boundary_files": 259,
+    "sdk_boundary_files": 262,
+    "native_subtitle_tests": 4,
+    "native_retired_operation_tests": 1,
     "generated_contracts": "current",
     "canonical_contract": {
-      "operations": 186,
+      "operations": 184,
       "domains": 12,
-      "binary_sha256": "18cd5553d5b022c9e220e29b857420d4773d11914e1744b9ab0aeab9d74185d3"
+      "binary_sha256": "b735d02a0ae517e27842cacd775cd05be2a97babb55cfb775afb94d793207f8e"
     },
-    "documentation_links": "passed",
-    "python_syntax": "passed",
     "current_service_ready": true,
-    "current_source_editor_http_status": 200,
+    "served_entry_assets_match_build": true,
+    "retired_operations_http_status": 404,
+    "retained_project": {
+      "count": 1,
+      "revision": "rev_fd54efe9ed3ff49855e11f97f27b5b689820672ac05cd3a3efa0865d88b49b7a",
+      "revisions": 51,
+      "transactions": 50,
+      "history_content_unchanged": true
+    },
+    "project_home_and_continue_editing_browser": "passed",
     "full_product_acceptance": "not_run"
+  },
+  "source_base_commit": "d00a2d3de93139849308ee4a9ddbe8daa6dcd5c6",
+  "source_state": "working_tree",
+  "verified_at": "2026-10-25T06:53:51.372444+00:00",
+  "prior_playback_evidence": {
+    "scope": "One 42-second 1080p/25fps project: initial playback, playback after edit, playback after causal Undo.",
+    "presented_frames_per_run": 1050,
+    "runs": 3,
+    "does_not_establish": "Arbitrary projects, zero stalls, physical audio, complete export or cross-platform qualification.",
+    "source_commit": "48a7e20f4726af779e668797dd40753d26a884e3",
+    "binary_sha256": "18cd5553d5b022c9e220e29b857420d4773d11914e1744b9ab0aeab9d74185d3"
   }
 }

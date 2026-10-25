@@ -13,8 +13,6 @@ import { verifyCaptionVideo } from "./verify-caption-video.mjs";
 import { verifyTextTimeline } from "./verify-text-timeline.mjs";
 import { verifyTextTransform } from "./verify-text-transform.mjs";
 import { verifyTextStyle } from "./verify-text-style.mjs";
-import { verifyClassic } from "./verify-classic.mjs";
-import { verifyClassicSubtitleStyle } from "./verify-classic-subtitle-style.mjs";
 import { verifyEditableSubtitles } from "./verify-editable-subtitles.mjs";
 import { verifyAsrEditable } from "./verify-asr-editable.mjs";
 import { verifyDerivedFont } from "./verify-derived-font.mjs";
@@ -26,7 +24,6 @@ import { verifyBlend } from "./verify-blend.mjs";
 import { verifyGraphic } from "./verify-graphic.mjs";
 import { verifyProjectPackage } from "./verify-package-current.mjs";
 import { verifyPackageOutput } from "./verify-package-output.mjs";
-import { verifyClassicGraphic } from "./verify-classic-graphic.mjs";
 import { verifyGraphicOutput } from "./verify-graphic-output.mjs";
 import { verifyBookmarkLifecycle } from "./verify-bookmark-lifecycle.mjs";
 import { verifyText } from "./verify-text.mjs";
@@ -91,8 +88,6 @@ const suites = new Map([
   ["text-timeline-resume", (...args) => verifyTextTimeline(...args, { resumeFromCheckpoint: true })],
   ["text-transform", verifyTextTransform],
   ["text-style", verifyTextStyle],
-  ["classic", verifyClassic],
-  ["classic-subtitle-style", verifyClassicSubtitleStyle],
   ["editable-subtitles", verifyEditableSubtitles],
   ["asr-editable", verifyAsrEditable],
   ["ass-import", verifyAssImport],
@@ -105,7 +100,6 @@ const suites = new Map([
   ["graphic-output", verifyGraphicOutput],
   ["package", verifyProjectPackage],
   ["package-output", verifyPackageOutput],
-  ["classic-graphic", verifyClassicGraphic],
   ["derived-font", verifyDerivedFont],
   ["derived-font-offline", (...args) => verifyDerivedFont(...args, { offlineOnly: true })],
   ["video", verifyVideo],

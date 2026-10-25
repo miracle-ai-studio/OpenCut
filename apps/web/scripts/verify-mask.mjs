@@ -8,7 +8,6 @@ import { promisify } from "node:util";
 import { MASK_ORACLE_MODEL, makeMaskReference } from "./mask-oracle.mjs";
 import { BLEND_ORACLE_MODEL, compositeClassicRgba8 } from "./blend-oracle.mjs";
 import { installScenePreviewWitness } from "./verify-scene-preview.mjs";
-import { verifyClassicMaskImport } from "./verify-classic-mask.mjs";
 
 const execute = promisify(execFile), sha = bytes => createHash("sha256").update(bytes).digest("hex");
 const read = async file => JSON.parse(await fs.readFile(file, "utf8"));
@@ -469,7 +468,6 @@ export async function verifyMask(browser, endpoint, directory, check, { outputsO
       expected_manifest_sha256: exported.package.manifest_sha256, idempotency_key: `d2b-restore-${facts.restored_id}` });
     expect((await inspect(facts.restored_id, restored.revision)).project).toEqual({ ...facts.before_history.project, id: facts.restored_id });
     facts.package = { exported, restored, all_masks_preserved: true };
-    facts.classic_import = await verifyClassicMaskImport(page, endpoint, directory, tool); await save();
     // Work was confined to a copy: the actual source head and entire project stay intact.
     expect(await inspect(source.project_id)).toEqual(facts.original); facts.original_preserved = true;
     facts.pageerrors = errors; expect(errors).toEqual([]);

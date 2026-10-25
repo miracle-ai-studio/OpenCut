@@ -321,8 +321,6 @@ mod recovery_authorization_tests {
             "opencut_project_package_export",
             "opencut_project_package_inspect",
             "opencut_project_package_import",
-            "opencut_classic_analyze",
-            "opencut_classic_import",
         ] {
             assert_eq!(
                 authorize_tool(&restricted, name).unwrap_err().code,

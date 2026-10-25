@@ -1031,63 +1031,6 @@ dialog::backdrop {
   gap: 8px;
   margin-top: 24px;
 }
-.classic-recovery {
-  width: 680px;
-}
-.classic-recovery .field {
-  margin: 16px 0;
-}
-.classic-recovery select,
-.classic-recovery input[type="file"] {
-  max-width: 100%;
-  width: 100%;
-}
-.recovery-bridge {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border);
-}
-.recovery-bridge ol {
-  padding-left: 22px;
-  line-height: 1.7;
-}
-.recovery-bookmark {
-  display: inline-block;
-  color: var(--accent);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 2px 8px;
-  cursor: grab;
-}
-.recovery-progress {
-  margin: 16px 0;
-}
-.recovery-progress progress {
-  width: 100%;
-  accent-color: var(--accent);
-}
-.recovery-findings {
-  max-height: 240px;
-  overflow: auto;
-  padding-left: 20px;
-  overflow-wrap: anywhere;
-}
-.recovery-findings li {
-  margin: 8px 0;
-}
-.recovery-findings p {
-  color: var(--muted);
-  margin: 4px 0;
-}
-.recovery-consent {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 14px;
-}
-.recovery-consent input {
-  margin-top: 3px;
-  flex-shrink: 0;
-}
 .file-button {
   display: inline-flex;
   align-items: center;

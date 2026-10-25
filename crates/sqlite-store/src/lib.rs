@@ -19,7 +19,6 @@ mod sqlite_audio_preview_recovery;
 mod sqlite_audit;
 mod sqlite_branching;
 mod sqlite_captions;
-mod sqlite_classic_restore;
 mod sqlite_collaboration;
 mod sqlite_denials;
 mod sqlite_edit_control;

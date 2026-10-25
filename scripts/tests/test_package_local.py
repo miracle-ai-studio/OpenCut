@@ -174,10 +174,10 @@ class PackageContentsTest(unittest.TestCase):
             (source / 'assets').mkdir(parents=True)
             (source / 'index.html').write_text('<title>Editor</title>')
             (source / 'assets/editor.js').write_text('export const editor = true')
-            (source / 'assets/classic-exporter.js').write_text('void (() => {})()')
+            (source / 'assets/editor-worker.js').write_text('void (() => {})()')
             package.copy_web_build(source, root / 'web')
             self.assertTrue((root / 'web/assets/editor.js').is_file())
-            self.assertEqual((root / 'web/assets/classic-exporter.js').read_bytes(), (source / 'assets/classic-exporter.js').read_bytes())
+            self.assertEqual((root / 'web/assets/editor-worker.js').read_bytes(), (source / 'assets/editor-worker.js').read_bytes())
             (source / 'unreviewed.js').write_text('private')
             with self.assertRaisesRegex(ValueError, 'Unreviewed Web'):
                 package.copy_web_build(source, root / 'unreviewed')

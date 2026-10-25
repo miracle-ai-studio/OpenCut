@@ -13,6 +13,8 @@ CLI 通用入口为 `call <operation> --input <request.json>` 和 `domain <domai
 
 `opencut_project_create/list/inspect` 管理工程，`opencut_edit_plan/apply` 处理原子编辑。读取固定 revision 后构造计划，提交携带 expected revision 与稳定幂等键。冲突或未知结果不能触发隐式重写请求、换 revision 或另一条后备写入口。
 
+外部工程通过普通工程包导入、导出及其历史恢复合同交换。旧浏览器 Classic 工程恢复不再提供公开操作或专用页面；已保存的工程仍由正常工程合同读取。
+
 素材、字体与资源通过授权引用和版本绑定。上传采用有界顺序分块及完整哈希，导入成功后消费其发布结果。上传完成不等于已把素材放入时间线。
 
 `opencut_render_submit` 统一提交渲染，`opencut_job_view` 读取公开任务。事件、取消及产物操作从相应领域发现。已接受、已排队或生产进度均不证明成功、可下载或已经输出到设备。

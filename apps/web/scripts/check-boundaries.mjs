@@ -211,107 +211,13 @@ export function violations(file, code) {
     ts.forEachChild(node, inspectRecoveryStorage);
   }
   if (recoveryStorage) inspectRecoveryStorage(source);
-  // One historical input adapter may read existing Classic stores. It is not
-  // a modern project authority: creation/upgrade aborts, writes are forbidden,
-  // and every database transaction must be explicitly readonly.
-  let legacyReadOnly = file === "editor/workspace/classic/source.ts";
-  function inspectLegacy(node) {
-    // Computed calls can hide storage mutations from the named-method rules.
-    if (
-      ts.isCallExpression(node) &&
-      ts.isElementAccessExpression(node.expression)
-    )
-      legacyReadOnly = false;
-    if (ts.isPropertyAccessExpression(node)) {
-      const name = node.name.text;
-      // IDBOpenDBRequest.transaction is a value. The only allowed use is
-      // aborting the implicit creation transaction when an old DB is absent.
-      const abortAbsentCreation =
-        name === "transaction" &&
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === "open" &&
-        ts.isPropertyAccessExpression(node.parent) &&
-        node.parent.name.text === "abort" &&
-        ts.isCallExpression(node.parent.parent);
-      if (
-        [
-          "createObjectStore",
-          "deleteObjectStore",
-          "deleteDatabase",
-          "put",
-          "add",
-          "clear",
-          "delete",
-          "createWritable",
-          "removeEntry",
-        ].includes(name)
-      )
-        legacyReadOnly = false;
-      if (
-        ["transaction", "getDirectoryHandle", "getFileHandle"].includes(name) &&
-        !ts.isCallExpression(node.parent) &&
-        !abortAbsentCreation
-      )
-        legacyReadOnly = false;
-    }
-    if (ts.isIdentifier(node) && node.text === "indexedDB") {
-      const property = node.parent,
-        call = property.parent;
-      if (
-        !ts.isTypeOfExpression(property) &&
-        (!ts.isPropertyAccessExpression(property) ||
-          property.name.text !== "open" ||
-          !ts.isCallExpression(call) ||
-          call.arguments.length !== 1)
-      )
-        legacyReadOnly = false;
-    }
-    if (
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression)
-    ) {
-      const name = node.expression.name.text;
-      if (
-        [
-          "createObjectStore",
-          "deleteObjectStore",
-          "deleteDatabase",
-          "put",
-          "add",
-          "clear",
-          "delete",
-          "createWritable",
-          "removeEntry",
-        ].includes(name)
-      )
-        legacyReadOnly = false;
-      if (
-        name === "transaction" &&
-        (!node.arguments[1] ||
-          !ts.isStringLiteralLike(node.arguments[1]) ||
-          node.arguments[1].text !== "readonly")
-      )
-        legacyReadOnly = false;
-      if (
-        ["getDirectoryHandle", "getFileHandle"].includes(name) &&
-        node.arguments.length !== 1
-      )
-        legacyReadOnly = false;
-    }
-    ts.forEachChild(node, inspectLegacy);
-  }
-  if (legacyReadOnly) {
-    inspectLegacy(source);
-    if (/\b(?:localStorage|sessionStorage|EditorCore)\b/.test(code)) legacyReadOnly = false;
-  }
   if (
     /\b(?:indexedDB|EditorCore|localStorage|sessionStorage)\b/.test(code) &&
     !(file === "editor/shared/locale.ts" && !/\bsessionStorage\b/.test(code)) &&
     !allowedViews &&
     !uiPreferenceStorage &&
     !feedbackStorage &&
-    !recoveryStorage &&
-    !legacyReadOnly
+    !recoveryStorage
   )
     errors.push(`${file}: browser-owned project or credential persistence`);
   return errors;

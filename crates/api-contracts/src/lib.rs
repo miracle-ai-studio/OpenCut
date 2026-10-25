@@ -14,7 +14,6 @@ pub mod blend_frame_plan;
 pub mod branching;
 pub mod capabilities;
 pub mod caption_frame_plan;
-pub mod classic_restore;
 pub mod collaboration;
 pub mod context;
 pub mod edit_control;

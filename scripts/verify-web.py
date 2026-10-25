@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/release/opencut')
     parser.add_argument('--web-root', type=Path, help='Verify a supplied built Web tree, including extracted bundles')
-    parser.add_argument('--suite', choices=['full', 'media-fps', 'file-import', 'file-import-boundaries', 'scene-preview', 'scene-preview-hd', 'scene-preview-performance', 'scene-preview-continuity', 'scene-preview-retirement', 'scene-preview-identity', 'scene-preview-revocation', 'scene-preview-acoustics', 'scene-preview-acoustics-hot', 'scene-preview-acoustics-gap', 'scene-preview-gain', 'scene-preview-gain-paused', 'scene-preview-seek', 'scene-preview-seek-pause', 'scene-preview-pcm', 'scene-preview-pcm-terminal', 'scene-preview-boundaries', 'project-covers', 'classic-recovery', 'classic', 'classic-subtitle-style', 'feedback', 'editor', 'text', 'canvas-text', 'canvas-text-blur', 'bookmark-lifecycle', 'font-browser', 'font-browser-offline', 'captions', 'asr', 'caption-video', 'text-timeline', 'text-timeline-resume', 'text-transform', 'text-style', 'editable-subtitles', 'asr-editable', 'ass-import', 'graphic', 'mask', 'scene-stack', 'parallel-editing', 'blend', 'blend-outputs', 'graphic-output', 'package', 'package-output', 'classic-graphic', 'derived-font', 'derived-font-offline', 'text-layout', 'video', 'classic-audio', 'performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
+    parser.add_argument('--suite', choices=['full', 'media-fps', 'file-import', 'file-import-boundaries', 'scene-preview', 'scene-preview-hd', 'scene-preview-performance', 'scene-preview-continuity', 'scene-preview-retirement', 'scene-preview-identity', 'scene-preview-revocation', 'scene-preview-acoustics', 'scene-preview-acoustics-hot', 'scene-preview-acoustics-gap', 'scene-preview-gain', 'scene-preview-gain-paused', 'scene-preview-seek', 'scene-preview-seek-pause', 'scene-preview-pcm', 'scene-preview-pcm-terminal', 'scene-preview-boundaries', 'project-covers', 'feedback', 'editor', 'text', 'canvas-text', 'canvas-text-blur', 'bookmark-lifecycle', 'font-browser', 'font-browser-offline', 'captions', 'asr', 'caption-video', 'text-timeline', 'text-timeline-resume', 'text-transform', 'text-style', 'editable-subtitles', 'asr-editable', 'ass-import', 'graphic', 'mask', 'scene-stack', 'parallel-editing', 'blend', 'blend-outputs', 'graphic-output', 'package', 'package-output', 'derived-font', 'derived-font-offline', 'text-layout', 'video', 'classic-audio', 'performance', 'source-art', 'edit-recovery'], action='append', help='Run full acceptance by default; repeat to share one workspace across targeted flows')
     parser.add_argument('--report', type=Path, help='Write the result outside the temporary workspace')
     parser.add_argument('--keep-workspace', action='store_true', help='Retain a successful synthetic workspace for inspection; failures are always retained')
     parser.add_argument('--reuse-workspace', type=Path, help='Reuse retained synthetic media/database; an existing workspace is never automatically removed')
@@ -40,8 +40,8 @@ def main():
                 executable = os.environ.get(prefix + '_' + suffix)
                 if not executable or not Path(executable).is_absolute() or not os.access(executable, os.X_OK):
                     parser.error('Native observation requires explicit executable: ' + prefix + '_' + suffix)
-    if len(suites) > 1 and any(suite in {'full', 'classic-recovery'} for suite in suites):
-        parser.error('full and classic-recovery must run alone')
+    if len(suites) > 1 and 'full' in suites:
+        parser.error('full must run alone')
     binary = args.binary.resolve()
     if args.web_root:
         web = args.web_root.resolve()
@@ -49,7 +49,7 @@ def main():
         subprocess.run(['npm', 'run', 'build', '--prefix', str(ROOT / 'apps/web')], check=True)
         web = ROOT / 'apps/web/dist'
     workspace = args.reuse_workspace.resolve() if args.reuse_workspace else Path(tempfile.mkdtemp(prefix='opencut-web-'))
-    no_media_fixture = all(s in {'edit-recovery', 'package', 'package-output', 'classic-graphic'} for s in suites)
+    no_media_fixture = all(s in {'edit-recovery', 'package', 'package-output'} for s in suites)
     if args.reuse_workspace:
         required = ['workspace.sqlite'] + ([] if no_media_fixture else ['sample.mp4', 'sample.wav'])
         if any(suite in suites for suite in ['full', 'editor', 'file-import', 'file-import-boundaries']):
@@ -165,7 +165,7 @@ def main():
         state = cli('start', '--listen', '127.0.0.1:0', '--web-root', str(web))
         assert state['ready'] and state['web_url']
         env = {**run_env, 'OPENCUT_WEB_URL': state['endpoint'], 'OPENCUT_WEB_WORKSPACE': str(workspace), 'OPENCUT_WEB_BINARY': str(binary), 'OPENCUT_WEB_ROOT': str(web), 'OPENCUT_WEB_SUITE': ','.join(suites)}
-        verifier = {'full': 'verify-browser.mjs', 'classic-recovery': 'verify-classic-ui.mjs'}.get(suites[0], 'verify-suite.mjs')
+        verifier = {'full': 'verify-browser.mjs'}.get(suites[0], 'verify-suite.mjs')
         result = subprocess.run(['node', str(ROOT / 'apps/web/scripts' / verifier)], env=env, cwd=ROOT, timeout=600)
         report_path = workspace / 'browser-report.json'
         report = json.loads(report_path.read_text())

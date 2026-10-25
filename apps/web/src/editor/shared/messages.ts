@@ -1,4 +1,11 @@
 export const zh: Record<string, string> = {
+  "Try a different project name.": "试试其他项目名称。",
+  "Import project package": "导入工程包",
+  "Recently modified": "最近修改",
+  "Recently edited": "最近编辑",
+  "Continue editing": "继续剪辑",
+  "{count} media items": "{count} 个素材",
+  "Showing all {count} projects": "已显示全部 {count} 个项目",
   "Checking volume editing availability…": "正在检查音量编辑能力…",
   "Invalid volume draft": "音量草稿无效",
   "Volume is controlled by keyframes": "音量由关键帧控制",
@@ -1529,60 +1536,6 @@ export const zh: Record<string, string> = {
   "Project view changed before saving.": "保存前工程视图已切换。",
   "Choose a conflict-free history plan for the current revision.":
     "请选择当前修订下没有冲突的历史计划。",
-  "Recover Classic projects": "恢复 Classic 旧工程",
-  "Recover old browser projects into this workspace. Original databases and media are preserved.":
-    "将旧浏览器工程恢复到当前工作区，原数据库和媒体会完整保留。",
-  "Looking for Classic projects…": "正在查找旧工程…",
-  "Classic project on this site": "当前站点的 Classic 旧工程",
-  "Choose an old project": "选择旧工程",
-  Damaged: "已损坏",
-  "No Classic projects were found on this origin.":
-    "当前站点未发现 Classic 旧工程。",
-  "Projects saved on another site": "保存在其他站点的工程",
-  "Drag the exporter link to your bookmarks bar.":
-    "将导出链接拖到浏览器书签栏。",
-  "Export old Classic projects": "导出旧 Classic 工程",
-  "Open the original Classic site and run that bookmark to export a recovery bundle containing its projects and media.":
-    "打开原 Classic 站点，运行此书签，导出包含工程与媒体的恢复包。",
-  "Return here and choose the exported recovery bundle.":
-    "返回此处，选择导出的恢复包。",
-  "The exporter runs only on the old site, reads locally and leaves the original data intact. A project JSON alone cannot recover missing media.":
-    "导出脚本在旧站点本机运行，只读原数据。单独的工程 JSON 无法恢复缺失媒体。",
-  "Classic recovery bundle": "Classic 恢复包",
-  "Recovery bundle from {origin}": "恢复包来源：{origin}",
-  "media files": "个媒体文件",
-  "Checking original files…": "正在检查原文件…",
-  "Uploading original files…": "正在上传原文件…",
-  "Preparing recovered media…": "正在准备恢复媒体…",
-  "Review recovery": "检查恢复结果",
-  "Publishing recovered project…": "正在保存恢复工程…",
-  "Recovery upload progress": "恢复上传进度",
-  "{count} original library files are ready.":
-    "已准备好 {count} 个原媒体库文件。",
-  "This project contains unsupported content. Nothing has been published; the original is preserved.":
-    "工程包含尚不支持的内容，未发布恢复工程，原工程已保留。",
-  "Review what will be excluded from the new project. Original data stays available.":
-    "请检查新工程中不包含的内容，原数据仍可使用。",
-  "{count} recovery differences": "{count} 项恢复差异",
-  "I accept these listed differences for the recovered copy.":
-    "我接受恢复副本中列出的这些差异。",
-  "Recovery complete. Your old project remains untouched.":
-    "恢复完成，旧工程保持不变。",
-  "Pause recovery": "暂停恢复",
-  "Recovery paused. Uploaded files remain ready to resume.":
-    "恢复已暂停，已上传的文件保留，可继续恢复。",
-  "Open recovered project": "打开恢复工程",
-  "Retry recovery": "重试恢复",
-  "Prepare recovery": "准备恢复",
-  "Recover project": "恢复工程",
-  "Old-site exporter is unavailable": "旧站点导出脚本暂不可用",
-  "Recovery completed. Temporary preparation cleanup remains pending.":
-    "恢复已完成，临时准备文件仍待清理。",
-  "Choose a Classic recovery bundle containing media, not a standalone project JSON":
-    "请选择包含媒体的 Classic 恢复包，不能使用单独的工程 JSON。",
-  "Recovered project is no longer available": "恢复工程已不再可用",
-  "Classic project changed during recovery. Retry to capture its current data.":
-    "恢复期间旧工程发生变化，请重试以读取当前数据。",
   "Cover of {name}": "{name} 的封面",
   "Cover unavailable": "封面暂不可用",
   "Cover unavailable. Refresh it from the project menu.":

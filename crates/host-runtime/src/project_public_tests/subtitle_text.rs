@@ -1,16 +1,45 @@
 use super::*;
 fn seed(host: &mut Automation) -> Value {
-    let source = json!({"version":31,"metadata":{"id":"classic","name":"Subtitles"},"settings":{"fps":{"numerator":25,"denominator":1},"canvasSize":{"width":64,"height":48},"background":{"type":"color","color":"#000000"}},"scenes":[{"id":"main","name":"Main","isMain":true,"bookmarks":[],"tracks":{"main":{"id":"video","name":"Video","type":"video","elements":[]},"overlay":[{"id":"subs","name":"Subtitles","type":"text","elements":[{"id":"cue","name":"Cue","type":"text","startTime":0,"duration":120000,"trimStart":0,"trimEnd":0,"params":{"content":"Hello\nworld","fontFamily":"Lato","fontSize":12,"color":"#ffffff","textAlign":"center"}}]}],"audio":[]}}]});
-    let input = json!({"content":source.to_string(),"target_project_id":"p","media_mappings":[],"font_mappings":[]});
-    let analysis = data(host.call("opencut_classic_analyze", input.clone()));
-    assert_eq!(analysis["blockers"], json!([]));
-    let losses: Vec<_> = analysis["losses"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|f| f["code"].clone())
-        .collect();
-    data(host.call("opencut_classic_import",json!({"source":input,"expected_source_content_id":analysis["source_content_id"],"idempotency_key":"seed-subtitles","accepted_loss_codes":losses})));
+    create(host);
+    let snapshot = host
+        .app
+        .inspect_scene_project(&InspectProject {
+            project_id: "p".into(),
+            revision: None,
+        })
+        .unwrap();
+    let mut sequence = snapshot.project.sequences[0].clone();
+    let main = sequence
+        .tracks
+        .iter_mut()
+        .find(|track| track.id == sequence.main_track_id)
+        .unwrap();
+    main.id = "video".into();
+    sequence.main_track_id = "video".into();
+    sequence.tracks.push(serde_json::from_value(json!({
+        "id":"subs","name":"Subtitles","kind":"text","enabled":true,"muted":false,"locked":false,
+        "opacity":1.0,"gain":{"unit":"decibels","value":0.0},"channels":[],"elements":[{
+            "id":"cue","name":"Cue","enabled":true,
+            "timeline_range":{"start":{"ticks":"0","timebase":1},"duration":{"ticks":"1","timebase":1}},
+            "source_span":{"profile":"classic_trimmed","trim_start":{"ticks":"0","timebase":1},"trim_end":{"ticks":"0","timebase":1},"source_duration":null},
+            "channels":[],"visual":{"profile":"classic_canvas_v31","opacity":1.0,"blend_mode":"normal","effects":[],"masks":[],
+                "transform":{"position_x_px":0.0,"position_y_px":0.0,"scale_x":1.0,"scale_y":1.0,"rotation_degrees":0.0}},
+            "content":{"kind":"text","text":{"content":"Hello\nworld","font":{"kind":"unresolved_family","family":"Lato","policy":{"mode":"strict"}},
+                "font_weight":"normal","font_style":"normal","decoration":"none","align":"center","font_size":{"unit":"classic_height90","value":12.0},
+                "color":{"encoding":"srgb","red":1.0,"green":1.0,"blue":1.0,"alpha":1.0},"letter_spacing_px":0.0,"line_height_multiplier":1.2,
+                "background":{"enabled":false,"color":{"encoding":"srgb","red":0.0,"green":0.0,"blue":0.0,"alpha":1.0},
+                    "corner_radius_percent":0.0,"padding_x_at_size15":0.0,"padding_y_at_size15":0.0,"offset_x_px":0.0,"offset_y_px":0.0}}}
+        }]
+    })).unwrap());
+    host.app
+        .apply_scene_project(&ApplySceneProject {
+            project_id: "p".into(),
+            expected_revision: snapshot.revision,
+            idempotency_key: "seed-subtitles".into(),
+            label: "Seed subtitle test".into(),
+            operations: vec![ProjectOperation::SequencePut { sequence }],
+        })
+        .unwrap();
     inspect(host)
 }
 fn plan(snapshot: &Value) -> Value {
@@ -165,7 +194,9 @@ fn classic_ass_registered_plan_keeps_fixed_head_and_requires_current_edit_author
     let content = "[Script Info]\nWrapStyle: 0\n[V4 Styles]\nFormat: Name,Fontname,Fontsize,BackColour,Bold,BorderStyle\nStyle: Default,Lato,24,&H80000000,0,3\n[Events]\nFormat: Start,End,Style,Effect,Text\nDialogue: 0:00:00.0,0:00:01.0,Default,scroll,{\\move(0,0,1,1)}Hello\n";
     let request = json!({"project_id":"p","expected_revision":before["revision"],"sequence_id":"main","idempotency_key":"classic-ass-plan","track":{"kind":"new","track_id":"classic-ass-text"},"content":content,"font_bindings":[],"observations":null});
     let result = data(host.call("opencut_subtitle_classic_ass_plan", request.clone()));
-    assert_eq!(result["schema_version"], 1);
+    assert_eq!(result["revision"], before["revision"]);
+    assert_eq!(result["width"], 64);
+    assert_eq!(result["height"], 48);
     assert!(result["transaction"].is_null());
     assert_eq!(result["cues"], json!([]));
     assert_eq!(

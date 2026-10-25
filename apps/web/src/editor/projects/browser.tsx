@@ -1,8 +1,8 @@
+import "./browser.css";
 import { Select } from "../shared/controls";
 import { RestoreProjectPackage } from "../workspace/scene/package";
 import { RenameProject } from "./rename";
 import { ProjectCover } from "./cover";
-import { MigrateClassic } from "./migrate";
 import { DeleteProjects } from "./delete";
 import { t, useLocale } from "../shared/locale";
 import { useEntrance } from "../shared/motion";
@@ -26,6 +26,9 @@ import {
   Info,
   Ellipsis,
   Trash2,
+  Upload,
+  ArrowRight,
+  CircleCheck,
 } from "lucide-react";
 import { useWorkspace } from "../workspace/context";
 import { Button, Empty, Field, Modal } from "../shared/ui";
@@ -48,7 +51,6 @@ export function ProjectBrowser({
     [copying, setCopying] = useState(false),
     [info, setInfo] = useState<ProjectRef | null>(null);
   const [deleting, setDeleting] = useState<ProjectRef[] | null>(null);
-  const [recovering, setRecovering] = useState(false);
   const [restoringPackage, setRestoringPackage] = useState(false);
   const [coverRefresh, setCoverRefresh] = useState<Record<string, number>>({});
   const anchor = useRef<string | null>(null),
@@ -116,22 +118,26 @@ export function ProjectBrowser({
     }
   };
   return (
-    <main ref={ref} className="project-browser">
+    <main ref={ref} className="project-browser project-home">
       <div className="browser-heading">
         <div>
-          <span className="eyebrow">{t("YOUR WORKSPACE")}</span>
-          <h1>{t("Projects")}</h1>
+          <div className="project-home-title">
+            <h1>{t("Projects")}</h1>
+            <span className="project-count">{projects.length}</span>
+          </div>
           <p>{t("Pick up where you left off.")}</p>
         </div>
         <div className="toolbar">
           <Button
+            className="project-import"
+            icon={<Upload size={17} />}
             disabled={connection !== "connected"}
-            onClick={() => setRecovering(true)}
+            onClick={() => setRestoringPackage(true)}
           >
-            {t("Recover Classic projects")}
+            {t("Import project package")}
           </Button>
-          <Button disabled={connection !== "connected"} onClick={() => setRestoringPackage(true)}>{t("Restore project package")}</Button>
           <Button
+            className="project-refresh"
             aria-label={t("Refresh projects")}
             disabled={connection !== "connected"}
             icon={<RefreshCw size={16} />}
@@ -169,7 +175,7 @@ export function ProjectBrowser({
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
           >
-            <option value="modified">{t("Modified")}</option>
+            <option value="modified">{t("Recently modified")}</option>
             <option value="created">{t("Created")}</option>
             <option value="name">{t("Name")}</option>
             <option value="duration">{t("Duration")}</option>
@@ -194,67 +200,70 @@ export function ProjectBrowser({
           />
         </div>
       </div>
-      {connection === "connected" && projects.length > 0 && (
-        <div className="project-selection-toolbar">
-          <label>
-            <input
-              ref={selectAll}
-              type="checkbox"
-              aria-label={t("Select all projects")}
-              checked={allSelected}
-              onChange={(e) =>
-                setSelected((ids) =>
-                  e.target.checked
-                    ? [...new Set([...ids, ...filtered.map((p) => p.id)])]
-                    : ids.filter((id) => !filtered.some((p) => p.id === id)),
-                )
-              }
-            />
-            {t("Select all")}
-          </label>
-          {chosen.length > 0 ? (
-            <>
-              <span>{t("{count} selected", { count: chosen.length })}</span>
-              <Button
-                icon={<Copy size={14} />}
-                disabled={
-                  copying ||
-                  chosen.length > 64 ||
-                  chosen.some((p) => p.format === "editor" || p.format === "readonly")
+      {connection === "connected" &&
+        (projects.length > 1 || chosen.length > 0) && (
+          <div className="project-selection-toolbar">
+            <label>
+              <input
+                ref={selectAll}
+                type="checkbox"
+                aria-label={t("Select all projects")}
+                checked={allSelected}
+                onChange={(e) =>
+                  setSelected((ids) =>
+                    e.target.checked
+                      ? [...new Set([...ids, ...filtered.map((p) => p.id)])]
+                      : ids.filter((id) => !filtered.some((p) => p.id === id)),
+                  )
                 }
-                onClick={() => void duplicate(chosen)}
-              >
-                {t("Duplicate selected")}
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelected([]);
-                  anchor.current = null;
-                }}
-              >
-                {t("Clear selection")}
-              </Button>
-              <Button
-                className="danger"
-                icon={<Trash2 size={14} />}
-                disabled={copying || chosen.length > 64}
-                onClick={() => setDeleting(chosen)}
-              >
-                {t("Delete selected")}
-              </Button>
-              {chosen.length > 64 && (
-                <span className="muted">
-                  {t("Select between 1 and 64 projects.")}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="muted">
-              {t("{count} projects", { count: projects.length })}
-            </span>
-          )}
-        </div>
-      )}
+              />
+              {t("Select all")}
+            </label>
+            {chosen.length > 0 ? (
+              <>
+                <span>{t("{count} selected", { count: chosen.length })}</span>
+                <Button
+                  icon={<Copy size={14} />}
+                  disabled={
+                    copying ||
+                    chosen.length > 64 ||
+                    chosen.some(
+                      (p) => p.format === "editor" || p.format === "readonly",
+                    )
+                  }
+                  onClick={() => void duplicate(chosen)}
+                >
+                  {t("Duplicate selected")}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSelected([]);
+                    anchor.current = null;
+                  }}
+                >
+                  {t("Clear selection")}
+                </Button>
+                <Button
+                  className="danger"
+                  icon={<Trash2 size={14} />}
+                  disabled={copying || chosen.length > 64}
+                  onClick={() => setDeleting(chosen)}
+                >
+                  {t("Delete selected")}
+                </Button>
+                {chosen.length > 64 && (
+                  <span className="muted">
+                    {t("Select between 1 and 64 projects.")}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="muted">
+                {t("{count} projects", { count: projects.length })}
+              </span>
+            )}
+          </div>
+        )}
       {connection !== "connected" ? (
         <Empty title={t("Opening your workspace")}>
           <FolderOpen size={36} />
@@ -267,7 +276,7 @@ export function ProjectBrowser({
         </Empty>
       ) : (
         <div
-          className={`project-grid ${layout === "list" ? "project-list" : ""}`}
+          className={`project-grid ${layout === "list" ? "project-list" : filtered.length === 1 ? "project-featured" : ""}`}
         >
           {filtered.map((project) => (
             <div
@@ -316,25 +325,61 @@ export function ProjectBrowser({
                     .catch((error) => controller.report(error))
                 }
               >
-                <ProjectCover
-                  api={api}
-                  project={project}
-                  refresh={coverRefresh[project.id] ?? 0}
-                />
-                <strong>
-                  {project.name}
-                  {project.format === "readonly" && <small> · {t("Read-only")}</small>}
-                </strong>
-                <span className="project-metadata">
-                  <span>
-                    {project.library
-                      ? formatTime(project.library.duration)
-                      : t("Open project")}
+                <div className="project-artwork">
+                  <ProjectCover
+                    api={api}
+                    project={project}
+                    refresh={coverRefresh[project.id] ?? 0}
+                  />
+                  {project.library && (
+                    <span className="project-duration">
+                      {formatTime(project.library.duration)}
+                    </span>
+                  )}
+                </div>
+                <div className="project-card-content">
+                  <span className="project-card-eyebrow">
+                    {t("Recently edited")}
                   </span>
-                  <span>
+                  <strong>
+                    {project.name}
+                    {project.format === "readonly" && (
+                      <small> · {t("Read-only")}</small>
+                    )}
+                  </strong>
+                  {project.library && (
+                    <span className="project-specification">
+                      {project.library.width} × {project.library.height}
+                      <span aria-hidden="true"> · </span>
+                      {Number(
+                        (
+                          project.library.fps.numerator /
+                          project.library.fps.denominator
+                        ).toFixed(3),
+                      )}{" "}
+                      {t("fps")}
+                      <span aria-hidden="true"> · </span>
+                      {t("{count} media items", {
+                        count: project.library.asset_count,
+                      })}
+                    </span>
+                  )}
+                  <span className="project-modified">
                     {projectDate(project.library?.modified_at, language)}
                   </span>
-                </span>
+                  <span className="project-saved">
+                    <CircleCheck size={16} />
+                    {t(project.format === "editor" ? "Saved" : "Read-only")}
+                  </span>
+                  <span className="project-continue">
+                    {t(
+                      project.format === "editor"
+                        ? "Continue editing"
+                        : "Open project",
+                    )}
+                    <ArrowRight size={17} />
+                  </span>
+                </div>
               </button>
               <details
                 className="project-actions"
@@ -357,7 +402,10 @@ export function ProjectBrowser({
                   <RenameProject project={project} compact menu />
                   <Button
                     icon={<RefreshCw size={14} />}
-                    disabled={project.format === "editor" || project.format === "readonly"}
+                    disabled={
+                      project.format === "editor" ||
+                      project.format === "readonly"
+                    }
                     onClick={(e) => {
                       e.currentTarget
                         .closest("details")
@@ -373,7 +421,11 @@ export function ProjectBrowser({
                   </Button>
                   <Button
                     icon={<Copy size={14} />}
-                    disabled={copying || project.format === "editor" || project.format === "readonly"}
+                    disabled={
+                      copying ||
+                      project.format === "editor" ||
+                      project.format === "readonly"
+                    }
                     onClick={(e) => {
                       e.currentTarget
                         .closest("details")
@@ -417,21 +469,32 @@ export function ProjectBrowser({
                 search ? "No results found" : "Start with a blank canvas",
               )}
             >
-              {t("Create your first project, then bring in your media.")}
+              {t(
+                search
+                  ? "Try a different project name."
+                  : "Create your first project, then bring in your media.",
+              )}
             </Empty>
           )}
         </div>
       )}
-      {restoringPackage && <RestoreProjectPackage onClose={() => setRestoringPackage(false)} onOpen={onOpen} />}
+      {connection === "connected" && filtered.length > 0 && (
+        <p className="project-results">
+          {t("Showing all {count} projects", { count: filtered.length })}
+        </p>
+      )}
+      {restoringPackage && (
+        <RestoreProjectPackage
+          onClose={() => setRestoringPackage(false)}
+          onOpen={onOpen}
+        />
+      )}
       {info && <ProjectInfo project={info} onClose={() => setInfo(null)} />}
       {deleting && (
         <DeleteProjects projects={deleting} onClose={() => setDeleting(null)} />
       )}
       {creating && (
-        <Modal
-          title={t("New project")}
-          onClose={() => setCreating(false)}
-        >
+        <Modal title={t("New project")} onClose={() => setCreating(false)}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -483,9 +546,6 @@ export function ProjectBrowser({
             </div>
           </form>
         </Modal>
-      )}
-      {recovering && (
-        <MigrateClassic onClose={() => setRecovering(false)} onOpen={onOpen} />
       )}
     </main>
   );

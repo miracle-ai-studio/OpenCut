@@ -448,13 +448,6 @@ impl Automation {
                 )?)
             }
 
-            "opencut_classic_analyze" => {
-                to_value(self.app.classic_restore_analyze(&parse(arguments)?)?)
-            }
-            "opencut_classic_import" => {
-                to_value(self.app.classic_restore_import(&parse(arguments)?)?)
-            }
-
             "opencut_subtitle_export" => to_value(self.app.export_subtitles(&parse(arguments)?)?),
             "opencut_audio_preview_capability" => {
                 let _: EmptyInput = parse(arguments)?;

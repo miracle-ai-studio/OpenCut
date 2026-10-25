@@ -85,33 +85,10 @@ test("audio output shares only the pure mastering bridge, never the renderer hos
     ["editor/workspace/scene/audio-preview-mastering.ts", "../../../../../../packages/classic-audio-renderer/host/runner.mjs"],
   ]) assert.equal(violations(file, `import x from "${name}";`).length, 1);
 });
-test("legacy browser input adapter is readonly and cannot acquire modern persistence authority", () => {
-  const file = "editor/workspace/classic/source.ts";
-  assert.deepEqual(
-    violations(
-      file,
-      'const open=indexedDB.open(name); open.transaction?.abort(); db.transaction("projects","readonly"); root.getDirectoryHandle(name); dir.getFileHandle(id);',
-    ),
-    [],
-  );
-  for (const code of [
-    "indexedDB.open(name, 2);",
-    "indexedDB.deleteDatabase(name);",
-    'indexedDB.open(name); db.transaction("projects","readwrite");',
-    "indexedDB.open(name); store.put(data);",
-    'indexedDB.open(name); store["put"](data);',
-    'indexedDB.open(name); const method="clear"; store[method]();',
-    "indexedDB.open(name); const write=store.put; write(data);",
-    'indexedDB.open(name); const tx=db.transaction; tx("projects","readwrite");',
-    "indexedDB.open(name); store.delete(id);",
-    "indexedDB.open(name); dir.getFileHandle(id,{create:true});",
-    'indexedDB.open(name); localStorage.setItem("project",data);',
-  ])
-    assert.equal(violations(file, code).length, 1, code);
-  assert.equal(
-    violations("editor/projects/reader.ts", "indexedDB.open(name);").length,
-    1,
-  );
+test("retired recovery paths have no browser storage exception", () => {
+  for (const file of ["editor/workspace/classic/source.ts", "editor/projects/reader.ts"])
+    for (const code of ['indexedDB.open(name);', 'indexedDB.deleteDatabase(name);', 'localStorage.setItem("project", value);'])
+      assert.ok(violations(file, code).length > 0);
 });
 
 test("rejects aliases, require and type-only cross-feature imports", () => {

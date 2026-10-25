@@ -126,7 +126,7 @@ function Workspace() {
   ).length;
   const activeExports = jobs.filter(job => isUserExport(job) && ["queued","running"].includes(job.state)).length;
   return (
-    <div className={`editor-app ${activeEditor ? "editor-workbench-app" : ""}`}>
+    <div className={`editor-app ${activeEditor ? "editor-workbench-app" : browsing ? "project-library-app" : ""}`}>
       <WorkspaceShortcutActions active={activeEditor} />
       <header className="editor-header">
         <div className="header-start">
@@ -168,10 +168,11 @@ function Workspace() {
               </span>
             </>
           ) : (
-            <strong className="wordmark">{t("OpenCut")}</strong>
+            <><strong className="wordmark">{t("OpenCut")}</strong><span className="library-header-tab">{t("Projects")}</span></>
           )}
         </div>
         <div className="toolbar editor-header-actions">
+          {browsing && <span className={`library-connection ${connection === "connected" ? "connected" : ""}`}><i aria-hidden="true" />{t(connection === "connected" ? "Local workspace" : "Connecting…")}</span>}
           <details className="workbench-header-menu"><summary aria-label={t("Workspace menu")} title={t("Workspace menu")}><MoreHorizontal size={19} /></summary><div className="workbench-popover">
             <LocalSessionButton />
             

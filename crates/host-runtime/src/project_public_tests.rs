@@ -6,7 +6,6 @@ use opencut_editor_application::access::{PrincipalPolicy, ProjectAction, Project
 use serde_json::json;
 use std::collections::BTreeMap;
 mod blend;
-mod classic_import;
 mod clipboard;
 mod export_video;
 mod font_derived;
@@ -669,3 +668,16 @@ fn frame_tool_dispatch_preserves_fixed_scope_and_requires_read_and_jobs() {
 }
 
 mod package;
+
+#[test]
+fn retired_classic_recovery_has_no_registry_or_dispatch_entry() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut host = Automation::open(directory.path().join("workspace.sqlite")).unwrap();
+    let before = create(&mut host);
+    for name in ["opencut_classic_analyze", "opencut_classic_import"] {
+        assert!(!opencut_api_contracts::tools::is_tool(name));
+        assert!(opencut_api_contracts::tools::tool_spec(name).is_none());
+        error(host.call(name, json!({})), "NOT_FOUND");
+    }
+    assert_eq!(inspect(&mut host), before);
+}
