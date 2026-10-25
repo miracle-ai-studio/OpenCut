@@ -1,0 +1,58 @@
+{
+  "format": "opencut.delivery-status.v1",
+  "source_commit": "48a7e20f4726af779e668797dd40753d26a884e3",
+  "delivery_ready": false,
+  "scope": "Local CLI/HTTP/MCP/SDK service and Web editor; GPUI shell is not an integrated editor.",
+  "public_contract": {
+    "operations": 186,
+    "domains": 12,
+    "authority": "Rust generated declaration"
+  },
+  "verified_behavior": {
+    "scope": "One 42-second 1080p/25fps project: initial playback, playback after edit, playback after causal Undo.",
+    "presented_frames_per_run": 1050,
+    "runs": 3,
+    "does_not_establish": "Arbitrary projects, zero stalls, physical audio, complete export or cross-platform qualification."
+  },
+  "known_limits": [
+    "Full export pixels/throughput, arbitrary edit/seek/fault, large/long media, device/browser and physical output matrices are incomplete.",
+    "Full long-source playback has unresolved process-tree RSS overage; macOS resource control is monitored termination.",
+    "An initial post-master PCM residual is unresolved; preview/export sampling-profile equivalence is not fully qualified.",
+    "Per-font/platform/budget/FPS and optional sound-provider failure/cancellation qualification are incomplete.",
+    "Package dependency/branch-merge/fault, signing/installation/upgrade and cross-platform delivery qualification are incomplete.",
+    "Some composed compatibility/acceptance verifiers retain obsolete interface assumptions and are not current acceptance proof."
+  ],
+  "manual_acceptance": [
+    "Finder and cross-app file transport",
+    "System IME and input focus",
+    "Physical audio and device switching",
+    "Human picture/speech/subtitle review",
+    "Native save dialog and window focus"
+  ],
+  "excluded": [
+    "Marketing/blog/cloud-account/SEO pages",
+    "Whole-document in-memory BFCache restoration"
+  ],
+  "validation": {
+    "repository_checks": "passed",
+    "architecture": {
+      "modules": 22,
+      "exceptions": 0
+    },
+    "python_boundary_and_package_tests": 42,
+    "web_and_sdk_boundary_tests": 33,
+    "web_boundary_files": 303,
+    "sdk_boundary_files": 306,
+    "generated_contracts": "current",
+    "canonical_contract": {
+      "operations": 186,
+      "domains": 12,
+      "binary_sha256": "18cd5553d5b022c9e220e29b857420d4773d11914e1744b9ab0aeab9d74185d3"
+    },
+    "documentation_links": "passed",
+    "python_syntax": "passed",
+    "current_service_ready": true,
+    "current_source_editor_http_status": 200,
+    "full_product_acceptance": "not_run"
+  }
+}

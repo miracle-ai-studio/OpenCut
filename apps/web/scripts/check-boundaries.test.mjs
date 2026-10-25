@@ -272,6 +272,19 @@ test("visual preview imports only the bounded execution bridge", () => {
     assert.equal(violations(file, `import x from "${name}";`).length,1);
 });
 
+test("presentation worker imports only GPU realm and presenter functions", () => {
+  const file = "editor/workspace/scene/surface-worker.ts";
+  const renderer = "../../../../../../packages/classic-visual-renderer/src/index.mjs";
+  assert.deepEqual(violations(file, `import {openGpuRealm, closeGpuRealm, gpuSurfacePresenter} from "${renderer}";`), []);
+  for (const code of [
+    `import {renderClassicFrame} from "${renderer}";`,
+    `import * as renderer from "${renderer}";`,
+    `export * from "${renderer}";`,
+    `import("${renderer}");`,
+    'import x from "../../../../../../packages/classic-visual-renderer/host/runner.mjs";',
+  ]) assert.ok(violations(file, code).length > 0, code);
+});
+
 test("shortcut and curve preferences are pinned to exact adapters and literal keys", () => {
   for (const [file,key,historical] of [["editor/shortcuts/persistence.ts","opencut.shortcuts","opencut.shortcuts.v1"],["editor/workspace/scene/keyframes/presets.ts","opencut.curve-presets","opencut.curve-presets.v1"]]) {
     assert.deepEqual(violations(file, `window.localStorage.getItem("${key}"); window.localStorage.setItem("${key}", value); window.localStorage.getItem("${historical}");`), []);

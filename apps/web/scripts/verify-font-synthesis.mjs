@@ -1,3 +1,4 @@
+import { classicReference } from "./classic-reference.mjs";
 import { editorSnapshot } from "./project-inspection.mjs";
 // Root owns browser/service lifecycle. This module only defines the scenario;
 // importing it does not acquire fonts, copy fixtures, submit jobs or launch tools.
@@ -55,7 +56,7 @@ async function candidateIdentity(browser) {
     chrome_sha256: sha(await fs.readFile(chrome)),
     chrome_version: browser.version(),
     scenario_sha256: sha(await fs.readFile(fileURLToPath(import.meta.url))),
-    classic_loader_sha256: sha(await fs.readFile(path.join(repository, "tmp/opencut-classic/apps/web/src/fonts/google-fonts.ts"))),
+    classic_loader_sha256: sha(await fs.readFile(classicReference("apps/web/src/fonts/google-fonts.ts"))),
   };
 }
 // This only maps immutable reviewed source URLs into the existing external

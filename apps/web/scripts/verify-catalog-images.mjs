@@ -1,3 +1,4 @@
+import { classicReference } from "./classic-reference.mjs";
 import { editorSnapshot } from "./project-inspection.mjs";
 /** F24: one retained-project catalog/search/acquisition/placement/alpha/export flow. */
 import { chromium, expect } from "@playwright/test";
@@ -295,10 +296,7 @@ const rasterize = async (spec) =>
 const referenceSources = [];
 for (const s of sourceDefinitions)
   referenceSources.push({ ...s, raw: Uint8Array.from(await rasterize(s)) });
-const ellipsePath = path.join(
-    args.root,
-    "tmp/opencut-classic/apps/web/src/graphics/definitions/ellipse.ts",
-  ),
+const ellipsePath = classicReference("apps/web/src/graphics/definitions/ellipse.ts"),
   ellipseSource = await fs.readFile(ellipsePath, "utf8"),
   ellipseJs = ts.transpileModule(ellipseSource, {
     compilerOptions: {

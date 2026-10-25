@@ -34,7 +34,7 @@ def instantiate(source, notice, spec, lock):
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--tree',type=Path,required=True);ap.add_argument('--cache',type=Path,required=True);ap.add_argument('--evidence',type=Path,required=True);ap.add_argument('--workers',type=int,default=16);ap.add_argument('--derive-workers',type=int,default=4);a=ap.parse_args();assert 1<=a.derive_workers<=8 and 1<=a.workers<=48
-    tree=json.loads(a.tree.read_text());assert not tree.get('truncated');paths={e['path']:e for e in tree['tree']};atlas=json.loads((g.ROOT/'tmp/opencut-classic/apps/web/public/fonts/font-atlas.json').read_text())['fonts'];families={g.norm(f):f for f in atlas};static=json.loads((g.OUT/'browser_catalog.json').read_text());present={(f['family'],x['weight'],x['style']) for f in static['families'] for x in f['faces'] if x['catalog_id']};jobs=[]
+    tree=json.loads(a.tree.read_text());assert not tree.get('truncated');paths={e['path']:e for e in tree['tree']};atlas=json.loads((g.ROOT/'apps/web/public/assets/classic-font-atlas/font-atlas.json').read_text())['fonts'];families={g.norm(f):f for f in atlas};static=json.loads((g.OUT/'browser_catalog.json').read_text());present={(f['family'],x['weight'],x['style']) for f in static['families'] for x in f['faces'] if x['catalog_id']};jobs=[]
     for p in sorted(paths):
         parts=p.split('/')
         if len(parts)!=3 or parts[0] not in ('ofl','apache') or parts[1] not in families or '[' not in p or not p.endswith('.ttf'):continue

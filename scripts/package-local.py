@@ -291,7 +291,7 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
         shutil.copy2(ROOT / 'scripts/distribution/doctor.py', host / 'doctor.py')
         shutil.copy2(ROOT / 'scripts/distribution/runtime_bundle.py', host / 'runtime_bundle.py')
         shutil.copy2(ROOT / 'scripts/distribution/agent-config.py', host / 'agent-config.py')
-        shutil.copy2(ROOT / 'design/architecture/local-distribution.md', host / 'README.md')
+        shutil.copy2(ROOT / 'docs/package.md', host / 'README.md')
         with (host / 'README.md').open('a') as readme:
             readme.write('\n\nExplicit local runtime delivery\n\n'
                          'bin/libexec contains the complete Classic renderer modules and locked Node dependencies, '
@@ -303,11 +303,7 @@ def package_with_web_root(output, skip_build, supplied_binary, web_root, runtime
                          'Run doctor.py after extracting elsewhere. Explicit OPENCUT runtime environment variables take priority. '
                          'FFmpeg/ffprobe remain external. No runtime is downloaded automatically. '
                          'Catalog downloads remain disabled unless OPENCUT_ALLOW_PUBLIC_RESOURCE_DOWNLOAD=1; no source archive, user media or font cache is bundled.\n')
-        for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
-                         'storage-governance-contract.md', 'cas-gc-contract.md',
-                         'storage-admission-contract.md', 'database-control-admission.md',
-                         'native-child-write-contract.md', 'artifact-retention-contract.md']:
-            shutil.copy2(ROOT / 'design/architecture' / contract, host / contract)
+        shutil.copy2(ROOT / 'docs/status.json', host / 'status.json')
         (host / 'sdk').mkdir()
         shutil.copy2(stage / packed, host / 'sdk' / packed)
         shutil.copy2(rust_archive, host / 'sdk' / rust_archive.name)

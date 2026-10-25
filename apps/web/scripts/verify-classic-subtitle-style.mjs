@@ -1,3 +1,4 @@
+import { classicReference } from "./classic-reference.mjs";
 import { editorSnapshot } from "./project-inspection.mjs";
 import { expect } from "@playwright/test";
 import fs from "node:fs/promises";
@@ -88,7 +89,7 @@ export async function verifyClassicSubtitleStyle(browser, endpoint, directory, c
       const authority = await editorSnapshot(tool("opencut_project_inspect", { project_id: sourceProject, revision: null }));
       const font = authority.project.fonts.find(item => item.family === "Lato" && item.weight === 700 && item.style === "italic");
       expect(font, "Reuse the already imported Lato bold italic face").toBeTruthy();
-      const builderPath = new URL("../../../tmp/opencut-classic/apps/web/src/subtitles/build-subtitle-text-element.ts", import.meta.url);
+      const builderPath = classicReference("apps/web/src/subtitles/build-subtitle-text-element.ts");
       const builderSource = await fs.readFile(builderPath, "utf8");
       expect(builderSource).toContain('name: `Caption ${index + 1}`');
       expect(builderSource).toContain('"background.paddingX":');

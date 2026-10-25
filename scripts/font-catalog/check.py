@@ -53,7 +53,7 @@ def historical_inspector_module(data):
 BASE=ROOT/'crates/editor-application/src/font_import'
 catalog=json.loads((BASE/'browser_catalog.json').read_text())
 report=json.loads((BASE/'catalog_source_report.json').read_text())
-atlas_bytes=(ROOT/'tmp/opencut-classic/apps/web/public/fonts/font-atlas.json').read_bytes()
+atlas_bytes=(ROOT/'apps/web/public/assets/classic-font-atlas/font-atlas.json').read_bytes()
 atlas=json.loads(atlas_bytes)['fonts']
 assert catalog['classic_atlas_sha256']==hashlib.sha256(atlas_bytes).hexdigest()
 assert catalog['classic_family_count']==len(atlas)==1920

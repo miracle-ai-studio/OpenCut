@@ -1,3 +1,4 @@
+import { classicReference } from "./classic-reference.mjs";
 import { editorSnapshot } from "./project-inspection.mjs";
 /** One pinned font cohort, one composite, durable original requests. */
 import { chromium, expect } from "@playwright/test";
@@ -596,8 +597,8 @@ try {
         "timeline/defaults",
         "subtitles/build-subtitle-text-element",
       ]) {
-        const rel = "tmp/opencut-classic/apps/web/src/" + id + ".ts",
-          raw = await fs.readFile(rel, "utf8");
+        const rel = "apps/web/src/" + id + ".ts",
+          raw = await fs.readFile(classicReference(rel), "utf8");
         modules[id] = ts.transpileModule(raw, {
           compilerOptions: {
             module: ts.ModuleKind.CommonJS,

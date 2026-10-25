@@ -117,7 +117,7 @@ def select_records(records):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--tree',type=Path,required=True);ap.add_argument('--cache',type=Path,required=True);ap.add_argument('--workers',type=int,default=16);args=ap.parse_args()
     if ROOT==args.cache or ROOT in args.cache.parents: raise SystemExit('cache must be outside checkout')
-    atlas_path=ROOT/'tmp/opencut-classic/apps/web/public/fonts/font-atlas.json';atlas_bytes=atlas_path.read_bytes();atlas=json.loads(atlas_bytes)['fonts']; tree=json.loads(args.tree.read_text()); assert not tree.get('truncated')
+    atlas_path=ROOT/'apps/web/public/assets/classic-font-atlas/font-atlas.json';atlas_bytes=atlas_path.read_bytes();atlas=json.loads(atlas_bytes)['fonts']; tree=json.loads(args.tree.read_text()); assert not tree.get('truncated')
     paths={x['path']:x for x in tree['tree']};jobs=static_jobs(atlas,paths)
     records=[];failures=[]
     def pin(job):

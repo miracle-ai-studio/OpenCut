@@ -6,9 +6,9 @@ target/
 .env
 .env.*
 !.env.example
-docs/
 .opencut/
 __pycache__/
 
 # moon runtime cache
 .moon/cache/
+.pnpm-store/

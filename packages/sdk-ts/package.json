@@ -1,7 +1,7 @@
 {
   "name": "@opencut/sdk",
   "version": "0.1.0",
-  "description": "Typed client for the OpenCut v1 automation API",
+  "description": "Typed client for the OpenCut automation API",
   "license": "MIT",
   "type": "module",
   "engines": { "node": ">=22" },

@@ -15,6 +15,9 @@ const bridges = new Map([
   // Existing reviewed Web execution adapter (also gated by apps/web/scripts/
   // check-boundaries.mjs): public browser renderer only, no native host imports.
   ["apps/web/src/editor/workspace/scene/visual-preview-renderer.ts",new Set(["packages/classic-visual-renderer/src/index"])],
+  // The presentation worker owns only the public GPU realm/presenter; frame
+  // preparation stays in the bounded preview adapter. Native host paths remain forbidden.
+  ["apps/web/src/editor/workspace/scene/surface-worker.ts",new Set(["packages/classic-visual-renderer/src/index"])],
 ]);
 // Historical generator lives under src but is a build entry, never a runtime dependency.
 const buildOnly = "apps/web/src/editor/generate-contracts.mjs";
@@ -49,7 +52,15 @@ export function violations(file, code, dependencies = new Set()) {
     if (isTestOnlySource(resolved)) return fail("Runtime source cannot import test-only code");
     if (stem(resolved) === stem(buildOnly)) return fail("Runtime source cannot import the contract build entry");
     if (resolved.startsWith(owner+"/")) return;
-    if (bridges.get(file)?.has(stem(resolved))) return;
+    if (bridges.get(file)?.has(stem(resolved))) {
+      if (file === "apps/web/src/editor/workspace/scene/surface-worker.ts") {
+        const bindings = ts.isImportDeclaration(node) && node.importClause?.namedBindings;
+        if (!bindings || !ts.isNamedImports(bindings) || node.importClause.name ||
+            bindings.elements.some(item => !["openGpuRealm", "closeGpuRealm", "gpuSurfacePresenter"].includes((item.propertyName ?? item.name).text)))
+          fail("Presentation worker may import only GPU realm and presenter functions");
+      }
+      return;
+    }
     fail(`Cross-component implementation import: ${specifier}`);
   };
   const source=ts.createSourceFile(file,code,ts.ScriptTarget.Latest,true);

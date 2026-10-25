@@ -208,11 +208,9 @@ def verify(archive, mcp_sdk_root=None, component=None):
         assert file_sha256(binary) == manifest['binary_sha256']
         runner.checkpoint('archive, doctor and delivered binary identity verified',
                           archive_sha256=expected, binary_sha256=manifest['binary_sha256'])
-        for contract in ['project-plugin-contract.md', 'denial-audit-contract.md',
-                         'storage-governance-contract.md', 'cas-gc-contract.md',
-                         'storage-admission-contract.md', 'database-control-admission.md',
-                         'native-child-write-contract.md', 'artifact-retention-contract.md']:
-            assert (bundle / contract).is_file(), f'Missing packaged contract: {contract}'
+        assert (bundle / 'README.md').is_file(), 'Missing packaged operating instructions'
+        status = json.loads((bundle / 'status.json').read_text())
+        assert isinstance(status['delivery_ready'], bool), 'Missing delivery qualification'
         schema = json.loads(run([binary, '--json', 'system', 'schema']))['data']
         editorial = json.loads(run(['python3', ROOT / 'scripts/verify-editorial.py', '--binary', binary,
             '--agent-config-generator', bundle / 'agent-config.py', '--artifacts-dir', evidence / 'editorial']))

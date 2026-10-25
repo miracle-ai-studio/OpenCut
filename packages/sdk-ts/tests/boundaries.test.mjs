@@ -41,6 +41,19 @@ test("TS boundary rejects alias traversal and excluded runtime imports",()=>{
  assert.equal(violations(web,'import "node:fs";',new Set(["node:fs"])).length,1);
 });
 
+test("presentation worker cannot acquire frame execution or native host APIs", () => {
+ const file = "apps/web/src/editor/workspace/scene/surface-worker.ts";
+ const renderer = "../../../../../../packages/classic-visual-renderer/src/index.mjs";
+ assert.deepEqual(violations(file, `import {openGpuRealm, closeGpuRealm, gpuSurfacePresenter} from "${renderer}";`), []);
+ for (const code of [
+   `import {renderClassicFrame} from "${renderer}";`,
+   `import * as renderer from "${renderer}";`,
+   `export * from "${renderer}";`,
+   `import("${renderer}");`,
+   'import x from "../../../../../../packages/classic-visual-renderer/host/runner.mjs";',
+ ]) assert.ok(violations(file, code).length > 0, code);
+});
+
 test("TS boundary narrowly classifies test helper filenames",()=>{
  for (const file of ["fixture.ts", "editor/media-fixture.ts", "editor/audio-wav-fixture.ts", "editor/a.test.tsx", "editor/a.spec.mjs", "editor/media-fixture"]) assert.equal(isTestOnlySource(file),true,file);
  for (const file of ["editor/fixtures.ts", "editor/fixture-loader.ts", "editor/media-fixture-loader.ts", "editor/fixture/product.ts", "editor/media-fixture/product.ts"]) assert.equal(isTestOnlySource(file),false,file);

@@ -23,7 +23,7 @@ export function violations(file, code) {
   const errors = [],
     source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true);
   const owner = file.split("/")[1];
-  const check = (name) => {
+  const check = (name, node) => {
     if (typeof name !== "string") {
       errors.push(`${file}: dynamic module path`);
       return;
@@ -36,8 +36,14 @@ export function violations(file, code) {
       )
     )
       errors.push(`${file}: renderer imports require the pure mastering bridge`);
-    if (name.includes("classic-visual-renderer") && !(file === "editor/workspace/scene/visual-preview-renderer.ts" && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs"))
+    if (name.includes("classic-visual-renderer") && !(["editor/workspace/scene/visual-preview-renderer.ts", "editor/workspace/scene/surface-worker.ts"].includes(file) && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs"))
       errors.push(`${file}: visual renderer imports require the bounded preview bridge`);
+    if (file === "editor/workspace/scene/surface-worker.ts" && name === "../../../../../../packages/classic-visual-renderer/src/index.mjs") {
+      const bindings = node && ts.isImportDeclaration(node) && node.importClause?.namedBindings;
+      if (!bindings || !ts.isNamedImports(bindings) || node.importClause.name ||
+          bindings.elements.some(item => !["openGpuRealm", "closeGpuRealm", "gpuSurfacePresenter"].includes((item.propertyName ?? item.name).text)))
+        errors.push(`${file}: presentation worker may import only GPU realm and presenter functions`);
+    }
     if (!name.startsWith(".") && !/^(?:@|#)\//.test(name)) return;
     const target = path.posix.normalize(
       /^(?:@|#)\//.test(name)
@@ -72,7 +78,7 @@ export function violations(file, code) {
       node.moduleSpecifier &&
       ts.isStringLiteralLike(node.moduleSpecifier)
     )
-      check(node.moduleSpecifier.text);
+      check(node.moduleSpecifier.text, node);
     if (
       ts.isCallExpression(node) &&
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
