@@ -36,22 +36,13 @@
       "unit_tests": 14
     },
     "contract_boundaries": "passed",
-    "web_preview_tests": 95,
-    "visual_renderer_tests": 204,
-    "web_boundary_pcm_continuity_timing_tests": 48,
-    "native_preview_cache_tests": 8,
-    "native_cache_receipt_tests": 1,
-    "native_preparation_time_tests": 2,
-    "native_stream_tests": 7,
-    "native_picture_context_lifecycle_tests": 1,
-    "native_font_tests": 4,
     "web_production_build": "passed",
     "cli_release_build": "passed",
     "generated_contracts": "current",
     "canonical_contract": {
       "operations": 184,
       "domains": 12,
-      "binary_sha256": "740f4c4221cfbe0d8d4ae6491decb8a1a3e8c585ce4d7653be8e8ab7dcefbbd8"
+      "binary_sha256": "c59a10a95a2f641e45aa57527a651ac491010673c0d64ad777871b54ac2dc110"
     },
     "source_art_configuration": {
       "display_cache_bytes": 67108864,
@@ -61,19 +52,34 @@
     },
     "current_service_ready": true,
     "retained_project": {
-      "head": "rev_5cc31f9ead0b797b14cff32983a5c1c216997d7c11ab27c3b0853208032db173",
+      "head": "rev_64c554a096944b93ac880b89a296e40725815a4e427f3caacd3736709374284b",
       "original_content_restored": true,
-      "original_revisions_preserved": 59,
-      "original_transactions_preserved": 58,
-      "revisions": 61,
-      "transactions": 60,
-      "jobs": 108
+      "original_revisions_preserved": 62,
+      "original_transactions_preserved": 61,
+      "revisions": 64,
+      "transactions": 63,
+      "user_effect_layer_preserved": true
     },
-    "full_product_acceptance": "not_run"
+    "full_product_acceptance": "not_run",
+    "web_interface_tests": 91,
+    "native_project_media_tests": 7,
+    "web_boundary_files": 260,
+    "prior_preview_validation": {
+      "binary_sha256": "740f4c4221cfbe0d8d4ae6491decb8a1a3e8c585ce4d7653be8e8ab7dcefbbd8",
+      "web_preview_tests": 95,
+      "visual_renderer_tests": 204,
+      "web_boundary_pcm_continuity_timing_tests": 48,
+      "native_preview_cache_tests": 8,
+      "native_cache_receipt_tests": 1,
+      "native_preparation_time_tests": 2,
+      "native_stream_tests": 7,
+      "native_picture_context_lifecycle_tests": 1,
+      "native_font_tests": 4
+    }
   },
-  "source_base_commit": "6d8104a01f009c55da0ac5ad9b4b0269ac2c0638",
+  "source_base_commit": "6776aa0b9e0f44e0753a0b284255805267c7569c",
   "source_state": "verified_working_tree",
-  "verified_at": "2026-10-25T11:57:15.640412+00:00",
+  "verified_at": "2026-10-25T14:34:48.068554+00:00",
   "preview_observation": {
     "scope": "Hainan 42-second 1080p/25fps project, native preview540 cached playback: first play after manifest preparation, replay, title edit and replay, seek to 24s and backward to 12s. Draw submissions and device receipts; physical output is separate.",
     "runtime_fingerprint": "be57a8d52c3529d8b03491bfe93e2d2e3800ca20774f834c842cd1092f87fd3a",
@@ -139,6 +145,23 @@
       "passed": false,
       "note": "Existing high quality AVC path is lossy; broad pixel qualification remains open."
     },
-    "does_not_establish": "Arbitrary projects, uncached zero-stall playback, strict pixel equivalence, physical sound/output or cross-platform qualification."
+    "does_not_establish": "Arbitrary projects, uncached zero-stall playback, strict pixel equivalence, physical sound/output or cross-platform qualification.",
+    "binary_sha256": "740f4c4221cfbe0d8d4ae6491decb8a1a3e8c585ce4d7653be8e8ab7dcefbbd8",
+    "candidate_scope": "Prior preview candidate and original Hainan revision; not rerun for the UI/media fix or the user-added effect layer."
+  },
+  "interface_observation": {
+    "tooltips_delay_ms": 2000,
+    "tooltip_scope": "Pointer timer and keyboard tests; overlay escapes clipping and keeps icon buttons accessible.",
+    "timeline_toolbar_height_px": 38,
+    "inspector_collapsed_width_px": 38,
+    "preview_width_before_px": 473.4,
+    "preview_width_after_px": 693.6,
+    "viewport_width_px": 1106,
+    "thumbnail_overlay_buttons": 0,
+    "new_track_target": "Pinned visible rail; drag hit testing and scroll coordinates passed event tests.",
+    "real_browser_media_placement": "Existing Hainan video successfully placed on a new track via placement settings, using the same native media plan/apply path as drag; verification addition undone.",
+    "native_drag_manual_acceptance": "pending",
+    "retired_import_observation": "Absent optional historical registration no longer rejects an authorized fixed project asset. Existing foreign/mismatched records and ungranted media remain rejected.",
+    "language": "Chinese controls, default scene/split/effect labels, artwork labels and permission errors; filenames and saved names preserved."
   }
 }

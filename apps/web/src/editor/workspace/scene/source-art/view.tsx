@@ -61,7 +61,7 @@ export function ArtDisplay({ art, error, loading = false, tiled = false, onRetry
     const details = [error.code, error.message, error.requestId].filter(Boolean).join(" · ");
     return <div className="source-art-failure" data-timeline-no-gesture draggable={false}
       onDragStart={event => { event.preventDefault(); event.stopPropagation(); }}>
-      <small title={message} aria-label="Source artwork unavailable">{message}</small>
+      <small title={message} aria-label={t("Source artwork unavailable")}>{message}</small>
       <div className="source-art-actions" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
         {onRetry && error.retryable && <ArtAction title={message}
           label={t("Retry source artwork for {name}", { name: retryName ?? "" })} onClick={onRetry}>{t("Retry")}</ArtAction>}
@@ -73,16 +73,16 @@ export function ArtDisplay({ art, error, loading = false, tiled = false, onRetry
       </div>
     </div>;
   }
-  if (!art) return loading ? <small role="status" aria-label="Loading source artwork">{t("Waiting for or generating thumbnails/waveforms…")}</small> : null;
-  if (art.kind === "no_frame") return <small aria-label="No source thumbnail at one second">{t("No frame at 1s")}</small>;
+  if (!art) return loading ? <small role="status" aria-label={t("Loading source artwork")}>{t("Waiting for or generating thumbnails/waveforms…")}</small> : null;
+  if (art.kind === "no_frame") return <small aria-label={t("No source thumbnail at one second")}>{t("No frame at 1s")}</small>;
   if (art.kind === "classic_waveform") return <ClassicWaveform art={art} />;
-  if (art.kind === "thumbnail" && tiled) return <div role="img" aria-label="Source thumbnail" style={{
+  if (art.kind === "thumbnail" && tiled) return <div role="img" aria-label={t("Source thumbnail")} style={{
     height: 32, width: "100%", backgroundImage: `url(${art.url})`, backgroundRepeat: "repeat-x", backgroundSize: "57px 32px", pointerEvents: "none" }} />;
-  if (art.kind === "thumbnail") return <img src={art.url} alt="Source thumbnail" draggable={false}
+  if (art.kind === "thumbnail") return <img src={art.url} alt={t("Source thumbnail")} draggable={false}
     style={{ display: "block", width: "100%", height: "100%", maxHeight: 72, objectFit: "contain", pointerEvents: "none" }} />;
   const count = art.amplitudes.length;
   const path = Array.from(art.amplitudes, (peak, i) => peak > 0 ? `M${i * 2 + .5} 24V${24 * (1 - Math.min(1, peak))}` : "").join("");
-  return <svg role="img" aria-label="Source peaks before element gain" width="100%" height="24" viewBox={`0 0 ${Math.max(1, count * 2)} 24`}
+  return <svg role="img" aria-label={t("Source peaks before element gain")} width="100%" height="24" viewBox={`0 0 ${Math.max(1, count * 2)} 24`}
     preserveAspectRatio="none" style={{ display: "block", pointerEvents: "none" }}>
     <path d={path} stroke="currentColor" strokeWidth="1" fill="none" />
   </svg>;

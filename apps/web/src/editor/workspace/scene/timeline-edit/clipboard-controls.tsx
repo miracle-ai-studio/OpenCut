@@ -6,7 +6,7 @@ import { formatTime } from "../../../model/time";
 import { ignoresTimelineShortcut } from "./actions";
 import type { TimelineScope } from "./types";
 import type { ClipboardState, TimelineClipboard } from "./clipboard";
-import { Copy, ClipboardPaste, CopyPlus } from "lucide-react";
+import { Copy, ClipboardPaste, CopyPlus, ClipboardCheck } from "lucide-react";
 
 export type ClipboardControlsProps = {
   controller: TimelineClipboard;
@@ -261,7 +261,7 @@ export function ClipboardControls(props: ClipboardControlsProps) {
         >
           <CopyPlus size={15} /><span className="workbench-action-label">{t("Duplicate elements")}</span>
         </Button>
-        {attempt && <Button onClick={openReview}>{t("Review paste")}</Button>}
+        {attempt && <Button title={t("Review paste")} aria-label={t("Review paste")} icon={<ClipboardCheck size={15}/>} onClick={openReview} />}
         {props.state.buffer && (
           <span>
             {t("{count} elements copied", {

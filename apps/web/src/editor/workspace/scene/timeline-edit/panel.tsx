@@ -7,7 +7,7 @@ import type {
 } from "react";
 import { useShortcutActions } from "../../../shortcuts";
 import { Button } from "../../../shared/ui";
-import { t, useLocale, mediaKindLabel } from "../../../shared/locale";
+import { t, useLocale, mediaKindLabel, elementLabel } from "../../../shared/locale";
 import { readTimelinePreferences, saveTimelinePreferences, flushTimelinePreferences } from "../../../shared/view-preferences";
 import { addTime,subtractTime,compareTime, formatTime, secondsForDisplay } from "../../../model/time";
 import type { Time } from "../../../model/types";
@@ -580,14 +580,14 @@ export function TimelinePanel(props: TimelinePanelProps) {
           <div className="editor-track-header" style={{ width: TRACK_LABEL_WIDTH, flexBasis: TRACK_LABEL_WIDTH }} data-selected={props.selectedId === track.id}>
           <button
             className="editor-track-name"
-            aria-label={`${track.name} · ${mediaKindLabel(track.kind)}`}
+            aria-label={`${elementLabel(track.name)} · ${mediaKindLabel(track.kind)}`}
             aria-description={track.locked ? t("Locked") : undefined}
             data-selected={props.selectedId === track.id}
             aria-pressed={props.selectedId === track.id}
             onClick={() => latest.current.onSelectOther(track.id)}
           >
             <span className="workbench-track-icon">{track.kind === "audio" ? <AudioLines size={15} /> : track.kind === "video" ? <Film size={15} /> : track.kind === "text" || track.kind === "caption" ? <Type size={15} /> : <Shapes size={15} />}</span>
-            <span className="workbench-track-label">{track.name}<span className="workbench-track-kind"> · {mediaKindLabel(track.kind)}</span></span>
+            <span className="workbench-track-label">{elementLabel(track.name)}<span className="workbench-track-kind"> · {mediaKindLabel(track.kind)}</span></span>
             {track.locked ? <LockKeyhole size={12} aria-label={t("Locked")} /> : null}
           </button>
           <div className="editor-track-actions" onPointerDown={(event) => event.stopPropagation()}>
@@ -667,7 +667,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
                       selected.has(keyOf(target)) ||
                       props.selectedId === element.id
                     }
-                    title={`${element.name} · ${formatTime(element.timeline_range.start)}`}
+                    title={`${elementLabel(element.name)} · ${formatTime(element.timeline_range.start)}`}
                     onClick={(event) => {
                       if (
                         props.gainDraftActive ||
@@ -690,7 +690,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
                       root.current?.focus({ preventScroll: true });
                     }}
                   >
-                    {element.name} · {mediaKindLabel(element.content.kind)}
+                    {elementLabel(element.name)} · {mediaKindLabel(element.content.kind)}
                   </button>
                   {props.renderAudioControls(element)}
                   {props.sourceArt &&
@@ -1058,9 +1058,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
             style={{ position: "relative" }}
           >
             {trackRows}
-            {resourceDrop.state?.drag && <div className="resource-new-track" data-resource-new-track="true"
-              style={{marginLeft:TRACK_LABEL_WIDTH,height:trackHeight}}>{t("Drop here to create a track")}</div>}
-            {resourceTarget && <div className="resource-drop-preview" data-invalid={!!resourceTarget.reason} aria-hidden="true"
+            {resourceTarget?.trackId && <div className="resource-drop-preview" data-invalid={!!resourceTarget.reason} aria-hidden="true"
               style={{left:TRACK_LABEL_WIDTH + secondsForDisplay(resourceTarget.at)*scale,
                 top:(resourceTarget.trackId ? props.sequence.tracks.findIndex(track=>track.id===resourceTarget.trackId) : props.sequence.tracks.length)*trackHeight + 3,
                 width:resourceTarget.duration ? secondsForDisplay(resourceTarget.duration)*scale : 28,height:trackHeight-6}}>
@@ -1097,6 +1095,12 @@ export function TimelinePanel(props: TimelinePanelProps) {
           </div>
         </div>
       </div>
+      {resourceDrop.state?.drag && <div className="resource-new-track" data-resource-new-track="true"
+        data-active={!!resourceTarget&&!resourceTarget.trackId&&!resourceTarget.reason}
+        onDragOver={resourceDrop.over} onDrop={resourceDrop.drop} onDragLeave={resourceDrop.leave}>
+        <Plus size={16}/><span>{t("Drop here to create a track")}</span>
+        {resourceTarget&&!resourceTarget.trackId&&<small>{formatTime(resourceTarget.at)}</small>}
+      </div>}
       </div>
       <TimelineScrollNavigator viewport={viewport} controls={viewportId}/>
       <details className="editor-timeline-item-list">
@@ -1122,7 +1126,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
                 root.current?.focus({ preventScroll: true });
               }}
             >
-              {track.name} · {element.name} ·{" "}
+              {elementLabel(track.name)} · {elementLabel(element.name)} ·{" "}
               {formatTime(element.timeline_range.start)}
             </button>
           )),

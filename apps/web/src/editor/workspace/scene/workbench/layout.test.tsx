@@ -106,3 +106,8 @@ it("keeps the user's project panel during a direct proposal", () => {
     screen.getByRole("tab", { name: "Project" }).getAttribute("aria-selected"),
   ).toBe("true");
 });
+it("collapses the inspector while retaining its draft and restores it on expansion",()=>{
+ setup();const input=screen.getByRole("textbox",{name:"Fade duration"});fireEvent.change(input,{target:{value:"1.25"}});
+ fireEvent.click(screen.getByRole("button",{name:"Collapse inspector"}));expect(screen.queryByRole("textbox",{name:"Fade duration"})).toBeNull();
+ fireEvent.click(screen.getByRole("button",{name:"Expand inspector"}));expect(screen.getByRole("textbox",{name:"Fade duration"})).toBe(input);expect((input as HTMLInputElement).value).toBe("1.25");
+});

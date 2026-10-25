@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { preferences, t } from "./locale";
+import { preferences, t, elementLabel } from "./locale";
 describe("presentation preferences", () => {
+  it("localizes generated labels and permission errors while preserving names",()=>{
+    preferences({language:"zh"});expect(elementLabel("海湾 (left)")).toBe("海湾（左段）");expect(elementLabel("My source.mp4")).toBe("My source.mp4");
+    expect(t("The current credential is not authorized for this resource or action")).toContain("无权访问");
+    preferences({language:"en"});expect(elementLabel("海湾 (left)")).toBe("海湾 (left)");
+  });
   it("changes language and theme without storing workspace data", () => {
     preferences({ language: "zh", theme: "light" });
     expect(t("Projects")).toBe("项目");

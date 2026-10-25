@@ -25,7 +25,7 @@ export function ClassicWaveform({ art }: { art: Extract<DisplayArt, { kind: "cla
     return () => { canvas.width = 0; canvas.height = 0; };
   }, [art, theme]);
   return <>{failed && <small aria-label="Source artwork unavailable">{t("Canvas display unavailable")}</small>}
-    <canvas ref={ref} hidden={failed} role="img" aria-label="Classic element waveform" width={art.canvas.width} height={art.canvas.height}
+    <canvas ref={ref} hidden={failed} role="img" aria-label={t("Classic element waveform")} width={art.canvas.width} height={art.canvas.height}
     data-display-profile="classic-waveform-display-v1" data-display-bars={art.bars.length}
     data-burn-bars={art.bars.filter(bar => bar.burn).length} data-temporary-gain={art.temporaryGain ?? "saved"}
     style={{ position: "absolute", bottom: 0, left: art.canvas.css_left, width: art.canvas.css_width, height: art.canvas.css_height, pointerEvents: "none" }} /></>;

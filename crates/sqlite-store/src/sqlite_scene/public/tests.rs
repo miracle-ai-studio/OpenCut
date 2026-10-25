@@ -107,6 +107,33 @@ fn packet_observation_preserves_header_and_scoped_raw_rate_through_binding() {
     }
 }
 
+#[test]
+fn project_asset_packet_rate_allows_retired_import_without_widening_resource_access() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut app = EditorApplication::open(&directory.path().join("workspace.sqlite")).unwrap();
+    let initial = create(&mut app, "p");create(&mut app, "other");
+    let (version, _) = media(&app, directory.path(), "p");
+    let raw: String = app.connection.query_row("SELECT asset_json FROM project_media WHERE media_id='media-fixture'", [], |row| row.get(0)).unwrap();
+    let mut observed: Asset = serde_json::from_str(&raw).unwrap();
+    observed.uri = "opencut-media://media-fixture".into();
+    observed.kind = AssetKind::Video;
+    observed.duration = Some(opencut_contracts::Time {ticks:"4".into(),timebase:1});
+    app.connection.execute("UPDATE project_media SET asset_json=?1 WHERE media_id='media-fixture'", [serde_json::to_string(&observed).unwrap()]).unwrap();
+    restricted(&mut app, "p");
+    let receipt = app.apply_editor_edit(&input(&initial, "media-fixture", &version)).unwrap();
+    // An existing foreign or mismatched observation must never be used.
+    app.connection.execute("DELETE FROM project_media_bindings WHERE media_id='media-fixture'", []).unwrap();
+    app.connection.execute("UPDATE project_media SET project_id='other' WHERE media_id='media-fixture'", []).unwrap();
+    assert_eq!(app.project_asset_packet_rate_scene("p", &receipt.revision, "alias").unwrap_err().code, "NOT_AUTHORIZED");
+    app.connection.execute("UPDATE project_media SET project_id='p' WHERE media_id='media-fixture'", []).unwrap();
+    app.connection.execute("DELETE FROM project_media WHERE media_id='media-fixture'", []).unwrap();
+    assert_eq!(app.project_asset_packet_rate_scene("p", &receipt.revision, "alias").unwrap(), None);
+    assert!(app.project_asset_packet_rate_scene("other", &receipt.revision, "alias").is_err());
+    assert!(app.project_asset_packet_rate_scene("p", &initial.revision, "alias").is_err());
+    assert!(app.project_asset_packet_rate_scene("p", &receipt.revision, "missing").is_err());
+    assert!(app.authorized_project_media_scene("p", "media-fixture", &version).is_err());
+}
+
 fn create(app: &mut EditorApplication, id: &str) -> EditorSnapshot {
     app.create_scene_project(&CreateProjectRequest {
         project: CreateProject {

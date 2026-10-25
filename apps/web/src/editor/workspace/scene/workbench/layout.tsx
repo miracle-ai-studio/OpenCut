@@ -2,14 +2,16 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 import {
   History as HistoryIcon,
   Redo2,
   SlidersHorizontal,
   Undo2,
+  PanelRightClose, PanelRightOpen,
 } from "lucide-react";
 import { useEditingWorkspace as useWorkspace } from "../../context";
 import { Button } from "../../../shared/ui";
@@ -21,6 +23,7 @@ import { ResourceDragProvider } from "./resource-drag";
 import { TransitionInspector } from "./transitions";
 import { PlayerPreviewProvider, WorkbenchPlayer } from "./player-preview";
 import { usePlayerContext } from "./player-context";
+import { Tooltips } from "../../../shared/tooltips";
 
 /** View composition only. Project state and every command stay in Session. */
 export function Workbench(props: {
@@ -28,7 +31,7 @@ export function Workbench(props: {
   project: ReactNode; history: ReactNode; timeline: ReactNode;
   historyRequest?: number;
 }) {
-  return <PlayerPreviewProvider><TransitionProvider><ResourceDragProvider><WorkbenchLayout {...props} /></ResourceDragProvider></TransitionProvider></PlayerPreviewProvider>;
+  return <PlayerPreviewProvider><TransitionProvider><ResourceDragProvider><Tooltips><WorkbenchLayout {...props} /></Tooltips></ResourceDragProvider></TransitionProvider></PlayerPreviewProvider>;
 }
 function WorkbenchLayout({
   resources,
@@ -51,12 +54,17 @@ function WorkbenchLayout({
   const { scene } = useWorkspace();
   const transitions = useTransitions();
   const playerContext = usePlayerContext();
+  const inspectorPanel = useRef<PanelImperativeHandle>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const showInspector = (view: "properties" | "project" | "history") => {
+    inspectorPanel.current?.expand();setCollapsed(false);setTab(view);
+  };
   const [tab, setTab] = useState<"properties" | "project" | "history">(
     "properties",
   );
   useEffect(() => {
     if (!historyRequest) return;
-    setTab("history");
+    showInspector("history");
     document.getElementById("inspector-history-tab")?.focus();
   }, [historyRequest]);
   useEffect(() => {
@@ -66,10 +74,10 @@ function WorkbenchLayout({
     if (scene?.timelineEdit.selection.length) setTab("properties");
   }, [scene?.timelineEdit.selection]);
   useEffect(() => {
-    if (scene?.historyPlan?.review) setTab("history");
+    if (scene?.historyPlan?.review) showInspector("history");
   }, [scene?.historyPlan]);
   return (
-    <WorkbenchView.Provider value={{ showHistory: () => setTab("history"), showProperties: () => setTab("properties") }}>
+    <WorkbenchView.Provider value={{ showHistory: () => showInspector("history"), showProperties: () => showInspector("properties") }}>
       <Group
         orientation="vertical"
         className="workbench-split"
@@ -105,11 +113,18 @@ function WorkbenchLayout({
               className="workbench-separator"
               aria-label={t("Resize inspector panel")}
             />
-            <Panel id="editing-inspector" defaultSize="24%" minSize="250px">
+            <Panel id="editing-inspector" defaultSize="24%" minSize="250px" collapsible collapsedSize="38px" panelRef={inspectorPanel}
+              onResize={size=>setCollapsed(size.inPixels<=40)}>
               <aside
                 className="workbench-inspector workbench-pane"
                 aria-label={t("Inspector")}
+                data-collapsed={collapsed}
               >
+                <Button className="workbench-inspector-toggle" aria-label={t(collapsed?"Expand inspector":"Collapse inspector")}
+                  title={t(collapsed?"Expand inspector":"Collapse inspector")} aria-expanded={!collapsed} aria-controls="workbench-inspector-content"
+                  icon={collapsed?<PanelRightOpen size={16}/>:<PanelRightClose size={16}/>}
+                  onClick={()=>{if(collapsed)inspectorPanel.current?.expand();else inspectorPanel.current?.collapse();setCollapsed(!collapsed);}} />
+                <div className="workbench-inspector-content" id="workbench-inspector-content" hidden={collapsed}>
                 <div
                   className="workbench-panel-tabs"
                   role="tablist"
@@ -195,6 +210,7 @@ function WorkbenchLayout({
                   className="workbench-history-body"
                 >
                   {history}
+                </div>
                 </div>
               </aside>
             </Panel>

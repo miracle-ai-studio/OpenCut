@@ -36,11 +36,12 @@ export function useResourceDropTarget(
     const lane = node?.closest<HTMLElement>(
       "[data-file-track], [data-resource-new-track]",
     );
-    if (!lane || !viewport.current?.contains(lane)) return null;
+    const view = viewport.current;
+    if (!lane || !view || (!view.contains(lane) && !(lane.dataset.resourceNewTrack && view.parentElement?.contains(lane)))) return null;
     const trackId = lane.dataset.fileTrack ?? null;
     const seconds = Math.max(
       0,
-      (x - lane.getBoundingClientRect().left) / settings.scale,
+      (x - view.getBoundingClientRect().left - TRACK_LABEL_WIDTH + view.scrollLeft) / settings.scale,
     );
     const edges = settings.snapping && settings.drag?.drag?.resource.kind !== "transition"
       ? settings.sequence.tracks.flatMap((track) =>

@@ -11,7 +11,7 @@ import { useState, type ReactNode } from "react";
 import { useEditingWorkspace as useWorkspace } from "../context";
 import { Button } from "../../shared/ui";
 import { formatTime } from "../../model/time";
-import { t } from "../../shared/locale";
+import { t, elementLabel } from "../../shared/locale";
 import type { Document, Element, Sequence } from "./types";
 import { GraphicEditButton } from "./graphic/workspace";
 import { TextEditButton } from "./text/workspace";
@@ -136,7 +136,7 @@ export function Inspector({
     <>
       {element && (
         <>
-          <h3>{element.name}</h3>
+          <h3>{elementLabel(element.name)}</h3>
           <p className="workbench-clip-meta">{label(element.content.kind)} · {formatTime(element.timeline_range.duration)}</p>
           <VisualPropertyControls elementIds={[element.id]} />
           {audio && <><VolumeControls elementIds={[element.id]} /><GainFadeControls elementId={element.id} /></>}

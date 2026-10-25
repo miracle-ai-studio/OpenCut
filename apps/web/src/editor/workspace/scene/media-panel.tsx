@@ -16,7 +16,7 @@ import { SourceArtView } from "./source-art/view";
 import { useShortcutActions } from "../../shortcuts/provider";
 import type { Session } from "./session";
 import { useResourceCopy } from "./workbench/resources-copy";
-import { Plus, RefreshCw, Trash2, Eye } from "lucide-react";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import {CardMenu} from "./workbench/card-menu";
 
 type RemovalReview = Awaited<ReturnType<Session["planMediaRemoval"]>>;
@@ -237,7 +237,7 @@ export function MediaPanel({
                       ? "Media changes saved."
                       : attempt.phase === "unconfirmed"
                         ? "Media changes are not confirmed."
-                        : c("saving"),
+                        : attempt.phase === "failed" ? "Media changes failed." : c("saving"),
                   )}
                 </span>
                 <Button onClick={() => setReview(true)}>{c("recover")}</Button>
@@ -271,6 +271,7 @@ export function MediaPanel({
                 resourceDrag?.start(event, {kind:"media", assetId:asset.id, name:asset.name});
               }}
               onDragEnd={() => resourceDrag?.cancel()}
+              onDoubleClick={event=>{if(event.target instanceof Element&&event.target.closest("button,input,label"))return;setPreview({asset,projectId:view.project.id,revision:view.revision});}}
               key={asset.id}
               data-selected={selectedAssets.includes(asset.id) || undefined}
             >
@@ -329,53 +330,12 @@ export function MediaPanel({
                 {asset.duration ? `· ${formatTime(asset.duration)}` : ""}
               </small>
               <div className="toolbar resource-media-actions">
-                <Button
-                  className="resource-preview-trigger"
-                  aria-label={t("Preview source {name}", { name: asset.name })}
-                  title={t("Preview source {name}", { name: asset.name })}
-                  icon={<Eye size={13} />}
-                  disabled={
-                    !["video", "audio", "image", "graphic"].includes(asset.kind)
-                  }
-                  onClick={() =>
-                    setPreview({
-                      asset,
-                      projectId: view.project.id,
-                      revision: view.revision,
-                    })
-                  }
-                >
-                  {t("Preview source")}
-                </Button>
-                <Button
-                  className="resource-add-trigger"
-                  aria-label={t("Place {name}", { name: asset.name })}
-                  title={t("Place {name}", { name: asset.name })}
-                  icon={<Plus size={14} />}
-                  disabled={
-                    disabled ||
-                    !["video", "audio", "image", "graphic"].includes(asset.kind)
-                  }
-                  onClick={async () => {
-                    try {
-                      await placeMediaDirect(controller, asset);
-                    } catch (error) {
-                      controller.report(error);
-                    } finally {
-                      if (
-                        controller.getSnapshot().api === api &&
-                        controller.getSnapshot().scene?.head.project.id ===
-                          projectId
-                      )
-                        setReview(
-                          !!controller.getSnapshot().scene?.media.attempt,
-                        );
-                    }
-                  }}
-                >
-                  {c("add")}
-                </Button>
                 <CardMenu name={asset.name} items={[
+                  {label:t("Preview source"),action:()=>setPreview({asset,projectId:view.project.id,revision:view.revision})},
+                  {label:t("Add to timeline"),disabled,action:async()=>{
+                    try {await placeMediaDirect(controller,asset);}catch(error){controller.report(error);}
+                    finally {if(controller.getSnapshot().api===api&&controller.getSnapshot().scene?.head.project.id===projectId)setReview(!!controller.getSnapshot().scene?.media.attempt);}
+                  }},
                   {label:c("addSettings"),disabled,action:()=>setPlacing(asset)},
                   {label:t("Replace {name}",{name:asset.name}),disabled,action:()=>choose(asset)},
                   {label:t("Remove {name}",{name:asset.name}),disabled:removalDisabled,danger:true,action:()=>void planRemoval([asset.id])},

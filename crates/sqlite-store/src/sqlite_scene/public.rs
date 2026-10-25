@@ -149,9 +149,19 @@ impl ProjectPublicResources for EditorApplication {
         let observation = if let ResourceOrigin::LegacyLocator { uri } = &asset.origin
             && let Some(media_id) = uri.strip_prefix("opencut-media://")
         {
-            let native =
-                media_observation(&tx, &self.connection.1, project, media_id, &asset.version)?;
-            resources::packet_rate(&native)?
+            // The fixed project asset is already authorized above. Historical
+            // import observations are optional and may have been retired while
+            // the project's content-addressed resource remains live. Absence
+            // means no packet-rate observation; an existing record still goes
+            // through exact project scope and version checks.
+            let exists: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM project_media WHERE media_id=?1)",
+                [media_id], |row| row.get(0),
+            ).map_err(storage_error)?;
+            if exists {
+                let native = media_observation(&tx, &self.connection.1, project, media_id, &asset.version)?;
+                resources::packet_rate(&native)?
+            } else { None }
         } else {
             None
         };

@@ -44,7 +44,8 @@ it("imports with one server plan and applies it directly without a review dialog
     fireEvent.change(screen.getByLabelText("Import media files"), {
       target: { files: [new File(["tiny"], "image.png")] },
     });
-    await screen.findByRole("button", { name: "Place Imported image" });
+    await screen.findByText("Imported image");
+    expect(screen.queryByRole("button", { name: "Place Imported image" })).toBeNull();
     expect(f.requests).toHaveLength(1);
     expect(
       f.call.mock.calls.filter(([name]) => name === "opencut_edit_apply"),
@@ -57,6 +58,16 @@ it("imports with one server plan and applies it directly without a review dialog
   } finally {
     f.controller.dispose();
   }
+});
+it("keeps thumbnails clear while double-click and the menu still provide source preview",async()=>{
+ const f=await setupMedia();try {
+  render(<WorkspaceProvider controller={f.controller}><MediaPanel/></WorkspaceProvider>);
+  expect(document.querySelector('.resource-preview-trigger,.resource-add-trigger')).toBeNull();
+  fireEvent.click(screen.getByRole("button",{name:"More actions for Image"}));expect(screen.getByRole("menuitem",{name:"Preview source"})).toBeTruthy();
+  fireEvent.keyDown(screen.getByRole("menu",{name:"More actions for Image"}),{key:"Escape"});
+  fireEvent.doubleClick(screen.getByText("Image",{selector:"strong"}).closest("article")!);
+  expect(screen.getByRole("dialog",{name:"Source media preview"})).toBeTruthy();
+ }finally{f.controller.dispose();}
 });
 it("places at the exact playhead directly and preserves untouched rational duration", async () => {
   const f = await setupMedia();
@@ -72,7 +83,8 @@ it("places at the exact playhead directly and preserves untouched rational durat
         <MediaPanel />
       </WorkspaceProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Place Image" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Image" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add to timeline" }));
     await waitFor(() =>
       expect(
         f.call.mock.calls.filter(([name]) => name === "opencut_edit_apply"),
@@ -267,7 +279,8 @@ it("keeps an uncertain direct save and retries only its original transaction", a
         <MediaPanel />
       </WorkspaceProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Place Image" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions for Image" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add to timeline" }));
     const recovery = await screen.findByRole("dialog", {
       name: "Finish saving media",
     });

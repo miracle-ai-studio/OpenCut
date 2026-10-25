@@ -71,7 +71,7 @@ export function ProjectSummary({
         </div>
         <div>
           <dt>{t("Frame rate")}</dt>
-          <dd>{Number.isInteger(fps) ? fps.toFixed(2) : fps.toFixed(3)} fps</dd>
+          <dd>{Number.isInteger(fps) ? fps.toFixed(2) : fps.toFixed(3)} {t("fps")}</dd>
         </div>
         <div>
           <dt>{t("Duration")}</dt>
@@ -81,7 +81,7 @@ export function ProjectSummary({
       <footer>
         <span>
           <Film size={13} />
-          {sequence.name}
+          {sequence.name === "Main scene" ? t("Main scene") : sequence.name}
         </span>
         <Button onClick={onSettings} icon={<Pencil size={13} />}>
           {t("Modify")}

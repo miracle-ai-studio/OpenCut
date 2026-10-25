@@ -126,3 +126,10 @@ export function parameterLabel(name: string) {
 export function mediaKindLabel(kind: string) {
   return t(({ video: "Video", audio: "Audio", image: "Image", text: "Text", sticker: "Sticker", graphic: "Graphic", effect: "Effect", effect_layer: "Effect layer", caption: "Caption" } as Record<string, string>)[kind] ?? "Clip");
 }
+
+/** Localize generated split suffixes without rewriting saved names or files. */
+export function elementLabel(name: string) {
+  if(name==="Blur effect layer"||name==="Blur")return t(name);
+  const match=/^(.*) \((left|right)\)$/.exec(name);
+  return match?t(match[2]==="left"?"{name} (left)":"{name} (right)",{name:match[1]}):name;
+}

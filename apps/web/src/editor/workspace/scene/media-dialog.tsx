@@ -484,7 +484,7 @@ export function MediaPlanDialog({ onClose }: { onClose(): void }) {
   );
   return (
     <Modal title={c("recoveryTitle")} onClose={onClose}>
-      <p>{sequence?.name ?? t("Unavailable scene")}</p>
+      <p>{sequence?.name === "Main scene" ? t("Main scene") : sequence?.name ?? t("Unavailable scene")}</p>
       {attempt.request.bindings.map((binding) => (
         <p key={binding.asset_id}>{binding.name}</p>
       ))}

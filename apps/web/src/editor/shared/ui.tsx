@@ -1,5 +1,6 @@
 import { t, useLocale } from "./locale";
-import { useEffect, isValidElement, cloneElement, Fragment } from "react";
+import { useContext, useEffect, isValidElement, cloneElement, Fragment } from "react";
+import { ManagedTooltips } from "./tooltips";
 import { useEntrance } from "./motion";
 import type { ReactNode, ButtonHTMLAttributes, Ref } from "react";
 import { X } from "lucide-react";
@@ -10,8 +11,9 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode;ref?:Ref<HTMLButtonElement> }) {
   useLocale();
+  const managed=useContext(ManagedTooltips);
   return (
-    <button type="button" title={title} {...props}>
+    <button type="button" {...props} title={managed?undefined:title} data-tooltip={managed?title:undefined} aria-label={props["aria-label"]??(!children?title:undefined)}>
       {icon}
       {children}
     </button>

@@ -17,7 +17,7 @@ import type {
   TimelineTarget,
 } from "./types";
 import { timelineSelectionReason } from "./selection";
-import { Move, Scissors, ScanLine, Trash2, ListPlus } from "lucide-react";
+import { Move, Scissors, ScanLine, Trash2, ListPlus, Lock, Unlock, Eye, EyeOff, Volume2, VolumeX, ListMinus, ListX, ClipboardCheck } from "lucide-react";
 
 type Action = "move" | "trim" | "split" | "delete" | "add_track";
 type Props = {
@@ -51,6 +51,9 @@ export function TimelineEditControls(props: Props) {
   const selectedTrack = props.sequence.tracks.find(
     (track) => track.id === props.selectedTrackId,
   );
+  const muteHint = selectedTrack && !["video", "audio"].includes(selectedTrack.kind) ? "Mute applies to video and audio tracks. Use track visibility for other track types." : selectedTrack?.muted ? "Unmute track" : "Mute track";
+  const removalHint = selectedTrack?.id === props.sequence.main_track_id ? "The main video track is required and cannot be removed." : "Delete track and contents";
+  const emptyHint = selectedTrack?.id === props.sequence.main_track_id ? removalHint : selectedTrack?.channels.length ? "This track contains animation. Use Delete track and contents to remove it." : "Delete empty track";
   const open = (action: Action) => {
     setError(null);
     setForm({
@@ -124,13 +127,13 @@ export function TimelineEditControls(props: Props) {
           <span className="workbench-action-label">{t("Add track")}</span>
         </Button>
         {props.attempt && (!props.attempt.automatic || props.attempt.error) && (
-          <Button onClick={props.onReview}>
-            {t("Review timeline changes")}
-          </Button>
+          <Button title={t("Review timeline changes")} aria-label={t("Review timeline changes")} icon={<ClipboardCheck size={15}/>} onClick={props.onReview} />
         )}
         {selectedTrack && (
           <>
             <Button
+              title={t(selectedTrack.locked ? "Unlock track" : "Lock track")} aria-label={t(selectedTrack.locked ? "Unlock track" : "Lock track")}
+              icon={selectedTrack.locked ? <Unlock size={15}/> : <Lock size={15}/>}
               disabled={props.disabled}
               onClick={() =>
                 void planTrack({
@@ -140,9 +143,11 @@ export function TimelineEditControls(props: Props) {
                 })
               }
             >
-              {t(selectedTrack.locked ? "Unlock track" : "Lock track")}
+              <span className="workbench-action-label">{t(selectedTrack.locked ? "Unlock track" : "Lock track")}</span>
             </Button>
             <Button
+              title={t(selectedTrack.enabled ? "Disable track" : "Enable track")} aria-label={t(selectedTrack.enabled ? "Disable track" : "Enable track")}
+              icon={selectedTrack.enabled ? <EyeOff size={15}/> : <Eye size={15}/>}
               disabled={props.disabled || selectedTrack.locked}
               onClick={() =>
                 void planTrack({
@@ -152,9 +157,11 @@ export function TimelineEditControls(props: Props) {
                 })
               }
             >
-              {t(selectedTrack.enabled ? "Disable track" : "Enable track")}
+              <span className="workbench-action-label">{t(selectedTrack.enabled ? "Disable track" : "Enable track")}</span>
             </Button>
             <Button
+              title={t(muteHint)} aria-label={t(selectedTrack.muted ? "Unmute track" : "Mute track")}
+              icon={selectedTrack.muted ? <Volume2 size={15}/> : <VolumeX size={15}/>}
               disabled={
                 props.disabled ||
                 selectedTrack.locked ||
@@ -168,9 +175,10 @@ export function TimelineEditControls(props: Props) {
                 })
               }
             >
-              {t(selectedTrack.muted ? "Unmute track" : "Mute track")}
+              <span className="workbench-action-label">{t(selectedTrack.muted ? "Unmute track" : "Mute track")}</span>
             </Button>
             <Button
+              title={t(emptyHint)} aria-label={t("Delete empty track")} icon={<ListMinus size={15}/>}
               disabled={
                 props.disabled ||
                 selectedTrack.locked ||
@@ -188,9 +196,9 @@ export function TimelineEditControls(props: Props) {
                 })
               }
             >
-              {t("Delete empty track")}
+              <span className="workbench-action-label">{t("Delete empty track")}</span>
             </Button>
-            <Button
+            <Button title={t(removalHint)} aria-label={t("Delete track and contents")} icon={<ListX size={15}/>}
               disabled={props.disabled || selectedTrack.locked || selectedTrack.id === props.sequence.main_track_id}
               onClick={() => setRemoval({
                 request: { project_id: props.scope.projectId, expected_revision: props.scope.revision,
@@ -198,31 +206,11 @@ export function TimelineEditControls(props: Props) {
                   idempotency_key: crypto.randomUUID(), label: "Remove track" },
                 identity: props.controller.identity(),
               })}
-            >{t("Delete track and contents")}</Button>
+            ><span className="workbench-action-label">{t("Delete track and contents")}</span></Button>
           </>
         )}
       </div>
-      {selectedTrack && !["video", "audio"].includes(selectedTrack.kind) && (
-        <p className="muted">
-          {t("Mute applies to video and audio tracks. Use track visibility for other track types.")}
-        </p>
-      )}
-      {selectedTrack?.id === props.sequence.main_track_id ? (
-        <p className="muted">
-          {t("The main video track is required and cannot be removed.")}
-        </p>
-      ) : selectedTrack &&
-        selectedTrack.elements.length === 0 &&
-        selectedTrack.channels.length > 0 &&
-        !props.sequence.captions.some(
-          (caption) => caption.track_id === selectedTrack.id,
-        ) ? (
-        <p className="muted">
-          {t("This track contains animation. Use Delete track and contents to remove it.")}
-        </p>
-      ) : null}
-      {reason && props.selection.length > 0 && <p className="muted">{t(reason)}</p>}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className="editor-timeline-operation-status">{t(error)}</p>}
       {removal && <TrackRemovalDialog controller={props.controller} original={removal}
         scope={props.scope} disabled={props.disabled} onClose={() => setRemoval(null)} />}
       {form && (
@@ -287,7 +275,7 @@ function TrackRemovalDialog({ controller, original, scope, disabled, onClose }: 
     <p>{t("The selected track and its contents will be removed together. Media and fonts remain in the project library.")}</p>
     {review && <p>{review.trackName} · {t("{count} elements", { count: review.elements })} · {t("{count} captions", { count: review.captions })} · {t("{count} transitions", { count: review.transitions })}</p>}
     {stale && <p role="alert">{t("The track removal target changed. Return to its original project and review again.")}</p>}
-    {error && <p role="alert">{t(error)}</p>}
+    {error && <p role="alert" className="editor-timeline-operation-status">{t(error)}</p>}
     {submitted && error && <p>{t("Retry sends the same transaction and key. The shared recovery panel retains an uncertain edit across refresh.")}</p>}
     {!review ? <Button disabled={pending || disabled || stale} onClick={() => void prepare()}>{t(error ? "Retry original track plan" : "Review track contents")}</Button>
       : <Button disabled={pending || stale || (!submitted && disabled)} onClick={() => void apply()}>{t(submitted ? "Retry original track removal" : "Confirm track removal")}</Button>}
@@ -568,7 +556,7 @@ function TimelineCommandForm({
             )}
           </p>
         )}
-        {error && <p role="alert">{t(error)}</p>}
+        {error && <p role="alert" className="editor-timeline-operation-status">{t(error)}</p>}
         <div className="toolbar">
           <Button onClick={close}>{t("Cancel")}</Button>
           <Button

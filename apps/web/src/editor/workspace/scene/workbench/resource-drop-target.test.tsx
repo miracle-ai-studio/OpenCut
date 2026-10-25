@@ -15,9 +15,9 @@ let frameId = 0;
 function Harness() {
   const ref = useRef<HTMLDivElement>(null);
   const target = useResourceDropTarget(ref, sequence, 80, true, false);
-  return <div ref={ref} data-testid="viewport" onDragOver={target.over} onDragLeave={target.leave} onDrop={target.drop}>
+  return <div><div ref={ref} data-testid="viewport" onDragOver={target.over} onDragLeave={target.leave} onDrop={target.drop}>
     <div data-file-track="track" data-testid="lane" />
-  </div>;
+  </div><div data-resource-new-track="true" data-testid="new-track" onDragOver={target.over} onDrop={target.drop}/></div>;
 }
 function setup() {
   const view = render(<Harness />), viewport = screen.getByTestId("viewport"), lane = screen.getByTestId("lane");
@@ -30,7 +30,7 @@ function setup() {
   return { ...view, viewport, lane, over, tick };
 }
 beforeEach(() => {
-  mock.hover.mockReset().mockReturnValue({ reason: null }); mock.cancel.mockReset(); frames.clear();
+  mock.hover.mockReset().mockReturnValue({ reason: null }); mock.cancel.mockReset(); mock.drop.mockReset(); frames.clear();
   sequence.tracks[0].elements[0].timeline_range.start = { ticks: "1", timebase: 3 };
   Object.defineProperty(window, "DragEvent", { configurable: true, value: class extends MouseEvent {
     dataTransfer: DataTransfer | null;
@@ -49,6 +49,12 @@ it("returns the original exact rational edge when a resource snaps, including af
   const { viewport, over } = setup(); viewport.scrollLeft = 15;
   over(136 - 15 + 80 / 3 + .5);
   expect(mock.hover.mock.lastCall?.[0].at).toBe(sequence.tracks[0].elements[0].timeline_range.start);
+});
+it("accepts the pinned new-track rail outside the scrolled viewport and preserves its horizontal time",()=>{
+ const {viewport}=setup();viewport.scrollLeft=160;const lane=screen.getByTestId("new-track");
+ const transfer={types:["application/x-opencut-workbench-resource"],dropEffect:"none",getData:()=>"drag-token"};
+ fireEvent.dragOver(lane,{clientX:216,clientY:380,dataTransfer:transfer});expect(mock.hover.mock.lastCall?.[0]).toMatchObject({trackId:null,at:{ticks:"3",timebase:1}});
+ fireEvent.drop(lane,{clientX:216,clientY:380,dataTransfer:transfer});expect(mock.drop).toHaveBeenLastCalledWith(expect.objectContaining({trackId:null,at:{ticks:"3",timebase:1}}),"drag-token");
 });
 
 it.each(["leave", "escape", "blur"])("scrolls continuously under a stationary drag, then stops immediately on %s", reason => {
