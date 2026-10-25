@@ -56,7 +56,7 @@ export function ArtDisplay({ art, error, loading = false, tiled = false, onRetry
   if (error) {
     const message = [t(error.kind === "connection" ? "Reconnect to load source artwork."
       : error.kind === "authorization" ? "Source artwork access was rejected. Check your permissions."
-      : error.kind === "budget" ? "Source artwork reached its resource limit. Retry later." : "Source artwork could not load. Retry."),
+      : error.kind === "budget" ? "Thumbnails/waveforms exceeded a resource limit. See technical details." : "Source artwork could not load. Retry."),
       error.retryable && retryHint && t(retryHint)].filter(Boolean).join(" ");
     const details = [error.code, error.message, error.requestId].filter(Boolean).join(" · ");
     return <div className="source-art-failure" data-timeline-no-gesture draggable={false}
@@ -73,7 +73,7 @@ export function ArtDisplay({ art, error, loading = false, tiled = false, onRetry
       </div>
     </div>;
   }
-  if (!art) return loading ? <small aria-label="Loading source artwork">{t("Loading artwork…")}</small> : null;
+  if (!art) return loading ? <small role="status" aria-label="Loading source artwork">{t("Waiting for or generating thumbnails/waveforms…")}</small> : null;
   if (art.kind === "no_frame") return <small aria-label="No source thumbnail at one second">{t("No frame at 1s")}</small>;
   if (art.kind === "classic_waveform") return <ClassicWaveform art={art} />;
   if (art.kind === "thumbnail" && tiled) return <div role="img" aria-label="Source thumbnail" style={{

@@ -1,5 +1,5 @@
 // Match the host's background decoder credit, leaving foreground preview room.
-export const SOURCE_ART_LIMITS = Object.freeze({ bytes: 32 * 1024 * 1024, entries: 256, concurrent: 1 });
+export const SOURCE_ART_LIMITS = Object.freeze({ bytes: 64 * 1024 * 1024, entries: 256, concurrent: 1 });
 export type MaterializedArt<T> = { value: T; bytes: number; fingerprint: string; dispose(): void };
 export type ArtAllocation<T> = { bytes: number; fingerprint: string; materialize(): MaterializedArt<T> };
 type Load<T> = (signal: AbortSignal) => Promise<ArtAllocation<T>>;

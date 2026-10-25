@@ -295,23 +295,23 @@ fn decoder_slots_are_bounded_and_shutdown_drops_cached_content() {
     let mut second = request.clone();
     second.request_id = "second".into();
     let second = ticket(&host, &second);
-    assert_eq!(
-        registry
-            .admit(
-                "second-source".into(),
-                TicketKey::new(&second.prepared),
-                second
-            )
-            .err()
-            .unwrap()
-            .code,
-        "SOURCE_ART_BUDGET_EXCEEDED"
-    );
+    assert!(matches!(
+        admission(&registry, "second-source", second.clone()),
+        Admission::Queued
+    ));
     let flights = registry.shutdown().unwrap();
     assert_eq!(flights.len(), 1);
     for flight in flights {
         assert!(!flight.has_other_active(&ticket(&host, &request)).unwrap());
     }
+    assert_eq!(
+        await_admission(&host.app, &registry, "second-source", &second)
+            .err()
+            .unwrap()
+            .code,
+        "SOURCE_ART_STOPPED"
+    );
+    assert_eq!(registry.waiting(), 0);
     assert_eq!(registry.stats().2, 0);
 }
 #[test]
@@ -881,4 +881,249 @@ fn real_public_source_art_uses_all_channels_and_reuses_hundred_requests() {
     );
     shutdown(&host.database).unwrap();
     opencut_asset_store::gate::Gate::exclusive(host.app.asset_store_root()).unwrap();
+}
+
+#[test]
+fn busy_sources_queue_fifo_without_adding_decoder_slots_and_join_shared_work() {
+    let (_temp, host, request) = source(b"queue fixture");
+    let registry = Registry::default();
+    let make = |id: &str| {
+        let mut request = request.clone();
+        request.request_id = id.into();
+        ticket(&host, &request)
+    };
+    let a = make("a");
+    let (active, _) = flight(admission(&registry, "a", a.clone()));
+    let b = make("b");
+    let c = make("c");
+    assert!(matches!(
+        admission(&registry, "b", b.clone()),
+        Admission::Queued
+    ));
+    assert!(matches!(
+        admission(&registry, "c", c.clone()),
+        Admission::Queued
+    ));
+    assert_eq!(registry.waiting(), 2);
+    assert_eq!(registry.stats().3, 1);
+    let conflicting = make("b");
+    assert_eq!(
+        registry
+            .admit(
+                "b".into(),
+                TicketKey::new(&conflicting.prepared),
+                conflicting
+            )
+            .err()
+            .unwrap()
+            .code,
+        "SOURCE_ART_REQUEST_CONFLICT"
+    );
+    registry.complete("a", &active, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&a.prepared), &a, &active)
+        .unwrap();
+    // A later waiter cannot take a free slot ahead of the oldest live request.
+    assert!(matches!(
+        admission(&registry, "c", c.clone()),
+        Admission::Queued
+    ));
+    let warm = make("warm");
+    assert!(matches!(
+        admission(&registry, "a", warm.clone()),
+        Admission::Cached(_)
+    ));
+    registry
+        .release_cached(&TicketKey::new(&warm.prepared), &warm)
+        .unwrap();
+    let (next, start) = flight(admission(&registry, "b", b.clone()));
+    assert!(start);
+    let joined = make("b-joined");
+    let (same, start) = flight(admission(&registry, "b", joined.clone()));
+    assert!(!start);
+    assert!(Arc::ptr_eq(&next, &same));
+    assert_eq!(registry.stats().3, 1);
+    registry.complete("b", &next, Ok(decoded(1))).unwrap();
+    for selected in [&b, &joined] {
+        registry
+            .release(&TicketKey::new(&selected.prepared), selected, &next)
+            .unwrap();
+    }
+    let (last, start) = flight(await_admission(&host.app, &registry, "c", &c).unwrap());
+    assert!(start);
+    assert_eq!(registry.waiting(), 0);
+    registry.complete("c", &last, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&c.prepared), &c, &last)
+        .unwrap();
+    drop((active, next, same, last));
+    registry.drain().unwrap();
+}
+
+#[test]
+fn queued_requests_wake_after_completion_and_can_cancel_before_dispatch() {
+    let (_temp, host, request) = source(b"queue fixture");
+    let registry = Arc::new(Registry::default());
+    let first = ticket(&host, &request);
+    let (active, _) = flight(admission(&registry, "first", first.clone()));
+    let mut input = request.clone();
+    input.request_id = "waiting".into();
+    let waiting = ticket(&host, &input);
+    assert!(matches!(
+        admission(&registry, "waiting", waiting.clone()),
+        Admission::Queued
+    ));
+    let database = host.database.clone();
+    let owner = registry.clone();
+    let selected = waiting.clone();
+    let thread = std::thread::spawn(move || {
+        let app = EditorApplication::open_managed(database).unwrap();
+        await_admission(&app, &owner, "waiting", &selected)
+    });
+    registry.complete("first", &active, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&first.prepared), &first, &active)
+        .unwrap();
+    let (next, start) = flight(thread.join().unwrap().unwrap());
+    assert!(start);
+    assert_eq!(registry.stats().3, 1);
+    input.request_id = "cancelled-in-queue".into();
+    let cancelled = ticket(&host, &input);
+    assert!(matches!(
+        admission(&registry, "cancelled", cancelled.clone()),
+        Admission::Queued
+    ));
+    assert!(
+        registry
+            .cancel(TicketKey::new(&cancelled.prepared))
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        await_admission(&host.app, &registry, "cancelled", &cancelled)
+            .err()
+            .unwrap()
+            .code,
+        "SOURCE_ART_CANCELLED"
+    );
+    assert_eq!(registry.waiting(), 0);
+    assert_eq!(registry.stats().3, 1);
+    registry.complete("waiting", &next, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&waiting.prepared), &waiting, &next)
+        .unwrap();
+    drop((active, next));
+    registry.drain().unwrap();
+}
+
+#[test]
+fn queued_deadlines_and_revoked_credentials_are_checked_before_dispatch() {
+    let (_temp, mut host, request) = source(b"queue fixture");
+    let registry = Registry::default();
+    let first = ticket(&host, &request);
+    let (active, _) = flight(admission(&registry, "first", first.clone()));
+    let mut input = request.clone();
+    input.request_id = "expired-in-queue".into();
+    let mut expired = ticket(&host, &input);
+    let deadline = expired.prepared.policy().deadline_ms;
+    Arc::get_mut(&mut expired).unwrap().started = Instant::now() - Duration::from_millis(deadline);
+    assert!(matches!(
+        admission(&registry, "expired", expired.clone()),
+        Admission::Queued
+    ));
+    assert_eq!(
+        await_admission(&host.app, &registry, "expired", &expired)
+            .err()
+            .unwrap()
+            .code,
+        "SOURCE_ART_DEADLINE_EXCEEDED"
+    );
+    assert_eq!(registry.waiting(), 0);
+    grant(
+        &mut host,
+        "0",
+        vec![ProjectAction::Read, ProjectAction::RunJobs],
+    );
+    let credential = host.app.issue_credential("source-reader").unwrap();
+    let caller = host.app.authenticate(&credential.secret).unwrap();
+    host.app.set_execution_context(ExecutionContext::for_caller(
+        crate::CallSource::Embedded,
+        caller,
+    ));
+    input.request_id = "revoked-in-queue".into();
+    let revoked = ticket(&host, &input);
+    assert!(matches!(
+        admission(&registry, "revoked", revoked.clone()),
+        Admission::Queued
+    ));
+    host.app.set_execution_context(ExecutionContext::for_caller(
+        crate::CallSource::Embedded,
+        crate::Caller::LocalOwner,
+    ));
+    host.app
+        .revoke_credential(&credential.credential_id)
+        .unwrap();
+    assert_eq!(
+        await_admission(&host.app, &registry, "revoked", &revoked)
+            .err()
+            .unwrap()
+            .code,
+        "NOT_AUTHORIZED"
+    );
+    assert_eq!(registry.waiting(), 0);
+    assert_eq!(registry.stats().3, 1);
+    registry.complete("first", &active, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&first.prepared), &first, &active)
+        .unwrap();
+    drop(active);
+    registry.drain().unwrap();
+}
+
+#[test]
+fn queued_requests_share_the_bounded_ticket_capacity() {
+    let (_temp, host, request) = source(b"queue fixture");
+    let registry = Registry::default();
+    let first = ticket(&host, &request);
+    let (active, _) = flight(admission(&registry, "first", first.clone()));
+    let mut queued = Vec::new();
+    for index in 1..256 {
+        let mut input = request.clone();
+        input.request_id = index.to_string();
+        let selected = ticket(&host, &input);
+        assert!(matches!(
+            admission(&registry, &input.request_id, selected.clone()),
+            Admission::Queued
+        ));
+        queued.push(selected);
+    }
+    let mut input = request.clone();
+    input.request_id = "overflow".into();
+    let overflow = ticket(&host, &input);
+    let error = registry
+        .admit(
+            "overflow".into(),
+            TicketKey::new(&overflow.prepared),
+            overflow,
+        )
+        .err()
+        .unwrap();
+    assert_eq!(error.code, "SOURCE_ART_BUDGET_EXCEEDED");
+    assert!(error.message.contains("queue is full"));
+    assert_eq!(registry.waiting(), 255);
+    assert_eq!(registry.stats().3, 1);
+    for selected in queued {
+        registry.cancel(TicketKey::new(&selected.prepared)).unwrap();
+        assert!(
+            registry
+                .release_cached(&TicketKey::new(&selected.prepared), &selected)
+                .is_err()
+        );
+    }
+    registry.complete("first", &active, Ok(decoded(1))).unwrap();
+    registry
+        .release(&TicketKey::new(&first.prepared), &first, &active)
+        .unwrap();
+    drop(active);
+    registry.drain().unwrap();
 }

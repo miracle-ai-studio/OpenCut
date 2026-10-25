@@ -358,3 +358,12 @@ it("keeps source preview available as a separate failure action without retrying
   expect(preview).toHaveBeenCalledOnce(); expect(retry).not.toHaveBeenCalled();
   expect(button.closest("button button")).toBeNull();
 });
+
+it("announces queued or running artwork generation separately from a resource-limit failure", () => {
+  const view = render(<ArtDisplay loading />);
+  expect(screen.getByRole("status").textContent).toBe("Waiting for or generating thumbnails/waveforms…");
+  expect(screen.queryByLabelText("Source artwork unavailable")).toBeNull();
+  view.rerender(<ArtDisplay error={sourceArtFailure(new OpenCutApiError("SOURCE_ART_BUDGET_EXCEEDED", "Source artwork request queue is full (256 active or waiting requests)", null, 422, "queue-full", []))} />);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByLabelText("Source artwork unavailable").textContent).toContain("See technical details");
+});

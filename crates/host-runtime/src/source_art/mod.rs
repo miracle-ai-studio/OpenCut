@@ -96,18 +96,11 @@ fn execute_projection<T>(
     let (database, registry) = registry(&host.database)?;
     let ticket_key = TicketKey::new(&prepared);
     let ticket = Arc::new(Ticket::new(prepared.clone()));
-    let admitted = loop {
-        match registry.admit(key.clone(), ticket_key.clone(), ticket.clone())? {
-            Admission::Draining(flight) => {
-                let result = wait_cleanup(&host.app, &flight, &ticket);
-                registry.release_cached(&ticket_key, &ticket)?;
-                result?;
-            }
-            admitted => break admitted,
-        }
-    };
+    let admitted = await_admission(&host.app, &registry, &key, &ticket)?;
     match admitted {
-        Admission::Draining(_) => unreachable!("draining admission was consumed above"),
+        Admission::Draining(_) | Admission::Queued => {
+            unreachable!("waiting admission was consumed above")
+        }
         Admission::Cached(decoded) => {
             publish_cached(&host.app, &registry, &ticket, decoded, project)
         }
@@ -151,6 +144,45 @@ fn execute_projection<T>(
             });
             registry.release(&ticket_key, &ticket, &flight)?;
             result
+        }
+    }
+}
+
+// Each waiting request retains its original authority, deadline and cancellation
+// identity. Waiting holds no decoder credit and never retries accepted work.
+fn await_admission(
+    app: &EditorApplication,
+    registry: &Registry,
+    key: &str,
+    ticket: &Arc<Ticket>,
+) -> Result<Admission, EditorError> {
+    let ticket_key = TicketKey::new(&ticket.prepared);
+    loop {
+        let attempt = (|| {
+            authorize(app, &ticket.prepared)?;
+            if let Some(err) = ticket.failure()? {
+                return Err(err);
+            }
+            if ticket.started.elapsed()
+                >= Duration::from_millis(ticket.prepared.policy().deadline_ms)
+            {
+                return Err(error("SOURCE_ART_DEADLINE_EXCEEDED"));
+            }
+            registry.admit(key.into(), ticket_key.clone(), ticket.clone())
+        })();
+        let outcome = match attempt {
+            Ok(Admission::Queued) => registry.wait_for_change(),
+            Ok(Admission::Draining(flight)) => {
+                let result = wait_cleanup(app, &flight, ticket);
+                registry.release_cached(&ticket_key, ticket)?;
+                result
+            }
+            Ok(admitted) => return Ok(admitted),
+            Err(err) => Err(err),
+        };
+        if let Err(err) = outcome {
+            let _ = registry.release_cached(&ticket_key, ticket);
+            return Err(err);
         }
     }
 }

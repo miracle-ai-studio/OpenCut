@@ -1,5 +1,5 @@
 use super::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 const MAX_BYTES: usize = 32 * 1024 * 1024;
 const MAX_ENTRIES: usize = 256;
 // Background source observations share the host with the foreground audio
@@ -74,6 +74,7 @@ struct State {
     touch: u64,
     flights: HashMap<String, Arc<Flight>>,
     tickets: HashMap<TicketKey, Arc<Ticket>>,
+    queued: VecDeque<TicketKey>,
     cancelled: HashMap<TicketKey, Instant>,
     shutdown: bool,
     #[cfg(test)]
@@ -88,6 +89,7 @@ pub(super) enum Admission {
     Cached(Arc<DecodedSourceArt>),
     Flight { flight: Arc<Flight>, start: bool },
     Draining(Arc<Flight>),
+    Queued,
 }
 fn cost(value: &DecodedSourceArt) -> usize {
     let identity = value.identity();
@@ -127,21 +129,32 @@ impl Registry {
         if state.cancelled.contains_key(&ticket_key) {
             return Err(error("SOURCE_ART_CANCELLED"));
         }
-        if state.tickets.contains_key(&ticket_key) {
+        let resuming = state.tickets.get(&ticket_key).is_some_and(|current| {
+            Arc::ptr_eq(current, &ticket) && state.queued.contains(&ticket_key)
+        });
+        if state.tickets.contains_key(&ticket_key) && !resuming {
             return Err(error("SOURCE_ART_REQUEST_CONFLICT"));
         }
-        if state.tickets.len() >= MAX_ENTRIES {
-            return Err(error("SOURCE_ART_BUDGET_EXCEEDED"));
+        if !resuming && state.tickets.len() >= MAX_ENTRIES {
+            return Err(EditorError::new(
+                "SOURCE_ART_BUDGET_EXCEEDED",
+                "Source artwork request queue is full (256 active or waiting requests)",
+            ));
+        }
+        if let Some(err) = ticket.failure()? {
+            return Err(err);
         }
         state.touch = state.touch.wrapping_add(1);
         let touch = state.touch;
         if let Some(cached) = state.cache.get_mut(&key) {
             cached.touch = touch;
             let value = cached.value.clone();
+            state.queued.retain(|waiting| waiting != &ticket_key);
             state.tickets.insert(ticket_key, ticket);
             return Ok(Admission::Cached(value));
         }
         if let Some(flight) = state.flights.get(&key).cloned() {
+            state.queued.retain(|waiting| waiting != &ticket_key);
             // No participants join a terminating all-cancelled flight. Wait for
             // actual cleanup instead of launching a replacement over its gate.
             if !flight.has_other_active(&ticket)? {
@@ -157,9 +170,19 @@ impl Registry {
                 start: false,
             });
         }
-        if state.flights.len() >= MAX_FLIGHTS {
-            return Err(error("SOURCE_ART_BUDGET_EXCEEDED"));
+        if state.flights.len() >= MAX_FLIGHTS
+            || state
+                .queued
+                .front()
+                .is_some_and(|first| first != &ticket_key)
+        {
+            if !resuming {
+                state.queued.push_back(ticket_key.clone());
+                state.tickets.insert(ticket_key, ticket);
+            }
+            return Ok(Admission::Queued);
         }
+        state.queued.retain(|waiting| waiting != &ticket_key);
         let flight = Arc::new(Flight {
             prepared: ticket.prepared.clone(),
             tickets: Mutex::new(HashMap::from([(ticket_key.clone(), ticket.clone())])),
@@ -172,6 +195,14 @@ impl Registry {
             flight,
             start: true,
         })
+    }
+    pub fn wait_for_change(&self) -> Result<(), EditorError> {
+        let state = lock(&self.state)?;
+        let _ = self
+            .changed
+            .wait_timeout(state, Duration::from_millis(50))
+            .map_err(|_| error("INTERNAL_ERROR"))?;
+        Ok(())
     }
     pub fn complete(
         &self,
@@ -269,6 +300,7 @@ impl Registry {
             .is_some_and(|current| Arc::ptr_eq(current, ticket))
         {
             state.tickets.remove(key);
+            state.queued.retain(|waiting| waiting != key);
         }
         self.changed.notify_all();
         if let Some(err) = ticket.failure()? {
@@ -303,6 +335,7 @@ impl Registry {
             return Err(error("SOURCE_ART_BUDGET_EXCEEDED"));
         }
         state.cancelled.insert(key, Instant::now());
+        self.changed.notify_all();
         Ok(final_flight)
     }
     pub fn shutdown(&self) -> Result<Vec<Arc<Flight>>, EditorError> {
@@ -311,6 +344,7 @@ impl Registry {
         for ticket in state.tickets.values() {
             ticket.fail(error("SOURCE_ART_STOPPED"))?;
         }
+        self.changed.notify_all();
         Ok(state.flights.values().cloned().collect())
     }
     pub fn drain(&self) -> Result<(), EditorError> {
@@ -335,6 +369,10 @@ impl Registry {
         state.bytes = 0;
         state.cancelled.clear();
         Ok(())
+    }
+    #[cfg(test)]
+    pub fn waiting(&self) -> usize {
+        self.state.lock().unwrap().queued.len()
     }
     #[cfg(test)]
     pub fn stats(&self) -> (usize, usize, usize, usize) {

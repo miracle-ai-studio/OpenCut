@@ -69,7 +69,7 @@ export async function verifyCacheAllocations(browser, large, small) {
       const inspect = () => {
         const total = [...live.values()].reduce((sum, value) => sum + value, 0);
         ensure(cache.bytes === total, "charged bytes differ from live materialized allocations");
-        ensure(cache.bytes <= 32 * 1024 * 1024 && cache.entries.size <= 256 && cache.running <= 2, "default budget exceeded");
+        ensure(cache.bytes <= 64 * 1024 * 1024 && cache.entries.size <= 256 && cache.running <= 1, "default budget exceeded");
         peakBytes = Math.max(peakBytes, cache.bytes); peakEntries = Math.max(peakEntries, cache.entries.size);
       };
       const acquire = async (key, fixture) => {
@@ -90,9 +90,9 @@ export async function verifyCacheAllocations(browser, large, small) {
         const bitmap = await createImageBitmap(blob);
         const decoded = { width: bitmap.width, height: bitmap.height }; bitmap.close();
         ensure(decoded.width === 640 && decoded.height === 360, "actual JPEG decoded dimensions");
-        for (let index = 1; index < 40; index++) await acquire(`large-${index}`, large);
+        for (let index = 1; index < 80; index++) await acquire(`large-${index}`, large);
         const afterByteEviction = { bytes: cache.bytes, entries: cache.entries.size };
-        ensure(!cache.entries.has("large-0") && revoked.has(first.url), "32 MiB pressure did not evict/revoke oldest unused entry");
+        ensure(!cache.entries.has("large-0") && revoked.has(first.url), "64 MiB pressure did not evict/revoke oldest unused entry");
         const beforeRebuild = loads, rebuilt = await acquire("large-0", large);
         ensure(loads === beforeRebuild + 1 && rebuilt.url !== first.url, "evicted thumbnail was not rematerialized");
         cache.clear(); inspect(); ensure(cache.bytes === 0 && cache.entries.size === 0, "byte phase clear");
@@ -105,7 +105,7 @@ export async function verifyCacheAllocations(browser, large, small) {
         cache.clear(); inspect();
         ensure(cache.bytes === 0 && cache.entries.size === 0 && created.every(url => revoked.has(url)), "final allocations/ObjectURLs remain live");
         return { scope: "Isolated about:blank production SourceArtCache + allocateArt using actual authorized JPEG receipts; not main workspace/native cache occupancy.",
-          defaults: { bytes: 33554432, entries: 256, concurrent: 2 }, peak_bytes: peakBytes, peak_entries: peakEntries,
+          defaults: { bytes: 67108864, entries: 256, concurrent: 1 }, peak_bytes: peakBytes, peak_entries: peakEntries,
           after_byte_eviction: afterByteEviction, after_entry_eviction: afterEntryEviction,
           decoded, materializations: loads, created_urls: created.length, revoked_urls: revoked.size, final_bytes: cache.bytes, final_entries: cache.entries.size };
       } finally { cache.clear(); URL.createObjectURL = nativeCreate; URL.revokeObjectURL = nativeRevoke; }
@@ -754,7 +754,7 @@ export async function verifySourceArt(browser, endpoint, directory, check) {
     const cacheEvidence = await verifyCacheAllocations(browser,
       { response: thumbnail, selection: { projectId, revision: fixed.revision, asset: video, query: { kind: "thumbnail" } } },
       { response: smallThumbnail, selection: smallSelection });
-    check("source art cache: isolated production browser allocations hit real 32 MiB and 256-entry eviction, rebuild evicted JPEG URLs and clear all charged bytes", {
+    check("source art cache: isolated production browser allocations hit real 64 MiB and 256-entry eviction, rebuild evicted JPEG URLs and clear all charged bytes", {
       source_art_cache_allocations: cacheEvidence,
     });
     const oldUrls = await page.evaluate(() => globalThis.__sourceArtUrls.created.filter(value => value.type === "image/jpeg").map(value => value.url));

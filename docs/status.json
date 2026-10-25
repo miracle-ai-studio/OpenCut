@@ -35,36 +35,41 @@
       "unit_tests": 14
     },
     "contract_boundaries": "passed",
-    "package_local_tests": 7,
-    "web_project_tests": 38,
+    "web_source_art_tests": 29,
     "web_boundary_tests": 23,
-    "sdk_tests": 42,
+    "native_source_art_unit_tests": 14,
+    "native_source_art_real_decode_tests": 1,
     "web_boundary_files": 259,
-    "sdk_boundary_files": 262,
-    "native_subtitle_tests": 4,
-    "native_retired_operation_tests": 1,
+    "web_production_build": "passed",
+    "cli_release_build": "passed",
     "generated_contracts": "current",
     "canonical_contract": {
       "operations": 184,
       "domains": 12,
-      "binary_sha256": "b735d02a0ae517e27842cacd775cd05be2a97babb55cfb775afb94d793207f8e"
+      "binary_sha256": "f534091a5c35caf9a3984b914a2ea5f8064f153e27507677c43e7c9fc7c82085"
+    },
+    "source_art": {
+      "display_cache_bytes": 67108864,
+      "host_cache_bytes": 33554432,
+      "decode_concurrency_per_host_workspace": 1,
+      "active_and_waiting_request_limit": 256,
+      "fifo_queue": true,
+      "concurrent_http_requests_passed": 3,
+      "two_editor_pages": "passed"
     },
     "current_service_ready": true,
-    "served_entry_assets_match_build": true,
-    "retired_operations_http_status": 404,
     "retained_project": {
       "count": 1,
-      "revision": "rev_fd54efe9ed3ff49855e11f97f27b5b689820672ac05cd3a3efa0865d88b49b7a",
-      "revisions": 51,
-      "transactions": 50,
+      "revision": "rev_ad06219eccbdb5fc139930546b073f6c73064d5b1021d3b0e7eee682f5d2f8f8",
+      "revisions": 59,
+      "transactions": 58,
       "history_content_unchanged": true
     },
-    "project_home_and_continue_editing_browser": "passed",
     "full_product_acceptance": "not_run"
   },
-  "source_base_commit": "d00a2d3de93139849308ee4a9ddbe8daa6dcd5c6",
+  "source_base_commit": "8986bdcd0a7277d0a26951e6ac76ddca51e5318f",
   "source_state": "working_tree",
-  "verified_at": "2026-10-25T06:53:51.372444+00:00",
+  "verified_at": "2026-10-25T09:00:55.108035+00:00",
   "prior_playback_evidence": {
     "scope": "One 42-second 1080p/25fps project: initial playback, playback after edit, playback after causal Undo.",
     "presented_frames_per_run": 1050,
@@ -72,5 +77,16 @@
     "does_not_establish": "Arbitrary projects, zero stalls, physical audio, complete export or cross-platform qualification.",
     "source_commit": "48a7e20f4726af779e668797dd40753d26a884e3",
     "binary_sha256": "18cd5553d5b022c9e220e29b857420d4773d11914e1744b9ab0aeab9d74185d3"
+  },
+  "preview_observation": {
+    "scope": "One visible foreground 42-second run at 25 fps on the recorded candidate and saved project; no editing or device matrix qualification.",
+    "presented_frames": 1047,
+    "discarded_frames": 3,
+    "max_wall_frame_gap_ms": 1281.8,
+    "slow_frame_at_seconds": 24,
+    "slow_frame_total_ms": 1422.1,
+    "slow_frame_decode_ms": 1106.7,
+    "slow_frame_gpu_ms": 3,
+    "smooth_playback_qualified": false
   }
 }

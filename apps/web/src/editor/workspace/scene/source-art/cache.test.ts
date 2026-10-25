@@ -93,3 +93,18 @@ it("serves a new visible request before four slow authorization groups can renew
     probes.forEach(lease => lease.release()); visible.release();
   }
 });
+
+it("keeps one default loader and admits over 32 MiB while refusing over 64 MiB of active display data", async () => {
+  const cache = new SourceArtCache<string>();
+  let finish!: (value: ReturnType<typeof allocation>) => void;
+  const first = cache.acquire("large-visible", () => new Promise(resolve => { finish = resolve; }), vi.fn());
+  const materialize = vi.fn(allocation("overflow", 25 * 1024 * 1024).materialize);
+  const nextLoad = vi.fn(async () => ({ bytes: 25 * 1024 * 1024, fingerprint: "overflow", materialize }));
+  const next = cache.acquire("next-visible", nextLoad, vi.fn());
+  expect(nextLoad).not.toHaveBeenCalled();
+  finish(allocation("large-visible", 40 * 1024 * 1024));
+  expect(await first.promise).toBe("large-visible");
+  await expect(next.promise).rejects.toThrow("Active source artwork exceeds the display budget");
+  expect(materialize).not.toHaveBeenCalled();
+  first.release(); cache.clear();
+});
