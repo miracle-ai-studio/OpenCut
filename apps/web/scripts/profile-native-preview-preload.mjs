@@ -64,9 +64,9 @@ if (path.basename(process.argv[1]??"")==="preview-runner.mjs") {
       if(row){
         if(page?.command_id!==arg.id||page.start_sample!==arg.startSample||page.frame_count!==arg.frameCount)throw Error("Native timing command changed");
         row.evaluate_ms=ended-t;row.page_callback_ms=page.callback_ms;row.page_producer_ms=page.producer_ms;
-        row.page_hex_ms=page.hex_ms;row.hex_calls=page.hex_calls;row.observer_ms=performance.now()-ended;row.evaluate_ended=ended;
-        row.page_body_ms=page.hex_exit_ms-page.producer_enter_ms;
-        Object.assign(row.dispatch,{evaluate_exit_ms:ended,...Object.fromEntries(["producer_enter_ms","hex_exit_ms","callback_enter_ms","callback_exit_ms"].map(k=>[k,page[k]]))});
+        row.page_encode_ms=page.encode_ms;row.encode_calls=page.encode_calls;row.observer_ms=performance.now()-ended;row.evaluate_ended=ended;
+        row.page_body_ms=page.encode_exit_ms-page.producer_enter_ms;
+        Object.assign(row.dispatch,{evaluate_exit_ms:ended,...Object.fromEntries(["producer_enter_ms","encode_exit_ms","callback_enter_ms","callback_exit_ms"].map(k=>[k,page[k]]))});
       }
       return value;
     };

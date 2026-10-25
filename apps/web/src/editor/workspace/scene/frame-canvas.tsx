@@ -312,6 +312,7 @@ export function FrameCanvas({
         ref={viewport.ref}
         tabIndex={0}
         data-preview-phase={live.phase}
+        data-preview-error={live.error ?? ""}
         data-canvas-renders={renders.current}
         data-preview-time={live.time ?? ""}
         data-preview-runtime={live.runtime ?? ""}
@@ -332,12 +333,15 @@ export function FrameCanvas({
         role="region"
         aria-label={t("Canvas notes")}
       >
+        {live.phase === "loading" && (
+          <span className="editor-preview-cache-status" role="status">
+            {t("Preparing smooth playback…")} {live.cacheTotal > 0 ? `${live.cacheCompleted}/${live.cacheTotal}` : ""}
+          </span>
+        )}
         {(!live.pixels||!matchesTarget)&&!keepPreparationFrame&&!live.surfaceActive && !(live.phase === "idle" && image?.stamp === stamp) && (live.phase==="loading"||working) && (
             <span className="editor-preview-status" role="status">
               <MonitorPlay size={32} strokeWidth={1} aria-hidden="true" />
-              {live.phase === "loading" && live.cacheTotal > live.cacheCompleted
-                ? `${t("Optimizing playback…")} ${live.cacheCompleted}/${live.cacheTotal}`
-                : t(
+              {t(
                 live.phase === "loading"
                   ? "Preparing scene frame…"
                   : working

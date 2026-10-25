@@ -15,6 +15,9 @@ pub struct PreparedPicture {
     coverage: Vec<NativeTextCoverage>,
 }
 impl PreparedPicture {
+    pub fn font_version(&self,id:&str)->Option<opencut_contracts::AssetVersion>{
+        self.coverage.iter().find(|proof|proof.font.id==id).map(|proof|proof.font.content.clone())
+    }
     pub fn new(
         prepared: PreparedSceneFrame,
         policy: LocalVisualExecutionPolicy,
@@ -128,7 +131,9 @@ pub fn reserve_picture_memory(
     Ok(policy)
 }
 pub const VISUAL_PREVIEW_MAX_LAG_MS: u32 = 150;
-pub const VISUAL_PREVIEW_MAX_PREPARE_MS: u32 = 1000;
+// One bounded speculative cut decoder may prepare before a cold source opens.
+// This does not extend the presentation window or the retained-picture budget.
+pub const VISUAL_PREVIEW_MAX_PREPARE_MS: u32 = 3000;
 pub fn validate_preparation_time(
     time: &Time,
     consumer: &Time,
@@ -195,8 +200,8 @@ mod tests {
     #[test]
     fn preparation_has_a_bounded_future_window_without_relaxing_presentation() {
         let c = t("1", 3);
-        assert!(validate_preparation_time(&t("4", 3), &c, true).is_ok());
-        assert!(validate_preparation_time(&t("80001", 60000), &c, true).is_err());
+        assert!(validate_preparation_time(&t("10", 3), &c, true).is_ok());
+        assert!(validate_preparation_time(&t("200001", 60000), &c, true).is_err());
         assert!(validate_preparation_time(&t("4", 3), &c, false).is_err());
         assert!(validate_preparation_time(&t("10999", 60000), &c, true).is_err());
         assert!(validate_preparation_time(&t("-1", 3), &c, true).is_err());

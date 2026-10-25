@@ -13,6 +13,35 @@ function fixture(){
  const source=new ScenePictureSource({render},{} as VisualPreviewExecutionApi,session);
  return {source,render,closed,changeRevision:()=>revision="other",changeWidth:()=>width=640};
 }
+it("requests a future authored boundary without waiting for speculative decode or queued cache publication",async()=>{
+ const f=fixture(),signal=new AbortController().signal,prewarm=vi.fn((..._args:Parameters<VisualPreviewRenderer["prewarm"]>)=>true),follow=vi.fn();
+ const cache={rebind:async()=>true,follow,hasFrame:()=>false,state:()=>"preparing"} as unknown as import("./picture-cache").PictureCache;
+ const source=new ScenePictureSource({render:f.render,prewarm},{} as VisualPreviewExecutionApi,session,cache,[{ticks:"6",timebase:1}]);
+ await source.initialize(signal);await source.frame(session.presentation_time,signal);
+ const picture=await source.frame({ticks:"4",timebase:1},signal,0);
+ expect(prewarm.mock.calls[0][2]).toEqual({ticks:"6",timebase:1});expect(picture.runtime.cacheState).toBe("preparing");expect(follow).toHaveBeenCalledOnce();
+});
+it("uses a completed authorized derived window and rejects a stale revision instead of presenting old pixels",async()=>{
+ const f=fixture(),signal=new AbortController().signal;
+ const frame=vi.fn(async()=>({pixels:{width:960,height:540,close:vi.fn()},frame:{plan:{identity:{time:{ticks:"1",timebase:25}}},next_time:{ticks:"2",timebase:25}},runtime:{cacheSegment:"verified"}}));
+ const plan={project_id:"p",revision:"r",sequence_id:"s"};
+ const cache={rebind:async()=>true,follow:vi.fn(),hasFrame:()=>true,descriptor:()=>plan,nextWindow:()=>null,frame,state:()=>"ready"} as unknown as import("./picture-cache").PictureCache;
+ const source=new ScenePictureSource({render:f.render},{} as VisualPreviewExecutionApi,session,cache);
+ await source.initialize(signal);await source.frame(session.presentation_time,signal);
+ const picture=await source.frame({ticks:"1",timebase:25},signal);expect(picture.runtime.cacheHits).toBe("1");expect(f.render).toHaveBeenCalledOnce();
+ plan.revision="other";await expect(source.frame({ticks:"2",timebase:25},signal)).rejects.toThrow("fixed session");expect(frame).toHaveBeenCalledOnce();
+});
+it("waits for a newly authorized manifest before making the first picture available and rebinds replays",async()=>{
+ const f=fixture(),signal=new AbortController().signal;
+ let finish!:()=>void;const gate=new Promise<void>(resolve=>{finish=resolve;});
+ const prepare=vi.fn(()=>gate),rebind=vi.fn(async()=>false);
+ const cache={rebind,suspend:vi.fn(),state:()=>"preparing"} as unknown as import("./picture-cache").PictureCache;
+ const source=new ScenePictureSource({render:f.render},{} as VisualPreviewExecutionApi,session,cache,[],prepare);
+ let ready=false;const pending=source.initialize(signal).then(()=>{ready=true;});
+ await vi.waitFor(()=>expect(prepare).toHaveBeenCalledOnce());expect(ready).toBe(false);
+ finish();await pending;expect(ready).toBe(true);expect(cache.suspend).not.toHaveBeenCalled();
+ rebind.mockResolvedValue(true);await source.initialize(signal);expect(prepare).toHaveBeenCalledOnce();
+});
 it("uses native frame boundaries and session duration, reuses the first bitmap, and forwards retained-pixel admission",async()=>{
  const f=fixture(),signal=new AbortController().signal;await f.source.initialize(signal);
  expect(f.source.descriptor()).toEqual({project_id:"p",revision:"r",sequence_id:"s",width:960,height:540,duration:{ticks:"2016000",timebase:48000},frame_step_seconds:.04});

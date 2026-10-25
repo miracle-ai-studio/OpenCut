@@ -34,7 +34,15 @@ export function enableImmutablePreviewFonts(realm: GpuRealm): void;
 export function closeGpuRealm(realm: GpuRealm): void;
 export class VisualDecoderCache {
   close(): Promise<void>;
+  keys(): Set<string>;
+  retainedBytes(): number;
+  retainedEncodedBytes(): number;
+  adopt(other: VisualDecoderCache,replace?:boolean): Promise<void>;
 }
+export function prewarmVideoSources(plan:unknown,permits:unknown,host:PrivateVisualResourceHost & {
+  admission:unknown;callback(name:string,args:Record<string,unknown>):Promise<unknown>;
+  readVerifiedBytes(transferId:string,offset:number,count:number):Promise<Uint8Array>;
+},signal:AbortSignal,decoders:VisualDecoderCache,activeKeys:Set<string>):Promise<boolean>;
 export function renderClassicFrame(plan: unknown, host: PrivateVisualResourceHost & {
   admission: unknown;
   surface?: OffscreenCanvas;

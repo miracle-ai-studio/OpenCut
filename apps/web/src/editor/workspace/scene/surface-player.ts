@@ -59,6 +59,8 @@ export class SurfacePlayer {
   private credited=0n;
   private wallDrawAt:number|null=null;
   private maximumWallGap=0;
+  private maximumWallGapAt=0;
+  private maximumWallGapBuffered=0;
   constructor(private cache:SurfacePictureSource,private canvas:OffscreenCanvas,private session:AudioPreviewSession,
     private binding:PresentationClockBinding,private port:MessagePort,private updated:(report:SurfaceReport)=>void,
     private failed:(error:Error)=>void,private screen:SurfaceScheduler=scheduler) {
@@ -125,10 +127,11 @@ export class SurfacePlayer {
           throw error;
         }
         if(this.closed||this.abort.signal.aborted){picture.pixels.close();return;}
-        if(Number(picture.runtime.totalMs)>80&&this.slowPreparations.length<16){
+        if(Number(picture.runtime.totalMs)>80){
           const sample:Record<string,number>={time:picture.frame.time_seconds};
           for(const key of ["totalMs","planMs","resourcePrepareMs","decodeMs","sourceOpenMs","sourceDecodeMs","mediaBindMs","composeMs","gpuMs","rangeReadMs"]){const value=Number(picture.runtime[key]);if(Number.isFinite(value))sample[key]=value;}
           this.slowPreparations.push(sample);
+          this.slowPreparations.sort((a,b)=>(b.totalMs??0)-(a.totalMs??0));this.slowPreparations.length=Math.min(16,this.slowPreparations.length);
         }
         if(compare(picture.frame.next_time,picture.frame.plan.identity.time)<=0n){picture.pixels.close();throw Error("Invalid cached frame interval");}
         this.next=picture.frame.next_time;this.queue.push(picture);
@@ -171,7 +174,7 @@ export class SurfacePlayer {
     } catch(error){this.failure(error);}
   };
   private draw(picture:CachedPicture,at:Time) {
-    if(this.wallDrawAt!==null){const now=this.screen.now();this.maximumWallGap=Math.max(this.maximumWallGap,now-this.wallDrawAt);this.wallDrawAt=now;}
+    if(this.wallDrawAt!==null){const now=this.screen.now(),gap=now-this.wallDrawAt;if(gap>this.maximumWallGap){this.maximumWallGap=gap;this.maximumWallGapAt=picture.frame.time_seconds;this.maximumWallGapBuffered=this.queue.length;}this.wallDrawAt=now;}
     const previous=this.last,step=this.cache.descriptor().frame_step_seconds;
     if(previous&&step>0) {
       const missed=Math.max(0,Math.round((picture.frame.time_seconds-previous.time_seconds)/step)-1);this.missed+=missed;
@@ -189,7 +192,7 @@ export class SurfacePlayer {
     return {time:this.last?.time_seconds??0,frameTime:this.last?.plan.identity.time??this.session.presentation_time,readyThrough,generation:this.session.generation,runtime:JSON.stringify(this.lastRuntime),
       presentedFrames:this.presented,discardedFrames:this.discarded,statistics:JSON.stringify({observations:sorted.length,
         lagP95Ms:percentile(.95),lagP99Ms:percentile(.99),maxLagMs:sorted.at(-1)??null,missedCachedFrames:this.missed,
-        maxFrameGapMs:this.maximumGap,maxWallFrameGapMs:this.maximumWallGap,skippedIntervals:this.skipped,presentationThread:"worker",
+        maxFrameGapMs:this.maximumGap,maxWallFrameGapMs:this.maximumWallGap,maxWallFrameGapAtSeconds:this.maximumWallGapAt,maxWallFrameGapBufferedFrames:this.maximumWallGapBuffered,skippedIntervals:this.skipped,presentationThread:"worker",
         preparedFrames:this.queue.length,validatingFrames:this.validating,capacity:this.capacity,readyThroughSeconds:Number(readyThrough.ticks)/readyThrough.timebase,slowPreparations:this.slowPreparations})};
   }
   private readyThrough(){

@@ -101,18 +101,18 @@ export class PictureWorkerRenderer {
     return this.cacheRequest(api,signal,{kind:"stillFrame",id:0,session:{session_id,generation,overlay_epoch,owner_id,lease_id},time:session.presentation_time}) as Promise<PictureResult|CachedPicture>;
   }
   startSurface(api:EditorApi,session:AudioPreviewSession,canvas:OffscreenCanvas|undefined,source:PresentationClockSource,signal:AbortSignal,
-    updated:(report:SurfaceReport,retired:boolean)=>void,failed:(error:Error)=>void,producer:"scene"|"cache"="cache"):Promise<SurfaceReport> {
+    updated:(report:SurfaceReport,retired:boolean)=>void,failed:(error:Error)=>void,warmTimes:PictureCachePlan["duration"][]=[],producer:"scene"|"cache"="cache"):Promise<SurfaceReport> {
     signal.throwIfAborted();
     try{this.initialize(api);}catch(error){return Promise.reject(error);}
     const channel=new MessageChannel();
     let binding:ReturnType<PresentationClockSource["bind"]>;
     try{binding=source.bind(channel.port1);}catch(error){channel.port1.close();channel.port2.close();return Promise.reject(error);}
     this.surfaceUpdated=updated;this.surfaceFailure=failed;
-    return this.cacheRequest(api,signal,{kind:"startSurface",id:0,session,canvas,clockPort:channel.port2,binding,producer},undefined,
+    return this.cacheRequest(api,signal,{kind:"startSurface",id:0,session,canvas,clockPort:channel.port2,binding,producer,warmTimes},undefined,
       [...(canvas?[canvas]:[]),channel.port2,...(binding.outputPort?[binding.outputPort]:[])],id=>{this.surfaceRunId=id;}) as Promise<SurfaceReport>;
   }
   startLiveSurface(...args:Parameters<PictureWorkerRenderer["startSurface"]>):Promise<SurfaceReport> {
-    return this.startSurface(args[0],args[1],args[2],args[3],args[4],args[5],args[6],"scene");
+    return this.startSurface(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],"scene");
   }
   surfaceTimestamp(timestamp:DeviceTimestamp) {
     if(this.worker&&!this.closed&&this.surfaceRunId)this.send({kind:"surfaceTimestamp",runId:this.surfaceRunId,timestamp});

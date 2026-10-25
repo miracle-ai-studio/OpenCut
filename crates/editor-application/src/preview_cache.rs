@@ -1,12 +1,39 @@
 //! Cache scheduling is an application use case over the existing render port.
 //! The browser receives exact timeline mappings, never evaluates an edit graph.
 use crate::{agent_render::RenderSubmission, media_video_jobs as video};
-use opencut_api_contracts::{agent_render::VideoRenderInput, visual_preview::*};
+use opencut_api_contracts::{agent_render::{VideoRenderInput,VideoFrameRange}, visual_preview::*};
 use opencut_contracts::{EditorError, Time, scene::EditorSnapshot, export_video::*};
 use opencut_time::RationalTime;
 use sha2::{Digest, Sha256};
 
 pub const MAX_CACHE_BYTES: u32 = 64 * 1024 * 1024;
+/// Private cache identity over the existing authoritative compiler. Sampling
+/// every output frame also covers transition tails, masks and animation curves;
+/// a guessed authored edit interval would miss these dependencies. Debug encoding
+/// is deliberately private: the installed-binary fingerprint in options pins the
+/// compiler and its encoding, so this is never a portable renderer identity.
+pub fn segment_key(snapshot:&EditorSnapshot,sequence:&str,policy:&video::LocalVideoExecutionPolicy,
+    options:&ExportVideoOptions,range:&VideoFrameRange)->Result<String,EditorError>{
+    let first=crate::classic_audio::decimal(&range.start_frame)?;
+    let count=crate::classic_audio::decimal(&range.frame_count)?;
+    let scene=snapshot.project.sequences.iter().find(|s|s.id==sequence)
+        .ok_or_else(||EditorError::new("INVALID_ARGUMENT","Preview scene does not exist"))?;
+    let (format,_)=opencut_composition::scene::resolve_scene_format(&snapshot.project,scene)
+        .map_err(|e|EditorError::new(e.code,e.message))?;
+    if count==0||count>policy.max_frames||first.checked_add(count).is_none(){return Err(EditorError::new("INVALID_ARGUMENT","Invalid preview window"));}
+    let mut digest=Sha256::new();
+    digest.update(serde_json::to_vec(&("preview-window",&snapshot.project.id,sequence,policy,options,range))
+        .map_err(|_|EditorError::new("INVALID_ARGUMENT","Cannot identify preview window"))?);
+    for index in first..first+count {
+        let mut graph=opencut_composition::scene::compile_frame_scene(snapshot,sequence,&video::grid_time(&format.fps,index)?,opencut_composition::CompositionScope::Visual)
+            .map_err(|e|EditorError::new(e.code,e.message))?;
+        // Provenance remains on the original Job. Editorial coverage is not a
+        // visual dependency; including excluded nodes would invalidate all spans.
+        graph.revision.clear();graph.coverage.clear();
+        digest.update(format!("{graph:?}\n").as_bytes());
+    }
+    Ok(format!("{:x}",digest.finalize()))
+}
 /// Only the active exact window and its bounded forward reserve can outrank
 /// background work. The caller must supply an authorized fixed-session plan.
 pub fn preferred_jobs(plan:&VisualPreviewCache, time:&Time)->Result<Vec<String>,EditorError> {
@@ -62,39 +89,42 @@ pub fn prepare(
     if target.cmp_exact(RationalTime::new(0,1)?).is_lt() || target.cmp_exact(RationalTime::try_from(&identity.timeline_duration)?).is_ge() {
         return Err(EditorError::new("INVALID_ARGUMENT", "Preview cache requires an active timeline position"));
     }
-    // Admit current + two forward windows, preserving full content identity,
-    // duration and CFR grid. Continuation requires live session authorization.
-    windows=windows.into_iter().skip(center).take(3).collect();
+    // Queue the bounded scene once, starting at the requested cut. Rendering
+    // must get ahead of the clock rather than wait for it to enter each window.
+    // Compressed residency and decoder lookahead remain independently bounded.
+    windows.rotate_left(center);
     let mut segments=Vec::new();
     'windows: for first in windows {
         checkpoint()?;
         let count=per_segment.min(total-first);
         let start=video::grid_time(&fps,first)?;
         let end=video::grid_time(&fps,first+count)?;
+        let range=VideoFrameRange{start_frame:first.to_string(),frame_count:count.to_string()};
+        let content_key=segment_key(snapshot,sequence,policy,&options,&range)?;
         let mut request=VideoRenderInput {
-            idempotency_key:format!("preview-cache:{key}:{first}:{count}"),
+            idempotency_key:format!("preview-cache:{content_key}:{first}:{count}"),
             project_id:snapshot.project.id.clone(),revision:snapshot.revision.clone(),sequence_id:sequence.into(),options:options.clone(),
             range:Some(opencut_api_contracts::agent_render::VideoFrameRange{start_frame:first.to_string(),frame_count:count.to_string()}),
         };
         let mut job=if reuse_only {
-            match store.cached_video(request.clone())? {
+            match store.preview_video(request.clone(),&content_key,true)? {
                 Some(job)=>job,
                 None if first!=center as u64*per_segment=>continue,
                 None=>return Err(EditorError::new("PREVIEW_CACHE_MISSING","No existing current preview window")),
             }
-        }else{store.video(request.clone())?};
+        }else{store.preview_video(request.clone(),&content_key,false)?.ok_or_else(||EditorError::new("PREVIEW_CACHE_MISSING","Preview submission returned no receipt"))?};
         // An explicit cancellation or failed attempt cannot poison this content
         // forever. Retry identities depend on the terminal receipt, so concurrent
         // consumers still share exactly one replacement job.
         for _ in 0..8 {
             if !matches!(job.state,crate::JobState::Failed|crate::JobState::Cancelled){break;}
             checkpoint()?;
-            request.idempotency_key=format!("preview-cache:{key}:{first}:{count}:after:{}",job.job_id);
-            job=if reuse_only {match store.cached_video(request.clone())? {
+            request.idempotency_key=format!("preview-cache:{content_key}:{first}:{count}:after:{}",job.job_id);
+            job=if reuse_only {match store.preview_video(request.clone(),&content_key,true)? {
                 Some(job)=>job,
                 None if first!=center as u64*per_segment=>continue 'windows,
                 None=>return Err(EditorError::new("PREVIEW_CACHE_MISSING","No reusable repaired current window")),
-            }}else{store.video(request.clone())?};
+            }}else{store.preview_video(request.clone(),&content_key,false)?.ok_or_else(||EditorError::new("PREVIEW_CACHE_MISSING","Preview retry returned no receipt"))?};
         }
         if reuse_only && first!=center as u64*per_segment && matches!(job.state,crate::JobState::Failed|crate::JobState::Cancelled){continue 'windows;}
         if matches!(job.state,crate::JobState::Failed|crate::JobState::Cancelled){return Err(EditorError::new("PREVIEW_CACHE_FAILED","Preview optimization requires a repaired render attempt"));}
@@ -156,8 +186,8 @@ mod tests {
         fixed.snapshot.project.sequences[0].tracks[0].elements[0].timeline_range.duration=Time{ticks:"5".into(),timebase:1};
         let mut first=Port::default();
         let nearby=prepare(&mut first,&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&Time{ticks:"32".into(),timebase:10},false,||Ok(())).unwrap();
-        assert_eq!(first.requests.iter().map(|r|r.range.as_ref().unwrap().start_frame.as_str()).collect::<Vec<_>>(),["60","120"]);
-        assert_eq!(nearby.segments.iter().map(|s|s.start_seconds).collect::<Vec<_>>(),[2.,4.]);
+        assert_eq!(first.requests.iter().map(|r|r.range.as_ref().unwrap().start_frame.as_str()).collect::<Vec<_>>(),["60","120","0"]);
+        assert_eq!(nearby.segments.iter().map(|s|s.start_seconds).collect::<Vec<_>>(),[0.,2.,4.]);
         let beginning=prepare(&mut Port::default(),&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&Time{ticks:"0".into(),timebase:1},false,||Ok(())).unwrap();
         assert_eq!(nearby.cache_key,beginning.cache_key);
     }
@@ -197,17 +227,42 @@ mod demand_tests {
     use super::*;
     use super::tests::Port;
     #[test]
-    fn demand_windows_share_overlaps_preserve_full_duration_and_reject_eof() {
+    fn preview_cache_visual_edit_reuses_only_unchanged_sampled_windows() {
+        let mut fixed=crate::media_video_jobs::tests::input();
+        let original=fixed.snapshot.project.sequences[0].tracks[0].elements[0].clone();
+        for index in 1..3 {
+            let mut next=original.clone();next.id=format!("clip_{index}");
+            next.timeline_range.start=Time{ticks:(index*2).to_string(),timebase:1};
+            fixed.snapshot.project.sequences[0].tracks[0].elements.push(next);
+        }
+        let mut port=Port::default();let runtime="a".repeat(64);let zero=Time{ticks:"0".into(),timebase:1};
+        let initial=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&runtime,&zero,false,||Ok(())).unwrap();
+        fixed.snapshot.revision="edited".into();
+        fixed.snapshot.project.sequences[0].tracks[0].elements[1].visual.as_mut().unwrap().transform.position_x_px=11.;
+        let edited=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&runtime,&zero,false,||Ok(())).unwrap();
+        assert_eq!(port.requests.len(),4);
+        assert_eq!(initial.segments[0].job_id,edited.segments[0].job_id);
+        assert_ne!(initial.segments[1].job_id,edited.segments[1].job_id);
+        assert_eq!(initial.segments[2].job_id,edited.segments[2].job_id);
+        let changed_runtime=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&"b".repeat(64),&zero,false,||Ok(())).unwrap();
+        assert_eq!(port.requests.len(),7);assert_ne!(edited.segments[0].job_id,changed_runtime.segments[0].job_id);
+        fixed.snapshot.project.assets[0].version.content_hash="b".repeat(64);
+        fixed.snapshot.project.assets[0].version.id=format!("av_{}","b".repeat(64));
+        prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&runtime,&zero,false,||Ok(())).unwrap();
+        assert_eq!(port.requests.len(),10);
+    }
+    #[test]
+    fn queued_scene_shares_windows_preserves_full_duration_and_rejects_eof() {
         let mut fixed=crate::media_video_jobs::tests::input();
         fixed.snapshot.project.sequences[0].tracks[0].elements[0].timeline_range.duration=Time{ticks:"42".into(),timebase:1};
         let mut port=Port::default();
         let a=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&Time{ticks:"0".into(),timebase:1},false,||Ok(())).unwrap();
-        assert_eq!(port.requests.len(),3);assert_eq!(a.duration,Time{ticks:"42".into(),timebase:1});
+        assert_eq!(port.requests.len(),21);assert_eq!(a.duration,Time{ticks:"42".into(),timebase:1});
         let b=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&Time{ticks:"4".into(),timebase:1},false,||Ok(())).unwrap();
-        assert_eq!(port.requests.len(),5);assert_eq!(a.segments[2].job_id,b.segments[0].job_id);assert_eq!(a.cache_key,b.cache_key);
-        assert_eq!(b.segments.iter().map(|s|s.start_seconds).collect::<Vec<_>>(),[4.,6.,8.]);
+        assert_eq!(port.requests.len(),21);assert_eq!(a.segments[2].job_id,b.segments[2].job_id);assert_eq!(a.cache_key,b.cache_key);
+        assert_eq!(b.segments.len(),21);assert_eq!(b.segments[2].start_seconds,4.);
         let last=prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&Time{ticks:"41".into(),timebase:1},false,||Ok(())).unwrap();
-        assert_eq!(last.segments.len(),1);assert_eq!(last.segments[0].end_seconds,42.);
+        assert_eq!(last.segments.len(),21);assert_eq!(last.segments.last().unwrap().end_seconds,42.);
         let count=port.requests.len();
         for time in [Time{ticks:"42".into(),timebase:1},Time{ticks:"-1".into(),timebase:1}] {
             assert_eq!(prepare(&mut port,&fixed.snapshot,"scene",&fixed.processing_policy,&"a".repeat(64),&time,false,||Ok(())).unwrap_err().code,"INVALID_ARGUMENT");

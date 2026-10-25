@@ -616,7 +616,7 @@ export class VisualPreview {
               // publication. This read-only still path reuses a nearby segment
               // or renders this frame only; it never starts the playback clock.
               let plan:Awaited<ReturnType<PictureWorkerRenderer["prepareCache"]>>|undefined;
-              if(!this.renderer.startLiveSurface) {
+              if(!this.renderer.startLiveSurface){
               await this.render(session,renderSignal,epoch);
               if(this.refineTimer)clearTimeout(this.refineTimer);this.refineTimer=null;
               renderSignal.throwIfAborted();
@@ -651,7 +651,7 @@ export class VisualPreview {
                     const current=this.host.state(),fixed=current&&(current.historical??current.head);
                     if(this.view.phase==="idle"&&fixed?.project.id===snapshot.project.id&&fixed.revision===snapshot.revision&&current?.sequenceId===sequence.id)
                       this.publish({lastRun:JSON.stringify({generation:report.generation,lastFrameTime:report.time,
-                      presentedFrames:report.presentedFrames,discardedFrames:report.discardedFrames,...JSON.parse(report.statistics)})});
+                      presentedFrames:report.presentedFrames,discardedFrames:report.discardedFrames,runtime:JSON.parse(report.runtime),...JSON.parse(report.statistics)})});
                     return;
                   }
                   if(!this.surfaceMode||renderSignal.aborted||this.currentToken!==expected)return;
@@ -660,7 +660,7 @@ export class VisualPreview {
                     presentedFrames:report.presentedFrames,discardedFrames:report.discardedFrames,statistics:report.statistics,error:null});
                 },error=>{
                   if(valid()&&!renderSignal.aborted&&this.currentToken===expected){this.stop();this.publish({phase:"failed",error:error.message});this.failure(error);}
-                });
+                },sequence.tracks.flatMap(track=>track.elements.map(element=>element.timeline_range.start)));
                 renderSignal.throwIfAborted();if(!valid())throw new DOMException("Cached presentation replaced","AbortError");
                 pictureReady(result.readyThrough);
                 return;

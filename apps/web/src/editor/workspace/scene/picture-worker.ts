@@ -19,6 +19,7 @@ const cache=new PictureCache();
 let canvas:OffscreenCanvas|null=null,surface:SurfaceWorkerRun|null=null,surfaceRunId=0;
 let displayHost:SurfaceWorkerHost|null=null;
 let surfaceDrain:Promise<unknown>=Promise.resolve();
+let idleOptimization:ReturnType<typeof setTimeout>|null=null;
 let preparedFor:string|null=null;
 const sessionKey=(session:{session_id:string;generation:string;overlay_epoch:string;owner_id:string;lease_id:string})=>
   JSON.stringify([session.session_id,session.generation,session.overlay_epoch,session.owner_id,session.lease_id]);
@@ -50,6 +51,7 @@ scope.onmessage = ({ data }) => {
     return;
   }
   if (!token || !sdk || !renderer) return;
+  if(data.kind!=="surfaceTimestamp"&&idleOptimization){clearTimeout(idleOptimization);idleOptimization=null;}
   if(data.kind==="surfaceTimestamp") {
     if(data.runId===surfaceRunId)surface?.timestamp(data.timestamp);return;
   }
@@ -81,10 +83,13 @@ scope.onmessage = ({ data }) => {
   if(data.kind==="stillFrame") {
     void (async()=>{
       await stopSurface(false);
-      try {await cache.prepare(client,data.session,task.abort.signal,()=>{},data.time,false);}
-      catch(error){
-        if(error instanceof OpenCutApiError&&["PREVIEW_CACHE_MISSING","PREVIEW_CACHE_LIMIT","PREVIEW_RUNTIME_UNAVAILABLE"].includes(error.code))return renderer!.render(api,data.session,task.abort.signal);
-        throw error;
+      const frame=await client.call("opencut_visual_preview_frame",{session:data.session,time:data.time,resolution:"preview540",prepare_ahead:true,retained_picture_bytes:0,decoded:null,rasters:null,captions:null,graphics:null},{signal:task.abort.signal});
+      const reused=await cache.rebind(data.session,frame.plan.identity,data.time,task.abort.signal);
+      if(!reused){
+        await cache.suspend();
+        idleOptimization=setTimeout(()=>{idleOptimization=null;if(alive&&!surface&&!active)
+          void cache.prepare(client,data.session,task.abort.signal,()=>{},frame.plan.identity.time,false,true).catch(()=>{});
+        },2000);
       }
       task.abort.signal.throwIfAborted();preparedFor=sessionKey(data.session);
       if(cache.hasFrame(data.time)){
@@ -110,14 +115,20 @@ scope.onmessage = ({ data }) => {
     void (async()=>{
       await stopSurface(false);task.abort.signal.throwIfAborted();
       if(data.producer!=="scene"&&preparedFor!==sessionKey(data.session))throw Error("Presentation differs from its authorized cache preparation");
-      const source=data.producer==="scene"?new ScenePictureSource(renderer!,api,data.session):cache;
+      const source=data.producer==="scene"?new ScenePictureSource(renderer!,api,data.session,cache,data.warmTimes,async()=>{
+        // Obtain the complete native manifest before releasing clock credit.
+        // Replays rebind it; an edit admits only missing content-keyed jobs.
+        const {session_id,generation,overlay_epoch,owner_id,lease_id}=data.session;
+        try {await cache.prepare(client,{session_id,generation,overlay_epoch,owner_id,lease_id},task.abort.signal,()=>{},data.session.presentation_time,false,true);}
+        catch(error){if(error instanceof OpenCutApiError&&error.code==="PREVIEW_CACHE_LIMIT")await cache.suspend();else throw error;}
+      }):cache;
       if(source instanceof ScenePictureSource)await source.initialize(task.abort.signal);
       if(data.canvas){if(canvas)throw Error("Presentation canvas already belongs to this worker");canvas=data.canvas;}
       if(!canvas)throw Object.assign(Error("Worker canvas presentation is unavailable"),{code:"CAPABILITY_UNAVAILABLE"});
       surfaceRunId=data.id;
       displayHost??=new SurfaceWorkerHost();
       const current=new SurfaceWorkerRun(displayHost,source,canvas,data.session,data.binding,data.clockPort,
-        picture=>source instanceof ScenePictureSource?renderer!.surfaceBitmap(picture.pixels):picture.pixels,
+        picture=>source instanceof ScenePictureSource&&!picture.runtime.cacheSegment?renderer!.surfaceBitmap(picture.pixels):picture.pixels,
         (result:SurfaceReport)=>{if(alive&&surface===current)scope.postMessage({token:token!,kind:"surfaceReport",runId:data.id,result,retired:false});},
         error=>{if(alive&&surface===current)scope.postMessage({token:token!,kind:"surfaceFailed",runId:data.id,error:errorValue(error)});});
       surface=current;

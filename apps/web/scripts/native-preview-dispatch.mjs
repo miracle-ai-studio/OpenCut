@@ -22,8 +22,8 @@ export class NativePreviewDispatch {
     if(late<1)return;this.lag_count++;greatest(this.lags,{start_ms:start,end_ms:end,late_ms:late},"late_ms");
   }
   complete(row,detail){
-    const keys=["evaluate_enter_ms","evaluate_exit_ms","node_callback_enter_ms","node_callback_exit_ms","producer_enter_ms","hex_exit_ms","callback_enter_ms","callback_exit_ms"];
-    if(!detail||detail.node_callback_calls!==1||keys.some(k=>!Number.isFinite(detail[k])||detail[k]<0)||detail.evaluate_exit_ms<detail.evaluate_enter_ms||detail.node_callback_exit_ms<detail.node_callback_enter_ms||detail.hex_exit_ms<detail.producer_enter_ms||detail.callback_exit_ms<detail.callback_enter_ms)throw Error("Incomplete dispatch command");
+    const keys=["evaluate_enter_ms","evaluate_exit_ms","node_callback_enter_ms","node_callback_exit_ms","producer_enter_ms","encode_exit_ms","callback_enter_ms","callback_exit_ms"];
+    if(!detail||detail.node_callback_calls!==1||keys.some(k=>!Number.isFinite(detail[k])||detail[k]<0)||detail.evaluate_exit_ms<detail.evaluate_enter_ms||detail.node_callback_exit_ms<detail.node_callback_enter_ms||detail.encode_exit_ms<detail.producer_enter_ms||detail.callback_exit_ms<detail.callback_enter_ms)throw Error("Incomplete dispatch command");
     greatest(this.tails,{command_id:row.command_id,start_sample:row.start_sample,frame_count:row.frame_count,total_ms:row.total_ms,node_callback_calls:1,...Object.fromEntries(keys.map(k=>[k,detail[k]]))},"total_ms");
   }
   snapshot(){return {schema_version:1,clock_samples:this.clocks,tails:[...this.tails].sort((a,b)=>b.total_ms-a.total_ms),
@@ -59,11 +59,11 @@ export function summarizeNativePreviewDispatch(raw,rows){
     const gc=(raw.node_gc?.samples??[]).filter(s=>s.start_ms<=t.evaluate_exit_ms&&s.start_ms+s.duration_ms>=t.evaluate_enter_ms);
     return {command_id:t.command_id,start_sample:t.start_sample,total_ms:t.total_ms,
       evaluate_ingress:interval(t.producer_enter_ms+lower-t.evaluate_enter_ms,t.producer_enter_ms+upper-t.evaluate_enter_ms),
-      evaluate_return:interval(t.evaluate_exit_ms-t.hex_exit_ms-upper,t.evaluate_exit_ms-t.hex_exit_ms-lower),
+      evaluate_return:interval(t.evaluate_exit_ms-t.encode_exit_ms-upper,t.evaluate_exit_ms-t.encode_exit_ms-lower),
       callback_ingress:interval(t.node_callback_enter_ms-t.callback_enter_ms-upper,t.node_callback_enter_ms-t.callback_enter_ms-lower),
       callback_return:interval(t.callback_exit_ms+lower-t.node_callback_exit_ms,t.callback_exit_ms+upper-t.node_callback_exit_ms),
       node_callback_ms:t.node_callback_exit_ms-t.node_callback_enter_ms,
-      page_body_ms:t.hex_exit_ms-t.producer_enter_ms,
+      page_body_ms:t.encode_exit_ms-t.producer_enter_ms,
       overlapping_selected_node_timer_lags:nodeIntervals,overlapping_selected_page_long_tasks:pageTasks,
       ...(raw.node_gc?{overlapping_selected_node_gc:gc}:{} )};
   });

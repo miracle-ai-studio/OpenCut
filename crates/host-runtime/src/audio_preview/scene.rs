@@ -60,9 +60,9 @@ fn scene_picture_inner(
             .machine
             .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
         let cached = state
-            .picture
-            .as_ref()
-            .filter(|c| {
+            .pictures
+            .iter().rev()
+            .find(|c| {
                 draft.is_none()
                     && c.resolution == input.resolution
                     && input.decoded.is_some()
@@ -248,7 +248,7 @@ fn scene_picture_inner(
         });
     }
     if draft.is_none() && input.decoded.is_none() {
-        state.picture = Some(CachedPicture {
+        state.remember_picture(CachedPicture {
             resolution: input.resolution,
             retained_picture_bytes: input.retained_picture_bytes,
             session: input.session,

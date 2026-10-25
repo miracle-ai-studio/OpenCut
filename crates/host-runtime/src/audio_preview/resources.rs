@@ -46,12 +46,10 @@ pub(crate) fn open(
         if state.resources.len() >= 32 {
             return Err(error("PREVIEW_RESOURCE_LIMIT"));
         }
-        let picture = state
-            .picture
-            .as_ref()
-            .filter(|c| c.session == input.session)
-            .ok_or_else(|| error("NOT_AUTHORIZED"))?;
-        let version = picture.prepared.media_version(&input.resource)?;
+        let version = state.pictures.iter().rev()
+            .filter(|picture|picture.session==input.session)
+            .find_map(|picture|picture.prepared.media_version(&input.resource).ok())
+            .ok_or_else(||error("NOT_AUTHORIZED"))?;
         let retained = state
             .resources
             .values()

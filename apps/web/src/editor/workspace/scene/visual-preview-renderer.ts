@@ -9,6 +9,7 @@ import {
   closeGpuRealm,
   renderClassicSceneFrame,
   preparePreviewFontFrame,
+  prewarmVideoSources,
   VisualDecoderCache,
   PreviewSegmentDecoder,
   type GpuRealm,
@@ -17,6 +18,7 @@ import type { EditorApi } from "../api";
 import { readPreviewBytes } from "./visual-preview-bytes";
 import { previewExecutionAdmission } from "./visual-preview-admission";
 import type { ToolInput, ToolOutput } from "../../../lib/editor-sdk";
+import {OpenCutApiError} from "../../../lib/editor-sdk";
 // Keep canvas editing on the same Classic measurement implementation as preview.
 export {
   PreviewSegmentDecoder,
@@ -60,6 +62,85 @@ export class VisualPreviewRenderer {
     result:Promise<{ok:true;frame:Frame}|{ok:false;error:unknown}>}|null=null;
   private textObservation:{key:string;rasters:Input["rasters"];captions:Input["captions"]}|null=null;
   private rangeReads = { count: 0, bytes: 0, elapsed: 0 };
+  private warming:{time:NonNullable<Input["time"]>;reserved:number;replace:boolean;abort:AbortController;decoders:VisualDecoderCache;done:Promise<void>;ready:boolean;error:unknown}|null=null;
+  private warmAdoptions=0;
+  private warmAllowance=0;
+  private warmAttempts=0;
+  private warmError="";
+  /** Advisory authored boundaries select requests only. Rust still supplies
+   * every source time, resource, decode permit and eventual picture. */
+  prewarm(api:VisualPreviewExecutionApi,session:Input["session"],time:NonNullable<Input["time"]>,signal:AbortSignal,replace=false){
+    if(this.warming||this.resourceAbort.signal.aborted||signal.aborted||this.warmAllowance<48*1024*1024)return false;
+    const scope=JSON.stringify([session.session_id,session.generation,session.overlay_epoch,session.owner_id,session.lease_id]);
+    if(scope!==this.resourceScope)return false;
+    this.warmAttempts++;
+    const warm={time,replace,reserved:48*1024*1024,abort:new AbortController(),decoders:new VisualDecoderCache(),done:Promise.resolve(),ready:false,error:null as unknown};
+    this.warming=warm;
+    const intent=AbortSignal.any([signal,this.resourceAbort.signal,warm.abort.signal]);
+    warm.done=(async()=>{
+      try {
+        let frame:Frame|undefined;
+        for(let attempt=0;attempt<7;attempt++){
+          try {frame=await api.sdk.call("opencut_visual_preview_frame",{session,time,resolution:"preview540",prepare_ahead:true,retained_picture_bytes:0,decoded:null,rasters:null,captions:null,graphics:null},{signal:intent});break;}
+          catch(error){
+            if(!(error instanceof OpenCutApiError&&error.code==="PREVIEW_FRAME_STALE")||attempt===6)throw error;
+            // The producer can lead the host's latest consumer observation.
+            // Keep its exact authorization window; retry one bounded decoder.
+            await new Promise(resolve=>setTimeout(resolve,120));intent.throwIfAborted();
+          }
+        }
+        if(!frame)throw Error("Cut preparation did not obtain an admitted frame");
+        intent.throwIfAborted();
+        const transfers=new Map<string,TextPlan["media"]["resources"][number]>();
+        warm.ready=await prewarmVideoSources(textExecution(frame.plan).media,frame.decode_admissions,{
+          admission:{...previewExecutionAdmission(frame.admission),maxRgbaBytes:String(BigInt(frame.admission.maxRgbaBytes)<48n*1024n*1024n?BigInt(frame.admission.maxRgbaBytes):48n*1024n*1024n),maxEncodedBytes:Math.min(Number(frame.admission.maxEncodedBytes),8*1024*1024)},
+          rangeSignal:this.resourceAbort.signal,
+          rangeChunkBytes:524288,rangeReadAhead:true,
+          async callback(name,args){
+            if(name==="resolveVerifiedBytes"){
+              const resource=args.resource as TextPlan["media"]["resources"][number];
+              const opened=await api.sdk.call("opencut_visual_preview_resource_open",{session,resource},{signal:intent});transfers.set(opened.transferId,resource);return opened;
+            }
+            if(name==="releaseVerifiedBytes"){
+              const id=String(args.transferId);transfers.delete(id);
+              await api.sdk.call("opencut_visual_preview_resource_release",{session,transfer_id:id},{keepalive:true}).catch(()=>{});return {released:true};
+            }
+            throw Error("Unknown cut preparation callback");
+          },
+          async readVerifiedBytes(transferId,offset,count){
+            if(!transfers.has(transferId))throw Error("Cut source changed authorization");
+            return (await api.sdk.readVisualPreviewResource({session,transfer_id:transferId,offset:String(offset),count},{signal:AbortSignal.any([intent,AbortSignal.timeout(10000)])})).bytes;
+          },
+        },intent,warm.decoders,replace?new Set():this.decoders.keys());
+        if(warm.ready){
+          // Native preparation reserves four fixed decoder surfaces; the
+          // retained pool accounts three. Keep the fourth plus all bounded
+          // range/transport bytes, rather than the initial worst-case reserve.
+          warm.reserved=Math.ceil((warm.decoders.retainedBytes()*4/3+warm.decoders.retainedEncodedBytes())/(1024*1024))*1024*1024;
+          this.warmError="";
+        }
+      }catch(error){warm.error=error;this.warmError=error instanceof Error?error.message:String(error);}
+      if(!warm.ready){await warm.decoders.close();if(this.warming===warm)this.warming=null;}
+    })();
+    return true;
+  }
+  private async clearWarm(){
+    const warm=this.warming;if(!warm)return;this.warming=null;warm.abort.abort();await warm.done;await warm.decoders.close();
+  }
+  async advanceWarm(time:NonNullable<Input["time"]>,signal:AbortSignal,wait=true){
+    const warm=this.warming;
+    if(!warm||BigInt(time.ticks)*BigInt(warm.time.timebase)<BigInt(warm.time.ticks)*BigInt(time.timebase)||(!wait&&!warm.ready))return;
+    await warm.done;signal.throwIfAborted();
+    if(warm.ready&&this.warming===warm){await this.decoders.adopt(warm.decoders,warm.replace);await warm.decoders.close();this.warming=null;this.warmAdoptions++;}
+  }
+  private executionAdmission(value:Frame["admission"]){
+    const admission=previewExecutionAdmission(value);
+    if(!this.warming)return admission;
+    const bytes=this.warming.reserved;
+    if(BigInt(admission.maxRgbaBytes)<=BigInt(bytes)||BigInt(admission.maxGpuBytes)<=BigInt(bytes)||admission.maxEncodedBytes<=8*1024*1024)
+      throw Object.assign(Error("Cut preparation exceeds remaining preview admission"),{code:"VISUAL_BUDGET_EXCEEDED"});
+    return {...admission,maxRgbaBytes:String(BigInt(admission.maxRgbaBytes)-BigInt(bytes)),maxGpuBytes:String(BigInt(admission.maxGpuBytes)-BigInt(bytes)),maxEncodedBytes:admission.maxEncodedBytes-8*1024*1024};
+  }
   async render(
     api: VisualPreviewExecutionApi,
     session: Input["session"],
@@ -92,6 +173,7 @@ export class VisualPreviewRenderer {
     if (resourceScope !== this.resourceScope) {
       if (this.resourceScope !== null) {
         this.resourceAbort.abort();
+        await this.clearWarm();
         await this.decoders.close();
         this.resourceAbort = new AbortController();
       }
@@ -99,6 +181,7 @@ export class VisualPreviewRenderer {
       this.prefetched=null;
       this.textObservation=null;
     }
+    if(preparation?.time)await this.advanceWarm(preparation.time,signal);
     // Retained decoder reads outlive a frame's startup deadline. They remain
     // bound to this exact session generation and are reauthorized by the host.
     const rangeSignal = this.resourceAbort.signal;
@@ -155,9 +238,8 @@ export class VisualPreviewRenderer {
       rasters: null,
     });
     checkIntent();
-    const executionAdmission = previewExecutionAdmission;
     if (preparation && !frame.prepare_ahead) throw Error("Service did not authorize picture preparation");
-    let admission = executionAdmission(frame.admission);
+    let admission = this.executionAdmission(frame.admission);
     const fontsFor = (plan: ExecutionPlan) => new Map(
       [
         ...textExecution(plan).texts.map(({ font }) => font),
@@ -195,7 +277,7 @@ export class VisualPreviewRenderer {
           sampledAt = performance.now();
           frame = await callFrame({ session, time: null, decoded: null, rasters: null });
           checkIntent();
-          admission = executionAdmission(frame.admission);
+          admission = this.executionAdmission(frame.admission);
           const next = fontsFor(frame.plan);
           const sameScope = (["projectId", "revision", "sequenceId", "width", "height", "profile"] as const)
             .every((key) => frame.plan.identity[key] === initial.plan.identity[key]);
@@ -204,7 +286,7 @@ export class VisualPreviewRenderer {
             return previous && (["weight", "style", "faceIndex"] as const)
               .every((field) => font[field] === previous[field]);
           });
-          const initialAdmission = previewExecutionAdmission(initial.admission);
+          const initialAdmission = this.executionAdmission(initial.admission);
           const sameAdmission = Object.keys(admission).length === Object.keys(initialAdmission).length &&
             Object.entries(admission).every(([key, value]) =>
               value === initialAdmission[key as keyof typeof admission]);
@@ -551,6 +633,7 @@ export class VisualPreviewRenderer {
         this.decoders,
         this.fonts,
       ); } catch (error) {
+        if(this.warming&&error instanceof Error&&"code" in error&&error.code==="VISUAL_BUDGET_EXCEEDED")await this.clearWarm();
         if (error instanceof Error) Object.defineProperty(error, "previewMetrics", { value: {
           ...execution, ...rangeMetrics(), planMs: planned - began, resourcePrepareMs,
           sampleToCompleteMs: performance.now() - sampledAt, totalMs: performance.now() - began,
@@ -588,8 +671,11 @@ export class VisualPreviewRenderer {
           planMs: String(planned - began),resourcePrepareMs: String(resourcePrepareMs),
           sampleToCompleteMs: String(performance.now() - sampledAt),totalMs: String(performance.now() - began),
           gpuProofWaitMs:"0",
+          prewarmAdoptions:String(this.warmAdoptions),prewarmReservedBytes:String(this.warming?.reserved??0),
+          prewarmAttempts:String(this.warmAttempts),prewarmError:this.warmError,
       };
       if(ready){const pendingAt=performance.now();void ready.then(()=>{runtime.gpuProofWaitMs=String(performance.now()-pendingAt);},()=>{});}
+      this.warmAllowance=Math.max(0,Math.min(Number(admission.maxGpuBytes),Number(admission.maxRgbaBytes)-Number(execution.peakAccountedBytes??admission.maxRgbaBytes)));
       return {
         frame,
         pixels,
@@ -615,6 +701,7 @@ export class VisualPreviewRenderer {
     this.prefetched=null;
     this.textObservation=null;
     this.resourceAbort.abort();
+    void this.clearWarm();
     void Promise.resolve(this.decoders.close()).catch(() => {});
     const context = this.surface.getContext("webgpu");
     if (context && "unconfigure" in context) context.unconfigure();

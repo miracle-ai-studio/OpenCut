@@ -62,6 +62,23 @@ function resourceCallback(plan, name, args) {
 const admission = { maxWidth: 4, maxHeight: 2, maxPixels: "8", maxDecodedBytes: "128" };
 const decode = requestedTimeSeconds => ({ selectedVideoStream: null, requestedTimeSeconds, eofPolicy: { kind: "noFrame" } });
 const signal = new AbortController().signal;
+test("a cut decoder adopts its verified source and covering PTS without reopening or decoding on the presentation path",async()=>{
+ const {prewarmVideoSources}=await import("../src/index.mjs");
+ const future=new VisualDecoderCache(),current=new VisualDecoderCache(),before=opened.length;
+ const plan={layers:[{elementId:"cut",resource,decode:{kind:"video",...decode(0)}}]};
+ const host={admission:{maxRgbaBytes:String(48*1024*1024),maxEncodedBytes:8*1024*1024},
+  rangeChunkBytes:524288,rangeReadAhead:true,
+  callback:async(name,args)=>name==="resolveVerifiedBytes"?{transferId:"verified",contentHash:args.resource.contentHash,byteLength:args.resource.size,maxChunkBytes:524288}:resourceCallback(plan,name,args),readVerifiedBytes:async(_id,_offset,count)=>new Uint8Array(count)};
+ try{
+  assert.equal(await prewarmVideoSources(plan,{cut:admission},host,signal,future,new Set()),true);
+  const key=`${resource.assetId}:${resource.contentHash}:${resource.size}`;
+  await current.adopt(future);await future.close();assert.equal(opened.length,before+1);assert.equal(opened.at(-1).disposed,false);
+  const observed=await current.decode(key,current.range(key),decode(.25),admission,signal);
+  assert.equal(observed.actualTimestampSeconds,0);assert.equal(opened.length,before+1);
+  assert.equal(await prewarmVideoSources(plan,{cut:admission},host,signal,future,current.keys()),false);
+ }finally{await current.close();await future.close();}
+ assert.equal(opened.at(-1).disposed,true);
+});
 
 test("worker image decoding keeps dimension admission, copies the bitmap and releases it on cancellation", async () => {
   const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64');

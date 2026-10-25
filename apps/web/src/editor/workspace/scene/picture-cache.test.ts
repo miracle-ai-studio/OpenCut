@@ -41,14 +41,14 @@ it("refuses corrupt bytes before the requested segment is playable",async()=>{
  await expect(f.cache.prepare(f.sdk,session,new AbortController().signal,f.progress)).rejects.toThrow("checksum");
  await expect(f.cache.frame(time(0),new AbortController().signal)).rejects.toThrow("not ready");await f.cache.close();
 });
-it("reauthorizes every generation, reuses partial verified bytes, and rejects a changed content identity",async()=>{
+it("reauthorizes every generation and retains only unchanged native window receipts across revisions",async()=>{
  const f=await fixture(),signal=new AbortController().signal;
  await f.cache.prepare(f.sdk,session,signal,f.progress);await f.cache.frame(time(2),signal);await f.cache.suspend();
  await f.cache.prepare(f.sdk,{...session,generation:"2"},signal,f.progress,time(2));expect(f.downloadArtifact).toHaveBeenCalledTimes(2);
- const next=structuredClone(f.native),original=f.call.getMockImplementation()!;next.cache_key="c".repeat(64);
+ const next=structuredClone(f.native),original=f.call.getMockImplementation()!;next.cache_key="c".repeat(64);next.revision="r2";next.segments[1].job_id="edited_job";
  f.call.mockImplementation(async(name,input)=>name==="opencut_visual_preview_cache_prepare"?next:original(name,input));
  await f.cache.prepare(f.sdk,{...session,generation:"3"},signal,f.progress);await f.cache.frame(time(2),signal);
- expect(f.downloadArtifact).toHaveBeenCalledTimes(4);await f.cache.close();
+ expect(f.downloadArtifact).toHaveBeenCalledTimes(3);await f.cache.close();
 });
 it("probes a cold still frame without waiting for the render queue",async()=>{
  const f=await fixture(),original=f.call.getMockImplementation()!;
@@ -58,8 +58,7 @@ it("probes a cold still frame without waiting for the render queue",async()=>{
 });
 it("keeps the essential window bounded and cancels a pending native wait",async()=>{
  const limited=await fixture();limited.native.max_encoded_bytes=4;
- await limited.cache.prepare(limited.sdk,session,new AbortController().signal,limited.progress);
- const moved=await limited.cache.frame(time(2),new AbortController().signal);moved.pixels.close();expect(limited.cache.hasFrame(time(0))).toBe(false);await limited.cache.close();
+ await expect(limited.cache.prepare(limited.sdk,session,new AbortController().signal,limited.progress)).rejects.toMatchObject({code:"PREVIEW_CACHE_LIMIT"});await limited.cache.close();
  const f=await fixture(),abort=new AbortController();
  f.call.mockImplementation(async(name)=>name==="opencut_visual_preview_cache_prepare"?f.native:{state:"queued",artifacts:[]} as never);
  const pending=f.cache.prepare(f.sdk,session,abort.signal,f.progress);await vi.waitFor(()=>expect(f.call.mock.calls.length).toBeGreaterThanOrEqual(2));abort.abort();
@@ -86,10 +85,12 @@ it("starts playback from its current window while distant render jobs remain que
  const f=await fixture(),original=f.call.getMockImplementation()!;
  f.native.segments=Array.from({length:8},(_,i)=>({...f.native.segments[0],start:time(i*2),end:time(i*2+2),job_id:`job_${i*2}`,frames:[i*2,i*2+1].map(n=>({time:time(n),next_time:time(n+1),time_seconds:n/25,segment_time_seconds:(n%2)/25}))}));
  f.native.duration=time(16);f.native.duration_seconds=16/25;
- f.call.mockImplementation(async(name,input)=>name==="opencut_job_view"&&input.job_id!=="job_6"?{state:"queued",artifacts:[]} as never:original(name,input));
+ f.call.mockImplementation(async(name,input)=>name==="opencut_job_view"&&!["job_6","job_8","job_10"].includes(input.job_id??"")?{state:"queued",artifacts:[]} as never:original(name,input));
  await f.cache.prepare(f.sdk,session,new AbortController().signal,f.progress,time(6),true);
  expect(f.cache.hasFrame(time(6))).toBe(true);
- expect(f.downloadArtifact).toHaveBeenCalledOnce();
+ expect(f.downloadArtifact).toHaveBeenCalledTimes(3);
+ expect(f.progress).toHaveBeenLastCalledWith(3,3);
+ expect(calls.warm.mock.calls.slice(0,2).map(call=>call[0])).toEqual(["6/25:8/25:job_6","8/25:10/25:job_8"]);
  expect(f.call.mock.calls.some(([,input])=>input.job_id==="job_14")).toBe(false);
  const picture=await f.cache.frame(time(6),new AbortController().signal);picture.pixels.close();
  await f.cache.close();
@@ -98,7 +99,7 @@ it("starts playback from its current window while distant render jobs remain que
 it("retires a frame consumer immediately while its shared next-window render remains queued",async()=>{
  const f=await fixture(),original=f.call.getMockImplementation()!;
  f.call.mockImplementation(async(name,input)=>name==="opencut_job_view"&&input.job_id==="job_2"?{state:"queued",artifacts:[]} as never:original(name,input));
- await f.cache.prepare(f.sdk,session,new AbortController().signal,f.progress,time(0),true);
+ await f.cache.prepare(f.sdk,session,new AbortController().signal,f.progress,time(0),false);
  const abort=new AbortController(),frame=f.cache.frame(time(2),abort.signal);
  abort.abort(new DOMException("Paused","AbortError"));
  await expect(frame).rejects.toMatchObject({name:"AbortError"});

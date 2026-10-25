@@ -1,5 +1,5 @@
 import type {AudioPreviewSession} from "./types";
-import type {CachedPicture} from "./picture-cache";
+import type {CachedPicture,PictureCache} from "./picture-cache";
 import type {SurfacePictureSource} from "./surface-player";
 import type {VisualPreviewRenderer,VisualPreviewExecutionApi} from "./visual-preview-renderer";
 
@@ -9,7 +9,13 @@ const compare=(a:Time,b:Time)=>BigInt(a.ticks)*BigInt(b.timebase)-BigInt(b.ticks
 export class ScenePictureSource implements SurfacePictureSource {
   private first:CachedPicture|null=null;
   private plan:ReturnType<SurfacePictureSource["descriptor"]>|null=null;
-  constructor(private renderer:Pick<VisualPreviewRenderer,"render">&Partial<Pick<VisualPreviewRenderer,"surfacePresenter">>,private api:VisualPreviewExecutionApi,private session:AudioPreviewSession){}
+  private attempted=new Set<Time>();
+  private cuts:Time[];
+  private hits=0;
+  private usingCache=false;
+  constructor(private renderer:Pick<VisualPreviewRenderer,"render">&Partial<Pick<VisualPreviewRenderer,"surfacePresenter"|"prewarm"|"advanceWarm">>,private api:VisualPreviewExecutionApi,private session:AudioPreviewSession,private cache?:PictureCache,cuts:Time[]=[],private prepareCache?:()=>Promise<void>){
+    this.cuts=[...cuts].sort((a,b)=>Number(compare(a,b))).filter((time,index,all)=>!index||compare(time,all[index-1])!==0n);
+  }
   async initialize(signal:AbortSignal){
     const picture=await this.render(this.session.presentation_time,signal,0);
     try {
@@ -20,6 +26,13 @@ export class ScenePictureSource implements SurfacePictureSource {
         width:picture.pixels.width,height:picture.pixels.height,
         duration:{ticks:this.session.total_frames,timebase:this.session.identity.sample_rate},
         frame_step_seconds:Number(delta)/(next.timebase*at.timebase)};
+      if(this.cache){
+        const {session_id,generation,overlay_epoch,owner_id,lease_id}=this.session;
+        const identity=picture.frame.plan.identity as ToolFrameIdentity;
+        if(!await this.cache.rebind({session_id,generation,overlay_epoch,owner_id,lease_id},identity,at,signal)){
+          if(this.prepareCache)await this.prepareCache();else await this.cache.suspend();
+        }
+      }
       signal.throwIfAborted();this.first=picture;
     }catch(error){picture.pixels.close();throw error;}
   }
@@ -30,6 +43,24 @@ export class ScenePictureSource implements SurfacePictureSource {
   async frame(time:Time,signal:AbortSignal,retainedBytes=0):Promise<CachedPicture>{
     signal.throwIfAborted();
     if(this.first){const first=this.first;this.first=null;if(compare(time,first.frame.plan.identity.time)<0n||compare(time,first.frame.next_time)>=0n){first.pixels.close();throw Error("Initial scene picture changed requested interval");}return first;}
+    this.cache?.follow(time);
+    const cached=!!this.cache?.hasFrame(time);
+    await this.renderer.advanceWarm?.(time,signal,!cached);
+    // Keep the live decoder positioned for an unfinished following cache
+    // window. A cache hit must not create a new cold open at the handoff.
+    const boundary=cached?this.cache!.nextWindow(time):null;
+    const next=cached?(boundary&&!this.attempted.has(boundary)?boundary:undefined):this.cuts.find(cut=>!this.attempted.has(cut)&&compare(cut,time)>0n);
+    if(next&&compare(next,this.descriptor().duration)<0n){
+      const delta=compare(next,time),scale=BigInt(next.timebase)*BigInt(time.timebase);
+      const {session_id,generation,overlay_epoch,owner_id,lease_id}=this.session;
+      if(delta<=2n*scale&&this.renderer.prewarm?.(this.api,{session_id,generation,overlay_epoch,owner_id,lease_id},next,signal,cached))this.attempted.add(next);
+    }
+    if(cached){
+      const plan=this.cache!.descriptor();
+      if(plan.project_id!==this.session.identity.project_id||plan.revision!==this.session.identity.revision||plan.sequence_id!==this.session.identity.sequence_id)throw Error("Derived picture changed its fixed session");
+      const picture=await this.cache!.frame(time,signal);this.usingCache=true;this.hits++;return {...picture,runtime:{...picture.runtime,cacheHits:String(this.hits)}};
+    }
+    if(this.usingCache){await this.cache!.suspend(false);this.usingCache=false;signal.throwIfAborted();}
     return this.render(time,signal,retainedBytes);
   }
   private async render(time:Time,signal:AbortSignal,retainedBytes:number):Promise<CachedPicture>{
@@ -41,7 +72,8 @@ export class ScenePictureSource implements SurfacePictureSource {
       if(!result.frame.prepare_ahead||!result.frame.next_time||compare(result.frame.next_time,identity.time)<=0n||compare(time,identity.time)<0n||compare(time,result.frame.next_time)>=0n||
         identity.projectId!==this.session.identity.project_id||identity.revision!==this.session.identity.revision||identity.sequenceId!==this.session.identity.sequence_id||
         (this.plan&&(result.pixels.width!==this.plan.width||result.pixels.height!==this.plan.height)))throw Error("Native scene picture changed its fixed session");
-      return result as CachedPicture;
+      return {...result,runtime:{...result.runtime,cacheState:this.cache?.state()??"disabled",cacheHits:String(this.hits)}} as CachedPicture;
     }catch(error){result.pixels.close();throw error;}
   }
 }
+type ToolFrameIdentity=import("../../../lib/editor-sdk").ToolOutput<"opencut_visual_preview_frame">["plan"]["identity"];

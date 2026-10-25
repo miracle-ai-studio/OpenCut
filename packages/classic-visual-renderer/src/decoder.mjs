@@ -95,6 +95,17 @@ export class VisualDecoderCache {
   entries = new Map();
   sources = new Map();
   range(key) { return this.sources.get(key); }
+  keys() { return new Set(this.entries.keys()); }
+  async adopt(other, replace=false) {
+    // Only completed speculative decoders move. Their verified ranges retain
+    // the same session lifetime; no source time or observation is fabricated.
+    for (const [key,entry] of other.entries) {
+      if(replace&&this.entries.has(key))await this.retain(new Set([...this.entries.keys()].filter(existing=>existing!==key)));
+      if(this.entries.has(key))continue;
+      this.entries.set(key,entry);other.entries.delete(key);
+      if(other.sources.has(key)){this.sources.set(key,other.sources.get(key));other.sources.delete(key);}
+    }
+  }
   keepRange(key, source) {
     if (!isVerifiedRangeSource(source) || this.sources.has(key)) reject("INVALID_VISUAL_PLAN", "Verified decoder source changed");
     this.sources.set(key, source);

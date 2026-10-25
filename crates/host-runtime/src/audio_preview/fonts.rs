@@ -76,16 +76,7 @@ fn font_version(
     state
         .machine
         .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
-    let coverage = state
-        .text_coverage
-        .as_ref()
-        .filter(|c| c.session == input.session)
-        .ok_or_else(|| error("NOT_AUTHORIZED"))?;
-    coverage
-        .coverage
-        .iter()
-        .find(|proof| proof.font.id == input.font_id)
-        .map(|proof| proof.font.content.clone())
+    state.font_version(&input.session,&input.font_id)
         .ok_or_else(|| error("NOT_AUTHORIZED"))
 }
 pub(crate) fn authorize_font(
@@ -104,14 +95,9 @@ pub(crate) fn authorize_font_batch(
     state
         .machine
         .verify_visual_frame(&input.session, host.caller.principal_id(), now())?;
-    let coverage = state
-        .text_coverage
-        .as_ref()
-        .filter(|c| c.session == input.session)
-        .ok_or_else(|| error("NOT_AUTHORIZED"))?;
     opencut_editor_application::visual_preview::require_font_batch(
         &input.font_ids,
-        coverage.coverage.iter().map(|p| p.font.id.as_str()),
+        input.font_ids.iter().filter(|id|state.font_version(&input.session,id).is_some()).map(String::as_str),
     )?;
     // A batch never publishes a partial prefix or extends the original lease.
     state

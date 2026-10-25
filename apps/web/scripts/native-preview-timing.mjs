@@ -3,7 +3,7 @@
 export function installNativePreviewTiming(traceDispatch=false) {
   const producer=globalThis.__opencutPreviewProducer, callback=globalThis.__opencutPreviewCallback;
   if (!producer || typeof producer.next!=="function" || typeof callback!=="function" || globalThis.__opencutPreviewTiming) throw Error("No unique prepared native producer");
-  const next=producer.next, from=Array.from, join=Array.prototype.join, arrays=new WeakSet();
+  const next=producer.next, encode=globalThis.btoa;
   let current=null;
   globalThis.__opencutPreviewTiming={last:null};
   let longTaskObserver;
@@ -27,24 +27,22 @@ export function installNativePreviewTiming(traceDispatch=false) {
   };
   producer.next=async function(command) {
     current={command_id:command.id,start_sample:command.startSample,frame_count:command.frameCount,
-      callback_ms:0,producer_ms:0,hex_ms:0,hex_calls:0,after_next:false};
+      callback_ms:0,producer_ms:0,encode_ms:0,encode_calls:0,after_next:false};
     globalThis.__opencutPreviewTiming.last=current;
     const t=performance.now();
     if(traceDispatch)current.producer_enter_ms=t;
     try{return await next.call(this,command);}
-    finally{current.producer_ms=performance.now()-t;current.after_next=true;}
+    finally{current.producer_ms=performance.now()-t;current.encode_after=performance.now();current.after_next=true;}
   };
-  Array.from=function(...args) {
-    const eligible=current?.after_next&&args[0] instanceof Uint8Array&&args[0].length===current.frame_count*4;
-    const t=eligible?performance.now():0,result=from.apply(this,args);
-    if(eligible){current.hex_ms+=performance.now()-t;current.hex_calls++;arrays.add(result);}return result;
-  };
-  Array.prototype.join=function(...args) {
-    if(!arrays.has(this))return join.apply(this,args);
-    const t=performance.now();try{return join.apply(this,args);}finally{const end=performance.now();current.hex_ms+=end-t;if(traceDispatch)current.hex_exit_ms=end;arrays.delete(this);}
+  globalThis.btoa=function(value) {
+    const eligible=current?.after_next&&typeof value==="string"&&value.length===current.frame_count*4;
+    try{return encode.call(this,value);}finally{if(eligible){
+      const end=performance.now();current.encode_ms+=end-current.encode_after;current.encode_after=end;
+      current.encode_calls++;if(traceDispatch)current.encode_exit_ms=end;
+    }}
   };
   globalThis.__restoreNativePreviewTiming=()=>{
-    producer.next=next;globalThis.__opencutPreviewCallback=callback;Array.from=from;Array.prototype.join=join;
+    producer.next=next;globalThis.__opencutPreviewCallback=callback;globalThis.btoa=encode;
     longTaskObserver?.disconnect();
     delete globalThis.__opencutPreviewTiming;delete globalThis.__restoreNativePreviewTiming;
   };
@@ -57,8 +55,8 @@ export class NativePreviewTiming {
     if(!decimal(c.id)||!decimal(c.startSample)||!Number.isInteger(c.frameCount)||c.frameCount<1||c.frameCount>4096)throw Error("Invalid observed command");
     if(this.active.size>=4||this.rows.length>=4096){this.overflow=true;return;}
     this.active.set(c.id,{command_id:c.id,start_sample:c.startSample,frame_count:c.frameCount,
-      began:this.now(),broker_ms:0,evaluate_ms:0,page_callback_ms:0,page_producer_ms:0,page_hex_ms:0,
-      pcm_write_ms:0,post_evaluate_to_first_pcm_ms:0,hex_calls:0,compiled_bytes:0});
+      began:this.now(),broker_ms:0,evaluate_ms:0,page_callback_ms:0,page_producer_ms:0,page_encode_ms:0,
+      pcm_write_ms:0,post_evaluate_to_first_pcm_ms:0,encode_calls:0,compiled_bytes:0});
   }
   row(id) {return this.active.get(id);}
   finish(id) {

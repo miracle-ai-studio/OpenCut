@@ -21,7 +21,7 @@ export type PictureCommand = { token: string } & (
   | {kind:"suspend";id:number}
   | {kind:"stillFrame";id:number;session:Args[1];time:PictureCachePlan["duration"]}
   | { kind:"cachedFrame";id:number;time:PictureCachePlan["duration"] }
-  | {kind:"startSurface";id:number;session:AudioPreviewSession;producer?:"scene"|"cache";canvas?:OffscreenCanvas;clockPort:MessagePort;binding:PresentationClockBinding}
+  | {kind:"startSurface";id:number;session:AudioPreviewSession;producer?:"scene"|"cache";warmTimes?:PictureCachePlan["duration"][];canvas?:OffscreenCanvas;clockPort:MessagePort;binding:PresentationClockBinding}
   | {kind:"surfaceTimestamp";runId:number;timestamp:DeviceTimestamp}
   | {kind:"stopSurface";runId:number;clear:boolean}
   | { kind: "cancel"; id: number; intent: boolean }

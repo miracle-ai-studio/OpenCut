@@ -272,7 +272,7 @@ mod tests {
                 machine,
                 cache_plan: None,
                 authority: TrustedJobAuthority::LocalOwner,
-                picture: None,
+                pictures: Vec::new(),
                 text_coverage: None,
                 resources: HashMap::new(),
             }),
@@ -620,23 +620,35 @@ mod picture_expiry_tests {
             machine,
             cache_plan: None,
             authority: TrustedJobAuthority::LocalOwner,
-            picture: Some(CachedPicture {
+            pictures: vec![CachedPicture {
                 resolution: opencut_contracts::export_video::RasterResolution::Source,
                 retained_picture_bytes: 0,
                 session: session.clone(),
                 prepared,
-            }),
+            }],
             resources: HashMap::new(),
             text_coverage: Some(fonts::CachedTextCoverage {
                 session: session.clone(),
                 coverage: vec![],
             }),
         };
+        assert!(weak.upgrade().is_some());
+        for index in 1..=10 {
+            let at=Time{ticks:index.to_string(),timebase:24};
+            let prepared=Arc::new(opencut_editor_application::visual_preview::PreparedPicture::new(
+                opencut_editor_application::scene_frame_jobs::prepare(&snapshot,"s",&at).unwrap(),policy.clone(),vec![]).unwrap());
+            state.remember_picture(CachedPicture{resolution:opencut_contracts::export_video::RasterResolution::Source,
+                retained_picture_bytes:0,session:session.clone(),prepared});
+            assert!(state.pictures.len()<=8);
+        }
+        assert!(weak.upgrade().is_none());
+        assert!(state.pictures.iter().any(|p|p.prepared.time()==&Time{ticks:"6".into(),timebase:24}));
+        let weak=Arc::downgrade(&state.pictures.last().unwrap().prepared);
         assert!(state.machine.expire(31000).unwrap());
         assert!(weak.upgrade().is_some());
         assert!(!state.expire(31000).unwrap());
         assert!(weak.upgrade().is_none());
-        assert!(state.picture.is_none());
+        assert!(state.pictures.is_empty());
         assert!(state.text_coverage.is_none());
     }
 }

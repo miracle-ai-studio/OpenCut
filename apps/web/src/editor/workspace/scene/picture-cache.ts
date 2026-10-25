@@ -33,6 +33,10 @@ function sameIdentity(a:PictureCachePlan,b:PictureCachePlan){
  return (["project_id","revision","sequence_id","cache_key","width","height","max_encoded_bytes","duration_seconds","frame_step_seconds"] as const)
   .every(key=>a[key]===b[key])&&compare(a.duration,b.duration)===0n&&compare(a.frame_step,b.frame_step)===0n;
 }
+function sameRaster(a:PictureCachePlan,b:PictureCachePlan){
+ return a.project_id===b.project_id&&a.sequence_id===b.sequence_id&&a.width===b.width&&a.height===b.height&&
+  a.max_encoded_bytes===b.max_encoded_bytes&&compare(a.frame_step,b.frame_step)===0n;
+}
 /** A consumer can retire without cancelling a shared render/load operation. */
 const waitForPicture=(pending:Promise<void>,signal:AbortSignal)=>new Promise<void>((resolve,reject)=>{
  signal.throwIfAborted();const abort=()=>{signal.removeEventListener("abort",abort);reject(signal.reason);};
@@ -58,30 +62,56 @@ export class PictureCache {
  private refreshedAt=-Infinity;
  private focus:Time={ticks:"0",timebase:1};
  private playback=false;
+ private backgroundFailure:unknown=null;
  private prefetchScope:AbortController|null=null;
- private progress:((completed:number,total:number)=>void)|null=null;
  descriptor(){if(!this.plan)throw Error("Preview cache is not ready");return this.plan;}
  private segment(time:Time){return this.plan?.segments.find(s=>compare(time,s.start)>=0n&&compare(time,s.end)<0n);}
- hasFrame(time:Time){const segment=this.segment(time);return !!segment&&!!this.entries.get(windowKey(segment))?.blob;}
+ hasFrame(time:Time){const segment=this.segment(time);return !this.scope.signal.aborted&&!this.backgroundFailure&&!!segment&&!!this.entries.get(windowKey(segment))?.blob;}
+ state(){return this.backgroundFailure?"failed":this.hasFrame(this.focus)?"ready":"preparing";}
+ follow(time:Time){if(!this.plan||this.backgroundFailure||this.scope.signal.aborted)return;this.focus=time;void this.prefetch(this.scope);}
+ nextWindow(time:Time){const segment=this.segment(time);return segment&&this.plan&&compare(segment.end,this.plan.duration)<0n?segment.end:null;}
+ /** Reuse a manifest only after the caller obtains a fresh authorized native
+  * frame for this generation. Revision/raster changes still require preparation. */
+ async rebind(session:Session,identity:ToolOutput<"opencut_visual_preview_frame">["plan"]["identity"],time:Time,signal:AbortSignal){
+  signal.throwIfAborted();
+  const plan=this.plan;
+  if(!plan||this.backgroundFailure||plan.project_id!==identity.projectId||plan.revision!==identity.revision||plan.sequence_id!==identity.sequenceId||plan.width!==identity.width||plan.height!==identity.height)return false;
+  this.scope.abort();const scope=new AbortController();this.scope=scope;this.loading.clear();this.refreshing=null;
+  const abort=()=>scope.abort(signal.reason);signal.addEventListener("abort",abort,{once:true});scope.signal.addEventListener("abort",()=>signal.removeEventListener("abort",abort),{once:true});
+  signal.throwIfAborted();await this.decoder.close();this.current(scope);this.session=session;this.focus=time;this.playback=false;void this.prefetch(scope);return true;
+ }
  private current(scope:AbortController){scope.signal.throwIfAborted();if(scope!==this.scope)throw new DOMException("Preview cache replaced","AbortError");}
  async prepare(sdk:ReturnType<typeof createEditorClient>,session:Session,signal:AbortSignal,
-   progress:(completed:number,total:number)=>void,priority?:Time,wait=true) {
+   progress:(completed:number,total:number)=>void,priority?:Time,wait=true,generate=false) {
   const previous=this.plan,retained=this.entries,scope=new AbortController();
-  this.scope.abort();this.scope=scope;this.plan=null;this.entries=new Map();this.loading.clear();this.refreshing=null;this.refreshedAt=-Infinity;
+  this.scope.abort();this.scope=scope;this.plan=null;this.entries=new Map();this.loading.clear();this.refreshing=null;this.refreshedAt=-Infinity;this.backgroundFailure=null;
   const abort=()=>scope.abort(signal.reason);signal.addEventListener("abort",abort,{once:true});
   scope.signal.addEventListener("abort",()=>signal.removeEventListener("abort",abort),{once:true});
   try {
    signal.throwIfAborted();await this.decoder.close();this.current(scope);
-   const plan=await sdk.call("opencut_visual_preview_cache_prepare",{session,reuse_only:!wait},{signal:scope.signal});this.current(scope);validate(plan);
-   this.plan=plan;this.sdk=sdk;this.session=session;this.progress=progress;this.playback=wait;
+   const plan=await sdk.call("opencut_visual_preview_cache_prepare",{session,reuse_only:!wait&&!generate},{signal:scope.signal});this.current(scope);validate(plan);
+   this.plan=plan;this.sdk=sdk;this.session=session;this.playback=wait;
    for(const segment of plan.segments){
-    const old=previous&&sameIdentity(previous,plan)?retained.get(windowKey(segment)):undefined;
+    // The newly authorized native manifest proves each receipt's content.
+    const old=previous&&sameRaster(previous,plan)?retained.get(windowKey(segment)):undefined;
     this.entries.set(windowKey(segment),old&&JSON.stringify(old.segment)===JSON.stringify(segment)?old:{segment,size:0});
    }
    this.focus=priority??plan.segments[0].start;const segment=this.segment(this.focus);if(!segment)throw invalid();
-   progress(this.hasFrame(this.focus)?1:0,1);await this.load(segment,wait);this.current(scope);
-   progress(this.hasFrame(this.focus)?1:0,1);void this.prefetch(scope);return plan;
-  }catch(error){if(scope===this.scope){scope.abort();this.plan=null;}throw error;}
+   const index=plan.segments.indexOf(segment),startup=wait?plan.segments.slice(index,index+3):[segment];
+   const report=()=>progress(startup.filter(s=>!!this.entries.get(windowKey(s))?.blob).length,startup.length);
+   report();
+   // Prime encoded lookahead and both cut decoders before granting the clock
+   // credit. Cold publication waits remain explicit preparation in the UI.
+   for(const next of startup){await this.load(next,wait);this.current(scope);report();}
+   if(wait){
+    for(const next of startup.slice(0,2)){
+     const blob=this.entries.get(windowKey(next))?.blob;
+     if(blob)await this.decoder.warm(decoderKey(next),blob,plan.width,plan.height);
+     this.current(scope);
+    }
+   }
+   void this.prefetch(scope);return plan;
+  }catch(error){if(scope===this.scope){scope.abort();this.plan=null;this.backgroundFailure=error;}throw error;}
  }
  private refresh(scope:AbortController) {
   if(this.refreshing)return this.refreshing;
@@ -140,7 +170,7 @@ export class PictureCache {
    const segment=plan.segments.filter(s=>{const entry=this.entries.get(windowKey(s));return entry&&!visited.has(entry)&&(!this.playback||compare(s.end,this.focus)>0n)&&this.distance(s)<=4;})
     .sort((a,b)=>this.distance(a)-this.distance(b))[0];
    if(!segment)return;visited.add(this.entries.get(windowKey(segment))!);
-   try{await this.load(segment,true);}catch{if(scope.signal.aborted)return;/* Retry at point of use. */}
+   try{await this.load(segment,true);}catch(error){if(scope.signal.aborted)return;this.backgroundFailure=error;return;}
   }}finally{if(this.prefetchScope===scope)this.prefetchScope=null;}
  }
  private distance(segment:Segment){
@@ -170,7 +200,7 @@ export class PictureCache {
     for(const old of evict){if(retained+size<=plan.max_encoded_bytes)break;retained-=old.size;old.blob=undefined;old.size=0;}
     if(retained+size>plan.max_encoded_bytes)throw Object.assign(Error("Preview cache exceeds its memory limit."),{code:"PREVIEW_CACHE_LIMIT"});
     entry.blob=new Blob([bytes as Uint8Array<ArrayBuffer>],{type:"video/mp4"});entry.size=size;
-    if(this.segment(this.focus)===segment)this.progress?.(1,1);return;
+    return;
    }
   })();
   this.loading.set(entry,task);void task.finally(()=>{if(this.loading.get(entry)===task)this.loading.delete(entry);}).catch(()=>{});return task;

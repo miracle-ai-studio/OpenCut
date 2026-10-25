@@ -1133,7 +1133,7 @@ export const zh: Record<string, string> = {
   "Play scene preview": "播放场景声画",
   "Live scene preview": "连续声画预览",
   "Waiting for synchronized picture…": "正在等待同步画面…",
-  "Optimizing playback…": "正在优化播放…",
+  "Preparing smooth playback…": "正在准备流畅预览…",
   "Playback optimization": "播放优化",
   "Preview optimization could not finish. Retry playback.": "播放优化未能完成，请再次点击播放。",
   "Preview cache exceeds its memory limit.": "当前片段较复杂，预览空间不足。请关闭其他工程后重试。",

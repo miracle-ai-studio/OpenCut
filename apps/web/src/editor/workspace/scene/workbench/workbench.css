@@ -724,6 +724,20 @@
   margin-bottom: 4px;
   color: #a1a1aa;
 }
+.workbench-player-surface .editor-preview-cache-status {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #17171ee8;
+  color: #e4e4e7;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .workbench-player-surface .editor-frame-actions {
   flex: 0 0 30px;
   padding: 3px 8px;

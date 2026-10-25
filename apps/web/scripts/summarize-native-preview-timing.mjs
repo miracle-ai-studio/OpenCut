@@ -3,21 +3,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { summarizeNativePreviewDispatch } from "./native-preview-dispatch.mjs";
 
-const phases=["total_ms","evaluate_ms","broker_ms","page_callback_ms","page_producer_ms","page_hex_ms","observer_ms","pcm_write_ms","post_evaluate_to_first_pcm_ms"];
+const phases=["total_ms","evaluate_ms","broker_ms","page_callback_ms","page_producer_ms","page_encode_ms","observer_ms","pcm_write_ms","post_evaluate_to_first_pcm_ms"];
 export function summarizeNativePreviewTiming(snapshot) {
   if(snapshot.schema_version!==1||snapshot.overflow||snapshot.incomplete_commands!==0||!Array.isArray(snapshot.rows)||snapshot.rows.length<1||snapshot.rows.length>4096)throw Error("Incomplete native phase observation");
   const measuredPhases=snapshot.dispatch?[...phases,"node_callback_ms","page_body_ms"]:phases;
   let cursor=0n;
   const rows=snapshot.rows.map((row,k)=>{
-    if(row.command_id!==String(k+1)||row.start_sample!==String(cursor)||!Number.isInteger(row.frame_count)||row.frame_count<1||row.frame_count>4096||row.hex_calls!==2||!Number.isInteger(row.compiled_bytes)||row.compiled_bytes<1||row.compiled_bytes>16*1024*1024)throw Error("Native command observation is not contiguous");
+    if(row.command_id!==String(k+1)||row.start_sample!==String(cursor)||!Number.isInteger(row.frame_count)||row.frame_count<1||row.frame_count>4096||row.encode_calls!==2||!Number.isInteger(row.compiled_bytes)||row.compiled_bytes<1||row.compiled_bytes>16*1024*1024)throw Error("Native command observation is not contiguous");
     cursor+=BigInt(row.frame_count);
     for(const key of measuredPhases)if(!Number.isFinite(row[key])||row[key]<0)throw Error("Invalid phase duration");
     if(row.page_producer_ms+0.01<row.page_callback_ms)throw Error("Callback exceeds containing producer");
     return {command_id:row.command_id,start_sample:row.start_sample,frame_count:row.frame_count,
-      compiled_bytes:row.compiled_bytes,hex_calls:row.hex_calls,
+      compiled_bytes:row.compiled_bytes,encode_calls:row.encode_calls,
       ...Object.fromEntries(measuredPhases.map(key=>[key,row[key]])),
       page_unpack_validate_mix_ms:Math.max(0,row.page_producer_ms-row.page_callback_ms),
-      evaluate_residual_ms:Math.max(0,row.evaluate_ms-row.page_producer_ms-row.page_hex_ms),
+      evaluate_residual_ms:Math.max(0,row.evaluate_ms-row.page_producer_ms-row.page_encode_ms),
       callback_outside_broker_ms:Math.max(0,row.page_callback_ms-row.broker_ms)};
   });
   const statistics=key=>{

@@ -8,6 +8,7 @@
     "authority": "Rust generated declaration"
   },
   "known_limits": [
+    "Uncached live playback still showed a 568.7 ms gap at 24s. Qualified playback prepares the native segment manifest before releasing the clock. The one-frame source-versus-AVC probe passed PSNR 30 dB but failed strict SSIM 0.98 (0.947518); full pixel qualification remains open.",
     "Full export pixels/throughput, arbitrary edit/seek/fault, large/long media, device/browser and physical output matrices are incomplete.",
     "Full long-source playback has unresolved process-tree RSS overage; macOS resource control is monitored termination.",
     "An initial post-master PCM residual is unresolved; preview/export sampling-profile equivalence is not fully qualified.",
@@ -35,58 +36,109 @@
       "unit_tests": 14
     },
     "contract_boundaries": "passed",
-    "web_source_art_tests": 29,
-    "web_boundary_tests": 23,
-    "native_source_art_unit_tests": 14,
-    "native_source_art_real_decode_tests": 1,
-    "web_boundary_files": 259,
+    "web_preview_tests": 95,
+    "visual_renderer_tests": 204,
+    "web_boundary_pcm_continuity_timing_tests": 48,
+    "native_preview_cache_tests": 8,
+    "native_cache_receipt_tests": 1,
+    "native_preparation_time_tests": 2,
+    "native_stream_tests": 7,
+    "native_picture_context_lifecycle_tests": 1,
+    "native_font_tests": 4,
     "web_production_build": "passed",
     "cli_release_build": "passed",
     "generated_contracts": "current",
     "canonical_contract": {
       "operations": 184,
       "domains": 12,
-      "binary_sha256": "f534091a5c35caf9a3984b914a2ea5f8064f153e27507677c43e7c9fc7c82085"
+      "binary_sha256": "740f4c4221cfbe0d8d4ae6491decb8a1a3e8c585ce4d7653be8e8ab7dcefbbd8"
     },
-    "source_art": {
+    "source_art_configuration": {
       "display_cache_bytes": 67108864,
       "host_cache_bytes": 33554432,
       "decode_concurrency_per_host_workspace": 1,
-      "active_and_waiting_request_limit": 256,
-      "fifo_queue": true,
-      "concurrent_http_requests_passed": 3,
-      "two_editor_pages": "passed"
+      "active_and_waiting_request_limit": 256
     },
     "current_service_ready": true,
     "retained_project": {
-      "count": 1,
-      "revision": "rev_ad06219eccbdb5fc139930546b073f6c73064d5b1021d3b0e7eee682f5d2f8f8",
-      "revisions": 59,
-      "transactions": 58,
-      "history_content_unchanged": true
+      "head": "rev_5cc31f9ead0b797b14cff32983a5c1c216997d7c11ab27c3b0853208032db173",
+      "original_content_restored": true,
+      "original_revisions_preserved": 59,
+      "original_transactions_preserved": 58,
+      "revisions": 61,
+      "transactions": 60,
+      "jobs": 108
     },
     "full_product_acceptance": "not_run"
   },
-  "source_base_commit": "8986bdcd0a7277d0a26951e6ac76ddca51e5318f",
-  "source_state": "working_tree",
-  "verified_at": "2026-10-25T09:00:55.108035+00:00",
-  "prior_playback_evidence": {
-    "scope": "One 42-second 1080p/25fps project: initial playback, playback after edit, playback after causal Undo.",
-    "presented_frames_per_run": 1050,
-    "runs": 3,
-    "does_not_establish": "Arbitrary projects, zero stalls, physical audio, complete export or cross-platform qualification.",
-    "source_commit": "48a7e20f4726af779e668797dd40753d26a884e3",
-    "binary_sha256": "18cd5553d5b022c9e220e29b857420d4773d11914e1744b9ab0aeab9d74185d3"
-  },
+  "source_base_commit": "6d8104a01f009c55da0ac5ad9b4b0269ac2c0638",
+  "source_state": "verified_working_tree",
+  "verified_at": "2026-10-25T11:57:15.640412+00:00",
   "preview_observation": {
-    "scope": "One visible foreground 42-second run at 25 fps on the recorded candidate and saved project; no editing or device matrix qualification.",
-    "presented_frames": 1047,
-    "discarded_frames": 3,
-    "max_wall_frame_gap_ms": 1281.8,
-    "slow_frame_at_seconds": 24,
-    "slow_frame_total_ms": 1422.1,
-    "slow_frame_decode_ms": 1106.7,
-    "slow_frame_gpu_ms": 3,
-    "smooth_playback_qualified": false
+    "scope": "Hainan 42-second 1080p/25fps project, native preview540 cached playback: first play after manifest preparation, replay, title edit and replay, seek to 24s and backward to 12s. Draw submissions and device receipts; physical output is separate.",
+    "runtime_fingerprint": "be57a8d52c3529d8b03491bfe93e2d2e3800ca20774f834c842cd1092f87fd3a",
+    "segment_seconds": 2,
+    "wall_gap_gate_ms": 125,
+    "runs": {
+      "first": {
+        "presented": 1050,
+        "discarded": 0,
+        "maxWallFrameGapMs": 54.799999952316284,
+        "cacheHits": "1049",
+        "underflowEvents": 0,
+        "passed": true
+      },
+      "replay": {
+        "presented": 1050,
+        "discarded": 0,
+        "maxWallFrameGapMs": 53.299999952316284,
+        "cacheHits": "1049",
+        "underflowEvents": 0,
+        "passed": true
+      },
+      "edited": {
+        "presented": 1050,
+        "discarded": 0,
+        "maxWallFrameGapMs": 58.60000014305115,
+        "cacheHits": "1049",
+        "underflowEvents": 0,
+        "passed": true
+      },
+      "seek24": {
+        "presented": 450,
+        "discarded": 0,
+        "maxWallFrameGapMs": 48,
+        "cacheHits": "449",
+        "underflowEvents": 0,
+        "passed": true
+      },
+      "seek12": {
+        "presented": 750,
+        "discarded": 0,
+        "maxWallFrameGapMs": 48.39999985694885,
+        "cacheHits": "749",
+        "underflowEvents": 0,
+        "passed": true
+      }
+    },
+    "affected_windows_recomputed": 3,
+    "unchanged_windows_reused": 18,
+    "cache_preparation_before_clock": true,
+    "performance_scope_passed": true,
+    "uncached_live": {
+      "wallGapMs": 568.7000000476837,
+      "atSeconds": 24,
+      "passed": false
+    },
+    "independent_pixel_probe": {
+      "scope": "C04 source at 3 seconds versus cached window 32 seconds, first frame",
+      "ssim": 0.947518,
+      "ssimGate": 0.98,
+      "psnrDb": 34.128354,
+      "psnrGateDb": 30,
+      "passed": false,
+      "note": "Existing high quality AVC path is lossy; broad pixel qualification remains open."
+    },
+    "does_not_establish": "Arbitrary projects, uncached zero-stall playback, strict pixel equivalence, physical sound/output or cross-platform qualification."
   }
 }

@@ -105,6 +105,32 @@ async function encodedResource(resource,host,budget,signal,operation="resolveVer
   } catch(error) {release();throw error;}
   finally {if(transfer)await host.callback("releaseVerifiedBytes",{transferId:transfer.transferId});}
 }
+/** Warm one newly visible video through the same verified range and decoder
+ * adapters. No compositor, bound picture, source clock or presentation credit. */
+export async function prewarmVideoSources(plan,permits,host,signal,decoders,activeKeys) {
+  const budget=byteBudget(host.admission.maxRgbaBytes),encoded=byteBudget(String(host.admission.maxEncodedBytes));
+  const rangeBudget={reserve(bytes){const release=budget.reserve(bytes);try{const done=encoded.reserve(bytes);return()=>{done();release();};}catch(error){release();throw error;}}};
+  const key=r=>`${r.assetId}:${r.contentHash}:${r.size}`;
+  // A single future decoder is enough to hide a new topmost source opening;
+  // its four-surface admission and encoded ranges share one bounded allowance.
+  const layer=[...plan.layers].reverse().find(l=>l.decode.kind==="video"&&!l.decode.noFrameReason&&!activeKeys.has(key(l.resource)));
+  if(!layer)return false;
+  checkAbort(signal);const resource=layer.resource,permit=permits[layer.elementId];
+  if(!permit)reject("INVALID_VISUAL_PLAN","Missing cut decode admission");
+  const source=await openVerifiedRangeSource(resource,{
+    open:fixed=>host.callback("resolveVerifiedBytes",{resource:fixed}),
+    async read(transferId,offset,count){const bytes=await host.readVerifiedBytes(transferId,offset,count);return {offset:String(offset),bytes,eof:offset+count===Number(resource.size)};},
+    release:transferId=>host.callback("releaseVerifiedBytes",{transferId}),
+  // Chunk width participates in the verified descriptor's identity; preserve
+  // the native host's admitted transport contract during speculative reads.
+  },rangeBudget,512*1024,host.rangeSignal??signal,{prefetch:true,maximumChunkBytes:host.rangeChunkBytes??65536,readAhead:host.rangeReadAhead===true});
+  decoders.keepRange(key(resource),source);
+  const allocation=await decoders.prepare(key(resource),source,permit,signal);
+  if(!Number.isSafeInteger(allocation)||allocation<1||BigInt(allocation)>natural(permit.maxDecodedBytes,"decoded byte cap"))reject("VISUAL_BUDGET_EXCEEDED","Cut decoder exceeds native admission");
+  budget.reserve(allocation);
+  await decoders.decode(key(resource),source,layer.decode,permit,signal);checkAbort(signal);
+  return true;
+}
 export async function renderClassicFrame(fixedPlan,host,realm,signal,cache,decoders) {
   return renderFrame(fixedPlan,host,realm,signal,cache,decoders);
 }

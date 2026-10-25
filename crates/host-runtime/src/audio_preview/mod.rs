@@ -56,7 +56,7 @@ struct SessionState {
     machine: AudioPreviewMachine,
     cache_plan: Option<opencut_api_contracts::visual_preview::VisualPreviewCache>,
     authority: TrustedJobAuthority,
-    picture: Option<CachedPicture>,
+    pictures: Vec<CachedPicture>,
     text_coverage: Option<fonts::CachedTextCoverage>,
     resources: HashMap<String, resources::SessionResource>,
 }
@@ -68,6 +68,21 @@ struct CachedPicture {
 }
 
 impl SessionState {
+    fn font_version(&self,session:&AudioPreviewStream,id:&str)->Option<opencut_contracts::AssetVersion>{
+        self.pictures.iter().rev().filter(|picture|&picture.session==session)
+            .find_map(|picture|picture.prepared.font_version(id))
+            // Explicit edit drafts already publish complete native coverage;
+            // retain that existing authority while their overlay is current.
+            .or_else(||self.text_coverage.as_ref().filter(|proof|&proof.session==session)
+                .and_then(|proof|proof.coverage.iter().find(|p|p.font.id==id).map(|p|p.font.content.clone())))
+    }
+    fn remember_picture(&mut self,picture:CachedPicture){
+        // Live bindings and one speculative cut can interleave. Retain exact
+        // admitted contexts rather than letting the last request revoke an
+        // in-flight resource open. All ownership/lease fences remain external.
+        self.pictures.push(picture);
+        if self.pictures.len()>8 {self.pictures.remove(0);}
+    }
     fn expire(&mut self, at: u64) -> Result<bool, EditorError> {
         let changed = self.machine.expire(at)?;
         // Another endpoint may already have made this session terminal. Cache
@@ -77,7 +92,7 @@ impl SessionState {
             AudioPreviewState::Stopped | AudioPreviewState::Failed
         ) {
             self.cache_plan = None;
-            self.picture = None;
+            self.pictures.clear();
             self.text_coverage = None;
             self.resources.clear();
         }
@@ -106,7 +121,7 @@ impl Entry {
     fn view(&self) -> Result<AudioPreviewSession, EditorError> {
         let mut state = lock(&self.state)?;
         if state.expire(now())? {
-            state.picture = None;
+            state.pictures.clear();
             state.text_coverage = None;
             state.resources.clear();
             self.credit.notify_all();
@@ -127,7 +142,7 @@ impl Entry {
         let authority = {
             let mut state = lock(&self.state)?;
             if state.expire(now())? {
-                state.picture = None;
+                state.pictures.clear();
                 state.text_coverage = None;
                 state.resources.clear();
                 self.credit.notify_all();
@@ -166,7 +181,7 @@ impl Entry {
     }
     fn signal_shutdown(&self) -> Result<(), EditorError> {
         let mut state = lock(&self.state)?;
-        state.picture = None;
+        state.pictures.clear();
         state.text_coverage = None;
         state.resources.clear();
         self.shutdown.store(true, Ordering::Release);
@@ -310,7 +325,7 @@ pub(crate) fn create(
             machine,
             cache_plan: None,
             authority: selected.authority,
-            picture: None,
+            pictures: Vec::new(),
             text_coverage: None,
             resources: HashMap::new(),
         }),
@@ -372,7 +387,7 @@ pub(crate) fn control(
             .machine
             .control_validated(&input, gain.as_ref(), now())?;
         if transition.effect != AudioPreviewEffect::None {
-            state.picture = None;
+            state.pictures.clear();
             state.text_coverage = None;
             state.resources.clear();
         }
@@ -426,7 +441,7 @@ pub(crate) fn acquire(
             now(),
         )?;
         if next.effect != AudioPreviewEffect::None {
-            state.picture = None;
+            state.pictures.clear();
             state.text_coverage = None;
             state.resources.clear();
             state.authority = trusted(&host.caller);

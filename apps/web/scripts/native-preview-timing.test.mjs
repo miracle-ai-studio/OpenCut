@@ -4,7 +4,7 @@ import { installNativePreviewTiming, NativePreviewTiming } from "./native-previe
 import { nextPreviewPage } from "../../../packages/classic-audio-renderer/host/preview-page.mjs";
 import { summarizeNativePreviewTiming, correlateNativePreviewCredit } from "./summarize-native-preview-timing.mjs";
 import { NativePreviewDispatch, summarizeNativePreviewDispatch } from "./native-preview-dispatch.mjs";
-test("isolated observer preserves independent Float32 hex/receipt bytes and restores original callback/sampler",async()=>{
+test("isolated observer preserves independent Float32 Base64/receipt bytes and restores original callback/sampler",async()=>{
   const callback=async()=>({ok:true,value:"fixed-facts"});
   globalThis.__opencutPreviewCallback=callback;
   const channels=[new Float32Array([.25,-0,1,-.5]),new Float32Array([.5,0,-1,.125])];
@@ -15,9 +15,9 @@ test("isolated observer preserves independent Float32 hex/receipt bytes and rest
   installNativePreviewTiming();
   try{
     assert.deepEqual(await nextPreviewPage(command),before);
-    assert.equal(before.value.channelsHex[0],"0000803e000000800000803f000000bf");
-    const row=globalThis.__opencutPreviewTiming.last;assert.equal(row.hex_calls,2);assert.equal(row.start_sample,command.startSample);
-    assert(row.producer_ms>=row.callback_ms);assert(row.hex_ms>=0);assert(!JSON.stringify(row).includes(before.value.channelsHex[0]));
+    assert.equal(Buffer.from(before.value.channelsBase64[0],"base64").toString("hex"),"0000803e000000800000803f000000bf");
+    const row=globalThis.__opencutPreviewTiming.last;assert.equal(row.encode_calls,2);assert.equal(row.start_sample,command.startSample);
+    assert(row.producer_ms>=row.callback_ms);assert(row.encode_ms>=0);assert(!JSON.stringify(row).includes(Buffer.from(before.value.channelsBase64[0],"base64").toString("hex")));
   }finally{globalThis.__restoreNativePreviewTiming();assert.equal(producer.next,original);assert.equal(globalThis.__opencutPreviewCallback,callback);delete globalThis.__opencutPreviewProducer;delete globalThis.__opencutPreviewCallback;}
 });
 test("refined page observer preserves PCM and records bounded long-task numbers without task names",async()=>{
@@ -32,7 +32,7 @@ test("refined page observer preserves PCM and records bounded long-task numbers 
     notify({getEntries:()=>Array.from({length:40},(_,k)=>({startTime:k,duration:50+k,name:"must-not-be-recorded"}))});
     const meta=globalThis.__opencutPreviewTiming,row=meta.last;
     assert.equal(meta.long_tasks.length,32);assert.equal(meta.long_task_count,40);assert(!JSON.stringify(meta).includes("must-not-be-recorded"));
-    assert(row.callback_enter_ms>=row.producer_enter_ms);assert(row.callback_exit_ms>=row.callback_enter_ms);assert(row.hex_exit_ms>=row.callback_exit_ms);
+    assert(row.callback_enter_ms>=row.producer_enter_ms);assert(row.callback_exit_ms>=row.callback_enter_ms);assert(row.encode_exit_ms>=row.callback_exit_ms);
   }finally{globalThis.__restoreNativePreviewTiming();assert(closed);globalThis.PerformanceObserver=previous;delete globalThis.__opencutPreviewCallback;delete globalThis.__opencutPreviewProducer;}
 });
 test("dispatch keeps original biggest command identities and uncertainty intervals, rejects absent calibration and callbacks",()=>{
@@ -41,7 +41,7 @@ test("dispatch keeps original biggest command identities and uncertainty interva
   for(const stage of ["prepare","terminal"])for(let k=0;k<4;k++)d.clock(stage,100+k,0+k,102+k);
   for(let k=1;k<=40;k++){
     const row={command_id:String(k),start_sample:String((k-1)*4096),frame_count:4096,total_ms:k};rows.push(row);
-    d.complete(row,{evaluate_enter_ms:100,evaluate_exit_ms:170,node_callback_enter_ms:122,node_callback_exit_ms:142,producer_enter_ms:10,hex_exit_ms:50,callback_enter_ms:20,callback_exit_ms:45,node_callback_calls:1});
+    d.complete(row,{evaluate_enter_ms:100,evaluate_exit_ms:170,node_callback_enter_ms:122,node_callback_exit_ms:142,producer_enter_ms:10,encode_exit_ms:50,callback_enter_ms:20,callback_exit_ms:45,node_callback_calls:1});
     d.lag(k,k+25+k,k);
     d.gcEntry(k,k,1,0);
   }
@@ -70,7 +70,7 @@ test("phase summary checks exact command/sample continuity and keeps overlapping
   let now=0;const p=new NativePreviewTiming(()=>now);
   for(let k=0;k<3;k++){
     p.command({id:String(k+1),startSample:String(k*4096),frameCount:4096});
-    Object.assign(p.row(String(k+1)),{evaluate_ms:70,broker_ms:12,page_callback_ms:20,page_producer_ms:50,page_hex_ms:4,observer_ms:1,pcm_write_ms:2,post_evaluate_to_first_pcm_ms:3,compiled_bytes:1000,hex_calls:2});
+    Object.assign(p.row(String(k+1)),{evaluate_ms:70,broker_ms:12,page_callback_ms:20,page_producer_ms:50,page_encode_ms:4,observer_ms:1,pcm_write_ms:2,post_evaluate_to_first_pcm_ms:3,compiled_bytes:1000,encode_calls:2});
     now+=k===2?100:75;p.finish(String(k+1));
   }
   const snapshot=p.snapshot();snapshot.rows[0].owner_id="must-not-be-recorded";
@@ -78,7 +78,7 @@ test("phase summary checks exact command/sample continuity and keeps overlapping
   assert.equal(s.contiguous_supplied_frames,"12288");assert.equal(s.commands_over_own_audio_duration,1);
   assert.equal(s.phases.page_unpack_validate_mix_ms.mean_ms,30);assert.equal(s.phases.total_ms.max_ms,100);
   assert.equal(s.phases.evaluate_residual_ms.mean_ms,16);assert.equal(s.phases.callback_outside_broker_ms.mean_ms,8);
-  for(const mutate of [x=>x.overflow=true,x=>x.incomplete_commands=1,x=>x.rows[1].start_sample="4097",x=>x.rows[1].command_id="3",x=>x.rows[0].hex_calls=1,x=>x.rows[0].evaluate_ms=NaN,x=>x.rows[0].page_callback_ms=51]){
+  for(const mutate of [x=>x.overflow=true,x=>x.incomplete_commands=1,x=>x.rows[1].start_sample="4097",x=>x.rows[1].command_id="3",x=>x.rows[0].encode_calls=1,x=>x.rows[0].evaluate_ms=NaN,x=>x.rows[0].page_callback_ms=51]){
     const bad=structuredClone(snapshot);mutate(bad);assert.throws(()=>summarizeNativePreviewTiming(bad));
   }
 });
@@ -86,7 +86,7 @@ test("Worker refill identity joins original native sample facts and bounds prior
   let now=0;const p=new NativePreviewTiming(()=>now);
   for(let k=0;k<3;k++) {
     p.command({id:String(k+1),startSample:String(k*4096),frameCount:4096});
-    Object.assign(p.row(String(k+1)),{compiled_bytes:1000,hex_calls:2,page_producer_ms:8,page_callback_ms:4,evaluate_ms:10,observer_ms:1});
+    Object.assign(p.row(String(k+1)),{compiled_bytes:1000,encode_calls:2,page_producer_ms:8,page_callback_ms:4,evaluate_ms:10,observer_ms:1});
     now+=12;p.finish(String(k+1));
   }
   const tail={completed_block:1,consumed_frames:"4096",supplied_block:3,supplied_start_sample:"8192",supplied_frames:4096,

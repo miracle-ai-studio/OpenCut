@@ -258,6 +258,27 @@ mod tests {
         )
     }
     #[test]
+    fn preview_cache_reuses_immutable_receipt_after_editorial_revision_and_rejects_poisoning() {
+        use opencut_editor_application::{agent_render::RenderSubmission,media_video_jobs::MediaVideoJobSubmissionStore,preview_cache};
+        let (_directory,mut app,request)=fixture();
+        let runtime="a".repeat(64);let zero=Time{ticks:"0".into(),timebase:1};
+        let fixed=app.fixed_scene_video_snapshot("project",&request.revision).unwrap();
+        let before=preview_cache::prepare(&mut app,&fixed.snapshot,"scene",&fixed.processing_policy,&runtime,&zero,false,||Ok(())).unwrap();
+        let edited=app.apply_scene_project(&ApplySceneProject {
+            project_id:"project".into(),expected_revision:request.revision.clone(),idempotency_key:"rename-preview".into(),label:"Editorial change".into(),
+            operations:vec![ProjectOperation::Rename{name:"Renamed".into()}],
+        }).unwrap();
+        let fixed=app.fixed_scene_video_snapshot("project",&edited.revision).unwrap();
+        let after=preview_cache::prepare(&mut app,&fixed.snapshot,"scene",&fixed.processing_policy,&runtime,&zero,false,||Ok(())).unwrap();
+        assert_ne!(before.revision,after.revision);assert_eq!(before.segments[0].job_id,after.segments[0].job_id);
+        let job=app.get_job(&after.segments[0].job_id).unwrap();
+        let prepared:export::PreparedExportVideo=serde_json::from_value(job.input).unwrap();
+        assert_eq!(prepared.execution.snapshot.revision,request.revision);
+        let key:String=app.connection.query_row("SELECT idempotency_key FROM idempotency WHERE operation_family='create_job'",[],|r|r.get(0)).unwrap();
+        let input=opencut_api_contracts::agent_render::VideoRenderInput {idempotency_key:key,project_id:"project".into(),revision:edited.revision,sequence_id:"scene".into(),options:prepared.options,range:prepared.range};
+        assert_eq!(app.preview_video(input,&"f".repeat(64),true).unwrap_err().code,"INVALID_STORED_RESULT");
+    }
+    #[test]
     fn durable_options_and_fixed_revision_survive_head_change_and_reopen() {
         let (directory, mut app, request) = fixture();
         let job = start_export(&mut app, request.clone()).unwrap();

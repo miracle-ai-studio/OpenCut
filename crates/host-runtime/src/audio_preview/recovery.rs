@@ -246,7 +246,7 @@ fn retire_original(
     };
     match state.machine.control(&stop, now()) {
         Ok(_) => {
-            state.picture = None;
+            state.pictures.clear();
             state.text_coverage = None;
             state.resources.clear();
             e.credit.notify_all();
