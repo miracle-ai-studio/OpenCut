@@ -1,27 +1,12 @@
-# Getting Help
+# Getting help
 
-Thanks for using OpenCut! If you need help, here are your options:
+Start with the [README](../README.md), [development guide](../docs/development.md),
+[operations guide](../docs/operations.md) and [current limitations](../docs/status.md).
 
-## Documentation
+Use this repository's issue templates for reproducible bugs and feature proposals.
+Include the source commit, platform and relevant command, using synthetic media
+when possible. Redact tokens, personal paths and private logs; do not attach user
+media or workspace databases.
 
-- Check our [README](../README.md) for basic setup instructions
-- Review the [Contributing Guidelines](CONTRIBUTING.md) for development setup
-
-## Issues
-
-- **Bug reports**: Use the bug report template
-- **Feature requests**: Use the feature request template
-- **Questions**: Use GitHub Discussions for general questions
-
-## Community
-
-- Join our discussions on GitHub
-- Follow the [Code of Conduct](CODE_OF_CONDUCT.md)
-
-## Response Times
-
-- Issues are typically triaged within 2-3 business days
-- Feature requests may take longer to evaluate
-- Security issues are handled with priority
-
-We appreciate your patience and contributions to making OpenCut better!
+Follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports follow the
+[security policy](SECURITY.md). Response times and release support are not guaranteed.

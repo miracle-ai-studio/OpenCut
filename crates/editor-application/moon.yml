@@ -1,7 +1,0 @@
-$schema: 'https://moonrepo.dev/schemas/project.json'
-language: 'rust'
-layer: 'library'
-tasks:
-  test:
-    command: 'cargo test -p opencut-editor-application'
-    inputs: ['src/**/*', 'Cargo.toml', '/Cargo.lock', '/crates/contracts/**/*', '/crates/editor-core/**/*', '/crates/api-contracts/**/*', '/crates/job-execution/**/*', '/crates/job-contracts/**/*', '/crates/media-contracts/**/*']

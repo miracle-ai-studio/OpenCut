@@ -111,6 +111,156 @@ fn bindings() -> Vec<ProjectEditOperation> {
 }
 
 #[test]
+fn cover_is_an_atomic_revision_edit_with_exact_replay_and_public_roundtrip() {
+    let source = snapshot();
+    let mut store = Fixture::new(source.clone());
+    let cover = Some(ProjectCover::Image {
+        asset_id: "alias".into(),
+    });
+    let input = request(
+        &source,
+        vec![
+            bindings()[0].clone(),
+            ProjectEditOperation::CoverSet {
+                cover: cover.clone(),
+            },
+        ],
+    );
+    assert_eq!(plan_public(&store, &input).unwrap().cover, cover);
+    assert_eq!(store.commits, 0);
+    let result = apply_public(&mut store, &input).unwrap();
+    assert_eq!(store.current.project.cover, cover);
+    assert_eq!(project(&store.current).project.cover, cover);
+    let encoded = serde_json::to_string(&store.current.project).unwrap();
+    assert_eq!(
+        serde_json::from_str::<EditorDocument>(&encoded)
+            .unwrap()
+            .cover,
+        cover
+    );
+    assert_eq!(apply_public(&mut store, &input).unwrap(), result);
+    assert_eq!(store.commits, 1);
+    let mut changed = input.clone();
+    changed.operations.pop();
+    assert_eq!(
+        apply_public(&mut store, &changed).unwrap_err().code,
+        "IDEMPOTENCY_KEY_REUSED"
+    );
+    // Absent optional metadata preserves the serialized bytes of old revisions.
+    assert!(
+        !serde_json::to_string(&source.project)
+            .unwrap()
+            .contains("\"cover\"")
+    );
+}
+
+#[test]
+fn cover_asset_deletion_requires_an_explicit_atomic_clear() {
+    let mut source = snapshot();
+    source.project.cover = Some(ProjectCover::Image {
+        asset_id: "asset".into(),
+    });
+    let mut store = Fixture::new(source.clone());
+    let input = request(
+        &source,
+        vec![ProjectEditOperation::AssetDelete {
+            asset_id: "asset".into(),
+        }],
+    );
+    assert_eq!(
+        apply_public(&mut store, &input).unwrap_err().code,
+        "INVALID_PROJECT"
+    );
+    assert_eq!(store.commits, 0);
+    assert_eq!(store.current, source);
+    let clear = request(
+        &source,
+        vec![
+            ProjectEditOperation::CoverSet { cover: None },
+            input.operations[0].clone(),
+        ],
+    );
+    apply_public(&mut store, &clear).unwrap();
+    assert!(store.current.project.cover.is_none());
+    assert!(store.current.project.assets.is_empty());
+}
+
+#[test]
+fn cover_source_time_is_rational_bounded_and_kind_checked() {
+    let mut source = snapshot();
+    source.project.assets[0].kind = AssetKind::Video;
+    source.project.assets[0].duration = Some(opencut_contracts::Time {
+        ticks: "1".into(),
+        timebase: 1,
+    });
+    let mut store = Fixture::new(source.clone());
+    for (ticks, timebase) in [
+        ("-1", 24),
+        ("24", 24),
+        ("25", 24),
+        ("0", 0),
+        ("9223372036854775808", 1),
+    ] {
+        let input = request(
+            &source,
+            vec![ProjectEditOperation::CoverSet {
+                cover: Some(ProjectCover::VideoFrame {
+                    asset_id: "asset".into(),
+                    time: opencut_contracts::Time {
+                        ticks: ticks.into(),
+                        timebase,
+                    },
+                }),
+            }],
+        );
+        assert_eq!(
+            apply_public(&mut store, &input).unwrap_err().code,
+            "INVALID_PROJECT"
+        );
+        assert_eq!(store.commits, 0);
+    }
+    for cover in [
+        ProjectCover::Image {
+            asset_id: "asset".into(),
+        },
+        ProjectCover::VideoFrame {
+            asset_id: "missing".into(),
+            time: opencut_contracts::Time {
+                ticks: "0".into(),
+                timebase: 1,
+            },
+        },
+    ] {
+        assert!(
+            plan_public(
+                &store,
+                &request(
+                    &source,
+                    vec![ProjectEditOperation::CoverSet { cover: Some(cover) }]
+                )
+            )
+            .is_err()
+        );
+    }
+    let cover = Some(ProjectCover::VideoFrame {
+        asset_id: "asset".into(),
+        time: opencut_contracts::Time {
+            ticks: "23".into(),
+            timebase: 24,
+        },
+    });
+    let input = request(
+        &source,
+        vec![ProjectEditOperation::CoverSet {
+            cover: cover.clone(),
+        }],
+    );
+    assert_eq!(plan_public(&store, &input).unwrap().cover, cover);
+    apply_public(&mut store, &input).unwrap();
+    assert_eq!(store.current.project.cover, cover);
+}
+
+#[test]
 fn complete_public_roundtrip_keeps_scene_semantics_and_hides_private_resource_locators() {
     let original = snapshot();
     let public = project(&original);

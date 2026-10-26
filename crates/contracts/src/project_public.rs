@@ -19,6 +19,8 @@ pub struct PublicProjectDocument {
     pub name: String,
     pub default_sequence_id: String,
     pub settings: SettingsProfile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover: Option<ProjectCover>,
     pub assets: Vec<PublicAsset>,
     pub fonts: Vec<PublicFontResource>,
     /// Typed complete scenes, including bookmarks, source spans and channels.

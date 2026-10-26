@@ -87,6 +87,7 @@ fn source(root: &Path) -> HistoricalSnapshotSource {
         snapshot: EditorSnapshot {
             revision: "fixed-revision".into(),
             project: EditorDocument {
+                cover: None,
                 schema_version: 4,
                 id: "source-project".into(),
                 name: "V4 exact source".into(),

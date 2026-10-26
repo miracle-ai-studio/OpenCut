@@ -83,7 +83,11 @@ pub(super) fn check(
 ) -> Result<(), EditorError> {
     use ProjectOperation::*;
     match operation {
-        Rename { .. } | SettingsSet { .. } | DefaultSequenceSet { .. } | Bookmark { .. } => Ok(()),
+        Rename { .. }
+        | SettingsSet { .. }
+        | CoverSet { .. }
+        | DefaultSequenceSet { .. }
+        | Bookmark { .. } => Ok(()),
         AssetPut { asset } => {
             if project
                 .assets

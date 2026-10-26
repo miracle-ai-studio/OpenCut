@@ -9,6 +9,53 @@ target/
 .opencut/
 __pycache__/
 
-# moon runtime cache
-.moon/cache/
+# Local tooling and retired task-runner caches
+.moon/
 .pnpm-store/
+.wrangler/
+
+# Private workspace data and output
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite-journal
+*.sqlite3-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.log
+*.opencut
+api-token
+credentials.json
+.aws/
+.ssh/
+.codex/
+.claude/
+*.pem
+*.p12
+*.pfx
+/artifacts/
+/exports/
+/recordings/
+/test-runs/
+
+# Source footage stays in an external workspace; tests generate synthetic media.
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.webm
+*.avi
+*.m2ts
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.ogg
+*.aac
+*.aif
+*.aiff

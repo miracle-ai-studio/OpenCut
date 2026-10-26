@@ -166,6 +166,7 @@ pub(super) fn snapshot() -> EditorSnapshot {
     EditorSnapshot {
         revision: "native-fixed-r1".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "fixture".into(),

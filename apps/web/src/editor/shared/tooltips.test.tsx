@@ -7,14 +7,14 @@ afterEach(()=>{cleanup();vi.useRealTimers();});
 it("keeps managed icon buttons named and suppresses competing native titles",()=>{
  vi.useFakeTimers();render(<Tooltips><Button title="收起属性面板" icon={<svg/>}/></Tooltips>);
  const button=screen.getByRole("button",{name:"收起属性面板"});expect(button.hasAttribute("title")).toBe(false);
- fireEvent.pointerOver(button);act(()=>{vi.advanceTimersByTime(2000);});expect(screen.getByRole("tooltip").textContent).toBe("收起属性面板");
+ fireEvent.pointerOver(button);act(()=>{vi.advanceTimersByTime(1000);});expect(screen.getByRole("tooltip").textContent).toBe("收起属性面板");
  fireEvent.click(button);expect(screen.queryByRole("tooltip")).toBeNull();expect(button.hasAttribute("title")).toBe(false);
 });
-it("shows disabled-control explanations only after two seconds, outside the clipped pane",()=>{
+it("shows disabled-control explanations only after one second, outside the clipped pane",()=>{
   vi.useFakeTimers();
   const {container}=render(<Tooltips><button disabled title="文字轨道没有声音">轨道静音</button></Tooltips>);
   const button=screen.getByRole("button");fireEvent.pointerOver(button);
-  act(()=>{vi.advanceTimersByTime(1999);});expect(screen.queryByRole("tooltip")).toBeNull();
+  act(()=>{vi.advanceTimersByTime(999);});expect(screen.queryByRole("tooltip")).toBeNull();
   expect(button.hasAttribute("title")).toBe(false);
   act(()=>{vi.advanceTimersByTime(1);});const tip=screen.getByRole("tooltip");
   expect(tip.textContent).toBe("文字轨道没有声音");expect(container.contains(tip)).toBe(false);

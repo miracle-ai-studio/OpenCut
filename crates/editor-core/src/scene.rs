@@ -168,6 +168,35 @@ pub(crate) fn validated_identities(
     unique(&mut ids, &project.id)?;
     let assets: HashMap<_, _> = project.assets.iter().map(|a| (a.id.as_str(), a)).collect();
     let fonts: HashMap<_, _> = project.fonts.iter().map(|f| (f.id.as_str(), f)).collect();
+    if let Some(cover) = &project.cover {
+        let asset_id = match cover {
+            ProjectCover::Image { asset_id } | ProjectCover::VideoFrame { asset_id, .. } => {
+                asset_id
+            }
+        };
+        let asset = assets.get(asset_id.as_str())
+            .ok_or_else(|| invalid("Project cover asset is missing; clear or replace the cover before deleting its asset"))?;
+        match cover {
+            ProjectCover::Image { .. } if asset.kind == AssetKind::Image => {}
+            ProjectCover::VideoFrame { time: selected, .. } if asset.kind == AssetKind::Video => {
+                let selected = time(selected)?;
+                let end =
+                    duration(asset.duration.as_ref().ok_or_else(|| {
+                        invalid("Video cover requires an observed source duration")
+                    })?)?;
+                if selected.ticks() < 0 || selected.cmp_exact(end) != Ordering::Less {
+                    return Err(invalid(
+                        "Video cover time must be within the source duration",
+                    ));
+                }
+            }
+            _ => {
+                return Err(invalid(
+                    "Project cover requires an image or a video frame of the matching asset kind",
+                ));
+            }
+        }
+    }
     for asset in &project.assets {
         unique(&mut ids, &asset.id)?;
         required(&asset.name, "Resource name")?;

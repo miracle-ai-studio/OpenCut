@@ -1,11 +1,12 @@
 /** Library artwork is a representative source thumbnail, not a composition render.
  * Media is read through the authenticated, fixed-version resource URL. No jobs. */
-export function sourceThumbnail(url: string, kind: "image" | "video", signal: AbortSignal): Promise<Blob> {
+export function sourceThumbnail(url: string, kind: "image" | "video", signal: AbortSignal, time = 0): Promise<Blob> {
   signal.throwIfAborted();
+  if (!Number.isFinite(time) || time < 0) return Promise.reject(Error("Source thumbnail time is invalid"));
   return new Promise((resolve, reject) => {
     const media = kind === "image" ? new Image() : document.createElement("video");
     let finished = false;
-    const cleanup = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); media.onload = null; media.onerror = null; if (media instanceof HTMLVideoElement) { media.onloadeddata = null; media.pause(); media.removeAttribute("src"); media.load(); } else media.removeAttribute("src"); };
+    const cleanup = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); media.onload = null; media.onerror = null; if (media instanceof HTMLVideoElement) { media.onloadeddata = null; media.onseeked = null; media.pause(); media.removeAttribute("src"); media.load(); } else media.removeAttribute("src"); };
     const finish = (blob: Blob | null, error?: unknown) => { if (finished) return; finished = true; cleanup(); if (blob) resolve(blob); else reject(error ?? Error("Source thumbnail unavailable")); };
     const abort = () => finish(null, signal.reason);
     const timer = setTimeout(() => finish(null, Error("Source thumbnail timed out")), 10000);
@@ -20,7 +21,16 @@ export function sourceThumbnail(url: string, kind: "image" | "video", signal: Ab
       } catch(error) { finish(null, error); }
     };
     media.onerror = () => finish(null, Error("Source thumbnail unavailable"));
-    if (media instanceof HTMLVideoElement) { media.muted = true; media.preload = "auto"; media.onloadeddata = draw; } else media.onload = draw;
+    if (media instanceof HTMLVideoElement) {
+      media.muted = true; media.preload = "auto";
+      media.onloadeddata = () => {
+        if (time === 0) { draw(); return; }
+        if (time >= media.duration) { finish(null, Error("Source thumbnail time is outside the video")); return; }
+        media.onloadeddata = null;
+        media.onseeked = draw;
+        try { media.currentTime = time; } catch (error) { finish(null, error); }
+      };
+    } else media.onload = draw;
     media.src = url;
   });
 }

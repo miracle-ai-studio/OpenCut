@@ -29,7 +29,6 @@ MIN_SNR_DB = 30.0            # <= 3.162% RMS waveform error; no gain fitting
 MAX_REL_RMS_ERROR = 0.01     # 1%, catches unintended attenuation/amplification
 MAX_FREQUENCY_ERROR_HZ = 0.2
 MAX_STEREO_RMS_MISMATCH = 0.01
-DEFAULT_WORKSPACE = Path('/private/var/folders/kz/h5_cbtss31x7v_c7008mkn4c0000gn/T/opencut-web-bsfcr_6o')
 
 
 def require(condition, message):
@@ -169,7 +168,8 @@ def measure(reference, observed):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('workspace', type=Path, nargs='?', default=DEFAULT_WORKSPACE)
+    parser.add_argument('workspace', type=Path,
+                        help='Existing owned synthetic workspace outside the source repository')
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--ffprobe', default='ffprobe')
     parser.add_argument('--evidence', default='b2-video-evidence.json',

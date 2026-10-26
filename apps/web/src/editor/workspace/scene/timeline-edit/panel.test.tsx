@@ -88,6 +88,51 @@ it("moves the playback cursor from the output source without rebuilding clips or
   }finally{f.controller.dispose();}
 });
 
+it("follows the playing output cursor and updates the horizontal navigator without edits",async()=>{
+  const {f,props}=await setup(),listeners=new Set<()=>void>();
+  let at={ticks:"0",timebase:1},playing=true;
+  props.sequence.tracks[0].elements[0].timeline_range.duration={ticks:"100",timebase:1};
+  props.presentation={time:()=>at,playing:()=>playing,subscribe:listener=>{listeners.add(listener);return()=>{listeners.delete(listener);};}};
+  try{
+    const view=render(<TimelinePanel {...props}/>),viewport=view.container.querySelector<HTMLElement>(".editor-timeline-viewport")!;
+    Object.defineProperty(viewport,"clientWidth",{configurable:true,value:1000});
+    Object.defineProperty(viewport,"scrollWidth",{configurable:true,value:8200});
+    const clip=screen.getByRole("button",{name:"Whole image · Image"});
+    act(()=>{at={ticks:"15",timebase:1};listeners.forEach(listener=>listener());});
+    expect(viewport.scrollLeft).toBeGreaterThan(0);
+    fireEvent.scroll(viewport);
+    expect(screen.getByRole("scrollbar").getAttribute("aria-valuenow")).toBe(String(viewport.scrollLeft));
+    expect(screen.getByRole("button",{name:"Whole image · Image"})).toBe(clip);
+    playing=false;viewport.scrollLeft=0;
+    act(()=>{at={ticks:"20",timebase:1};listeners.forEach(listener=>listener());});
+    expect(viewport.scrollLeft).toBe(0);
+    playing=true;viewport.scrollLeft=2000;
+    act(()=>{at={ticks:"1",timebase:1};listeners.forEach(listener=>listener());});
+    expect(viewport.scrollLeft).toBe(0);
+    expect(f.planner).not.toHaveBeenCalled();expect(props.onSeek).not.toHaveBeenCalled();
+  }finally{f.controller.dispose();}
+});
+
+it("leaves manual scrolling alone during navigation and briefly after wheel input",async()=>{
+  const {f,props}=await setup(),listeners=new Set<()=>void>();let at={ticks:"0",timebase:1};
+  props.presentation={time:()=>at,playing:()=>true,subscribe:listener=>{listeners.add(listener);return()=>{listeners.delete(listener);};}};
+  try{
+    const clock=vi.spyOn(performance,"now").mockReturnValue(1000),view=render(<TimelinePanel {...props}/>);
+    const viewport=view.container.querySelector<HTMLElement>(".editor-timeline-viewport")!;
+    Object.defineProperty(viewport,"clientWidth",{configurable:true,value:1000});
+    Object.defineProperty(viewport,"scrollWidth",{configurable:true,value:8200});
+    fireEvent.wheel(viewport);act(()=>{at={ticks:"15",timebase:1};listeners.forEach(listener=>listener());});
+    expect(viewport.scrollLeft).toBe(0);
+    const bar=screen.getByRole("scrollbar");
+    Object.defineProperty(bar,"clientWidth",{configurable:true,value:1000});
+    fireEvent.pointerDown(bar,{button:0,pointerId:7,clientX:0});clock.mockReturnValue(3000);
+    act(()=>{at={ticks:"20",timebase:1};listeners.forEach(listener=>listener());});expect(viewport.scrollLeft).toBe(0);
+    fireEvent.pointerUp(bar,{pointerId:7});clock.mockReturnValue(4600);
+    act(()=>{at={ticks:"21",timebase:1};listeners.forEach(listener=>listener());});expect(viewport.scrollLeft).toBeGreaterThan(0);
+    expect(f.planner).not.toHaveBeenCalled();
+  }finally{f.controller.dispose();}
+});
+
 it("track shortcuts plan through the same journal and obey locks and edit holds", async () => {
   const { f, props } = await setup();
   try {

@@ -5,6 +5,7 @@
 | 入口 | 用途 |
 |---|---|
 | check-architecture.py、check-contract-boundaries.py | 模块与公开契约边界 |
+| check-source-hygiene.py | 待发布文件的素材、数据库、凭据与本机路径检查；不扫描忽略文件或 Git 历史 |
 | check-canonical-contract.py --binary <CLI> | 唯一工具与领域声明 |
 | package-local.py | 本地包、文件清单与身份信息 |
 | distribution/ | 环境诊断、受信运行时与 Agent 连接 |

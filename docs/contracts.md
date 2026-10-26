@@ -13,6 +13,27 @@ CLI 通用入口为 `call <operation> --input <request.json>` 和 `domain <domai
 
 `opencut_project_create/list/inspect` 管理工程，`opencut_edit_plan/apply` 处理原子编辑。读取固定 revision 后构造计划，提交携带 expected revision 与稳定幂等键。冲突或未知结果不能触发隐式重写请求、换 revision 或另一条后备写入口。
 
+工程封面使用现有编辑入口的 `cover_set` 参数，CLI、HTTP、MCP 和 SDK 共用同一 Rust 类型。封面是工程修订的一部分；复制、历史恢复与工程包保留该引用。`cover: null` 恢复自动封面；`{"kind":"image","asset_id":"poster"}` 选择已绑定图片；`{"kind":"video_frame","asset_id":"video","time":{"ticks":"75","timebase":25}}` 选择源视频第 3 秒的画面。源时间不受时间线修剪、变速、标题和特效影响，必须满足 `0 <= time < 素材时长`。素材来自当前修订中的固定版本，禁止路径、外部 URL 或无授权哈希充当封面资源。删除引用中的素材必须在同一事务内明确清除或替换封面。
+
+例如将以下请求保存为 `cover.json`，先运行 `opencut --database <数据库> --json call opencut_edit_plan --input cover.json` 检查，再用 `opencut_edit_apply` 提交完全相同的请求；领域入口为 `domain edit plan/apply`。MCP 的 `opencut_edit` 使用 `{"action":"apply","input":<同一请求>}`；展开的工具入口同样接受该请求。先通过 `system domains --domain edit --schemas` 或 MCP 工具发现读取实际参数。
+
+```json
+{
+  "project_id": "my-project",
+  "expected_revision": "rev_已观察到的固定修订",
+  "idempotency_key": "my-cover-change",
+  "label": "设置视频帧封面",
+  "operations": [
+    {
+      "type": "cover_set",
+      "cover": {"kind": "video_frame", "asset_id": "video", "time": {"ticks": "75", "timebase": 25}}
+    }
+  ]
+}
+```
+
+上传图片复用 `opencut_upload_begin`、顺序分块、`opencut_upload_complete` 与公开导入任务结果；完成后在同一个编辑事务中先 `asset_bind`（`source.kind = project_media`，携带观察到的 `media_id` 和完整 `version`），再 `cover_set`。图片不需要放入时间线。没有独立封面写入口或浏览器封面数据库；图库缩略图仍通过授权的固定版本素材生成，不提交组合渲染任务。
+
 外部工程通过普通工程包导入、导出及其历史恢复合同交换。旧浏览器 Classic 工程恢复不再提供公开操作或专用页面；已保存的工程仍由正常工程合同读取。
 
 素材、字体与资源通过授权引用和版本绑定。上传采用有界顺序分块及完整哈希，导入成功后消费其发布结果。上传完成不等于已把素材放入时间线。

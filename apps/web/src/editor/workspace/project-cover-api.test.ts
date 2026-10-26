@@ -28,6 +28,26 @@ it("loads fixed media for library artwork without submitting or cancelling rende
   expect(sourceThumbnail).toHaveBeenCalledWith("http://localhost:8788/resource","image",expect.any(AbortSignal));
   expect(f.submit).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled();
 });
+it("a saved video cover uses its source time and overrides the browser's selected scene", async () => {
+  const f = fixture();
+  f.s.project.assets[0].kind = "video";
+  f.s.project.cover = { kind: "video_frame", asset_id: "asset", time: { ticks: "75", timebase: 25 } };
+  f.s.project.sequences.push({ ...structuredClone(f.s.project.sequences[0]), id: "empty", tracks: [] });
+  await f.api.covers.request(projectRef(f.s), new AbortController().signal, "empty");
+  expect(sourceThumbnail).toHaveBeenLastCalledWith("http://localhost:8788/resource", "video", expect.any(AbortSignal), 3);
+  expect(f.resource).toHaveBeenCalledWith("p", "fixed", "asset", expect.any(AbortSignal));
+  expect(f.submit).not.toHaveBeenCalled();
+});
+it("a saved image cover need not be placed on a timeline and still requires the exact resource version", async () => {
+  const f = fixture();
+  f.s.project.sequences[0].tracks = [];
+  f.s.project.cover = { kind: "image", asset_id: "asset" };
+  expect(await f.api.covers.request(projectRef(f.s), new AbortController().signal)).toBeTruthy();
+  expect(sourceThumbnail).toHaveBeenLastCalledWith("http://localhost:8788/resource", "image", expect.any(AbortSignal));
+  f.api.covers.invalidate("p");
+  f.resource.mockResolvedValue({ project_id: "another", revision: "fixed", resource_id: "asset", version: f.s.project.assets[0].version } as never);
+  await expect(f.api.covers.request(projectRef(f.s), new AbortController().signal)).rejects.toThrow("resource changed");
+});
 it("refuses mismatched project and resource versions before decoding media", async () => {
   const f=fixture(); f.inspect.mockResolvedValue({...f.s,revision:"wrong"});
   await expect(f.api.covers.request(projectRef(f.s),new AbortController().signal)).rejects.toThrow("revision changed");

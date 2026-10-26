@@ -276,7 +276,7 @@ export function ProjectBrowser({
         </Empty>
       ) : (
         <div
-          className={`project-grid ${layout === "list" ? "project-list" : filtered.length === 1 ? "project-featured" : ""}`}
+          className={`project-grid ${layout === "list" ? "project-list" : ""}`}
         >
           {filtered.map((project) => (
             <div

@@ -4929,7 +4929,7 @@
     "/api/tools/opencut_edit_plan": {
       "post": {
         "operationId": "opencut_edit_plan",
-        "description": "Plan a complete editor transaction at a fixed revision. Bind resources only from authorized fixed project records; no commit occurs.",
+        "description": "Plan a complete editor transaction at a fixed revision. cover_set selects an image asset or video_frame asset and source time; null restores automatic artwork. Bind resources only from authorized fixed project records; no commit occurs.",
         "x-opencut-read-only": true,
         "requestBody": {
           "required": true,
@@ -4968,7 +4968,7 @@
     "/api/tools/opencut_edit_apply": {
       "post": {
         "operationId": "opencut_edit_apply",
-        "description": "Atomically apply a complete editor transaction on main or an explicitly named branch (branch_name),with fixed revision, original-request idempotency, scoped resource binding, audit and outbox.",
+        "description": "Atomically apply a complete editor transaction on main or an explicitly named branch (branch_name),with fixed revision, original-request idempotency, scoped resource binding, audit and outbox. cover_set persists image/video_frame artwork with project assets; an asset_bind and cover_set may share one transaction.",
         "x-opencut-read-only": false,
         "requestBody": {
           "required": true,
@@ -14721,6 +14721,48 @@
               }
             ]
           },
+          "ProjectCover": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "asset_id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "image",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "asset_id"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "asset_id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "video_frame",
+                    "type": "string"
+                  },
+                  "time": {
+                    "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/Time"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "asset_id",
+                  "time"
+                ],
+                "type": "object"
+              }
+            ]
+          },
           "ProjectEditOperation": {
             "oneOf": [
               {
@@ -14754,6 +14796,30 @@
                 "required": [
                   "type",
                   "settings"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+                "properties": {
+                  "cover": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": {
+                    "const": "cover_set",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
                 ],
                 "type": "object"
               },
@@ -17603,6 +17669,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -24007,6 +24076,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -24557,6 +24629,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -25710,6 +25785,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -26113,6 +26191,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -26570,6 +26651,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -27237,6 +27321,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -28878,6 +28965,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -47220,6 +47310,9 @@
           "OpaqueEffectTarget": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateInput/$defs/OpaqueEffectTarget"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectMediaMetadata": {
             "additionalProperties": false,
             "properties": {
@@ -47379,6 +47472,16 @@
                   "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/PublicAsset"
                 },
                 "type": "array"
+              },
+              "cover": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/ProjectCover"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "default_sequence_id": {
                 "type": "string"
@@ -47890,6 +47993,9 @@
           },
           "OpaqueEffectTarget": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateInput/$defs/OpaqueEffectTarget"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectMediaMetadata": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/ProjectMediaMetadata"
@@ -48561,6 +48667,9 @@
               }
             ]
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -49112,6 +49221,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -49537,6 +49649,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -49941,6 +50056,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectMediaMetadata": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/ProjectMediaMetadata"
@@ -50601,6 +50719,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -51051,6 +51172,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -51607,6 +51731,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -52228,6 +52355,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -52585,6 +52715,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -54043,6 +54176,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -54626,6 +54762,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -55660,6 +55799,9 @@
             ],
             "type": "object"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -55978,6 +56120,9 @@
           "PasteTimelinePlan": {
             "$ref": "#/components/schemas/OpencutTimelinePastePlanOutput/$defs/PasteTimelinePlan"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutTimelinePastePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutTimelinePastePlanOutput/$defs/ProjectEditOperation"
           },
@@ -56209,6 +56354,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -56482,6 +56630,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectMediaMetadata": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/ProjectMediaMetadata"
@@ -56768,6 +56919,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutEditPlanInput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutEditPlanInput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutEditPlanInput/$defs/ProjectEditOperation"
@@ -62365,6 +62519,9 @@
           "OpaqueEffectTarget": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateInput/$defs/OpaqueEffectTarget"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectInspection": {
             "oneOf": [
               {
@@ -63026,6 +63183,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectMediaMetadata": {
             "$ref": "#/components/schemas/OpencutProjectReadonlyCreateOutput/$defs/ProjectMediaMetadata"
@@ -64961,6 +65121,9 @@
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
           },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
+          },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
           },
@@ -65387,6 +65550,9 @@
           },
           "MaskFeather": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/MaskFeather"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -66759,6 +66925,9 @@
               "normalizations"
             ],
             "type": "object"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"
@@ -68171,6 +68340,9 @@
           },
           "PluginTarget": {
             "$ref": "#/components/schemas/OpencutProjectPackageImportOutput/$defs/GrantTarget"
+          },
+          "ProjectCover": {
+            "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectCover"
           },
           "ProjectEditOperation": {
             "$ref": "#/components/schemas/OpencutMediaRemovePlanOutput/$defs/ProjectEditOperation"

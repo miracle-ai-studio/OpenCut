@@ -1,6 +1,7 @@
 import { sourceThumbnail } from "./source-thumbnail";
 import { TaskFeed } from "./task-feed";
 import { Api } from "./scene/api";
+import type { Asset } from "./scene/types";
 import { ProjectCovers } from "./project-covers";
 import type { CoverRequest } from "./project-covers";
 import { CoverSceneViews } from "../shared/view-preferences";
@@ -80,14 +81,24 @@ export class EditorApi {
     const scene=snapshot.project.sequences.find(scene=>scene.id===sequenceId);
     if(!scene) throw Error("Project cover scene unavailable");
     const assetIds = scene.tracks.filter(track => track.enabled).flatMap(track => track.elements.filter(element => element.enabled).flatMap(element => "asset_id" in element.content ? [element.content.asset_id] : []));
-    const asset = assetIds.map(id => snapshot.project.assets.find(item => item.id === id)).find(item => item && (item.kind === "image" || item.kind === "video"));
+    const cover = snapshot.project.cover;
+    const asset = cover ? snapshot.project.assets.find(item => item.id === cover.asset_id)
+      : assetIds.map(id => snapshot.project.assets.find(item => item.id === id)).find(item => item && (item.kind === "image" || item.kind === "video"));
     if (!asset || (asset.kind !== "image" && asset.kind !== "video")) return null;
-    const resource = await this.scene.resource(project.id, project.revision, asset.id, signal);
+    const url = await this.coverSource(project.id, project.revision, asset, signal);
+    if (!url) return null;
+    return cover?.kind === "video_frame"
+      ? sourceThumbnail(url, asset.kind, signal, Number(cover.time.ticks) / cover.time.timebase)
+      : sourceThumbnail(url, asset.kind, signal);
+  }
+
+  async coverSource(projectId: string, revision: string, asset: Pick<Asset, "id" | "version">, signal: AbortSignal): Promise<string | null> {
+    const resource = await this.scene.resource(projectId, revision, asset.id, signal);
     signal.throwIfAborted();
-    if (resource.project_id !== project.id || resource.revision !== project.revision || resource.resource_id !== asset.id || resource.version.id !== asset.version.id || resource.version.content_hash !== asset.version.content_hash || resource.version.size !== asset.version.size) throw Error("Project cover resource changed");
+    if (resource.project_id !== projectId || resource.revision !== revision || resource.resource_id !== asset.id || resource.version.id !== asset.version.id || resource.version.content_hash !== asset.version.content_hash || resource.version.size !== asset.version.size) throw Error("Project cover resource changed");
     const url = this.sdk.projectResourceUrl(resource);
     if (new URL(url).origin !== location.origin) return null;
-    return sourceThumbnail(url, asset.kind, signal);
+    return url;
   }
 
   async inspect(project:ProjectRef,revision?:string,signal?:AbortSignal):Promise<Snapshot>{

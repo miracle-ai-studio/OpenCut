@@ -450,6 +450,7 @@ fn font_only_frames_and_compiled_empty_frames_do_not_require_fake_media_or_unuse
     let snapshot = EditorSnapshot {
         revision: "empty-frame".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "project".into(),

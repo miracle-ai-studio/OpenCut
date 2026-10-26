@@ -1,28 +1,14 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+This fork is under active development. See [delivery status](../docs/status.md) for
+known limitations; there is no supported release or response-time guarantee.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+Use this repository's [Security page](https://github.com/miracle-ai-studio/OpenCut/security)
+to report a vulnerability privately when private reporting is available. If no
+private reporting channel is available, open an issue asking maintainers to arrange
+one, without publishing exploit details or affected private data.
 
-## Reporting a Vulnerability
-
-We take security vulnerabilities seriously. If you discover a security vulnerability within OpenCut, please send an email to security@opencut.app. All security vulnerabilities will be promptly addressed.
-
-Please do not report security vulnerabilities through public GitHub issues.
-
-### What to include in your report
-
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Any suggested fixes
-
-### Response timeline
-
-- We will acknowledge receipt within 48 hours
-- We will provide a detailed response within 5 business days
-- We will keep you updated on our progress
-
-Thank you for helping keep OpenCut secure!
+Include the affected commit, a synthetic reproducer, expected authorization or
+processing behavior, and the impact. Remove credentials, personal paths, user media,
+workspace databases and private logs from reports. Contact details belonging to the
+upstream project do not represent this fork's maintainers.

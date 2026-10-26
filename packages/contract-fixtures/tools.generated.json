@@ -3100,6 +3100,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -3133,6 +3175,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -8240,6 +8306,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -8273,6 +8381,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -18463,6 +18595,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -18496,6 +18670,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -22081,6 +22279,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -22114,6 +22354,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -29096,6 +29360,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -29129,6 +29435,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -32698,6 +33028,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -32731,6 +33103,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -36243,6 +36639,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -36276,6 +36714,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -40412,6 +40874,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -40445,6 +40949,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -46126,6 +46654,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -46159,6 +46729,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -103366,6 +103960,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectMediaMetadata": {
           "additionalProperties": false,
           "properties": {
@@ -103566,6 +104202,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -106646,6 +107292,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectMediaMetadata": {
           "additionalProperties": false,
           "properties": {
@@ -106846,6 +107534,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -110610,6 +111308,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -110643,6 +111383,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -114204,6 +114968,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -114237,6 +115043,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -117629,6 +118459,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -117662,6 +118534,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -120925,6 +121821,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectMediaMetadata": {
           "additionalProperties": false,
           "properties": {
@@ -121125,6 +122063,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -124921,6 +125869,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -124954,6 +125944,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -128739,6 +129753,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -128772,6 +129828,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -132292,6 +133372,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -132325,6 +133447,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -136114,6 +137260,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -136147,6 +137335,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -140044,6 +141256,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -140077,6 +141331,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -151545,6 +152823,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -151578,6 +152898,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -155673,6 +157017,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -155706,6 +157092,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -160665,6 +162075,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -160698,6 +162150,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -164336,6 +165812,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -164369,6 +165887,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -165778,7 +167320,7 @@
     "read_only": true
   },
   {
-    "description": "Plan a complete editor transaction at a fixed revision. Bind resources only from authorized fixed project records; no commit occurs.",
+    "description": "Plan a complete editor transaction at a fixed revision. cover_set selects an image asset or video_frame asset and source time; null restores automatic artwork. Bind resources only from authorized fixed project records; no commit occurs.",
     "input_schema": {
       "$defs": {
         "AnimationChannel": {
@@ -167555,6 +169097,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -167588,6 +169172,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -170715,6 +172323,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectMediaMetadata": {
           "additionalProperties": false,
           "properties": {
@@ -170915,6 +172565,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -172081,7 +173741,7 @@
     "read_only": true
   },
   {
-    "description": "Atomically apply a complete editor transaction on main or an explicitly named branch (branch_name),with fixed revision, original-request idempotency, scoped resource binding, audit and outbox.",
+    "description": "Atomically apply a complete editor transaction on main or an explicitly named branch (branch_name),with fixed revision, original-request idempotency, scoped resource binding, audit and outbox. cover_set persists image/video_frame artwork with project assets; an asset_bind and cover_set may share one transaction.",
     "input_schema": {
       "$defs": {
         "AnimationChannel": {
@@ -173858,6 +175518,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -173891,6 +175593,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -216972,6 +218698,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectInspection": {
           "oneOf": [
             {
@@ -217227,6 +218995,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -221015,6 +222793,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectMediaMetadata": {
           "additionalProperties": false,
           "properties": {
@@ -221215,6 +223035,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -227369,6 +229199,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -227402,6 +229274,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -231168,6 +233064,48 @@
             }
           ]
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -231201,6 +233139,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -238890,6 +240852,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -238923,6 +240927,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -239473,6 +241501,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"
@@ -244636,6 +246674,48 @@
           ],
           "type": "object"
         },
+        "ProjectCover": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "image",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "asset_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "video_frame",
+                  "type": "string"
+                },
+                "time": {
+                  "$ref": "#/$defs/Time"
+                }
+              },
+              "required": [
+                "kind",
+                "asset_id",
+                "time"
+              ],
+              "type": "object"
+            }
+          ]
+        },
         "ProjectEditOperation": {
           "oneOf": [
             {
@@ -244669,6 +246749,30 @@
               "required": [
                 "type",
                 "settings"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Set source artwork, or null to restore automatic artwork. Assets must\nbelong to the proposed project; asset_bind may precede this atomically.",
+              "properties": {
+                "cover": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ProjectCover"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "const": "cover_set",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
               ],
               "type": "object"
             },
@@ -245239,6 +247343,16 @@
                 "$ref": "#/$defs/PublicAsset"
               },
               "type": "array"
+            },
+            "cover": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProjectCover"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "default_sequence_id": {
               "type": "string"

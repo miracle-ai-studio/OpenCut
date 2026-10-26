@@ -398,6 +398,10 @@ export namespace OpencutMediaRemovePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -504,6 +508,16 @@ export namespace OpencutMediaRemovePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -921,6 +935,10 @@ export namespace OpencutMediaRemovePlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -945,10 +963,6 @@ export namespace OpencutMediaRemovePlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -1681,6 +1695,10 @@ export namespace OpencutEditRecipePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -1787,6 +1805,16 @@ export namespace OpencutEditRecipePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -2244,6 +2272,10 @@ export namespace OpencutEditRecipePlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -2268,10 +2300,6 @@ export namespace OpencutEditRecipePlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -4313,6 +4341,10 @@ export namespace OpencutEditAgentPlanInput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -4419,6 +4451,16 @@ export namespace OpencutEditAgentPlanInput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time1;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -5161,6 +5203,10 @@ export namespace OpencutEditAgentPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -5267,6 +5313,16 @@ export namespace OpencutEditAgentPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -5714,6 +5770,10 @@ export namespace OpencutEditAgentPlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -5738,10 +5798,6 @@ export namespace OpencutEditAgentPlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -6994,6 +7050,10 @@ export namespace OpencutEditTimelinePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -7100,6 +7160,16 @@ export namespace OpencutEditTimelinePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -7541,6 +7611,10 @@ export namespace OpencutEditTimelinePlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -7565,10 +7639,6 @@ export namespace OpencutEditTimelinePlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -7913,6 +7983,10 @@ export namespace OpencutElementPropertiesPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -8019,6 +8093,16 @@ export namespace OpencutElementPropertiesPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -8436,6 +8520,10 @@ export namespace OpencutElementPropertiesPlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -8460,10 +8548,6 @@ export namespace OpencutElementPropertiesPlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -8820,6 +8904,10 @@ export namespace OpencutKeyframeLegacyConversionPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -8926,6 +9014,16 @@ export namespace OpencutKeyframeLegacyConversionPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -9359,6 +9457,10 @@ export namespace OpencutKeyframeLegacyConversionPlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -9383,10 +9485,6 @@ export namespace OpencutKeyframeLegacyConversionPlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -9930,6 +10028,10 @@ export namespace OpencutKeyframePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -10036,6 +10138,16 @@ export namespace OpencutKeyframePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -10453,6 +10565,10 @@ export namespace OpencutKeyframePlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -10477,10 +10593,6 @@ export namespace OpencutKeyframePlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -11407,6 +11519,10 @@ export namespace OpencutSubtitleClassicAssPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -11513,6 +11629,16 @@ export namespace OpencutSubtitleClassicAssPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -26123,6 +26249,16 @@ export namespace OpencutProjectReadonlyCreateOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -26513,6 +26649,7 @@ export namespace OpencutProjectReadonlyCreateOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -26945,6 +27082,16 @@ export namespace OpencutProjectReadonlyManifestOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -27317,6 +27464,7 @@ export namespace OpencutProjectReadonlyManifestOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -27896,6 +28044,10 @@ export namespace OpencutMediaImportPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -28002,6 +28154,16 @@ export namespace OpencutMediaImportPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -28863,6 +29025,10 @@ export namespace OpencutProjectAudioGainPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -28969,6 +29135,16 @@ export namespace OpencutProjectAudioGainPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -29401,6 +29577,10 @@ export namespace OpencutProjectAudioGainPlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -29425,10 +29605,6 @@ export namespace OpencutProjectAudioGainPlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -29752,6 +29928,10 @@ export namespace OpencutProjectSourceAudioPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -29858,6 +30038,16 @@ export namespace OpencutProjectSourceAudioPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -30667,6 +30857,16 @@ export namespace OpencutProjectCopyOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -31031,6 +31231,7 @@ export namespace OpencutProjectCopyOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -31643,6 +31844,10 @@ export namespace OpencutGraphicPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -31748,6 +31953,16 @@ export namespace OpencutGraphicPlanOutput {
       kind: 'main_track_blur';
     };
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -32635,6 +32850,10 @@ export namespace OpencutTextPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -32740,6 +32959,16 @@ export namespace OpencutTextPlanOutput {
       kind: 'main_track_blur';
     };
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -33488,6 +33717,10 @@ export namespace OpencutEditRecoveryStageInput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -33594,6 +33827,16 @@ export namespace OpencutEditRecoveryStageInput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -34016,6 +34259,10 @@ export namespace OpencutEditRecoveryStageInput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -34040,10 +34287,6 @@ export namespace OpencutEditRecoveryStageInput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -34422,6 +34665,10 @@ export namespace OpencutEditRecoveryStageOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -34528,6 +34775,16 @@ export namespace OpencutEditRecoveryStageOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -34998,6 +35255,10 @@ export namespace OpencutEditRecoveryStageOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -35022,10 +35283,6 @@ export namespace OpencutEditRecoveryStageOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -35436,6 +35693,10 @@ export namespace OpencutEditRecoveryInspectOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -35542,6 +35803,16 @@ export namespace OpencutEditRecoveryInspectOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -36018,6 +36289,10 @@ export namespace OpencutEditRecoveryInspectOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -36042,10 +36317,6 @@ export namespace OpencutEditRecoveryInspectOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -38421,6 +38692,10 @@ export namespace OpencutSubtitleTextPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -38527,6 +38802,16 @@ export namespace OpencutSubtitleTextPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -39475,6 +39760,10 @@ export namespace OpencutSubtitleAssPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -39581,6 +39870,16 @@ export namespace OpencutSubtitleAssPlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -40717,6 +41016,10 @@ export namespace OpencutTimelinePastePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -40823,6 +41126,16 @@ export namespace OpencutTimelinePastePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -41668,6 +41981,10 @@ export namespace OpencutTimelineDuplicatePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -41774,6 +42091,16 @@ export namespace OpencutTimelineDuplicatePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -42533,6 +42860,10 @@ export namespace OpencutEditPlanInput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -42639,6 +42970,16 @@ export namespace OpencutEditPlanInput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -43049,6 +43390,10 @@ export namespace OpencutEditPlanInput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -43073,10 +43418,6 @@ export namespace OpencutEditPlanInput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -43386,6 +43727,16 @@ export namespace OpencutEditPlanOutput {
       generation_id?: string | null;
       kind: 'generated';
       provider: string;
+    };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
     };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
@@ -43747,6 +44098,7 @@ export namespace OpencutEditPlanOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -44146,6 +44498,10 @@ export namespace OpencutEditApplyInput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -44252,6 +44608,16 @@ export namespace OpencutEditApplyInput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -44662,6 +45028,10 @@ export namespace OpencutEditApplyInput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -44686,10 +45056,6 @@ export namespace OpencutEditApplyInput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -54753,6 +55119,16 @@ export namespace OpencutProjectInspectOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -55149,6 +55525,7 @@ export namespace OpencutProjectInspectOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -55884,6 +56261,16 @@ export namespace OpencutEditBranchCompareOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -56269,6 +56656,7 @@ export namespace OpencutEditBranchCompareOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -57508,6 +57896,10 @@ export namespace OpencutTrackRemovePlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -57614,6 +58006,16 @@ export namespace OpencutTrackRemovePlanOutput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -58031,6 +58433,10 @@ export namespace OpencutTrackRemovePlanOutput {
   fps: FrameRate;
   sequence_id: string;
 }
+  export interface Time {
+  ticks: string;
+  timebase: number;
+}
   export interface AssetVersion {
   content_hash: string;
   id: string;
@@ -58055,10 +58461,6 @@ export namespace OpencutTrackRemovePlanOutput {
   note?: string | null;
   sequence_id: string;
   time: Time;
-}
-  export interface Time {
-  ticks: string;
-  timebase: number;
 }
   export interface Caption {
   id: string;
@@ -58490,6 +58892,10 @@ export namespace OpencutVisualPreviewEditDraftFrameInput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -58596,6 +59002,16 @@ export namespace OpencutVisualPreviewEditDraftFrameInput {
     };
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type CanvasSizeMode = 'preset' | 'custom';
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type AssetSelector =
   | {
       asset_id: string;
@@ -60488,6 +60904,16 @@ export namespace OpencutPluginPresetPlanOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -60848,6 +61274,10 @@ export namespace OpencutPluginPresetPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -60991,6 +61421,7 @@ export namespace OpencutPluginPresetPlanOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;
@@ -61930,6 +62361,16 @@ export namespace OpencutProjectPluginPlanOutput {
       kind: 'generated';
       provider: string;
     };
+  export type ProjectCover =
+  | {
+      asset_id: string;
+      kind: 'image';
+    }
+  | {
+      asset_id: string;
+      kind: 'video_frame';
+      time: Time;
+    };
   export type FontStyle = 'normal' | 'italic';
   export type ColorEncoding = 'srgb' | 'linear_srgb';
   export type FontBinding =
@@ -62290,6 +62731,10 @@ export namespace OpencutProjectPluginPlanOutput {
       type: 'settings_set';
     }
   | {
+      cover?: ProjectCover | null;
+      type: 'cover_set';
+    }
+  | {
       sequence_id: string;
       type: 'default_sequence_set';
     }
@@ -62440,6 +62885,7 @@ export namespace OpencutProjectPluginPlanOutput {
 }
   export interface PublicProjectDocument {
   assets: PublicAsset[];
+  cover?: ProjectCover | null;
   default_sequence_id: string;
   fonts: PublicFontResource[];
   id: string;

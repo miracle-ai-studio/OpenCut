@@ -78,6 +78,7 @@ fn apply_operation(
     match operation {
         Rename { name } => project.name = name.clone(),
         SettingsSet { settings } => project.settings = settings.clone(),
+        CoverSet { cover } => project.cover = cover.clone(),
         DefaultSequenceSet { sequence_id } => project.default_sequence_id = sequence_id.clone(),
         AssetPut { asset } => put(&mut project.assets, asset.clone()),
         AssetDelete { asset_id } => delete(&mut project.assets, asset_id)?,

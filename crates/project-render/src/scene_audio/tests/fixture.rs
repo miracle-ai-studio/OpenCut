@@ -94,6 +94,7 @@ pub(super) fn snapshot(
     EditorSnapshot {
         revision: "fixed-native-audio".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "audio fixture".into(),

@@ -46,6 +46,7 @@ pub fn new_document(input: &CreateProject) -> Result<EditorDocument, EditorError
         main_track_id = format!("track_{}", Uuid::new_v4().simple());
     }
     let project = EditorDocument {
+        cover: None,
         schema_version: 4,
         id: input.id.clone(),
         name: input.name.clone(),

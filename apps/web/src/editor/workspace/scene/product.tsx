@@ -3,6 +3,7 @@ import { SceneStackProvider } from "./scene-stack";
 import { GainKeyframeLine } from "./gain-keyframes";
 import { gainChannel } from "./gain-keyframes/model";
 import { ProjectSettingsEditor } from "./property-edit/settings";
+import { ProjectCoverEditor } from "./project-cover";
 import { MaskAuthoringProvider, MaskPanel } from "./mask/workspace";
 import { ExportProjectPackage, type PackageSource } from "./package";
 import { CaptionWorkspace } from "./captions/workspace";
@@ -35,7 +36,7 @@ import { GraphicAuthoringProvider, GraphicPanel } from "./graphic/workspace";
 import { TextAuthoringProvider, TextPanel } from "./text/workspace";
 import { canvasTextPlanner } from "./text/canvas-plan";
 import { editRecoveryBlocked } from "./edit-recovery";
-import { BookmarkPlus, BookmarkCheck, FolderOutput, Settings2 } from "lucide-react";
+import { BookmarkPlus, BookmarkCheck, FolderOutput, Settings2, Image } from "lucide-react";
 import { Workbench, TimelineHistoryActions } from "./workbench/layout";
 import { WorkbenchResources } from "./workbench/resources";
 import { ProjectSummary } from "./workbench/project-summary";
@@ -49,6 +50,7 @@ export function Product({ historyRequest = 0 }: { historyRequest?: number } = {}
   const [timelineReview, setTimelineReview] = useState(false);
   const [mediaReview, setMediaReview] = useState(false);
   const [settingsVisible,setSettingsVisible] = useState(false);
+  const [coverVisible, setCoverVisible] = useState(false);
   const [packageSource, setPackageSource] = useState<PackageSource | null>(null);
   const selectGain = useCallback((id: string) => { controller.scene.select(id); setEditing(null); }, [controller]);
   const renderAudioControls = useCallback((element: Element) => gainChannel(element) ? <GainKeyframeLine compact elementId={element.id} onSelect={selectGain} /> : <AudioGainLine elementId={element.id} onSelect={selectGain} />, [selectGain]);
@@ -59,6 +61,7 @@ export function Product({ historyRequest = 0 }: { historyRequest?: number } = {}
   }, [scene?.head.revision, scene?.historical?.revision, scene?.sequenceId]);
   useEffect(() => { setTimelineReview(false); }, [scene?.head.project.id, scene?.historical?.revision, scene?.sequenceId]);
   useEffect(() => { setMediaReview(false); }, [scene?.head.project.id, scene?.historical?.revision, scene?.sequenceId]);
+  useEffect(() => { setCoverVisible(false); }, [scene?.head.project.id, scene?.historical?.revision]);
   useEffect(() => {
     if (!scene?.sequenceId || editorProjectId(location.pathname) !== scene.head.project.id) return;
     const url = new URL(location.href);
@@ -141,6 +144,7 @@ export function Product({ historyRequest = 0 }: { historyRequest?: number } = {}
     <main className="workspace-layout editor-product" aria-label={t("OpenCut editor")}>
       <EditRecoveryPanel />
       {settingsVisible && <Modal title={t("Canvas and background")} onClose={()=>setSettingsVisible(false)}><ProjectSettingsEditor /></Modal>}
+      {coverVisible && <ProjectCoverEditor onClose={() => setCoverVisible(false)} />}
       {packageSource && <ExportProjectPackage source={packageSource} onClose={() => setPackageSource(null)} />}
       {scene.externalRevision && <p role="status" className="history-banner">
         {t("The project changed in another client. Finish or resolve the current edit to load the new revision.")}
@@ -165,6 +169,7 @@ export function Product({ historyRequest = 0 }: { historyRequest?: number } = {}
       <div className="editor-scene-bar workbench-player-heading toolbar">
         <strong>{t("Timeline")}</strong>
         <Button aria-label={t("Canvas and background")} title={t("Canvas and background")} icon={<Settings2 size={15} />} disabled={busy || !!scene.historical} onClick={()=>setSettingsVisible(true)}>{t("Canvas and background")}</Button>
+        <Button title={t("Project cover")} icon={<Image size={15} />} disabled={readonly || ["loading", "playing", "stalled", "unconfirmed"].includes(scene.audioPreview.phase)} onClick={() => setCoverVisible(true)}>{t("Project cover")}</Button>
         <Button aria-label={t("Export project package")} title={t("Export project package")} icon={<FolderOutput size={15} />} disabled={!api || busy} onClick={() => setPackageSource({project_id:project.id, revision:snapshot.revision, name:project.name})}>{t("Export project package")}</Button>
         <Select
           aria-label={t("Scene")}
@@ -403,7 +408,7 @@ export function Product({ historyRequest = 0 }: { historyRequest?: number } = {}
 
 function PlaybackTimeline(props:TimelinePanelProps) {
   const {controller}=useEditingWorkspace();
-  const presentation=useMemo(()=>({time:()=>controller.scene.currentPlayhead(),subscribe:controller.scene.audioPreview.subscribePresentation}),[controller]);
+  const presentation=useMemo(()=>({time:()=>controller.scene.currentPlayhead(),playing:()=>controller.getSnapshot().scene?.audioPreview.phase==="playing",subscribe:controller.scene.audioPreview.subscribePresentation}),[controller]);
   return <TimelinePanel {...props} presentation={presentation}/>;
 }
 function PlaybackCanvas(props:{width:number;height:number;controlsTarget?:HTMLElement|null}) {

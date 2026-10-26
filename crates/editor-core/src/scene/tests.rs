@@ -98,6 +98,7 @@ fn video() -> TimelineElement {
 }
 fn project() -> EditorDocument {
     EditorDocument {
+        cover: None,
         schema_version: 4,
         id: "project".into(),
         name: "Project".into(),

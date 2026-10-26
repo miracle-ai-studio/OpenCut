@@ -39,7 +39,7 @@ export function Tooltips({ children }: { children: ReactNode }) {
         target.setAttribute("aria-describedby", [description, id].filter(Boolean).join(" "));
         setTip({ text, x: Math.max(156, Math.min(window.innerWidth - 156, rect.left + rect.width / 2)), y: below ? rect.bottom + 8 : rect.top - 8, below, container:target.closest("dialog[open]")??document.body });
       };
-      if (event.type === "focusin") reveal();else timer = setTimeout(reveal, 2000);
+      if (event.type === "focusin") reveal();else timer = setTimeout(reveal, 1000);
     };
     const leave = (event: Event) => {
       const related = (event as FocusEvent).relatedTarget;

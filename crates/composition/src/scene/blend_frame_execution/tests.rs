@@ -103,6 +103,7 @@ fn source() -> EditorSnapshot {
     EditorSnapshot {
         revision: "fixed-blends".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "Blends".into(),

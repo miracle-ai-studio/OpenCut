@@ -65,6 +65,9 @@ pub enum ProjectOperation {
     SettingsSet {
         settings: SettingsProfile,
     },
+    CoverSet {
+        cover: Option<ProjectCover>,
+    },
     DefaultSequenceSet {
         sequence_id: String,
     },

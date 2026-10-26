@@ -73,6 +73,9 @@ fn operation(
         P::SettingsSet { settings } => I::SettingsSet {
             settings: settings.clone(),
         },
+        P::CoverSet { cover } => I::CoverSet {
+            cover: cover.clone(),
+        },
         P::DefaultSequenceSet { sequence_id } => I::DefaultSequenceSet {
             sequence_id: sequence_id.clone(),
         },

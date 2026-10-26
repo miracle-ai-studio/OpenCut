@@ -7,12 +7,12 @@ Built with [GPUI](https://www.gpui.rs).
 
 ## Running
 
-Rust is pinned in `.prototools` at the repo root (`proto use` installs it).
+Rust is pinned in `rust-toolchain.toml` at the repo root and selected by rustup.
 
 ```sh
-moon run desktop:dev     # cargo run
-moon run desktop:check   # cargo check
-moon run desktop:build   # cargo build --release
+cargo run -p opencut-desktop
+cargo check -p opencut-desktop --locked
+cargo build -p opencut-desktop --release --locked
 ```
 
 The first build compiles GPUI from source and takes a while. The root `Cargo.lock` is committed.

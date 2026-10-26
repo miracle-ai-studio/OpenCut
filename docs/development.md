@@ -4,10 +4,13 @@
 
 ## 边界与行为
 
+仓库不包含 GitHub Actions 流水线。按实际改动范围在本地运行以下检查。
+
 ```sh
 python3 -m unittest discover -s scripts/tests -p 'test_architecture.py'
 python3 scripts/check-architecture.py
 python3 scripts/check-contract-boundaries.py
+python3 scripts/check-source-hygiene.py
 npm run boundaries:check --prefix packages/sdk-ts
 npm run boundaries:check --prefix apps/web
 cargo test --workspace --exclude opencut-desktop --locked

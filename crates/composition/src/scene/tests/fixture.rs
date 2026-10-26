@@ -116,6 +116,7 @@ pub(super) fn snapshot() -> EditorSnapshot {
     EditorSnapshot {
         revision: "fixed-r7".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "project".into(),

@@ -27,9 +27,20 @@ pub struct EditorDocument {
     pub name: String,
     pub default_sequence_id: String,
     pub settings: SettingsProfile,
+    /// Absent means automatic artwork. References use this revision's pinned
+    /// project assets; source time is independent of timeline trimming/retiming.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover: Option<ProjectCover>,
     pub assets: Vec<ProjectAsset>,
     pub fonts: Vec<FontResource>,
     pub sequences: Vec<Scene>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProjectCover {
+    Image { asset_id: String },
+    VideoFrame { asset_id: String, time: crate::Time },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

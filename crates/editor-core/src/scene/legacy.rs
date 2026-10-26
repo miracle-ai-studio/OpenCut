@@ -253,6 +253,7 @@ pub fn convert_legacy_project(
         });
     }
     let project = EditorDocument {
+        cover: None,
         schema_version: 4,
         id: base.id.clone(),
         name: base.name.clone(),

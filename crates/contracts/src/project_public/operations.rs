@@ -39,6 +39,11 @@ pub enum ProjectEditOperation {
     SettingsSet {
         settings: SettingsProfile,
     },
+    /// Set source artwork, or null to restore automatic artwork. Assets must
+    /// belong to the proposed project; asset_bind may precede this atomically.
+    CoverSet {
+        cover: Option<ProjectCover>,
+    },
     DefaultSequenceSet {
         sequence_id: String,
     },

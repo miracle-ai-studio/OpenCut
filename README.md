@@ -6,7 +6,7 @@ OpenCut 是本地视频剪辑与媒体执行系统。Web 编辑器和外部 Agen
 
 ## 构建与启动
 
-需要 Rust、Node.js 22.12+、npm、FFmpeg/ffprobe。浏览器媒体执行另需 Chromium，见[运行配置](docs/operations.md)。
+需要 rustup（按 `rust-toolchain.toml` 选择 Rust）、Node.js 22.12+、npm、Python 3.11+、FFmpeg/ffprobe。浏览器媒体执行另需 Chromium，见[运行配置](docs/operations.md)。
 
 ```sh
 npm ci --prefix packages/sdk-ts

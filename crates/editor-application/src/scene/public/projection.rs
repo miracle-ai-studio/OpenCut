@@ -90,6 +90,7 @@ pub fn project(snapshot: &EditorSnapshot) -> PublicProjectSnapshot {
             name: value.name.clone(),
             default_sequence_id: value.default_sequence_id.clone(),
             settings: value.settings.clone(),
+            cover: value.cover.clone(),
             sequences: value.sequences.clone(),
             assets: value
                 .assets

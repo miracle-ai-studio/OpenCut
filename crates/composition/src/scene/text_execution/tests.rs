@@ -442,6 +442,7 @@ fn source_snapshot() -> EditorSnapshot {
     EditorSnapshot {
         revision: "source-revision".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "source".into(),

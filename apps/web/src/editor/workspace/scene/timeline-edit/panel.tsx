@@ -56,7 +56,7 @@ export type TimelinePanelProps = {
   selection: TimelineTarget[];
   selectedId: string | null;
   playhead: Time;
-  presentation?:{time():Time;subscribe(listener:()=>void):()=>void};
+  presentation?:{time():Time;playing?():boolean;subscribe(listener:()=>void):()=>void};
   attempt?: TimelineAttempt | null;
   disabled: boolean;
   gainDraftActive: boolean;
@@ -101,6 +101,11 @@ export function TimelinePanel(props: TimelinePanelProps) {
     viewport = useRef<HTMLDivElement>(null),
     tracks = useRef<HTMLDivElement>(null);
   const playheadLine=useRef<HTMLDivElement>(null),ruler=useRef<HTMLDivElement>(null);
+  const scrollNavigation=useRef(false),followAfter=useRef(0);
+  const manualNavigation=(active:boolean)=>{
+    scrollNavigation.current=active;
+    followAfter.current=performance.now()+1500;
+  };
   const gesture = useRef<TimelineGesture | null>(null),
     rubber = useRef<Rubber | null>(null);
   const clickConsumed = useRef(false),
@@ -152,6 +157,14 @@ export function TimelinePanel(props: TimelinePanelProps) {
       const at=props.presentation?.time()??props.playhead,seconds=secondsForDisplay(at);
       if(playheadLine.current)playheadLine.current.style.transform=`translateX(${seconds*scale}px)`;
       const now=performance.now();
+      const view=viewport.current;
+      if(view&&props.presentation?.playing?.()&&!gesture.current&&!rubber.current&&
+        !scrollNavigation.current&&now>=followAfter.current){
+        const visible=Math.max(0,view.clientWidth-TRACK_LABEL_WIDTH),x=seconds*scale;
+        if(visible>0&&(x<view.scrollLeft||x>view.scrollLeft+visible*.8)){
+          view.scrollLeft=Math.max(0,Math.min(view.scrollWidth-view.clientWidth,x-visible*.35));
+        }
+      }
       if(now-lastAccessibleAt>=100){lastAccessibleAt=now;ruler.current?.setAttribute("aria-valuenow",String(seconds));}
     };
     draw();return props.presentation?.subscribe(draw);
@@ -917,6 +930,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
         className="editor-timeline-viewport"
         id={viewportId}
         ref={viewport}
+        onWheel={()=>manualNavigation(false)}
         onPointerDown={start}
         onPointerMove={update}
         onPointerUp={finish}
@@ -1102,7 +1116,7 @@ export function TimelinePanel(props: TimelinePanelProps) {
         {resourceTarget&&!resourceTarget.trackId&&<small>{formatTime(resourceTarget.at)}</small>}
       </div>}
       </div>
-      <TimelineScrollNavigator viewport={viewport} controls={viewportId}/>
+      <TimelineScrollNavigator viewport={viewport} controls={viewportId} onNavigation={manualNavigation}/>
       <details className="editor-timeline-item-list">
         <summary>{t("Select timeline items")}</summary>
         {props.sequence.tracks.flatMap((track) =>

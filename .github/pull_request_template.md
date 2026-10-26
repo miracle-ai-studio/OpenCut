@@ -1,11 +1,13 @@
-⚠️ READ BEFORE SUBMITTING ⚠️
+## Problem and resulting behavior
 
-We are not currently accepting PRs except for critical bugs.
+Describe the concrete trigger and what changes for the user.
 
-If this is a bug fix:
-- [ ] I've opened an issue first
-- [ ] This was approved by a maintainer
+## Validation
 
-If this is a feature:
+List the checks run and their scope. Distinguish builds, unit tests, browser checks
+and manual acceptance. Explain material failures or checks not run.
 
-This PR will be closed. Please open an issue to discuss first.
+- [ ] Shared application semantics and reviewed module boundaries are preserved.
+- [ ] Contract changes include reviewable generated files from the integrated binary.
+- [ ] No user media, databases, credentials, private logs or machine paths are included.
+- [ ] Documentation and delivery status reflect the actual verification scope.

@@ -121,6 +121,7 @@ pub(super) fn snapshot() -> EditorSnapshot {
     EditorSnapshot {
         revision: "fixed-audio-r1".into(),
         project: EditorDocument {
+            cover: None,
             schema_version: 4,
             id: "project".into(),
             name: "audio".into(),
