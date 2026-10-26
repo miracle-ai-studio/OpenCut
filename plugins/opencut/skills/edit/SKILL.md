@@ -3,7 +3,7 @@ name: edit
 description: Read bounded project and source evidence, plan and atomically apply edits, observe preview/export tasks, recover uncertain writes and exchange local OpenCut projects through its MCP server.
 ---
 
-# OpenCut local editing
+# OpenCut Plugin local editing
 
 Use the connected OpenCut MCP tools. OpenCut owns editing semantics and durable
 state; the external agent interprets the user's request. Preserve exact rational

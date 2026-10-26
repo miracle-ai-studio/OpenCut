@@ -10,7 +10,9 @@ import tempfile
 
 
 HERE = Path(__file__).resolve().parent
-PLUGIN_VERSION = '0.4.0'
+PLUGIN_SOURCE = HERE.parents[1] / 'plugins' / 'opencut'
+PLUGIN_METADATA = json.loads((PLUGIN_SOURCE / 'plugin.json').read_text())
+PLUGIN_VERSION = PLUGIN_METADATA['version']
 
 
 def generate(binary, database, output, credential=None, *, service_directory=None, with_worker=False):
@@ -20,7 +22,7 @@ def generate(binary, database, output, credential=None, *, service_directory=Non
     spec = importlib.util.spec_from_file_location('opencut_agent_config', HERE / 'agent-config.py')
     config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(config)
-    skill = (HERE / 'agent-plugin' / 'SKILL.md').read_text()
+    skill = (PLUGIN_SOURCE / 'skills' / 'edit' / 'SKILL.md').read_text()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.opencut-plugin-', dir=output.parent) as temporary:
         stage = Path(temporary) / 'bundle'
@@ -37,20 +39,19 @@ def generate(binary, database, output, credential=None, *, service_directory=Non
 
         identity = {'name': 'opencut', 'version': PLUGIN_VERSION,
                     'description': 'Read, edit, preview, undo and export local OpenCut projects.',
-                    'author': {'name': 'OpenCut'}}
+                    'author': PLUGIN_METADATA['author']}
         for client in ('codex', 'claude'):
             plugin = f'{client}/plugins/opencut'
             manifest = dict(identity)
             if client == 'codex':
                 # Supported compatibility layout also works with the locally installed CLI.
                 manifest.update(skills='./skills/', mcpServers='./.mcp.json', interface={
-                    'displayName': 'OpenCut Local', 'shortDescription': identity['description'],
-                    'developerName': 'OpenCut', 'category': 'Productivity', 'capabilities': ['Read', 'Write']})
+                    **PLUGIN_METADATA['extensions']['com.openai']['interface']})
             write(f'{plugin}/.{client}-plugin/plugin.json', manifest)
             write(f'{plugin}/.mcp.json', {'mcpServers': {'opencut': server}})
             write(f'{plugin}/skills/edit/SKILL.md', skill)
         write('codex/.agents/plugins/marketplace.json', {
-            'name': 'opencut-local', 'interface': {'displayName': 'OpenCut Local'},
+            'name': 'opencut-local', 'interface': {'displayName': 'OpenCut Plugin'},
             'plugins': [{'name': 'opencut', 'source': {'source': 'local', 'path': './plugins/opencut'},
                          'policy': {'installation': 'AVAILABLE', 'authentication': 'ON_INSTALL'},
                          'category': 'Productivity'}]})
@@ -58,7 +59,7 @@ def generate(binary, database, output, credential=None, *, service_directory=Non
             'name': 'opencut-local', 'owner': {'name': 'OpenCut'},
             'metadata': {'description': 'Local OpenCut editing tools and workflow.'},
             'plugins': [{**identity, 'source': './plugins/opencut'}]})
-        write('README.md', f'''# OpenCut 本机 Agent 插件
+        write('README.md', f'''# OpenCut Plugin 本机 Agent 插件
 
 分别提供 Codex 和 Claude Code 适配包，共用 OpenCut stdio MCP 和剪辑工作流。
 这是当前机器的领域化剪辑工作流配置包，包含绝对路径；移动可执行文件或换机器后请重新生成。
@@ -89,7 +90,7 @@ codex plugin marketplace add {shlex.quote(str(output / 'codex'))}
 codex plugin add opencut@opencut-local
 ```
 
-在新会话中选择 OpenCut Local 插件并请求剪辑。桌面端可在插件目录选择本地来源后安装。
+在新会话中选择 OpenCut Plugin 插件并请求剪辑。桌面端可在插件目录选择本地来源后安装。
 如果当前客户端不支持插件目录，`configs/codex.toml` 是可审核的 MCP 配置片段，
 `configs/claude.mcp.json` 是独立 MCP 配置；仅配置 MCP 不会自动安装工作流 skill。
 

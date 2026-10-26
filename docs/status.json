@@ -11,7 +11,8 @@
     "Local CLI, HTTP, MCP and SDK adapters share Rust application semantics.",
     "Web editing, fixed-revision preview/export, project history, resource authorization and project packages.",
     "Project covers support authorized source-video frames, uploaded images and automatic selection through cover_set.",
-    "Responsive project cards, one-second tooltips and output-clock timeline following."
+    "Responsive project cards, one-second tooltips and output-clock timeline following.",
+    "Portable local-plugin metadata, versioned checksummed installer/launcher, doctor and Web service helper; automatic output reservation retains database headroom without a fixed small file quota."
   ],
   "validation": {
     "source_base_commit": "4600c68ccdf12bbb1bc95012477348833baf9f27",
@@ -73,7 +74,27 @@
       "git_history": "not_modified",
       "github_actions_workflows": 0
     },
-    "full_product_acceptance": "not_run"
+    "full_product_acceptance": "not_run",
+    "local_plugin_prerelease": {
+      "version": "0.5.0-beta.1",
+      "source_base_commit": "76d84add2ab5ca4f367c26e6f2f6209f9741b1eb",
+      "source_state": "integrated local-plugin and automatic-storage-budget candidate",
+      "binary_sha256": "1b4c91e6ee6ec35b3ad1ab70a5921f2d724ce468c1a4a414818a1748ad1ae83f",
+      "cli_release_build": "passed",
+      "generated_contracts": "current for this exact binary",
+      "canonical_contract": {
+        "operations": 184,
+        "domains": 12
+      },
+      "python_unit_tests": 50,
+      "architecture": "passed; 22 modules, zero temporary exception edges, 14 tests",
+      "contract_boundaries": "passed",
+      "storage_budget_scope": "Automatic output keeps independent control headroom and accounts for actual output growth; custom quotas remain effective. Database-growth regression and a real 64 MiB volume check passed.",
+      "archive_acceptance": "Per-archive installation, MCP, export and pixel results are recorded in the GitHub prerelease verification receipt; build results do not imply archive acceptance.",
+      "qualified_package_target": "x86_64-apple-darwin",
+      "client_conversation_acceptance": "not_run",
+      "clean_machine_acceptance": "not_run"
+    }
   },
   "known_limits": [
     "Uncached live playback has observed stalls, including a recorded 568.7 ms gap. Lossy AVC preview passed the 30 dB PSNR probe but failed strict SSIM 0.98 (observed 0.947518); broad independent pixel qualification remains open.",
@@ -82,7 +103,8 @@
     "An initial post-master PCM residual is unresolved; preview/export sampling-profile equivalence is not fully qualified.",
     "Per-font/platform/budget/FPS and optional sound-provider failure/cancellation qualification are incomplete.",
     "Package dependency/branch-merge/fault, signing/installation/upgrade and cross-platform delivery qualification are incomplete.",
-    "Some composed compatibility/acceptance verifiers retain obsolete interface assumptions and are not current acceptance proof."
+    "Some composed compatibility/acceptance verifiers retain obsolete interface assumptions and are not current acceptance proof.",
+    "Local plugin prerelease: macOS Intel package only, external Node/FFmpeg/Chromium required; unsigned and not verified in a clean machine or an actual ChatGPT client conversation. A synthetic untagged H264 export color probe observed RGB 254/23/0 and failed the unchanged green < 15 gate; package workflow success is separate from pixel qualification."
   ],
   "manual_acceptance": [
     "Finder and cross-app file transport",

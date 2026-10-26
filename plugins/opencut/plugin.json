@@ -1,0 +1,48 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "opencut",
+  "version": "0.5.0-beta.1",
+  "description": "Local video editing through shared OpenCut CLI, MCP and Web application services.",
+  "author": {
+    "name": "miracle-ai-studio"
+  },
+  "homepage": "https://github.com/miracle-ai-studio/OpenCut-Plugin",
+  "repository": "https://github.com/miracle-ai-studio/OpenCut-Plugin",
+  "license": "MIT",
+  "keywords": [
+    "opencut",
+    "video-editing",
+    "video-editor",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "chatgpt",
+    "chatgpt-plugin",
+    "codex",
+    "codex-plugin",
+    "cli",
+    "rust",
+    "local-first",
+    "open-source",
+    "plugin"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OpenCut Plugin",
+        "shortDescription": "Local video editing with MCP",
+        "longDescription": "Inspect projects and media, plan reversible timeline edits, preview and export locally. Requires the OpenCut Plugin runtime and its declared external dependencies. This community fork is independent of the upstream OpenCut project.",
+        "developerName": "miracle-ai-studio",
+        "category": "Creativity",
+        "capabilities": [
+          "Inspect projects",
+          "Edit timelines",
+          "Preview and export"
+        ],
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg",
+        "defaultPrompt": "Inspect my OpenCut projects and available capabilities before making changes."
+      }
+    }
+  }
+}

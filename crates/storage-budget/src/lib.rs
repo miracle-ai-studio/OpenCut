@@ -1721,19 +1721,32 @@ mod unix {
             let staging = ledger_staging_bytes(serialized.len(), volume.f_frsize as u64)?
                 .checked_add(LEDGER_STAGING_SLACK)
                 .ok_or_else(metadata_capacity)?;
+            // A media ceiling must leave unreserved control space for the
+            // worker's heartbeat, progress and publication writes. Scale this
+            // reserve on small volumes instead of imposing a fixed file quota.
+            let control_headroom = ledger
+                .control_limit_bytes
+                .as_deref()
+                .map(budget::decimal)
+                .transpose()?
+                .unwrap_or(DEFAULT_CONTROL_LIMIT)
+                .min(available / 8);
+            // Volume observations include actual file growth while the full
+            // output ceiling remains reserved. Both must fit concurrently.
+            let physical_ceiling = available
+                .saturating_sub(held)
+                .saturating_sub(control_held)
+                .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?)
+                .saturating_sub(staging)
+                .saturating_sub(control_headroom)
+                / 2;
             let ceiling = budget::decimal(&ledger.media_output_limit_bytes)?
                 .min(
                     budget::decimal(&ledger.policy.payload_limit_bytes)?
                         .saturating_sub(used)
                         .saturating_sub(held),
                 )
-                .min(
-                    available
-                        .saturating_sub(held)
-                        .saturating_sub(control_held)
-                        .saturating_sub(budget::decimal(&ledger.policy.minimum_available_bytes)?)
-                        .saturating_sub(staging),
-                );
+                .min(physical_ceiling);
             if ceiling == 0 {
                 return Err(metadata_capacity());
             }

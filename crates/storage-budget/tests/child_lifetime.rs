@@ -1,5 +1,8 @@
 #![cfg(unix)]
-use opencut_editor_application::budget::BudgetNative;
+use opencut_editor_application::{
+    audit::{CallSource, ExecutionContext},
+    budget::{BudgetNative, Configure},
+};
 use opencut_storage_budget::{AttemptLease, Budget};
 use std::{
     fs,
@@ -127,6 +130,21 @@ fn orphan_ffmpeg_retains_admission_and_kernel_ceiling_after_supervisor_sigkill()
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("artifacts")).unwrap();
     let budget = Budget::new(root.path());
+    // This scenario tests a held reservation against a declared quota, not
+    // the machine's changing free space or the production default ceiling.
+    budget
+        .configure(
+            Configure {
+                expected_revision: 0,
+                idempotency_key: "orphan-fixture-quota".into(),
+                payload_limit_bytes: (64_u64 << 30).to_string(),
+                minimum_available_bytes: "0".into(),
+                media_output_limit_bytes: None,
+                control_limit_bytes: None,
+            },
+            &ExecutionContext::local(CallSource::Cli),
+        )
+        .unwrap();
     let mut supervisor = Supervisor(
         Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "child_supervisor", "--ignored", "--nocapture"])

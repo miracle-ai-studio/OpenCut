@@ -566,6 +566,36 @@ fn automatic_output_ceiling_keeps_room_for_its_own_durable_ledger() {
 }
 
 #[test]
+fn automatic_media_ceiling_preserves_database_growth_without_a_small_file_cap() {
+    use opencut_editor_application::budget::Writer;
+    let root = tempfile::tempdir().unwrap();
+    let budget = Budget::new(root.path());
+    let mut control = budget
+        .reserve_database_control("workspace.sqlite", 256 * 1024)
+        .unwrap();
+    let available = budget.volume_available_bytes().unwrap();
+    let output = budget
+        .reserve_output(Writer {
+            job_id: "job_00000000000000000000000000000001".into(),
+            attempt: 1,
+        })
+        .unwrap();
+    // The old near-volume-sized reservation rejected this heartbeat growth
+    // even with a physically empty output and ample real free space.
+    control.ensure(4 * 1024 * 1024).unwrap();
+    assert!(output.reserved_bytes() < available / 2);
+    if available > 8 * 1024 * 1024 * 1024 {
+        assert!(output.reserved_bytes() > 512 * 1024 * 1024);
+    }
+    assert_eq!(
+        budget.inspect(false).unwrap().media_output_limit_bytes,
+        Some(i64::MAX.to_string())
+    );
+    drop((output, control));
+    assert_eq!(budget.inspect(false).unwrap().reserved_bytes, "0");
+}
+
+#[test]
 fn media_ceiling_shares_headroom_and_policy_changes_do_not_revoke_live_writers() {
     use opencut_editor_application::budget::Writer;
     let root = tempfile::tempdir().unwrap();

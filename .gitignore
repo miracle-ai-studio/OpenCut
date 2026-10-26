@@ -7,6 +7,10 @@ target/
 .env.*
 !.env.example
 .opencut/
+.opencut-plugin/
+*.zip
+*.tar.gz
+*.tgz
 __pycache__/
 
 # Local tooling and retired task-runner caches

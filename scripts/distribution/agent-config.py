@@ -79,6 +79,6 @@ if __name__ == '__main__':
     parser.add_argument('--with-worker', action='store_true', help='Explicit portable session; its Worker ends when this MCP session closes')
     args = parser.parse_args()
     try:
-        print(json.dumps(generate(args.binary, args.database, args.output, args.name, args.credential_file), ensure_ascii=False, indent=2))
+        print(json.dumps(generate(args.binary, args.database, args.output, args.name, args.credential_file, service_directory=args.service_directory, with_worker=args.with_worker), ensure_ascii=False, indent=2))
     except (OSError, ValueError) as error:
         parser.exit(1, f'{error}\n')

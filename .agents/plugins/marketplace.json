@@ -1,0 +1,20 @@
+{
+  "name": "opencut-plugin",
+  "interface": {
+    "displayName": "OpenCut Plugin"
+  },
+  "plugins": [
+    {
+      "name": "opencut",
+      "source": {
+        "source": "local",
+        "path": "./plugins/opencut"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    }
+  ]
+}
